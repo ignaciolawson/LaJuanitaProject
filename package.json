@@ -1,0 +1,14 @@
+{
+  "name": "la-juanita",
+  "private": true,
+  "workspaces": [
+    "apps/landing",
+    "apps/platform"
+  ],
+  "scripts": {
+    "dev:landing": "npm run dev -w apps/landing",
+    "dev:platform": "npm run dev -w apps/platform",
+    "build:landing": "npm run build -w apps/landing",
+    "build:platform": "npm run build -w apps/platform"
+  }
+}

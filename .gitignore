@@ -1,0 +1,19 @@
+# node (root, in case npm workspaces hoist to root node_modules)
+node_modules/
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# docker volumes (bind-mounted local data, if any)
+pgdata/
