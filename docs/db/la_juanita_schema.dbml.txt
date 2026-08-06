@@ -1,5 +1,5 @@
 // ============================================================
-// LA JUANITA STUDIO / MUSIC — Modelo de datos (v2)
+// LA JUANITA STUDIO / MUSIC — Modelo de datos (v2)- 
 // Corregido a partir del diagrama original (DiagramaDBRelacional.pdf)
 // para soportar el modelo "usuario como identidad raíz" acordado.
 //
