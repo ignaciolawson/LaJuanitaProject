@@ -1,0 +1,271 @@
+// ============================================================
+// LA JUANITA STUDIO / MUSIC — Modelo de datos (v2)
+// Corregido a partir del diagrama original (DiagramaDBRelacional.pdf)
+// para soportar el modelo "usuario como identidad raíz" acordado.
+//
+// Pegar este archivo completo en https://dbdiagram.io (New Diagram >
+// borrar el ejemplo > pegar) para regenerar el diagrama visual.
+//
+// CAMBIOS RESPECTO AL ORIGINAL:
+// 1) reserva, pago, venta_equipo y solicitud_reprogramacion pasan de
+//    id_alumno a id_usuario: cualquier usuario (alumno, profesor o
+//    cliente ocasional) puede reservar, pagar, comprar o reprogramar,
+//    no solo quien está inscripto como alumno.
+// 2) pago suma 3 FKs opcionales (id_reserva, id_trabajo_mastering,
+//    id_venta_equipo) para saber exactamente qué está saldando cada
+//    pago — necesario para que el Módulo 6 pueda liberar el premaster
+//    automáticamente al registrarse el pago correspondiente.
+// 3) venta_equipo suma nombre_comprador_externo, igual que ya hacía
+//    trabajo_mastering, para soportar compradores sin cuenta.
+// 4) material suma es_grupal (boolean) para el material que el
+//    profesor sube para todos sus alumnos, no uno solo.
+// 5) release pierde contrato_path (duplicaba a contrato_sello, que
+//    queda como única fuente de verdad para contratos).
+// 6) trabajo_mastering suma id_profesor_asignado (nullable) pensando
+//    en el día que haya más de un ingeniero haciendo mastering.
+// Todo lo demás (sala, historial_clase, nota_profesor,
+// seguimiento_alumno, notificacion, artista, bloqueo_sala) se
+// mantiene igual al diagrama original.
+// ============================================================
+
+Table usuario {
+  id_usuario int [pk, increment]
+  nombre_completo varchar
+  email varchar [unique, not null]
+  telefono varchar
+  password_hash varchar [not null]
+  rol varchar [note: 'admin / directivo / profesor / alumno / cliente']
+  foto_perfil varchar
+  estado_presencia varchar [note: 'Activo / Ausente / Ocupado / En clase']
+  bio text
+  especializacion varchar
+  activo boolean [default: true]
+  fecha_creacion timestamp
+  ultimo_acceso timestamp
+
+  Note: 'Identidad única de login. Cualquier persona (alumno, profesor, cliente ocasional) es primero un usuario.'
+}
+
+Table alumno {
+  id_alumno int [pk, increment]
+  id_usuario int [ref: - usuario.id_usuario, unique, not null]
+  disciplina varchar
+  nivel_ingreso varchar
+  nivel_actual varchar
+  estado_alumno varchar [note: 'Activo / Inactivo / Suspendido']
+  fecha_ingreso date
+  ultimo_contacto date
+  instagram varchar
+
+  Note: 'Relación formativa de un usuario con el estudio. No todo usuario tiene fila acá.'
+}
+
+Table profesor {
+  id_profesor int [pk, increment]
+  id_usuario int [ref: - usuario.id_usuario, unique, not null]
+  especialidad varchar
+}
+
+Table sala {
+  id_sala int [pk, increment]
+  nombre_sala varchar
+  tipo_sala varchar
+  activa boolean [default: true]
+  descripcion text
+}
+
+Table reserva {
+  id_reserva int [pk, increment]
+  id_sala int [ref: > sala.id_sala, not null]
+  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Persona para quien es la reserva (alumno, profesor u ocasional).']
+  id_profesor int [ref: > profesor.id_profesor, note: 'Profesor a cargo, si la reserva es una clase']
+  tipo_uso varchar [note: 'Clase DJ / Producción / Mix & Mastering / Alquiler']
+  fecha date
+  hora_inicio time
+  hora_fin time
+  estado varchar
+  notas text
+  id_usuario_modifico int [ref: > usuario.id_usuario]
+  fecha_modificacion timestamp
+}
+
+Table pago {
+  id_pago int [pk, increment]
+  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Quien paga.']
+  id_usuario_registra int [ref: > usuario.id_usuario]
+  id_reserva int [ref: > reserva.id_reserva, note: 'NUEVO: opcional, a qué reserva corresponde']
+  id_trabajo_mastering int [ref: > trabajo_mastering.id_trabajo, note: 'NUEVO: opcional, a qué trabajo de M&M corresponde']
+  id_venta_equipo int [ref: > venta_equipo.id_venta, note: 'NUEVO: opcional, a qué venta corresponde']
+  tipo_servicio varchar
+  monto decimal
+  moneda varchar
+  cotizacion_dolar decimal
+  medio_pago varchar
+  descuento decimal
+  motivo_descuento text
+  estado_pago varchar
+  comprobante_path varchar
+  fecha_pago date
+  fecha_registro timestamp
+}
+
+Table egreso {
+  id_egreso int [pk, increment]
+  id_usuario_registra int [ref: > usuario.id_usuario]
+  monto decimal
+  moneda varchar
+  concepto varchar
+  destinatario varchar
+  fecha_egreso date
+  fecha_registro timestamp
+}
+
+Table venta_equipo {
+  id_venta int [pk, increment]
+  id_usuario_comprador int [ref: > usuario.id_usuario, note: 'CAMBIO: antes id_alumno_comprador. Nullable si es comprador externo.']
+  nombre_comprador_externo varchar [note: 'NUEVO: fallback si el comprador no tiene cuenta']
+  id_usuario_vendedor int [ref: > usuario.id_usuario, not null]
+  modelo_equipo varchar
+  marca varchar
+  precio decimal
+  moneda varchar
+  cotizacion_dolar decimal
+  fecha_venta date
+  notas text
+}
+
+Table historial_clase {
+  id_historial int [pk, increment]
+  id_reserva int [ref: > reserva.id_reserva, not null]
+  id_alumno int [ref: > alumno.id_alumno, not null]
+  id_profesor int [ref: > profesor.id_profesor, not null]
+  fecha date
+  estado_asistencia varchar
+  fecha_registro timestamp
+}
+
+Table nota_profesor {
+  id_nota int [pk, increment]
+  id_profesor int [ref: > profesor.id_profesor, not null]
+  id_alumno int [ref: > alumno.id_alumno, not null]
+  id_historial int [ref: > historial_clase.id_historial]
+  contenido text
+  fecha_creacion timestamp
+  fecha_modificacion timestamp
+}
+
+Table seguimiento_alumno {
+  id_seguimiento int [pk, increment]
+  id_profesor int [ref: > profesor.id_profesor, not null]
+  id_alumno int [ref: > alumno.id_alumno, not null]
+  estado varchar
+  observaciones text
+  fecha_actualizacion timestamp
+}
+
+Table material {
+  id_material int [pk, increment]
+  id_profesor int [ref: > profesor.id_profesor, not null]
+  id_alumno int [ref: > alumno.id_alumno, note: 'Nullable si es_grupal = true']
+  es_grupal boolean [default: false, note: 'NUEVO: si es true, visible para todos los alumnos del profesor']
+  titulo varchar
+  tipo varchar
+  archivo_path varchar
+  url_externa varchar
+  tipo_archivo varchar
+  visible_alumno boolean [default: true]
+  fecha_subida timestamp
+}
+
+Table solicitud_reprogramacion {
+  id_solicitud int [pk, increment]
+  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Quien solicita.']
+  id_reserva int [ref: > reserva.id_reserva, not null]
+  motivo text
+  fecha_alternativa_solicitada date
+  estado varchar
+  id_usuario_resuelve int [ref: > usuario.id_usuario]
+  fecha_solicitud timestamp
+  fecha_resolucion timestamp
+}
+
+Table notificacion {
+  id_notificacion int [pk, increment]
+  id_usuario_destino int [ref: > usuario.id_usuario, not null]
+  tipo varchar
+  contenido text
+  leida boolean [default: false]
+  fecha_creacion timestamp
+}
+
+Table trabajo_mastering {
+  id_trabajo int [pk, increment]
+  id_cliente_usuario int [ref: > usuario.id_usuario, note: 'Nullable si el cliente no tiene cuenta']
+  nombre_cliente_externo varchar
+  contacto_cliente_externo varchar
+  id_profesor_asignado int [ref: > profesor.id_profesor, note: 'NUEVO: quién hace el trabajo (pensado para cuando escalen a más de un ingeniero)']
+  tipo_trabajo varchar
+  nombre_track varchar
+  precio_acordado decimal
+  moneda varchar
+  revisiones_incluidas int
+  revisiones_realizadas int
+  fecha_estimada date
+  fecha_entrega_real date
+  estado varchar
+  premix_entregado boolean [default: false]
+  premaster_entregado boolean [default: false]
+  notas_internas text
+  fecha_creacion timestamp
+}
+
+Table artista {
+  id_artista int [pk, increment]
+  id_usuario int [ref: > usuario.id_usuario, note: 'Nullable — los artistas hoy no tienen login, se deja preparado a futuro']
+  nombre_artistico varchar
+  nombre_real varchar
+  email_contacto varchar
+  telefono varchar
+  instagram varchar
+  confirmado boolean [default: false]
+  bio text
+  fecha_alta timestamp
+}
+
+Table release {
+  id_release int [pk, increment]
+  codigo_release varchar [unique, note: 'Ej: LJ020']
+  id_artista int [ref: > artista.id_artista, not null]
+  nombre_release varchar
+  tipo_release varchar
+  fecha_estimada date
+  fecha_real date
+  estado varchar
+  sistema_promo boolean [default: false]
+  notas text
+  fecha_creacion timestamp
+
+  Note: 'CAMBIO: se quitó contrato_path (duplicaba a contrato_sello)'
+}
+
+Table contrato_sello {
+  id_contrato int [pk, increment]
+  id_artista int [ref: > artista.id_artista, not null]
+  id_release int [ref: > release.id_release, note: 'Nullable: un contrato puede cubrir al artista en general, no solo un release']
+  archivo_path varchar
+  fecha_firma date
+  observaciones text
+  fecha_carga timestamp
+}
+
+Table bloqueo_sala {
+  id_bloqueo int [pk, increment]
+  id_sala int [ref: > sala.id_sala, not null]
+  id_usuario_registra int [ref: > usuario.id_usuario]
+  fecha_inicio date
+  fecha_fin date
+  hora_inicio time
+  hora_fin time
+  motivo text
+  fecha_registro timestamp
+}
