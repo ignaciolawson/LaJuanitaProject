@@ -1,54 +1,74 @@
-import type { Metadata } from "next";
-import { Syne, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Cursor } from "@/components/Cursor";
+
+import { SmoothScroll } from "@/components/motion/SmoothScroll";
+import { ThemeScroller } from "@/components/motion/ThemeScroller";
+import { Preloader } from "@/components/motion/Preloader";
+import { Cursor } from "@/components/motion/Cursor";
+import { ScrollFx } from "@/components/motion/ScrollFx";
+import { Texture } from "@/components/Texture";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { Atmosphere } from "@/components/Atmosphere";
-import { ScrollFx } from "@/components/ScrollFx";
-import { Deck } from "@/components/Deck";
 
-const syne = Syne({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-});
+/**
+ * Archivo variable con el eje de ancho (wdth 62–125). Ese eje es la razón de
+ * elegirla: permite titulares ultra-expandidos y etiquetas condensadas con
+ * una sola familia, y de ahí sale el contraste tipográfico del sitio.
+ * Sin `axes: ["wdth"]` Next descarga sólo el eje de peso y `font-stretch`
+ * no hace absolutamente nada.
+ */
+const archivo = { variable: "font-a" };
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
+/** Cursiva de alto contraste: el contrapunto "humano" al grotesco. */
+const instrument = { variable: "font-b" };
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-});
+/** Mono para metadatos, índices y etiquetas de cabina. */
+const spaceMono = { variable: "font-c" };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://lajuanitastudio.com"),
   title: {
-    default: "La Juanita Studio | Academia de DJ y Sello Discográfico",
+    default: "La Juanita Studio — Academia de DJ, producción y sello en Pilar",
     template: "%s | La Juanita Studio",
   },
   description:
-    "Academia de DJ y producción de música electrónica y sello discográfico en Pilar. Formate con equipamiento profesional Pioneer DJ y llevá tu sonido al siguiente nivel.",
+    "Academia de DJ y producción de música electrónica en Pilar, Buenos Aires. Equipamiento Pioneer DJ, sala de mastering tratada y un sello discográfico propio detrás tuyo.",
+  openGraph: {
+    type: "website",
+    locale: "es_AR",
+    siteName: "La Juanita Studio",
+    title: "La Juanita Studio — De Pilar a la pista",
+    description:
+      "Academia de DJ y producción de música electrónica, estudio de mix & mastering y sello discográfico en Pilar.",
+  },
+  icons: { icon: "/favicon.ico" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0b",
+  colorScheme: "dark light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
-      className={`${syne.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      lang="es-AR"
+      className={`${archivo.variable} ${instrument.variable} ${spaceMono.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-bg text-white font-body">
-        <Atmosphere />
-        <ScrollFx />
+      <body>
+        {/* Todo lo fijo vive FUERA de #smooth-content: dentro de un elemento
+            transformado, `position: fixed` se ancla al padre, no al viewport. */}
+        <Preloader />
+        <Texture />
         <Cursor />
+        <ScrollFx />
+        <ThemeScroller />
         <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        <Deck />
+
+        <SmoothScroll>
+          <main>{children}</main>
+          <Footer />
+        </SmoothScroll>
       </body>
     </html>
   );

@@ -18,14 +18,14 @@ export default function ContactoPage() {
         eyebrow="Contacto"
         title={
           <>
-            Vení a <span className="font-normal text-text-secondary">conocernos</span>
+            Vení a <span className="font-normal text-[color:var(--page-muted)]">conocernos</span>
           </>
         }
         description="Escribinos y te contamos todo sobre los programas, horarios y el sello. Respondemos rápido por WhatsApp."
         image="/images/estudio/fachada.jpeg"
       />
 
-      <section className="bg-bg py-20 sm:py-28">
+      <section data-theme="ink" className="bg-[color:var(--page-bg)] py-20 sm:py-28">
         <Container className="grid gap-16 lg:grid-cols-2">
           <Reveal>
             <div className="space-y-5">
@@ -34,19 +34,19 @@ export default function ContactoPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cursor="ABRIR"
-                className="flex items-center gap-3 text-white transition-colors hover:text-red"
+                className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
               >
                 <MessageCircle size={20} className="text-red" aria-hidden />
                 {CONTACT.whatsappDisplay}
               </a>
               <a
                 href={`mailto:${CONTACT.email}`}
-                className="flex items-center gap-3 text-white transition-colors hover:text-red"
+                className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
               >
                 <Mail size={20} className="text-red" aria-hidden />
                 {CONTACT.email}
               </a>
-              <p className="flex items-center gap-3 text-white">
+              <p className="flex items-center gap-3 text-[color:var(--page-fg)]">
                 <MapPin size={20} className="text-red" aria-hidden />
                 {CONTACT.address}
               </p>
@@ -57,7 +57,7 @@ export default function ContactoPage() {
             </Button>
           </Reveal>
 
-          <Reveal className="relative min-h-[320px] overflow-hidden rounded-2xl border border-border-subtle lg:min-h-full">
+          <Reveal className="relative min-h-[320px] overflow-hidden  border border-[color:var(--page-line)] lg:min-h-full">
             <iframe
               src={CONTACT.mapsEmbedUrl}
               title="Ubicación de La Juanita Studio"

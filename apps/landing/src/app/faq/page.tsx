@@ -16,13 +16,13 @@ export default function FaqPage() {
         eyebrow="Preguntas frecuentes"
         title={
           <>
-            ¿Tenés <span className="font-normal text-text-secondary">dudas</span>?
+            ¿Tenés <span className="font-normal text-[color:var(--page-muted)]">dudas</span>?
           </>
         }
         image="/images/estudio/sala-mastering.jpg"
       />
 
-      <section className="bg-bg py-20 sm:py-28">
+      <section data-theme="ink" className="bg-[color:var(--page-bg)] py-20 sm:py-28">
         <Container className="max-w-4xl">
           <FaqAccordion items={FAQ} />
         </Container>

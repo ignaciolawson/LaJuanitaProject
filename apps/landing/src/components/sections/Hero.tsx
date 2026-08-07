@@ -2,146 +2,238 @@
 
 import { useRef } from "react";
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
 import { Container } from "@/components/ui/Container";
-import { Button } from "@/components/ui/Button";
-import { RevealText } from "@/components/RevealText";
+import { Magnetic } from "@/components/motion/Magnetic";
+import { Fan } from "@/components/brand/Fan";
+import { CONTACT } from "@/data/contact";
 
+/**
+ * Hero.
+ *
+ * La idea: el abanico de la marca ES el hero. Entra cerrado, se abre con la
+ * entrada y se vuelve a cerrar (y a hundir) mientras scrolleás, así el
+ * símbolo hace de transición hacia la sección siguiente en vez de quedarse
+ * pegado de fondo.
+ *
+ * El titular está partido en tres líneas con máscara propia y desfase
+ * horizontal — no es un bloque centrado. La palabra "pista" va en cursiva
+ * serif: un solo acento tipográfico que rompe el grotesco y le da voz.
+ */
 export function Hero() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const bgRef = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
 
   useGSAP(
     () => {
-      if (!bgRef.current || !sectionRef.current) return;
+      const el = root.current;
+      if (!el) return;
 
-      gsap.from("[data-hero-fade]", {
-        opacity: 0,
-        y: 16,
-        duration: 0.6,
-        delay: 1,
-        stagger: 0.1,
-        ease: "power2.out",
+      const ribs = el.querySelectorAll("[data-rib]");
+      const reduce = prefersReduced();
+
+      if (reduce) {
+        gsap.set("[data-hero-line] > span, [data-hero-fade]", { yPercent: 0, opacity: 1 });
+        gsap.set(ribs, {
+          rotate: (i: number) => -78 + i * (156 / (ribs.length - 1)),
+          transformOrigin: "0px 0px",
+        });
+        return;
+      }
+
+      // Estado inicial explícito. Ojo: NO se puede dejar en clases de
+      // Tailwind (`translate-y-3`), porque Tailwind v4 escribe la propiedad
+      // `translate` y GSAP escribe `transform`: conviven, y el elemento
+      // queda 12px corrido para siempre aunque GSAP lo lleve a y:0.
+      gsap.set("[data-hero-fade]", { y: 14, opacity: 0 });
+
+      // La entrada del hero se encadena a la cortina del preloader por
+      // evento. Si la intro ya se vio en esta sesión, arranca sola.
+      const tl = gsap.timeline({ paused: true });
+
+      tl.set(ribs, { rotate: 0, transformOrigin: "0px 0px", opacity: 0 })
+        .to(ribs, { opacity: 1, duration: 0.4, stagger: { each: 0.02, from: "center" } })
+        .to(
+          ribs,
+          {
+            rotate: (i: number) => -78 + i * (156 / (ribs.length - 1)),
+            duration: 1.6,
+            ease: "juanita",
+            stagger: { each: 0.045, from: "center" },
+          },
+          "<",
+        )
+        .to("[data-arc]", { drawSVG: "0% 100%", duration: 1.1, ease: "juanita" }, "-=1.1")
+        // Cada línea del titular sube desde su máscara, con desfase.
+        .to(
+          "[data-hero-line] > span",
+          { yPercent: 0, duration: 1.15, ease: "juanita", stagger: 0.085 },
+          "-=1.35",
+        )
+        .to(
+          "[data-hero-fade]",
+          { opacity: 1, y: 0, duration: 0.85, stagger: 0.09, ease: "juanita" },
+          "-=0.7",
+        );
+
+      const seen = sessionStorage.getItem("lj:intro") === "1";
+      if (seen) {
+        gsap.delayedCall(0.12, () => tl.play());
+      } else {
+        window.addEventListener("lj:intro-curtain", () => tl.play(), { once: true });
+        // Red de seguridad: si el preloader nunca emite (error, JS a medias),
+        // el hero se muestra igual en vez de quedar en blanco.
+        gsap.delayedCall(4.5, () => {
+          if (!tl.isActive() && tl.progress() === 0) tl.play();
+        });
+      }
+
+      // ── Salida con el scroll ──────────────────────────────────────────
+      // El abanico se cierra y baja: el símbolo "guarda" el hero.
+      gsap.to(ribs, {
+        rotate: (i: number) => (-78 + i * (156 / (ribs.length - 1))) * 0.18,
+        ease: "none",
+        scrollTrigger: { trigger: el, start: "top top", end: "bottom top", scrub: 0.7 },
       });
 
-      // Parallax + slow zoom-out on the background image.
-      gsap.fromTo(
-        bgRef.current,
-        { scale: 1.25 },
-        {
-          scale: 1.05,
-          ease: "none",
-          scrollTrigger: {
-            trigger: sectionRef.current,
-            start: "top top",
-            end: "bottom top",
-            scrub: 0.6,
-          },
-        },
-      );
-      gsap.to(bgRef.current, {
-        yPercent: 15,
+      gsap.to("[data-hero-fan]", {
+        yPercent: 32,
+        scale: 0.82,
+        opacity: 0.25,
         ease: "none",
-        scrollTrigger: {
-          trigger: sectionRef.current,
-          start: "top top",
-          end: "bottom top",
-          scrub: 0.6,
-        },
+        scrollTrigger: { trigger: el, start: "top top", end: "bottom top", scrub: 0.7 },
+      });
+
+      // El texto sube más rápido que el fondo: profundidad sin 3D.
+      gsap.to("[data-hero-copy]", {
+        yPercent: -22,
+        opacity: 0,
+        ease: "none",
+        scrollTrigger: { trigger: el, start: "top top", end: "bottom 40%", scrub: 0.5 },
+      });
+
+      gsap.to("[data-hero-img]", {
+        yPercent: 14,
+        scale: 1.12,
+        ease: "none",
+        scrollTrigger: { trigger: el, start: "top top", end: "bottom top", scrub: 0.7 },
       });
     },
-    { scope: sectionRef },
+    { scope: root },
   );
 
   return (
     <section
+      ref={root}
       id="top"
-      ref={sectionRef}
-      className="relative flex min-h-[100svh] items-end overflow-hidden bg-bg pb-20 sm:items-center sm:pb-0"
+      data-theme="ink"
+      className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-[clamp(28px,6vh,64px)] pt-32"
     >
-      <div className="absolute inset-0 overflow-hidden">
-        <div ref={bgRef} className="absolute inset-0 h-full w-full">
+      {/* Fondo: foto de la sala, muy apagada. Es atmósfera, no protagonista. */}
+      <div className="absolute inset-0 -z-10">
+        <div data-hero-img className="absolute inset-0">
           <Image
             src="/images/estudio/sala-mastering.jpg"
             alt=""
             fill
             priority
             sizes="100vw"
-            className="object-cover opacity-50"
+            className="object-cover opacity-[0.22] grayscale"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-bg/70 via-bg/60 to-bg" />
-        <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/30" />
       </div>
 
-      <Container className="relative z-10 pt-24">
-        <span
-          data-hero-fade
-          className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-red opacity-0"
-        >
-          Academia de DJ · Producción · Sello discográfico
-        </span>
+      {/* El abanico, grande y descentrado a la derecha */}
+      <div
+        data-hero-fan
+        className="pointer-events-none absolute -right-[12%] top-[6%] -z-10 w-[min(92vw,880px)] text-bone/[0.13] sm:right-[-6%] lg:right-[-2%] lg:top-[2%]"
+      >
+        <Fan ribs={15} spread={156} strokeWidth={1.5} />
+      </div>
 
-        <RevealText
-          as="h1"
-          trigger="load"
-          delay={0.2}
-          className="chromatic mt-6 max-w-3xl font-display text-[13vw] font-bold leading-[1.02] tracking-tight text-white sm:text-[7vw] lg:text-[6rem]"
-        >
-          Llevá tu <span className="text-red">sonido</span>{" "}
-          <span className="font-normal text-text-secondary">al siguiente nivel</span>
-        </RevealText>
+      <Container wide className="relative">
+        <div data-hero-copy>
+          <span
+            data-hero-fade
+            className="label"
+          >
+            Academia · Estudio · Sello — Pilar, Bs As
+          </span>
 
-        <p
-          data-hero-fade
-          className="mt-8 max-w-lg text-lg leading-relaxed text-text-secondary opacity-0"
-        >
-          Formate en DJ y producción de música electrónica con equipamiento
-          profesional Pioneer DJ, sala de mastering propia, y un sello
-          discográfico detrás tuyo. Sede Pilar.
-        </p>
+          <h1 className="chromatic mt-7 max-w-[16ch]">
+            {[
+              { text: "De Pilar", offset: "" },
+              { text: "a la", offset: "pl-[6vw] sm:pl-[9vw]" },
+            ].map((line) => (
+              <span
+                key={line.text}
+                data-hero-line
+                className={`block overflow-hidden ${line.offset}`}
+              >
+                <span className="t-display h-xl block will-change-transform">
+                  {line.text}
+                </span>
+              </span>
+            ))}
+            <span data-hero-line className="block overflow-hidden pl-[3vw] sm:pl-[5vw]">
+              <span className="t-serif h-xl block normal-case text-red will-change-transform">
+                pista
+              </span>
+            </span>
+          </h1>
 
-        <div
-          data-hero-fade
-          className="mt-10 flex flex-wrap items-center gap-4 opacity-0"
-        >
-          <Button href="/programas" variant="outline">
-            Ver programas
-          </Button>
-          <Button href="/sello" variant="outline">
-            Conocé el sello
-          </Button>
+          <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+            <p
+              data-hero-fade
+              className="t-body max-w-[46ch] text-[clamp(15px,1.15vw,19px)] text-[color:var(--page-muted)]"
+            >
+              Aprendés a mezclar y a producir sobre equipamiento Pioneer DJ real,
+              masterizás en una sala tratada, y salís con un sello atrás para que
+              el track no se te quede en la carpeta de descargas.
+            </p>
+
+            <div
+              data-hero-fade
+              className="flex flex-wrap items-center gap-3"
+            >
+              <Magnetic strength={0.3}>
+                <a href="#programas" data-cursor="VER" className="btn btn--solid">
+                  Ver programas
+                </a>
+              </Magnetic>
+              <Magnetic strength={0.3}>
+                <a
+                  href={`https://wa.me/${CONTACT.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-cursor="WHATSAPP"
+                  className="btn"
+                >
+                  Escribinos
+                </a>
+              </Magnetic>
+            </div>
+          </div>
         </div>
       </Container>
 
-      <div className="absolute right-10 top-28 z-10 hidden w-32 flex-col items-center opacity-80 lg:flex">
-        <Image
-          src="/images/logo/icon.png"
-          alt=""
-          width={96}
-          height={96}
-          className="spin-slow invert"
-          aria-hidden
-        />
-        <Image
-          src="/images/logo/wordmark.png"
-          alt=""
-          width={128}
-          height={48}
-          className="-mt-3 invert"
-          aria-hidden
-        />
-      </div>
-
-      <a
-        href="#index"
-        aria-label="Scroll hacia abajo"
-        data-cursor="SCROLL"
-        className="absolute bottom-8 left-1/2 z-10 hidden -translate-x-1/2 text-text-subdued transition-colors hover:text-white sm:block"
-      >
-        <ChevronDown size={28} className="animate-bounce" aria-hidden />
-      </a>
+      {/* Barra de cabina: metadatos chicos, alineados al pie */}
+      <Container wide className="relative mt-14">
+        <div
+          data-hero-fade
+          className="t-mono flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-[color:var(--page-line)] pt-5 text-[color:var(--page-faint)]"
+        >
+          <span className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-red blink" />
+            Inscripciones abiertas
+          </span>
+          <span className="hidden sm:inline">CDJ-3000 · DJM · Ableton Live</span>
+          <span className="hidden md:inline">Sala tratada acústicamente</span>
+          <a href="#programas" className="link-u flex items-center gap-2">
+            Scrolleá <span aria-hidden>↓</span>
+          </a>
+        </div>
+      </Container>
     </section>
   );
 }

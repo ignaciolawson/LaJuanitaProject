@@ -85,14 +85,13 @@ export function EditorialRow({
   return (
     <div
       ref={rowRef}
-      className={clsx(
-        "flex flex-col items-center gap-10 py-16 sm:py-24 lg:flex-row lg:gap-16",
+      className={clsx("flex flex-col items-center gap-10 py-16 sm:py-24 lg:flex-row lg:gap-16",
         reverse && "lg:flex-row-reverse",
       )}
     >
       <div
         ref={frameRef}
-        className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl lg:w-[52%]"
+        className="relative aspect-[4/5] w-full overflow-hidden  lg:w-[52%]"
       >
         <div ref={mediaRef} className="absolute inset-0">
           <Image
@@ -108,15 +107,14 @@ export function EditorialRow({
 
       <Reveal className="lg:w-[48%]">
         <span
-          className={clsx(
-            "text-xs uppercase tracking-[0.25em] text-text-subdued",
+          className={clsx("text-xs uppercase tracking-[0.25em] text-[color:var(--page-faint)]",
             channel ? "font-mono" : "font-display font-semibold",
           )}
         >
           {channel ? `CH${String(index + 1).padStart(2, "0")}` : String(index + 1).padStart(2, "0")}
           {eyebrow ? ` — ${eyebrow}` : ""}
         </span>
-        <h2 className="mt-3 font-display text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
+        <h2 className="mt-3 t-display-tight text-4xl leading-[0.95] text-[color:var(--page-fg)] sm:text-5xl">
           {title}
         </h2>
         {subtitle && (
@@ -124,7 +122,7 @@ export function EditorialRow({
             {subtitle}
           </p>
         )}
-        <p className={clsx("max-w-md text-base leading-relaxed text-text-secondary", subtitle ? "mt-3" : "mt-6")}>
+        <p className={clsx("max-w-md text-base leading-relaxed text-[color:var(--page-muted)]", subtitle ? "mt-3" : "mt-6")}>
           {description}
         </p>
         {children}

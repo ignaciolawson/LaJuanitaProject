@@ -11,8 +11,7 @@ import { TESTIMONIALS } from "@/data/testimonials";
 
 export const metadata: Metadata = {
   title: "Programas",
-  description:
-    "DJ Nivel Inicial, DJ Avanzado, Producción Musical Electrónica y Mix & Mastering — cuatro programas presenciales en Pilar.",
+  description:"DJ Nivel Inicial, DJ Avanzado, Producción Musical Electrónica y Mix & Mastering — cuatro programas presenciales en Pilar.",
 };
 
 export default function ProgramasPage() {
@@ -22,14 +21,14 @@ export default function ProgramasPage() {
         eyebrow="Programas"
         title={
           <>
-            Elegí tu <span className="font-normal text-text-secondary">camino</span>
+            Elegí tu <span className="font-normal text-[color:var(--page-muted)]">camino</span>
           </>
         }
         description="Cuatro programas presenciales en nuestra sede de Pilar, sobre equipamiento profesional Pioneer DJ."
         image="/images/estudio/equipos.jpg"
       />
 
-      <Container className="divide-y divide-border-subtle py-4">
+      <Container className="divide-y divide-[color:var(--page-line)] py-4">
         {PROGRAMS.map((program, i) => (
           <EditorialRow
             key={program.slug}
@@ -45,14 +44,14 @@ export default function ProgramasPage() {
           >
             <ul className="mt-6 space-y-2">
               {program.highlights.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-text-secondary">
+                <li key={item} className="flex items-start gap-2 text-sm text-[color:var(--page-muted)]">
                   <Check size={16} className="mt-0.5 shrink-0 text-red" aria-hidden />
                   {item}
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-text-subdued">
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-[color:var(--page-faint)]">
               <span>{program.duration}</span>
               <span>{program.modality}</span>
             </div>
@@ -60,7 +59,7 @@ export default function ProgramasPage() {
             <Fader level={program.level} label={program.levelLabel} />
 
             <div className="mt-6 flex items-center gap-6">
-              <p className="font-display text-lg font-bold text-white">{program.price}</p>
+              <p className="t-display-tight text-lg text-[color:var(--page-fg)]">{program.price}</p>
               <Button href="/contacto" variant="outline">
                 Consultar
               </Button>
@@ -69,7 +68,7 @@ export default function ProgramasPage() {
         ))}
       </Container>
 
-      <section className="border-t border-border-subtle bg-surface py-20 sm:py-28">
+      <section data-theme="ink" className="border-t border-[color:var(--page-line)] bg-ink-2 py-20 sm:py-28">
         <Container>
           <FeaturedQuote testimonials={TESTIMONIALS} />
         </Container>

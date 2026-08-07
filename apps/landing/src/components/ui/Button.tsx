@@ -1,40 +1,48 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import clsx from "clsx";
+import { Magnetic } from "@/components/motion/Magnetic";
 
 type ButtonProps = {
   href: string;
   children: ReactNode;
-  variant?: "primary" | "outline" | "ghost";
+  variant?: "solid" | "outline" | "ghost";
   className?: string;
   external?: boolean;
+  cursor?: string;
 };
 
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-display text-sm font-semibold transition-colors duration-200 cursor-pointer";
-
-const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-red text-white hover:bg-red-hover",
-  outline:
-    "border border-white/20 text-white hover:border-red hover:text-red",
-  ghost: "text-text-secondary hover:text-white",
-};
-
+/**
+ * Botón "parche": esquina inferior derecha cortada y relleno que sube desde
+ * abajo al hover (ver `.btn` en globals.css). Envuelto en <Magnetic> para
+ * que además se acerque un poco al puntero.
+ */
 export function Button({
   href,
   children,
-  variant = "primary",
+  variant = "outline",
   className,
   external,
+  cursor,
 }: ButtonProps) {
-  return (
+  const inner = (
     <Link
       href={href}
-      data-magnetic
-      className={clsx(base, variants[variant], className)}
+      data-cursor={cursor}
+      className={clsx(
+        "btn",
+        variant === "solid" && "btn--solid",
+        variant === "ghost" && "border-transparent px-0",
+        className,
+      )}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
     >
       {children}
+      <span aria-hidden className="text-[1.25em] leading-none">
+        ↗
+      </span>
     </Link>
   );
+
+  return <Magnetic strength={0.28}>{inner}</Magnetic>;
 }

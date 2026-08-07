@@ -1,47 +1,99 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════
+   LA JUANITA — SISTEMA "PARCHE"
+   Tres tintas nada más: hueso, tinta y el rojo de la marca.
+   La identidad real es un abanico calado + un wordmark arqueado tipo
+   parche de espalda. Todo el sistema sale de ahí: alto contraste,
+   blanco y negro, papel, y el rojo usado como bisturí (no como relleno).
+   ═══════════════════════════════════════════════════════════════════ */
+
 :root {
-  --bg: #0b0b0b;
-  --surface: #121212;
-  --border-subtle: rgba(255, 255, 255, 0.08);
+  /* --- Tintas base (no se animan) --- */
+  --ink: #0a0a0b;
+  --ink-2: #131315;
+  --ink-3: #1c1c1f;
+  --bone: #e8e1d4;
+  --bone-2: #d9d0be;
+  --bone-3: #c4b9a3;
   --red: #e52328;
-  --red-hover: #ff2a30;
-  --red-tint: rgba(229, 35, 40, 0.15);
-  --text-secondary: #a1a1aa;
-  --text-subdued: #666666;
+  --red-hover: #ff3a30;
+  --red-tint: rgba(229, 35, 40, 0.14);
+
+  /* --- Variables de página: ThemeScroller las interpola en el scroll ---
+     Cualquier sección puede pedir tema "ink" o "bone" y el fondo del sitio
+     entero transiciona. Es lo que hace que la página respire en vez de ser
+     un bloque oscuro de 6000px. */
+  --page-bg: #0a0a0b;
+  --page-fg: #e8e1d4;
+  --page-muted: rgba(232, 225, 212, 0.56);
+  --page-faint: rgba(232, 225, 212, 0.3);
+  --page-line: rgba(232, 225, 212, 0.16);
+
+  /* --- Ritmo --- */
+  --pad: clamp(20px, 5vw, 88px);
+  --gap: clamp(48px, 9vh, 128px);
+
+  /* --- Señales de movimiento leídas por CSS --- */
+  --vel: 0;   /* velocidad de scroll normalizada (0 → ~1) */
+  --split: 0; /* separación RGB derivada de --vel */
+
+  /* --- Alias legacy: las páginas interiores (nosotros, faq, sello…)
+     siguen usando estos tokens. No los toques hasta migrarlas. --- */
+  --bg: var(--ink);
+  --surface: var(--ink-2);
+  --border-subtle: rgba(232, 225, 212, 0.1);
+  --text-secondary: rgba(232, 225, 212, 0.58);
+  --text-subdued: rgba(232, 225, 212, 0.34);
 }
 
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-border-subtle: var(--border-subtle);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-bone: var(--bone);
+  --color-bone-2: var(--bone-2);
+  --color-bone-3: var(--bone-3);
   --color-red: var(--red);
   --color-red-hover: var(--red-hover);
   --color-red-tint: var(--red-tint);
+
+  --color-page: var(--page-bg);
+  --color-fg: var(--page-fg);
+  --color-muted: var(--page-muted);
+  --color-faint: var(--page-faint);
+  --color-line: var(--page-line);
+
+  /* alias legacy */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border-subtle: var(--border-subtle);
   --color-text-secondary: var(--text-secondary);
   --color-text-subdued: var(--text-subdued);
+
   --font-display: var(--font-display);
-  --font-body: var(--font-body);
+  --font-serif: var(--font-serif);
   --font-mono: var(--font-mono);
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* ═══════════ BASE ═══════════ */
 
-/* Keep the page interactive while a View Transition snapshot is animating. */
-::view-transition {
-  pointer-events: none;
+html {
+  /* Sin scroll-behavior: smooth — pelea con ScrollSmoother. */
+  -webkit-text-size-adjust: 100%;
+  background: var(--page-bg);
 }
 
 body {
-  background: var(--bg);
+  background: var(--page-bg);
+  color: var(--page-fg);
   color-scheme: dark;
-}
-
-/* Compensate for the fixed navbar (h-20 = 5rem) when jumping to an anchor. */
-[id] {
-  scroll-margin-top: 5rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-synthesis-weight: none;
+  /* `clip` y no `hidden`: `hidden` convierte al body en contenedor de
+     scroll y rompe tanto position:sticky como ScrollSmoother. */
+  overflow-x: clip;
+  transition: background-color 0.15s linear;
 }
 
 ::selection {
@@ -49,60 +101,289 @@ body {
   color: #fff;
 }
 
-/* RGB-split glitch: only visible while scrolling fast (see ScrollFx.tsx),
-   which reads as a strobe/glitch pass rather than a static filter. */
-.chromatic {
-  text-shadow:
-    calc(var(--split, 0) * -2px) 0 var(--red),
-    calc(var(--split, 0) * 2px) 0 rgba(123, 43, 255, 0.7);
+:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
-/* Soft color glow behind everything — mostly reads through the hero and
-   section gaps; deliberately subtle so it doesn't fight opaque sections. */
+[id] {
+  scroll-margin-top: 6rem;
+}
+
+::view-transition {
+  pointer-events: none;
+}
+
+/* ═══════════ TIPOGRAFÍA ═══════════
+   Archivo es variable con eje de ancho (wdth 62–125). El contraste entre
+   titulares ultra-expandidos y etiquetas mono minúsculas es la mitad del
+   carácter de esta página: sin él vuelve a parecer una plantilla. */
+
+.t-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-stretch: 125%;
+  line-height: 0.86;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.t-display-tight {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 800;
+  font-stretch: 78%;
+  line-height: 0.9;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.t-serif {
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-stretch: normal;
+  letter-spacing: -0.015em;
+  text-transform: none;
+}
+
+.t-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(10px, 0.72vw, 12px);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.t-body {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-stretch: normal;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+
+.h-xl {
+  font-size: clamp(52px, 13vw, 210px);
+}
+.h-lg {
+  font-size: clamp(38px, 7.5vw, 120px);
+}
+.h-md {
+  font-size: clamp(28px, 4vw, 64px);
+}
+.h-sm {
+  font-size: clamp(20px, 2.2vw, 34px);
+}
+
+/* Etiqueta con guion: reemplaza al típico "eyebrow" con puntito. */
+.label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(10px, 0.72vw, 12px);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+}
+.label::before {
+  content: "";
+  width: 1.8em;
+  height: 1px;
+  background: currentColor;
+  flex: none;
+}
+
+/* ═══════════ CAPAS DE TEXTURA ═══════════
+   Grano y viñeta van por encima de todo (es una pasada de lente sobre el
+   frame entero), por eso funcionan igual sobre hueso que sobre tinta. */
+
+.grain {
+  z-index: 60;
+  opacity: 0.055;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+
+.scan {
+  z-index: 61;
+  opacity: 0.06;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0 1px, transparent 1px 3px);
+}
+
 .haze {
   z-index: -10;
   background:
-    radial-gradient(55vw 45vh at 15% 0%, rgba(229, 35, 40, 0.16), transparent 60%),
-    radial-gradient(50vw 40vh at 90% 60%, rgba(123, 43, 255, 0.1), transparent 62%),
-    radial-gradient(60vw 50vh at 40% 110%, rgba(229, 35, 40, 0.08), transparent 64%);
-  filter: blur(10px);
+    radial-gradient(55vw 45vh at 12% 0%, rgba(229, 35, 40, 0.14), transparent 62%),
+    radial-gradient(48vw 40vh at 92% 62%, rgba(229, 35, 40, 0.07), transparent 64%);
+  filter: blur(14px);
 }
 
-/* Film grain + scanlines sit above everything (a lens/CRT pass over the
-   whole frame), which is why they work regardless of each section's
-   background color. */
-.grain {
-  z-index: 40;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/></filter><rect width='150' height='150' filter='url(%23n)'/></svg>");
-}
-.scan {
-  z-index: 41;
-  opacity: 0.1;
-  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.5) 0 1px, transparent 1px 3px);
+/* Trama de papel: se ve sólo en las secciones hueso y les da tacto. */
+.paper::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(var(--page-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--page-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 25%, transparent 78%);
 }
 
+/* Glitch RGB: sólo aparece cuando scrolleás rápido (ver ScrollFx). */
+.chromatic {
+  text-shadow:
+    calc(var(--split, 0) * -1.6px) 0 var(--red),
+    calc(var(--split, 0) * 1.6px) 0 rgba(90, 160, 255, 0.55);
+}
+
+/* ═══════════ COMPONENTES ═══════════ */
+
+/* Botón "parche": esquina cortada, nada de rounded-full genérico. */
+.btn {
+  --btn-fg: var(--page-fg);
+  --btn-bd: var(--page-line);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85em;
+  padding: 0.95em 1.6em;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--btn-fg);
+  border: 1px solid var(--btn-bd);
+  background: transparent;
+  overflow: hidden;
+  isolation: isolate;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+  transition: color 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s;
+}
+/* El relleno entra desde abajo, no un cambio de background-color plano. */
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--red);
+  transform: translateY(101%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn:hover {
+  color: #fff;
+  border-color: var(--red);
+}
+.btn:hover::before {
+  transform: translateY(0);
+}
+.btn--solid {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.btn--solid::before {
+  background: var(--page-fg);
+}
+.btn--solid:hover {
+  color: var(--page-bg);
+  border-color: var(--page-fg);
+}
+
+.rule {
+  height: 1px;
+  width: 100%;
+  background: var(--page-line);
+  transform-origin: left center;
+}
+
+/* Enlace con subrayado que se dibuja de izquierda a derecha. */
+.link-u {
+  position: relative;
+  display: inline-block;
+}
+.link-u::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-u:hover::after {
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+/* Estado inicial del hero, en CSS y no en clases de Tailwind.
+   Tailwind v4 anima con la propiedad `translate`; GSAP escribe `transform`.
+   Las dos se aplican a la vez, así que un `translate-y-[110%]` de Tailwind
+   sobrevive aunque GSAP lleve el elemento a yPercent: 0 — y te queda todo
+   corrido. Declarándolo acá, el inline style de GSAP lo pisa limpio. */
+[data-hero-fade] {
+  opacity: 0;
+}
+[data-hero-line] > span {
+  transform: translateY(110%);
+}
+/* Sin JS o con menos movimiento pedido: todo visible igual. */
 @media (prefers-reduced-motion: reduce) {
-  .scan {
-    display: none;
+  [data-hero-fade] {
+    opacity: 1;
+  }
+  [data-hero-line] > span {
+    transform: none;
   }
 }
 
+/* Máscara de línea para los reveals de SplitText. */
+.reveal-line {
+  overflow: hidden;
+}
+
+/* Imagen en duotono tinta/hueso; recupera color al hover. */
+.duotone {
+  filter: grayscale(1) contrast(1.14) brightness(0.94);
+  transition: filter 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.group:hover .duotone {
+  filter: grayscale(0) contrast(1) brightness(1);
+}
+
+/* ═══════════ SCROLLSMOOTHER ═══════════ */
+#smooth-wrapper {
+  overflow: hidden;
+}
+
+/* ═══════════ ANIMACIONES CSS ═══════════ */
 @keyframes spin-slow {
   to {
     transform: rotate(360deg);
   }
 }
 .spin-slow {
-  animation: spin-slow 18s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .spin-slow {
-    animation: none;
-  }
+  animation: spin-slow 22s linear infinite;
 }
 
-/* Native cursor hidden only where the custom Cursor component actually renders. */
+@keyframes blink {
+  0%, 45% { opacity: 1; }
+  50%, 95% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+.blink {
+  animation: blink 2.4s steps(1, end) infinite;
+}
+
+/* Cursor propio sólo donde realmente se renderiza. */
 @media (pointer: fine) and (min-width: 1024px) {
   body,
   a,
@@ -111,7 +392,16 @@ body {
   }
 }
 
+/* ═══════════ ACCESIBILIDAD ═══════════ */
 @media (prefers-reduced-motion: reduce) {
+  .scan,
+  .grain {
+    display: none;
+  }
+  .spin-slow,
+  .blink {
+    animation: none;
+  }
   *,
   *::before,
   *::after {
@@ -120,7 +410,6 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-
   ::view-transition-old(*),
   ::view-transition-new(*),
   ::view-transition-group(*) {

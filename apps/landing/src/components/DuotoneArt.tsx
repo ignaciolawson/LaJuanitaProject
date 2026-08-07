@@ -21,7 +21,7 @@ export function DuotoneArt({
   priority?: boolean;
 }) {
   return (
-    <div className={clsx("relative overflow-hidden bg-surface", className)}>
+    <div className={clsx("relative overflow-hidden bg-ink-2", className)}>
       <Image
         src={src}
         alt={alt}
@@ -30,9 +30,9 @@ export function DuotoneArt({
         priority={priority}
         className="object-cover grayscale contrast-125"
       />
-      <div className="absolute inset-0 bg-gradient-to-br from-red/50 via-bg/60 to-bg mix-blend-color" />
+      <div className="absolute inset-0 bg-gradient-to-br from-red/50 via-ink/60 to-ink mix-blend-color" />
       <div className="absolute inset-0 flex items-center justify-center">
-        <Disc3 size={32} className="text-white/30" aria-hidden />
+        <Disc3 size={32} className="text-[color:var(--page-fg)]/30" aria-hidden />
       </div>
     </div>
   );

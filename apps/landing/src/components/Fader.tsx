@@ -23,10 +23,10 @@ export function Fader({ level, label }: { level: number; label: string }) {
 
   return (
     <div className="mt-6">
-      <div ref={trackRef} className="h-[3px] w-full bg-border-subtle">
+      <div ref={trackRef} className="h-[3px] w-full bg-[color:var(--page-line)]">
         <div ref={fillRef} className="h-full w-0 bg-gradient-to-r from-red to-red-hover" />
       </div>
-      <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-text-subdued">
+      <p className="mt-2 font-mono text-[10px] uppercase tracking-wide text-[color:var(--page-faint)]">
         {label}
       </p>
     </div>

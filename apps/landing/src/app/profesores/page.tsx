@@ -6,8 +6,7 @@ import { TEACHERS } from "@/data/teachers";
 
 export const metadata: Metadata = {
   title: "Profesores",
-  description:
-    "Artistas y productores activos en la escena electrónica, al frente de la academia La Juanita.",
+  description:"Artistas y productores activos en la escena electrónica, al frente de la academia La Juanita.",
 };
 
 export default function ProfesoresPage() {
@@ -18,14 +17,14 @@ export default function ProfesoresPage() {
         title={
           <>
             Aprendé de quienes{" "}
-            <span className="font-normal text-text-secondary">viven de esto</span>
+            <span className="font-normal text-[color:var(--page-muted)]">viven de esto</span>
           </>
         }
         description="Nuestro equipo docente son artistas y productores activos en la escena, no solo profesores."
         image="/images/artistas/najles.png"
       />
 
-      <Container className="divide-y divide-border-subtle py-4">
+      <Container className="divide-y divide-[color:var(--page-line)] py-4">
         {TEACHERS.map((teacher, i) => (
           <EditorialRow
             key={teacher.name}

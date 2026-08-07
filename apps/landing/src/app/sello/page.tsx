@@ -12,8 +12,7 @@ import { CONTACT } from "@/data/contact";
 
 export const metadata: Metadata = {
   title: "Sello Discográfico",
-  description:
-    "La Juanita Records — el sello discográfico detrás de la academia, con el mismo estudio de mastering.",
+  description:"La Juanita Records — el sello discográfico detrás de la academia, con el mismo estudio de mastering.",
 };
 
 export default function SelloPage() {
@@ -25,18 +24,18 @@ export default function SelloPage() {
         eyebrow="Sello discográfico"
         title={
           <>
-            La Juanita <span className="font-normal text-text-secondary">Records</span>
+            La Juanita <span className="font-normal text-[color:var(--page-muted)]">Records</span>
           </>
         }
         description="Editamos y distribuimos la música de nuestros artistas, con el mismo estudio de mastering donde formamos a nuestros alumnos."
         image="/images/estudio/team.jpg"
       />
 
-      <section className="bg-bg py-20 sm:py-28">
+      <section data-theme="ink" className="bg-[color:var(--page-bg)] py-20 sm:py-28">
         <Container>
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <Reveal>
-              <span className="font-display text-xs font-semibold uppercase tracking-[0.25em] text-text-subdued">
+              <span className="font-display text-xs font-semibold uppercase tracking-[0.25em] text-[color:var(--page-faint)]">
                 Último lanzamiento
               </span>
             </Reveal>
@@ -49,7 +48,7 @@ export default function SelloPage() {
 
           {/* Featured release */}
           <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-16">
-            <RevealImage className="aspect-square w-full rounded-2xl lg:w-[45%]">
+            <RevealImage className="aspect-square w-full  lg:w-[45%]">
               <DuotoneArt
                 src={featured.image}
                 alt={featured.title}
@@ -62,11 +61,11 @@ export default function SelloPage() {
               <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-red">
                 {featured.genre} · {featured.date}
               </p>
-              <h2 className="mt-3 font-display text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
+              <h2 className="mt-3 t-display-tight text-4xl leading-[0.95] text-[color:var(--page-fg)] sm:text-5xl">
                 {featured.title}
               </h2>
-              <p className="mt-3 text-lg text-text-secondary">{featured.artist}</p>
-              <p className="mt-6 max-w-md text-sm leading-relaxed text-text-subdued">
+              <p className="mt-3 text-lg text-[color:var(--page-muted)]">{featured.artist}</p>
+              <p className="mt-6 max-w-md text-sm leading-relaxed text-[color:var(--page-faint)]">
                 Preview de 10 segundos disponible próximamente — por ahora,
                 escuchalo completo en Spotify.
               </p>
@@ -77,30 +76,30 @@ export default function SelloPage() {
           <Reveal
             as="ul"
             stagger={0.08}
-            className="mt-16 divide-y divide-border-subtle border-y border-border-subtle"
+            className="mt-16 divide-y divide-[color:var(--page-line)] border-y border-[color:var(--page-line)]"
           >
             {rest.map((release) => (
               <li key={release.title}>
                 <a
                   href={release.url}
                   data-cursor="PLAY"
-                  className="group flex items-center gap-5 py-5 transition-colors hover:bg-surface/50"
+                  className="group flex items-center gap-5 py-5 transition-colors hover:bg-ink-2/50"
                 >
                   <DuotoneArt
                     src={release.image}
                     alt={release.title}
                     sizes="64px"
-                    className="h-16 w-16 shrink-0 rounded-lg"
+                    className="h-16 w-16 shrink-0 "
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-display text-lg font-bold text-white">
+                    <p className="truncate t-display-tight text-lg text-[color:var(--page-fg)]">
                       {release.title}
                     </p>
-                    <p className="truncate text-sm text-text-secondary">
+                    <p className="truncate text-sm text-[color:var(--page-muted)]">
                       {release.artist} · {release.genre}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs text-text-subdued">{release.date}</span>
+                  <span className="shrink-0 text-xs text-[color:var(--page-faint)]">{release.date}</span>
                 </a>
               </li>
             ))}
@@ -108,21 +107,21 @@ export default function SelloPage() {
         </Container>
       </section>
 
-      <section className="border-t border-border-subtle bg-surface py-20 sm:py-28">
+      <section data-theme="ink" className="border-t border-[color:var(--page-line)] bg-ink-2 py-20 sm:py-28">
         <Container>
           <Reveal>
             <span className="font-display text-xs font-semibold uppercase tracking-[0.25em] text-red">
               Agenda
             </span>
-            <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              Próximas <span className="font-normal text-text-secondary">fechas</span>
+            <h2 className="mt-3 t-display-tight text-3xl leading-[0.95] text-[color:var(--page-fg)] sm:text-4xl">
+              Próximas <span className="font-normal text-[color:var(--page-muted)]">fechas</span>
             </h2>
           </Reveal>
 
           <Reveal
             as="ul"
             stagger={0.1}
-            className="mt-12 divide-y divide-border-subtle border-y border-border-subtle"
+            className="mt-12 divide-y divide-[color:var(--page-line)] border-y border-[color:var(--page-line)]"
           >
             {UPCOMING_DATES.map((item) => (
               <li
@@ -130,18 +129,18 @@ export default function SelloPage() {
                 className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:gap-8"
               >
                 <div className="flex items-baseline gap-2 sm:w-24 sm:flex-col sm:items-start sm:gap-0">
-                  <span className="font-display text-3xl font-bold text-white">{item.day}</span>
+                  <span className="font-display text-3xl font-bold text-[color:var(--page-fg)]">{item.day}</span>
                   <span className="font-display text-sm font-semibold uppercase tracking-wide text-red">
                     {item.month}
                   </span>
                 </div>
                 <div className="flex-1">
-                  <span className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-text-subdued">
+                  <span className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--page-faint)]">
                     {item.type}
                   </span>
-                  <p className="mt-1 font-display text-lg font-bold text-white">{item.title}</p>
+                  <p className="mt-1 t-display-tight text-lg text-[color:var(--page-fg)]">{item.title}</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                <div className="flex items-center gap-2 text-sm text-[color:var(--page-muted)]">
                   <MapPin size={16} className="text-red" aria-hidden />
                   {item.location}
                 </div>

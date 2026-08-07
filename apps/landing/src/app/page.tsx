@@ -1,115 +1,62 @@
 import { Hero } from "@/components/sections/Hero";
-import { Marquee } from "@/components/Marquee";
-import { IndexNav, type IndexItem } from "@/components/IndexNav";
-import { Container } from "@/components/ui/Container";
-import { Reveal } from "@/components/Reveal";
-import { Button } from "@/components/ui/Button";
-import { PROGRAMS } from "@/data/programs";
-import { RELEASES } from "@/data/releases";
-import { TEACHERS } from "@/data/teachers";
+import { Manifesto } from "@/components/sections/Manifesto";
+import { ProgramsRail } from "@/components/sections/ProgramsRail";
+import { Numbers } from "@/components/sections/Numbers";
+import { Teachers } from "@/components/sections/Teachers";
+import { Releases } from "@/components/sections/Releases";
+import { Voices } from "@/components/sections/Voices";
+import { Cta } from "@/components/sections/Cta";
+import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
 import { UPCOMING_DATES } from "@/data/dates";
-import { StatsVu } from "@/components/StatsVu";
 
-const ITEMS: IndexItem[] = [
-  {
-    index: "01",
-    href: "/nosotros",
-    label: "Nosotros",
-    description: "Un estudio hecho por y para gente de la música.",
-    image: "/images/estudio/team.jpg",
-  },
-  {
-    index: "02",
-    href: "/programas",
-    label: "Programas",
-    description: "DJ, producción y mix & mastering, sobre equipamiento profesional.",
-    image: "/images/estudio/equipos.jpg",
-    meta: PROGRAMS.map((p) => p.name),
-  },
-  {
-    index: "03",
-    href: "/sello",
-    label: "Sello",
-    description: "La Juanita Records — nuestros artistas y lanzamientos.",
-    image: "/images/estudio/sala-mastering.jpg",
-    meta: RELEASES.slice(0, 3).map((r) => r.title),
-  },
-  {
-    index: "04",
-    href: "/profesores",
-    label: "Profesores",
-    description: "Artistas y productores activos en la escena.",
-    image: "/images/artistas/ghezz.png",
-    meta: TEACHERS.map((t) => t.name),
-  },
-  {
-    index: "05",
-    href: "/faq",
-    label: "FAQ",
-    description: "Todo lo que necesitás saber antes de anotarte.",
-    image: "/images/estudio/equipos.jpg",
-  },
-  {
-    index: "06",
-    href: "/contacto",
-    label: "Contacto",
-    description: "Vení a conocer la sede de Pilar.",
-    image: "/images/estudio/fachada.jpeg",
-  },
-];
-
+/**
+ * Home.
+ *
+ * El orden alterna tinta y papel a propósito: cabina → luz → cabina. El
+ * ThemeScroller hace la transición de fondo del documento entero, así que
+ * la secuencia de secciones ES parte del diseño, no sólo del contenido.
+ *
+ *   ink   Hero            cabina a oscuras
+ *   ink   Agenda          tira de fechas
+ *   bone  Manifiesto      la charla a la luz del día
+ *   ink   Programas       riel horizontal anclado
+ *   bone  Números         cifras + VU
+ *   ink   Profesores      abanico de fichas
+ *   ink   Sello           pila de lanzamientos
+ *   bone  Testimonios     una voz por vez
+ *   ink   Cierre          wordmark arqueado
+ */
 export default function Home() {
   return (
     <>
       <Hero />
-      <Marquee
-        items={UPCOMING_DATES.map((d) => (
-          <span key={d.title}>
-            {d.day} {d.month} · <b className="text-white">{d.title}</b>
-          </span>
-        ))}
-      />
 
-      <section id="index" className="bg-bg py-16 sm:py-24">
-        <Container>
-          <Reveal>
-            <span className="font-mono text-xs uppercase tracking-wide text-red">Explorá</span>
-          </Reveal>
-          <IndexNav items={ITEMS} />
-        </Container>
-      </section>
-
-      <section className="border-t border-border-subtle bg-surface py-20 sm:py-28">
-        <Container>
-          <Reveal>
-            <span className="font-mono text-xs uppercase tracking-wide text-red">
-              Salida general
+      <section
+        data-theme="ink"
+        className="border-y border-[color:var(--page-line)] bg-[color:var(--page-bg)] text-[color:var(--page-fg)]"
+      >
+        <VelocityMarquee
+          className="t-mono"
+          speed={34}
+          items={UPCOMING_DATES.map((d) => (
+            <span key={d.title} className="flex items-center gap-3">
+              <span className="text-red">
+                {d.day} {d.month}
+              </span>
+              <span>{d.title}</span>
+              <span className="text-[color:var(--page-faint)]">{d.location}</span>
             </span>
-            <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
-              La Juanita <span className="font-normal text-text-secondary">en números</span>
-            </h2>
-          </Reveal>
-          <div className="mt-10">
-            <StatsVu />
-          </div>
-        </Container>
+          ))}
+        />
       </section>
 
-      <section className="border-t border-border-subtle bg-bg py-24 sm:py-32">
-        <Container className="text-center">
-          <Reveal>
-            <h2 className="mx-auto max-w-2xl font-display text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
-              ¿Listo para llevar tu <span className="text-red">sonido</span>{" "}
-              <span className="font-normal text-text-secondary">al siguiente nivel?</span>
-            </h2>
-          </Reveal>
-          <Reveal delay={0.1} className="mt-8 flex justify-center">
-            <Button href="/contacto" variant="primary">
-              Inscribite ahora
-            </Button>
-          </Reveal>
-        </Container>
-      </section>
+      <Manifesto />
+      <ProgramsRail />
+      <Numbers />
+      <Teachers />
+      <Releases />
+      <Voices />
+      <Cta />
     </>
   );
 }

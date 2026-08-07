@@ -61,11 +61,11 @@ export function FeaturedQuote({ testimonials }: { testimonials: Testimonial[] })
 
       <div ref={quoteRef} className="mt-8">
         <Quote className="text-red" size={32} aria-hidden />
-        <blockquote className="mt-6 font-display text-2xl font-medium leading-snug text-white sm:text-3xl">
+        <blockquote className="mt-6 font-display text-2xl font-medium leading-snug text-[color:var(--page-fg)] sm:text-3xl">
           “{active.quote}”
         </blockquote>
-        <p className="mt-6 text-sm text-text-secondary">
-          <span className="font-semibold text-white">{active.name}</span> — {active.program}
+        <p className="mt-6 text-sm text-[color:var(--page-muted)]">
+          <span className="font-semibold text-[color:var(--page-fg)]">{active.name}</span> — {active.program}
         </p>
       </div>
 
@@ -74,18 +74,18 @@ export function FeaturedQuote({ testimonials }: { testimonials: Testimonial[] })
           ref={prevBtnRef}
           type="button"
           aria-label="Testimonio anterior"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border-subtle text-text-secondary transition-colors hover:border-red hover:text-red"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[color:var(--page-line)] text-[color:var(--page-muted)] transition-colors hover:border-red hover:text-red"
         >
           <ArrowLeft size={16} aria-hidden />
         </button>
-        <span className="font-display text-xs text-text-subdued">
+        <span className="font-display text-xs text-[color:var(--page-faint)]">
           {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
         </span>
         <button
           ref={nextBtnRef}
           type="button"
           aria-label="Siguiente testimonio"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border-subtle text-text-secondary transition-colors hover:border-red hover:text-red"
+          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[color:var(--page-line)] text-[color:var(--page-muted)] transition-colors hover:border-red hover:text-red"
         >
           <ArrowRight size={16} aria-hidden />
         </button>
