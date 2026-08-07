@@ -53,16 +53,75 @@ interpole — nav, cursor y footer incluidos. La secuencia de secciones
 7. **`axes: ["wdth"]`** es obligatorio en el `next/font` de Archivo. Sin eso
    Next baja sólo el eje de peso y `font-stretch` no hace nada.
 
+## Formularios: todo visual, nada conectado
+
+Hay cuatro formularios y **ninguno envía nada a ningún lado**:
+
+| Formulario | Dónde | Qué falta |
+| --- | --- | --- |
+| Solicitud de programa | `/programas/convertite-en-dj`, `/programas/produccion-musical` | endpoint + mail al equipo |
+| Reserva de cabina | `/servicios#reservar` | endpoint + disponibilidad real de sala |
+| Inicio de sesión | `/ingresar` | auth, sesión, campus |
+| Contacto | `/contacto` | ya existía, sigue sin conectar |
+
+Los tres nuevos muestran un aviso explícito de "todavía no se envía" en vez
+de fingir éxito. Cuando exista el backend, el único punto a tocar es el
+`onSubmit` de `components/forms/Fields.tsx` (`FormShell`) y de
+`components/forms/LoginForm.tsx`.
+
+La reserva muestra un **precio estimado** calculado sobre el precio por hora
+de `data/services.ts`. Está etiquetado como referencia a propósito: prometer
+un total exacto sin validar disponibilidad sería mentirle a quien reserva.
+
+## Estructura de programas
+
+De cuatro programas a tres. "DJ Inicial" y "DJ Avanzado" eran el mismo
+camino partido en dos, y obligaban a la persona a autodiagnosticarse el
+nivel antes de entender qué se enseña. Ahora:
+
+- **Convertite en DJ** — página de detalle + formulario de solicitud
+- **Producción Musical Electrónica** — página de detalle + formulario
+- **Mix & Mastering** — página de detalle + CTA de consulta (es a medida y
+  con cupo de sala; pedir los mismos datos que en un programa con fecha de
+  arranque no tendría sentido)
+
+El nivel se resuelve dentro de la solicitud, con la pregunta de experiencia
+previa: cero / algo por mi cuenta / ya toco.
+
 ## Pendiente antes de publicar (contenido, no código)
 
 - `src/data/contact.ts`: el WhatsApp es `5491100000000` y las redes apuntan
   a las home de Instagram / Spotify / YouTube.
 - `src/components/sections/Numbers.tsx`: 200+ alumnos, 12 lanzamientos y
   "desde 2019" son placeholders inventados. Confirmalos.
+- `src/data/services.ts`: precios ($18.000/h cabina, $65.000/h grabación) y
+  todo el "qué incluye" son inventados. Es lo primero a corregir, porque son
+  los números que alguien va a usar para decidir.
+- `src/data/programs.ts`: los textos largos (qué es, por qué acá, para
+  quién, temario) están escritos con la voz del negocio pero son inventados.
+- `src/app/nosotros/page.tsx`: la línea de tiempo (2019 sello → 2021 estudio
+  → 2023 academia) es inventada. Las fechas reales las tenés vos.
 - `src/data/dates.ts`, `releases.ts`, `testimonials.ts`, `faq.ts` y los
   precios de `programs.ts` siguen marcados como placeholder en el repo.
 - Falta OG image (`opengraph-image.tsx`) y la política de privacidad, que en
   el sitio actual estaba rota.
+
+## Bugs corregidos en esta iteración
+
+- **Texto desbordando las tarjetas del riel de programas.** El panel fijaba
+  alto en `52vh` y el contenido no cedía. Ahora la imagen es la que se
+  comprime (`flex-1` + `min-h-0`), la descripción va con `line-clamp-3` y el
+  pie queda anclado con `mt-auto`.
+- **Títulos cortados.** Con `line-height: 0.86` la caja de línea es más baja
+  que los glifos, así que las máscaras de SplitText comían las tildes de las
+  mayúsculas (NÚMEROS) y las colas de la "y". Se agranda la caja con padding
+  y se descuenta con margen negativo en la máscara.
+- **Hero poco legible.** El párrafo y la barra inferior usaban
+  `--page-muted` (56%), que funciona sobre fondo plano pero no compitiendo
+  con una foto. Subidos a 88% / 65%, foto de fondo más apagada y gradiente
+  más sólido. Se agrega `.btn--strong` para botones sobre imagen.
+- **Titulares gigantes comiendo el hero.** `h-xl` bajó de 210px a 168px:
+  tres líneas más copy más barra no entraban en 100svh a 900px de alto.
 
 ## Sugerencias de siguiente iteración
 

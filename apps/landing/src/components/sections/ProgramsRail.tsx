@@ -11,19 +11,20 @@ import { PROGRAMS } from "@/data/programs";
 /**
  * Programas — riel horizontal anclado.
  *
- * Es la pieza donde el scroll deja de ser vertical: la sección se fija y los
- * cuatro programas desfilan de costado. Funciona acá y no en cualquier lado
- * porque son pocos ítems comparables entre sí: el gesto lateral se lee como
- * "pasar fichas", que es exactamente lo que querés hacer con una grilla de
- * cursos.
+ * La sección se fija y los tres programas desfilan de costado. Funciona acá
+ * y no en cualquier lado porque son pocos ítems comparables entre sí: el
+ * gesto lateral se lee como "pasar fichas".
  *
- * Detalles que hacen la diferencia:
- *  - Cada panel tiene parallax interno (la foto se mueve al revés que el
- *    panel), así el movimiento tiene capas y no es un carrusel rígido.
- *  - El fader de cada programa se llena cuando su panel entra en cuadro.
- *  - Debajo de 1024px NO se ancla nada: el scroll horizontal secuestrado en
- *    un teléfono es un problema de accesibilidad, no una feature. Ahí es una
- *    lista vertical normal.
+ * FIX (bug reportado: el texto se salía de las tarjetas). La versión previa
+ * fijaba la altura del panel en `52vh` y metía adentro imagen + descripción
+ * + chips + pie. En viewports bajos o con textos más largos el contenido
+ * desbordaba el borde. Ahora:
+ *   - El panel define alto por contenido con un `lg:h-full` dentro de un
+ *     riel de altura acotada, y la imagen es la que cede espacio (`flex-1`
+ *     con `min-h-0`), no el texto.
+ *   - La descripción se limita con `line-clamp-3`: la tarjeta es un
+ *     resumen, el texto completo vive en la página de detalle.
+ *   - Los chips se limitan a tres y el pie queda anclado con `mt-auto`.
  */
 export function ProgramsRail() {
   const root = useRef<HTMLElement>(null);
@@ -61,7 +62,6 @@ export function ProgramsRail() {
             },
           });
 
-          // Barra de progreso del riel.
           gsap.to("[data-rail-progress]", {
             scaleX: 1,
             ease: "none",
@@ -73,17 +73,18 @@ export function ProgramsRail() {
             },
           });
 
+          const counter = root.current?.querySelector<HTMLElement>("[data-rail-count]");
+
           panels.forEach((panel, i) => {
             const img = panel.querySelector("[data-panel-img]");
             const fader = panel.querySelector("[data-fader-fill]");
 
-            // Contra-movimiento de la foto dentro del panel.
             if (img) {
               gsap.fromTo(
                 img,
-                { xPercent: -9, scale: 1.16 },
+                { xPercent: -8, scale: 1.14 },
                 {
-                  xPercent: 9,
+                  xPercent: 8,
                   scale: 1.02,
                   ease: "none",
                   scrollTrigger: {
@@ -97,7 +98,6 @@ export function ProgramsRail() {
               );
             }
 
-            // El fader se llena cuando el panel pasa por el centro.
             if (fader) {
               gsap.fromTo(
                 fader,
@@ -116,8 +116,6 @@ export function ProgramsRail() {
               );
             }
 
-            // Contador de panel activo.
-            const counter = root.current?.querySelector<HTMLElement>("[data-rail-count]");
             ScrollTrigger.create({
               trigger: panel,
               containerAnimation: scroll,
@@ -143,14 +141,13 @@ export function ProgramsRail() {
       ref={root}
       id="programas"
       data-theme="ink"
-      className="relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)] lg:h-screen lg:py-0"
+      className="relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)] lg:flex lg:h-screen lg:flex-col lg:justify-center lg:py-0"
     >
-      {/* Encabezado: en desktop flota sobre el riel anclado */}
-      <Container wide className="relative z-10 lg:pt-24">
+      <Container wide className="relative z-10 shrink-0">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <span className="label">Formación</span>
-            <SplitReveal as="h2" type="chars" className="t-display h-lg mt-5">
+            <SplitReveal as="h2" type="chars" className="t-display h-md mt-5">
               Programas
             </SplitReveal>
           </div>
@@ -162,38 +159,38 @@ export function ProgramsRail() {
             <span>/</span>
             <span>{String(PROGRAMS.length).padStart(2, "0")}</span>
             <span className="ml-4 flex items-center gap-2">
-              Arrastrá con el scroll <span aria-hidden>→</span>
+              Pasá con el scroll <span aria-hidden>→</span>
             </span>
           </div>
         </div>
       </Container>
 
-      {/* Riel */}
-      <div className="relative mt-12 lg:mt-10">
+      {/* Riel. En desktop tiene altura acotada; adentro, la imagen es la que
+          cede espacio para que el texto nunca desborde el borde. */}
+      <div className="relative mt-10 lg:mt-8 lg:h-[min(58vh,560px)]">
         <div
           data-rail-track
-          className="flex flex-col gap-5 px-[var(--pad)] lg:w-max lg:flex-row lg:gap-8 lg:px-[var(--pad)]"
+          className="flex h-full flex-col gap-5 px-[var(--pad)] lg:w-max lg:flex-row lg:gap-8"
         >
           {PROGRAMS.map((program, i) => (
             <article
               key={program.slug}
               data-panel
-              className="group relative flex w-full shrink-0 flex-col justify-between border border-[color:var(--page-line)] bg-[color:var(--page-bg)] p-6 lg:h-[52vh] lg:w-[min(44vw,600px)] lg:p-8"
+              className="group relative flex w-full shrink-0 flex-col border border-[color:var(--page-line)] bg-[color:var(--page-bg)] p-6 lg:h-full lg:w-[min(42vw,560px)] lg:p-7"
             >
-              <div className="flex items-start justify-between gap-6">
+              <div className="flex shrink-0 items-start justify-between gap-5">
                 <div className="min-w-0">
                   <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="t-display-tight mt-3 text-[clamp(26px,3.2vw,44px)] leading-[0.95]">
+                  <h3 className="t-display-tight mt-2 text-[clamp(24px,2.6vw,38px)] leading-[0.96]">
                     {program.name}
                   </h3>
-                  <p className="t-serif mt-2 text-lg text-[color:var(--page-muted)]">
+                  <p className="t-serif mt-1.5 text-base text-[color:var(--page-muted)] sm:text-lg">
                     {program.tagline}
                   </p>
                 </div>
 
-                {/* Fader decorativo: dice "nivel" de un vistazo, sin gráfico de torta */}
                 <div className="flex shrink-0 flex-col items-center gap-2">
-                  <div className="relative h-24 w-[3px] bg-[color:var(--page-line)]">
+                  <div className="relative h-20 w-[3px] bg-[color:var(--page-line)]">
                     <div
                       data-fader-fill
                       className="absolute bottom-0 left-0 w-full origin-bottom bg-red"
@@ -204,26 +201,28 @@ export function ProgramsRail() {
                 </div>
               </div>
 
-              <div className="relative my-6 h-40 overflow-hidden lg:h-auto lg:flex-1">
+              {/* min-h-0 es lo que permite que este bloque se comprima en vez
+                  de empujar al pie fuera de la tarjeta. */}
+              <div className="relative my-5 h-32 min-h-0 shrink overflow-hidden lg:h-auto lg:flex-1">
                 <div data-panel-img className="absolute inset-0">
                   <Image
                     src={program.image}
                     alt=""
                     fill
-                    sizes="(max-width: 1024px) 100vw, 46vw"
+                    sizes="(max-width: 1024px) 100vw, 42vw"
                     className="duotone object-cover"
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--page-bg)] via-transparent to-transparent" />
               </div>
 
-              <div>
-                <p className="t-body max-w-[46ch] text-sm text-[color:var(--page-muted)]">
+              <div className="mt-auto shrink-0">
+                <p className="t-body line-clamp-3 max-w-[46ch] text-sm text-[color:var(--page-muted)]">
                   {program.description}
                 </p>
 
-                <ul className="mt-5 flex flex-wrap gap-2">
-                  {program.highlights.map((h) => (
+                <ul className="mt-4 flex flex-wrap gap-2">
+                  {program.highlights.slice(0, 3).map((h) => (
                     <li
                       key={h}
                       className="t-mono border border-[color:var(--page-line)] px-2.5 py-1 text-[color:var(--page-faint)]"
@@ -233,17 +232,17 @@ export function ProgramsRail() {
                   ))}
                 </ul>
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[color:var(--page-line)] pt-4">
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-[color:var(--page-line)] pt-4">
                   <div className="t-mono text-[color:var(--page-faint)]">
                     <span className="block">{program.duration}</span>
                     <span className="mt-1 block text-[color:var(--page-fg)]">{program.price}</span>
                   </div>
                   <Link
-                    href="/programas"
-                    data-cursor="ABRIR"
+                    href={`/programas/${program.slug}`}
+                    data-cursor={program.cta === "apply" ? "INSCRIBIRME" : "CONSULTAR"}
                     className="t-mono link-u text-red"
                   >
-                    Ver detalle
+                    {program.cta === "apply" ? "Ver e inscribirme" : "Ver y consultar"}
                   </Link>
                 </div>
               </div>
@@ -251,12 +250,8 @@ export function ProgramsRail() {
           ))}
         </div>
 
-        {/* Progreso del riel */}
-        <div className="mx-[var(--pad)] mt-10 hidden h-px bg-[color:var(--page-line)] lg:block">
-          <div
-            data-rail-progress
-            className="h-full origin-left scale-x-0 bg-red"
-          />
+        <div className="mx-[var(--pad)] mt-8 hidden h-px bg-[color:var(--page-line)] lg:block">
+          <div data-rail-progress className="h-full origin-left scale-x-0 bg-red" />
         </div>
       </div>
     </section>

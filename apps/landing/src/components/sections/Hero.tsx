@@ -137,10 +137,10 @@ export function Hero() {
             fill
             priority
             sizes="100vw"
-            className="object-cover opacity-[0.22] grayscale"
+            className="object-cover opacity-[0.16] grayscale"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/85 to-ink/45" />
       </div>
 
       {/* El abanico, grande y descentrado a la derecha */}
@@ -168,14 +168,14 @@ export function Hero() {
               <span
                 key={line.text}
                 data-hero-line
-                className={`block overflow-hidden ${line.offset}`}
+                className={`block ${line.offset}`}
               >
                 <span className="t-display h-xl block will-change-transform">
                   {line.text}
                 </span>
               </span>
             ))}
-            <span data-hero-line className="block overflow-hidden pl-[3vw] sm:pl-[5vw]">
+            <span data-hero-line className="block pl-[3vw] sm:pl-[5vw]">
               <span className="t-serif h-xl block normal-case text-red will-change-transform">
                 pista
               </span>
@@ -185,7 +185,7 @@ export function Hero() {
           <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <p
               data-hero-fade
-              className="t-body max-w-[46ch] text-[clamp(15px,1.15vw,19px)] text-[color:var(--page-muted)]"
+              className="t-body max-w-[46ch] text-[clamp(16px,1.2vw,20px)] text-bone/[0.88]"
             >
               Aprendés a mezclar y a producir sobre equipamiento Pioneer DJ real,
               masterizás en una sala tratada, y salís con un sello atrás para que
@@ -207,7 +207,7 @@ export function Hero() {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-cursor="WHATSAPP"
-                  className="btn"
+                  className="btn btn--strong"
                 >
                   Escribinos
                 </a>
@@ -221,7 +221,7 @@ export function Hero() {
       <Container wide className="relative mt-14">
         <div
           data-hero-fade
-          className="t-mono flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-[color:var(--page-line)] pt-5 text-[color:var(--page-faint)]"
+          className="t-mono flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-bone/20 pt-5 text-bone/65"
         >
           <span className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-red blink" />

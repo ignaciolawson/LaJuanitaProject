@@ -9,11 +9,12 @@ import { Fan } from "@/components/brand/Fan";
 
 const NAV = [
   { href: "/programas", label: "Programas", index: "01" },
-  { href: "/sello", label: "Sello", index: "02" },
-  { href: "/profesores", label: "Profesores", index: "03" },
-  { href: "/nosotros", label: "Nosotros", index: "04" },
-  { href: "/faq", label: "FAQ", index: "05" },
-  { href: "/contacto", label: "Contacto", index: "06" },
+  { href: "/servicios", label: "Servicios", index: "02" },
+  { href: "/sello", label: "Sello", index: "03" },
+  { href: "/profesores", label: "Profesores", index: "04" },
+  { href: "/nosotros", label: "Nosotros", index: "05" },
+  { href: "/faq", label: "FAQ", index: "06" },
+  { href: "/contacto", label: "Contacto", index: "07" },
 ];
 
 /**
@@ -167,7 +168,7 @@ export function Navbar() {
             <span className="sr-only">La Juanita Studio</span>
           </Link>
 
-          <nav className="hidden items-center gap-8 lg:flex">
+          <nav className="hidden items-center gap-6 xl:gap-8 lg:flex">
             {NAV.map((item) => (
               <Link
                 key={item.href}
@@ -184,11 +185,11 @@ export function Navbar() {
 
           <div className="flex items-center gap-5">
             <Link
-              href="/contacto"
-              data-cursor="ESCRIBIR"
+              href="/ingresar"
+              data-cursor="ENTRAR"
               className="btn hidden text-[color:var(--page-fg)] sm:inline-flex"
             >
-              Inscribite
+              Iniciar sesión
             </Link>
 
             <button
@@ -239,7 +240,20 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div data-menu-item className="t-mono mt-10 flex flex-wrap gap-x-6 gap-y-2 text-bone/45">
+        <div data-menu-item className="mt-10">
+          <Link
+            href="/ingresar"
+            onClick={() => setOpen(false)}
+            className="btn btn--solid"
+          >
+            Iniciar sesión
+            <span aria-hidden className="text-[1.25em] leading-none">
+              ↗
+            </span>
+          </Link>
+        </div>
+
+        <div data-menu-item className="t-mono mt-8 flex flex-wrap gap-x-6 gap-y-2 text-bone/45">
           <span>Pilar, Buenos Aires</span>
           <span>hola@lajuanitastudio.com</span>
         </div>

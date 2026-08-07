@@ -19,9 +19,12 @@ const COLUMNS = [
   {
     title: "Estudio",
     links: [
+      { href: "/servicios", label: "Alquiler de cabina" },
+      { href: "/servicios#grabacion-sets", label: "Grabación de sets" },
       { href: "/sello", label: "La Juanita Records" },
       { href: "/nosotros", label: "Nosotros" },
       { href: "/contacto", label: "Contacto" },
+      { href: "/ingresar", label: "Iniciar sesión" },
     ],
   },
 ];

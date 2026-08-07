@@ -165,7 +165,7 @@ body {
 }
 
 .h-xl {
-  font-size: clamp(52px, 13vw, 210px);
+  font-size: clamp(48px, 11.5vw, 168px);
 }
 .h-lg {
   font-size: clamp(38px, 7.5vw, 120px);
@@ -282,6 +282,12 @@ body {
 .btn:hover::before {
   transform: translateY(0);
 }
+/* Variante para fondos con foto: el borde al 16% del sistema desaparece
+   sobre una imagen, aunque funcione perfecto sobre un fondo plano. */
+.btn--strong {
+  --btn-bd: color-mix(in srgb, var(--page-fg) 42%, transparent);
+}
+
 .btn--solid {
   background: var(--red);
   border-color: var(--red);
@@ -345,9 +351,32 @@ body {
   }
 }
 
-/* Máscara de línea para los reveals de SplitText. */
+/* ── Máscaras de línea para SplitText, sin cortar glifos ──────────────
+   BUG QUE ESTO ARREGLA: con `line-height: 0.86` (el de .t-display) la caja
+   de línea es MÁS BAJA que los glifos. Cualquier `overflow: hidden` encima
+   corta las tildes de las mayúsculas por arriba (NÚMEROS, ÚLTIMO) y las
+   colas de la "y" o la "j" por abajo.
+   La solución: agrandar la caja con padding y descontarlo con un margen
+   negativo en la máscara, para que el interlineado visual no cambie.
+   GSAP nombra la máscara como la clase de línea + "-mask". */
 .reveal-line {
   overflow: hidden;
+  padding-top: 0.2em;
+  padding-bottom: 0.16em;
+}
+
+.reveal-line-mask {
+  margin-top: -0.2em;
+  margin-bottom: -0.16em;
+}
+
+/* Mismo problema en las líneas del hero, que enmascaro a mano. */
+[data-hero-line] {
+  overflow: hidden;
+  padding-top: 0.18em;
+  padding-bottom: 0.14em;
+  margin-top: -0.18em;
+  margin-bottom: -0.14em;
 }
 
 /* Imagen en duotono tinta/hueso; recupera color al hover. */

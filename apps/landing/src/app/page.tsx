@@ -4,7 +4,7 @@ import { ProgramsRail } from "@/components/sections/ProgramsRail";
 import { Numbers } from "@/components/sections/Numbers";
 import { Teachers } from "@/components/sections/Teachers";
 import { Releases } from "@/components/sections/Releases";
-import { Voices } from "@/components/sections/Voices";
+import { Services } from "@/components/sections/Services";
 import { Cta } from "@/components/sections/Cta";
 import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
 import { UPCOMING_DATES } from "@/data/dates";
@@ -22,8 +22,8 @@ import { UPCOMING_DATES } from "@/data/dates";
  *   ink   Programas       riel horizontal anclado
  *   bone  Números         cifras + VU
  *   ink   Profesores      abanico de fichas
+ *   bone  Servicios       alquiler de cabina y grabación
  *   ink   Sello           pila de lanzamientos
- *   bone  Testimonios     una voz por vez
  *   ink   Cierre          wordmark arqueado
  */
 export default function Home() {
@@ -54,8 +54,8 @@ export default function Home() {
       <ProgramsRail />
       <Numbers />
       <Teachers />
+      <Services />
       <Releases />
-      <Voices />
       <Cta />
     </>
   );
