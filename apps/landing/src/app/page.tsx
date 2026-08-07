@@ -1,69 +1,115 @@
-import Image from "next/image";
+import { Hero } from "@/components/sections/Hero";
+import { Marquee } from "@/components/Marquee";
+import { IndexNav, type IndexItem } from "@/components/IndexNav";
+import { Container } from "@/components/ui/Container";
+import { Reveal } from "@/components/Reveal";
+import { Button } from "@/components/ui/Button";
+import { PROGRAMS } from "@/data/programs";
+import { RELEASES } from "@/data/releases";
+import { TEACHERS } from "@/data/teachers";
+import { UPCOMING_DATES } from "@/data/dates";
+import { StatsVu } from "@/components/StatsVu";
+
+const ITEMS: IndexItem[] = [
+  {
+    index: "01",
+    href: "/nosotros",
+    label: "Nosotros",
+    description: "Un estudio hecho por y para gente de la música.",
+    image: "/images/estudio/team.jpg",
+  },
+  {
+    index: "02",
+    href: "/programas",
+    label: "Programas",
+    description: "DJ, producción y mix & mastering, sobre equipamiento profesional.",
+    image: "/images/estudio/equipos.jpg",
+    meta: PROGRAMS.map((p) => p.name),
+  },
+  {
+    index: "03",
+    href: "/sello",
+    label: "Sello",
+    description: "La Juanita Records — nuestros artistas y lanzamientos.",
+    image: "/images/estudio/sala-mastering.jpg",
+    meta: RELEASES.slice(0, 3).map((r) => r.title),
+  },
+  {
+    index: "04",
+    href: "/profesores",
+    label: "Profesores",
+    description: "Artistas y productores activos en la escena.",
+    image: "/images/artistas/ghezz.png",
+    meta: TEACHERS.map((t) => t.name),
+  },
+  {
+    index: "05",
+    href: "/faq",
+    label: "FAQ",
+    description: "Todo lo que necesitás saber antes de anotarte.",
+    image: "/images/estudio/equipos.jpg",
+  },
+  {
+    index: "06",
+    href: "/contacto",
+    label: "Contacto",
+    description: "Vení a conocer la sede de Pilar.",
+    image: "/images/estudio/fachada.jpeg",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <>
+      <Hero />
+      <Marquee
+        items={UPCOMING_DATES.map((d) => (
+          <span key={d.title}>
+            {d.day} {d.month} · <b className="text-white">{d.title}</b>
+          </span>
+        ))}
+      />
+
+      <section id="index" className="bg-bg py-16 sm:py-24">
+        <Container>
+          <Reveal>
+            <span className="font-mono text-xs uppercase tracking-wide text-red">Explorá</span>
+          </Reveal>
+          <IndexNav items={ITEMS} />
+        </Container>
+      </section>
+
+      <section className="border-t border-border-subtle bg-surface py-20 sm:py-28">
+        <Container>
+          <Reveal>
+            <span className="font-mono text-xs uppercase tracking-wide text-red">
+              Salida general
+            </span>
+            <h2 className="mt-3 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
+              La Juanita <span className="font-normal text-text-secondary">en números</span>
+            </h2>
+          </Reveal>
+          <div className="mt-10">
+            <StatsVu />
+          </div>
+        </Container>
+      </section>
+
+      <section className="border-t border-border-subtle bg-bg py-24 sm:py-32">
+        <Container className="text-center">
+          <Reveal>
+            <h2 className="mx-auto max-w-2xl font-display text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
+              ¿Listo para llevar tu <span className="text-red">sonido</span>{" "}
+              <span className="font-normal text-text-secondary">al siguiente nivel?</span>
+            </h2>
+          </Reveal>
+          <Reveal delay={0.1} className="mt-8 flex justify-center">
+            <Button href="/contacto" variant="primary">
+              Inscribite ahora
+            </Button>
+          </Reveal>
+        </Container>
+      </section>
+    </>
   );
 }
