@@ -1,3 +1,24 @@
+> ## ⚠️ SUPERSEDIDO — no uses este archivo como referencia de diseño
+>
+> Esta guía describe una estética genérica de "estudio oscuro premium"
+> (fondo negro, Inter/Syne, texto blanco, rojo de acento) que **ya no
+> corresponde** a la landing construida. Si la seguís, vas a deshacer el
+> rediseño.
+>
+> **La identidad implementada** sale de los assets reales de la marca —el
+> abanico calado y el wordmark arqueado tipo parche— y usa tres tintas
+> (hueso `#e8e1d4`, tinta `#0a0a0b`, rojo `#e52328`), con Archivo variable
+> de eje de ancho, Instrument Serif itálica y Space Mono. El fondo del sitio
+> **alterna entre oscuro y papel** según la sección; no es dark-mode-first.
+>
+> La referencia viva es **`apps/landing/CLAUDE.md`**.
+>
+> Lo único que sigue vigente de acá abajo es el rojo de marca `#e52328` y el
+> público objetivo. El resto se conserva sólo como registro histórico de la
+> propuesta inicial.
+
+---
+
 # Branding & Visual Identity Guidelines
 
 ## Overview & Brand Vibe

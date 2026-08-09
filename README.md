@@ -4,7 +4,7 @@ Sistema completo para el sello discográfico y academia de DJ y producción de m
 
 Dos entregables:
 
-1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual.
+1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual. Doce rutas, estática. Ver [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
 2. **Sistema de gestión interno** (`apps/platform` + `apps/backend`) — alumnos, horarios/salas, pagos, portal alumno, portal profesor, mix & mastering, sello discográfico, dashboard de dirección.
 
 ## Estructura del repo
@@ -18,12 +18,14 @@ apps/
 docs/
 ├── relevamiento/  relevamiento y entrevistas al cliente
 ├── propuesta/     propuesta técnica y comercial
+├── requirements/  alcance por app
+├── branding/      assets de marca (la guía visual está supersedida)
 └── db/            modelo de datos (DBML)
 ```
 
 ## Stack
 
-- **Landing**: Next.js, TypeScript, Tailwind CSS.
+- **Landing**: Next.js (App Router), TypeScript, Tailwind CSS v4, GSAP (ScrollSmoother, ScrollTrigger, SplitText, DrawSVG).
 - **Platform**: React + Vite, TypeScript, Tailwind CSS.
 - **Backend**: Java 21, Spring Boot, Spring Data JPA, Spring Security (JWT).
 - **DB**: PostgreSQL.
@@ -58,6 +60,17 @@ npm run dev
 cd apps/backend
 ./mvnw spring-boot:run
 ```
+
+## Estado de la landing
+
+Estática, sin datos dinámicos. Incluye academia (tres programas con página
+de detalle), servicios (alquiler de cabina y grabación de sets), venta de
+equipamiento y sello.
+
+**Todos los formularios son visuales**: solicitudes, reservas, consultas e
+inicio de sesión no envían nada y lo avisan en pantalla. Buena parte del
+contenido —precios incluidos— todavía es placeholder pendiente de validar
+con el cliente; el detalle está en [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
 
 ## Modelo de datos
 

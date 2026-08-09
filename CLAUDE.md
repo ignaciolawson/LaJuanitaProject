@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electronic music production academy, Pilar). Two deliverables:
 
-1. **Landing page** (`apps/landing`) — public marketing site replacing the client's current Linktree.
+1. **Landing page** (`apps/landing`) — public marketing site replacing the client's current Linktree. **Has its own `CLAUDE.md` — read it before touching styles or animations there.** It documents a custom design system, a GSAP motion architecture, and several already-solved integration traps that are easy to re-break.
 2. **Management platform** (`apps/platform` + `apps/backend`) — authenticated system covering students, room/schedule booking, payments, student/teacher portals, mix & mastering requests, and the record label workflow.
 
 ## Repo structure
@@ -19,6 +19,8 @@ apps/
 docs/
 ├── relevamiento/  client interviews / discovery notes
 ├── propuesta/     technical & commercial proposal
+├── requirements/  per-app scope
+├── branding/      brand assets + identity guide
 └── db/            data model (DBML)
 ```
 
@@ -35,7 +37,7 @@ npm run dev:platform       # vite dev server
 npm run build:landing
 npm run build:platform
 
-cd apps/landing && npm run lint
+cd apps/landing && npm run lint       # eslint
 cd apps/platform && npm run lint      # oxlint
 
 cd apps/backend && ./mvnw spring-boot:run
@@ -44,6 +46,29 @@ cd apps/backend && ./mvnw -Dtest=ClassName#methodName test   # single test
 
 docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanita)
 ```
+
+## Landing: current state
+
+Static Next.js App Router site, no dynamic data. Twelve routes, including
+program detail pages (SSG) and sections for programs, services (booth rental
+and set recording), gear sales, and the record label.
+
+**Every form on the landing is visual only.** Program applications, booth
+booking, gear inquiries and the `/ingresar` login submit nothing — they show
+an explicit "not connected yet" notice rather than faking success. When the
+backend exists, the connection points are the `onSubmit` in
+`components/forms/Fields.tsx` and `components/forms/LoginForm.tsx`. Do not
+replace those notices with a fake success state.
+
+**Most long-form copy and all prices are invented placeholder.** The landing
+`CLAUDE.md` has the file-by-file table of what still needs client
+validation. Treat prices in `data/services.ts` as the highest-risk item:
+they are numbers a customer would act on.
+
+The visual identity was rebuilt from the actual brand assets (the fan icon
+and the arched patch wordmark) and **deliberately supersedes**
+`docs/branding/brand-guide.md`, which described a generic dark-mode look
+that no longer matches the site. See that file's header note.
 
 ## Architecture notes
 
