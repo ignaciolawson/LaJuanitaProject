@@ -62,6 +62,7 @@ Hay cuatro formularios y **ninguno envía nada a ningún lado**:
 | Solicitud de programa | `/programas/convertite-en-dj`, `/programas/produccion-musical` | endpoint + mail al equipo |
 | Reserva de cabina | `/servicios#reservar` | endpoint + disponibilidad real de sala |
 | Inicio de sesión | `/ingresar` | auth, sesión, campus |
+| Consulta de equipos | `/equipos#consultar` | endpoint + mail al shop |
 | Contacto | `/contacto` | ya existía, sigue sin conectar |
 
 Los tres nuevos muestran un aviso explícito de "todavía no se envía" en vez
@@ -88,6 +89,24 @@ nivel antes de entender qué se enseña. Ahora:
 El nivel se resuelve dentro de la solicitud, con la pregunta de experiencia
 previa: cero / algo por mi cuenta / ya toco.
 
+## La Juanita Shop (`/equipos`)
+
+Cuatro categorías tomadas del posteo real: controladores, monitores de
+estudio, auriculares y accesorios.
+
+**No hay marcas, modelos ni precios, y es deliberado.** Publicar "Pioneer
+DDJ-FLX4" es un compromiso de venta: si no está en stock, alguien llega al
+local a buscarlo. Cada categoría describe el rango y el criterio, y la
+conversión es la consulta — que además es como vende el negocio según su
+propio posteo ("te asesoramos según tu nivel, presupuesto y objetivos").
+
+Cuando exista catálogo con stock, `/equipos` es el lugar natural para una
+grilla de productos con precio, y el formulario pasa a segundo plano.
+
+La banda roja de "DJ SHOP" está calcada de la placa de Instagram: es el
+único lugar del sistema donde el rojo ocupa una franja entera, lo que la
+convierte en la señal de "acá se vende" frente al resto del sitio.
+
 ## Pendiente antes de publicar (contenido, no código)
 
 - `src/data/contact.ts`: el WhatsApp es `5491100000000` y las redes apuntan
@@ -99,6 +118,9 @@ previa: cero / algo por mi cuenta / ya toco.
   los números que alguien va a usar para decidir.
 - `src/data/programs.ts`: los textos largos (qué es, por qué acá, para
   quién, temario) están escritos con la voz del negocio pero son inventados.
+- `src/data/gear.ts`: los textos de cada categoría son inventados. Lo que
+  entra en cada una ("controladores de dos canales", "monitores 5\" a 8\"")
+  hay que validarlo contra el stock real.
 - `src/app/nosotros/page.tsx`: la línea de tiempo (2019 sello → 2021 estudio
   → 2023 academia) es inventada. Las fechas reales las tenés vos.
 - `src/data/dates.ts`, `releases.ts`, `testimonials.ts`, `faq.ts` y los

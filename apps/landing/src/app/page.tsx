@@ -5,6 +5,7 @@ import { Numbers } from "@/components/sections/Numbers";
 import { Teachers } from "@/components/sections/Teachers";
 import { Releases } from "@/components/sections/Releases";
 import { Services } from "@/components/sections/Services";
+import { Gear } from "@/components/sections/Gear";
 import { Cta } from "@/components/sections/Cta";
 import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
 import { UPCOMING_DATES } from "@/data/dates";
@@ -23,6 +24,7 @@ import { UPCOMING_DATES } from "@/data/dates";
  *   bone  Números         cifras + VU
  *   ink   Profesores      abanico de fichas
  *   bone  Servicios       alquiler de cabina y grabación
+ *   ink   Equipos         La Juanita Shop, con la banda roja de redes
  *   ink   Sello           pila de lanzamientos
  *   ink   Cierre          wordmark arqueado
  */
@@ -55,6 +57,7 @@ export default function Home() {
       <Numbers />
       <Teachers />
       <Services />
+      <Gear />
       <Releases />
       <Cta />
     </>

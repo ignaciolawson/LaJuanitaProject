@@ -10,11 +10,12 @@ import { Fan } from "@/components/brand/Fan";
 const NAV = [
   { href: "/programas", label: "Programas", index: "01" },
   { href: "/servicios", label: "Servicios", index: "02" },
-  { href: "/sello", label: "Sello", index: "03" },
-  { href: "/profesores", label: "Profesores", index: "04" },
-  { href: "/nosotros", label: "Nosotros", index: "05" },
-  { href: "/faq", label: "FAQ", index: "06" },
-  { href: "/contacto", label: "Contacto", index: "07" },
+  { href: "/equipos", label: "Equipos", index: "03" },
+  { href: "/sello", label: "Sello", index: "04" },
+  { href: "/profesores", label: "Profesores", index: "05" },
+  { href: "/nosotros", label: "Nosotros", index: "06" },
+  { href: "/faq", label: "FAQ", index: "07" },
+  { href: "/contacto", label: "Contacto", index: "08" },
 ];
 
 /**
@@ -168,7 +169,7 @@ export function Navbar() {
             <span className="sr-only">La Juanita Studio</span>
           </Link>
 
-          <nav className="hidden items-center gap-6 xl:gap-8 lg:flex">
+          <nav className="hidden items-center gap-5 xl:flex 2xl:gap-7">
             {NAV.map((item) => (
               <Link
                 key={item.href}
@@ -197,7 +198,7 @@ export function Navbar() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
-              className="relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] lg:hidden"
+              className="relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] xl:hidden"
             >
               <span
                 className={clsx(
@@ -219,7 +220,7 @@ export function Navbar() {
       {/* Cortina a pantalla completa */}
       <div
         ref={menu}
-        className="pointer-events-none fixed inset-0 z-[82] flex flex-col justify-center bg-ink px-[var(--pad)] text-bone lg:hidden"
+        className="pointer-events-none fixed inset-0 z-[82] flex flex-col justify-center overflow-y-auto bg-ink px-[var(--pad)] py-24 text-bone xl:hidden"
         style={{ clipPath: "inset(0% 0% 100% 0%)" }}
       >
         <nav className="flex flex-col">
@@ -229,10 +230,10 @@ export function Navbar() {
                 data-menu-item
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="group flex items-baseline gap-4 border-b border-bone/12 py-3"
+                className="group flex items-baseline gap-4 border-b border-bone/12 py-2.5"
               >
                 <span className="t-mono text-red">{item.index}</span>
-                <span className="t-display-tight text-[13vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-6xl">
+                <span className="t-display-tight text-[10.5vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-5xl">
                   {item.label}
                 </span>
               </Link>

@@ -1,0 +1,754 @@
+From 5f87bbb60a3832789ec22705972bc53e1e382341 Mon Sep 17 00:00:00 2001
+From: Ignacio Lawson <dev@lajuanitastudio.com>
+Date: Sun, 9 Aug 2026 23:04:08 +0000
+Subject: [PATCH] =?UTF-8?q?feat(landing):=20secci=C3=B3n=20y=20p=C3=A1gina?=
+ =?UTF-8?q?=20de=20equipos=20(La=20Juanita=20Shop)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Suma la cuarta pata del negocio, que faltaba: la venta de equipamiento.
+
+- Nueva sección en la home y página /equipos con las cuatro categorías del
+  posteo real: controladores, monitores de estudio, auriculares y
+  accesorios, cada una con su rango y su criterio.
+- Formulario de consulta con las tres preguntas que el vendedor haría
+  igual — categoría, nivel y presupuesto — para ahorrar ida y vuelta. El
+  presupuesto va por rangos: pedir cifra cerrada espanta a quien todavía
+  está averiguando, que es el público de esta página.
+- Sin marcas, modelos ni precios, a propósito. Publicar un modelo es un
+  compromiso de venta y no conozco el stock; la conversión es la consulta,
+  que además es como vende el negocio.
+- La banda roja de "DJ SHOP" está calcada de la placa de Instagram. Es el
+  único lugar del sistema donde el rojo ocupa una franja entera, lo que la
+  vuelve la señal de "acá se vende".
+
+Correcciones que arrastraba el nav
+- Con ocho ítems el nav horizontal ya no entraba en 1024px y se pisaba con
+  el logo y el botón: pasa a mostrarse desde xl.
+- El menú móvil se vuelve scrolleable y baja el cuerpo de los ítems; con
+  ocho entradas más el botón de sesión no entraba en pantallas bajas.
+- La grilla del footer asumía dos columnas de links y ahora son tres.
+
+El formulario, como los demás, es visual y avisa que no envía nada.
+---
+ apps/landing/LANDING-V2.md                    |  22 ++
+ apps/landing/src/app/equipos/page.tsx         | 200 ++++++++++++++++++
+ apps/landing/src/app/page.tsx                 |   3 +
+ .../src/components/forms/GearInquiryForm.tsx  |  83 ++++++++
+ apps/landing/src/components/layout/Footer.tsx |  10 +-
+ apps/landing/src/components/layout/Navbar.tsx |  21 +-
+ apps/landing/src/components/sections/Gear.tsx | 139 ++++++++++++
+ apps/landing/src/data/gear.ts                 |  85 ++++++++
+ 8 files changed, 552 insertions(+), 11 deletions(-)
+ create mode 100644 apps/landing/src/app/equipos/page.tsx
+ create mode 100644 apps/landing/src/components/forms/GearInquiryForm.tsx
+ create mode 100644 apps/landing/src/components/sections/Gear.tsx
+ create mode 100644 apps/landing/src/data/gear.ts
+
+diff --git a/apps/landing/LANDING-V2.md b/apps/landing/LANDING-V2.md
+index 223a139..59bf5c9 100644
+--- a/apps/landing/LANDING-V2.md
++++ b/apps/landing/LANDING-V2.md
+@@ -62,6 +62,7 @@ Hay cuatro formularios y **ninguno envía nada a ningún lado**:
+ | Solicitud de programa | `/programas/convertite-en-dj`, `/programas/produccion-musical` | endpoint + mail al equipo |
+ | Reserva de cabina | `/servicios#reservar` | endpoint + disponibilidad real de sala |
+ | Inicio de sesión | `/ingresar` | auth, sesión, campus |
++| Consulta de equipos | `/equipos#consultar` | endpoint + mail al shop |
+ | Contacto | `/contacto` | ya existía, sigue sin conectar |
+ 
+ Los tres nuevos muestran un aviso explícito de "todavía no se envía" en vez
+@@ -88,6 +89,24 @@ nivel antes de entender qué se enseña. Ahora:
+ El nivel se resuelve dentro de la solicitud, con la pregunta de experiencia
+ previa: cero / algo por mi cuenta / ya toco.
+ 
++## La Juanita Shop (`/equipos`)
++
++Cuatro categorías tomadas del posteo real: controladores, monitores de
++estudio, auriculares y accesorios.
++
++**No hay marcas, modelos ni precios, y es deliberado.** Publicar "Pioneer
++DDJ-FLX4" es un compromiso de venta: si no está en stock, alguien llega al
++local a buscarlo. Cada categoría describe el rango y el criterio, y la
++conversión es la consulta — que además es como vende el negocio según su
++propio posteo ("te asesoramos según tu nivel, presupuesto y objetivos").
++
++Cuando exista catálogo con stock, `/equipos` es el lugar natural para una
++grilla de productos con precio, y el formulario pasa a segundo plano.
++
++La banda roja de "DJ SHOP" está calcada de la placa de Instagram: es el
++único lugar del sistema donde el rojo ocupa una franja entera, lo que la
++convierte en la señal de "acá se vende" frente al resto del sitio.
++
+ ## Pendiente antes de publicar (contenido, no código)
+ 
+ - `src/data/contact.ts`: el WhatsApp es `5491100000000` y las redes apuntan
+@@ -99,6 +118,9 @@ previa: cero / algo por mi cuenta / ya toco.
+   los números que alguien va a usar para decidir.
+ - `src/data/programs.ts`: los textos largos (qué es, por qué acá, para
+   quién, temario) están escritos con la voz del negocio pero son inventados.
++- `src/data/gear.ts`: los textos de cada categoría son inventados. Lo que
++  entra en cada una ("controladores de dos canales", "monitores 5\" a 8\"")
++  hay que validarlo contra el stock real.
+ - `src/app/nosotros/page.tsx`: la línea de tiempo (2019 sello → 2021 estudio
+   → 2023 academia) es inventada. Las fechas reales las tenés vos.
+ - `src/data/dates.ts`, `releases.ts`, `testimonials.ts`, `faq.ts` y los
+diff --git a/apps/landing/src/app/equipos/page.tsx b/apps/landing/src/app/equipos/page.tsx
+new file mode 100644
+index 0000000..9925b8f
+--- /dev/null
++++ b/apps/landing/src/app/equipos/page.tsx
+@@ -0,0 +1,200 @@
++import type { Metadata } from "next";
++import { Disc3, Speaker, Headphones, Cable } from "lucide-react";
++
++import { PageHero } from "@/components/PageHero";
++import { Reveal } from "@/components/Reveal";
++import { SplitReveal } from "@/components/motion/SplitReveal";
++import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
++import { Container } from "@/components/ui/Container";
++import { GearInquiryForm } from "@/components/forms/GearInquiryForm";
++import { GEAR } from "@/data/gear";
++import { CONTACT } from "@/data/contact";
++
++const ICONS = {
++  controller: Disc3,
++  monitor: Speaker,
++  headphones: Headphones,
++  accessories: Cable,
++} as const;
++
++export const metadata: Metadata = {
++  title: "Equipos",
++  description:
++    "La Juanita Shop: controladores, monitores de estudio, auriculares y accesorios para DJ y producción, con asesoramiento en Pilar.",
++};
++
++/**
++ * La Juanita Shop.
++ *
++ * Sin catálogo ni precios: no conozco el stock real y publicar modelos que
++ * después no están es peor que no publicar nada. La página explica el rango
++ * de cada categoría y empuja a la consulta, que además es la forma en que
++ * el negocio ya vende — asesorando.
++ *
++ * Cuando exista el catálogo, esta página es el lugar natural para una
++ * grilla de productos con precio, y el formulario baja a un segundo plano.
++ */
++export default function EquiposPage() {
++  return (
++    <>
++      <PageHero
++        eyebrow="La Juanita Shop"
++        title="Armá o renová tu setup"
++        description="Controladores, monitores, auriculares y accesorios. Todo lo que necesitás, en un solo lugar."
++        image="/images/estudio/equipos.jpg"
++      />
++
++      {/* Banda roja, el mismo recurso que usan en redes */}
++      <div data-theme="ink" className="bg-red text-white">
++        <VelocityMarquee
++          className="t-display-tight py-3 text-[clamp(26px,3.6vw,52px)] leading-none"
++          speed={26}
++          separator="—"
++          items={["DJ Shop", "DJ Shop", "DJ Shop", "DJ Shop"]}
++        />
++      </div>
++
++      {/* Cómo compramos con vos */}
++      <section
++        data-theme="bone"
++        className="paper relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
++      >
++        <Container wide>
++          <div className="grid gap-12 lg:grid-cols-12">
++            <div className="lg:col-span-4">
++              <span className="label">Cómo funciona</span>
++            </div>
++            <div className="lg:col-span-8">
++              <SplitReveal
++                as="p"
++                type="words"
++                className="t-display-tight text-[clamp(22px,2.4vw,34px)] leading-[1.2] normal-case"
++              >
++                No te vendemos el equipo más caro. Te vendemos el que te sirve.
++              </SplitReveal>
++
++              <div className="mt-8 max-w-[56ch] space-y-5 text-[color:var(--page-muted)]">
++                <SplitReveal as="p" type="lines" className="t-body text-[17px]">
++                  Antes de cotizarte cualquier cosa preguntamos tres cosas: en
++                  qué nivel estás, dónde vas a usarlo y con cuánto contás. Con
++                  eso la conversación cambia por completo — a veces la respuesta
++                  es un equipo más barato del que venías a buscar, y a veces es
++                  esperar un mes y llevarte algo que no vas a tener que cambiar
++                  el año que viene.
++                </SplitReveal>
++                <SplitReveal as="p" type="lines" className="t-body text-[17px]">
++                  Somos los mismos que damos clase y grabamos acá adentro, así
++                  que el equipo que te recomendamos es equipo que usamos. Si
++                  algo no nos convence, te lo decimos.
++                </SplitReveal>
++              </div>
++            </div>
++          </div>
++        </Container>
++      </section>
++
++      {/* Categorías */}
++      <section
++        data-theme="ink"
++        className="bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
++      >
++        <Container wide>
++          <span className="label">Qué conseguís</span>
++          <SplitReveal as="h2" type="chars" className="t-display h-md mt-5">
++            Categorías
++          </SplitReveal>
++
++          <div className="mt-16 grid gap-6 lg:grid-cols-2 lg:gap-8">
++            {GEAR.map((category, i) => {
++              const Icon = ICONS[category.icon];
++              return (
++                <Reveal key={category.slug} delay={i * 0.06}>
++                  <article className="group flex h-full flex-col border border-[color:var(--page-line)] p-7 transition-colors hover:border-red sm:p-9">
++                    <div className="flex items-start justify-between gap-6">
++                      <div className="min-w-0">
++                        <span className="t-mono text-red">
++                          {String(i + 1).padStart(2, "0")}
++                        </span>
++                        <h3 className="t-display-tight mt-3 text-[clamp(26px,2.8vw,40px)] leading-[0.96]">
++                          {category.name}
++                        </h3>
++                        <p className="t-serif mt-2 text-lg text-[color:var(--page-muted)]">
++                          {category.tagline}
++                        </p>
++                      </div>
++                      <Icon
++                        size={34}
++                        strokeWidth={1.3}
++                        aria-hidden
++                        className="shrink-0 text-red transition-transform duration-500 group-hover:scale-110"
++                      />
++                    </div>
++
++                    <p className="t-body mt-6 max-w-[48ch] text-[color:var(--page-muted)]">
++                      {category.description}
++                    </p>
++
++                    <div className="mt-auto pt-7">
++                      <span className="t-mono text-[color:var(--page-faint)]">Incluye</span>
++                      <ul className="mt-4 grid gap-2 border-t border-[color:var(--page-line)] pt-5">
++                        {category.covers.map((item) => (
++                          <li key={item} className="t-body flex gap-2.5 text-sm">
++                            <span aria-hidden className="text-red">
++                              ·
++                            </span>
++                            <span className="text-[color:var(--page-muted)]">{item}</span>
++                          </li>
++                        ))}
++                      </ul>
++                    </div>
++                  </article>
++                </Reveal>
++              );
++            })}
++          </div>
++
++          <p className="t-mono mt-10 border-t border-[color:var(--page-line)] pt-6 text-[color:var(--page-faint)]">
++            Marcas, modelos y precios se confirman por consulta según stock del
++            momento.
++          </p>
++        </Container>
++      </section>
++
++      {/* Consulta */}
++      <section
++        id="consultar"
++        data-theme="ink"
++        className="border-t border-[color:var(--page-line)] bg-ink-2 py-[var(--gap)] text-[color:var(--page-fg)]"
++      >
++        <Container wide>
++          <div className="grid gap-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-20">
++            <div>
++              <span className="label">Consultar</span>
++              <SplitReveal as="h2" type="chars" className="t-display h-md mt-5">
++                Decinos qué buscás
++              </SplitReveal>
++              <p className="t-body mt-6 max-w-[38ch] text-[color:var(--page-muted)]">
++                Contanos en qué andás y te armamos opciones con precio
++                actualizado. Si no sabés bien qué necesitás, mejor todavía: para
++                eso está la consulta.
++              </p>
++              <p className="t-mono mt-8 text-[color:var(--page-faint)]">
++                ¿Preferís hablar directo?{" "}
++                <a
++                  href={`https://wa.me/${CONTACT.whatsapp}`}
++                  target="_blank"
++                  rel="noopener noreferrer"
++                  className="link-u text-red"
++                >
++                  Escribinos por WhatsApp
++                </a>
++              </p>
++            </div>
++
++            <GearInquiryForm />
++          </div>
++        </Container>
++      </section>
++    </>
++  );
++}
+diff --git a/apps/landing/src/app/page.tsx b/apps/landing/src/app/page.tsx
+index f7f5bf8..0b6a822 100644
+--- a/apps/landing/src/app/page.tsx
++++ b/apps/landing/src/app/page.tsx
+@@ -5,6 +5,7 @@ import { Numbers } from "@/components/sections/Numbers";
+ import { Teachers } from "@/components/sections/Teachers";
+ import { Releases } from "@/components/sections/Releases";
+ import { Services } from "@/components/sections/Services";
++import { Gear } from "@/components/sections/Gear";
+ import { Cta } from "@/components/sections/Cta";
+ import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
+ import { UPCOMING_DATES } from "@/data/dates";
+@@ -23,6 +24,7 @@ import { UPCOMING_DATES } from "@/data/dates";
+  *   bone  Números         cifras + VU
+  *   ink   Profesores      abanico de fichas
+  *   bone  Servicios       alquiler de cabina y grabación
++ *   ink   Equipos         La Juanita Shop, con la banda roja de redes
+  *   ink   Sello           pila de lanzamientos
+  *   ink   Cierre          wordmark arqueado
+  */
+@@ -55,6 +57,7 @@ export default function Home() {
+       <Numbers />
+       <Teachers />
+       <Services />
++      <Gear />
+       <Releases />
+       <Cta />
+     </>
+diff --git a/apps/landing/src/components/forms/GearInquiryForm.tsx b/apps/landing/src/components/forms/GearInquiryForm.tsx
+new file mode 100644
+index 0000000..f6692be
+--- /dev/null
++++ b/apps/landing/src/components/forms/GearInquiryForm.tsx
+@@ -0,0 +1,83 @@
++"use client";
++
++import { Field, ChoiceGroup, TextArea, FormShell } from "@/components/forms/Fields";
++import { GEAR } from "@/data/gear";
++
++/**
++ * Consulta de equipamiento.
++ *
++ * Las tres preguntas —qué categoría, qué nivel, qué presupuesto— son las
++ * que el vendedor haría igual apenas empieza la charla. Preguntarlas acá no
++ * agrega fricción: le ahorra dos mensajes de ida y vuelta a los dos lados.
++ *
++ * El presupuesto va por rangos y no por monto exacto: pedir una cifra
++ * cerrada espanta a quien todavía está averiguando, que es justo el público
++ * de esta página.
++ */
++export function GearInquiryForm() {
++  return (
++    <FormShell
++      submitLabel="Enviar consulta"
++      successTitle="Consulta cargada"
++      successBody="Cuando el formulario esté conectado, esto llega al equipo del shop y te responden con opciones y precios actualizados."
++    >
++      <div className="grid gap-6 sm:grid-cols-2">
++        <Field label="Nombre y apellido" name="nombre" required autoComplete="name" />
++        <Field label="Teléfono" name="telefono" type="tel" required autoComplete="tel" />
++      </div>
++
++      <Field label="Mail" name="email" type="email" required autoComplete="email" />
++
++      <fieldset>
++        <legend className="t-mono text-[color:var(--page-faint)]">
++          Qué estás buscando
++        </legend>
++        <div className="mt-3 grid gap-2 sm:grid-cols-2">
++          {GEAR.map((category) => (
++            <label key={category.slug} className="cursor-pointer">
++              <input
++                type="checkbox"
++                name="categorias"
++                value={category.slug}
++                className="peer sr-only"
++              />
++              <span className="t-mono block border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red">
++                {category.name}
++              </span>
++            </label>
++          ))}
++        </div>
++      </fieldset>
++
++      <ChoiceGroup
++        label="¿En qué nivel estás?"
++        name="nivel"
++        defaultValue="arrancando"
++        columns={3}
++        options={[
++          { value: "arrancando", label: "Arrancando" },
++          { value: "tocando", label: "Ya toco" },
++          { value: "renovando", label: "Renuevo cabina" },
++        ]}
++      />
++
++      <ChoiceGroup
++        label="Presupuesto aproximado"
++        name="presupuesto"
++        defaultValue="no-se"
++        columns={2}
++        options={[
++          { value: "no-se", label: "Todavía no sé" },
++          { value: "definido", label: "Lo tengo definido" },
++        ]}
++      />
++
++      <TextArea
++        label="Contanos un poco más (opcional)"
++        name="mensaje"
++        rows={3}
++        placeholder="Qué equipo tenés hoy, dónde vas a tocar, si te interesa algo puntual…"
++      />
++    </FormShell>
++  );
++}
+diff --git a/apps/landing/src/components/layout/Footer.tsx b/apps/landing/src/components/layout/Footer.tsx
+index 7c8432b..5b8c73c 100644
+--- a/apps/landing/src/components/layout/Footer.tsx
++++ b/apps/landing/src/components/layout/Footer.tsx
+@@ -16,6 +16,13 @@ const COLUMNS = [
+       { href: "/faq", label: "Preguntas frecuentes" },
+     ],
+   },
++  {
++    title: "Shop",
++    links: [
++      { href: "/equipos", label: "Equipos" },
++      { href: "/equipos#consultar", label: "Consultar equipamiento" },
++    ],
++  },
+   {
+     title: "Estudio",
+     links: [
+@@ -75,6 +82,7 @@ export function Footer() {
+           "DJ",
+           "Producción",
+           "Mix & Mastering",
++          "DJ Shop",
+           "Sello discográfico",
+           "Pilar, Bs As",
+           "Inscripciones abiertas",
+@@ -82,7 +90,7 @@ export function Footer() {
+       />
+ 
+       <Container wide className="py-[clamp(48px,8vh,96px)]">
+-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,0.8fr))_minmax(0,1fr)]">
++        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,0.75fr))_minmax(0,1fr)]">
+           <div>
+             <span className="t-display-tight text-2xl">La Juanita Studio</span>
+             <p className="t-body mt-4 max-w-[32ch] text-sm text-[color:var(--page-muted)]">
+diff --git a/apps/landing/src/components/layout/Navbar.tsx b/apps/landing/src/components/layout/Navbar.tsx
+index d3d6105..2de3bc7 100644
+--- a/apps/landing/src/components/layout/Navbar.tsx
++++ b/apps/landing/src/components/layout/Navbar.tsx
+@@ -10,11 +10,12 @@ import { Fan } from "@/components/brand/Fan";
+ const NAV = [
+   { href: "/programas", label: "Programas", index: "01" },
+   { href: "/servicios", label: "Servicios", index: "02" },
+-  { href: "/sello", label: "Sello", index: "03" },
+-  { href: "/profesores", label: "Profesores", index: "04" },
+-  { href: "/nosotros", label: "Nosotros", index: "05" },
+-  { href: "/faq", label: "FAQ", index: "06" },
+-  { href: "/contacto", label: "Contacto", index: "07" },
++  { href: "/equipos", label: "Equipos", index: "03" },
++  { href: "/sello", label: "Sello", index: "04" },
++  { href: "/profesores", label: "Profesores", index: "05" },
++  { href: "/nosotros", label: "Nosotros", index: "06" },
++  { href: "/faq", label: "FAQ", index: "07" },
++  { href: "/contacto", label: "Contacto", index: "08" },
+ ];
+ 
+ /**
+@@ -168,7 +169,7 @@ export function Navbar() {
+             <span className="sr-only">La Juanita Studio</span>
+           </Link>
+ 
+-          <nav className="hidden items-center gap-6 xl:gap-8 lg:flex">
++          <nav className="hidden items-center gap-5 xl:flex 2xl:gap-7">
+             {NAV.map((item) => (
+               <Link
+                 key={item.href}
+@@ -197,7 +198,7 @@ export function Navbar() {
+               onClick={() => setOpen((v) => !v)}
+               aria-expanded={open}
+               aria-label={open ? "Cerrar menú" : "Abrir menú"}
+-              className="relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] lg:hidden"
++              className="relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] xl:hidden"
+             >
+               <span
+                 className={clsx(
+@@ -219,7 +220,7 @@ export function Navbar() {
+       {/* Cortina a pantalla completa */}
+       <div
+         ref={menu}
+-        className="pointer-events-none fixed inset-0 z-[82] flex flex-col justify-center bg-ink px-[var(--pad)] text-bone lg:hidden"
++        className="pointer-events-none fixed inset-0 z-[82] flex flex-col justify-center overflow-y-auto bg-ink px-[var(--pad)] py-24 text-bone xl:hidden"
+         style={{ clipPath: "inset(0% 0% 100% 0%)" }}
+       >
+         <nav className="flex flex-col">
+@@ -229,10 +230,10 @@ export function Navbar() {
+                 data-menu-item
+                 href={item.href}
+                 onClick={() => setOpen(false)}
+-                className="group flex items-baseline gap-4 border-b border-bone/12 py-3"
++                className="group flex items-baseline gap-4 border-b border-bone/12 py-2.5"
+               >
+                 <span className="t-mono text-red">{item.index}</span>
+-                <span className="t-display-tight text-[13vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-6xl">
++                <span className="t-display-tight text-[10.5vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-5xl">
+                   {item.label}
+                 </span>
+               </Link>
+diff --git a/apps/landing/src/components/sections/Gear.tsx b/apps/landing/src/components/sections/Gear.tsx
+new file mode 100644
+index 0000000..9b3b49d
+--- /dev/null
++++ b/apps/landing/src/components/sections/Gear.tsx
+@@ -0,0 +1,139 @@
++"use client";
++
++import { useRef } from "react";
++import Link from "next/link";
++import { Disc3, Speaker, Headphones, Cable } from "lucide-react";
++import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
++import { Container } from "@/components/ui/Container";
++import { SplitReveal } from "@/components/motion/SplitReveal";
++import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
++import { GEAR } from "@/data/gear";
++
++const ICONS = {
++  controller: Disc3,
++  monitor: Speaker,
++  headphones: Headphones,
++  accessories: Cable,
++} as const;
++
++/**
++ * La Juanita Shop — venta de equipamiento.
++ *
++ * La tira roja de "DJ SHOP" está calcada del posteo de Instagram: es un
++ * elemento que la marca ya usa, así que traerlo a la web hace que el local
++ * y el sitio se reconozcan entre sí. Además es el único lugar del sistema
++ * donde el rojo ocupa una banda entera — señal de que acá se vende, no se
++ * enseña.
++ *
++ * Sin precios ni modelos: la conversión es la consulta, que es como venden
++ * ellos. Ver `data/gear.ts` para el razonamiento completo.
++ */
++export function Gear() {
++  const root = useRef<HTMLElement>(null);
++
++  useGSAP(
++    () => {
++      if (prefersReduced()) return;
++
++      gsap.fromTo(
++        "[data-gear-card]",
++        { y: 44, opacity: 0 },
++        {
++          y: 0,
++          opacity: 1,
++          duration: 0.95,
++          ease: "juanita",
++          stagger: 0.08,
++          scrollTrigger: { trigger: "[data-gear-grid]", start: "top 82%", once: true },
++        },
++      );
++    },
++    { scope: root },
++  );
++
++  return (
++    <section
++      ref={root}
++      id="equipos"
++      data-theme="ink"
++      className="relative overflow-hidden bg-[color:var(--page-bg)] text-[color:var(--page-fg)]"
++    >
++      {/* Banda roja, como en el posteo */}
++      <div className="bg-red text-white">
++        <VelocityMarquee
++          className="t-display-tight py-3 text-[clamp(26px,3.6vw,52px)] leading-none"
++          speed={26}
++          separator="—"
++          items={["DJ Shop", "DJ Shop", "DJ Shop", "DJ Shop"]}
++        />
++      </div>
++
++      <Container wide className="py-[var(--gap)]">
++        <div className="flex flex-wrap items-end justify-between gap-6">
++          <div>
++            <span className="label">La Juanita Shop</span>
++            <SplitReveal as="h2" type="chars" className="t-display h-md mt-5 max-w-[14ch]">
++              Armá tu setup
++            </SplitReveal>
++          </div>
++          <p className="t-body max-w-[40ch] text-sm text-[color:var(--page-muted)]">
++            Estés dando tus primeros pasos o renovando la cabina entera, acá
++            conseguís el equipamiento — y el asesoramiento para no comprar de
++            más.
++          </p>
++        </div>
++
++        <div data-gear-grid className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
++          {GEAR.map((category) => {
++            const Icon = ICONS[category.icon];
++            return (
++              <article
++                key={category.slug}
++                data-gear-card
++                className="group flex flex-col border border-[color:var(--page-line)] p-6 transition-colors hover:border-red"
++              >
++                <Icon
++                  size={26}
++                  strokeWidth={1.4}
++                  aria-hidden
++                  className="text-red transition-transform duration-500 group-hover:scale-110"
++                />
++
++                <h3 className="t-display-tight mt-6 text-2xl leading-tight">{category.name}</h3>
++                <p className="t-serif mt-1.5 text-base text-[color:var(--page-muted)]">
++                  {category.tagline}
++                </p>
++
++                <ul className="mt-6 space-y-2 border-t border-[color:var(--page-line)] pt-5">
++                  {category.covers.map((item) => (
++                    <li
++                      key={item}
++                      className="t-body flex gap-2.5 text-sm text-[color:var(--page-muted)]"
++                    >
++                      <span aria-hidden className="text-red">
++                        ·
++                      </span>
++                      {item}
++                    </li>
++                  ))}
++                </ul>
++              </article>
++            );
++          })}
++        </div>
++
++        <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-[color:var(--page-line)] pt-8">
++          <Link href="/equipos" data-cursor="VER" className="btn btn--solid">
++            Ver equipos y consultar
++            <span aria-hidden className="text-[1.25em] leading-none">
++              ↗
++            </span>
++          </Link>
++          <p className="t-mono max-w-[38ch] text-[color:var(--page-faint)]">
++            Te asesoramos según tu nivel, presupuesto y dónde vas a tocar
++          </p>
++        </div>
++      </Container>
++    </section>
++  );
++}
+diff --git a/apps/landing/src/data/gear.ts b/apps/landing/src/data/gear.ts
+new file mode 100644
+index 0000000..b4b6094
+--- /dev/null
++++ b/apps/landing/src/data/gear.ts
+@@ -0,0 +1,85 @@
++/**
++ * La Juanita Shop — venta de equipamiento.
++ *
++ * Las cuatro categorías salen del posteo real de Instagram: controladores,
++ * monitores de estudio, auriculares y accesorios.
++ *
++ * ⚠️ A propósito NO hay marcas ni modelos. No sé qué stock manejan, y poner
++ * "Pioneer DDJ-FLX4" en una web es un compromiso de venta: si no lo tienen,
++ * alguien llega al local a buscarlo. Cada categoría describe el RANGO y el
++ * criterio, y la conversión es una consulta — que además es como venden
++ * ellos según el propio posteo ("te asesoramos para que elijas el equipo
++ * ideal según tu nivel, presupuesto y objetivos").
++ *
++ * Cuando tengas el catálogo, esto se reemplaza por productos con precio.
++ */
++
++export type GearCategory = {
++  slug: string;
++  name: string;
++  tagline: string;
++  description: string;
++  /** Qué entra en la categoría, sin nombrar modelos. */
++  covers: string[];
++  /** Ícono de lucide-react, resuelto en el componente. */
++  icon: "controller" | "monitor" | "headphones" | "accessories";
++};
++
++export const GEAR: GearCategory[] = [
++  {
++    slug: "controladores",
++    name: "Controladores",
++    tagline: "El corazón del setup",
++    description:
++      "Desde controladores de dos canales para arrancar en casa hasta equipos de estándar de club. Te ayudamos a elegir según dónde vas a tocar, no según lo que está de moda.",
++    covers: [
++      "Controladores de entrada, dos canales",
++      "Equipos de cuatro canales para cabina",
++      "Reproductores y mixers de estándar de club",
++      "Interfaces y controladores para producción",
++    ],
++    icon: "controller",
++  },
++  {
++    slug: "monitores",
++    name: "Monitores de estudio",
++    tagline: "Escuchar lo que hay, no lo que querés oír",
++    description:
++      "Monitores de campo cercano y subwoofers para que tus mezclas se traduzcan afuera. La elección depende tanto del monitor como del cuarto donde va: eso también lo charlamos.",
++    covers: [
++      "Monitores de campo cercano, 5\" a 8\"",
++      "Subwoofers para completar el rango bajo",
++      "Soportes, aisladores y tratamiento básico",
++      "Cableado balanceado",
++    ],
++    icon: "monitor",
++  },
++  {
++    slug: "auriculares",
++    name: "Auriculares",
++    tagline: "Para cabina y para mezclar",
++    description:
++      "Auriculares de DJ, que necesitan aislamiento y aguante, y auriculares de estudio, que necesitan honestidad. No son lo mismo y casi nadie te lo aclara antes de comprar.",
++    covers: [
++      "Auriculares cerrados para cabina",
++      "Auriculares de referencia para mezcla",
++      "In-ears para monitoreo",
++      "Repuestos: almohadillas y cables",
++    ],
++    icon: "headphones",
++  },
++  {
++    slug: "accesorios",
++    name: "Accesorios",
++    tagline: "Lo que siempre falta",
++    description:
++      "Todo lo que no aparece en la foto del setup pero sin lo cual no tocás: cables, fichas, soportes, fundas, iluminación y repuestos.",
++    covers: [
++      "Cables RCA, XLR, jack y adaptadores",
++      "Soportes de laptop y de controlador",
++      "Fundas y bolsos de traslado",
++      "Iluminación y repuestos varios",
++    ],
++    icon: "accessories",
++  },
++];
+-- 
+2.43.0
+

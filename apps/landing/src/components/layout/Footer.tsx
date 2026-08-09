@@ -17,6 +17,13 @@ const COLUMNS = [
     ],
   },
   {
+    title: "Shop",
+    links: [
+      { href: "/equipos", label: "Equipos" },
+      { href: "/equipos#consultar", label: "Consultar equipamiento" },
+    ],
+  },
+  {
     title: "Estudio",
     links: [
       { href: "/servicios", label: "Alquiler de cabina" },
@@ -75,6 +82,7 @@ export function Footer() {
           "DJ",
           "Producción",
           "Mix & Mastering",
+          "DJ Shop",
           "Sello discográfico",
           "Pilar, Bs As",
           "Inscripciones abiertas",
@@ -82,7 +90,7 @@ export function Footer() {
       />
 
       <Container wide className="py-[clamp(48px,8vh,96px)]">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,0.8fr))_minmax(0,1fr)]">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,0.75fr))_minmax(0,1fr)]">
           <div>
             <span className="t-display-tight text-2xl">La Juanita Studio</span>
             <p className="t-body mt-4 max-w-[32ch] text-sm text-[color:var(--page-muted)]">
