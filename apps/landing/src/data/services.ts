@@ -57,7 +57,7 @@ export const SERVICES: Service[] = [
       "Master de audio del set incluido",
     ],
     durations: [1, 2, 3],
-    image: "/images/espacio/sala-trabajo.jpg",
+    image: "/images/espacio/GSet.jpg",
   },
 ];
 

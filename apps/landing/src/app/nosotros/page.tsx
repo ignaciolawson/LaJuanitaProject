@@ -148,11 +148,11 @@ export default function NosotrosPage() {
       {/* Foto ancha del frente */}
       <RevealImage className="h-[62vh] w-full" parallaxScale={0.25}>
         <Image
-          src="/images/espacio/entrada-retrato.jpg"
+          src="/images/espacio/tocando.jpg"
           alt="Entrada de La Juanita Studio en Pilar, con el cartel de la marca"
           fill
           sizes="100vw"
-          className="object-cover object-center"
+          className="object-cover object-[center_70%]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-ink/40" />
       </RevealImage>
