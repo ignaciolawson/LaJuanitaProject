@@ -3,7 +3,7 @@
 import { useRef, type ReactNode } from "react";
 import Image from "next/image";
 import clsx from "clsx";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
 import { Reveal } from "@/components/Reveal";
 
 export function EditorialRow({
@@ -46,6 +46,9 @@ export function EditorialRow({
       const frame = frameRef.current;
       const media = mediaRef.current;
       if (!row || !frame || !media) return;
+      // Con menos movimiento pedido, la fila entra sin cortina ni parallax.
+      // El estado final es el natural, así que basta con no animar.
+      if (prefersReduced()) return;
 
       // Reveal: comes up from behind a mask as it enters the viewport.
       gsap.set(frame, { clipPath: "inset(100% 0 0 0)" });

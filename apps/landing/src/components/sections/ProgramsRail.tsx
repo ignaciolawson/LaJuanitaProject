@@ -203,18 +203,20 @@ export function ProgramsRail() {
 
               {/* min-h-0 es lo que permite que este bloque se comprima en vez
                   de empujar al pie fuera de la tarjeta. */}
-              <div className="relative my-5 h-32 min-h-0 shrink overflow-hidden lg:h-auto lg:flex-1">
-                <div data-panel-img className="absolute inset-0">
-                  <Image
-                    src={program.image}
-                    alt=""
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 42vw"
-                    className="duotone object-cover"
-                  />
+              {program.cardImage !== false && (
+                <div className="relative my-5 h-32 min-h-0 shrink overflow-hidden lg:h-auto lg:flex-1">
+                  <div data-panel-img className="absolute inset-0">
+                    <Image
+                      src={program.image}
+                      alt=""
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 42vw"
+                      className="duotone object-cover"
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--page-bg)] via-transparent to-transparent" />
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--page-bg)] via-transparent to-transparent" />
-              </div>
+              )}
 
               <div className="mt-auto shrink-0">
                 <p className="t-body line-clamp-3 max-w-[46ch] text-sm text-[color:var(--page-muted)]">

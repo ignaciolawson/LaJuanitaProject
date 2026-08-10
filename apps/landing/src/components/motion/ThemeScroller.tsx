@@ -64,11 +64,32 @@ export function ThemeScroller() {
       root.style.setProperty("--page-line", ink.line);
       return;
     }
+    const KEYS = ["bg", "fg", "muted", "faint", "line"] as const;
+    /** Paleta pedida por la sección que estás mirando. */
     let current: Palette = THEMES.ink;
+    /** Paleta que hay REALMENTE en pantalla, frame a frame. */
+    let live: Palette = THEMES.ink;
 
     const applyTheme = (next: Palette) => {
-      const from = { ...current };
+      // Salir temprano si la paleta ya es esa. Sin este corte, cada sección
+      // que entra dispara su transición aunque pida el MISMO tema que la
+      // anterior: en la home hay diez `data-theme` y sólo dos inversiones
+      // reales, así que las otras ocho eran 0.8 s de interpolar tinta hacia
+      // tinta —cinco custom properties por frame sobre <html>, o sea el
+      // estilo del documento entero invalidado— para no cambiar nada.
+      if (next === current) return;
+
+      // Se arranca desde lo que hay en pantalla y no desde el destino
+      // anterior: si te das vuelta a mitad de una inversión, la vuelta sale
+      // del color real en vez de saltar al que todavía no había llegado.
+      const from = live;
       const proxy = { p: 0 };
+
+      // Los interpoladores se arman una vez por transición y no una vez por
+      // frame: en la forma de dos argumentos, `interpolate` devuelve una
+      // función y parsea los colores una sola vez. Con la forma de tres
+      // argumentos volvía a parsear los diez strings en cada frame.
+      const lerps = KEYS.map((k) => gsap.utils.interpolate(from[k], next[k]));
 
       gsap.killTweensOf(proxy);
       gsap.to(proxy, {
@@ -80,14 +101,16 @@ export function ThemeScroller() {
         ease: "power2.inOut",
         onUpdate: () => {
           const t = proxy.p;
-          root.style.setProperty("--page-bg", gsap.utils.interpolate(from.bg, next.bg, t));
-          root.style.setProperty("--page-fg", gsap.utils.interpolate(from.fg, next.fg, t));
-          root.style.setProperty("--page-muted", gsap.utils.interpolate(from.muted, next.muted, t));
-          root.style.setProperty("--page-faint", gsap.utils.interpolate(from.faint, next.faint, t));
-          root.style.setProperty("--page-line", gsap.utils.interpolate(from.line, next.line, t));
+          const painted = {} as Palette;
+          for (let i = 0; i < KEYS.length; i++) {
+            const value = lerps[i](t) as string;
+            painted[KEYS[i]] = value;
+            root.style.setProperty(`--page-${KEYS[i]}`, value);
+          }
+          live = painted;
         },
         onComplete: () => {
-          current = next;
+          live = next;
         },
       });
       current = next;

@@ -28,6 +28,17 @@ export type Program = {
   price: string;
   highlights: string[];
   image: string;
+  /**
+   * Si es `false`, la tarjeta del riel de la home va sin foto (la imagen
+   * se sigue usando en `/programas` y en la página de detalle).
+   *
+   * Está sólo en Producción Musical: es la única de las tres cuya foto es
+   * de gente, así que en la fila era la única que se leía como "una foto"
+   * mientras las otras dos (primeros planos de equipo y de paneles
+   * acústicos) pasan por textura. Encima era el bloque flexible de la
+   * tarjeta, así que absorbía el sobrante y le desalineaba el pie.
+   */
+  cardImage?: boolean;
   /** "Fader" decorativo (0–100) de la tarjeta — no es una métrica real. */
   level: number;
   levelLabel: string;
@@ -140,6 +151,7 @@ export const PROGRAMS: Program[] = [
     price: "Desde $110.000/mes",
     highlights: ["Ableton Live", "Diseño de sonido", "EP final incluido"],
     image: "/images/estudio/team.jpg",
+    cardImage: false,
     level: 85,
     levelLabel: "El más extenso",
     intro: [

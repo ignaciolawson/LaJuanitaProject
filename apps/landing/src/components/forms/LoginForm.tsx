@@ -22,8 +22,9 @@ export function LoginForm() {
   const [tried, setTried] = useState(false);
 
   return (
+    /* Sin `noValidate`: anulaba los `required` y el botón contestaba igual
+       con los dos campos vacíos. */
     <form
-      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         setTried(true);

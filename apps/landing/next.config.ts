@@ -14,11 +14,19 @@ const nextConfig: NextConfig = {
      */
     formats: ["image/webp"],
     /**
-     * Sin el 3840 del default: después de recomprimir, ninguna foto de
-     * `public/images` pasa de 2000px de lado largo, así que ese breakpoint
-     * sólo generaba una variante extra que nunca es más nítida.
+     * Sin el 3840 ni el 2048 del default.
+     *
+     * Después de recomprimir, la foto más ANCHA de `public/images` mide
+     * 1500px (los 2000 son de alto: son casi todas verticales). El
+     * optimizador nunca agranda, así que todo breakpoint por encima de 1500
+     * devuelve exactamente el mismo archivo — pero lo codifica y lo cachea
+     * por separado. Medido con la caché fría: `sala-mastering.jpg` pesaba
+     * 35 KB tanto en w=1920 como en w=2048, o sea que el 2048 era un encode
+     * completo de más, por foto a pantalla completa, sin un píxel de
+     * ganancia. Queda 1920 como único escalón por encima del máximo real,
+     * que es el que cubre las pantallas grandes y las de DPR 2.
      */
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
   },
 };
 

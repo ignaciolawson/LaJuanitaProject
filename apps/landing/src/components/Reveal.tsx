@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, type ElementType, type ReactNode } from "react";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
 
 type RevealProps = {
   children: ReactNode;
@@ -29,6 +29,12 @@ export function Reveal({
     () => {
       const el = ref.current;
       if (!el) return;
+      // Sin este corte el contenido de todas las páginas interiores seguía
+      // entrando con desplazamiento aunque el visitante pidiera menos
+      // movimiento: es un `gsap.from`, así que el estado final ya es el
+      // natural y alcanza con no animar nada.
+      if (prefersReduced()) return;
+
       const targets = stagger ? gsap.utils.toArray(el.children) : el;
 
       gsap.from(targets, {

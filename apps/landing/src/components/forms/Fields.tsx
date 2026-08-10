@@ -180,8 +180,11 @@ export function FormShell({
   }
 
   return (
+    /* Sin `noValidate`: estaba puesto y anulaba los `required` de todos los
+       campos, así que el formulario contestaba "listo, lo recibimos" con
+       nombre, teléfono y mail vacíos — la marca roja del asterisco no
+       validaba nada. */
     <form
-      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         setSent(true);

@@ -171,16 +171,19 @@ export default function NosotrosPage() {
 
           <ol className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
             {TIMELINE.map((item, i) => (
-              <Reveal key={item.year} delay={i * 0.07}>
-                <li className="border-t border-[color:var(--page-line)] pt-5">
-                  <span className="t-display text-[clamp(32px,3.5vw,54px)] leading-none text-red">
-                    {item.year}
-                  </span>
-                  <h3 className="t-display-tight mt-4 text-xl">{item.title}</h3>
-                  <p className="t-body mt-3 text-sm text-[color:var(--page-muted)]">
-                    {item.detail}
-                  </p>
-                </li>
+              <Reveal
+                key={item.year}
+                as="li"
+                delay={i * 0.07}
+                className="border-t border-[color:var(--page-line)] pt-5"
+              >
+                <span className="t-display text-[clamp(32px,3.5vw,54px)] leading-none text-red">
+                  {item.year}
+                </span>
+                <h3 className="t-display-tight mt-4 text-xl">{item.title}</h3>
+                <p className="t-body mt-3 text-sm text-[color:var(--page-muted)]">
+                  {item.detail}
+                </p>
               </Reveal>
             ))}
           </ol>
@@ -285,14 +288,17 @@ export default function NosotrosPage() {
 
           <ol className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2">
             {VALUES.map((value, i) => (
-              <Reveal key={value.title} delay={i * 0.06}>
-                <li className="border-t border-[color:var(--page-line)] pt-5">
-                  <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="t-display-tight mt-3 text-2xl">{value.title}</h3>
-                  <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
-                    {value.detail}
-                  </p>
-                </li>
+              <Reveal
+                key={value.title}
+                as="li"
+                delay={i * 0.06}
+                className="border-t border-[color:var(--page-line)] pt-5"
+              >
+                <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="t-display-tight mt-3 text-2xl">{value.title}</h3>
+                <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
+                  {value.detail}
+                </p>
               </Reveal>
             ))}
           </ol>

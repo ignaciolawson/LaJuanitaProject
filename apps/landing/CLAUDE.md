@@ -169,6 +169,29 @@ del último color de la página anterior.
     la marca no tiene tween de salida propio, el telón revela la página y el
     abanico queda flotando encima todo el barrido, hasta que el
     `display: none` final lo borra de golpe.
+12. **Ningún `href="#algo"` puede saltar de forma nativa.** El wrapper del
+    smoother es `position: fixed; overflow: hidden; height: 100%`, así que es
+    el ancestro scrolleable más cercano de todo el contenido — y
+    `overflow: hidden` no frena el scroll programático con el que el
+    navegador "trae el elemento a la vista". El salto corre al wrapper, el
+    smoother sigue trasladando el contenido según `window.scrollY` (que no se
+    movió) y la página queda desfasada para siempre: se ve corrida y ningún
+    ScrollTrigger vuelve a dispararse. `SmoothScroll` intercepta los clicks en
+    captura, resuelve el hash al navegar y deja un guard que devuelve el
+    wrapper a 0. Vale para las anclas de página (`#programas`), para las de
+    otra ruta (`/servicios#reservar`) y para los `href="#"` de placeholder.
+13. **Para llevar el scroll a algún lado, tweeneá `smoother.scrollTop`.** No
+    `smoother.scrollTo(target, true)`: con `normalizeScroll: true` esa rama
+    escribe el scroll nativo directo y el normalizador —que es quien maneja
+    la rueda— no se entera. La ventana queda en el destino, el contenido
+    congelado donde estaba, y no se destraba hasta el próximo gesto real de
+    scroll. Se ve idéntico al bug de arriba.
+14. **Con `autoSplit`, la animación va DENTRO de `onSplit` y se devuelve.**
+    SplitText vuelve a partir el texto solo (resize, carga de fuentes) y tira
+    los nodos viejos. Una animación armada afuera queda apuntando a nodos que
+    ya no están en el DOM: las líneas nuevas se quedan en su estado natural y
+    el revelado no se ve nunca más. Devolviéndola desde `onSplit`, SplitText
+    la mata, la rearma sobre los nodos nuevos y le conserva el progreso.
 
 ---
 
@@ -254,9 +277,30 @@ cd apps/landing && npm run lint
 
 Cosas que ya se pagaron y conviene no volver a introducir:
 
-- **Nada de escribir custom properties sobre `<html>` en cada frame.**
-  Invalida el estilo del documento entero. `ScrollFx` compara contra el
-  último valor escrito y corta si no cambió (en reposo siempre es `0`).
+- **Nada de escribir custom properties sobre `<html>` en cada frame.** Es lo
+  más caro que hay: invalida el estilo del documento entero. Era el cuello de
+  botella número uno del sitio — medido en la home con la CPU a 1/4, el frame
+  medio pasó de **79 ms a 32 ms** sacando dos variables. Reglas que salieron
+  de ahí:
+  - Escribí la variable **sólo en los elementos que la leen**. `ScrollFx`
+    pone `--split` en los `.chromatic` (hoy: el titular del hero), no en
+    `<html>`. Antes de agregar una variable animada, fijate quién la
+    consume: si es un selector, no va en la raíz.
+  - Si nadie la lee desde CSS, no la escribas. `--vel` se reescribía 60 veces
+    por segundo y no la usaba ninguna regla. Quien necesite la velocidad la
+    toma de `lib/velocity.ts`, que no toca el DOM.
+  - Compará contra el último valor escrito y cortá si no cambió (en reposo
+    siempre es `0`).
+- **`ThemeScroller` sale temprano si la paleta no cambia.** Es el único lugar
+  donde sí hace falta escribir sobre `<html>` (el crossfade es del documento
+  entero, por diseño). Pero cada sección dispara su transición al entrar, y
+  la home tiene diez `data-theme` con sólo dos inversiones reales: sin el
+  corte, ocho de esas eran 0.8 s interpolando tinta hacia tinta. Con el corte
+  las escrituras por recorrido bajaron de ~1300 a ~110. Los interpoladores se
+  arman una vez por transición, no una vez por frame.
+- **Los tickers permanentes se apagan fuera de cuadro.** El medidor VU de
+  `Numbers` escribe 28 `transform` por frame; corre sólo mientras su sección
+  está en pantalla. Mismo criterio que el loop del marquee.
 - **Nada de crear tweens por evento de puntero.** `pointermove` puede
   disparar ~1000 veces por segundo. El `Cursor` guarda su estado
   (`idle`/`link`/`label`) y sólo tweenea cuando cambia de verdad.
@@ -275,6 +319,18 @@ Cosas que ya se pagaron y conviene no volver a introducir:
   combinación (archivo, ancho) la primera vez que se pide, y codificar AVIF
   es mucho más lento que WebP: en `/nosotros`, que tiene seis fotos lazy, se
   notaba directamente como imágenes que tardan en aparecer.
+- **Ningún `deviceSizes` por encima de 1500.** La foto más ancha de
+  `public/images` mide 1500px (las de 2000 son verticales: eso es el alto), y
+  el optimizador no agranda. Todo breakpoint mayor devuelve el mismo archivo
+  pero se codifica y se cachea aparte: el 2048 del default era un encode
+  completo de más por cada foto a pantalla completa, con cero ganancia de
+  nitidez. Queda 1920 como único escalón por encima del máximo real.
+- **La primera visita paga la codificación de cada imagen.** Con la caché
+  fría (`.next/cache/images` vacía) la home tarda ~7 s sumando todas las
+  fotos, con picos de 1,8 s en una sola. Después queda en ~10-20 ms. En
+  producción detrás de un CDN lo paga el primer visitante y listo; en
+  `next dev` se paga seguido, así que si estás midiendo "va lento", medí
+  contra `npm run build && npm start` antes de sacar conclusiones.
 - Las fotos lazy van dentro de `RevealImage`, que pinta una placa neutra
   detrás. Sin eso, entre que la cortina se abre y el archivo baja se ve el
   fondo de la página a través del hueco.

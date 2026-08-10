@@ -128,14 +128,17 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
 
           <ol className="mt-14 grid gap-x-8 gap-y-10 sm:grid-cols-2">
             {program.reasons.map((reason, i) => (
-              <Reveal key={reason.title} delay={i * 0.06}>
-                <li className="border-t border-[color:var(--page-line)] pt-5">
-                  <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
-                  <h3 className="t-display-tight mt-3 text-2xl">{reason.title}</h3>
-                  <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
-                    {reason.detail}
-                  </p>
-                </li>
+              <Reveal
+                key={reason.title}
+                as="li"
+                delay={i * 0.06}
+                className="border-t border-[color:var(--page-line)] pt-5"
+              >
+                <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="t-display-tight mt-3 text-2xl">{reason.title}</h3>
+                <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
+                  {reason.detail}
+                </p>
               </Reveal>
             ))}
           </ol>
@@ -153,13 +156,15 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
               <span className="label">Es para vos si</span>
               <ul className="mt-10 space-y-5">
                 {program.forWho.map((item) => (
-                  <Reveal key={item}>
-                    <li className="flex gap-4 border-b border-[color:var(--page-line)] pb-5">
-                      <span aria-hidden className="t-mono shrink-0 text-red">
-                        →
-                      </span>
-                      <span className="t-body text-[17px]">{item}</span>
-                    </li>
+                  <Reveal
+                    key={item}
+                    as="li"
+                    className="flex gap-4 border-b border-[color:var(--page-line)] pb-5"
+                  >
+                    <span aria-hidden className="t-mono shrink-0 text-red">
+                      →
+                    </span>
+                    <span className="t-body text-[17px]">{item}</span>
                   </Reveal>
                 ))}
               </ul>
@@ -183,18 +188,21 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
               <span className="label">Temario</span>
               <ol className="mt-10">
                 {program.modules.map((mod, i) => (
-                  <Reveal key={mod.title} delay={i * 0.04}>
-                    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 border-b border-[color:var(--page-line)] py-5">
-                      <span className="t-mono pt-1 text-[color:var(--page-faint)]">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div>
-                        <h3 className="t-display-tight text-xl">{mod.title}</h3>
-                        <p className="t-body mt-1.5 text-sm text-[color:var(--page-muted)]">
-                          {mod.detail}
-                        </p>
-                      </div>
-                    </li>
+                  <Reveal
+                    key={mod.title}
+                    as="li"
+                    delay={i * 0.04}
+                    className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 border-b border-[color:var(--page-line)] py-5"
+                  >
+                    <span className="t-mono pt-1 text-[color:var(--page-faint)]">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div>
+                      <h3 className="t-display-tight text-xl">{mod.title}</h3>
+                      <p className="t-body mt-1.5 text-sm text-[color:var(--page-muted)]">
+                        {mod.detail}
+                      </p>
+                    </div>
                   </Reveal>
                 ))}
               </ol>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { gsap, useGSAP, ScrollSmoother, ScrollTrigger, prefersReduced } from "@/lib/gsap";
 
@@ -41,13 +41,126 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  /**
+   * Llevar el scroll hasta un `#hash`, pasando por el smoother.
+   *
+   * BUG QUE ESTO ARREGLA: con ScrollSmoother activo, el salto nativo de un
+   * ancla NO scrollea el documento. El smoother deja a `#smooth-wrapper` en
+   * `position: fixed; overflow: hidden; height: 100%` y traslada al hijo,
+   * así que el wrapper es el ancestro scrolleable más cercano del destino —
+   * y `overflow: hidden` no impide el scroll programático que hace el
+   * navegador para "traer el elemento a la vista". Resultado: el navegador
+   * corre el wrapper, el smoother sigue transformando el contenido según
+   * `window.scrollY` (que no se movió) y todo queda desfasado para siempre:
+   * la página se ve corrida, los ScrollTrigger apuntan a coordenadas que ya
+   * no existen y ninguna animación vuelve a dispararse. Eso es lo que se
+   * leía como "aprieto Ver programas y se traba todo".
+   */
+  const scrollToHash = useCallback((hash: string, smooth: boolean) => {
+    if (!hash || hash === "#") return false;
+
+    let target: Element | null = null;
+    try {
+      target = document.querySelector(hash);
+    } catch {
+      return false; // hash que no es un selector válido
+    }
+    if (!target) return false;
+
+    const s = smoother.current;
+    if (!s) {
+      target.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+      return true;
+    }
+
+    // El "top 96px" deja el destino debajo de la barra fija, igual que el
+    // `scroll-margin-top: 6rem` que usaba el salto nativo.
+    const y = s.offset(target, "top 96px");
+
+    // OJO: acá NO va `smoother.scrollTo(target, true)`. Con
+    // `normalizeScroll: true` esa rama escribe el scroll nativo directo y el
+    // normalizador —que es quien maneja la rueda— no se entera: la ventana
+    // queda en el destino, el contenido congelado donde estaba, y la página
+    // no se destraba hasta el próximo gesto real de scroll. Tweenear
+    // `scrollTop` del smoother pasa por su propio setter, así que el
+    // contenido, el normalizador y los ScrollTrigger van todos juntos.
+    if (smooth) gsap.to(s, { scrollTop: y, duration: 1.1, ease: "juanita", overwrite: "auto" });
+    else s.scrollTo(y, false);
+
+    return true;
+  }, []);
+
+  useGSAP(() => {
+    const wrapper = document.getElementById("smooth-wrapper");
+    if (!wrapper) return;
+
+    // Red de seguridad: el wrapper NUNCA tiene que quedar scrolleado. Además
+    // del click en un ancla, lo mueven el buscar-en-la-página del navegador
+    // y el scroll al hash que hace Next al navegar. Devolverlo a 0 apenas
+    // pasa evita que ese desfase se vuelva permanente.
+    const unscroll = () => {
+      if (wrapper.scrollTop || wrapper.scrollLeft) wrapper.scrollTo(0, 0);
+    };
+    wrapper.addEventListener("scroll", unscroll, { passive: true });
+
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const link = (event.target as Element | null)?.closest?.<HTMLAnchorElement>("a");
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+
+      const href = link.getAttribute("href");
+      if (!href || !href.startsWith("#")) return;
+
+      // Va en fase de captura y corta la propagación: los `href="#"` de
+      // `data/releases.ts` son <Link> de Next, y si el click llega a React
+      // el router hace su propio scroll al hash — que es exactamente el que
+      // rompe el smoother. Aunque el destino no exista hay que frenarlo.
+      event.preventDefault();
+      event.stopPropagation();
+      if (scrollToHash(href, true)) history.pushState(null, "", href);
+    };
+
+    // Volver atrás después de un ancla: el navegador intenta su propio salto,
+    // que el guard de arriba anula. Sin esto el botón "atrás" no hace nada.
+    const onPopState = () => {
+      const hash = window.location.hash;
+      if (hash && hash !== "#") scrollToHash(hash, true);
+    };
+
+    document.addEventListener("click", onClick, true);
+    window.addEventListener("popstate", onPopState);
+
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.removeEventListener("popstate", onPopState);
+      wrapper.removeEventListener("scroll", unscroll);
+    };
+  }, [scrollToHash]);
+
   // En App Router el wrapper sobrevive al cambio de ruta pero la altura del
   // contenido no: sin este reset quedan triggers apuntando a la página vieja.
   useGSAP(() => {
-    smoother.current?.scrollTo(0, false);
+    const hash = window.location.hash;
+
+    if (!hash || hash === "#") {
+      smoother.current?.scrollTo(0, false);
+      ScrollTrigger.refresh();
+      gsap.delayedCall(0.2, () => ScrollTrigger.refresh());
+      return;
+    }
+
+    // Con hash en la URL (`/servicios#reservar`) no se puede resetear a 0:
+    // el destino se resuelve acá, después de refrescar, y se repite una vez
+    // más porque las fotos lazy todavía pueden cambiar la altura.
     ScrollTrigger.refresh();
-    gsap.delayedCall(0.2, () => ScrollTrigger.refresh());
-  }, [pathname]);
+    if (!scrollToHash(hash, false)) smoother.current?.scrollTo(0, false);
+    gsap.delayedCall(0.2, () => {
+      ScrollTrigger.refresh();
+      scrollToHash(hash, false);
+    });
+  }, [pathname, scrollToHash]);
 
   return (
     <div id="smooth-wrapper">

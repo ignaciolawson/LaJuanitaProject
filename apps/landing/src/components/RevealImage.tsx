@@ -2,7 +2,7 @@
 
 import { useRef, type ReactNode } from "react";
 import clsx from "clsx";
-import { gsap, useGSAP } from "@/lib/gsap";
+import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
 
 type RevealImageProps = {
   children: ReactNode;
@@ -24,6 +24,10 @@ export function RevealImage({
       const wrapper = wrapperRef.current;
       const media = mediaRef.current;
       if (!wrapper || !media) return;
+      // Con menos movimiento pedido no se toca nada: la foto ya está en su
+      // estado final. Antes se aplicaba igual el clip inicial y la cortina
+      // se abría con el scroll de todos modos.
+      if (prefersReduced()) return;
 
       gsap.set(media, { scale: 1 + parallaxScale, clipPath: "inset(100% 0 0 0)" });
 

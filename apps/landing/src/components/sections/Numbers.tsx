@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
+import { gsap, useGSAP, ScrollTrigger, prefersReduced } from "@/lib/gsap";
 import { scrollVelocity } from "@/lib/velocity";
 import { Container } from "@/components/ui/Container";
 import { SplitReveal } from "@/components/motion/SplitReveal";
@@ -68,8 +68,35 @@ export function Numbers() {
         });
       };
 
-      gsap.ticker.add(tick);
-      return () => gsap.ticker.remove(tick);
+      // El medidor sólo corre mientras la sección está en cuadro. Son 28
+      // escrituras de `transform` por frame: dejarlas andando mientras mirás
+      // el hero o el footer es trabajo por algo que nadie está viendo.
+      let running = false;
+      const start = () => {
+        if (running) return;
+        running = true;
+        gsap.ticker.add(tick);
+      };
+      const stop = () => {
+        if (!running) return;
+        running = false;
+        gsap.ticker.remove(tick);
+      };
+
+      const st = ScrollTrigger.create({
+        trigger: root.current,
+        start: "top bottom",
+        end: "bottom top",
+        onToggle: (self) => (self.isActive ? start() : stop()),
+      });
+      // `onToggle` sólo dispara cuando el estado CAMBIA: si la sección ya
+      // está en cuadro al montar, nunca se llamaría.
+      if (st.isActive) start();
+
+      return () => {
+        stop();
+        st.kill();
+      };
     },
     { scope: root },
   );

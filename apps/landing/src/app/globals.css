@@ -34,9 +34,10 @@
   --pad: clamp(20px, 5vw, 88px);
   --gap: clamp(48px, 9vh, 128px);
 
-  /* --- Señales de movimiento leídas por CSS --- */
-  --vel: 0;   /* velocidad de scroll normalizada (0 → ~1) */
-  --split: 0; /* separación RGB derivada de --vel */
+  /* Acá vivían `--vel` y `--split`. No están más a propósito: ScrollFx
+     escribe `--split` directo sobre los elementos `.chromatic` (que son los
+     únicos que la leen) en vez de sobre el documento entero, y `--vel` no la
+     leía ningún selector. Ver la nota en `motion/ScrollFx.tsx`. */
 
   /* --- Alias legacy: las páginas interiores (nosotros, faq, sello…)
      siguen usando estos tokens. No los toques hasta migrarlas. --- */
