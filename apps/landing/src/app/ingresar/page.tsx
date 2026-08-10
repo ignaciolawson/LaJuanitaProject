@@ -4,7 +4,6 @@ import Image from "next/image";
 
 import { Container } from "@/components/ui/Container";
 import { LoginForm } from "@/components/forms/LoginForm";
-import { Fan } from "@/components/brand/Fan";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
@@ -20,8 +19,11 @@ export const metadata: Metadata = {
  * en `LoginForm`.
  *
  * Layout partido: formulario a la izquierda, foto del espacio a la derecha.
- * Sin navbar flotando encima ni footer largo debajo — una pantalla de login
- * es una tarea, no una página para explorar.
+ * Una pantalla de login es una tarea, no una página para explorar.
+ *
+ * El Navbar del layout se renderiza acá igual que en el resto del sitio (no
+ * hay excepción por ruta), así que la marca ya está en pantalla: esta página
+ * no lleva logo propio.
  */
 export default function IngresarPage() {
   return (
@@ -33,15 +35,10 @@ export default function IngresarPage() {
         {/* Formulario */}
         <div className="flex items-center py-32 lg:py-24">
           <Container className="w-full max-w-[560px]">
-            <Link href="/" className="inline-flex items-center gap-3" data-cursor="VOLVER">
-              <Fan ribs={9} spread={140} arc={false} className="h-7 w-11" />
-              <span className="t-display-tight text-[15px] leading-none">
-                La Juanita
-                <span className="t-mono ml-2 align-middle text-[9px] text-red">Studio</span>
-              </span>
-            </Link>
-
-            <h1 className="t-display-tight mt-14 text-[clamp(34px,5vw,56px)] leading-[0.95]">
+            {/* Sin logo propio acá: el Navbar del layout ya muestra la marca
+                en esta pantalla, y repetirla dos veces en la misma columna
+                queda como un error de maquetación. */}
+            <h1 className="t-display-tight text-[clamp(34px,5vw,56px)] leading-[0.95]">
               Entrá al campus
             </h1>
             <p className="t-body mt-4 max-w-[40ch] text-[color:var(--page-muted)]">

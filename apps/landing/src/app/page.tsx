@@ -13,20 +13,35 @@ import { UPCOMING_DATES } from "@/data/dates";
 /**
  * Home.
  *
- * El orden alterna tinta y papel a propósito: cabina → luz → cabina. El
+ * El orden va de tinta a papel y vuelve: cabina → luz → cabina. El
  * ThemeScroller hace la transición de fondo del documento entero, así que
  * la secuencia de secciones ES parte del diseño, no sólo del contenido.
  *
  *   ink   Hero            cabina a oscuras
  *   ink   Agenda          tira de fechas
- *   bone  Manifiesto      la charla a la luz del día
+ *   ink   Manifiesto      la charla, todavía a oscuras
  *   ink   Programas       riel horizontal anclado
- *   bone  Números         cifras + VU
- *   ink   Profesores      abanico de fichas
+ *   bone  Números         ── entra la luz
+ *   bone  Profesores      abanico de fichas
  *   bone  Servicios       alquiler de cabina y grabación
- *   ink   Equipos         La Juanita Shop, con la banda roja de redes
+ *   ink   Equipos         ── vuelve la cabina, con la banda roja de redes
  *   ink   Sello           pila de lanzamientos
  *   ink   Cierre          wordmark arqueado
+ *
+ * Son DOS inversiones, no seis. La versión original alternaba sección por
+ * sección (bone/ink/bone/ink/bone) y el fondo del documento entero se daba
+ * vuelta cinco veces en el tramo del medio: leído de corrido era un
+ * estrobo, no un cambio de luz.
+ *
+ * El bloque de papel es de tres secciones y va al medio, no antes: la tinta
+ * tiene que dominar. Ojo con mandar Programas a `bone` — está anclada a
+ * pantalla completa con scroll horizontal, así que ocupa mucho más recorrido
+ * del que aparenta en esta lista, y sola alcanza para dar vuelta la
+ * proporción de toda la página.
+ *
+ * Dos es el piso: para que el fondo vuelva a tinta hacen falta una ida y una
+ * vuelta. Si hay que bajar más el efecto, se acorta el bloque de papel, no
+ * se agregan cortes.
  */
 export default function Home() {
   return (

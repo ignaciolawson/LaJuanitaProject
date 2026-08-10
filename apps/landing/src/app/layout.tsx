@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo, Instrument_Serif, Space_Mono } from "next/font/google";
 import "./globals.css";
 
 import { SmoothScroll } from "@/components/motion/SmoothScroll";
@@ -16,14 +17,40 @@ import { Footer } from "@/components/layout/Footer";
  * una sola familia, y de ahí sale el contraste tipográfico del sitio.
  * Sin `axes: ["wdth"]` Next descarga sólo el eje de peso y `font-stretch`
  * no hace absolutamente nada.
+ *
+ * OJO CON LOS NOMBRES DE VARIABLE. Van por familia (`--font-archivo`) y no
+ * por rol (`--font-display`) a propósito: `globals.css` mapea rol → familia
+ * en `@theme inline`. Si le ponés acá el mismo nombre que el rol, quedan dos
+ * declaraciones de `--font-display` sobre el mismo <html> — la de esta clase
+ * y la que Tailwind emite en `:root` — con idéntica especificidad. Gana la
+ * de `:root` por orden, y como ahí vale `var(--font-display)` se cicla sola,
+ * la variable se invalida y el sitio entero cae a `system-ui`. Sin ningún
+ * error de build: compila, deploya, y la tipografía no está.
  */
-const archivo = { variable: "font-a" };
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  axes: ["wdth"],
+  display: "swap",
+});
 
-/** Cursiva de alto contraste: el contrapunto "humano" al grotesco. */
-const instrument = { variable: "font-b" };
+/** Cursiva de alto contraste: el contrapunto "humano" al grotesco.
+ *  No es variable: hay que pedir peso y estilo explícitos. */
+const instrument = Instrument_Serif({
+  variable: "--font-instrument",
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  display: "swap",
+});
 
 /** Mono para metadatos, índices y etiquetas de cabina. */
-const spaceMono = { variable: "font-c" };
+const spaceMono = Space_Mono({
+  variable: "--font-space-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lajuanitastudio.com"),
@@ -41,7 +68,10 @@ export const metadata: Metadata = {
     description:
       "Academia de DJ y producción de música electrónica, estudio de mix & mastering y sello discográfico en Pilar.",
   },
-  icons: { icon: "/favicon.ico" },
+  // Sin `icons` a mano: el icono de pestaña sale del abanico de la marca y
+  // lo toman las convenciones de archivo de App Router — `app/icon.png` y
+  // `app/apple-icon.png`. Declarar `icons` acá pisaba esa detección y dejaba
+  // apuntando al favicon.ico viejo.
 };
 
 export const viewport: Viewport = {

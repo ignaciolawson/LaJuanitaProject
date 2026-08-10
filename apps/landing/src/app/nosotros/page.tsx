@@ -157,9 +157,10 @@ export default function NosotrosPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/20 to-ink/40" />
       </RevealImage>
 
-      {/* Línea de tiempo */}
+      {/* Línea de tiempo — sigue en papel: partirla en tinta dejaba la
+          página invirtiéndose cuatro veces. */}
       <section
-        data-theme="ink"
+        data-theme="bone"
         className="bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
       >
         <Container wide>

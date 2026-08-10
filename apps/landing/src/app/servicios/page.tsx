@@ -37,10 +37,14 @@ export default function ServiciosPage() {
         <section
           key={service.slug}
           id={service.slug}
-          data-theme={i % 2 === 0 ? "bone" : "ink"}
-          className={`relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)] ${
-            i % 2 === 0 ? "paper" : ""
-          }`}
+          // Los cuatro servicios van en papel, como un bloque.
+          //
+          // Antes el tema alternaba por índice (`i % 2`) y con cuatro
+          // servicios el fondo del documento entero se daba vuelta cinco
+          // veces en una sola página. La variedad entre bloques la da el
+          // zig-zag de la grilla de abajo, que no necesita invertir nada.
+          data-theme="bone"
+          className="paper relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
         >
           <Container wide>
             <div

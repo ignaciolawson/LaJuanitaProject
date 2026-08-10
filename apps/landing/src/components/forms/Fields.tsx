@@ -10,6 +10,12 @@ import clsx from "clsx";
  * el submit sólo muestra el estado de confirmación. Cuando exista el
  * endpoint, el único lugar a tocar es el `onSubmit` de <FormShell>.
  *
+ * El aviso visible de "todavía no se envía" se sacó por pedido explícito
+ * (2026-08-09), sabiendo que eso deja al formulario diciendo "listo" sin que
+ * la solicitud llegue a nadie. Mientras siga así, la landing no debería estar
+ * publicada de cara al público — es para mostrarla, no para recibir gente.
+ * Conectar el `onSubmit` es lo que cierra este agujero.
+ *
  * Decisiones de estilo: sin cajas redondeadas ni fondos grises. Los campos
  * son una línea inferior que se enciende en rojo al enfocarse — más cerca
  * de una planilla de estudio que de un formulario de SaaS, y coherente con
@@ -136,9 +142,8 @@ export function ChoiceGroup({
 /**
  * Envoltorio de formulario con estado de confirmación.
  *
- * Al enviar no llama a ningún endpoint: muestra el mensaje de éxito y deja
- * el aviso de que la solicitud todavía no viaja a ningún lado, para que
- * nadie se quede esperando una respuesta que no va a llegar.
+ * Al enviar no llama a ningún endpoint: muestra el mensaje de éxito y nada
+ * más. `onSubmit` es el punto de conexión cuando exista la API.
  */
 export function FormShell({
   children,
@@ -192,9 +197,6 @@ export function FormShell({
             ↗
           </span>
         </button>
-        <p className="t-mono max-w-[34ch] text-[color:var(--page-faint)]">
-          Demo visual — todavía no se envía a ningún lado
-        </p>
       </div>
     </form>
   );

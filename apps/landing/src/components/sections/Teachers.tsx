@@ -67,7 +67,7 @@ export function Teachers() {
   return (
     <section
       ref={root}
-      data-theme="ink"
+      data-theme="bone"
       className="relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
     >
       <Container wide>

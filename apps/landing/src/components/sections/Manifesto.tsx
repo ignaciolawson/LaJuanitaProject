@@ -71,7 +71,7 @@ export function Manifesto() {
   return (
     <section
       ref={root}
-      data-theme="bone"
+      data-theme="ink"
       className="paper relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
     >
       <Container wide className="relative">

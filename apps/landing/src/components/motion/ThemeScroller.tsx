@@ -72,8 +72,11 @@ export function ThemeScroller() {
 
       gsap.killTweensOf(proxy);
       gsap.to(proxy, {
+        // Más largo que antes (0.55s) a propósito: ahora que las
+        // inversiones son pocas, cada una puede leerse como un cambio de
+        // luz en vez de un corte.
         p: 1,
-        duration: 0.55,
+        duration: 0.8,
         ease: "power2.inOut",
         onUpdate: () => {
           const t = proxy.p;

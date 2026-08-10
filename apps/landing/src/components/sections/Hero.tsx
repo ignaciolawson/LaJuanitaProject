@@ -81,8 +81,9 @@ export function Hero() {
       } else {
         window.addEventListener("lj:intro-curtain", () => tl.play(), { once: true });
         // Red de seguridad: si el preloader nunca emite (error, JS a medias),
-        // el hero se muestra igual en vez de quedar en blanco.
-        gsap.delayedCall(4.5, () => {
+        // el hero se muestra igual en vez de quedar en blanco. Tiene que ser
+        // más larga que la intro completa (~2s), no mucho más.
+        gsap.delayedCall(3, () => {
           if (!tl.isActive() && tl.progress() === 0) tl.play();
         });
       }
@@ -170,15 +171,17 @@ export function Hero() {
                 data-hero-line
                 className={`block ${line.offset}`}
               >
-                <span className="t-display h-xl block will-change-transform">
-                  {line.text}
-                </span>
+                {/* Sin `will-change-transform`: estas líneas animan una sola
+                    vez, en la intro (el scroll-out mueve a [data-hero-copy],
+                    que es el padre). Dejarlo fijo sostiene una capa de
+                    compositor con el texto a 168px rasterizado para siempre y
+                    encima le saca el antialiasing subpíxel. GSAP promueve por
+                    su cuenta mientras dura el tween. */}
+                <span className="t-display h-xl block">{line.text}</span>
               </span>
             ))}
             <span data-hero-line className="block pl-[3vw] sm:pl-[5vw]">
-              <span className="t-serif h-xl block normal-case text-red will-change-transform">
-                pista
-              </span>
+              <span className="t-serif h-xl block normal-case text-red">pista</span>
             </span>
           </h1>
 

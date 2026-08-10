@@ -21,7 +21,7 @@ export default function ProfesoresPage() {
           </>
         }
         description="Nuestro equipo docente son artistas y productores activos en la escena, no solo profesores."
-        image="/images/artistas/najles.png"
+        image="/images/artistas/najles.webp"
       />
 
       <Container className="divide-y divide-[color:var(--page-line)] py-4">

@@ -71,9 +71,14 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-subdued: var(--text-subdued);
 
-  --font-display: var(--font-display);
-  --font-serif: var(--font-serif);
-  --font-mono: var(--font-mono);
+  /* Rol → familia. Los nombres de la derecha los define next/font en
+     layout.tsx, y tienen que ser DISTINTOS de los de la izquierda: si
+     coinciden, esta línea queda como `--font-display: var(--font-display)`
+     sobre el mismo <html> que la clase de next/font, se cicla, la variable
+     se invalida y toda la tipografía cae a system-ui sin avisar. */
+  --font-display: var(--font-archivo);
+  --font-serif: var(--font-instrument);
+  --font-mono: var(--font-space-mono);
 }
 
 /* ═══════════ BASE ═══════════ */
@@ -93,7 +98,10 @@ body {
   /* `clip` y no `hidden`: `hidden` convierte al body en contenedor de
      scroll y rompe tanto position:sticky como ScrollSmoother. */
   overflow-x: clip;
-  transition: background-color 0.15s linear;
+  /* Sin `transition` en el fondo: el ThemeScroller ya interpola --page-bg
+     frame a frame con su propia curva. Una transición encima reinicia un
+     tween de 0.15s en CADA frame del cruce, lo que además de trabajo de más
+     aplana la curva propia y deja el body corriendo atrás del html. */
 }
 
 ::selection {

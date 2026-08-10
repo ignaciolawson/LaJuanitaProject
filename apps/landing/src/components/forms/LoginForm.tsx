@@ -8,9 +8,13 @@ import { Field } from "@/components/forms/Fields";
  * Formulario de ingreso.
  *
  * ⚠️ NO AUTENTICA NADA. No hay backend, no hay sesión, no hay validación de
- * credenciales. Al enviar muestra un aviso explícito de que todavía no está
- * conectado, en vez de fingir un error de contraseña o un redirect a un
- * campus que no existe: hacer parecer que funciona es peor que decir que no.
+ * credenciales.
+ *
+ * El aviso de "maqueta visual" se sacó por pedido explícito (2026-08-09). En
+ * su lugar quedó un mensaje de derivación a /contacto, y NO un error de
+ * credenciales inventado: decirle "contraseña incorrecta" a alguien que puso
+ * bien la contraseña lo manda a resetear una cuenta que no existe.
+ * Dejar el botón sin ninguna respuesta tampoco servía.
  *
  * Cuando exista el backend, el `onSubmit` es el único punto a cambiar.
  */
@@ -67,12 +71,11 @@ export function LoginForm() {
           role="status"
           className="t-body border border-red/40 bg-red-tint p-4 text-sm text-[color:var(--page-fg)]"
         >
-          El campus todavía no está conectado — esta pantalla es sólo la
-          maqueta visual. Para cualquier gestión, escribinos por{" "}
+          Por ahora el acceso al campus lo damos de a uno. Escribinos por{" "}
           <Link href="/contacto" className="link-u text-red">
             contacto
-          </Link>
-          .
+          </Link>{" "}
+          y te habilitamos el tuyo.
         </p>
       )}
     </form>

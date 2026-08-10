@@ -114,9 +114,10 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
         </Container>
       </section>
 
-      {/* Por qué acá */}
+      {/* Por qué acá — queda en papel para no partir el bloque de luz que
+          va de "Qué es" hasta "Para quién". */}
       <section
-        data-theme="ink"
+        data-theme="bone"
         className="bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
       >
         <Container wide>

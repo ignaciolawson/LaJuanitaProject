@@ -60,6 +60,10 @@ export function VelocityMarquee({
         trigger: root.current,
         start: "top bottom",
         end: "bottom top",
+        // Fuera de pantalla el loop se pausa. Es un tween infinito sobre un
+        // elemento ancho: sin esto sigue animando (y componiendo) la tira
+        // aunque estés seis secciones más abajo y no se vea nada.
+        onToggle: (self) => loop.paused(!self.isActive),
         onUpdate: (self) => {
           const v = self.getVelocity();
           const boost = gsap.utils.clamp(1, 7, 1 + Math.abs(v) / 380);
@@ -80,6 +84,11 @@ export function VelocityMarquee({
           // que llegue a verse.
         },
       });
+
+      // Estado inicial explícito: `onToggle` sólo dispara cuando el estado
+      // CAMBIA, así que si la tira arranca fuera de pantalla nunca se
+      // llamaría y el loop quedaría corriendo igual.
+      loop.paused(!st.isActive);
 
       return () => {
         settle?.kill();

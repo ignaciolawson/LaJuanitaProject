@@ -55,7 +55,16 @@ export function RevealImage({
   );
 
   return (
-    <div ref={wrapperRef} className={clsx("relative overflow-hidden", className)}>
+    <div
+      ref={wrapperRef}
+      className={clsx("relative overflow-hidden", className)}
+      // Placa neutra debajo de la foto. Estas imágenes son lazy, así que
+      // entre que la cortina se abre y el archivo termina de bajar se veía
+      // el fondo de la página a través del hueco. Va con color-mix sobre los
+      // tokens para que funcione igual en tinta y en papel. (Es CSS estático:
+      // acá color-mix no molesta, lo que GSAP no sabe interpolar es animarlo.)
+      style={{ background: "color-mix(in srgb, var(--page-fg) 7%, var(--page-bg))" }}
+    >
       <div ref={mediaRef} className="absolute inset-0">
         {children}
       </div>

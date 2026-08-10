@@ -23,6 +23,10 @@ export function ScrollFx() {
     prevY.current = window.scrollY;
     const root = document.documentElement;
 
+    // Última pareja escrita, para no repetir la escritura si no cambió.
+    let lastVel = "";
+    let lastSplit = "";
+
     const tick = () => {
       const y = window.scrollY;
       const vel = y - prevY.current;
@@ -33,8 +37,20 @@ export function ScrollFx() {
       if (val.current < 0.02) val.current = 0;
 
       scrollVelocity.value = val.current / 2.2;
-      root.style.setProperty("--vel", scrollVelocity.value.toFixed(3));
-      root.style.setProperty("--split", val.current.toFixed(2));
+
+      const nextVel = scrollVelocity.value.toFixed(3);
+      const nextSplit = val.current.toFixed(2);
+
+      // Escribir una custom property sobre <html> invalida el estilo del
+      // documento ENTERO. Hacerlo en los 60 frames de cada segundo aunque el
+      // valor sea el mismo —y en reposo siempre es "0.000"— es un recálculo
+      // de estilo global permanente por una variable que no se movió.
+      if (nextVel === lastVel && nextSplit === lastSplit) return;
+      lastVel = nextVel;
+      lastSplit = nextSplit;
+
+      root.style.setProperty("--vel", nextVel);
+      root.style.setProperty("--split", nextSplit);
     };
 
     gsap.ticker.add(tick);

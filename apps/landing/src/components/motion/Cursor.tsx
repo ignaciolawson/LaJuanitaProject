@@ -38,6 +38,18 @@ export function Cursor() {
 
     let shown = false;
 
+    // Estado actual del anillo. Sin esto, cada `pointermove` creaba tres
+    // tweens nuevos — y `pointermove` no dispara una vez por frame: con un
+    // mouse de 1000 Hz son ~1000 eventos por segundo, o sea ~3000 tweens
+    // por segundo para redibujar un anillo que casi siempre está igual.
+    // Ahora los tweens salen sólo cuando el estado cambia de verdad.
+    type Mode = "idle" | "link" | "label";
+    let mode: Mode = "idle";
+    let labelText = "";
+
+    const SIZES: Record<Mode, number> = { idle: 34, link: 52, label: 84 };
+    const DOT: Record<Mode, number> = { idle: 1, link: 0.6, label: 0 };
+
     const onMove = (e: PointerEvent) => {
       if (!shown) {
         shown = true;
@@ -52,21 +64,16 @@ export function Cursor() {
         "[data-cursor], a, button",
       );
       const text = target?.dataset.cursor;
+      const next: Mode = text ? "label" : target ? "link" : "idle";
 
-      if (text) {
-        l.textContent = text;
-        gsap.to(r, { width: 84, height: 84, borderWidth: 1, duration: 0.4 });
-        gsap.to(l, { opacity: 1, duration: 0.25 });
-        gsap.to(d, { scale: 0, duration: 0.25 });
-      } else if (target) {
-        gsap.to(r, { width: 52, height: 52, borderWidth: 1, duration: 0.4 });
-        gsap.to(l, { opacity: 0, duration: 0.15 });
-        gsap.to(d, { scale: 0.6, duration: 0.25 });
-      } else {
-        gsap.to(r, { width: 34, height: 34, borderWidth: 1, duration: 0.4 });
-        gsap.to(l, { opacity: 0, duration: 0.15 });
-        gsap.to(d, { scale: 1, duration: 0.25 });
-      }
+      if (next === mode && text === labelText) return;
+      mode = next;
+      labelText = text ?? "";
+
+      if (text) l.textContent = text;
+      gsap.to(r, { width: SIZES[next], height: SIZES[next], borderWidth: 1, duration: 0.4 });
+      gsap.to(l, { opacity: next === "label" ? 1 : 0, duration: next === "label" ? 0.25 : 0.15 });
+      gsap.to(d, { scale: DOT[next], duration: 0.25 });
     };
 
     const onLeave = () => {

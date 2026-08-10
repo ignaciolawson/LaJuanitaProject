@@ -89,8 +89,35 @@ components/sections/  Hero, Manifesto, ProgramsRail, Numbers, Teachers,
 `<section data-theme="ink|bone">` hace que el fondo del **documento entero**
 interpole — nav, cursor y footer incluidos. La secuencia de secciones
 (cabina oscura → luz de día → cabina) es parte del diseño, no sólo del
-contenido. Al agregar una sección, elegí el tema mirando el ritmo y no la
-sección aislada: cuatro `ink` seguidos aplanan la página.
+contenido.
+
+**El tema va por bloques, no por sección.** La versión original alternaba
+`ink`/`bone` sección por sección y el documento entero se daba vuelta seis
+veces en la home, cinco en `/servicios` y cuatro en `/nosotros`: leído de
+corrido eso no es un cambio de luz, es un estrobo. Hoy cada página tiene
+**dos o tres inversiones**, agrupadas en bloques largos:
+
+| Página | Secuencia |
+| --- | --- |
+| `/` | ink ×4 → bone ×3 (Números→Servicios) → ink ×4 |
+| `/servicios` | ink → bone ×4 (los servicios) → ink |
+| `/programas/[slug]` | ink ×2 → bone ×3 → ink ×2 |
+| `/nosotros` | ink → bone ×2 → ink ×2 |
+
+**La tinta domina, y el bloque de papel va al medio.** Dos es el piso de
+inversiones: para volver a tinta hacen falta una ida y una vuelta. Si hay
+que bajar más el efecto, se acorta el bloque de papel — no se agregan
+cortes.
+
+Ojo con `ProgramsRail`: está anclada a pantalla completa con scroll
+horizontal, así que ocupa mucho más recorrido del que sugiere ser "una
+sección" en esta tabla. Mandarla a `bone` sola alcanza para dar vuelta la
+proporción de blanco/negro de toda la home.
+
+Al agregar una sección, no elijas su tema aislado: mirá en qué bloque cae y
+seguilo. Sumar un `data-theme` que parte un bloque al medio devuelve el
+estrobo aunque la sección sola se vea bien. La variedad dentro de un bloque
+se resuelve con maquetación (el zig-zag de `/servicios`), no invirtiendo.
 
 Toda página nueva necesita al menos un `data-theme`, o el tema queda colgado
 del último color de la página anterior.
@@ -126,6 +153,22 @@ del último color de la página anterior.
 9. **Scroll horizontal secuestrado sólo en escritorio.** El riel de
    programas se ancla desde 1024px; abajo es lista vertical. Secuestrar el
    scroll en un teléfono es un problema de accesibilidad.
+10. **Los nombres de variable de `next/font` van por familia, no por rol.**
+    `layout.tsx` declara `--font-archivo` / `--font-instrument` /
+    `--font-space-mono`, y `globals.css` mapea rol → familia en
+    `@theme inline` (`--font-display: var(--font-archivo)`). Si le ponés a
+    `next/font` el mismo nombre que el rol, quedan dos declaraciones de
+    `--font-display` sobre el mismo `<html>` —la clase de next/font y la que
+    Tailwind emite en `:root`— con idéntica especificidad; gana la de
+    `:root` por orden, ahí vale `var(--font-display)`, se cicla sola y la
+    variable se invalida. **Todo el sitio cae a `system-ui` y el build pasa
+    en verde.** Como `system-ui` no tiene eje de ancho, `font-stretch` deja
+    de hacer efecto y con eso se va la mitad del diseño. Para verificar que
+    están vivas, buscá `font-stretch: 62% 125%` en el CSS compilado.
+11. **El preloader tiene que sacar el abanico antes de subir el telón.** Si
+    la marca no tiene tween de salida propio, el telón revela la página y el
+    abanico queda flotando encima todo el barrido, hasta que el
+    `display: none` final lo borra de golpe.
 
 ---
 
@@ -141,9 +184,21 @@ del último color de la página anterior.
 | Inicio de sesión | `/ingresar` | auth, sesión, campus |
 | Contacto | `/contacto` | preexistente, sigue sin conectar |
 
-Muestran un aviso explícito de "todavía no se envía" en vez de fingir éxito.
-**Mantené ese aviso mientras no haya backend**: hacer parecer que funciona
-deja a alguien esperando una respuesta que nunca llega.
+**Ya no muestran ningún aviso de que no se envían** — se sacó por decisión
+explícita del cliente el 2026-08-09. O sea que hoy el formulario contesta
+"listo, recibimos tu solicitud" y la solicitud no llega a nadie.
+
+Consecuencia operativa, mientras siga así: **la landing sirve para
+mostrarla, no para publicarla de cara al público.** Si se publica antes de
+conectar el `onSubmit`, cada persona que complete un formulario queda
+esperando una respuesta que no existe. No lo resuelvas volviendo a poner el
+aviso (ya se decidió que no va): lo que cierra el agujero es conectar el
+envío. Sin backend todavía, la salida más corta es armar un `wa.me`
+prellenado con los datos del form.
+
+`/ingresar` es la excepción: ahí quedó un mensaje de derivación a
+`/contacto`, porque el botón sin ninguna respuesta era peor y un "contraseña
+incorrecta" inventado manda a resetear una cuenta que no existe.
 
 Punto de conexión cuando exista la API: el `onSubmit` de `FormShell` en
 `components/forms/Fields.tsx`, y `components/forms/LoginForm.tsx`.
@@ -195,10 +250,47 @@ cd apps/landing && npm run lint
 
 `next/font` necesita salida a `fonts.googleapis.com` en tiempo de build.
 
+## Rendimiento
+
+Cosas que ya se pagaron y conviene no volver a introducir:
+
+- **Nada de escribir custom properties sobre `<html>` en cada frame.**
+  Invalida el estilo del documento entero. `ScrollFx` compara contra el
+  último valor escrito y corta si no cambió (en reposo siempre es `0`).
+- **Nada de crear tweens por evento de puntero.** `pointermove` puede
+  disparar ~1000 veces por segundo. El `Cursor` guarda su estado
+  (`idle`/`link`/`label`) y sólo tweenea cuando cambia de verdad.
+- **`will-change` fijo sólo donde algo anima siempre** (el track del
+  marquee). Sobre los titulares del hero sostenía una capa de compositor con
+  texto a 168px rasterizado y encima le sacaba el antialiasing subpíxel.
+  GSAP ya promueve mientras dura el tween.
+- **Sin `transition` de fondo en `body`**: el `ThemeScroller` ya interpola
+  `--page-bg` frame a frame con su propia curva.
+- Las fotos están recomprimidas (`public/images`: 11 MB → 2.7 MB, lado largo
+  acotado a 2000px, retratos en WebP). Si sumás fotos, pasalas por el mismo
+  criterio: subir un JPEG de cámara de 13 megapíxeles tira abajo la mitad de
+  esto.
+- **No agregues `image/avif` a `formats` en `next.config.ts`.** Ya se probó
+  y se revirtió. Comprime ~20% mejor, pero el optimizador codifica cada
+  combinación (archivo, ancho) la primera vez que se pide, y codificar AVIF
+  es mucho más lento que WebP: en `/nosotros`, que tiene seis fotos lazy, se
+  notaba directamente como imágenes que tardan en aparecer.
+- Las fotos lazy van dentro de `RevealImage`, que pinta una placa neutra
+  detrás. Sin eso, entre que la cortina se abre y el archivo baja se ve el
+  fondo de la página a través del hueco.
+- Si hiciera falta más: `placeholder="blur"` con imports estáticos. Requiere
+  mover las fotos fuera de `public/` o convivir con que el bundler emita una
+  copia hasheada aparte.
+
 ## Falta
 
 - OG image (`opengraph-image.tsx`) y política de privacidad.
 - Las páginas interiores (`/sello`, `/profesores`, `/faq`, `/contacto`)
   recibieron migración de tokens y tipografía, pero conservan estructura
   vieja (`EditorialRow`). Son coherentes, no están al nivel de la home.
-- Las fotos de `public/images/estudio/` pesan 1.3–1.7 MB en origen.
+- Conectar el envío de los formularios (ver arriba: hoy dicen "listo" sin
+  mandar nada).
+- Sin referencias en el HTML generado: `espacio/entrada-retrato.jpg` (95 KB)
+  y `logo/icon.png` + `logo/wordmark.png` (161 KB). Los del logo son los
+  originales de marca de los que salió el SVG del abanico — probablemente
+  valga conservarlos aunque no se sirvan.
