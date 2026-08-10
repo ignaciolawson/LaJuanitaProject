@@ -134,6 +134,14 @@ del último color de la página anterior.
    `transform`.** Las dos se aplican a la vez. Un `translate-y-[110%]` de
    clase sobrevive aunque GSAP lleve el elemento a `yPercent: 0`, y queda
    corrido para siempre. Los estados iniciales van en CSS, no en clases.
+   **Pero un estado inicial en CSS con transform porcentual tampoco alcanza
+   solo**: GSAP no lee el `110%`, lee la matriz ya calculada, la descompone
+   en píxeles y la guarda en `y`, dejando `yPercent` en 0. Un tween a
+   `yPercent: 0` entonces no mueve nada — el titular del hero se quedó abajo
+   de su máscara justamente por eso. Si el CSS declara el estado inicial en
+   porcentaje, replicalo con un `gsap.set(el, { yPercent: 110, y: 0 })` antes
+   del timeline para que GSAP arranque en las mismas unidades en las que va a
+   animar.
 3. **`overflow-x: hidden` en `body`** lo convierte en contenedor de scroll y
    rompe smoother y sticky. Está en `clip` a propósito.
 4. **GSAP no interpola `color-mix()` ni `backdrop-filter: blur()`.** Los
@@ -186,7 +194,23 @@ del último color de la página anterior.
     la rueda— no se entera. La ventana queda en el destino, el contenido
     congelado donde estaba, y no se destraba hasta el próximo gesto real de
     scroll. Se ve idéntico al bug de arriba.
-14. **Con `autoSplit`, la animación va DENTRO de `onSplit` y se devuelve.**
+14. **Las máscaras de línea recortan SÓLO en vertical.** `overflow: hidden`
+    recorta los dos ejes, y el titular de `PageHero` va en `max-w-4xl`
+    (896px): apenas la tipografía crece, "PRODUCCIÓN" pide 972px y
+    "CONOCERNOS" 992px, y la máscara les comía la última letra. `visible` +
+    `clip` es el único par que el CSS no fuerza a `auto`, así que es la forma
+    de liberar un eje sin crear un contenedor de scroll. SplitText escribe
+    `overflow: clip` inline en la máscara, así que ahí hace falta
+    `!important`.
+15. **`ch` y `em` se miden contra la fuente del elemento que los declara, no
+    contra la del texto que se ve.** El `<h1>` del hero tiene el tamaño en los
+    `<span>` de adentro (`t-display h-xl`, 165px) y él mismo hereda los 16px
+    del body: su `max-w-[16ch]` daba **147px**, encajonaba las tres líneas,
+    hacía envolver "De Pilar" y estiraba el titular a 828px de alto,
+    empujando el párrafo y los botones abajo del pliegue. Antes de poner una
+    medida en `ch`/`em`, fijate en qué elemento estás poniendo el tamaño de
+    fuente.
+16. **Con `autoSplit`, la animación va DENTRO de `onSplit` y se devuelve.**
     SplitText vuelve a partir el texto solo (resize, carga de fuentes) y tira
     los nodos viejos. Una animación armada afuera queda apuntando a nodos que
     ya no están en el DOM: las líneas nuevas se quedan en su estado natural y

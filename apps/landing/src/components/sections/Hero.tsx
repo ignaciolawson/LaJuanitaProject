@@ -16,9 +16,9 @@ import { CONTACT } from "@/data/contact";
  * símbolo hace de transición hacia la sección siguiente en vez de quedarse
  * pegado de fondo.
  *
- * El titular está partido en tres líneas con máscara propia y desfase
- * horizontal — no es un bloque centrado. La palabra "pista" va en cursiva
- * serif: un solo acento tipográfico que rompe el grotesco y le da voz.
+ * El titular está partido en líneas con máscara propia y desfase horizontal
+ * — no es un bloque centrado. "Studio" va en cursiva serif: un solo acento
+ * tipográfico que rompe el grotesco y le da voz.
  */
 export function Hero() {
   const root = useRef<HTMLElement>(null);
@@ -45,6 +45,21 @@ export function Hero() {
       // `translate` y GSAP escribe `transform`: conviven, y el elemento
       // queda 12px corrido para siempre aunque GSAP lo lleve a y:0.
       gsap.set("[data-hero-fade]", { y: 14, opacity: 0 });
+
+      // Y las líneas del titular hay que declararlas ACÁ en las mismas
+      // unidades en las que se van a animar.
+      //
+      // BUG QUE ESTO ARREGLA: el estado inicial venía sólo del CSS
+      // (`[data-hero-line] > span { transform: translateY(110%) }`). GSAP no
+      // lee ese 110% como porcentaje: lee la matriz ya calculada, la
+      // descompone en píxeles y la guarda en `y` (313 px), dejando
+      // `yPercent` en 0. Entonces el tween a `yPercent: 0` no tenía nada que
+      // mover: terminaba escribiendo `translate(0px, 313.294px)` y el
+      // titular se quedaba abajo de su máscara para siempre. Con el
+      // `overflow` de la máscara encima, el hero arrancaba literalmente sin
+      // título. Fijando yPercent/y a mano, GSAP arranca sabiendo que el
+      // desplazamiento es porcentual y el tween sí lo lleva a cero.
+      gsap.set("[data-hero-line] > span", { yPercent: 110, y: 0 });
 
       // La entrada del hero se encadena a la cortina del preloader por
       // evento. Si la intro ya se vio en esta sesión, arranca sola.
@@ -161,27 +176,26 @@ export function Hero() {
             Academia · Estudio · Sello — Pilar, Bs As
           </span>
 
-          <h1 className="chromatic mt-7 max-w-[16ch]">
-            {[
-              { text: "De Pilar", offset: "" },
-              { text: "a la", offset: "pl-[6vw] sm:pl-[9vw]" },
-            ].map((line) => (
-              <span
-                key={line.text}
-                data-hero-line
-                className={`block ${line.offset}`}
-              >
-                {/* Sin `will-change-transform`: estas líneas animan una sola
-                    vez, en la intro (el scroll-out mueve a [data-hero-copy],
-                    que es el padre). Dejarlo fijo sostiene una capa de
-                    compositor con el texto a 168px rasterizado para siempre y
-                    encima le saca el antialiasing subpíxel. GSAP promueve por
-                    su cuenta mientras dura el tween. */}
-                <span className="t-display h-xl block">{line.text}</span>
-              </span>
-            ))}
+          {/* Sin `max-w-[16ch]`: la unidad `ch` se mide contra la fuente del
+              elemento que la declara, y este <h1> no tiene clase de tamaño
+              —el `t-display h-xl` está en los <span> de adentro—, así que
+              heredaba los 16px del body y `16ch` daba 147px. Las tres líneas
+              quedaban encajonadas en 147px: "De Pilar" envolvía en dos
+              renglones, el titular medía 828px de alto y empujaba el párrafo
+              y los botones abajo del pliegue. Las líneas son fijas y cortas,
+              así que no necesitan tope de medida. */}
+          <h1 className="chromatic mt-7">
+            <span data-hero-line className="block">
+              {/* Sin `will-change-transform`: estas líneas animan una sola
+                  vez, en la intro (el scroll-out mueve a [data-hero-copy],
+                  que es el padre). Dejarlo fijo sostiene una capa de
+                  compositor con el texto a 168px rasterizado para siempre y
+                  encima le saca el antialiasing subpíxel. GSAP promueve por
+                  su cuenta mientras dura el tween. */}
+              <span className="t-display h-xl block">La Juanita</span>
+            </span>
             <span data-hero-line className="block pl-[3vw] sm:pl-[5vw]">
-              <span className="t-serif h-xl block normal-case text-red">pista</span>
+              <span className="t-serif h-xl block normal-case text-red">Studio</span>
             </span>
           </h1>
 

@@ -368,8 +368,19 @@ body {
    La solución: agrandar la caja con padding y descontarlo con un margen
    negativo en la máscara, para que el interlineado visual no cambie.
    GSAP nombra la máscara como la clase de línea + "-mask". */
+/* SEGUNDO BUG, EL DEL OTRO EJE: la máscara tiene que recortar SÓLO en
+   vertical. Con `overflow: hidden` recortaba también en horizontal, y ahí se
+   comía la última letra de todo titular más ancho que su caja — el <h1> de
+   PageHero está en `max-w-4xl` (896px) y a partir de 1440px de viewport
+   "PRODUCCIÓN" pedía 972px y "CONOCERNOS" 992px. Se veía tal cual suena:
+   "PRODUCCIÓ", "ELECTRÓNIC".
+   El par `visible` + `clip` es el único que el CSS no fuerza a `auto`, así
+   que es la forma de liberar un eje sin crear un contenedor de scroll. El
+   texto sobrante entra igual en el contenedor (lo más ancho pide 1102px y
+   hay 1180px), así que desborda la medida del titular pero no la página. */
 .reveal-line {
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: clip;
   padding-top: 0.2em;
   padding-bottom: 0.16em;
 }
@@ -377,11 +388,16 @@ body {
 .reveal-line-mask {
   margin-top: -0.2em;
   margin-bottom: -0.16em;
+  /* SplitText escribe `overflow: clip` inline sobre la máscara, así que el
+     único modo de liberarle el eje horizontal es con !important. */
+  overflow-x: visible !important;
+  overflow-y: clip !important;
 }
 
 /* Mismo problema en las líneas del hero, que enmascaro a mano. */
 [data-hero-line] {
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: clip;
   padding-top: 0.18em;
   padding-bottom: 0.14em;
   margin-top: -0.18em;
