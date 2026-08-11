@@ -47,6 +47,20 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
+		<!--
+			Spring Boot 4 movió las autoconfiguraciones a módulos propios: la
+			dependencia cruda `flyway-core` deja Flyway en el classpath pero
+			NUNCA lo ejecuta al arrancar. El starter es el que trae la
+			autoconfiguración. `flyway-database-postgresql` es el dialecto.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>

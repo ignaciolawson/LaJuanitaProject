@@ -42,7 +42,7 @@ incluir un **piloto de uso real**, no solo "está deployado".
   contador. Cero trabajo propio.
 - **`apps/backend`** — `BackendApplication.java` + `application.properties`. Cero
   entidades, cero migraciones.
-- **El schema** — las 20 tablas están definidas y corregidas en
+- **El schema** — las 22 tablas están definidas y corregidas en
   `docs/db/la_juanita_schema.dbml.txt`, pero **viven solo en un `.txt`**. No existen
   en ninguna base de datos.
 
@@ -201,7 +201,7 @@ de puesta en marcha.**
 
 ## 6. Orden de construcción y su porqué
 
-**Regla que gobierna el orden: un vertical slice completo antes de modelar las 20 tablas.**
+**Regla que gobierna el orden: un vertical slice completo antes de modelar las 22 tablas.**
 
 Es decir: la base entera de una (Flyway), pero **solo** las clases de `usuario` + login,
 y en `platform` el login funcionando con un layout vacío detrás. Punta a punta:
@@ -212,18 +212,28 @@ Eso deja la **plantilla** de cómo se escribe todo lo demás. Cuando después to
 copia un patrón que ya funciona. Hacer 30 entidades primero garantiza descubrir en la 30
 que el patrón de las primeras 10 estaba mal.
 
-**Fase 0 — la plantilla** *(próximo trabajo concreto)*
+**Fase 0 — la plantilla**
 
-1. Escribir `docs/requirements/platform.md`: los 8 módulos, qué pantallas tiene cada
-   uno, qué puede hacer cada rol. **Es conversación más que código** — se hace con
-   Ignacio, y evita estar discutiendo en septiembre qué hace el módulo mientras se
-   escribe.
-2. `V1__baseline.sql`: las 20 tablas + el rol corregido (3.2) + las reglas
-   anti-datos-imposibles (3.1).
-3. Levantar Postgres con Docker y verificar que **el backend arranca** (hoy no arranca).
-4. `usuario` de punta a punta: guardar, leer, login, credencial firmada, `GET /api/me`.
-5. En `platform`: tirar el template de Vite, pantalla de login real, menú lateral que se
-   arma según quién sos (3.2).
+1. ✅ **HECHO (2026-08-11)** — `docs/requirements/platform.md`: los 8 módulos con
+   pantallas, permisos por rol y reglas duras, más 36 decisiones numeradas (P1–P36)
+   con cuáles están resueltas y qué bloquea cada pendiente.
+2. ✅ **HECHO (2026-08-11)** — `V1__baseline.sql` (22 tablas) y
+   `V2__datos_iniciales.sql` (salas + matriz de usos). Las reglas de negocio quedaron
+   impuestas en la base, no solo en el código.
+3. ✅ **HECHO (2026-08-11)** — Postgres con Docker y **el backend arranca**, con las
+   dos migraciones aplicadas. *Trampa encontrada: `flyway-core` a secas no ejecuta nada
+   en Spring Boot 4; hace falta `spring-boot-starter-flyway`.*
+3b. ✅ **AUDITORÍA DE BASE DE DATOS (2026-08-11)** — revisión crítica completa antes
+   del commit. Se encontraron y corrigieron 3 fallas críticas (definición inconsistente
+   de "reserva que ocupa la sala", inscripción de un alumno descontable a otro,
+   premaster liberable sin pago) y 6 importantes, más una **condición de carrera real**
+   entre reservas y bloqueos que los triggers no cubrían. La batería de pruebas quedó
+   versionada en `apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql`:
+   **67 casos, todos pasando**. Pendientes de negocio anotados en el informe: semántica
+   de `pago.descuento`, usuario administrador inicial, y regenerar el DBML.
+4. ⬜ `usuario` de punta a punta: guardar, leer, login, credencial firmada, `GET /api/me`.
+5. ⬜ En `platform`: tirar el template de Vite, pantalla de login real, menú lateral que
+   se arma según quién sos (3.2).
 
 Al terminar la Fase 0 hay un sistema que todavía no hace nada útil, pero **al que entrás
 con tu mail y tu contraseña**. De ahí en adelante cada módulo es repetir un patrón que

@@ -1,271 +1,510 @@
-// ============================================================
-// LA JUANITA STUDIO / MUSIC — Modelo de datos (v2)- 
-// Corregido a partir del diagrama original (DiagramaDBRelacional.pdf)
-// para soportar el modelo "usuario como identidad raíz" acordado.
+// ============================================================================
+// LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Pegar este archivo completo en https://dbdiagram.io (New Diagram >
-// borrar el ejemplo > pegar) para regenerar el diagrama visual.
+// Generado a partir del esquema real:
+//     apps/backend/src/main/resources/db/migration/V1__baseline.sql
+//     apps/backend/src/main/resources/db/migration/V2__datos_iniciales.sql
 //
-// CAMBIOS RESPECTO AL ORIGINAL:
-// 1) reserva, pago, venta_equipo y solicitud_reprogramacion pasan de
-//    id_alumno a id_usuario: cualquier usuario (alumno, profesor o
-//    cliente ocasional) puede reservar, pagar, comprar o reprogramar,
-//    no solo quien está inscripto como alumno.
-// 2) pago suma 3 FKs opcionales (id_reserva, id_trabajo_mastering,
-//    id_venta_equipo) para saber exactamente qué está saldando cada
-//    pago — necesario para que el Módulo 6 pueda liberar el premaster
-//    automáticamente al registrarse el pago correspondiente.
-// 3) venta_equipo suma nombre_comprador_externo, igual que ya hacía
-//    trabajo_mastering, para soportar compradores sin cuenta.
-// 4) material suma es_grupal (boolean) para el material que el
-//    profesor sube para todos sus alumnos, no uno solo.
-// 5) release pierde contrato_path (duplicaba a contrato_sello, que
-//    queda como única fuente de verdad para contratos).
-// 6) trabajo_mastering suma id_profesor_asignado (nullable) pensando
-//    en el día que haya más de un ingeniero haciendo mastering.
-// Todo lo demás (sala, historial_clase, nota_profesor,
-// seguimiento_alumno, notificacion, artista, bloqueo_sala) se
-// mantiene igual al diagrama original.
-// ============================================================
+// Para ver el diagrama: entrar a https://dbdiagram.io > New Diagram >
+// borrar el ejemplo > pegar este archivo completo.
+//
+// ----------------------------------------------------------------------------
+// LO QUE ESTE DIAGRAMA **NO** PUEDE MOSTRAR
+//
+// dbdiagram dibuja tablas y relaciones, pero no constraints de exclusión ni
+// triggers -- y ahí es donde vive buena parte de la lógica de este sistema.
+// Las reglas que la base hace cumplir por su cuenta son:
+//
+//   1. Nunca dos reservas solapadas en la misma sala (constraint EXCLUDE, la
+//      única forma de que aguante dos personas reservando en el mismo instante).
+//   2. Una sala bloqueada no acepta reservas, y no se bloquea una sala con
+//      reservas activas adentro (triggers, con lock de fila para que no se
+//      cuelen por concurrencia).
+//   3. Solo se puede hacer en cada sala lo que la matriz sala_tipo_uso permite.
+//   4. La inscripción que se descuenta tiene que ser del alumno que asiste.
+//   5. El premaster de un trabajo de mastering no se libera sin pago
+//      registrado, salvo excepción explícita y con motivo.
+//   6. Los estados de trabajo_mastering y de release solo avanzan.
+//   7. Una nota de profesor va sobre una clase de ese mismo alumno.
+//
+// El detalle y el porqué de cada una está comentado en V1__baseline.sql.
+//
+// ----------------------------------------------------------------------------
+// CAMBIOS RESPECTO DE LA v2 (el diagrama que estaba antes acá)
+//
+//   · NUEVA `inscripcion`: acá vive "Juan compró el curso de DJ inicial, 8
+//     clases, $X, con Tomás". Sin ella no se podía saber cuántas clases le
+//     quedan a nadie, que es lo que el relevamiento marca como faltante hoy.
+//   · NUEVAS `tipo_uso` + `sala_tipo_uso`: la matriz de qué se puede hacer en
+//     cada sala. Va como datos y no como código para que cambiarla no requiera
+//     tocar el sistema.
+//   · `historial_clase` SE ELIMINÓ. La reemplaza `reserva_participante`: una
+//     clase puede ser grupal, así que la asistencia es por participante.
+//   · `usuario.rol` pasa a cuatro niveles de permiso (ADMIN / DIRECTIVO /
+//     STAFF / USUARIO), separados de las relaciones de negocio.
+//   · `alumno.disciplina` y `alumno.nivel_actual` se mudaron a `inscripcion`.
+//   · `reserva` gana `id_reserva_recupera`: ninguna clase se pierde nunca.
+//   · No se modela `sede`: Córdoba salió del alcance el 2026-08-11.
+// ============================================================================
+
+
+// ============================================================================
+// PERSONAS
+// ============================================================================
 
 Table usuario {
-  id_usuario int [pk, increment]
-  nombre_completo varchar
-  email varchar [unique, not null]
-  telefono varchar
-  password_hash varchar [not null]
-  rol varchar [note: 'admin / directivo / profesor / alumno / cliente']
-  foto_perfil varchar
-  estado_presencia varchar [note: 'Activo / Ausente / Ocupado / En clase']
-  bio text
-  especializacion varchar
-  activo boolean [default: true]
-  fecha_creacion timestamp
-  ultimo_acceso timestamp
+  id_usuario        bigint      [pk, increment]
+  nombre_completo   varchar(150) [not null]
+  email             varchar(150) [not null, unique]
+  telefono          varchar(40)  [unique]
+  password_hash     varchar(255) [not null]
+  rol               varchar(20)  [not null, default: 'USUARIO', note: 'ADMIN / DIRECTIVO / STAFF / USUARIO']
+  foto_perfil       varchar(500)
+  estado_presencia  varchar(20)  [not null, default: 'ACTIVO', note: 'ACTIVO / AUSENTE / OCUPADO / EN_CLASE']
+  bio               text
+  especializacion   varchar(150)
+  activo            boolean      [not null, default: true]
+  fecha_creacion    timestamptz  [not null]
+  ultimo_acceso     timestamptz
 
-  Note: 'Identidad única de login. Cualquier persona (alumno, profesor, cliente ocasional) es primero un usuario.'
+  Note: '''
+  Identidad única de login. Cualquier persona -- alumno, profesor o cliente
+  ocasional -- es primero un usuario.
+
+  `rol` es el eje de PERMISOS (qué puede administrar del sistema) y es
+  independiente de las relaciones de negocio (tener fila en alumno o profesor),
+  que son las que arman el menú del portal. Por eso Ghezz puede ser STAFF *y*
+  profesor *y* alquilar una cabina para él, sin contradicción.
+
+  El email es único sin distinguir mayúsculas. Nadie se borra: se desactiva.
+  '''
 }
 
 Table alumno {
-  id_alumno int [pk, increment]
-  id_usuario int [ref: - usuario.id_usuario, unique, not null]
-  disciplina varchar
-  nivel_ingreso varchar
-  nivel_actual varchar
-  estado_alumno varchar [note: 'Activo / Inactivo / Suspendido']
-  fecha_ingreso date
-  ultimo_contacto date
-  instagram varchar
+  id_alumno        bigint      [pk, increment]
+  id_usuario       bigint      [ref: - usuario.id_usuario, not null, unique]
+  nivel_ingreso    varchar(20) [note: 'INICIAL / INTERMEDIO / AVANZADO']
+  estado_alumno    varchar(20) [not null, default: 'ACTIVO', note: 'ACTIVO / INACTIVO / SUSPENDIDO']
+  fecha_ingreso    date        [not null]
+  ultimo_contacto  date
+  instagram        varchar(100)
 
-  Note: 'Relación formativa de un usuario con el estudio. No todo usuario tiene fila acá.'
+  Note: 'Relación formativa con el estudio. No todo usuario tiene fila acá: quien solo alquila una cabina o manda un track a mastering nunca es alumno.'
 }
 
 Table profesor {
-  id_profesor int [pk, increment]
-  id_usuario int [ref: - usuario.id_usuario, unique, not null]
-  especialidad varchar
+  id_profesor   bigint       [pk, increment]
+  id_usuario    bigint       [ref: - usuario.id_usuario, not null, unique]
+  especialidad  varchar(150)
+  activo        boolean      [not null, default: true]
 }
+
+
+// ============================================================================
+// ESPACIOS
+// ============================================================================
 
 Table sala {
-  id_sala int [pk, increment]
-  nombre_sala varchar
-  tipo_sala varchar
-  activa boolean [default: true]
-  descripcion text
+  id_sala      bigint       [pk, increment]
+  nombre_sala  varchar(100) [not null, unique]
+  descripcion  text
+  activa       boolean      [not null, default: true]
+  orden        smallint     [not null, default: 0, note: 'Orden en el calendario']
+
+  Note: '''
+  Tres salas, y las tres son "cabinas" (lugares donde se toca):
+  Sala 1, Sala 2 y Cabina de grabación.
+
+  Las dos primeras son de práctica y sirven para todo. La de grabación tiene
+  equipos y cámara pero NO tiene silla, tele ni escritorio, así que solo sirve
+  para tocar y grabarse. Qué se puede hacer en cada una está en sala_tipo_uso.
+  '''
 }
 
-Table reserva {
-  id_reserva int [pk, increment]
-  id_sala int [ref: > sala.id_sala, not null]
-  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Persona para quien es la reserva (alumno, profesor u ocasional).']
-  id_profesor int [ref: > profesor.id_profesor, note: 'Profesor a cargo, si la reserva es una clase']
-  tipo_uso varchar [note: 'Clase DJ / Producción / Mix & Mastering / Alquiler']
-  fecha date
-  hora_inicio time
-  hora_fin time
-  estado varchar
-  notas text
-  id_usuario_modifico int [ref: > usuario.id_usuario]
-  fecha_modificacion timestamp
+Table tipo_uso {
+  id_tipo_uso  bigint       [pk, increment]
+  codigo       varchar(40)  [not null, unique]
+  nombre       varchar(100) [not null]
+  es_clase     boolean      [not null, default: false]
+  color        varchar(20)  [note: 'Color en el calendario']
+  activo       boolean      [not null, default: true]
+
+  Note: 'CLASE_DJ, PRODUCCION_MUSICAL, MENTORIA, MIX_MASTERING, ALQUILER_CABINA, GRABACION_SET.'
 }
 
-Table pago {
-  id_pago int [pk, increment]
-  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Quien paga.']
-  id_usuario_registra int [ref: > usuario.id_usuario]
-  id_reserva int [ref: > reserva.id_reserva, note: 'NUEVO: opcional, a qué reserva corresponde']
-  id_trabajo_mastering int [ref: > trabajo_mastering.id_trabajo, note: 'NUEVO: opcional, a qué trabajo de M&M corresponde']
-  id_venta_equipo int [ref: > venta_equipo.id_venta, note: 'NUEVO: opcional, a qué venta corresponde']
-  tipo_servicio varchar
-  monto decimal
-  moneda varchar
-  cotizacion_dolar decimal
-  medio_pago varchar
-  descuento decimal
-  motivo_descuento text
-  estado_pago varchar
-  comprobante_path varchar
-  fecha_pago date
-  fecha_registro timestamp
-}
+Table sala_tipo_uso {
+  id_sala      bigint [ref: > sala.id_sala, not null]
+  id_tipo_uso  bigint [ref: > tipo_uso.id_tipo_uso, not null]
+  advertencia  text   [note: 'Permitido, pero con aviso al reservar']
 
-Table egreso {
-  id_egreso int [pk, increment]
-  id_usuario_registra int [ref: > usuario.id_usuario]
-  monto decimal
-  moneda varchar
-  concepto varchar
-  destinatario varchar
-  fecha_egreso date
-  fecha_registro timestamp
-}
+  Indexes {
+    (id_sala, id_tipo_uso) [pk]
+  }
 
-Table venta_equipo {
-  id_venta int [pk, increment]
-  id_usuario_comprador int [ref: > usuario.id_usuario, note: 'CAMBIO: antes id_alumno_comprador. Nullable si es comprador externo.']
-  nombre_comprador_externo varchar [note: 'NUEVO: fallback si el comprador no tiene cuenta']
-  id_usuario_vendedor int [ref: > usuario.id_usuario, not null]
-  modelo_equipo varchar
-  marca varchar
-  precio decimal
-  moneda varchar
-  cotizacion_dolar decimal
-  fecha_venta date
-  notas text
-}
+  Note: '''
+  LA MATRIZ de qué se puede hacer en cada sala.
 
-Table historial_clase {
-  id_historial int [pk, increment]
-  id_reserva int [ref: > reserva.id_reserva, not null]
-  id_alumno int [ref: > alumno.id_alumno, not null]
-  id_profesor int [ref: > profesor.id_profesor, not null]
-  fecha date
-  estado_asistencia varchar
-  fecha_registro timestamp
-}
+                       | Sala 1 | Sala 2 | Cabina grabación
+   Clase de DJ         |   si   |   si   |  si (con aviso)
+   Producción musical  |   si   |   si   |       no
+   Mentoría            |   si   |   si   |       no
+   Mix & Mastering     |   si   |   si   |       no
+   Alquiler de cabina  |   si   |   si   |       no
+   Grabación de set    |   no   |   no   |       si
 
-Table nota_profesor {
-  id_nota int [pk, increment]
-  id_profesor int [ref: > profesor.id_profesor, not null]
-  id_alumno int [ref: > alumno.id_alumno, not null]
-  id_historial int [ref: > historial_clase.id_historial]
-  contenido text
-  fecha_creacion timestamp
-  fecha_modificacion timestamp
-}
+  Es una tabla y no reglas escritas en el código a propósito: el día que
+  compren una tele y una silla para la cabina de grabación, la regla se cambia
+  desde una pantalla, sin migración ni deploy.
 
-Table seguimiento_alumno {
-  id_seguimiento int [pk, increment]
-  id_profesor int [ref: > profesor.id_profesor, not null]
-  id_alumno int [ref: > alumno.id_alumno, not null]
-  estado varchar
-  observaciones text
-  fecha_actualizacion timestamp
-}
-
-Table material {
-  id_material int [pk, increment]
-  id_profesor int [ref: > profesor.id_profesor, not null]
-  id_alumno int [ref: > alumno.id_alumno, note: 'Nullable si es_grupal = true']
-  es_grupal boolean [default: false, note: 'NUEVO: si es true, visible para todos los alumnos del profesor']
-  titulo varchar
-  tipo varchar
-  archivo_path varchar
-  url_externa varchar
-  tipo_archivo varchar
-  visible_alumno boolean [default: true]
-  fecha_subida timestamp
-}
-
-Table solicitud_reprogramacion {
-  id_solicitud int [pk, increment]
-  id_usuario int [ref: > usuario.id_usuario, not null, note: 'CAMBIO: antes id_alumno. Quien solicita.']
-  id_reserva int [ref: > reserva.id_reserva, not null]
-  motivo text
-  fecha_alternativa_solicitada date
-  estado varchar
-  id_usuario_resuelve int [ref: > usuario.id_usuario]
-  fecha_solicitud timestamp
-  fecha_resolucion timestamp
-}
-
-Table notificacion {
-  id_notificacion int [pk, increment]
-  id_usuario_destino int [ref: > usuario.id_usuario, not null]
-  tipo varchar
-  contenido text
-  leida boolean [default: false]
-  fecha_creacion timestamp
-}
-
-Table trabajo_mastering {
-  id_trabajo int [pk, increment]
-  id_cliente_usuario int [ref: > usuario.id_usuario, note: 'Nullable si el cliente no tiene cuenta']
-  nombre_cliente_externo varchar
-  contacto_cliente_externo varchar
-  id_profesor_asignado int [ref: > profesor.id_profesor, note: 'NUEVO: quién hace el trabajo (pensado para cuando escalen a más de un ingeniero)']
-  tipo_trabajo varchar
-  nombre_track varchar
-  precio_acordado decimal
-  moneda varchar
-  revisiones_incluidas int
-  revisiones_realizadas int
-  fecha_estimada date
-  fecha_entrega_real date
-  estado varchar
-  premix_entregado boolean [default: false]
-  premaster_entregado boolean [default: false]
-  notas_internas text
-  fecha_creacion timestamp
-}
-
-Table artista {
-  id_artista int [pk, increment]
-  id_usuario int [ref: > usuario.id_usuario, note: 'Nullable — los artistas hoy no tienen login, se deja preparado a futuro']
-  nombre_artistico varchar
-  nombre_real varchar
-  email_contacto varchar
-  telefono varchar
-  instagram varchar
-  confirmado boolean [default: false]
-  bio text
-  fecha_alta timestamp
-}
-
-Table release {
-  id_release int [pk, increment]
-  codigo_release varchar [unique, note: 'Ej: LJ020']
-  id_artista int [ref: > artista.id_artista, not null]
-  nombre_release varchar
-  tipo_release varchar
-  fecha_estimada date
-  fecha_real date
-  estado varchar
-  sistema_promo boolean [default: false]
-  notas text
-  fecha_creacion timestamp
-
-  Note: 'CAMBIO: se quitó contrato_path (duplicaba a contrato_sello)'
-}
-
-Table contrato_sello {
-  id_contrato int [pk, increment]
-  id_artista int [ref: > artista.id_artista, not null]
-  id_release int [ref: > release.id_release, note: 'Nullable: un contrato puede cubrir al artista en general, no solo un release']
-  archivo_path varchar
-  fecha_firma date
-  observaciones text
-  fecha_carga timestamp
+  `reserva` tiene una clave foránea COMPUESTA contra esta tabla, así que una
+  combinación no permitida es imposible de guardar.
+  '''
 }
 
 Table bloqueo_sala {
-  id_bloqueo int [pk, increment]
-  id_sala int [ref: > sala.id_sala, not null]
-  id_usuario_registra int [ref: > usuario.id_usuario]
-  fecha_inicio date
-  fecha_fin date
-  hora_inicio time
-  hora_fin time
-  motivo text
-  fecha_registro timestamp
+  id_bloqueo           bigint      [pk, increment]
+  id_sala              bigint      [ref: > sala.id_sala, not null]
+  id_usuario_registra  bigint      [ref: > usuario.id_usuario]
+  fecha_inicio         date        [not null]
+  fecha_fin            date        [not null]
+  hora_inicio          time        [not null, default: '00:00']
+  hora_fin             time        [not null, default: '23:59']
+  motivo               text        [not null]
+  fecha_registro       timestamptz [not null]
+
+  Note: 'Mantenimiento o uso especial. Un bloqueo y una reserva no pueden pisarse: lo garantizan dos triggers con lock de fila sobre la sala.'
+}
+
+
+// ============================================================================
+// FORMACIÓN
+// ============================================================================
+
+Table inscripcion {
+  id_inscripcion      bigint        [pk, increment]
+  id_alumno           bigint        [ref: > alumno.id_alumno, not null]
+  id_profesor         bigint        [ref: > profesor.id_profesor, note: 'Profesor a cargo — asignación explícita']
+  disciplina          varchar(20)   [not null, note: 'DJ / PRODUCCION / MENTORIA']
+  nivel               varchar(20)   [note: 'INICIAL / INTERMEDIO / AVANZADO']
+  clases_contratadas  smallint      [not null, note: 'DJ = 8, Producción = 16']
+  precio_total        decimal(14,2) [not null]
+  moneda              varchar(3)    [not null, default: 'ARS', note: 'ARS / USD']
+  cotizacion_dolar    decimal(14,4) [note: 'Obligatoria si moneda = USD']
+  fecha_inicio        date
+  estado              varchar(20)   [not null, default: 'ACTIVA', note: 'ACTIVA / COMPLETADA / CANCELADA / PAUSADA']
+  notas               text
+  fecha_creacion      timestamptz   [not null]
+
+  Note: '''
+  La pieza que faltaba en el modelo original: acá vive "Juan compró el curso de
+  DJ inicial, 8 clases, $X, con Tomás".
+
+  El curso es CERRADO (8 clases), no un paquete de clases sueltas, y ninguna
+  clase se pierde nunca: si falta el alumno o falta el profesor, se recupera en
+  otra fecha. Por eso no hay fecha de fin comprometida -- el curso termina
+  cuando se dictaron las clases contratadas.
+
+  El profesor se asigna ACÁ y no en el alumno, así el mismo alumno puede tener
+  un profe para DJ y otro para mentoría. "Mis Alumnos" del portal sale de esta
+  tabla, no de las reservas: que otro profe cubra una clase suelta no le
+  transfiere el alumno.
+
+  REGLA: una sola inscripción ACTIVA por disciplina. Se puede hacer DJ inicial
+  y mentoría a la vez; no DJ inicial y DJ avanzado. (Índice único parcial.)
+  '''
+}
+
+Table reserva {
+  id_reserva            bigint      [pk, increment]
+  id_sala               bigint      [ref: > sala.id_sala, not null]
+  id_tipo_uso           bigint      [ref: > tipo_uso.id_tipo_uso, not null]
+  id_profesor           bigint      [ref: > profesor.id_profesor]
+  fecha                 date        [not null]
+  hora_inicio           time        [not null]
+  hora_fin              time        [not null]
+  estado                varchar(20) [not null, default: 'CONFIRMADA', note: 'CONFIRMADA / MODIFICADA / CANCELADA / REPROGRAMADA / FINALIZADA']
+  notas                 text
+  id_reserva_recupera   bigint      [ref: > reserva.id_reserva, note: 'A qué clase reemplaza esta']
+  motivo_reprogramacion text
+  id_usuario_creo       bigint      [ref: > usuario.id_usuario]
+  id_usuario_modifico   bigint      [ref: > usuario.id_usuario]
+  fecha_creacion        timestamptz [not null]
+  fecha_modificacion    timestamptz
+  periodo               tsrange     [note: 'Columna generada: el rango ocupado']
+
+  Note: '''
+  Un bloque de tiempo en una sala. Puede ser una clase, un alquiler, una sesión
+  de mastering o una grabación.
+
+  Quiénes participan NO está acá sino en reserva_participante, porque una clase
+  puede ser grupal y cada alumno viene de su propia inscripción.
+
+  UNA RESERVA OCUPA SU FRANJA salvo que esté CANCELADA o REPROGRAMADA. Esa
+  definición es única y la usan los tres mecanismos que la necesitan.
+
+  La regla más importante del sistema -- nunca dos reservas solapadas en la
+  misma sala -- va como constraint EXCLUDE y no como validación en el código,
+  porque es la única forma de que aguante a dos personas reservando en el mismo
+  instante.
+  '''
+}
+
+Table reserva_participante {
+  id_participacion  bigint      [pk, increment]
+  id_reserva        bigint      [ref: > reserva.id_reserva, not null]
+  id_usuario        bigint      [ref: > usuario.id_usuario, not null]
+  id_inscripcion    bigint      [ref: > inscripcion.id_inscripcion, note: 'Vacío si la reserva no descuenta clases (alquiler)']
+  estado_asistencia varchar(20) [not null, default: 'PENDIENTE', note: 'PENDIENTE / PRESENTE / AUSENTE / AUSENTE_JUSTIFICADO / CANCELADA']
+  observaciones     text
+  fecha_registro    timestamptz [not null]
+
+  Note: '''
+  Reemplaza a `historial_clase` del modelo viejo. Como una clase puede ser
+  grupal, la asistencia es por participante y no por reserva.
+
+  `id_inscripcion` es lo que descuenta la clase del curso contratado. Un
+  trigger verifica que esa inscripción sea DEL MISMO usuario que asiste: sin
+  eso se le podía descontar la clase de uno al paquete de otro.
+  '''
+}
+
+Table nota_profesor {
+  id_nota            bigint      [pk, increment]
+  id_profesor        bigint      [ref: > profesor.id_profesor, not null]
+  id_alumno          bigint      [ref: > alumno.id_alumno, not null]
+  id_participacion   bigint      [ref: > reserva_participante.id_participacion]
+  contenido          text        [not null]
+  fecha_creacion     timestamptz [not null]
+  fecha_modificacion timestamptz
+
+  Note: 'Privadas: no las ve el alumno ni otros profesores. Administración sí. Un trigger impide colgar la nota de un alumno de la clase de otro.'
+}
+
+Table seguimiento_alumno {
+  id_seguimiento      bigint      [pk, increment]
+  id_profesor         bigint      [ref: > profesor.id_profesor, not null]
+  id_alumno           bigint      [ref: > alumno.id_alumno, not null]
+  estado              varchar(30) [not null, note: 'VA_BIEN / REQUIERE_ATENCION / EN_PAUSA']
+  observaciones       text
+  fecha_actualizacion timestamptz [not null]
+
+  Indexes {
+    (id_profesor, id_alumno) [unique]
+  }
+}
+
+Table material {
+  id_material     bigint       [pk, increment]
+  id_profesor     bigint       [ref: > profesor.id_profesor, not null]
+  id_alumno       bigint       [ref: > alumno.id_alumno, note: 'Vacío si es grupal']
+  es_grupal       boolean      [not null, default: false]
+  titulo          varchar(200) [not null]
+  tipo            varchar(50)
+  archivo_path    varchar(500)
+  url_externa     varchar(500)
+  visible_alumno  boolean      [not null, default: true]
+  fecha_subida    timestamptz  [not null]
+
+  Note: 'O es para un alumno concreto, o es grupal -- nunca las dos ni ninguna. Y siempre tiene archivo o link. Los archivos pesados no se guardan: se guarda el link.'
+}
+
+Table solicitud_reprogramacion {
+  id_solicitud                 bigint      [pk, increment]
+  id_usuario                   bigint      [ref: > usuario.id_usuario, not null]
+  id_reserva                   bigint      [ref: > reserva.id_reserva, not null]
+  motivo                       text        [not null]
+  fecha_alternativa_solicitada date
+  estado                       varchar(20) [not null, default: 'PENDIENTE', note: 'PENDIENTE / APROBADA / RECHAZADA']
+  id_usuario_resuelve          bigint      [ref: > usuario.id_usuario]
+  respuesta                    text
+  fecha_solicitud              timestamptz [not null]
+  fecha_resolucion             timestamptz
+
+  Note: 'El alumno solicita; administración aprueba. Una solicitud resuelta obliga a decir quién la resolvió y cuándo.'
+}
+
+
+// ============================================================================
+// DINERO
+// ============================================================================
+
+Table pago {
+  id_pago              bigint        [pk, increment]
+  id_usuario           bigint        [ref: > usuario.id_usuario, not null, note: 'Quién paga']
+  id_usuario_registra  bigint        [ref: > usuario.id_usuario]
+  id_inscripcion       bigint        [ref: > inscripcion.id_inscripcion]
+  id_reserva           bigint        [ref: > reserva.id_reserva]
+  id_trabajo_mastering bigint        [ref: > trabajo_mastering.id_trabajo]
+  id_venta_equipo      bigint        [ref: > venta_equipo.id_venta]
+  concepto             varchar(200)
+  monto                decimal(14,2) [not null, note: 'Lo EFECTIVAMENTE cobrado, ya con el descuento aplicado']
+  moneda               varchar(3)    [not null, default: 'ARS']
+  cotizacion_dolar     decimal(14,4) [note: 'Obligatoria si moneda = USD']
+  medio_pago           varchar(30)   [not null, note: 'EFECTIVO / TRANSFERENCIA / PAYPAL / CUENTA_EEUU / OTRO']
+  descuento_porcentaje decimal(5,2)  [not null, default: 0, note: 'PORCENTAJE 0-100, no un importe']
+  motivo_descuento     text
+  estado_pago          varchar(20)   [not null, default: 'PAGADO', note: 'SENADO / PAGADO / DEBE / VENCIDO / ANULADO']
+  comprobante_path     varchar(500)
+  comprobante_invalido boolean       [not null, default: false]
+  fecha_pago           date          [not null]
+  fecha_registro       timestamptz   [not null]
+
+  Note: '''
+  Un pago salda UNA cosa, exactamente una: una inscripción, una reserva, un
+  trabajo de mastering o una venta de equipo. Si alguien paga dos servicios
+  juntos, son dos filas -- si no, el mismo monto se cuenta dos veces en los
+  reportes por línea de negocio.
+
+  `monto` es lo efectivamente cobrado y `descuento_porcentaje` es el porcentaje
+  aplicado, así la caja es la suma de `monto` sin recalcular nada. Todo
+  descuento exige justificación escrita.
+
+  Los comprobantes no se borran: se marcan como inválidos.
+  '''
+}
+
+Table egreso {
+  id_egreso           bigint        [pk, increment]
+  id_usuario_registra bigint        [ref: > usuario.id_usuario]
+  id_usuario_destino  bigint        [ref: > usuario.id_usuario, note: 'Si es un pago a un profesor']
+  monto               decimal(14,2) [not null]
+  moneda              varchar(3)    [not null, default: 'ARS']
+  cotizacion_dolar    decimal(14,4)
+  concepto            varchar(200)  [not null]
+  destinatario        varchar(150)
+  comprobante_path    varchar(500)
+  fecha_egreso        date          [not null]
+  fecha_registro      timestamptz   [not null]
+}
+
+Table venta_equipo {
+  id_venta                   bigint        [pk, increment]
+  id_usuario_comprador       bigint        [ref: > usuario.id_usuario]
+  nombre_comprador_externo   varchar(150)
+  contacto_comprador_externo varchar(150)
+  id_usuario_vendedor        bigint        [ref: > usuario.id_usuario, not null]
+  categoria                  varchar(50)   [note: 'Controladores / Monitores / Auriculares / Accesorios']
+  marca                      varchar(100)
+  modelo_equipo              varchar(150)  [not null]
+  precio                     decimal(14,2) [not null]
+  moneda                     varchar(3)    [not null, default: 'ARS']
+  cotizacion_dolar           decimal(14,4)
+  fecha_venta                date          [not null]
+  notas                      text
+
+  Note: 'Acuerdo de distribución con Pioneer, sin stock propio: esto registra la venta, no un inventario. El comprador tiene cuenta o se anota su nombre; alguno de los dos.'
+}
+
+
+// ============================================================================
+// MIX & MASTERING
+// ============================================================================
+
+Table trabajo_mastering {
+  id_trabajo               bigint        [pk, increment]
+  id_cliente_usuario       bigint        [ref: > usuario.id_usuario, note: 'Vacío si el cliente no tiene cuenta']
+  nombre_cliente_externo   varchar(150)
+  contacto_cliente_externo varchar(150)
+  id_profesor_asignado     bigint        [ref: > profesor.id_profesor]
+  tipo_trabajo             varchar(20)   [not null, note: 'MIX / MASTER / MIX_MASTER']
+  nombre_track             varchar(200)  [not null]
+  precio_acordado          decimal(14,2)
+  moneda                   varchar(3)    [not null, default: 'USD']
+  cotizacion_dolar         decimal(14,4)
+  revisiones_incluidas     smallint      [not null, default: 3]
+  revisiones_realizadas    smallint      [not null, default: 0]
+  fecha_estimada           date
+  fecha_entrega_real       date
+  estado                   varchar(20)   [not null, default: 'A_CONFIRMAR', note: 'A_CONFIRMAR / EN_PROCESO / ENTREGADO / PAGADO / DEBE / CANCELADO']
+  url_material_cliente     varchar(500)  [note: 'Lo que mandó el cliente']
+  url_master               varchar(500)  [note: 'Se entrega antes de cobrar']
+  url_premaster            varchar(500)  [note: 'Se retiene hasta el pago']
+  premaster_liberado       boolean       [not null, default: false]
+  liberado_sin_pago        boolean       [not null, default: false]
+  motivo_liberacion        text
+  id_usuario_libera        bigint        [ref: > usuario.id_usuario]
+  notas_internas           text
+  fecha_creacion           timestamptz   [not null]
+
+  Note: '''
+  El único servicio que puede quedar en debe: Ghezz entrega primero y cobra
+  después. Entrega el MASTER; retiene el PREMASTER (el que el cliente necesita
+  para las discográficas) hasta que el pago esté registrado.
+
+  El sistema NO guarda los audios -- un WAV pesa 80-100 MB y un set en video
+  entre 2 y 4 GB. Guarda el LINK y controla cuándo el cliente puede verlo, que
+  para el caso es lo mismo y no obliga a nadie a subir 100 MB por una web.
+
+  Un trigger impide liberar el premaster sin pago. La excepción existe a
+  propósito, porque Ghezz cobra con flexibilidad según el cliente: se puede
+  liberar igual, pero queda registrado quién lo hizo y por qué.
+
+  A diferencia del resto de las tablas, acá NO se exige cotización para los
+  montos en USD: el precio acordado es del presupuesto y la cotización que
+  importa es la del día del cobro, que vive en `pago`.
+  '''
+}
+
+
+// ============================================================================
+// SELLO DISCOGRÁFICO
+// ============================================================================
+
+Table artista {
+  id_artista        bigint       [pk, increment]
+  id_usuario        bigint       [ref: > usuario.id_usuario, note: 'Los artistas hoy no tienen login; queda preparado']
+  nombre_artistico  varchar(150) [not null]
+  nombre_real       varchar(150)
+  email_contacto    varchar(150)
+  telefono          varchar(40)
+  instagram         varchar(100)
+  confirmado        boolean      [not null, default: false]
+  bio               text
+  fecha_alta        timestamptz  [not null]
+}
+
+Table release {
+  id_release      bigint       [pk, increment]
+  codigo_release  varchar(20)  [not null, unique, note: 'ID propio del sello: LJ020, LJ021...']
+  id_artista      bigint       [ref: > artista.id_artista, not null]
+  nombre_release  varchar(200) [not null]
+  tipo_release    varchar(20)  [note: 'SINGLE / EP / REMIX / ALBUM']
+  genero          varchar(80)
+  portada_path    varchar(500)
+  fecha_estimada  date
+  fecha_real      date
+  estado          varchar(20)  [not null, default: 'A_CONFIRMAR', note: 'A_CONFIRMAR / CONFIRMADO / EN_DISTRIBUCION / PUBLICADO']
+  sistema_promo   boolean      [not null, default: false, note: 'Enviado a la red internacional de DJs']
+  notas           text
+  fecha_creacion  timestamptz  [not null]
+
+  Note: 'El código es único y correlativo. El estado solo avanza, nunca retrocede (trigger).'
+}
+
+Table contrato_sello {
+  id_contrato    bigint       [pk, increment]
+  id_artista     bigint       [ref: > artista.id_artista, not null]
+  id_release     bigint       [ref: > release.id_release, note: 'Vacío si el contrato cubre al artista en general']
+  archivo_path   varchar(500) [not null]
+  fecha_firma    date
+  observaciones  text
+  fecha_carga    timestamptz  [not null]
+}
+
+
+// ============================================================================
+// SISTEMA
+// ============================================================================
+
+Table notificacion {
+  id_notificacion    bigint      [pk, increment]
+  id_usuario_destino bigint      [ref: > usuario.id_usuario, not null]
+  tipo               varchar(50) [not null]
+  titulo             varchar(200)
+  contenido          text        [not null]
+  url_destino        varchar(300)
+  leida              boolean     [not null, default: false]
+  fecha_creacion     timestamptz [not null]
+
+  Note: 'Internas al sistema. La integración con WhatsApp quedó explícitamente fuera del alcance de esta versión.'
 }
