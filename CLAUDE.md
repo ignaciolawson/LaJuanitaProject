@@ -7,7 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electronic music production academy, Pilar). Two deliverables:
 
 1. **Landing page** (`apps/landing`) — public marketing site replacing the client's current Linktree. **Has its own `CLAUDE.md` — read it before touching styles or animations there.** It documents a custom design system, a GSAP motion architecture, and several already-solved integration traps that are easy to re-break.
-2. **Management platform** (`apps/platform` + `apps/backend`) — authenticated system covering students, room/schedule booking, payments, student/teacher portals, mix & mastering requests, and the record label workflow.
+2. **Management platform** (`apps/platform` + `apps/backend`) — authenticated system covering students, room/schedule booking, payments, student/teacher portals, mix & mastering requests, and the record label workflow. **This is the current work.** As of 2026-08-10 both apps are untouched scaffolding: `platform` is the stock Vite template, `backend` is one `@SpringBootApplication` class.
+
+> **Read `docs/sistema-gestion-plan.md` before doing anything on platform/backend.** It is the source of truth for scope, deadline, build order, and the technical decisions already settled (Flyway, the corrected role model, JWT, file storage, hosting shape). Written in Spanish, for the developer as much as for Claude. If a decision there changes, edit that file — don't leave the old decision alongside the new one.
 
 ## Repo structure
 
@@ -21,7 +23,8 @@ docs/
 ├── propuesta/     technical & commercial proposal
 ├── requirements/  per-app scope
 ├── branding/      brand assets + identity guide
-└── db/            data model (DBML)
+├── db/            data model (DBML)
+└── sistema-gestion-plan.md   plan + settled decisions for platform/backend
 ```
 
 `apps/landing` and `apps/platform` are npm workspaces declared in the root `package.json`. `apps/backend` is a separate Maven project, not part of the npm workspace.
@@ -64,11 +67,18 @@ the landing `CLAUDE.md` for the migration point (`generateStaticParams` will
 need revalidation).
 
 **Every form on the landing is visual only.** Program applications, booth
-booking, gear inquiries and the `/ingresar` login submit nothing — they show
-an explicit "not connected yet" notice rather than faking success. When the
-backend exists, the connection points are the `onSubmit` in
-`components/forms/Fields.tsx` and `components/forms/LoginForm.tsx`. Do not
-replace those notices with a fake success state.
+booking, gear inquiries and the `/ingresar` login submit nothing. The
+connection points are the `onSubmit` in `components/forms/Fields.tsx` and
+`components/forms/LoginForm.tsx`.
+
+**The landing waits for the platform — decided 2026-08-10; it does not
+publish first.** The forms currently answer "listo" without the request
+reaching anyone (the client asked for the "not connected" notice to be
+removed on 2026-08-09), so publishing early means losing real leads. No
+interim patch (no email relay, no third-party form service) — they get wired
+straight to the backend once the students module is live, ~September. This
+is affordable because the landing is blocked on client-supplied data anyway.
+Revisit only if the client confirms that data and wants to publish early.
 
 **Most long-form copy and all prices are invented placeholder.** The landing
 `CLAUDE.md` has the file-by-file table of what still needs client
@@ -94,9 +104,13 @@ that no longer matches the site. See that file's header note.
 
 ## Architecture notes
 
-**Data model — "usuario" is the root identity, not "alumno".** The original client-provided model treated `ALUMNO` (student) as the system's user, which breaks for one-off customers (someone who only rents the booth, buys gear, or sends a mastering job without ever enrolling). The corrected model: `usuario` is the single login identity; `alumno` and `profesor` are separate tables hanging off `usuario` via FK, not replacements for it. Transactional tables (`reserva`, `pago`, `venta_equipo`, `solicitud_reprogramacion`) key off `id_usuario`, never `id_alumno`. In the platform UI, "Mi cuenta" sections should render dynamically based on which relations a given `usuario` actually has (no fixed "user type" chosen at signup). Full schema: `docs/db/la_juanita_schema.dbml.txt` (paste into dbdiagram.io to visualize).
+**Data model — "usuario" is the root identity, not "alumno".** The original client-provided model treated `ALUMNO` (student) as the system's user, which breaks for one-off customers (someone who only rents the booth, buys gear, or sends a mastering job without ever enrolling). The corrected model: `usuario` is the single login identity; `alumno` and `profesor` are separate tables hanging off `usuario` via FK, not replacements for it. Transactional tables (`reserva`, `pago`, `venta_equipo`, `solicitud_reprogramacion`) key off `id_usuario`, never `id_alumno`. Full schema: `docs/db/la_juanita_schema.dbml.txt` (paste into dbdiagram.io to visualize).
 
-**Backend**: Spring Boot 4.1 / Java 21, Spring Data JPA, Spring Security (JWT planned), Bean Validation, Lombok. `spring.jpa.hibernate.ddl-auto=validate` in `application.properties` — schema changes are expected to go through explicit migrations, not Hibernate auto-DDL.
+**Two independent axes, not one `rol` column.** `usuario.rol` in the DBML still carries the original `'admin / directivo / profesor / alumno / cliente'`; it becomes **`ADMIN` / `STAFF` / `USUARIO`** when `V1__baseline.sql` is written. Permissions (what you may administer — this is what Spring Security reads) are separate from business relations (whether you have an `alumno` / `profesor` row — this is what builds the portal menu). Ghezz is `STAFF` *and* a `profesor` *and* can book a booth for himself, with no contradiction.
+
+**Portal menu is two rules, not one.** Sections tied to a *relation* (Mis Cursos, Mis Alumnos, Subir Material) render only when the relation exists. Sections tied to a *service anyone can buy* (Reservar cabina, Mix & Mastering, Mis Pagos) always render — gate those on existing rows and a user who never booked can never make a first booking. Both are driven off `GET /api/me` (user + role + which relations exist); never hardcode the menu.
+
+**Backend**: Spring Boot 4.1 / Java 21, Spring Data JPA, Spring Security (JWT), Bean Validation, Lombok. `spring.jpa.hibernate.ddl-auto=validate` in `application.properties` and **no migrations exist yet, so the app currently fails to start against the database** — Hibernate validates against an empty schema. Deliberate (no auto-DDL) but half-finished. Migrations are Flyway; `V1__baseline.sql` must also add the constraints the DBML lacks, above all the one preventing overlapping `reserva` rows for the same `sala`.
 
 **`apps/landing/AGENTS.md`**: auto-generated by Next.js and re-written by `next dev` — it warns that this Next.js version has breaking changes vs. training data and to check `node_modules/next/dist/docs/` before writing Next-specific code there. Keep it committed; don't hand-edit it away.
 
