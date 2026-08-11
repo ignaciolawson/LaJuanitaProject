@@ -215,7 +215,7 @@ que el patrón de las primeras 10 estaba mal.
 **Fase 0 — la plantilla**
 
 1. ✅ **HECHO (2026-08-11)** — `docs/requirements/platform.md`: los 8 módulos con
-   pantallas, permisos por rol y reglas duras, más 36 decisiones numeradas (P1–P36)
+   pantallas, permisos por rol y reglas duras, más 37 decisiones numeradas (P1–P37)
    con cuáles están resueltas y qué bloquea cada pendiente.
 2. ✅ **HECHO (2026-08-11)** — `V1__baseline.sql` (22 tablas) y
    `V2__datos_iniciales.sql` (salas + matriz de usos). Las reglas de negocio quedaron
@@ -229,9 +229,30 @@ que el patrón de las primeras 10 estaba mal.
    premaster liberable sin pago) y 6 importantes, más una **condición de carrera real**
    entre reservas y bloqueos que los triggers no cubrían. La batería de pruebas quedó
    versionada en `apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql`:
-   **67 casos, todos pasando**. Pendientes de negocio anotados en el informe: semántica
-   de `pago.descuento`, usuario administrador inicial, y regenerar el DBML.
-4. ⬜ `usuario` de punta a punta: guardar, leer, login, credencial firmada, `GET /api/me`.
+   **69 casos, todos pasando**.
+
+   Las tres decisiones de negocio que la auditoría dejó abiertas **ya se resolvieron**:
+   - **`pago.descuento_porcentaje` es un PORCENTAJE (0-100)**, no un importe. En
+     consecuencia **`monto` es lo efectivamente cobrado**, con el descuento ya
+     aplicado: la caja es la suma de `monto` sin recalcular nada.
+   - **Usuario administrador inicial**: se siembra en su propia migración junto con el
+     paso 4, no en `V2` (ver abajo).
+   - **DBML regenerado** a v3 desde el SQL real, con las 7 reglas que el diagrama no
+     puede dibujar listadas en la cabecera.
+4. ⬜ **`usuario` de punta a punta** — el próximo paso. Guardar, leer, login, credencial
+   firmada (JWT) y `GET /api/me` devolviendo usuario + rol + qué relaciones tiene.
+
+   Incluye **`V3__usuario_admin_inicial.sql`**: hoy una base recién creada no tiene con
+   qué loguearse. No se sembró antes a propósito — guardar una contraseña encriptada
+   exige haber elegido el algoritmo (va a ser BCrypt, el de Spring Security), y sembrar
+   un hash con un método que después hay que cambiar obliga a migrar contraseñas, que
+   es de lo más molesto que hay. El hash se genera con el mismo código que después
+   valida el login, así queda coherente por construcción.
+
+   Ojo al escribir las entidades JPA: la tabla `release` es palabra reservada en otros
+   motores. Postgres la acepta sin comillas (probado), pero si Hibernate se queja, se
+   resuelve con `@Table(name = "\"release\"")`.
+
 5. ⬜ En `platform`: tirar el template de Vite, pantalla de login real, menú lateral que
    se arma según quién sos (3.2).
 

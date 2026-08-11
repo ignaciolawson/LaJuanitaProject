@@ -206,9 +206,9 @@ Por eso varias quedan como pregunta y no como hecho.
 
 | Lo que vende la landing | Estado en el modelo |
 |---|---|
-| **Mix & Mastering como *curso*** (3 meses, 1 clase semanal) | 🔴 El modelo solo tiene M&M como *servicio* (Módulo 6). **Son dos cosas distintas con el mismo nombre.** Ver ❓P31 |
-| **Modalidad "virtual en vivo"** en los dos programas grandes | 🔴 Todo el modelo asume sala física; `reserva.id_sala` es obligatorio. Ver ❓P32 |
-| **Precios mensuales** ("Desde $85.000/mes") | 🔴 El relevamiento dice seña + saldo total antes de arrancar, no cuotas. Ver ❓P33 |
+| **Mix & Mastering como *curso*** (3 meses, 1 clase semanal) | ✅ **Resuelto: el curso no existe.** M&M es solo un servicio. La landing lo inventó. |
+| **Modalidad "virtual en vivo"** en los dos programas grandes | ✅ **Resuelto: no hay clases virtuales.** Y aunque las hubiera, la sala se ocupa igual porque el profesor está ahí usando los equipos ⇒ `reserva.id_sala` queda obligatorio. |
+| **Precios mensuales** ("Desde $85.000/mes") | ✅ **Resuelto: no hay cuotas.** Se paga todo antes de empezar; la única excepción es Mix & Mastering. |
 | **Duración de los cursos** (DJ: 6 meses, 2 clases semanales) | ⚠️ Contradice el relevamiento y lo que Ignacio confirmó (DJ = 8 clases, 1 por semana). Ver ❓P34 |
 | **"Práctica libre incluida"** en el programa de DJ | 🟡 Es uso de sala gratuito para alumnos, distinto del alquiler pago. Ver ❓P35 |
 | **Alquiler $18.000/h y Grabación $65.000/h**, en bloques de 1 a 4 horas | ✅ Cubierto: son `reserva` + `pago` directo, **sin inscripción**. El precio sale de las horas |
@@ -291,7 +291,7 @@ el DBML solo relaciona profesor y alumno a través de cada `reserva`. Ver **❓P
 - **❓P9 — ¿Un profesor puede pedir mover su propia clase?** Hoy todo pasa por Micaela. ¿Le damos al profesor el mismo botón de "solicitar reprogramación" que al alumno, o sigue siendo un mensaje a Mica?
 - **✅P10 — RESUELTO (2026-08-11).** Son **tres salas: Sala 1, Sala 2 y Cabina de grabación.** No existe una "Sala de Producción" — el relevamiento está mal. La matriz de qué se puede hacer en cada una está en §2.6.
 - **✅P29 — RESUELTO (2026-08-11).** El **alquiler de cabina** es un uso propio y va en **Sala 1 y Sala 2** (no en la de grabación). Es un servicio **distinto** de la grabación de set. Ambos están en la matriz de §2.6.
-- **❓P30 — ¿Una clase puede tener más de un alumno?** Todo el relevamiento habla de "el alumno" en singular, pero `material.es_grupal` existe en el modelo y la entrevista menciona *"si hay más alumnos, a veces se reasignan salas"*. **Es una pregunta estructural**: si las clases pueden ser grupales, una reserva se relaciona con *varios* alumnos y eso cambia la tabla. Barato ahora, caro después.
+- **✅P30 — RESUELTO (2026-08-11). Las clases SÍ pueden ser grupales.** Por eso una reserva no lleva un alumno sino una tabla de participantes (`reserva_participante`), donde cada uno trae su propia inscripción y su propia asistencia. Esa tabla además reemplazó a `historial_clase` del modelo viejo.
 - **❓P11 — ¿Horario de apertura del estudio?** El calendario necesita saber de qué hora a qué hora se puede reservar. Ghezz llega 8–9 AM; hay profes hasta la noche.
 
 ---
@@ -467,22 +467,30 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | ~~P27~~ | ✅ "Grabación" se suma, solo en la Cabina | — |
 | P28 | Excepción para liberar M&M sin pago | Módulo 6 |
 | ~~P29~~ | ✅ Alquiler de cabina: Sala 1 y 2, servicio propio | — |
-| **P30** | **¿Las clases pueden ser grupales?** | **`V1__baseline.sql`** |
-| **P31** | **M&M como curso, además de servicio** | **`V1__baseline.sql`** |
-| **P32** | **¿Existen las clases virtuales?** | **`V1__baseline.sql`** |
-| **P33** | **¿Se cobra en cuotas mensuales?** | **`V1__baseline.sql`** |
-| P34 | ⚠️ Duración real de los cursos (landing ≠ relevamiento) | Módulo 1 |
+| ~~P30~~ | ✅ Sí, hay clases grupales → `reserva_participante` | — |
+| ~~P31~~ | ✅ M&M es servicio, no curso | — |
+| ~~P32~~ | ✅ No hay virtual; la sala se ocupa igual | — |
+| ~~P33~~ | ✅ Todo antes de empezar, sin cuotas | — |
+| P34 | ⚠️ Duración real de los cursos (landing ≠ relevamiento) | Módulo 1 · **corregir antes de publicar la landing** |
 | P35 | "Práctica libre" como uso de sala gratuito | Módulo 2 |
 | P36 | ¿Entran los eventos / clases abiertas / showcases? | Alcance general |
+| P37 | ⚠️ ¿Una reserva de tipo clase exige profesor asignado? | Módulo 2 (interpretación abierta, **no impuesta a propósito**) |
 
-**Bloquean el `V1__baseline.sql`: P30, P31, P32, P33.**
-El resto se contesta mientras se construye el módulo correspondiente.
+**Nada bloquea el `V1__baseline.sql`: el esquema está escrito, probado y commiteado
+(2026-08-11).** Los pendientes que quedan se contestan mientras se construye el módulo
+correspondiente. El más urgente es **P34**, porque son números que un cliente lee.
+
+> **Decisiones cerradas en la auditoría de base de datos** (además de las P de arriba):
+> `pago.descuento_porcentaje` es un **porcentaje 0-100**, y en consecuencia `monto` es
+> lo **efectivamente cobrado**, con el descuento ya aplicado. El usuario administrador
+> inicial se siembra en `V3`, junto con el login. Detalle en `docs/sistema-gestion-plan.md`.
 
 ### Detalle de las nuevas
 
-- **❓P31 — "Mix & Mastering" es dos cosas distintas.** La landing lo vende como **curso** (3 meses, 1 clase semanal, cupo reducido) y el Módulo 6 lo trata como **servicio** (Ghezz masteriza tu track). Comparten nombre y nada más: uno es una inscripción con clases, el otro es un trabajo con revisiones y entrega. Hay que nombrarlos distinto en el sistema para que nadie los confunda.
-- **❓P32 — ¿Existen las clases virtuales?** La landing dice *"Presencial en Pilar o virtual en vivo"* en los dos programas grandes. El relevamiento **no las menciona nunca**. Si existen, una clase virtual **no ocupa sala**, y hoy `reserva.id_sala` es obligatorio. Es la diferencia entre una columna que admite vacío y una que no — barata ahora, migración después.
-- **❓P33 — ¿Se cobra en cuotas mensuales?** La landing dice *"Desde $85.000/mes"*. El relevamiento dice seña para reservar + saldo total **antes de empezar a cursar**. Son dos modelos de cobro distintos: uno necesita vencimientos mensuales y alertas de cuota impaga; el otro no.
+- **✅P31 — RESUELTO (2026-08-11).** El curso de Mix & Mastering **no existe**: es un servicio y nada más. La landing lo inventó como programa de 3 meses. *(Ver P34: hay que sacarlo de la landing antes de publicar.)*
+- **✅P32 — RESUELTO (2026-08-11). Todo presencial, no hay clases virtuales.** Y el razonamiento que las descarta del modelo aunque algún día existan: **la sala se ocupa igual, porque el profesor está ahí usando los equipos.** Por eso `reserva.id_sala` es NOT NULL sin excepciones.
+- **✅P33 — RESUELTO (2026-08-11). No hay cuotas mensuales**: se paga todo antes de empezar a cursar, como dice el relevamiento. El "$85.000/mes" de la landing es placeholder. Única excepción: Mix & Mastering, que se cobra después de entregar.
+- **❓P37 — ¿Una reserva de tipo clase exige profesor asignado?** El modelo dice "profesor a cargo, si la reserva es una clase", y `tipo_uso.es_clase` existe para distinguirlas — pero **la regla no está impuesta a propósito**: operativamente puede ser legítimo cargar la clase en el calendario antes de saber qué profe la toma. Si se confirma que siempre hay profe, es un trigger de cinco líneas.
 - **❓P34 — La duración de los cursos no coincide.** Relevamiento y confirmación de Ignacio: DJ = 2 meses, 8 clases, 1 por semana. Landing: DJ = 6 meses, **2 clases semanales**. Producción: 4 meses vs. 8 meses. **Alguno de los dos está mal y hay que corregirlo antes de publicar la landing**, porque son números que un cliente lee y sobre los que decide.
 - **❓P35 — "Práctica libre incluida"** aparece como beneficio del programa de DJ. Es un uso de sala **gratuito y solo para alumnos**, distinto del alquiler pago. ¿Se reserva por el sistema? Si sí, es un `tipo_uso` más.
 - **❓P36 — Eventos.** `dates.ts` anuncia clases abiertas, showcases y release parties, y el relevamiento habla de eventos en Argentina, Uruguay y Brasil. No hay módulo de eventos entre los 8 y **no está en la propuesta**, así que por defecto queda **fuera de alcance** — pero un evento ocupa una sala, así que como mínimo debería poder bloquearla.

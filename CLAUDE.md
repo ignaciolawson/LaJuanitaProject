@@ -43,14 +43,20 @@ npm run build:platform
 cd apps/landing && npm run lint       # eslint
 cd apps/platform && npm run lint      # oxlint
 
-cd apps/backend && ./mvnw spring-boot:run
-cd apps/backend && ./mvnw test
-cd apps/backend && ./mvnw -Dtest=ClassName#methodName test   # single test
+cd apps/backend && mvn spring-boot:run
+cd apps/backend && mvn test
+cd apps/backend && mvn -Dtest=ClassName#methodName test   # single test
 
 docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanita)
 ```
 
-**Database rule tests** — 67 cases covering every business rule the schema enforces
+**Use `mvn`, not `./mvnw`.** The wrapper tries to download its own Maven and fails on
+this machine (`curl: Failed to fetch .../apache-maven-3.9.16-bin.zip`); a working Maven
+3.9.14 is already on `PATH`. Java on `PATH` is JDK 25 while the pom targets 21 — that
+compiles fine, it just isn't the mismatch it looks like. Docker Desktop is often not
+running: `docker compose up -d` fails with a named-pipe error until you launch it.
+
+**Database rule tests** — 69 cases covering every business rule the schema enforces
 (overlap, room×use matrix, premaster lock, state machines, currency, discounts,
 deletion protection). They run against a throwaway database, never the dev one.
 Full instructions are in the header of
