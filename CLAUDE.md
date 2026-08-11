@@ -49,9 +49,19 @@ docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanit
 
 ## Landing: current state
 
-Static Next.js App Router site, no dynamic data. Twelve routes, including
-program detail pages (SSG) and sections for programs, services (booth rental
-and set recording), gear sales, and the record label.
+Static Next.js App Router site, no dynamic data. Fourteen routes, including
+program detail pages and blog post pages (both SSG), plus sections for
+programs, services (booth rental and set recording), gear sales, and the
+record label.
+
+**The blog (`/blog`) is the one section built to be handed over to a CMS.**
+It renders from `data/posts.ts`, whose post bodies are arrays of typed
+blocks — the shape of Sanity's Portable Text — so migrating means replacing
+that module with a fetch, not rewriting the pages. Nothing is wired to a CMS
+yet, and the six sample posts are invented and signed with the real
+teachers' names: they must be rewritten or deleted before publishing. See
+the landing `CLAUDE.md` for the migration point (`generateStaticParams` will
+need revalidation).
 
 **Every form on the landing is visual only.** Program applications, booth
 booking, gear inquiries and the `/ingresar` login submit nothing — they show

@@ -4,6 +4,7 @@ import { ProgramsRail } from "@/components/sections/ProgramsRail";
 import { Numbers } from "@/components/sections/Numbers";
 import { Teachers } from "@/components/sections/Teachers";
 import { Releases } from "@/components/sections/Releases";
+import { Journal } from "@/components/sections/Journal";
 import { Services } from "@/components/sections/Services";
 import { Gear } from "@/components/sections/Gear";
 import { Cta } from "@/components/sections/Cta";
@@ -26,6 +27,7 @@ import { UPCOMING_DATES } from "@/data/dates";
  *   bone  Servicios       alquiler de cabina y grabación
  *   ink   Equipos         ── vuelve la cabina, con la banda roja de redes
  *   ink   Sello           pila de lanzamientos
+ *   ink   Novedades       las tres últimas notas del blog
  *   ink   Cierre          wordmark arqueado
  *
  * Son DOS inversiones, no seis. La versión original alternaba sección por
@@ -74,6 +76,7 @@ export default function Home() {
       <Services />
       <Gear />
       <Releases />
+      <Journal />
       <Cta />
     </>
   );

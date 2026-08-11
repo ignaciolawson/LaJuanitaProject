@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState, type CSSProperties, type ReactNode } from "react";
 import clsx from "clsx";
 
 /**
@@ -99,23 +99,28 @@ export function ChoiceGroup({
   options,
   defaultValue,
   columns = 2,
+  columnsMobile,
   onChange,
 }: {
   label: string;
   name: string;
   options: { value: string; label: string }[];
   defaultValue?: string;
+  /** Columnas de 640px para arriba. */
   columns?: number;
+  /**
+   * Columnas abajo de 640px. Por defecto se topea en 2, que es lo máximo que
+   * entra en un teléfono con etiquetas cortas; si las etiquetas son largas
+   * ("Sí, ya toco/produzco") hay que bajarlo a 1 explícitamente.
+   */
+  columnsMobile?: number;
   /** Opcional: para los formularios que muestran un resumen en vivo. */
   onChange?: (value: string) => void;
 }) {
   return (
     <fieldset>
       <legend className="t-mono text-[color:var(--page-faint)]">{label}</legend>
-      <div
-        className="mt-3 grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
-      >
+      <ChoiceGrid columns={columns} columnsMobile={columnsMobile} className="mt-3">
         {options.map((opt) => (
           <label
             key={opt.value}
@@ -129,15 +134,52 @@ export function ChoiceGroup({
               onChange={() => onChange?.(opt.value)}
               className="peer sr-only"
             />
-            <span className="t-mono block border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red">
-              {opt.label}
-            </span>
+            <span className={choiceOption}>{opt.label}</span>
           </label>
         ))}
-      </div>
+      </ChoiceGrid>
     </fieldset>
   );
 }
+
+/**
+ * Grilla responsive de opciones. La usan `ChoiceGroup` y los grupos que se
+ * arman a mano (categorías de equipos, servicios, duración de la reserva),
+ * para que todos partan igual en un teléfono.
+ */
+export function ChoiceGrid({
+  children,
+  columns = 2,
+  columnsMobile,
+  className,
+}: {
+  children: ReactNode;
+  columns?: number;
+  columnsMobile?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={clsx("choice-grid", className)}
+      style={
+        {
+          "--choice-cols": columns,
+          "--choice-cols-sm": columnsMobile ?? Math.min(columns, 2),
+        } as CSSProperties
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Estilo compartido del "botón" de opción (el <span> encima del input).
+ * El `display` lo pone `.choice-option` en globals.css — ver el comentario
+ * ahí: una utilidad `block` acá le ganaría al centrado vertical en táctil.
+ */
+export const choiceOption =
+  "choice-option t-mono border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red";
 
 /**
  * Envoltorio de formulario con estado de confirmación.

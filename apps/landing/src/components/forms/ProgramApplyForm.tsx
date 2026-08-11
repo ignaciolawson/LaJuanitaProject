@@ -49,6 +49,8 @@ export function ProgramApplyForm({ programName }: { programName: string }) {
         ]}
       />
 
+      {/* Una sola columna en el teléfono: estas etiquetas son frases, y en
+          tres columnas de ~80px se partían en cinco renglones cada una. */}
       <ChoiceGroup
         label="¿Tenés experiencia previa?"
         name="experiencia"
@@ -59,6 +61,7 @@ export function ProgramApplyForm({ programName }: { programName: string }) {
           { value: "si", label: "Sí, ya toco/produzco" },
         ]}
         columns={3}
+        columnsMobile={1}
       />
 
       <TextArea

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { gsap, useGSAP, ScrollSmoother, ScrollTrigger, prefersReduced } from "@/lib/gsap";
+import { gsap, useGSAP, ScrollSmoother, ScrollTrigger, isLite } from "@/lib/gsap";
 
 /**
  * Scroll con inercia (ScrollSmoother).
@@ -17,13 +17,34 @@ import { gsap, useGSAP, ScrollSmoother, ScrollTrigger, prefersReduced } from "@/
  *    #smooth-content, porque el contenido está transformado y un fixed
  *    dentro de un transform se ancla al padre, no al viewport.
  *  - Si el visitante pidió menos movimiento, no se crea nada: scroll nativo.
+ *
+ * ── Y NO SE CREA EN TÁCTIL ─────────────────────────────────────────────
+ *
+ * Esto es lo que más se notaba en el celular. El smoother ya venía con
+ * `smoothTouch: 0`, o sea que en un teléfono no agregaba NADA de inercia —
+ * pero seguía costando todo lo que cuesta:
+ *
+ *  1. `normalizeScroll: true` intercepta los eventos de touch y pasa a mover
+ *     la página desde JavaScript. El scroll nativo de un teléfono corre en el
+ *     hilo del compositor y sigue al dedo aunque el JS esté ocupado; movido
+ *     desde JS, cada trabajo de más en el hilo principal se convierte en un
+ *     tirón del scroll. Cambiás fluidez del sistema operativo por fluidez que
+ *     tenés que calcular vos, y el teléfono siempre pierde ese cambio.
+ *  2. El wrapper queda en `position: fixed; overflow: hidden` con el contenido
+ *     transformado. En un móvil eso es una capa de compositor del tamaño de
+ *     toda la página, y además rompe el colapso de la barra de direcciones:
+ *     la barra se queda puesta y te comés ~110px de pantalla todo el scroll.
+ *
+ * Lo único que se pierde en táctil es el parallax por `data-speed` (dos
+ * elementos decorativos en el Manifiesto). Es un cambio barato por recuperar
+ * el scroll nativo del sistema, que en un teléfono ES la definición de suave.
  */
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const smoother = useRef<ScrollSmoother | null>(null);
 
   useGSAP(() => {
-    if (prefersReduced()) return;
+    if (isLite()) return;
 
     smoother.current = ScrollSmoother.create({
       wrapper: "#smooth-wrapper",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { gsap, useGSAP, ScrollTrigger, prefersReduced } from "@/lib/gsap";
+import { gsap, useGSAP, ScrollTrigger, prefersReduced, isLite } from "@/lib/gsap";
 import { scrollVelocity } from "@/lib/velocity";
 import { Container } from "@/components/ui/Container";
 import { SplitReveal } from "@/components/motion/SplitReveal";
@@ -53,8 +53,14 @@ export function Numbers() {
         });
       });
 
-      // Medidor VU
-      if (prefersReduced()) return;
+      // Medidor VU.
+      //
+      // No corre en táctil. Son 28 escrituras de `transform` en CADA frame
+      // mientras la sección está en pantalla, y en un teléfono eso compite
+      // por el mismo hilo que mueve el scroll: el medidor es adorno, el
+      // scroll no. Las barras quedan quietas en su altura de reposo, que ya
+      // se ve como un medidor apagado y no como algo roto.
+      if (isLite()) return;
       const bars = gsap.utils.toArray<HTMLElement>("[data-vu]");
       const seeds = bars.map(() => Math.random() * 100);
 
@@ -116,14 +122,23 @@ export function Numbers() {
             </SplitReveal>
           </div>
 
-          {/* VU */}
+          {/* VU.
+              El alto de reposo es una onda calculada, no `scaleY(0.1)` para
+              todas. En táctil el ticker no arranca, y veintiocho barras
+              idénticas del 10% no se leen como un medidor en reposo: se leen
+              como una raya. Con el perfil ondulado queda un medidor congelado,
+              que es lo que efectivamente es. Va con `Math.sin` y no con
+              `Math.random` porque esto se renderiza en el servidor: un valor
+              distinto en cada lado sería un error de hidratación. */}
           <div className="flex h-16 items-end gap-[3px]" aria-hidden>
             {Array.from({ length: 28 }).map((_, i) => (
               <span
                 key={i}
                 data-vu
                 className="block h-full w-[4px] origin-bottom bg-[color:var(--page-fg)] opacity-70"
-                style={{ transform: "scaleY(0.1)" }}
+                style={{
+                  transform: `scaleY(${(0.22 + 0.3 * (Math.sin(i * 1.35) + 1) * 0.5).toFixed(3)})`,
+                }}
               />
             ))}
           </div>

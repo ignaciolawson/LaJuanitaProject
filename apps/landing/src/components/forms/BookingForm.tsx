@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Field, ChoiceGroup, FormShell } from "@/components/forms/Fields";
+import {
+  Field,
+  ChoiceGroup,
+  ChoiceGrid,
+  choiceOption,
+  FormShell,
+} from "@/components/forms/Fields";
 import { SERVICES } from "@/data/services";
 
 /**
@@ -33,7 +39,7 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
       >
         <fieldset>
           <legend className="t-mono text-[color:var(--page-faint)]">Qué querés reservar</legend>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ChoiceGrid columns={2} columnsMobile={1} className="mt-3">
             {SERVICES.map((s) => (
               <label key={s.slug} className="cursor-pointer">
                 <input
@@ -47,12 +53,10 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
                   }}
                   className="peer sr-only"
                 />
-                <span className="t-mono block border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red">
-                  {s.name}
-                </span>
+                <span className={choiceOption}>{s.name}</span>
               </label>
             ))}
-          </div>
+          </ChoiceGrid>
         </fieldset>
 
         <div className="grid gap-6 sm:grid-cols-2">
@@ -69,9 +73,13 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
 
         <fieldset>
           <legend className="t-mono text-[color:var(--page-faint)]">Duración</legend>
-          <div
-            className="mt-3 grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${current.durations.length}, minmax(0,1fr))` }}
+          {/* Las etiquetas acá son cortas ("3 horas"), así que en el teléfono
+              entran dos por fila sin partirse — a diferencia de la botonera de
+              experiencia, que necesita una sola columna. */}
+          <ChoiceGrid
+            columns={current.durations.length}
+            columnsMobile={2}
+            className="mt-3"
           >
             {current.durations.map((h) => (
               <label key={h} className="cursor-pointer">
@@ -83,12 +91,12 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
                   onChange={() => setHours(h)}
                   className="peer sr-only"
                 />
-                <span className="t-mono block border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red">
+                <span className={choiceOption}>
                   {h} {h === 1 ? "hora" : "horas"}
                 </span>
               </label>
             ))}
-          </div>
+          </ChoiceGrid>
         </fieldset>
 
         <ChoiceGroup

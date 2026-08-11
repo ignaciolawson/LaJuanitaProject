@@ -28,6 +28,8 @@ equipamiento. Next.js (App Router) + Tailwind v4 + GSAP. Todo estático.
 /servicios            alquiler de cabina y grabación + reserva
 /equipos              La Juanita Shop + consulta
 /sello                La Juanita Records
+/blog                 índice de notas
+/blog/[slug]          nota (SSG, un slug por entrada de data/posts.ts)
 /profesores
 /nosotros
 /faq
@@ -76,7 +78,8 @@ abra, se cierre y se dibuje con el scroll.
 ## Arquitectura de movimiento
 
 ```
-lib/gsap.ts           plugins + eases propias (juanita / swipe / snap)
+lib/gsap.ts           plugins, eases propias (juanita / swipe / snap),
+                      prefersReduced() / isTouch() / isLite()
 lib/velocity.ts       velocidad de scroll compartida
 components/motion/    SmoothScroll, ThemeScroller, Preloader, Cursor,
                       SplitReveal, Magnetic, VelocityMarquee, ScrollFx
@@ -99,9 +102,11 @@ corrido eso no es un cambio de luz, es un estrobo. Hoy cada página tiene
 
 | Página | Secuencia |
 | --- | --- |
-| `/` | ink ×4 → bone ×3 (Números→Servicios) → ink ×4 |
+| `/` | ink ×4 → bone ×3 (Números→Servicios) → ink ×5 |
 | `/servicios` | ink → bone ×4 (los servicios) → ink |
 | `/programas/[slug]` | ink ×2 → bone ×3 → ink ×2 |
+| `/blog` | ink ×2 → bone (la grilla) → ink |
+| `/blog/[slug]` | ink ×2 → bone (el cuerpo) → ink ×2 |
 | `/nosotros` | ink → bone ×2 → ink ×2 |
 
 **La tinta domina, y el bloque de papel va al medio.** Dos es el piso de
@@ -121,6 +126,95 @@ se resuelve con maquetación (el zig-zag de `/servicios`), no invirtiendo.
 
 Toda página nueva necesita al menos un `data-theme`, o el tema queda colgado
 del último color de la página anterior.
+
+---
+
+## Móvil y tablet
+
+Repaso completo el 2026-08-10, después de que el cliente abriera la landing
+desde el teléfono. Lo que sigue es lo que cambió y por qué; casi nada es
+cosmético.
+
+### La regla que ordena todo esto
+
+**El corte de rendimiento va por `(hover: none) and (pointer: coarse)`, no
+por ancho.** Un iPad Pro en horizontal mide 1366px y es táctil; una notebook
+de 1280px no lo es. Lo que decide si un efecto conviene es si hay un dedo o
+un mouse — y cuánta GPU hay atrás—, no cuántos píxeles entran. Los helpers
+están en `lib/gsap.ts`: `isTouch()` y `isLite()` (táctil **o** menos
+movimiento pedido). Los cortes de **maquetación** sí van por breakpoint.
+
+### Qué se apaga en táctil
+
+| Qué | Dónde | Por qué |
+| --- | --- | --- |
+| ScrollSmoother entero | `motion/SmoothScroll` | Ver abajo — es el cambio más grande |
+| `ScrollFx` (aberración cromática) | `motion/ScrollFx` | Ticker permanente + `text-shadow` sobre texto de 48px |
+| Medidor VU | `sections/Numbers` | 28 `transform` por frame compitiendo con el scroll |
+| Abanico de profesores | `sections/Teachers` | Rompía la maqueta, ver abajo |
+| Riel horizontal de programas | `sections/ProgramsRail` | Secuestrar el scroll con el dedo |
+| `.scan` (scanlines) | `globals.css` | Moaré contra la grilla del panel |
+| `mix-blend-mode` del grano | `globals.css` | Blend a pantalla completa en cada frame |
+| Interacción del mapa | `app/contacto` | Se robaba el gesto de scroll |
+| Intro del preloader | `motion/Preloader` | Corre a `timeScale(1.45)`, no se apaga |
+
+**ScrollSmoother no se crea en táctil.** Ya venía con `smoothTouch: 0`, o sea
+que en un teléfono no agregaba nada de inercia, pero seguía costando todo:
+`normalizeScroll: true` interceptaba el touch y pasaba a mover la página
+desde JavaScript (el scroll nativo corre en el hilo del compositor y sigue al
+dedo aunque el JS esté ocupado; movido desde JS, cada trabajo de más es un
+tirón), y el wrapper en `position: fixed` con el contenido transformado
+impedía que se colapse la barra de direcciones. Lo único que se pierde es el
+parallax por `data-speed`, que son dos elementos decorativos del Manifiesto.
+
+**`ScrollTrigger.config({ ignoreMobileResize: true })`** en `lib/gsap.ts`. Sin
+eso, cada vez que la barra de direcciones aparece o desaparece cambia el alto
+del viewport, ScrollTrigger lo toma como un resize y recalcula todos los
+triggers **en medio del gesto**. Es la causa número uno de que un sitio con
+scroll animado se sienta roto en el celular y perfecto en el escritorio.
+
+### Bugs de maquetación que estaban
+
+1. **El botón "Iniciar sesión" del navbar se veía en todos los teléfonos**
+   aunque la clase dijera `hidden`. Es el problema de capas descrito en la
+   trampa 17 — el más caro de los que había, porque afectaba a cualquier
+   utilidad de Tailwind puesta sobre un `.btn`.
+2. **Las fichas de profesores salían torcidas y recortadas.** El abanico
+   corre cada ficha a un costado y la rota; eso se lee como abanico sólo con
+   las tres en fila (`lg:flex-nowrap`). Apiladas en columna quedaban tres
+   tarjetas chuecas, y la desplazada se comía contra el `overflow-hidden` de
+   la sección. Hoy abajo de 1024px entran derechas y de a una.
+3. **El mapa de `/contacto` se comía el scroll.** Un iframe de Google Maps se
+   queda con el arrastre: quien scrolleaba con el dedo sobre esa franja de
+   320px movía el mapa, no la página. En táctil el mapa quedó sin interacción
+   (sigue siendo un plano legible) más un botón que abre la app de mapas.
+4. **Las botoneras de los formularios en tres columnas.** Con etiquetas como
+   "Sí, ya toco/produzco" en 390px de pantalla quedaban ~80px por opción y el
+   texto se partía en cinco renglones. Ahora la grilla tiene columnas propias
+   para móvil (`ChoiceGrid` + `.choice-grid`), y las etiquetas largas van a
+   una sola columna.
+5. **La pila del sello se anclaba desde 768px.** Un teléfono acostado entra
+   por ancho pero tiene 390px de alto: la ficha se anclaba y le quedaba la
+   mitad afuera. Hoy pide `(min-width: 1024px) and (min-height: 700px)`.
+6. **La cortina del menú móvil** tenía `justify-center` y `overflow-y-auto`
+   juntos — ver trampa 17 bis en la lista de trampas.
+
+### Táctil: legibilidad y toque
+
+- **`.t-mono` y `.label` arrancan en 11px, no en 10px.** El tope sigue en
+  12px, así que en escritorio no cambia nada. A 10px, en mayúscula y con
+  0.16em de interletrado, sobre un teléfono al sol, la mono dejaba de leerse
+  — y ahí van las fechas, los precios y las etiquetas de los formularios.
+- **`min-height: 46px` en `.btn` y `.choice-option` con `(pointer: coarse)`.**
+  El botón medía ~34px, abajo del mínimo de ~44px que necesita un dedo.
+- **Todo `:hover` escrito a mano va dentro de `@media (hover: hover)`.** En un
+  teléfono no hay hover pero el navegador emula uno pegajoso: el del último
+  elemento tocado. Sin el corte, tocar un botón lo dejaba relleno de rojo para
+  siempre. (Las variantes `hover:` de Tailwind ya vienen envueltas de fábrica;
+  esto es sólo para el CSS propio.)
+- **`:active` en `.btn` y `.duotone`**, porque sin hover no había ninguna
+  respuesta al toque — y la reacción natural de quien no ve respuesta es
+  volver a apretar.
 
 ---
 
@@ -158,9 +252,13 @@ del último color de la página anterior.
    `overflow: hidden` encima se las come. Se compensa con padding en la
    línea y margen negativo en la máscara (`.reveal-line` /
    `.reveal-line-mask`).
-9. **Scroll horizontal secuestrado sólo en escritorio.** El riel de
-   programas se ancla desde 1024px; abajo es lista vertical. Secuestrar el
-   scroll en un teléfono es un problema de accesibilidad.
+9. **Scroll horizontal secuestrado sólo en escritorio de verdad.** El riel de
+   programas pide `(min-width: 1024px) and (hover: hover)`; abajo es lista
+   vertical. El `hover` no es un detalle: con rueda de mouse el gesto es
+   indirecto y el desplazamiento lateral se lee como una consecuencia, pero
+   con el dedo uno arrastra para ARRIBA y la pantalla se mueve para el
+   COSTADO — en una tablet el secuestro es peor que en un teléfono, no mejor.
+   Ver también la trampa 19.
 10. **Los nombres de variable de `next/font` van por familia, no por rol.**
     `layout.tsx` declara `--font-archivo` / `--font-instrument` /
     `--font-space-mono`, y `globals.css` mapea rol → familia en
@@ -216,6 +314,37 @@ del último color de la página anterior.
     ya no están en el DOM: las líneas nuevas se quedan en su estado natural y
     el revelado no se ve nunca más. Devolviéndola desde `onSplit`, SplitText
     la mata, la rearma sobre los nodos nuevos y le conserva el progreso.
+17. **`justify-center` + `overflow-y-auto` en el mismo elemento recorta lo de
+    arriba y no deja scrollear hasta ahí.** Cuando el contenido es más alto
+    que la caja, `justify-content: center` lo desborda para los dos lados, y
+    un contenedor de scroll no llega al desborde superior (el scroll no puede
+    ser negativo). La cortina del menú móvil tenía las dos cosas: con nueve
+    ítems ya no entra en un teléfono. El centrado va con `m-auto` en un
+    wrapper del contenido — el margen automático se colapsa cuando no sobra
+    espacio, así que centra si entra y arranca arriba si no.
+18. **El CSS propio SIN capa le gana a todas las utilidades de Tailwind.** En
+    v4 las utilidades se emiten dentro de `@layer utilities`, y por la regla
+    de capas en cascada lo que no está en ninguna capa gana siempre — sin
+    importar orden ni especificidad, que acá además empataban (una clase
+    contra una clase). `.btn`, escrita suelta, le ganaba a cualquier utilidad
+    puesta al lado: el botón de "Iniciar sesión" del navbar declara
+    `class="btn hidden sm:inline-flex"` y **se veía en todos los teléfonos**,
+    porque el `display: inline-flex` de `.btn` pisaba al `display: none` de
+    `.hidden`. Lo mismo pasaba con `position: relative` contra `absolute` y
+    con `background` contra cualquier `bg-*`. Por eso el bloque de
+    COMPONENTES de `globals.css` (`.btn`, `.link-u`, `.rule`, `.choice-*`)
+    vive dentro de `@layer components`. Si agregás una clase de componente,
+    va adentro de esa capa. Las utilidades tipográficas (`.t-display`,
+    `.h-xl`, `.label`) quedan afuera a propósito: ahí la fuerza extra se
+    quiere y no hay utilidad de Tailwind compitiendo por esas propiedades.
+19. **La condición del riel de programas está en DOS lugares y tienen que
+    decir lo mismo.** El `matchMedia` de `sections/ProgramsRail.tsx` decide si
+    el tween horizontal corre; la variante `rail:` de `globals.css`
+    (`@custom-variant rail`) decide si la maqueta arma la fila. La maqueta
+    pone las tres tarjetas en un `w-max` más ancho que la pantalla y quien las
+    trae a la vista es el tween: si el CSS arma la fila y el JS no la anima,
+    las tarjetas 2 y 3 quedan fuera del `overflow-hidden` de la sección —
+    invisibles y sin forma de llegar. Cualquier cambio en una va en las dos.
 
 ---
 
@@ -266,6 +395,7 @@ Casi todo el texto largo está escrito con la voz del negocio, pero es
 | `data/services.ts` | Precios ($18.000/h cabina, $65.000/h grabación) y el "qué incluye" |
 | `data/gear.ts` | Qué entra en cada categoría |
 | `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario, precios |
+| `data/posts.ts` | Las seis notas del blog, enteras. Firmadas con nombres de profesores que no las escribieron — ver abajo |
 | `data/releases.ts`, `dates.ts`, `teachers.ts`, `faq.ts` | Placeholder heredado |
 | `data/contact.ts` | WhatsApp `5491100000000` es falso. Spotify e Instagram ya son reales |
 | `sections/Numbers.tsx` | 200+ alumnos, 12 lanzamientos, "desde 2019" |
@@ -277,6 +407,68 @@ alguien llega al local a buscarlo. Cuando exista catálogo real, `/equipos`
 es el lugar para una grilla con precios y el formulario pasa a segundo plano.
 
 ---
+
+## Blog
+
+Agregado el 2026-08-10, último bloque de contenido de la landing. Es la
+sección para que el equipo publique novedades de la escena, notas técnicas
+(el formato "Top 5 efectos para tus sets") y anuncios de la casa.
+
+```
+data/posts.ts               notas + tipos + helpers (fecha, minutos, relacionadas)
+components/blog/PostBody    renderiza el array de bloques
+components/blog/PostCard    tarjeta, compartida por índice / relacionadas / home
+components/sections/Journal las tres últimas notas, en la home
+app/blog/                   índice + detalle
+```
+
+**El cuerpo de una nota es un array de bloques tipados, no un string de
+markdown.** Es la forma del Portable Text de Sanity a propósito: cuando el
+contenido pase al CMS, se reemplaza `data/posts.ts` por un fetch y se mapea
+`_type` → `type`; `PostBody` no se toca. Con markdown habría que sumar
+parser + sanitización y encima se pierden los bloques que no son texto —
+justamente el embed de video, que es el formato que el equipo quiere
+publicar.
+
+Los tipos de bloque son `text`, `heading`, `list`, `ranked` (la lista
+numerada con título y detalle), `quote`, `image` y `embed`.
+
+**El embed con `id` vacío no renderiza iframe**, muestra una placa que dice
+"pendiente de carga". Las notas de ejemplo no tienen videos reales y un
+iframe apuntando a un ID inventado se ve como un reproductor de YouTube
+diciendo "el video no está disponible": eso parece un sitio roto, no un
+sitio sin terminar.
+
+**El destacado del índice es siempre `POSTS[0]`**, o sea la nota más
+reciente. No hay flag `featured` que alguien tenga que acordarse de mover.
+
+**Las fechas se formatean con `timeZone: "UTC"`** (`formatPostDate`).
+`new Date("2026-08-05")` se parsea como medianoche UTC y formateado en la
+zona de Buenos Aires (UTC−3) cae el día anterior: sin eso, toda nota se
+publica un día antes de su fecha.
+
+### Antes de publicar
+
+1. **Las seis notas son inventadas y están firmadas por Ghezz, Najles y
+   Chapa Castelo.** Publicar consejos técnicos con la firma de alguien que
+   no los escribió es peor que tener el blog vacío. O las reescribe el
+   equipo, o se borran.
+2. **Un blog es un compromiso de publicar.** La última nota de hace ocho
+   meses se lee como "esto está abandonado" — y encima la home lo muestra,
+   porque `Journal` toma las tres últimas. Si el cliente no va a publicar,
+   la sección conviene sacarla, no dejarla quieta.
+
+### Cuando entre el CMS
+
+El punto de decisión es `generateStaticParams` en `app/blog/[slug]/page.tsx`:
+hoy los slugs salen del array en build. Con el contenido en Sanity va a
+consultar la API y **hace falta revalidación** (ISR o webhook de deploy), o
+una nota publicada no aparece hasta el próximo deploy. El resto del sitio
+puede seguir siendo estático.
+
+No hay filtro por categoría todavía: con seis notas es un control que nunca
+cambia nada. La categoría ya está en el dato; cuando el volumen lo
+justifique, el lugar es `/blog/categoria/[slug]`.
 
 ## Convenciones
 
@@ -299,7 +491,9 @@ cd apps/landing && npm run lint
 
 ## Rendimiento
 
-Cosas que ya se pagaron y conviene no volver a introducir:
+Las decisiones específicas de teléfono y tablet están en
+[Móvil y tablet](#móvil-y-tablet). Lo que sigue vale para todos lados —
+cosas que ya se pagaron y conviene no volver a introducir:
 
 - **Nada de escribir custom properties sobre `<html>` en cada frame.** Es lo
   más caro que hay: invalida el estilo del documento entero. Era el cuello de

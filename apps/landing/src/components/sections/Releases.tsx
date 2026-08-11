@@ -34,9 +34,17 @@ export function Releases() {
       if (!cards.length || !list.current) return;
 
       // Sólo apilar en pantallas donde el anclaje tiene sentido.
+      //
+      // El corte estaba en 768px y subió a 1024px con alto mínimo. Motivo: la
+      // ficha recién se acomoda en una fila (disco | texto | datos) a partir
+      // de `lg`; abajo de eso va en columna y mide ~550px de alto. Un teléfono
+      // acostado entra por 768px de ANCHO pero tiene 390px de alto: la ficha
+      // se anclaba a 120px del borde superior y le quedaba la mitad afuera de
+      // la pantalla, tapada por la siguiente. El `min-height` es lo que
+      // realmente importa acá y el ancho solo no lo dice.
       const mm = gsap.matchMedia();
 
-      mm.add("(min-width: 768px)", () => {
+      mm.add("(min-width: 1024px) and (min-height: 700px)", () => {
         const triggers: ScrollTrigger[] = [];
 
         cards.forEach((card, i) => {

@@ -57,7 +57,7 @@ export default function ContactoPage() {
             </Button>
           </Reveal>
 
-          <Reveal className="relative min-h-[320px] overflow-hidden  border border-[color:var(--page-line)] lg:min-h-full">
+          <Reveal className="map-embed relative min-h-[320px] overflow-hidden  border border-[color:var(--page-line)] lg:min-h-full">
             <iframe
               src={CONTACT.mapsEmbedUrl}
               title="Ubicación de La Juanita Studio"
@@ -65,6 +65,19 @@ export default function ContactoPage() {
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
             />
+            {/* Sólo aparece en táctil, donde el mapa quedó sin interacción
+                para no robarle el scroll a la página (ver `.map-embed`). */}
+            <a
+              href={CONTACT.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="map-embed-cta btn btn--strong absolute bottom-4 left-1/2 -translate-x-1/2 bg-[color:var(--page-bg)]"
+            >
+              Abrir en Google Maps
+              <span aria-hidden className="text-[1.25em] leading-none">
+                ↗
+              </span>
+            </a>
           </Reveal>
         </Container>
       </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
+import { gsap, useGSAP, prefersReduced, isTouch } from "@/lib/gsap";
 import { Fan } from "@/components/brand/Fan";
 
 /**
@@ -58,6 +58,14 @@ export function Preloader() {
           finish();
         },
       });
+
+      // En el teléfono la intro corre un 45% más rápido (~1,4s en vez de ~2s).
+      // No es lo mismo esperar dos segundos sentado frente a un monitor que
+      // parado en la calle con datos móviles: ahí esos dos segundos se suman a
+      // lo que ya tardó la red, y el gesto de marca se transforma en una
+      // pantalla negra que no responde. Se mantiene entero —el abanico igual
+      // se abre y el telón igual sube— pero con el pulso de un teléfono.
+      if (isTouch()) tl.timeScale(1.45);
 
       // Varillas cerradas en un solo palo, se abren en abanico.
       tl.set(ribs, { rotate: 0, transformOrigin: "0px 0px" })

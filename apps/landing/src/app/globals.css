@@ -48,6 +48,24 @@
   --text-subdued: rgba(232, 225, 212, 0.34);
 }
 
+/**
+ * Variante `rail:` — el riel horizontal de programas está activo.
+ *
+ * Tiene que existir como variante y no alcanza con `lg:`, porque la condición
+ * del riel NO es sólo de ancho: es "pantalla grande Y puntero fino" (ver el
+ * `matchMedia` de `sections/ProgramsRail.tsx`, que explica por qué en una
+ * tablet no va).
+ *
+ * Y las dos condiciones tienen que ser LA MISMA, o se rompe fuerte: la
+ * maquetación del riel pone las tres tarjetas en una fila de `w-max` que mide
+ * más que la pantalla, y quien las trae a la vista es el tween horizontal. Si
+ * el CSS arma la fila y el JS decide no animarla, las tarjetas 2 y 3 quedan
+ * fuera del `overflow-hidden` de la sección: invisibles y sin forma de
+ * llegar a ellas. Cualquier cambio en una de las dos condiciones va en las
+ * dos.
+ */
+@custom-variant rail (@media (min-width: 1024px) and (hover: hover));
+
 @theme inline {
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
@@ -156,9 +174,15 @@ body {
   text-transform: none;
 }
 
+/* El piso es 11px y no 10px. La mono va en mayúscula y con 0.16em de
+   interletrado, que a 10px sobre un teléfono —con el brillo bajo, al sol, o
+   sin vista de veinteañero— deja de leerse y pasa a ser textura. Y no es
+   decoración: acá adentro van las fechas, los precios, las etiquetas de los
+   formularios y el texto de los botones. El tope sigue en 12px, así que en
+   escritorio no cambia nada. */
 .t-mono {
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: clamp(10px, 0.72vw, 12px);
+  font-size: clamp(11px, 0.72vw, 12px);
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-weight: 400;
@@ -189,7 +213,7 @@ body {
 /* Etiqueta con guion: reemplaza al típico "eyebrow" con puntito. */
 .label {
   font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: clamp(10px, 0.72vw, 12px);
+  font-size: clamp(11px, 0.72vw, 12px);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--red);
@@ -220,6 +244,32 @@ body {
   z-index: 61;
   opacity: 0.06;
   background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0 1px, transparent 1px 3px);
+}
+
+/* ── Recorte de las capas de textura en táctil ────────────────────────────
+   Son dos capas fijas a pantalla completa por encima de TODO el contenido, y
+   en un teléfono no salen gratis:
+
+   · `.scan` son líneas de 1px cada 3px. En una pantalla de escritorio eso es
+     un rastro de monitor CRT; en un teléfono con densidad 3x el píxel CSS no
+     cae sobre el píxel físico, la trama entra en batido con la grilla del
+     panel y lo que se ve es un moaré que se mueve solo mientras scrolleás.
+     Se ve mal Y cuesta. Se va entera.
+
+   · `.grain` se va a llevar mejor sin `mix-blend-mode`. Un blend sobre una
+     capa fija del tamaño de la pantalla obliga al compositor a rehacer la
+     mezcla de la pantalla COMPLETA en cada frame en que algo se mueve abajo
+     — o sea, en todo el scroll. Sin el blend es un simple compuesto con
+     alpha, que la GPU resuelve sin despeinarse. A cambio el grano pierde algo
+     de mordida, así que se compensa con un poco más de opacidad. */
+@media (hover: none) and (pointer: coarse) {
+  .scan {
+    display: none;
+  }
+  .grain {
+    mix-blend-mode: normal;
+    opacity: 0.04;
+  }
 }
 
 .haze {
@@ -253,90 +303,202 @@ body {
 
 /* ═══════════ COMPONENTES ═══════════ */
 
-/* Botón "parche": esquina cortada, nada de rounded-full genérico. */
-.btn {
-  --btn-fg: var(--page-fg);
-  --btn-bd: var(--page-line);
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.85em;
-  padding: 0.95em 1.6em;
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--btn-fg);
-  border: 1px solid var(--btn-bd);
-  background: transparent;
-  overflow: hidden;
-  isolation: isolate;
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
-  transition: color 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s;
-}
-/* El relleno entra desde abajo, no un cambio de background-color plano. */
-.btn::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: var(--red);
-  transform: translateY(101%);
-  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.btn:hover {
-  color: #fff;
-  border-color: var(--red);
-}
-.btn:hover::before {
-  transform: translateY(0);
-}
-/* Variante para fondos con foto: el borde al 16% del sistema desaparece
-   sobre una imagen, aunque funcione perfecto sobre un fondo plano. */
-.btn--strong {
-  --btn-bd: color-mix(in srgb, var(--page-fg) 42%, transparent);
-}
+/* ⚠️ TODO ESTE BLOQUE VA DENTRO DE `@layer components`, Y NO ES COSMÉTICO.
+ *
+ * BUG QUE ESTO ARREGLA: en Tailwind v4 las utilidades se emiten dentro de
+ * `@layer utilities`, y por la regla de capas en cascada, el CSS que NO está
+ * en ninguna capa le gana a TODO lo que sí lo está — sin importar el orden ni
+ * la especificidad, que acá además empataban (una clase contra una clase).
+ *
+ * O sea que `.btn`, escrita suelta, le ganaba a cualquier utilidad de Tailwind
+ * puesta sobre el mismo elemento. En el navbar el botón de "Iniciar sesión"
+ * dice `class="btn hidden sm:inline-flex"` — o sea "escondelo salvo en
+ * pantallas medianas" — y se veía en TODOS los teléfonos igual, porque
+ * `display: inline-flex` de `.btn` le ganaba a `display: none` de `.hidden`.
+ * En una pantalla de 390px eso metía un botón de más entre el logo y la
+ * hamburguesa, que es exactamente el tipo de cosa que se ve apretada y no se
+ * entiende por qué.
+ *
+ * Metiendo estas reglas en `components` —la capa que Tailwind declara
+ * justo para esto— las utilidades vuelven a poder pisarlas, que es la premisa
+ * con la que están escritas todas las clases del sitio. Lo mismo pasaba con
+ * `position: relative` de `.btn` contra `absolute`, y con `background`
+ * contra cualquier `bg-*`.
+ *
+ * Las utilidades tipográficas (`.t-display`, `.h-xl`, `.label`) quedan fuera
+ * de la capa a propósito: ahí la fuerza extra se quiere, y no hay ninguna
+ * utilidad de Tailwind compitiendo por las mismas propiedades. */
+@layer components {
+  /* Botón "parche": esquina cortada, nada de rounded-full genérico. */
+  .btn {
+    --btn-fg: var(--page-fg);
+    --btn-bd: var(--page-line);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.85em;
+    padding: 0.95em 1.6em;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--btn-fg);
+    border: 1px solid var(--btn-bd);
+    background: transparent;
+    overflow: hidden;
+    isolation: isolate;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+    transition: color 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.35s;
+  }
+  /* El relleno entra desde abajo, no un cambio de background-color plano. */
+  .btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--red);
+    transform: translateY(101%);
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
 
-.btn--solid {
-  background: var(--red);
-  border-color: var(--red);
-  color: #fff;
-}
-.btn--solid::before {
-  background: var(--page-fg);
-}
-.btn--solid:hover {
-  color: var(--page-bg);
-  border-color: var(--page-fg);
-}
+  /* El hover va detrás de `(hover: hover)` a propósito.
+     En un teléfono no hay hover, pero el navegador igual emula UN hover: el
+     del último elemento tocado, y se queda pegado hasta que tocás otra cosa.
+     Sin este corte, tocar un botón lo dejaba relleno de rojo para siempre —
+     parecía seleccionado, o peor, parecía que se había colgado enviando. */
+  @media (hover: hover) {
+    .btn:hover {
+      color: #fff;
+      border-color: var(--red);
+    }
+    .btn:hover::before {
+      transform: translateY(0);
+    }
+  }
 
-.rule {
-  height: 1px;
-  width: 100%;
-  background: var(--page-line);
-  transform-origin: left center;
-}
+  /* En táctil el feedback es al tocar y se va solo al soltar. Sin esto, entre
+     que apretás y que carga la página siguiente el botón no acusaba recibo:
+     la reacción del usuario es volver a apretar. */
+  .btn:active {
+    color: #fff;
+    border-color: var(--red);
+  }
+  .btn:active::before {
+    transform: translateY(0);
+    transition-duration: 0.12s;
+  }
 
-/* Enlace con subrayado que se dibuja de izquierda a derecha. */
-.link-u {
-  position: relative;
-  display: inline-block;
-}
-.link-u::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -2px;
-  height: 1px;
-  width: 100%;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right center;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-}
-.link-u:hover::after {
-  transform: scaleX(1);
-  transform-origin: left center;
+  /* Blanco táctil. Con 11px de mono y 0.95em de padding el botón mide ~34px
+     de alto: por debajo del mínimo de ~44px que necesita un dedo para no
+     errarle. El `min-height` sólo entra en punteros gruesos, así que en
+     escritorio el botón conserva su proporción. */
+  @media (pointer: coarse) {
+    .btn {
+      min-height: 46px;
+      padding-inline: 1.5em;
+    }
+  }
+
+  /* Variante para fondos con foto: el borde al 16% del sistema desaparece
+     sobre una imagen, aunque funcione perfecto sobre un fondo plano. */
+  .btn--strong {
+    --btn-bd: color-mix(in srgb, var(--page-fg) 42%, transparent);
+  }
+
+  .btn--solid {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+  }
+  .btn--solid::before {
+    background: var(--page-fg);
+  }
+  @media (hover: hover) {
+    .btn--solid:hover {
+      color: var(--page-bg);
+      border-color: var(--page-fg);
+    }
+  }
+  /* El relleno del sólido es hueso, así que el texto tiene que ir a tinta o
+     queda blanco sobre blanco durante el toque. */
+  .btn--solid:active {
+    color: var(--page-bg);
+    border-color: var(--page-fg);
+  }
+
+  .rule {
+    height: 1px;
+    width: 100%;
+    background: var(--page-line);
+    transform-origin: left center;
+  }
+
+  /* ── Botonera de opciones de los formularios ────────────────────────────
+     La cantidad de columnas es un dato (cuántas opciones hay), así que no
+     puede salir de una clase de Tailwind: se pasa por variable desde el
+     componente.
+
+     BUG QUE ESTO ARREGLA: la grilla se armaba con un `gridTemplateColumns`
+     inline de N columnas fijas, igual en un monitor que en un teléfono. Con
+     tres opciones en 390px de pantalla a cada botón le quedaban ~80px útiles
+     para etiquetas como "Sí, ya toco/produzco" en mayúscula y con
+     interletrado: se partía en cinco renglones y la fila terminaba más alta
+     que ancha. Ahora el móvil tiene su propio número de columnas y el de
+     escritorio entra recién a partir de 640px. */
+  .choice-grid {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(var(--choice-cols-sm, 1), minmax(0, 1fr));
+  }
+  @media (min-width: 640px) {
+    .choice-grid {
+      grid-template-columns: repeat(var(--choice-cols, 2), minmax(0, 1fr));
+    }
+  }
+
+  /* Las opciones son etiquetas, no botones, así que el `min-height` táctil de
+     `.btn` no las alcanza. Mismo criterio: un dedo necesita ~44px.
+     El `display` lo maneja esta clase y no una utilidad `block` en el JSX:
+     ahora que el bloque vive en `@layer components`, una utilidad puesta al
+     lado le ganaría al `flex` de acá y el texto dejaría de centrarse en el
+     alto que le acabamos de dar. */
+  .choice-option {
+    display: block;
+  }
+  @media (pointer: coarse) {
+    .choice-option {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  /* Enlace con subrayado que se dibuja de izquierda a derecha. */
+  .link-u {
+    position: relative;
+    display: inline-block;
+  }
+  .link-u::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Mismo motivo que en `.btn`: en táctil el subrayado se dibujaba al tocar y
+     se quedaba dibujado en el último enlace tocado. */
+  @media (hover: hover) {
+    .link-u:hover::after {
+      transform: scaleX(1);
+      transform-origin: left center;
+    }
+  }
 }
 
 /* Estado inicial del hero, en CSS y no en clases de Tailwind.
@@ -404,13 +566,46 @@ body {
   margin-bottom: -0.14em;
 }
 
+/* ── Mapa embebido ────────────────────────────────────────────────────────
+   BUG QUE ESTO ARREGLA, y que sólo existe en el celular: el mapa de /contacto
+   ocupa el ancho completo y 320px de alto, o sea una franja enorme en el medio
+   de la página. Un iframe de Google Maps se queda con el gesto de arrastre
+   para desplazar el mapa, así que quien scrollea con el dedo justo ahí no baja
+   la página: mueve el mapa. Se lee como que el sitio se trabó.
+
+   En táctil el mapa pasa a ser una ilustración —queda igual de informativo, es
+   un plano— y se ofrece un botón que abre la app de mapas nativa, que es lo
+   que la persona iba a querer hacer igual. Con mouse no se toca nada: ahí se
+   scrollea con la rueda y el mapa se arrastra con el botón, sin conflicto. */
+.map-embed-cta {
+  display: none;
+}
+@media (hover: none) and (pointer: coarse) {
+  .map-embed iframe {
+    pointer-events: none;
+  }
+  .map-embed-cta {
+    display: inline-flex;
+  }
+}
+
 /* Imagen en duotono tinta/hueso; recupera color al hover. */
 .duotone {
   filter: grayscale(1) contrast(1.14) brightness(0.94);
   transition: filter 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.group:hover .duotone {
+@media (hover: hover) {
+  .group:hover .duotone {
+    filter: grayscale(0) contrast(1) brightness(1);
+  }
+}
+/* En táctil no hay hover, así que la foto se quedaba en blanco y negro
+   siempre. Un toque le devuelve el color mientras dura, que es la única
+   manera de que quien entra desde el celular vea alguna vez las fotos como
+   son. */
+.group:active .duotone {
   filter: grayscale(0) contrast(1) brightness(1);
+  transition-duration: 0.2s;
 }
 
 /* ═══════════ SCROLLSMOOTHER ═══════════ */

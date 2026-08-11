@@ -19,7 +19,7 @@ import { PROGRAMS } from "@/data/programs";
  * fijaba la altura del panel en `52vh` y metía adentro imagen + descripción
  * + chips + pie. En viewports bajos o con textos más largos el contenido
  * desbordaba el borde. Ahora:
- *   - El panel define alto por contenido con un `lg:h-full` dentro de un
+ *   - El panel define alto por contenido con un `rail:h-full` dentro de un
  *     riel de altura acotada, y la imagen es la que cede espacio (`flex-1`
  *     con `min-h-0`), no el texto.
  *   - La descripción se limita con `line-clamp-3`: la tarjeta es un
@@ -33,10 +33,20 @@ export function ProgramsRail() {
     () => {
       const mm = gsap.matchMedia();
 
+      // El `(hover: hover)` es nuevo y es deliberado. La condición era sólo de
+      // ancho, así que una tablet en horizontal (un iPad Pro mide 1366px)
+      // entraba al riel: y ahí el secuestro del scroll es peor que en un
+      // teléfono, no mejor. Con rueda de mouse el gesto es indirecto y el
+      // desplazamiento lateral se lee como una consecuencia; con el dedo, uno
+      // arrastra para ARRIBA y la pantalla se mueve para el COSTADO. Se siente
+      // como que la página se rompió, y no hay forma de salir salvo seguir
+      // arrastrando. Abajo de eso queda la lista vertical, que en una tablet
+      // se ve perfecta igual.
       mm.add(
         {
-          desktop: "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
-          mobile: "(max-width: 1023px), (prefers-reduced-motion: reduce)",
+          desktop:
+            "(min-width: 1024px) and (hover: hover) and (prefers-reduced-motion: no-preference)",
+          mobile: "(max-width: 1023px), (hover: none), (prefers-reduced-motion: reduce)",
         },
         (ctx) => {
           const { desktop } = ctx.conditions as { desktop: boolean };
@@ -141,7 +151,7 @@ export function ProgramsRail() {
       ref={root}
       id="programas"
       data-theme="ink"
-      className="relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)] lg:flex lg:h-screen lg:flex-col lg:justify-center lg:py-0"
+      className="relative overflow-hidden bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)] rail:flex rail:h-screen rail:flex-col rail:justify-center rail:py-0"
     >
       <Container wide className="relative z-10 shrink-0">
         <div className="flex flex-wrap items-end justify-between gap-6">
@@ -152,7 +162,7 @@ export function ProgramsRail() {
             </SplitReveal>
           </div>
 
-          <div className="t-mono hidden items-center gap-4 text-[color:var(--page-faint)] lg:flex">
+          <div className="t-mono hidden items-center gap-4 text-[color:var(--page-faint)] rail:flex">
             <span data-rail-count className="text-red">
               01
             </span>
@@ -167,16 +177,16 @@ export function ProgramsRail() {
 
       {/* Riel. En desktop tiene altura acotada; adentro, la imagen es la que
           cede espacio para que el texto nunca desborde el borde. */}
-      <div className="relative mt-10 lg:mt-8 lg:h-[min(58vh,560px)]">
+      <div className="relative mt-10 rail:mt-8 rail:h-[min(58vh,560px)]">
         <div
           data-rail-track
-          className="flex h-full flex-col gap-5 px-[var(--pad)] lg:w-max lg:flex-row lg:gap-8"
+          className="flex h-full flex-col gap-5 px-[var(--pad)] rail:w-max rail:flex-row rail:gap-8"
         >
           {PROGRAMS.map((program, i) => (
             <article
               key={program.slug}
               data-panel
-              className="group relative flex w-full shrink-0 flex-col border border-[color:var(--page-line)] bg-[color:var(--page-bg)] p-6 lg:h-full lg:w-[min(42vw,560px)] lg:p-7"
+              className="group relative flex w-full shrink-0 flex-col border border-[color:var(--page-line)] bg-[color:var(--page-bg)] p-6 rail:h-full rail:w-[min(42vw,560px)] rail:p-7"
             >
               <div className="flex shrink-0 items-start justify-between gap-5">
                 <div className="min-w-0">
@@ -204,7 +214,10 @@ export function ProgramsRail() {
               {/* min-h-0 es lo que permite que este bloque se comprima en vez
                   de empujar al pie fuera de la tarjeta. */}
               {program.cardImage !== false && (
-                <div className="relative my-5 h-32 min-h-0 shrink overflow-hidden lg:h-auto lg:flex-1">
+                /* En tablet la tarjeta ocupa el ancho completo y la foto de
+                   128px quedaba como una franja: se le da altura hasta que el
+                   riel horizontal toma el control en `lg`. */
+                <div className="relative my-5 h-32 min-h-0 shrink overflow-hidden sm:h-56 rail:h-auto rail:flex-1">
                   <div data-panel-img className="absolute inset-0">
                     <Image
                       src={program.image}
@@ -252,7 +265,7 @@ export function ProgramsRail() {
           ))}
         </div>
 
-        <div className="mx-[var(--pad)] mt-8 hidden h-px bg-[color:var(--page-line)] lg:block">
+        <div className="mx-[var(--pad)] mt-8 hidden h-px bg-[color:var(--page-line)] rail:block">
           <div data-rail-progress className="h-full origin-left scale-x-0 bg-red" />
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { usePathname } from "next/navigation";
-import { gsap, useGSAP, prefersReduced } from "@/lib/gsap";
+import { gsap, useGSAP, isLite } from "@/lib/gsap";
 import { scrollVelocity } from "@/lib/velocity";
 
 /**
@@ -32,7 +32,13 @@ export function ScrollFx() {
   const val = useRef(0);
 
   useGSAP(() => {
-    if (prefersReduced()) return;
+    // En táctil no corre nada. Es un ticker permanente cuyo único consumidor
+    // visible es la aberración cromática del titular del hero: un
+    // `text-shadow` doble sobre texto grande, que el navegador repinta cada
+    // vez que el valor cambia. Es un efecto de fuerza bruta que se ve un
+    // instante mientras scrolleás rápido — en un teléfono cuesta más de lo
+    // que aporta, y encima el otro consumidor (el medidor VU) tampoco corre.
+    if (isLite()) return;
 
     prevY.current = window.scrollY;
 

@@ -9,4 +9,6 @@ export const CONTACT = {
   youtube: "https://youtube.com",
   mapsEmbedUrl:
     "https://www.google.com/maps?q=Pilar,Buenos+Aires,Argentina&output=embed",
+  /** Mismo lugar, para abrir en la app de mapas (ver el mapa de /contacto). */
+  mapsUrl: "https://www.google.com/maps?q=Pilar,Buenos+Aires,Argentina",
 };

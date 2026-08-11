@@ -12,11 +12,16 @@ const NAV = [
   { href: "/servicios", label: "Servicios", index: "02" },
   { href: "/equipos", label: "Equipos", index: "03" },
   { href: "/sello", label: "Sello", index: "04" },
-  { href: "/profesores", label: "Profesores", index: "05" },
-  { href: "/nosotros", label: "Nosotros", index: "06" },
-  { href: "/faq", label: "FAQ", index: "07" },
-  { href: "/contacto", label: "Contacto", index: "08" },
+  { href: "/blog", label: "Blog", index: "05" },
+  { href: "/profesores", label: "Profesores", index: "06" },
+  { href: "/nosotros", label: "Nosotros", index: "07" },
+  { href: "/faq", label: "FAQ", index: "08" },
+  { href: "/contacto", label: "Contacto", index: "09" },
 ];
+
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /**
  * Barra superior.
@@ -176,7 +181,13 @@ export function Navbar() {
                 href={item.href}
                 className={clsx(
                   "t-mono link-u transition-opacity",
-                  pathname === item.href ? "text-red" : "opacity-70 hover:opacity-100",
+                  // `startsWith` y no igualdad estricta: las secciones con
+                  // páginas de detalle (/blog/[slug], /programas/[slug])
+                  // dejaban de marcar su ítem apenas entrabas a una nota o a
+                  // un programa.
+                  isActive(pathname, item.href)
+                    ? "text-red"
+                    : "opacity-70 hover:opacity-100",
                 )}
               >
                 {item.label}
@@ -218,45 +229,53 @@ export function Navbar() {
       </header>
 
       {/* Cortina a pantalla completa */}
+      {/* El centrado va con `m-auto` en el contenido y NO con `justify-center`
+          en el contenedor. Con nueve ítems el menú ya mide más que la pantalla
+          en un teléfono, y en un contenedor de scroll `justify-content: center`
+          desborda para los dos lados: la mitad de arriba queda fuera de la
+          caja y no hay forma de scrollear hasta ella. Con `m-auto` el margen
+          se colapsa cuando no sobra espacio y el contenido arranca arriba. */}
       <div
         ref={menu}
-        className="pointer-events-none fixed inset-0 z-[82] flex flex-col justify-center overflow-y-auto bg-ink px-[var(--pad)] py-24 text-bone xl:hidden"
+        className="pointer-events-none fixed inset-0 z-[82] flex flex-col overflow-y-auto bg-ink px-[var(--pad)] py-24 text-bone xl:hidden"
         style={{ clipPath: "inset(0% 0% 100% 0%)" }}
       >
-        <nav className="flex flex-col">
-          {NAV.map((item) => (
-            <div key={item.href} className="overflow-hidden">
-              <Link
-                data-menu-item
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="group flex items-baseline gap-4 border-b border-bone/12 py-2.5"
-              >
-                <span className="t-mono text-red">{item.index}</span>
-                <span className="t-display-tight text-[10.5vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-5xl">
-                  {item.label}
-                </span>
-              </Link>
-            </div>
-          ))}
-        </nav>
+        <div className="m-auto w-full">
+          <nav className="flex flex-col">
+            {NAV.map((item) => (
+              <div key={item.href} className="overflow-hidden">
+                <Link
+                  data-menu-item
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="group flex items-baseline gap-4 border-b border-bone/12 py-2.5"
+                >
+                  <span className="t-mono text-red">{item.index}</span>
+                  <span className="t-display-tight text-[9.5vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-5xl">
+                    {item.label}
+                  </span>
+                </Link>
+              </div>
+            ))}
+          </nav>
 
-        <div data-menu-item className="mt-10">
-          <Link
-            href="/ingresar"
-            onClick={() => setOpen(false)}
-            className="btn btn--solid"
-          >
-            Iniciar sesión
-            <span aria-hidden className="text-[1.25em] leading-none">
-              ↗
-            </span>
-          </Link>
-        </div>
+          <div data-menu-item className="mt-10">
+            <Link
+              href="/ingresar"
+              onClick={() => setOpen(false)}
+              className="btn btn--solid"
+            >
+              Iniciar sesión
+              <span aria-hidden className="text-[1.25em] leading-none">
+                ↗
+              </span>
+            </Link>
+          </div>
 
-        <div data-menu-item className="t-mono mt-8 flex flex-wrap gap-x-6 gap-y-2 text-bone/45">
-          <span>Pilar, Buenos Aires</span>
-          <span>hola@lajuanitastudio.com</span>
+          <div data-menu-item className="t-mono mt-8 flex flex-wrap gap-x-6 gap-y-2 text-bone/45">
+            <span>Pilar, Buenos Aires</span>
+            <span>hola@lajuanitastudio.com</span>
+          </div>
         </div>
       </div>
     </>
