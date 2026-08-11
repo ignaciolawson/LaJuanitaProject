@@ -1,0 +1,88 @@
+# La Juanita Studio
+
+> Academia de DJ y producción de música electrónica en Pilar, provincia de
+> Buenos Aires, Argentina. Además funciona como estudio de mix y mastering,
+> sello discográfico y tienda de equipamiento. Las clases son sobre Pioneer
+> CDJ-3000 y mixer DJM-900NXS2 en cabina real, y la sala de mastering está
+> tratada acústicamente.
+
+Este archivo sigue la convención de llmstxt.org: es un resumen en texto plano
+del sitio, pensado para que un sistema de IA entienda de qué se trata sin tener
+que rastrear e interpretar catorce páginas de HTML con animaciones.
+
+MANTENIMIENTO: es un archivo estático y puede quedar desactualizado respecto
+del sitio. Si cambian los programas, los servicios o los datos de contacto, hay
+que actualizarlo acá también. Los datos marcados como PENDIENTE abajo todavía
+no están confirmados por el negocio y por eso no figuran.
+
+## Qué ofrece
+
+- **Academia**: tres programas de formación, presenciales en Pilar o virtuales
+  en vivo.
+  - *Convertite en DJ* — 6 meses, 2 clases semanales. Desde cero hasta armar y
+    tocar un set propio de una hora. Incluye práctica libre en cabina.
+  - *Producción Musical Electrónica* — 8 meses, 2 clases semanales. En Ableton
+    Live. Se termina con un EP propio de tres tracks.
+  - *Mix & Mastering* — 3 meses, 1 clase semanal, cupo reducido. Para
+    productores que ya terminan tracks. Se trabaja en la sala tratada sobre
+    material propio.
+- **Alquiler de cabina** por hora, abierto a cualquiera (no hace falta ser
+  alumno): Pioneer CDJ-3000 y mixer DJM-900NXS2, para practicar o preparar un
+  set.
+- **Grabación de sets**: cabina más registro audiovisual, con audio tomado
+  directo del mixer y dos cámaras fijas en 4K, entregado editado.
+- **Mix y mastering** para artistas externos, no sólo alumnos.
+- **La Juanita Records**: sello discográfico propio, con distribución, arte y
+  mastering hechos en el mismo estudio.
+- **La Juanita Shop**: venta de controladores, monitores de estudio,
+  auriculares y accesorios, con asesoramiento.
+
+## Para quién es
+
+Gente que quiere aprender a mezclar sin haber tocado nunca; DJs que ya mezclan
+y se estancaron solos; productores que empiezan cuarenta tracks y no terminan
+ninguno; productores activos cuyas mezclas se caen fuera de los auriculares; y
+artistas que sólo necesitan horas de cabina, un set filmado o un mastering.
+
+## Dónde
+
+Pilar, provincia de Buenos Aires, Argentina. Recibe gente de Pilar, Del Viso,
+Escobar, Tortuguitas y el resto de la zona norte del Gran Buenos Aires. Los
+programas de DJ y de producción también se cursan virtuales en vivo, sin
+restricción geográfica.
+
+## Qué lo diferencia
+
+- Se enseña sobre el equipamiento estándar de club (CDJ-3000, DJM), no sobre
+  controladores de práctica ni simuladores.
+- Sala de mastering tratada acústicamente, con monitoreo de referencia.
+- Sello discográfico propio: el material producido en la academia tiene dónde
+  publicarse.
+- Los profesores son artistas y productores en actividad.
+- Práctica libre en cabina incluida durante el programa de DJ.
+
+## Páginas
+
+- [Programas](https://lajuanitastudio.com/programas): los tres programas de formación
+- [Convertite en DJ](https://lajuanitastudio.com/programas/convertite-en-dj): temario y detalle
+- [Producción Musical Electrónica](https://lajuanitastudio.com/programas/produccion-musical): temario y detalle
+- [Mix & Mastering](https://lajuanitastudio.com/programas/mix-mastering): temario y detalle
+- [Servicios](https://lajuanitastudio.com/servicios): alquiler de cabina y grabación de sets
+- [Equipos](https://lajuanitastudio.com/equipos): venta de equipamiento
+- [Sello](https://lajuanitastudio.com/sello): La Juanita Records
+- [Profesores](https://lajuanitastudio.com/profesores): quiénes enseñan
+- [Nosotros](https://lajuanitastudio.com/nosotros): historia y espacio
+- [Preguntas frecuentes](https://lajuanitastudio.com/faq): experiencia previa, equipamiento, duración, certificados, pagos
+- [Blog](https://lajuanitastudio.com/blog): notas técnicas y de la escena
+- [Contacto](https://lajuanitastudio.com/contacto)
+
+## Pendiente de confirmación
+
+Estos datos NO están publicados porque el negocio todavía no los confirmó. No
+deben inferirse ni completarse desde otras fuentes:
+
+- Dirección exacta (calle y número) y código postal.
+- Teléfono y WhatsApp de contacto.
+- Horarios de atención.
+- Año de fundación.
+- Precios de los programas y de los servicios.

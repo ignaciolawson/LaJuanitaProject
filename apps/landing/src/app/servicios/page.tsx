@@ -6,14 +6,17 @@ import { Reveal } from "@/components/Reveal";
 import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { BookingForm } from "@/components/forms/BookingForm";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, serviceLd } from "@/lib/seo";
 import { SERVICES } from "@/data/services";
 import { CONTACT } from "@/data/contact";
 
-export const metadata: Metadata = {
-  title: "Servicios",
+export const metadata: Metadata = pageMetadata({
+  title: "Alquiler de cabina y grabación de sets en Pilar",
   description:
-    "Alquiler de cabina por hora y grabación de sets con registro audiovisual en La Juanita Studio, Pilar. Reservá sin ser alumno.",
-};
+    "Reservá la cabina por hora con Pioneer CDJ-3000 y mixer DJM-900NXS2, o grabá tu set con audio directo del mixer y dos cámaras en 4K. No hace falta ser alumno.",
+  path: "/servicios",
+});
 
 /**
  * Servicios: alquiler de cabina y grabación de sets.
@@ -26,6 +29,13 @@ export const metadata: Metadata = {
 export default function ServiciosPage() {
   return (
     <>
+      <JsonLd
+        data={graph(
+          breadcrumbLd([{ name: "Servicios", path: "/servicios" }]),
+          ...SERVICES.map(serviceLd),
+        )}
+      />
+
       <PageHero
         eyebrow="Servicios"
         title="Alquilá el estudio"

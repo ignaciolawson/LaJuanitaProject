@@ -8,14 +8,17 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { PostCard } from "@/components/blog/PostCard";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, absoluteUrl, ORG_ID } from "@/lib/seo";
 import { POSTS, CATEGORY_LABEL, formatPostDate, readingMinutes } from "@/data/posts";
 import { CONTACT } from "@/data/contact";
 
-export const metadata: Metadata = {
-  title: "Blog",
+export const metadata: Metadata = pageMetadata({
+  title: "Blog — técnica de DJ y escena electrónica",
   description:
-    "Notas técnicas, escena electrónica y novedades de La Juanita Studio. Lo que se habla en la cabina, escrito.",
-};
+    "Notas técnicas sobre mezcla, efectos y producción, novedades de la escena electrónica de zona norte y anuncios de La Juanita Studio.",
+  path: "/blog",
+});
 
 /**
  * Índice del blog.
@@ -35,6 +38,27 @@ export default function BlogPage() {
 
   return (
     <>
+      <JsonLd
+        data={graph(
+          breadcrumbLd([{ name: "Blog", path: "/blog" }]),
+          {
+            "@type": "Blog",
+            "@id": `${absoluteUrl("/blog")}#blog`,
+            name: "Blog de La Juanita Studio",
+            url: absoluteUrl("/blog"),
+            publisher: { "@id": ORG_ID },
+            inLanguage: "es-AR",
+            blogPost: POSTS.map((post) => ({
+              "@type": "BlogPosting",
+              "@id": `${absoluteUrl(`/blog/${post.slug}`)}#post`,
+              headline: post.title,
+              url: absoluteUrl(`/blog/${post.slug}`),
+              datePublished: post.date,
+            })),
+          },
+        )}
+      />
+
       <PageHero
         eyebrow="Blog"
         title="Apuntes de cabina"

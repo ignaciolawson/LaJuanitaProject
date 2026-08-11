@@ -4,16 +4,34 @@ import { PageHero } from "@/components/PageHero";
 import { Reveal } from "@/components/Reveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, organizationLd } from "@/lib/seo";
 import { CONTACT } from "@/data/contact";
 
-export const metadata: Metadata = {
-  title: "Contacto",
-  description: "Escribinos por WhatsApp o visitá la sede de La Juanita Studio en Pilar.",
-};
+export const metadata: Metadata = pageMetadata({
+  // Sin la marca en el título: el `template` del layout ya le agrega
+  // "| La Juanita Studio", y quedaba nombrándola dos veces en el mismo
+  // renglón del resultado de búsqueda.
+  title: "Contacto — sede Pilar, Buenos Aires",
+  description:
+    "Escribinos por WhatsApp o mail para consultar por los programas de DJ y producción, reservar cabina o coordinar un mastering. Sede en Pilar, Buenos Aires.",
+  path: "/contacto",
+});
 
 export default function ContactoPage() {
   return (
     <>
+      {/* La ficha de la organización se repite en esta página con el mismo
+          `@id` que en el layout. No es duplicado: es la página que Google
+          asocia con los datos de contacto del negocio, y reafirmar la entidad
+          acá es lo que ata "estos datos" con "esta empresa". */}
+      <JsonLd
+        data={graph(
+          breadcrumbLd([{ name: "Contacto", path: "/contacto" }]),
+          organizationLd(),
+        )}
+      />
+
       <PageHero
         eyebrow="Contacto"
         title={

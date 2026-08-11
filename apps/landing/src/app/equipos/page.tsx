@@ -7,6 +7,8 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
 import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
 import { Container } from "@/components/ui/Container";
 import { GearInquiryForm } from "@/components/forms/GearInquiryForm";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd } from "@/lib/seo";
 import { GEAR } from "@/data/gear";
 import { CONTACT } from "@/data/contact";
 
@@ -17,11 +19,12 @@ const ICONS = {
   accessories: Cable,
 } as const;
 
-export const metadata: Metadata = {
-  title: "Equipos",
+export const metadata: Metadata = pageMetadata({
+  title: "Venta de equipamiento para DJ en Pilar",
   description:
-    "La Juanita Shop: controladores, monitores de estudio, auriculares y accesorios para DJ y producción, con asesoramiento en Pilar.",
-};
+    "La Juanita Shop: controladores, monitores de estudio, auriculares y accesorios para DJ y producción musical, con asesoramiento según tu nivel y presupuesto. Pilar, Buenos Aires.",
+  path: "/equipos",
+});
 
 /**
  * La Juanita Shop.
@@ -37,6 +40,13 @@ export const metadata: Metadata = {
 export default function EquiposPage() {
   return (
     <>
+      {/* Sólo migas de pan. Nada de `Product` ni `Offer`: no hay catálogo, ni
+          marcas, ni modelos, ni precios — y marcar como producto algo que no
+          se puede comprar es justamente lo que Google penaliza como datos
+          estructurados que no se corresponden con la página. Cuando exista
+          catálogo real, acá van `Product` + `Offer`. */}
+      <JsonLd data={graph(breadcrumbLd([{ name: "Equipos", path: "/equipos" }]))} />
+
       <PageHero
         eyebrow="La Juanita Shop"
         title="Armá o renová tu setup"

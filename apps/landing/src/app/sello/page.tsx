@@ -6,20 +6,32 @@ import { RevealImage } from "@/components/RevealImage";
 import { DuotoneArt } from "@/components/DuotoneArt";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd } from "@/lib/seo";
 import { RELEASES } from "@/data/releases";
 import { UPCOMING_DATES } from "@/data/dates";
 import { CONTACT } from "@/data/contact";
 
-export const metadata: Metadata = {
-  title: "Sello Discográfico",
-  description:"La Juanita Records — el sello discográfico detrás de la academia, con el mismo estudio de mastering.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "La Juanita Records — el sello discográfico",
+  description:
+    "El sello discográfico de La Juanita Studio: distribución, arte y mastering en la misma sala donde se produce. Para artistas de la escena electrónica de zona norte.",
+  path: "/sello",
+});
 
 export default function SelloPage() {
   const [featured, ...rest] = RELEASES;
 
   return (
     <>
+      {/* Sólo migas de pan. `MusicAlbum` / `MusicRecording` por cada
+          lanzamiento sería lo correcto, pero `data/releases.ts` es placeholder
+          heredado: títulos, artistas y fechas están inventados. Marcar
+          lanzamientos falsos como discos reales le daría a Google y a los
+          asistentes de IA una discografía que no existe, atada al nombre de
+          artistas reales. Va cuando estén los datos del sello. */}
+      <JsonLd data={graph(breadcrumbLd([{ name: "Sello", path: "/sello" }]))} />
+
       <PageHero
         eyebrow="Sello discográfico"
         title={

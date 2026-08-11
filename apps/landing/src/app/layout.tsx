@@ -10,6 +10,8 @@ import { ScrollFx } from "@/components/motion/ScrollFx";
 import { Texture } from "@/components/Texture";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE_URL, graph, organizationLd, websiteLd } from "@/lib/seo";
 
 /**
  * Archivo variable con el eje de ancho (wdth 62–125). Ese eje es la razón de
@@ -53,21 +55,45 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://lajuanitastudio.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "La Juanita Studio — Academia de DJ, producción y sello en Pilar",
     template: "%s | La Juanita Studio",
   },
   description:
     "Academia de DJ y producción de música electrónica en Pilar, Buenos Aires. Equipamiento Pioneer DJ, sala de mastering tratada y un sello discográfico propio detrás tuyo.",
+  // OJO: acá NO va `alternates.canonical`.
+  //
+  // BUG QUE ESTO ARREGLA: estaba puesto como `"/"` para cubrir la home, que es
+  // la única página sin metadata propia. Pero `alternates` se HEREDA, y
+  // cualquier ruta que no lo pise queda declarando a la home como su versión
+  // canónica — o sea, diciéndole a Google "esta página es en realidad la
+  // portada, indexá esa". Medido en el HTML generado, `/ingresar` y la página
+  // de 404 salían con `canonical` apuntando a la raíz.
+  //
+  // El canonical de la home lo declara `app/page.tsx`, y el de cada ruta su
+  // propio `pageMetadata()`. La de 404 se queda sin canonical, que es lo
+  // correcto: una página que no existe no es la versión canónica de nada.
   openGraph: {
     type: "website",
     locale: "es_AR",
     siteName: "La Juanita Studio",
+    url: SITE_URL,
     title: "La Juanita Studio — De Pilar a la pista",
     description:
       "Academia de DJ y producción de música electrónica, estudio de mix & mastering y sello discográfico en Pilar.",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "La Juanita Studio — De Pilar a la pista",
+    description:
+      "Academia de DJ y producción de música electrónica, estudio de mix & mastering y sello discográfico en Pilar.",
+  },
+  // Sin `images` a mano ni en `openGraph` ni en `twitter`: las toma la
+  // convención de archivo `app/opengraph-image.tsx`, que además emite el
+  // tamaño y el `alt` correctos. Declararlas acá pisaría esa detección, que es
+  // el mismo problema que ya está documentado abajo para los iconos.
+  //
   // Sin `icons` a mano: el icono de pestaña sale del abanico de la marca y
   // lo toman las convenciones de archivo de App Router — `app/icon.png` y
   // `app/apple-icon.png`. Declarar `icons` acá pisaba esa detección y dejaba
@@ -86,6 +112,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${archivo.variable} ${instrument.variable} ${spaceMono.variable} antialiased`}
     >
       <body>
+        {/* Identidad del negocio, en todas las páginas.
+            Va en el layout y no en la home porque es la definición de QUIÉN
+            publica el sitio: cualquier página puede ser la primera (y a
+            menudo la única) que un buscador o un asistente de IA lee. Si la
+            entidad viviera sólo en la home, una respuesta generada a partir de
+            `/servicios` no tendría forma de saber de qué negocio está
+            hablando, dónde queda ni cómo se contacta.
+            Los schemas específicos de cada página se referencian a este por
+            `@id` en vez de repetirlo. */}
+        <JsonLd data={graph(organizationLd(), websiteLd())} />
+
         {/* Todo lo fijo vive FUERA de #smooth-content: dentro de un elemento
             transformado, `position: fixed` se ancla al padre, no al viewport. */}
         <Preloader />

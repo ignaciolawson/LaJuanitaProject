@@ -7,14 +7,17 @@ import { Reveal } from "@/components/Reveal";
 import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, courseLd } from "@/lib/seo";
 import { PROGRAMS } from "@/data/programs";
 import { SERVICES } from "@/data/services";
 
-export const metadata: Metadata = {
-  title: "Programas",
+export const metadata: Metadata = pageMetadata({
+  title: "Cursos de DJ y producción musical en Pilar",
   description:
-    "Convertite en DJ, Producción Musical Electrónica y Mix & Mastering — tres programas en Pilar, presenciales o virtuales en vivo.",
-};
+    "Tres programas presenciales o virtuales en vivo: Convertite en DJ, Producción Musical Electrónica y Mix & Mastering. Sobre Pioneer CDJ-3000 en cabina real, en Pilar, Buenos Aires.",
+  path: "/programas",
+});
 
 /**
  * Índice de programas.
@@ -27,6 +30,19 @@ export const metadata: Metadata = {
 export default function ProgramasPage() {
   return (
     <>
+      {/* Los tres `Course` van también acá y no sólo en cada detalle: es la
+          página que un buscador tiende a elegir para una consulta genérica
+          ("cursos de dj en pilar"), y desde ella se entiende la oferta
+          completa. Cada uno declara el mismo `@id` que en su página de
+          detalle, así que no son duplicados sino la misma entidad descrita
+          desde dos lugares. */}
+      <JsonLd
+        data={graph(
+          breadcrumbLd([{ name: "Programas", path: "/programas" }]),
+          ...PROGRAMS.map(courseLd),
+        )}
+      />
+
       <PageHero
         eyebrow="Programas"
         title="Elegí tu camino"

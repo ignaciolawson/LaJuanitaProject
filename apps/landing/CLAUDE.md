@@ -393,6 +393,7 @@ Casi todo el texto largo está escrito con la voz del negocio, pero es
 | Archivo | Qué está inventado |
 | --- | --- |
 | `data/services.ts` | Precios ($18.000/h cabina, $65.000/h grabación) y el "qué incluye" |
+| `data/business.ts` | Lo contrario: lo que falta está como `null` y documentado. Dirección exacta, teléfono, horarios y año de fundación — los cuatro frenan el SEO local |
 | `data/gear.ts` | Qué entra en cada categoría |
 | `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario, precios |
 | `data/posts.ts` | Las seis notas del blog, enteras. Firmadas con nombres de profesores que no las escribieron — ver abajo |
@@ -469,6 +470,106 @@ puede seguir siendo estático.
 No hay filtro por categoría todavía: con seis notas es un control que nunca
 cambia nada. La categoría ya está en el dato; cuando el volumen lo
 justifique, el lugar es `/blog/categoria/[slug]`.
+
+## SEO y GEO
+
+Implementado el 2026-08-10. Antes de esto el sitio tenía metadata por página y
+nada más: **cero canonical en las 22 páginas generadas, sin sitemap, sin
+robots.txt, sin imagen social y sin un solo bloque de datos estructurados.**
+
+```
+data/business.ts        hechos de la entidad (NAP, zona, equipamiento)
+lib/seo.ts              SITE_URL, pageMetadata(), constructores de JSON-LD
+components/seo/JsonLd   inserta un bloque de datos estructurados
+app/robots.ts           robots.txt
+app/sitemap.ts          sitemap.xml (19 URLs)
+app/opengraph-image.tsx imagen social 1200×630, generada en build
+public/llms.txt         resumen del sitio para sistemas de IA
+```
+
+### La regla que ordena todo
+
+**`data/business.ts` sólo contiene datos verificados.** Lo que no está
+confirmado va como `null` y los constructores de JSON-LD lo omiten.
+
+El motivo no es prolijidad. Un dato provisorio en pantalla se lee como
+provisorio; el mismo dato en JSON-LD se publica como un hecho verificado que
+Google puede levantar para su ficha del lugar y que un LLM va a repetir como
+verdad. `data/contact.ts` tiene un WhatsApp inventado (`5491100000000`) y un
+Instagram que es el dominio pelado: los dos son strings perfectamente válidos
+que pasan cualquier chequeo de tipos y llegarían enteros al marcado. Por eso
+`isPlaceholder()` los reconoce explícitamente y `verifiedProfiles()` los
+filtra — hoy `sameAs` sale con Spotify solamente, que es el único perfil real.
+
+Hoy se omiten por falta de confirmación: **dirección exacta, teléfono,
+horarios de atención y año de fundación**. Los cuatro están listados en
+`business.ts` con su impacto.
+
+### Qué schema hay y por qué
+
+| Página | Schema | Nota |
+| --- | --- | --- |
+| Todas (layout) | `LocalBusiness` + `EducationalOrganization`, `WebSite` | Dos tipos a la vez: uno lo hace un lugar físico con zona de influencia, el otro describe lo que vende |
+| Todas | `BreadcrumbList` | No hay breadcrumb visible; sirve igual para la ruta legible en el SERP |
+| `/programas`, `/programas/[slug]` | `Course` | Sin `offers`: los precios son inventados |
+| `/servicios` | `Service` ×2 | |
+| `/faq` | `FAQPage` | El de mayor rendimiento para motores de respuesta |
+| `/profesores` | `Person` ×3 con `worksFor` | Señal de E-E-A-T |
+| `/blog`, `/blog/[slug]` | `Blog`, `BlogPosting` | ⚠️ Ver la advertencia del blog |
+| `/equipos`, `/sello` | Sólo migas | Sin catálogo real ni discografía real que marcar |
+
+Todo se referencia a la organización por `@id` (`…/#organization`) en vez de
+repetirla. Eso es lo que convierte una pila de fragmentos sueltos en un grafo
+con una entidad central: el buscador entiende que el `Course`, el `Service` y
+el `BlogPosting` son del mismo negocio.
+
+**Antes de agregar un schema nuevo, preguntate si la página lo respalda.**
+`/equipos` no lleva `Product` porque no hay catálogo, ni marcas, ni precios;
+`/sello` no lleva `MusicAlbum` porque los lanzamientos de `data/releases.ts`
+son inventados y llevan nombres de artistas reales. Marcar como producto algo
+que no se puede comprar, o como disco algo que no existe, es exactamente lo
+que Google trata como datos estructurados que no se corresponden con la página.
+
+### Trampas resueltas acá
+
+1. **`alternates.canonical` se hereda.** Estaba puesto como `"/"` en el layout
+   para cubrir la home, y cualquier ruta que no lo pisara quedaba declarando a
+   la home como su versión canónica. Medido en el HTML: `/ingresar` y la
+   página de 404 salían con canonical apuntando a la raíz. Hoy el de la home
+   lo declara `app/page.tsx` y el layout no declara ninguno.
+2. **La convención `opengraph-image.tsx` se pierde si la página declara su
+   propio `openGraph`.** Next mergea la metadata campo por campo, y
+   `openGraph` es UN campo: declararlo reemplaza el del layout, imagen
+   incluida. Como `pageMetadata()` lo declara siempre, sólo la home y las
+   notas tenían `og:image` — las once restantes, incluidas las de programa,
+   salían sin imagen. Por eso `OG_IMAGE` va explícita en `lib/seo.ts`.
+3. **La barra final de la raíz.** `new URL("/", …)` devuelve
+   `https://lajuanitastudio.com/` pero Next resuelve el canonical a la misma
+   URL **sin** barra. Sin normalizar, sitemap y canonical declaraban dos
+   strings distintos para la misma página. `absoluteUrl()` la saca.
+4. **El JSON-LD tiene que salir del servidor.** `components/seo/JsonLd` es un
+   server component a propósito: Google ejecuta JavaScript, pero la mayoría de
+   los crawlers de motores de respuesta no. Inyectarlo desde el cliente sería
+   dejarlos sin ninguna descripción del negocio, que es justo lo contrario de
+   para lo que existe el marcado.
+5. **Los bots de IA están permitidos a propósito** en `robots.ts` (GPTBot,
+   PerplexityBot, ClaudeBot, Google-Extended y compañía). Bloquearlos evita el
+   entrenamiento pero también hace imposible ser citado. `CCBot` es el único
+   bloqueado: es entrenamiento a granel que no cita ni deriva tráfico.
+
+### Contenido escrito para ser citado
+
+Las respuestas de `data/faq.ts` se reescribieron para sostenerse solas: un
+asistente no lee la página, extrae UNA respuesta y la repite fuera de
+contexto. Por eso nombran el sujeto ("La Juanita Studio entrega…" en vez de
+"Sí, tenemos"), meten el dato concreto en la respuesta y no sólo en la
+pregunta, y miden entre 40 y 60 palabras. **Si agregás una pregunta, seguí ese
+criterio** — y acordate de que el texto visible y el del `FAQPage` tienen que
+ser idénticos, porque salen del mismo array.
+
+`public/llms.txt` es un resumen estático del sitio. **Puede quedar
+desactualizado**: si cambian programas, servicios o contacto, hay que tocarlo
+a mano.
 
 ## Convenciones
 
@@ -558,13 +659,20 @@ cosas que ya se pagaron y conviene no volver a introducir:
 
 ## Falta
 
-- OG image (`opengraph-image.tsx`) y política de privacidad.
+- **Datos del negocio sin confirmar**, que hoy bloquean SEO local: dirección
+  exacta, teléfono, horarios de atención y año de fundación. Ver
+  `data/business.ts`; en cuanto estén, salen solos en el JSON-LD.
+- Perfiles reales de Instagram y YouTube en `data/contact.ts` (hoy son el
+  dominio pelado y quedan fuera de `sameAs`).
+- Política de privacidad.
 - Las páginas interiores (`/sello`, `/profesores`, `/faq`, `/contacto`)
   recibieron migración de tokens y tipografía, pero conservan estructura
   vieja (`EditorialRow`). Son coherentes, no están al nivel de la home.
 - Conectar el envío de los formularios (ver arriba: hoy dicen "listo" sin
   mandar nada).
-- Sin referencias en el HTML generado: `espacio/entrada-retrato.jpg` (95 KB)
-  y `logo/icon.png` + `logo/wordmark.png` (161 KB). Los del logo son los
-  originales de marca de los que salió el SVG del abanico — probablemente
-  valga conservarlos aunque no se sirvan.
+- Sin referencias en el HTML generado: `espacio/entrada-retrato.jpg` (95 KB).
+  Los dos archivos de logo ya no están en esta lista: `logo/wordmark.png` y
+  `logo/icon.png` los usa `app/opengraph-image.tsx` para componer la imagen
+  social. No se sirven al navegador —se leen en build y se hornean dentro del
+  PNG de 1200×630— así que siguen sin sumar peso a ninguna página, pero ahora
+  borrarlos rompería el build.

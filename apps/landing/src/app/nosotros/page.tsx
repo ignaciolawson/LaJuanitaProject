@@ -7,12 +7,16 @@ import { Reveal } from "@/components/Reveal";
 import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, organizationLd } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Nosotros",
+export const metadata: Metadata = pageMetadata({
+  // Ídem contacto: el `template` ya agrega la marca.
+  title: "Nosotros — el estudio, la academia y el sello",
   description:
-    "La Juanita nació como sello discográfico y hoy es también academia de DJ y producción, estudio de mix & mastering y espacio de trabajo en Pilar.",
-};
+    "La Juanita nació como sello discográfico y hoy es también academia de DJ y producción, estudio de mix & mastering y espacio de trabajo en Pilar, Buenos Aires.",
+  path: "/nosotros",
+});
 
 /**
  * Nosotros.
@@ -78,6 +82,16 @@ const VALUES = [
 export default function NosotrosPage() {
   return (
     <>
+      {/* Es la página "quiénes somos", o sea la que Google usa para resolver
+          la entidad del negocio. Repetir acá la organización con su `@id`
+          refuerza esa asociación. */}
+      <JsonLd
+        data={graph(
+          breadcrumbLd([{ name: "Nosotros", path: "/nosotros" }]),
+          organizationLd(),
+        )}
+      />
+
       <PageHero
         eyebrow="Sobre nosotros"
         title="Gente de la música"

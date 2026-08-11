@@ -75,6 +75,18 @@ replace those notices with a fake success state.
 validation. Treat prices in `data/services.ts` as the highest-risk item:
 they are numbers a customer would act on.
 
+**SEO/GEO layer (added 2026-08-10).** Canonicals, `sitemap.xml`, `robots.txt`
+(AI crawlers explicitly allowed so the business can be cited), a generated
+1200×630 social image, `llms.txt`, and JSON-LD across every route —
+`LocalBusiness`+`EducationalOrganization`, `Course`, `Service`, `FAQPage`,
+`Person`, `BlogPosting`, `BreadcrumbList`. The governing rule lives in
+`apps/landing/src/data/business.ts`: **structured data only ever states
+verified facts.** Unconfirmed fields are `null` and get omitted rather than
+filled — a placeholder phone number on screen reads as provisional, but the
+same number in JSON-LD is published as a verified fact that Google can surface
+and an LLM will repeat. Still blocked on the client for: street address, phone,
+opening hours, founding year, and real Instagram/YouTube profiles.
+
 The visual identity was rebuilt from the actual brand assets (the fan icon
 and the arched patch wordmark) and **deliberately supersedes**
 `docs/branding/brand-guide.md`, which described a generic dark-mode look

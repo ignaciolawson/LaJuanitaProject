@@ -9,6 +9,8 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { ProgramApplyForm } from "@/components/forms/ProgramApplyForm";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, courseLd } from "@/lib/seo";
 import { PROGRAMS, getProgram } from "@/data/programs";
 import { CONTACT } from "@/data/contact";
 
@@ -38,10 +40,15 @@ export async function generateMetadata({
   const program = getProgram(slug);
   if (!program) return {};
 
-  return {
-    title: program.name,
+  return pageMetadata({
+    // El título lleva la modalidad y la ciudad porque la búsqueda real no es
+    // "convertite en dj" (que es el nombre comercial, y nadie lo busca): es
+    // "curso de dj en pilar". El nombre propio del programa igual va primero
+    // para que quien ya conoce la marca lo reconozca.
+    title: `${program.name} — ${program.duration.split("·")[0].trim()} en Pilar`,
     description: program.description,
-  };
+    path: `/programas/${program.slug}`,
+  });
 }
 
 export default async function ProgramaPage({ params }: PageProps<"/programas/[slug]">) {
@@ -53,6 +60,16 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
 
   return (
     <>
+      <JsonLd
+        data={graph(
+          breadcrumbLd([
+            { name: "Programas", path: "/programas" },
+            { name: program.name, path: `/programas/${program.slug}` },
+          ]),
+          courseLd(program),
+        )}
+      />
+
       <PageHero
         eyebrow={program.shortName}
         title={program.name}

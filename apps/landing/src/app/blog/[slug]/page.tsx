@@ -9,6 +9,8 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { PostBody } from "@/components/blog/PostBody";
 import { PostCard } from "@/components/blog/PostCard";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { pageMetadata, graph, breadcrumbLd, blogPostingLd } from "@/lib/seo";
 import {
   POSTS,
   CATEGORY_LABEL,
@@ -39,18 +41,15 @@ export async function generateMetadata({
   const post = getPost(slug);
   if (!post) return {};
 
-  return {
+  return pageMetadata({
     title: post.title,
     description: post.excerpt,
-    openGraph: {
-      type: "article",
-      title: post.title,
-      description: post.excerpt,
-      publishedTime: post.date,
-      authors: [post.author],
-      images: [post.cover],
-    },
-  };
+    path: `/blog/${post.slug}`,
+    type: "article",
+    publishedTime: post.date,
+    authors: [post.author],
+    images: [post.cover],
+  });
 }
 
 export default async function PostPage({ params }: PageProps<"/blog/[slug]">) {
@@ -62,6 +61,23 @@ export default async function PostPage({ params }: PageProps<"/blog/[slug]">) {
 
   return (
     <>
+      {/* ⚠️ `author` sale de `post.author`, y hoy las seis notas son de
+          ejemplo, firmadas con los nombres reales de los profesores (ver
+          `data/posts.ts`). Publicar así no sólo muestra un texto que no
+          escribieron: lo declara como dato estructurado, o sea que la
+          atribución falsa pasa a ser una afirmación verificable sobre
+          personas reales. El bloqueo para publicar sigue siendo reescribir o
+          borrar esas notas, no sacar este marcado. */}
+      <JsonLd
+        data={graph(
+          breadcrumbLd([
+            { name: "Blog", path: "/blog" },
+            { name: post.title, path: `/blog/${post.slug}` },
+          ]),
+          blogPostingLd(post),
+        )}
+      />
+
       <PageHero
         eyebrow={CATEGORY_LABEL[post.category]}
         title={post.title}

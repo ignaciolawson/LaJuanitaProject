@@ -8,7 +8,12 @@ import { LoginForm } from "@/components/forms/LoginForm";
 export const metadata: Metadata = {
   title: "Iniciar sesión",
   description: "Accedé al campus de La Juanita Studio.",
-  robots: { index: false },
+  // Canonical propio, aunque la página sea `noindex`. Sin él heredaba el de la
+  // raíz y quedaba declarando que el login "es" la home.
+  alternates: { canonical: "/ingresar" },
+  // `nofollow` además de `noindex`: no hay nada acá que valga la pena rastrear
+  // y así no se gasta presupuesto de rastreo en una maqueta sin funcionalidad.
+  robots: { index: false, follow: false },
 };
 
 /**

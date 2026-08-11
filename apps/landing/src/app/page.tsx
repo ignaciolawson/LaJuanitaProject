@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Hero } from "@/components/sections/Hero";
 import { Manifesto } from "@/components/sections/Manifesto";
 import { ProgramsRail } from "@/components/sections/ProgramsRail";
@@ -10,6 +12,16 @@ import { Gear } from "@/components/sections/Gear";
 import { Cta } from "@/components/sections/Cta";
 import { VelocityMarquee } from "@/components/motion/VelocityMarquee";
 import { UPCOMING_DATES } from "@/data/dates";
+
+/**
+ * Sólo el canonical: el título, la descripción y las tarjetas sociales de la
+ * home salen de los valores por defecto del layout, que ya están escritos para
+ * ella. Declarar el canonical acá y no allá es lo que evita que lo hereden las
+ * rutas que no definen el suyo (ver la nota en `layout.tsx`).
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * Home.
