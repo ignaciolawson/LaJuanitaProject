@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════
+   LA JUANITA — PLATAFORMA DE GESTIÓN
+
+   Mismas tres tintas que la landing (hueso, tinta, rojo de marca), pero
+   al revés: la landing es oscura y teatral porque vende; esto se mira
+   ocho horas por día para cargar alumnos y cobrar, así que va sobre
+   fondo claro, denso y sin una sola animación decorativa.
+
+   El rojo se usa como bisturí, no como relleno: acción principal,
+   estado activo y error. Si empieza a aparecer en todos lados, deja de
+   señalar nada.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ink: #0a0a0b;
+  --ink-2: #131315;
+  --bone: #e8e1d4;
+  --bone-2: #d9d0be;
+  --red: #e52328;
+  --red-hover: #ff3a30;
+
+  --papel: #f4f1ea;
+  --linea: rgba(10, 10, 11, 0.12);
+  --tenue: rgba(10, 10, 11, 0.56);
+  --apagado: rgba(10, 10, 11, 0.3);
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-bone: var(--bone);
+  --color-bone-2: var(--bone-2);
+  --color-red: var(--red);
+  --color-red-hover: var(--red-hover);
+  --color-papel: var(--papel);
+  --color-linea: var(--linea);
+  --color-tenue: var(--tenue);
+  --color-apagado: var(--apagado);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--papel);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El foco visible no se saca nunca: esto lo van a usar personas que cargan
+   datos con el teclado todo el día. */
+:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}

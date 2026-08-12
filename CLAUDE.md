@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electronic music production academy, Pilar). Two deliverables:
 
 1. **Landing page** (`apps/landing`) — public marketing site replacing the client's current Linktree. **Has its own `CLAUDE.md` — read it before touching styles or animations there.** It documents a custom design system, a GSAP motion architecture, and several already-solved integration traps that are easy to re-break.
-2. **Management platform** (`apps/platform` + `apps/backend`) — authenticated system covering students, room/schedule booking, payments, student/teacher portals, mix & mastering requests, and the record label workflow. **This is the current work.** As of 2026-08-10 both apps are untouched scaffolding: `platform` is the stock Vite template, `backend` is one `@SpringBootApplication` class.
+2. **Management platform** (`apps/platform` + `apps/backend`) — authenticated system covering students, room/schedule booking, payments, student/teacher portals, mix & mastering requests, and the record label workflow. **This is the current work.** As of 2026-08-11 Fase 0 is done: the database exists, login works end to end (JWT), and `platform` has a real login screen plus a protected route behind a role-driven menu. No business module is built yet — Alumnos is first, September.
 
 > **Read `docs/sistema-gestion-plan.md` before doing anything on platform/backend.** It is the source of truth for scope, deadline, build order, and the technical decisions already settled (Flyway, the corrected role model, JWT, file storage, hosting shape). Written in Spanish, for the developer as much as for Claude. If a decision there changes, edit that file — don't leave the old decision alongside the new one.
 
@@ -49,6 +49,12 @@ cd apps/backend && mvn -Dtest=ClassName#methodName test   # single test
 
 docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanita)
 ```
+
+**To see the platform running you need all three up**, in this order: `docker compose up -d`,
+then `mvn spring-boot:run` in `apps/backend` (:8080), then `npm run dev:platform` (:5173).
+The Vite dev server proxies `/api` to :8080, so the browser only ever talks to :5173.
+Log in with **`admin@lajuanita.local` / `lajuanita2026`** — a development credential seeded by
+`V3__usuario_admin_inicial.sql`, to be deactivated in a new migration before the real deploy.
 
 **Use `mvn`, not `./mvnw`.** The wrapper tries to download its own Maven and fails on
 this machine (`curl: Failed to fetch .../apache-maven-3.9.16-bin.zip`); a working Maven
@@ -126,13 +132,37 @@ that no longer matches the site. See that file's header note.
 
 **Data model — "usuario" is the root identity, not "alumno".** The original client-provided model treated `ALUMNO` (student) as the system's user, which breaks for one-off customers (someone who only rents the booth, buys gear, or sends a mastering job without ever enrolling). The corrected model: `usuario` is the single login identity; `alumno` and `profesor` are separate tables hanging off `usuario` via FK, not replacements for it. Transactional tables (`reserva`, `pago`, `venta_equipo`, `solicitud_reprogramacion`) key off `id_usuario`, never `id_alumno`. Full schema: `docs/db/la_juanita_schema.dbml.txt` (paste into dbdiagram.io to visualize).
 
-**Two independent axes, not one `rol` column.** `usuario.rol` in the DBML still carries the original `'admin / directivo / profesor / alumno / cliente'`; it becomes **`ADMIN` / `STAFF` / `USUARIO`** when `V1__baseline.sql` is written. Permissions (what you may administer — this is what Spring Security reads) are separate from business relations (whether you have an `alumno` / `profesor` row — this is what builds the portal menu). Ghezz is `STAFF` *and* a `profesor` *and* can book a booth for himself, with no contradiction.
+**Two independent axes, not one `rol` column.** Permissions (what you may administer — this is what Spring Security reads) are separate from business relations (whether you have an `alumno` / `profesor` row — this is what builds the portal menu). Ghezz is `STAFF` *and* a `profesor` *and* can book a booth for himself, with no contradiction.
 
-**Portal menu is two rules, not one.** Sections tied to a *relation* (Mis Cursos, Mis Alumnos, Subir Material) render only when the relation exists. Sections tied to a *service anyone can buy* (Reservar cabina, Mix & Mastering, Mis Pagos) always render — gate those on existing rows and a user who never booked can never make a first booking. Both are driven off `GET /api/me` (user + role + which relations exist); never hardcode the menu.
+**There are four roles: `ADMIN` / `DIRECTIVO` / `STAFF` / `USUARIO`.** Not three. The plan of 2026-08-10 collapsed them to three; `docs/requirements/platform.md` §2.1 corrected that on 2026-08-11 because the commercial proposal promises four differentiated roles and Module 8 draws a real line between them (*"only directors and partners see the full dashboard; Micaela sees the basic financial summary"*). Four places now carry the four roles and must move together: the CHECK in `V1__baseline.sql`, the `Rol` enum in Java, the `Rol` type in TypeScript, and `docs/db/la_juanita_schema.dbml.txt`. Adding a role is a migration *plus* three file edits.
+
+**Portal menu is three rules, not one.** Sections tied to a *relation* (Mis Cursos, Mis Alumnos, Subir Material) render only when the relation exists. Sections tied to a *service anyone can buy* (Reservar cabina, Mix & Mastering, Mis Pagos) always render — gate those on existing rows and a user who never booked can never make a first booking. Administration sections render by `rol`. All three are driven off `GET /api/me` (user + role + which relations exist); never hardcode the menu. The rules live in one file, `apps/platform/src/layout/menu.ts`.
+
+**Login (built 2026-08-11).** `POST /api/auth/login` → BCrypt check → HMAC-signed JWT (8h, `sub` = user id, claim `rol`); `GET /api/me` re-reads the user from the database rather than trusting the claims, so a role change or a deactivation takes effect without waiting for the token to expire. Signing and verification are Spring Security's own (`starter-security-oauth2-resource-server`) — there is no hand-written auth filter, and there shouldn't be. The front stores the token in `localStorage` and sends it as `Authorization: Bearer`; in dev the Vite proxy forwards `/api` to `:8080`, so CORS is not exercised locally even though the backend configures it.
+
+Things worth not re-learning, most found by auditing the first version:
+
+- **`NimbusJwtEncoder` defaults to RS256** and fails with *"Failed to select a JWK signing key"* unless you pass `JwsHeader.with(MacAlgorithm.HS256)` — the symmetric key alone is not enough.
+- **Spring's default JWT validator does not require `exp`** — it only checks it when present, so a token without one never expires. `SeguridadConfig` adds validators requiring `exp` *and* `iss`.
+- **All three login failures (unknown email, wrong password, deactivated user) return the identical 401 body** on purpose — *and take the same time*. When the email doesn't exist the code still runs a BCrypt comparison against a decoy hash; without it the response came back in ~10 ms instead of ~88 ms and that gap alone told an attacker which emails have accounts. Don't "optimise away" that seemingly useless comparison, and don't differentiate the messages.
+- **`/error` must stay `permitAll`.** It is Spring's internal error forward, not an endpoint. Left authenticated, every error on a public endpoint comes back as an empty 401 — a malformed login body returned 401 instead of 400, hiding the real failure from the front end.
+- **`@EnableMethodSecurity` is on.** Without it a `@PreAuthorize` compiles and silently does nothing, which is worse than having no annotation at all.
+- **Spring Security 7 adds a `FactorGrantedAuthority` (`FACTOR_BEARER`)** alongside your own authorities. Assert `contains("ROLE_X")`, never `containsExactly`.
+- **The JWT signing secret is committed** in `application.properties` so a fresh clone runs. Anyone with repo access can forge an ADMIN token with it, so set `JWT_SECRET` anywhere reachable from outside; the app warns on every boot that uses the dev secret and refuses to start if a production profile is active.
 
 **Backend**: Spring Boot 4.1 / Java 21, Spring Data JPA, Spring Security (JWT), Bean Validation, Lombok. `spring.jpa.hibernate.ddl-auto=validate` — no auto-DDL, ever. Schema lives in Flyway migrations under `src/main/resources/db/migration`: `V1__baseline.sql` (22 tables) and `V2__datos_iniciales.sql` (rooms + the room×use matrix). As of 2026-08-11 the app starts clean and both migrations apply.
 
 **Spring Boot 4 moved autoconfigurations into their own modules.** Depending on raw `org.flywaydb:flyway-core` puts Flyway on the classpath but **it never runs at startup, silently** — the app boots against an empty database and `ddl-auto=validate` passes because there are no entities yet. The dependency that carries the autoconfiguration is `org.springframework.boot:spring-boot-starter-flyway`. Same pattern elsewhere in this pom: it uses `spring-boot-starter-webmvc`, not `spring-boot-starter-web`. Don't port Spring Boot 3 dependency names from memory — check the 4.1 BOM.
+
+The same reshuffle hits **packages and libraries**, not just artifact ids. Verified on 4.1.0, each of these differs from what Boot 3 tutorials (and training data) say:
+
+| What | Boot 3 | **Boot 4.1** |
+|---|---|---|
+| `@AutoConfigureMockMvc` | `…boot.test.autoconfigure.web.servlet` | `…boot.webmvc.test.autoconfigure` |
+| JSON | Jackson 2, `com.fasterxml.jackson.databind` | **Jackson 3, `tools.jackson.databind`** |
+| OAuth2 resource server starter | `spring-boot-starter-oauth2-resource-server` | either that or `spring-boot-starter-security-oauth2-resource-server` — the BOM ships **both, and they are identical** (checked); prefer the second for consistency |
+
+When something won't resolve, list what's actually there instead of guessing: `mvn dependency:list`, or `jar tf` over the jars in `~/.m2`.
 
 **Business rules are enforced in the database, not only in services.** A Postgres `EXCLUDE` constraint makes overlapping `reserva` rows for the same `sala` impossible; a composite FK to `sala_tipo_uso` makes an unauthorized room/use combination impossible (no recording in Sala 1, no mentoring in the recording booth); triggers keep reservations and `bloqueo_sala` from overlapping; a partial unique index allows only one active `inscripcion` per discipline per student. Read the comments in `V1__baseline.sql` before changing any of them — each one encodes a decision from `docs/requirements/platform.md`.
 

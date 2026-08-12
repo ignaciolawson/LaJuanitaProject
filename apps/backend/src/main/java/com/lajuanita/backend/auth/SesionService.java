@@ -1,0 +1,147 @@
+package com.lajuanita.backend.auth;
+
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.lajuanita.backend.alumno.AlumnoRepository;
+import com.lajuanita.backend.auth.TokenService.TokenEmitido;
+import com.lajuanita.backend.profesor.ProfesorRepository;
+import com.lajuanita.backend.usuario.Usuario;
+import com.lajuanita.backend.usuario.UsuarioRepository;
+
+/** Iniciar sesión y responder quién es el usuario que está pidiendo. */
+@Service
+public class SesionService {
+
+    private final UsuarioRepository usuarios;
+    private final AlumnoRepository alumnos;
+    private final ProfesorRepository profesores;
+    private final PasswordEncoder passwordEncoder;
+    private final TokenService tokens;
+
+    /**
+     * Hash contra el que se compara cuando el email NO existe, para que ese
+     * caso cueste lo mismo que una contraseña equivocada. Ver
+     * {@link #iniciarSesion}.
+     *
+     * <p>Se calcula al arrancar sobre un valor aleatorio: así siempre es un
+     * hash válido, con el mismo costo que el encoder configurado, y no hay una
+     * constante en el código que alguien pueda reconocer.
+     */
+    private final String hashSenuelo;
+
+    public SesionService(UsuarioRepository usuarios,
+            AlumnoRepository alumnos,
+            ProfesorRepository profesores,
+            PasswordEncoder passwordEncoder,
+            TokenService tokens) {
+        this.usuarios = usuarios;
+        this.alumnos = alumnos;
+        this.profesores = profesores;
+        this.passwordEncoder = passwordEncoder;
+        this.tokens = tokens;
+        this.hashSenuelo = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
+
+    /**
+     * Valida las credenciales y devuelve la credencial firmada.
+     *
+     * <p>Los tres motivos de rechazo (mail inexistente, contraseña incorrecta,
+     * usuario dado de baja) terminan en la misma excepción y el mismo mensaje:
+     * ver {@link CredencialesInvalidasException}.
+     *
+     * <p><b>Y tardando aproximadamente lo mismo.</b> Que el cuerpo de la
+     * respuesta sea idéntico no alcanza: si con un email inexistente se saliera
+     * antes de comparar la contraseña, la respuesta llegaría en ~10 ms en vez
+     * de ~85, y ese reloj dice exactamente lo que el mensaje se esfuerza por
+     * callar -- qué direcciones tienen cuenta. Por eso, cuando el usuario no
+     * existe, igual se compara contra {@link #hashSenuelo}: el trabajo de BCrypt
+     * se hace siempre. <b>No hay que "optimizar" esa comparación aparentemente
+     * inútil.</b>
+     *
+     * <p>Medido: antes eran ~10 ms contra ~88 ms (un solo pedido bastaba);
+     * ahora ~82 ms contra ~105 ms. Queda una diferencia chica -- el camino con
+     * usuario encontrado hace además el trabajo de traerlo y dejarlo en el
+     * contexto de persistencia -- así que esto <b>no</b> es tiempo constante:
+     * es un orden de magnitud menos de señal, no cero. Cerrarla del todo exige
+     * responder con un retardo fijo, y no vale la pena hasta que el sistema
+     * esté expuesto a internet (ver la deuda anotada en el plan sobre el límite
+     * de intentos, que es el control que de verdad falta).
+     */
+    @Transactional
+    public LoginResponse iniciarSesion(LoginRequest solicitud) {
+        Usuario usuario = usuarios.findByEmailIgnoreCase(solicitud.email()).orElse(null);
+
+        if (usuario == null) {
+            passwordEncoder.matches(solicitud.password(), hashSenuelo);
+            throw new CredencialesInvalidasException();
+        }
+
+        if (!passwordEncoder.matches(solicitud.password(), usuario.getPasswordHash())) {
+            throw new CredencialesInvalidasException();
+        }
+
+        if (!usuario.isActivo()) {
+            throw new CredencialesInvalidasException();
+        }
+
+        usuario.setUltimoAcceso(OffsetDateTime.now());
+
+        TokenEmitido token = tokens.emitirPara(usuario);
+        return new LoginResponse(token.valor(), token.expira(), describir(usuario));
+    }
+
+    /**
+     * Arma la respuesta de {@code GET /api/me} a partir del {@code sub} que
+     * viene en el token.
+     *
+     * <p>Vuelve a leer el usuario de la base en vez de confiar en los claims: el
+     * token es válido hasta que vence, así que si en el medio le cambiaron el
+     * rol o lo dieron de baja, el claim quedó viejo. Acá se entera.
+     *
+     * @param subject el claim {@code sub}, tal cual vino. Se parsea acá y no en
+     *                el controller para que un token con un {@code sub} que no
+     *                es un número termine en 401 y no en un 500.
+     */
+    @Transactional(readOnly = true)
+    public UsuarioActual describirPorSubject(String subject) {
+        long idUsuario;
+        try {
+            idUsuario = Long.parseLong(subject);
+        } catch (NumberFormatException e) {
+            throw new SesionInvalidaException();
+        }
+
+        Usuario usuario = usuarios.findById(idUsuario)
+                .orElseThrow(SesionInvalidaException::new);
+
+        if (!usuario.isActivo()) {
+            throw new SesionInvalidaException();
+        }
+
+        return describir(usuario);
+    }
+
+    /**
+     * Los dos ejes juntos: el rol (permisos) y qué relaciones de negocio
+     * existen. Con esto el front decide qué secciones dibujar -- pero solo las
+     * ligadas a "quién sos". Las ligadas a un servicio que cualquiera contrata
+     * (reservar cabina, mix &amp; mastering, mis pagos) van SIEMPRE, no dependen
+     * de esta respuesta: si se ocultaran hasta tener la primera fila, quien
+     * nunca reservó no podría hacer su primera reserva jamás.
+     */
+    private UsuarioActual describir(Usuario usuario) {
+        return new UsuarioActual(
+                usuario.getId(),
+                usuario.getNombreCompleto(),
+                usuario.getEmail(),
+                usuario.getRol(),
+                usuario.getFotoPerfil(),
+                alumnos.existsByUsuarioId(usuario.getId()),
+                profesores.existsByUsuarioId(usuario.getId()));
+    }
+}

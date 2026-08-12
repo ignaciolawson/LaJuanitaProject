@@ -38,6 +38,24 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
+
+		<!--
+			JWT: se usa el soporte propio de Spring Security (Nimbus por debajo),
+			no una librería de terceros. Spring da el decodificador, el filtro de
+			autenticación y el manejo de token expirado/malformado ya hechos; acá
+			solo se firma el token al iniciar sesión.
+
+			Ojo al nombre: el BOM 4.1 expone DOS artefactos,
+			`spring-boot-starter-oauth2-resource-server` (nombre heredado de
+			Boot 3) y este. Se verificó que son idénticos: ambos traen
+			`spring-boot-security-oauth2-resource-server`, que es el módulo con la
+			autoconfiguración. Se usa el nombre nuevo por consistencia con
+			`starter-webmvc` y `starter-flyway`.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>

@@ -1,10 +1,10 @@
 # La Juanita Studio / La Juanita Music
 
-Sistema completo para el sello discográfico y academia de DJ y producción de música electrónica La Juanita (sede Pilar, expansión a Córdoba). Proyecto académico desarrollado por Ignacio Lawson.
+Sistema completo para el sello discográfico y academia de DJ y producción de música electrónica La Juanita (Pilar). Proyecto académico desarrollado por Ignacio Lawson.
 
 Dos entregables:
 
-1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual. Doce rutas, estática. Ver [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
+1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual. Catorce rutas, estática. Ver [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
 2. **Sistema de gestión interno** (`apps/platform` + `apps/backend`) — alumnos, horarios/salas, pagos, portal alumno, portal profesor, mix & mastering, sello discográfico, dashboard de dirección.
 
 ## Estructura del repo
@@ -32,13 +32,42 @@ docs/
 
 ## Desarrollo local
 
-### Base de datos
+### 1. Base de datos
 
 ```
 docker compose up -d
 ```
 
 Levanta Postgres en `localhost:5432` (db `la_juanita`, user/pass `la_juanita`).
+Docker Desktop tiene que estar corriendo, o el comando falla con un error de
+*named pipe*.
+
+### 2. Backend
+
+```
+cd apps/backend
+mvn spring-boot:run
+```
+
+Queda en `http://localhost:8080`. Al arrancar, Flyway aplica las migraciones de
+`src/main/resources/db/migration` sobre la base vacía.
+
+> **Usá `mvn`, no `./mvnw`.** El wrapper intenta descargarse su propio Maven y
+> falla en esta máquina; ya hay un Maven en el `PATH`. El `PATH` tiene JDK 25 y
+> el pom apunta a 21: compila igual, no es el problema que parece.
+
+### 3. Platform
+
+```
+cd apps/platform
+npm run dev
+```
+
+Queda en `http://localhost:5173`. **Necesita el backend arriba**: el dev server
+de Vite redirige `/api` a `:8080` (ver `vite.config.ts`), así que el navegador
+ve un solo origen y no hay CORS en el medio.
+
+Para entrar, las credenciales de desarrollo están más abajo.
 
 ### Landing
 
@@ -47,30 +76,95 @@ cd apps/landing
 npm run dev
 ```
 
-### Platform
+### Tests
 
 ```
-cd apps/platform
-npm run dev
+cd apps/backend && mvn test        # 25 casos: login, JWT, roles
+cd apps/platform && npm run build  # incluye el chequeo de tipos
+cd apps/platform && npm run lint
 ```
 
-### Backend
+Las pruebas de reglas de negocio de la base (69 casos SQL) se corren aparte;
+las instrucciones están en la cabecera de
+`apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql`.
 
-```
-cd apps/backend
-./mvnw spring-boot:run
-```
+## Autenticación
+
+Implementado en la Fase 0 (2026-08-11). El detalle de las decisiones está en
+[`docs/sistema-gestion-plan.md`](docs/sistema-gestion-plan.md) §6.
+
+| Endpoint | Público | Qué hace |
+|---|---|---|
+| `POST /api/auth/login` | ✅ | Recibe `{email, password}`. Verifica con BCrypt y devuelve `{token, expiraEn, usuario}`. |
+| `GET /api/me` | ❌ | Devuelve el usuario del token: datos + `rol` + `esAlumno` / `esProfesor`. |
+
+Todo lo demás exige `Authorization: Bearer <token>`.
+
+**Cómo funciona.** La contraseña se guarda solo como hash BCrypt; es
+irreversible, y si alguien la olvida se resetea, no se recupera. El login
+devuelve un JWT firmado con HMAC-SHA256 que vale 8 horas y lleva únicamente
+`sub` (el id del usuario) y `rol` — un JWT va firmado pero **no** encriptado,
+así que cualquiera que lo tenga puede leer sus claims. Firma y verificación las
+hace Spring Security con su propio soporte JWT: no hay ningún filtro de
+autenticación escrito a mano. `GET /api/me` **relee el usuario de la base** en
+vez de confiar en los claims, para que un cambio de rol o una baja peguen sin
+esperar a que el token venza.
+
+Los errores salen en formato ProblemDetail (RFC 7807): el mensaje para mostrar
+está siempre en `detail`, y los errores por campo en `errores`.
+
+### Roles
+
+Son cuatro, y son un eje **independiente** de las relaciones de negocio:
+
+| Rol | Alcance |
+|---|---|
+| `ADMIN` | Todo, incluida la administración de usuarios |
+| `DIRECTIVO` | Lee todo. No escribe nada |
+| `STAFF` | Opera: alumnos, reservas, pagos |
+| `USUARIO` | Solo lo propio |
+
+Tener fila en `alumno` o en `profesor` es otra cosa distinta del rol: alguien
+puede ser `STAFF` **y** profesor **y** alquilarse una cabina, las tres a la vez.
+El menú del portal se arma con la respuesta de `/api/me`
+(`apps/platform/src/layout/menu.ts`), nunca hardcodeado.
+
+> ⚠️ **Ocultar una opción del menú no es un mecanismo de seguridad.** Hoy el
+> backend solo exige estar autenticado; todavía no hay ningún endpoint de
+> administración que restringir. Cuando los haya, la autorización va en el
+> backend con `@PreAuthorize` (`@EnableMethodSecurity` ya está activo).
+
+### Credenciales de desarrollo
+
+`admin@lajuanita.local` / `lajuanita2026`, sembradas por
+`V3__usuario_admin_inicial.sql`. **Son de desarrollo**: el dominio `.local` no
+existe ni puede registrarse. Antes del deploy real hay que crear los usuarios
+reales y desactivar esta cuenta en una migración nueva.
+
+### Antes de desplegar esto en algún lado
+
+El secreto de firma JWT está **commiteado** en `application.properties` para que
+el proyecto arranque recién clonado. Cualquiera con acceso al repo puede fabricar
+con él un token de `ADMIN` sin saber ninguna contraseña. En cualquier entorno
+accesible desde afuera hay que definir la variable de entorno `JWT_SECRET`
+(Base64, mínimo 32 bytes). La aplicación avisa por log cuando está usando el
+secreto de desarrollo, y **se niega a arrancar** si detecta un perfil de
+producción activo con ese secreto.
 
 ## Estado de la landing
 
 Estática, sin datos dinámicos. Incluye academia (tres programas con página
 de detalle), servicios (alquiler de cabina y grabación de sets), venta de
-equipamiento y sello.
+equipamiento, sello y blog.
 
 **Todos los formularios son visuales**: solicitudes, reservas, consultas e
-inicio de sesión no envían nada y lo avisan en pantalla. Buena parte del
-contenido —precios incluidos— todavía es placeholder pendiente de validar
-con el cliente; el detalle está en [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
+inicio de sesión no envían nada. El aviso de "no se envía" se sacó de pantalla
+a pedido del cliente el 2026-08-09, así que hoy contestan "listo" sin que la
+solicitud le llegue a nadie — **por eso la landing no se publica hasta que el
+sistema de gestión pueda recibir esos formularios** (decisión del 2026-08-10).
+Buena parte del contenido —precios incluidos— todavía es placeholder pendiente
+de validar con el cliente; el detalle está en
+[`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
 
 ## Modelo de datos
 

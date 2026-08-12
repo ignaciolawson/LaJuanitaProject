@@ -34,6 +34,11 @@ incluir un **piloto de uso real**, no solo "está deployado".
 
 ## 2. Estado al 2026-08-10
 
+> **Actualización 2026-08-11:** todo lo que esta sección describe como pendiente del
+> lado del sistema **ya está hecho** (Fase 0 completa, ver §6). Lo que sigue vigente
+> tal cual es el estado de `apps/landing` y su bloqueo por datos del cliente. Se deja
+> el texto original porque es el punto de partida contra el que se mide el avance.
+
 - **`apps/landing`** — terminada. Bloqueada para publicar, pero **no por código**:
   faltan datos que tiene que confirmar el cliente (dirección, teléfono, horarios,
   precios reales, perfiles reales de Instagram/YouTube) y las 6 notas del blog que
@@ -46,10 +51,10 @@ incluir un **piloto de uso real**, no solo "está deployado".
   `docs/db/la_juanita_schema.dbml.txt`, pero **viven solo en un `.txt`**. No existen
   en ninguna base de datos.
 
-⚠️ **Bloqueo activo:** `application.properties` tiene `spring.jpa.hibernate.ddl-auto=validate`
-y no hay migraciones. Hibernate valida contra un schema vacío, así que **hoy el backend
-no arranca contra la base.** No es un bug: es una decisión correcta (nada de auto-DDL)
-a la que le falta la otra mitad. Se resuelve en el paso 2 de la Fase 0.
+~~⚠️ **Bloqueo activo:** `application.properties` tiene `spring.jpa.hibernate.ddl-auto=validate`
+y no hay migraciones.~~ **Resuelto el 2026-08-11**: existen `V1`, `V2` y `V3`, y
+`ddl-auto=validate` ahora valida las entidades contra un schema real. Se queda en
+`validate` para siempre: nada de auto-DDL.
 
 ---
 
@@ -78,12 +83,19 @@ con la gente que hace varias cosas, que en un estudio de 10 personas son casi to
 Se separa en dos ejes independientes:
 
 **Eje A — qué podés administrar del sistema** (lo que revisa Spring Security).
-`usuario.rol` pasa a tener tres valores:
+`usuario.rol` pasa a tener cuatro valores:
+
+> ⚠️ **Corregido el 2026-08-11.** Este plan había colapsado los permisos en tres roles.
+> La propuesta comercial promete explícitamente *"cuatro roles diferenciados"* y el
+> Módulo 8 distingue de verdad entre directivo y staff. Volvieron a ser cuatro; el
+> detalle del porqué está en `docs/requirements/platform.md` §2.1, que manda sobre
+> esta tabla. Ya están así en el CHECK de `V1__baseline.sql` y en el enum `Rol`.
 
 | Rol | Quién | Alcance |
 |---|---|---|
-| `ADMIN` | Ignacio, dueños | Todo, incluido el dashboard con la facturación |
-| `STAFF` | Micaela, Ghezz | Gestión diaria: alumnos, reservas, pagos |
+| `ADMIN` | Ignacio, dirección técnica | Todo, incluida la administración de usuarios y roles |
+| `DIRECTIVO` | Socios e inversores | **Lee todo** (dashboard completo, cualquier alumno). **No escribe nada.** |
+| `STAFF` | Micaela, Ghezz | Gestión diaria: alumnos, reservas, pagos. Resumen financiero **básico** |
 | `USUARIO` | Todos los demás | Solo lo propio |
 
 **Eje B — qué sos para el negocio** (lo que arma el menú del portal): tenés fila en
@@ -107,8 +119,9 @@ nunca reservó **nunca ve el botón de reservar** y no puede hacer su primera re
 tiene. El front dibuja el menú con esa respuesta. Nada hardcodeado, nada que se
 desincronice.
 
-**Cambio pendiente al schema:** `usuario.rol` → `'ADMIN' / 'STAFF' / 'USUARIO'`. Se
-aplica al escribir `V1__baseline.sql`.
+✅ **Aplicado el 2026-08-11** en el CHECK `usuario_rol_valido` de `V1__baseline.sql`, en
+el enum `Rol` de Java y en el tipo `Rol` de TypeScript. Las tres definiciones tienen que
+moverse juntas: si se agrega un rol, es una migración *más* dos archivos de código.
 
 ### 3.3 Login: credencial firmada (JWT)
 
@@ -239,26 +252,104 @@ que el patrón de las primeras 10 estaba mal.
      paso 4, no en `V2` (ver abajo).
    - **DBML regenerado** a v3 desde el SQL real, con las 7 reglas que el diagrama no
      puede dibujar listadas en la cabecera.
-4. ⬜ **`usuario` de punta a punta** — el próximo paso. Guardar, leer, login, credencial
-   firmada (JWT) y `GET /api/me` devolviendo usuario + rol + qué relaciones tiene.
+4. ✅ **HECHO (2026-08-11)** — **`usuario` de punta a punta.** Entidades JPA
+   (`Usuario`, `Alumno`, `Profesor`), `POST /api/auth/login` con BCrypt, credencial
+   firmada con HMAC y `GET /api/me` devolviendo usuario + rol + qué relaciones tiene.
+   La firma la hace y la verifica Spring Security con su propio soporte JWT: **no hay
+   ningún filtro de autenticación escrito a mano**, y no debería haberlo.
 
-   Incluye **`V3__usuario_admin_inicial.sql`**: hoy una base recién creada no tiene con
-   qué loguearse. No se sembró antes a propósito — guardar una contraseña encriptada
-   exige haber elegido el algoritmo (va a ser BCrypt, el de Spring Security), y sembrar
-   un hash con un método que después hay que cambiar obliga a migrar contraseñas, que
-   es de lo más molesto que hay. El hash se genera con el mismo código que después
-   valida el login, así queda coherente por construcción.
+   `V3__usuario_admin_inicial.sql` siembra `admin@lajuanita.local` / `lajuanita2026`.
+   El hash se generó con el mismo `BCryptPasswordEncoder` que valida el login, y
+   `AutenticacionTest` lo verifica en cada build. **Es credencial de desarrollo: hay
+   que desactivarla en una migración nueva antes del deploy real.**
 
-   Ojo al escribir las entidades JPA: la tabla `release` es palabra reservada en otros
-   motores. Postgres la acepta sin comillas (probado), pero si Hibernate se queja, se
-   resuelve con `@Table(name = "\"release\"")`.
+   Tres cosas que costaron y conviene no volver a descubrir:
+   - `NimbusJwtEncoder` asume **RS256** si no le pasás el `JwsHeader`, y falla con
+     *"Failed to select a JWK signing key"* aunque la clave simétrica esté bien.
+   - En Boot 4, `@AutoConfigureMockMvc` vive en `…boot.webmvc.test.autoconfigure`, y
+     el JSON es **Jackson 3** (`tools.jackson.*`), no `com.fasterxml.jackson`.
+   - `/api/me` **relee el usuario de la base** en vez de confiar en los claims: el
+     token vale 8 horas, así que un cambio de rol o una baja tienen que pegar antes
+     de que venza.
 
-5. ⬜ En `platform`: tirar el template de Vite, pantalla de login real, menú lateral que
-   se arma según quién sos (3.2).
+4b. ✅ **AUDITORÍA DE LA FASE 0 (2026-08-12)** — revisión crítica de todo lo
+   anterior antes del commit, atacando el código en vez de confirmarlo. Encontró
+   **7 problemas reales**, todos corregidos, y llevó los tests de 10 a 25 casos.
 
-Al terminar la Fase 0 hay un sistema que todavía no hace nada útil, pero **al que entrás
-con tu mail y tu contraseña**. De ahí en adelante cada módulo es repetir un patrón que
-ya funciona.
+   Los dos que importan de verdad:
+
+   - 🔴 **Se podía averiguar qué emails tienen cuenta, midiendo el tiempo.** Los
+     tres rechazos del login devolvían el mismo cuerpo — el test lo verificaba —
+     pero con un email inexistente el código salía **antes** de comparar la
+     contraseña: ~10 ms contra ~88 ms. Un solo pedido bastaba. Ahora, cuando el
+     usuario no existe, igual se compara contra un hash señuelo. **La protección
+     de un mensaje idéntico no sirve de nada si el reloj lo delata.**
+   - 🔴 **Se aceptaban tokens sin vencimiento.** El validador por defecto de
+     Spring solo controla `exp` si está presente; un token forjado sin ese claim
+     valía para siempre. Ahora se exigen `exp` e `iss`.
+
+   Y cuatro trampas de configuración que valen para todo lo que venga:
+   `@PreAuthorize` sin `@EnableMethodSecurity` **compila y no hace nada**;
+   `/error` autenticado convierte cualquier error de un endpoint público en un
+   401 vacío que esconde el error real; `@ConfigurationProperties` sin
+   `@Validated` ignora las anotaciones de validación; y un `sub` no numérico
+   reventaba con un 500 en vez de un 401.
+
+   Del lado del front: el token podía vencer con la app abierta y **nada
+   reaccionaba** — la interfaz seguía mostrando el menú de alguien que ya no
+   estaba autenticado. Ahora cualquier 401 en un pedido con credencial cierra la
+   sesión.
+
+   Se verificó además, contra la base real, que las migraciones se aplican desde
+   cero (`V1`→`V3`) y que las entidades JPA coinciden columna por columna.
+
+   *(Nota que sigue vigente para más adelante: la tabla `release` es palabra reservada
+   en otros motores. Postgres la acepta sin comillas, pero si Hibernate se queja, se
+   resuelve con `@Table(name = "\"release\"")`.)*
+
+5. ✅ **HECHO (2026-08-11)** — En `platform`: se tiró el template de Vite, hay pantalla
+   de login real, ruta protegida y menú lateral armado desde `/api/me` (3.2). Las
+   secciones de módulos que todavía no existen se dibujan apagadas y no navegan, para
+   que se vea hacia dónde va el sistema sin fingir que ya está.
+
+   Decisiones tomadas acá: **react-router** para rutas; **sin librería de caché de
+   datos** (TanStack Query y compañía) hasta que haya listas y mutaciones de verdad,
+   en septiembre; el token en `localStorage` con header `Authorization`; y en
+   desarrollo el **proxy de Vite** manda `/api` al :8080, así el navegador ve un solo
+   origen y CORS no entra en juego. Ese último punto tiene una contracara: el bean de
+   CORS del backend existe pero **no se ejerce en desarrollo**. Si algún día el front
+   y la API viven en dominios distintos, hay que probarlo antes de confiar en él.
+
+✅ **Fase 0 cerrada el 2026-08-11.** Hay un sistema que todavía no hace nada útil, pero
+**al que entrás con tu mail y tu contraseña**. De ahí en adelante cada módulo es repetir
+un patrón que ya funciona: el que dejó `AutenticacionTest` (DTO como `record` +
+servicio transaccional + `ProblemDetail` para los errores + test del endpoint contra la
+base real).
+
+**Deuda conocida que dejó la Fase 0**, para saldar antes de que crezca:
+
+- Los tests de JPA corren **contra la base de desarrollo**, no contra una descartable.
+  Hoy es inofensivo porque solo leen y tocan `ultimo_acceso`. El día que un test
+  necesite INSERT o DELETE de datos de negocio, hay que meter **Testcontainers antes**,
+  no después. (Los 69 casos SQL de reglas de negocio sí corren contra una base
+  descartable: ese patrón ya está bien.)
+- No hay forma de **revocar** un token antes de que venza. Dar de baja a alguien le
+  corta `/api/me` enseguida, pero el token sigue siendo válido hasta 8 horas. Si hace
+  falta corte inmediato, la solución es una lista de revocados, **no** bajar el
+  vencimiento a minutos.
+- **El login no tiene límite de intentos.** Nada impide probar diez mil contraseñas
+  contra `admin@lajuanita.local`. BCrypt hace que cada intento cueste ~85 ms, lo que
+  ayuda pero no alcanza. Corresponde resolverlo antes de exponer el sistema a
+  internet, no ahora.
+- **El secreto de firma está commiteado** (con aviso por log y bloqueo si hay perfil
+  de producción). Hay que definir `JWT_SECRET` en el deploy de diciembre.
+- **Todavía no hay ninguna autorización por rol en el backend**, solo "estar
+  autenticado" — porque aún no existe ningún endpoint de administración que
+  restringir. `@EnableMethodSecurity` ya está activo y las autoridades `ROLE_*` están
+  probadas, así que el primer `@PreAuthorize` del módulo de alumnos va a funcionar.
+  Hasta entonces, que el menú esconda una sección **no** protege nada.
+- El **primer login del alumno** (P18) sigue sin resolver: hoy solo existe la cuenta
+  sembrada. Es lo primero que pide el módulo de alumnos.
 
 **Luego, por orden de valor:**
 
