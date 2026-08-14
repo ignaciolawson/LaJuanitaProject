@@ -12,24 +12,34 @@ están corregidas en `V6__integridad_auditoria.sql` y fijadas con tests en
 Este archivo documenta **qué garantiza realmente la base y qué no**, que era la
 pregunta de la auditoría.
 
+> **Actualizado el 2026-08-14 (V7).** La auditoría técnica del 13/08 encontró
+> que este documento leyó *"nada se borra"* como una regla **financiera**, y por
+> eso `reserva` y `reserva_participante` —que son el historial de clases, y la
+> razón de ser del Módulo 1— quedaron afuera de §3. Eso, más la anulación de un
+> pago sin autor y el `EXCLUDE` de bloqueos mal definido, se corrigió en
+> `V7__auditoria_historial_y_bloqueos.sql`. Los inventarios y las tablas de
+> abajo están al día con V7; §6 —las reglas sin dueño— creció, que es lo que
+> hay que mirar primero.
+
 ---
 
-## 1. Inventario real (post-V6, leído del catálogo, no de los archivos)
+## 1. Inventario real (post-V7, leído del catálogo, no de los archivos)
 
 | Objeto | Cantidad |
 |---|---|
 | Tablas | 22 |
 | Claves primarias | 22 (todas `BIGINT GENERATED ALWAYS AS IDENTITY`) |
-| Claves foráneas | 46 — **todas `NO ACTION`** en DELETE y en UPDATE, verificado en `pg_constraint` |
-| CHECK | 55 (43 en V1..V5 + 12 en V6) |
+| Claves foráneas | 49 — **todas `NO ACTION`** en DELETE y en UPDATE, verificado en `pg_constraint` |
+| CHECK | 57 (43 en V1..V5 + 12 en V6 + 2 en V7) |
 | UNIQUE | 7 + 6 índices únicos parciales |
-| EXCLUDE | 2 (`reserva`, `bloqueo_sala`) |
-| Índices | 52 |
-| Triggers | 10 (7 de V1 + 3 de V6) |
-| Funciones propias | 10 |
+| EXCLUDE | 2 (`reserva`, `bloqueo_sala` — el segundo, reescrito en V7) |
+| Índices | 55 |
+| Triggers | 14 (7 de V1 + 3 de V6 + 4 de V7) |
+| Funciones propias | 11 |
 | Vistas | **0** |
 | Extensiones | `plpgsql`, `btree_gist` |
-| Columnas generadas | 2 (`reserva.periodo`, `bloqueo_sala.periodo`) |
+| Tipos propios | 1 (`rango_horario`, V7: Postgres no trae un range de `time`) |
+| Columnas generadas | 3 (`reserva.periodo`, `bloqueo_sala.dias`, `bloqueo_sala.franja`) |
 
 Las 22 tablas del informe previo son correctas. No hay objetos fuera de la
 documentación. **No hay ninguna columna monetaria en `float`/`double`**: las 12
@@ -60,6 +70,14 @@ no está en ningún lado.**
 | El premaster no se libera sin pago | 🟢 Trigger + protección del pago (**completado en V6**) |
 | Los estados de mastering y release solo avanzan | 🟢 Trigger (**agujero cerrado en V6**) |
 | El historial financiero no se borra | 🟢 `pago` y `trabajo_mastering` (**nuevo en V6**) — ⚠️ `egreso` y `venta_equipo` NO (§6) |
+| **El historial de CLASES no se borra** | 🟢 `reserva` y `reserva_participante` (**nuevo en V7**) — esta tabla lo daba por cubierto al decir "financiero", y no lo estaba |
+| **La asistencia se edita con auditoría** | 🟢 Trigger que exige `id_usuario_modifico` y sella la fecha (**nuevo en V7**) |
+| **Anular un pago exige autor, fecha y motivo** | 🟢 CHECK (**nuevo en V7**) — antes era la única excepción del esquema que no pedía explicación |
+| **Invalidar un comprobante exige autor, fecha y motivo** | 🟢 CHECK (**nuevo en V7**) |
+| Toda venta queda con su fecha de carga | 🟢 `venta_equipo.fecha_registro` (**nuevo en V7**) |
+| Dos bloqueos no se pisan | 🟢 `EXCLUDE` sobre rango de fechas **y** franja horaria (**rehecho en V7**): el de V6 leía la fila como un intervalo continuo y rechazaba bloqueos legítimos |
+| **No se asigna horario sin seña o pago** | 🔴 **En ningún lado** (§6) — regla dura ✅ de la propuesta |
+| **El nivel no retrocede sin autorización** | 🔴 **En ningún lado** (§6) — regla dura ✅ de la propuesta |
 | Una clase se recupera una sola vez | 🟢 Índice único parcial |
 | No se borra a alguien con historial | 🟢 Las 46 FK en NO ACTION |
 | **No consumir más clases que las contratadas** | 🔴 **En ningún lado** (§6) |
@@ -251,7 +269,53 @@ por trigger desde V1.
 Puede ser legítimo (un padre paga el curso del hijo). Si lo es, hay que
 documentarlo; si no lo es, es un trigger de cinco líneas.
 
-### 🟡 6. `trabajo_mastering.estado` vs `pago.estado_pago`
+### 🔴 6. No se asigna horario sin seña o pago registrado
+
+*Agregada el 2026-08-14 (DB-04a). No estaba en esta lista, y es una **regla dura
+✅** de la propuesta: `platform.md:274`, reforzada en `:39` con la frase textual
+del cliente — "Si no hay seña, el horario queda libre".*
+
+Medido: un `INSERT INTO reserva` sin ningún pago asociado entra sin resistencia.
+
+**Esta no va a vivir en la base, y hay que decirlo en vez de dejarla flotando.**
+La relación va al revés (`pago.id_reserva`), así que en el momento del INSERT de
+la reserva el pago todavía no existe: no hay constraint posible. Es una regla de
+servicio — la reserva se crea junto con su seña, en una transacción — y lo que
+falta decidir antes de escribirla es **P8**: qué cuenta como "autorización
+explícita" para reservar sin seña, que sigue abierta.
+
+### 🔴 7. El nivel de una inscripción puede retroceder
+
+*Agregada el 2026-08-14 (DB-04b). También **regla dura ✅**: `platform.md:276`,
+"el nivel actual no puede retroceder sin autorización de un administrador".*
+
+Medido: `UPDATE inscripcion SET nivel='AVANZADO'` y después
+`SET nivel='INICIAL'`, los dos pasan. `inscripcion_nivel_valido` valida el
+**valor**, no la **transición**.
+
+El esquema ya sabe expresar transiciones —lo hace en
+`verificar_avance_estado_trabajo` y en `verificar_avance_estado_release`—, así
+que la mitad mecánica es un trigger del mismo molde. Lo que falta definir es
+"sin autorización de un administrador": la base no sabe quién opera. O se
+resuelve en el servicio, o se replica el patrón de V7 §2 (una columna de autor
+que el trigger exige cuando el nivel baja).
+
+### 🟡 8. `reserva_horas_validas` no se llega a evaluar nunca
+
+*Agregada el 2026-08-14 (DB-11), encontrada remediando otra cosa.*
+
+`reserva.periodo` es una columna generada, y una columna generada se computa
+**antes** que los CHECK. Con las horas al revés, `tsrange()` corta primero con
+*"range lower bound must be less than or equal to range upper bound"*: un error
+que no nombra las horas y no trae nombre de constraint, así que tampoco se puede
+traducir a un mensaje útil.
+
+No se arregla con una constraint: se valida el orden de las horas en el DTO,
+cuando exista. El CHECK queda como defensa en profundidad. En `bloqueo_sala`
+esto **sí** se pudo evitar —V7 hace que sus columnas generadas devuelvan NULL en
+vez de explotar—, pero en `reserva` la columna viene de V1 y no se edita.
+
+### 🟡 9. `trabajo_mastering.estado` vs `pago.estado_pago`
 
 El informe anterior lo marcó como posible bug. **Investigado a fondo: es
 redundancia real pero de riesgo acotado.**

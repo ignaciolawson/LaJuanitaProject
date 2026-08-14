@@ -1,14 +1,16 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real, migraciones V1..V6.
+// Generado a partir del esquema real, migraciones V1..V7.
 //
 // Al 2026-08-14 el diagrama está AL DÍA: comparado tabla por tabla y columna
-// por columna contra el catálogo de una base con las seis migraciones
-// aplicadas, coinciden las 22 tablas y todas sus columnas. Incluye lo que
-// agregaron V4 (`nombre` + `apellido` en vez de `nombre_completo`), V5
-// (`usuario.debe_cambiar_password`) y V6 (la columna generada
-// `bloqueo_sala.periodo`).
+// por columna contra el catálogo de una base con las migraciones aplicadas,
+// coinciden las 22 tablas y todas sus columnas. Incluye lo que agregaron V4
+// (`nombre` + `apellido` en vez de `nombre_completo`), V5
+// (`usuario.debe_cambiar_password`) y V7 (la auditoría de la anulación de un
+// pago, la del historial de clases, el sello de carga de `venta_equipo` y las
+// dos columnas generadas de `bloqueo_sala`, que reemplazan a la `periodo` de
+// V6).
 //
 // La cabecera anterior decía lo contrario -- "NO REFLEJA V3..V6" -- y era
 // falso: invitaba a "corregir" el diagrama volviendo a `nombre_completo`, que
@@ -18,7 +20,9 @@
 // triggers, y eso es harina de otro costal: está explicado abajo. V6 sumó
 // 12 CHECK, 3 triggers, un EXCLUDE en `bloqueo_sala` y un UNIQUE parcial en
 // `artista.id_usuario`, todos por hallazgos de la auditoría adversarial
-// (`docs/db/auditoria-2026-08-12.md`), y ninguno se ve acá.
+// (`docs/db/auditoria-2026-08-12.md`); V7 sumó 2 CHECK, 4 triggers y rehízo
+// ese EXCLUDE. Ninguno se ve acá. Las notas al pie de cada columna dicen
+// cuáles son obligatorias y cuándo, que es lo más cerca que llega el diagrama.
 //
 // Para ver el diagrama: entrar a https://dbdiagram.io > New Diagram >
 // borrar el ejemplo > pegar este archivo completo.
@@ -197,7 +201,8 @@ Table bloqueo_sala {
   hora_fin             time        [not null, default: '23:59']
   motivo               text        [not null]
   fecha_registro       timestamptz [not null]
-  periodo              tsrange     [note: 'Columna generada (V6): el rango bloqueado']
+  dias                 daterange     [note: 'Columna generada (V7): el rango de fechas, inclusive']
+  franja               rango_horario [note: 'Columna generada (V7): la franja de cada dia. Tipo propio: Postgres no trae un range de time']
 
   Note: 'Mantenimiento o uso especial. Un bloqueo y una reserva no pueden pisarse: lo garantizan dos triggers con lock de fila sobre la sala.'
 }
@@ -284,6 +289,8 @@ Table reserva_participante {
   estado_asistencia varchar(20) [not null, default: 'PENDIENTE', note: 'PENDIENTE / PRESENTE / AUSENTE / AUSENTE_JUSTIFICADO / CANCELADA']
   observaciones     text
   fecha_registro    timestamptz [not null]
+  id_usuario_modifico bigint    [ref: > usuario.id_usuario, note: 'Obligatorio para cambiar estado_asistencia (V7)']
+  fecha_modificacion  timestamptz [note: 'La pone la base al editar, no quien edita (V7)']
 
   Note: '''
   Reemplaza a `historial_clase` del modelo viejo. Como una clase puede ser
@@ -375,6 +382,12 @@ Table pago {
   comprobante_invalido boolean       [not null, default: false]
   fecha_pago           date          [not null]
   fecha_registro       timestamptz   [not null]
+  id_usuario_anula     bigint        [ref: > usuario.id_usuario, note: 'Obligatorio si estado_pago = ANULADO (V7)']
+  fecha_anulacion      timestamptz   [note: 'Obligatoria si estado_pago = ANULADO (V7)']
+  motivo_anulacion     text          [note: 'Obligatorio y no vacío si estado_pago = ANULADO (V7)']
+  id_usuario_invalida  bigint        [ref: > usuario.id_usuario, note: 'Obligatorio si comprobante_invalido (V7)']
+  fecha_invalidacion   timestamptz   [note: 'Obligatoria si comprobante_invalido (V7)']
+  motivo_invalidacion  text          [note: 'Obligatorio y no vacío si comprobante_invalido (V7)']
 
   Note: '''
   Un pago salda UNA cosa, exactamente una: una inscripción, una reserva, un
@@ -387,6 +400,11 @@ Table pago {
   descuento exige justificación escrita.
 
   Los comprobantes no se borran: se marcan como inválidos.
+
+  Y ni anular un pago ni invalidar un comprobante son gratis: las dos
+  operaciones exigen autor, fecha y motivo (V7). Anular tiene, para el balance,
+  el mismo efecto que borrar -- el monto deja de contar --, así que era la
+  única excepción del esquema que no pedía explicación.
   '''
 }
 
@@ -418,6 +436,7 @@ Table venta_equipo {
   cotizacion_dolar           decimal(14,4)
   fecha_venta                date          [not null]
   notas                      text
+  fecha_registro             timestamptz   [not null, note: 'Sello de carga (V7): fecha_venta es editable y se puede antedatar']
 
   Note: 'Acuerdo de distribución con Pioneer, sin stock propio: esto registra la venta, no un inventario. El comprador tiene cuenta o se anota su nombre; alguno de los dos.'
 }

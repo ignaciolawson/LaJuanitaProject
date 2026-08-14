@@ -458,9 +458,47 @@ que seguían diciendo de aplicar solo `V1` y `V2`.
 5. **Mix & Mastering, sello, dashboard** — los tres más "aparte", los que Ghezz maneja
    hoy en planillas sueltas.
 
+### 6e. Auditoría adversarial de la base (2026-08-12) y su corrección (V6, V7)
+
+El mismo día se hizo una **segunda** auditoría, sobre la base y no sobre la API, y
+este plan no la nombraba: quedó como un archivo huérfano hasta el 2026-08-14. Está
+completa en **[`docs/db/auditoria-2026-08-12.md`](db/auditoria-2026-08-12.md)**, que
+es el documento que dice **qué garantiza realmente la base y qué no**.
+
+Se hizo contra Postgres corriendo, atacando el esquema, no leyendo SQL. **Encontró 10
+formas de violar reglas que el proyecto daba por garantizadas**, entre ellas: liberar
+un premaster y después anular el pago que lo respaldaba (premaster entregado, cero
+cobros); revertir entera la máquina de estados de mastering en dos UPDATE pasando por
+`CANCELADO`; borrar filas de `pago`, cuando la cabecera de `V1` declara "nada se
+borra" desde el principio; y cotizaciones del dólar en 0, que hacen desaparecer del
+balance cualquier importe en USD sin que nada falle. Las diez se corrigieron en
+`V6__integridad_auditoria.sql` y quedaron fijadas en una suite nueva,
+`pruebas-adversariales.sql`.
+
+El hallazgo menos intuitivo, que conviene no volver a descubrir: **los triggers de
+sala solo funcionan en READ COMMITTED**. Bajo `REPEATABLE READ` o `SERIALIZABLE` el
+trigger lee un snapshot viejo y deja pasar la violación en silencio — el nivel de
+aislamiento *más estricto* es el *menos* seguro. Desde V6 la base se niega a correr
+esas reglas fuera de READ COMMITTED en vez de dar una garantía falsa.
+
+**La auditoría técnica del 13/08 le encontró un punto ciego a ésta:** leyó *"nada se
+borra"* como una regla **financiera**, y por eso `reserva` y `reserva_participante`
+—que son el historial de clases, y la razón de ser del Módulo 1— quedaron sin
+protección. Eso, la anulación de un pago sin autor ni motivo, y un `EXCLUDE` de
+bloqueos que rechazaba bloqueos legítimos, se corrigieron el 2026-08-14 en
+`V7__auditoria_historial_y_bloqueos.sql`.
+
+**Lo que sigue sin dueño está en §6 de ese documento**, y son reglas de negocio, no
+deuda técnica: no se puede consumir más clases que las contratadas (la regla que el
+relevamiento marca como el problema principal de hoy), un profesor o un alumno pueden
+estar en dos salas a la vez, `sala.activa` es decorativa, `egreso` y `venta_equipo` se
+pueden borrar, el pagador no tiene que ser el titular de lo que paga, no se exige seña
+para reservar, y el nivel de una inscripción puede retroceder. **Cada una necesita una
+decisión antes de codificarse**, y ninguna se implementó unilateralmente.
+
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-12
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-14
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -510,15 +548,45 @@ todavía. Hasta que las plantee, **la tanda no está bendecida**: puede haber
 decisiones para revisar, no solo detalles. Conviene preguntarle antes de construir
 encima.
 
+### Auditoría técnica del 2026-08-13 y su remediación
+
+Se auditó el monorepo completo: **60 hallazgos**, con `ruta:línea` y verificados
+ejecutando. Está en
+[`docs/auditoria/informe-auditoria-2026-08.md`](auditoria/informe-auditoria-2026-08.md),
+y **§8 de ese informe lleva el estado de los 60 uno por uno y el orden propuesto para
+lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
+
+Remediado hasta ahora (2026-08-14): el candado del secreto JWT ahora falla cerrado, la
+auto-degradación de rol está cerrada, las reglas de la base llegan al usuario como
+mensajes legibles en vez de como "email duplicado" o como 500, los errores de Spring
+salen en español, la documentación del esquema está sincronizada, y `V7` cerró los
+cinco huecos de base que había que tapar con las tablas todavía vacías.
+
+**El que bloquea todo lo demás y no es trabajo de código: EXT-01** — el repositorio es
+público y publica la propuesta firmada del cliente, la transcripción de la entrevista,
+el secreto JWT y la contraseña del admin sembrado.
+
 ### Deuda que hay que saldar antes del deploy
 
-1. **Sin límite de intentos** en login ni en registro. El registro además escribe.
-2. **El secreto JWT está commiteado** (con aviso y bloqueo si hay perfil productivo).
+1. **Sin límite de intentos** en login ni en registro. El registro además escribe, y
+   **no queda registro de ningún evento de autenticación** (SEC-02).
+2. ~~**El secreto JWT está commiteado** (con aviso y bloqueo si hay perfil productivo).~~
+   El candado se corrigió el 2026-08-14 y ahora falla cerrado (SEC-01), pero **el
+   secreto sigue sin rotar** y es público.
 3. **Los tests de JPA corren contra la base de desarrollo** y ahora sí insertan y
    borran. Testcontainers pasó de "conviene" a "hace falta pronto".
 4. **El frontend no tiene tests.**
 5. **Sin revocación de tokens.** Ya no hace falta para las bajas —la autorización se
    resuelve contra la base—, pero un token robado sigue valiendo hasta 8 horas.
+6. **No hay forma de recuperar una contraseña** (SEC-03), y eso bloquea la migración
+   del Notion: si alguien pierde la temporal, no hay camino de vuelta.
+7. **Los listados muestran 20 filas y el contador dice el total** (ARQ-01). Con dos
+   usuarios no se nota; con los ~80 de diciembre, sí.
+8. **Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6. No son
+   deuda técnica: son reglas confirmadas que hoy no existen en ningún lado, y cada una
+   necesita una decisión tuya antes de escribirse.
+9. **Credenciales de Postgres commiteadas sin override, y cero procedimiento de backup,
+   restore o deploy** (DOC-07, DOC-08).
 
 ### Cómo levantar todo
 

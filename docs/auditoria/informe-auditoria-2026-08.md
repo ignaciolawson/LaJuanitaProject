@@ -122,6 +122,9 @@ solo.
 | EXT — Fuera de categoría | 1 | 1 | 1 | 1 | 0 | 4 |
 | **Total verificado** | **1** | **15** | **19** | **21** | **3** | **59** |
 
+> **Al 2026-08-14 son 60**: la remediación agregó **DB-11** (Bajo), encontrado mientras
+> se arreglaba DB-05. El estado de los 60, uno por uno, está en **§8.1**.
+
 Sin hallazgos críticos en seguridad, y no por falta de búsqueda: los tres vectores que
 suelen darlos —token manipulado, escalada de privilegios por el cuerpo de un pedido, y
 autorización que confía en el claim— **están cerrados y con test que lo prueba** (ver
@@ -338,6 +341,7 @@ abajo son, casi todos, **cosas que esa auditoría no miró**.
 | DB-08 | Seis nombres distintos para "cuándo se creó esta fila" | Bajo | S |
 | DB-09 | Tres de los cuatro destinos de `pago` no tienen índice, y uno respalda dos triggers activos | Bajo | XS |
 | DB-10 | El esquema ya cerró por construcción una pregunta que el relevamiento tiene abierta | Info | — |
+| DB-11 | `reserva_horas_validas` no se llega a evaluar nunca: la columna generada falla antes | Bajo | XS |
 
 ---
 
@@ -404,6 +408,28 @@ Y sumar la regla a la lista de faltantes de `docs/db/auditoria-2026-08-12.md` §
 que no se pierda otra vez por estar clasificada como "financiera".
 
 **Esfuerzo: M**
+
+> **Remediado el 2026-08-14 (V7 §2) — RESUELTO, y un poco más de lo recomendado.** Las
+> tres piezas: `prohibir_borrado_historico()` ahora cubre `reserva` y
+> `reserva_participante` (con el mensaje ampliado para nombrar las cuatro tablas y sus
+> salidas); `reserva_participante` tiene `id_usuario_modifico` y `fecha_modificacion`; y
+> un trigger exige el autor cuando cambia `estado_asistencia`.
+>
+> **Además se enforzó la auditoría de `reserva`**, que el hallazgo señalaba como hueco
+> sin pedir arreglo: sus columnas existían desde V1 y nada las exigía. Ahora un cambio de
+> estado, fecha, hora o sala pide autor; tocar solo las notas, no.
+> **La fecha la pone la base**, no quien edita: un sello que el cliente elige se puede
+> antedatar, que es la mitad de DB-07.
+>
+> **Límite conocido, escrito en la migración:** el trigger exige que la columna no quede
+> en NULL, no que la edición de hoy haya declarado su autor. Después de la primera
+> edición auditada el campo queda cargado y una segunda que no lo toque pasa con el autor
+> de la anterior. Cerrarlo del todo pide que la aplicación declare quién opera
+> (`SET LOCAL app.usuario_actual`), que es una decisión de diseño del backend.
+>
+> **Verificado:** 6 casos nuevos en `pruebas-reglas-negocio.sql` (78-83) y 4 en
+> `pruebas-adversariales.sql` (E08-E11). La regla quedó agregada a
+> `docs/db/auditoria-2026-08-12.md` §2, con la aclaración de por qué se había perdido.
 
 ---
 
@@ -474,6 +500,22 @@ Es el molde exacto de `solicitud_resolucion_completa`. Hacerlo **ahora**, mientr
 viejas. Y aplicar la misma idea a `comprobante_invalido`, que hoy tiene el mismo hueco.
 
 **Esfuerzo: S**
+
+> **Remediado el 2026-08-14 (V7 §1) — RESUELTO**, con las dos mitades: la anulación y el
+> comprobante inválido, cada una con autor, fecha y motivo obligatorios.
+>
+> **Con una corrección al SQL propuesto, que un caso de prueba encontró:** escrito como
+> `... AND btrim(motivo_anulacion) <> ''`, **la constraint no cerraba**. Un CHECK rechaza
+> solo cuando evalúa a FALSE, y con el motivo en NULL `btrim(NULL) <> ''` da NULL, la
+> condición entera da NULL, y una anulación con autor y fecha pero **sin motivo** pasaba
+> igual. Va `coalesce(btrim(x), '') <> ''`. El caso que lo detectó quedó en las dos
+> suites (75 y E05), porque es el tipo de error que se reintroduce sin que nadie lo note.
+>
+> **Verificado:** 5 casos en `pruebas-reglas-negocio.sql` (73-77) y 4 en
+> `pruebas-adversariales.sql` (E04-E07). Y los tres casos que ya anulaban un pago
+> (D02, D04, E03) se actualizaron para pasar autor y motivo: sin eso seguirían "fallando"
+> pero por la constraint nueva y no por el trigger que atacan, que es el falso positivo
+> que la cabecera de esas suites advierte.
 
 ---
 
@@ -558,6 +600,28 @@ cada una de las dos suites: es el agujero por el que se coló esto.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-14 (V7 §3) — RESUELTO por la salida "simple", no por la más
+> simple.** Se eligió la definición diaria, como recomienda el hallazgo, y se reescribió
+> el `EXCLUDE` sobre **dos dimensiones**: `daterange(fecha_inicio, fecha_fin, '[]')` y una
+> `rango_horario(hora_inicio, hora_fin, '[)')`, con el tipo de rango de `time` creado en
+> la migración. Los corchetes no son cosméticos: replican exactamente cómo leen la fila
+> los dos triggers (`BETWEEN` para las fechas, `<` para las horas).
+>
+> **No se bajó a índice de detección** —la otra salida que ofrecía el hallazgo— porque el
+> `EXCLUDE` es la única forma que aguanta concurrencia, que es el mismo argumento por el
+> que existe el de `reserva`. Perder eso para arreglar un falso rechazo era pagar de más.
+>
+> **Un efecto que hubo que evitar sobre la marcha:** con las expresiones desnudas, las
+> columnas generadas nuevas explotaban con los límites al revés y le robaban el mensaje a
+> `bloqueo_rango_horas_valido` —el mismo fenómeno de DB-11—. Devuelven NULL vía `CASE`,
+> así que los CHECK de V1 siguen siendo los que hablan.
+>
+> **Verificado con el escenario exacto del hallazgo:** el bloqueo de 9 a 13 del 1 al 10
+> de septiembre y el evento de 19 a 23 del 3 al 4 **ahora conviven**; uno que sí pisa días
+> y franja se rechaza; y la reserva del 5 a las 15:00 sigue entrando, que es donde las dos
+> lecturas se contradecían. Casos 68-72 en `pruebas-reglas-negocio.sql` y B05-B06 en
+> `pruebas-adversariales.sql`.
+
 ---
 
 #### DB-04 — Otras dos reglas duras de la propuesta no tienen constraint, y tampoco figuran en la lista de faltantes
@@ -609,6 +673,17 @@ con su seña en una transacción—, y lo que hay que decidir antes es P8 (*"aut
 explícita"*), que sigue abierto.
 
 **Esfuerzo: M**
+
+> **Remediado el 2026-08-14 — la parte que correspondía hacer. Sigue ABIERTO como regla.**
+> Las dos entran ahora en `docs/db/auditoria-2026-08-12.md` §6 (entradas 6 y 7) y en su
+> tabla de garantías, con lo que falta decidir escrito al lado: para (a), que **no va a
+> vivir en la base** —la relación va al revés y la reserva se crea junto con su seña, en
+> una transacción— y que depende de P8; para (b), que la mitad mecánica es un trigger del
+> molde que ya existe y lo que falta definir es qué significa "sin autorización de un
+> administrador", porque la base no sabe quién opera.
+>
+> `V7` las deja explícitamente afuera, con el motivo escrito en su cabecera. Se
+> implementan cuando esas dos decisiones estén tomadas, no antes.
 
 ---
 
@@ -776,6 +851,13 @@ la mitad del hueco sin esperar la decisión de negocio.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-14 (V7 §4) — RESUELTO la mitad que no depende de una decisión.**
+> La columna existe. **Sigue abierta la otra mitad**: `venta_equipo` no tiene forma de
+> anularse, que es por lo que V6 §7 la dejó fuera de la prohibición de borrado, y darle un
+> estado de anulación es una decisión de negocio. Queda anotada en
+> `docs/db/auditoria-2026-08-12.md` §6.4, donde ya estaba.
+> **Verificado:** caso 84 en `pruebas-reglas-negocio.sql`.
+
 ---
 
 #### DB-08 — Seis nombres distintos para "cuándo se creó esta fila"
@@ -846,6 +928,13 @@ de `pago_deudores`.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-14 (V7 §5) — RESUELTO el índice; la clave de `pago_deudores`
+> queda abierta.** El índice está, con el motivo escrito: la consulta que respalda no es
+> hipotética, corre en cada UPDATE y cada DELETE de `pago` dentro de
+> `proteger_pago_de_premaster()`. Los otros dos destinos siguen sin índice a propósito,
+> hasta que existan los módulos que los consulten — que es la doctrina de `V1:911-917` y
+> está bien.
+
 ---
 
 #### DB-10 — El esquema ya cerró por construcción una pregunta que el relevamiento tiene abierta
@@ -867,6 +956,54 @@ anota porque cuando P11 se le pregunte al cliente, **la respuesta "sí, a veces 
 después de las 12" implica una migración**, no un ajuste de pantalla: habría que permitir
 `hora_fin < hora_inicio` y rehacer `periodo`, el EXCLUDE y los dos triggers de sala.
 Conviene incluir la pregunta explícitamente cuando se cierre P11.
+
+---
+
+#### DB-11 — `reserva_horas_validas` es una constraint que no se llega a evaluar nunca
+
+**Severidad: Bajo** · *encontrado el 2026-08-14, remediando DB-05*
+
+**Evidencia.** `reserva` tiene una columna generada y un CHECK que hablan de lo mismo:
+
+- `V1__baseline.sql:243-244`: `periodo tsrange GENERATED ALWAYS AS (tsrange(fecha + hora_inicio, fecha + hora_fin)) STORED`
+- `V1__baseline.sql:249`: `CONSTRAINT reserva_horas_validas CHECK (hora_fin > hora_inicio)`
+
+Postgres computa la columna generada **antes** de evaluar los CHECK, y `tsrange()`
+rechaza un rango invertido por su cuenta. Medido, en una transacción revertida:
+
+```
+INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+VALUES (1,1,DATE '2027-04-07',TIME '20:00',TIME '19:00');
+ERROR:  range lower bound must be less than or equal to range upper bound
+```
+
+El CHECK nunca se dispara: el error que llega es un `data_exception` (SQLSTATE clase
+`22`), **sin nombre de constraint y sin mencionar las horas**. Lo mismo pasa con
+`bloqueo_sala` desde que V6 le agregó su propia columna generada, pero solo cuando
+`fecha_inicio = fecha_fin`; con un rango de más de un día el CHECK sí se evalúa
+(verificado: un bloqueo del 3 al 4 de mayo de 13:00 a 09:00 lo rechaza
+`bloqueo_rango_horas_valido`).
+
+**Impacto concreto.** Bajo hoy, molesto en septiembre. Sin nombre de constraint, el mapa
+de `ManejadorDeErrores` no lo puede traducir y sale el texto genérico: cargar mal un
+horario en el Módulo 2 va a contestar *"Esa operación no cumple una regla del sistema"*
+en vez de *"la hora de fin tiene que ser posterior a la de inicio"*. El mensaje bueno
+existe y es inalcanzable, que es exactamente el patrón de DB-05 una capa más abajo.
+
+**Recomendación.** No es una migración: validar el orden de las horas en Bean Validation,
+antes de que el INSERT salga, cuando exista el DTO de reserva. Y anotar en `V1` —en un
+comentario nuevo, no editando la migración— que el CHECK es defensa en profundidad y no
+la vía de error visible.
+
+**Esfuerzo: XS**
+
+> **Remediado el 2026-08-14 — PARCIAL, y a propósito.** Documentado en la cabecera de `V7`
+> y en `docs/db/auditoria-2026-08-12.md` §6.8, y **evitado donde todavía se podía**: las
+> dos columnas generadas que V7 agrega a `bloqueo_sala` devuelven NULL vía `CASE` en vez
+> de explotar, así que ahí los CHECK de V1 siguen siendo los que dan el mensaje. En
+> `reserva` no se puede: la columna generada viene de V1 y no se edita una migración
+> aplicada. **Queda pendiente** validar el orden de las horas en el DTO, que no existe
+> hasta el Módulo 2.
 
 ---
 
@@ -3241,20 +3378,137 @@ sección es solo el índice y el orden propuesto para lo que queda.
 Suite completa después de la tanda: **`mvn test` 72/72**, y las dos suites SQL **69/69 y
 40/40** sobre las seis migraciones.
 
-### Por dónde seguir
+### Tanda 1b — 2026-08-14 · el repositorio, a medias
 
-El orden respeta las dependencias de §7: *"EXT-01 y EXT-02 van primero y no se
-negocian"*, y los cinco pares donde hacerlo al revés significa rehacer.
+| ID | Estado | Detalle |
+|---|---|---|
+| **EXT-02 / DOC-09** | ✅ resuelto | Commit `870b0da` y **pusheado**: `main` local y remoto coinciden. Los dos días de trabajo, `V4`–`V6`, los tests y la auditoría de base dejaron de vivir en un solo disco |
+| **EXT-01** | 🔴 **abierto, y ahora con más superficie** | Se commiteó y pusheó **antes** de cerrarlo, que es el orden que §7 marca como no negociable. `git ls-files docs/propuesta docs/relevamiento` sigue devolviendo los tres PDF del cliente, y el secreto JWT sigue sin rotar. Lo que se publicó de más: el Módulo 1 completo, las tres migraciones y los dos informes de auditoría |
+| **EXT-03** | 🔴 abierto | Sin `LICENSE` ni nota de titularidad |
+
+### Tanda 3 — 2026-08-14 · la migración `V7`, con las tablas todavía vacías
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **DB-02** | Anular un pago —y marcar un comprobante inválido— exige autor, fecha y motivo | 9 casos SQL nuevos |
+| **DB-01** | `reserva` y `reserva_participante` no se borran, y editar la asistencia o mover una clase exige decir quién | 10 casos SQL nuevos |
+| **DB-03** | El `EXCLUDE` de bloqueos pasó a dos dimensiones y ya no rechaza bloqueos legítimos | 7 casos SQL nuevos, con el escenario exacto del hallazgo |
+| **DB-07** | `venta_equipo` tiene sello de carga | caso 84 |
+| **DB-09** | Índice `pago (id_trabajo_mastering)` | catálogo |
+| **DB-04** | Las dos reglas sin dueño, documentadas con lo que falta decidir | — *(sigue abierto como regla)* |
+| **DB-11** | Evitado en `bloqueo_sala`, documentado en `reserva` | — *(parcial)* |
+| **DOC-02** | §6e en el plan, con la auditoría de base, `V6`, `V7` y las reglas sin dueño | — |
+
+Suite completa después de la tanda: **`mvn test` 72/72**, **86/86** reglas de negocio y
+**50/50** adversariales sobre `V1..V7`. Los conteos subieron porque los casos nuevos
+son parte del arreglo: 69 → 86 y 40 → 50.
+
+**Dos errores propios que los tests atajaron**, y que quedaron fijados como caso:
+un CHECK escrito como `btrim(x) <> ''` **no cierra** —evalúa a NULL con `x` en NULL, y un
+CHECK solo rechaza en FALSE—; y una columna generada que explota **le roba el mensaje**
+al CHECK que iba a explicar el problema, porque se computa antes.
+
+### 8.1 Los 60 hallazgos, uno por uno
+
+Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
+que no es técnica** (del cliente, o de Ignacio). La columna **Tanda** es el orden
+propuesto en §8.2; `1` es lo ya hecho.
+
+| ID | Sev | Esf | Tanda | Estado | Qué falta |
+|---|:--:|:--:|:--:|:--:|---|
+| **EXT-01** | Crítico | S/M | 2 | 🟡 | Pasar el repo a privado, sacar `docs/propuesta/` y `docs/relevamiento/` del control de versiones, **rotar el secreto**, avisarle al cliente |
+| **EXT-02** | Alto | XS | 1b | ✅ | — |
+| **EXT-03** | Medio | XS | 2 | 🟡 | `LICENSE` o nota de titularidad + alcance de mantenimiento. Depende de qué diga la propuesta firmada |
+| **EXT-04** | Info | XS | 1 | ✅ | — |
+| **DB-01** | Alto | M | 3 | ✅ | — |
+| **DB-02** | Alto | S | 3 | ✅ | — |
+| **DB-03** | Medio | S | 3 | ✅ | — |
+| **DB-04** | Medio | M | 3 | 🟡 | Documentadas con lo que falta decidir. La de la seña depende de P8; la del nivel, de qué significa "autorización de un administrador" |
+| **DB-05** | Medio | S | 1 | ✅ | — |
+| **DB-06** | Bajo | XS | 1 | ✅ | — |
+| **DB-07** | Bajo | S | 3 | 🟡 | Sello de carga hecho. Falta darle a `venta_equipo` una forma de anularse, que es decisión de negocio |
+| **DB-08** | Bajo | S | 8 | 🔴 | Seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda tabla nueva |
+| **DB-09** | Bajo | XS | 3 | ✅ | — |
+| **DB-10** | Info | — | 8 | 🟡 | Preguntar por las reservas que cruzan medianoche cuando se cierre P11 |
+| **DB-11** | Bajo | XS | 3 | 🟡 | *(nuevo, 2026-08-14)* Evitado en `bloqueo_sala`; en `reserva` queda validar el orden de las horas en el DTO del Módulo 2 |
+| **SEC-01** | Alto | XS | 1 | ✅ | — |
+| **SEC-02** | Alto | M | 4 | 🔴 | Sin límite de intentos y **sin ningún registro** de eventos de autenticación |
+| **SEC-03** | Alto | S | 4 | 🔴 | No hay forma de recuperar una contraseña. **Bloquea la migración del Notion** |
+| **SEC-04** | Medio | S | 1 | ✅ | — |
+| **SEC-05** | Medio | S | 5 | 🔴 | `DIRECTIVO` ve botones de escritura que el backend le niega |
+| **SEC-06** | Bajo | XS | 8 | 🟡 | Decidir explícitamente qué hacer con la enumeración de teléfonos en el registro |
+| **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
+| **SEC-08** | Bajo | S | 4 | 🔴 | BCrypt en costo mínimo; la contraseña temporal no vence nunca |
+| **SEC-09** | Bajo | XS | 8 | 🔴 | Declarar `ESCAPE` en las dos búsquedas, o borrar la constante que nadie usa |
+| **ARQ-01** | Alto | S | 5 | 🔴 | El listado muestra 20 filas y el contador dice el total. **Bloquea la migración del Notion** |
+| **ARQ-02** | Medio | M | 5 | 🔴 | Cinco endpoints sin pantalla, incluidos los dos de edición y el alta con rol |
+| **ARQ-03** | Medio | S | 1 | ✅ | — |
+| **ARQ-04** | Medio | S | 8 | 🔴 | Los dos formatos de error que `application.properties` dice haber unificado siguen conviviendo |
+| **ARQ-05** | Bajo | XS | 8 | 🔴 | Tipar `NOMBRE_DE_ROL` como `Record<Rol, string>` y sumar los dos archivos a la lista de `CLAUDE.md` |
+| **ARQ-06** | Bajo | S | 8 | 🔴 | `esAdmin` y `acotar` copiados en los dos controllers |
+| **ARQ-07** | Bajo | XS | 8 | 🔴 | Tres `package-lock.json` versionados |
+| **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
+| **ARQ-09** | Bajo | S | 5 | 🔴 | Los siete tipos de pedido no existen en TypeScript |
+| **ARQ-10** | Info | — | 8 | 🟡 | Decidir si el cliente HTTP se comparte o se duplica, antes de conectar los formularios |
+| **SEO-01** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Depende de P34 y P31 (cliente) |
+| **SEO-02** | Medio | XS | 7 | 🟡 | Sacar el email del JSON-LD o confirmarlo con el cliente |
+| **SEO-03** | Bajo | XS | 7 | 🔴 | Sacar el `Disallow: /ingresar` y dejar el `noindex` |
+| **SEO-04** | Bajo | XS | 7 | 🔴 | Cinco conteos de rutas y URLs mal, ninguno coincide |
+| **SEO-05** | Bajo | XS | 7 | 🔴 | Regla `<noscript>` que saque el telón del preloader |
+| **SEO-06** | Bajo | M | 7 | 🔴 | Medir Lighthouse en móvil con caché fría |
+| **QA-01** | Alto | M | 6 | 🔴 | `AlumnoTest` con seis casos, antes de construir `inscripcion` encima |
+| **QA-02** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Precios y firma de las notas: son preguntas al cliente |
+| **QA-03** | Medio | M | 6 | 🔴 | Las 109 pruebas SQL no están en ningún build |
+| **QA-04** | Medio | M | 6 | 🔴 | No hay pipeline. Necesita QA-03 primero |
+| **QA-05** | Medio | S | 6 | 🔴 | El frontend no tiene tests ni infraestructura |
+| **QA-06** | Medio | S | 8 | 🔴 | Cuatro combinaciones de la paleta fallan AA, una es el borde de los inputs |
+| **QA-07** | Bajo | S | 6 | 🔴 | Healthcheck y `restart: unless-stopped` |
+| **DOC-01** | Alto | XS | 1 | ✅ | — |
+| **DOC-02** | Alto | S | 3 | ✅ | — |
+| **DOC-03** | Medio | XS | 1 | ✅ | — |
+| **DOC-04** | Medio | XS | 1 | ✅ | — |
+| **DOC-05** | Medio | S | 7 | 🔴 | `requirements/landing.md` dice que el blog no existe |
+| **DOC-06** | Medio | S | 7 | 🔴 | `apps/landing/README.md` es el boilerplate de `create-next-app` |
+| **DOC-07** | Alto | S | 6 | 🔴 | Credenciales de Postgres commiteadas sin override + tabla de variables por ambiente |
+| **DOC-08** | Alto | M | 6 | 🔴 | No existe `docs/operacion.md`: backup, **restore probado**, deploy, falla de migración |
+| **DOC-09** | Alto | XS | 1b | ✅ | — |
+| **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
+| **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
+| **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
+| **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
+
+**Cuentas al cierre de la tanda 3:** 59 hallazgos del informe + 1 nuevo (DB-11) =
+**60**. Resueltos **16** (✅); abiertos **44**, de los cuales **12 están bloqueados por
+una decisión** que no es de código (tuya o del cliente) y 3 quedaron a medias por esa
+misma razón (DB-04, DB-07, DB-11: lo mecánico está hecho, falta la decisión).
+
+Por severidad, lo que queda abierto: **1 Crítico** —EXT-01— y **8 Altos**: SEC-02,
+SEC-03, ARQ-01, SEO-01, QA-01, QA-02, DOC-07 y DOC-08. El resto es Medio o menos.
+
+### 8.2 Las tandas
+
+El orden respeta las dependencias de §7 y los cinco pares donde hacerlo al revés
+significa rehacer.
 
 | Tanda | Hallazgos | Por qué van juntos |
 |---|---|---|
-| **2 — Repositorio** *(no es código)* | EXT-01, EXT-02, DOC-09, EXT-03 | Pasar el repo a privado, commitear los dos días sueltos, rotar el secreto, avisarle al cliente. Todo arreglo que se haga antes de esto vive en un solo disco |
-| **3 — Migración `V7`** | DB-02, DB-01, DB-07, DB-03, DB-09, DB-04 | Una sola migración, mientras las tablas están vacías. Con el Notion adentro cada una pasa de ser una línea a ser una decisión sobre datos reales. DB-03 además bloquea el Módulo 2 |
+| ~~**1**~~ | ~~SEC-01, SEC-04, DB-05, ARQ-03, DOC-01, DOC-03, DOC-04, DB-06, EXT-04~~ | **Hecha** |
+| ~~**1b**~~ | ~~EXT-02, DOC-09~~ | **Hecha** — commit `870b0da`, pusheado |
+| ~~**3**~~ | ~~DB-02, DB-01, DB-03, DB-07, DB-09, DB-11, DB-04, DOC-02~~ | **Hecha** — `V7`, con las tablas todavía vacías |
+| **2 — Repositorio** *(no es código)* | EXT-01, EXT-03 | Repo a privado, sacar los PDF del cliente del control de versiones, rotar el secreto, avisarle al cliente. Es lo único que empeora solo con el tiempo, y ya se hizo un push más encima |
 | **4 — Perímetro de autenticación** | SEC-02, SEC-03, SEC-08 | Límite de intentos, log de eventos, reseteo de contraseña y vencimiento del temporal. SEC-03 bloquea la migración del Notion |
 | **5 — Frontend** | ARQ-01, SEC-05, ARQ-02, ARQ-09 | El paginado y las pantallas de edición/alta son el mismo trabajo. SEC-04 ya está cerrado, que era el prerrequisito de ARQ-02 |
-| **6 — Operación y CI** | DOC-07, DOC-08, QA-07, QA-03, QA-04, QA-01, QA-05 | Backup/restore/deploy primero, después el script de las pruebas SQL, y recién ahí el pipeline: necesita un comando que correr |
-| **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea la publicación de la landing, no el deploy de la plataforma |
-| **8 — Resto documental y menor** | DOC-02, DOC-10 a DOC-13, ARQ-04 a ARQ-08, ARQ-10, DB-08, DB-10, SEC-06, SEC-07, SEC-09, QA-06 | Nada bloquea; conviene barrerlo de una sola pasada |
+| **6 — Operación, tests y CI** | DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05 | Backup/restore/deploy primero, después los tests que faltan y el script de las SQL, y recién ahí el pipeline: necesita un comando que correr |
+| **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |
+| **8 — Resto documental y menor** | DB-08, DB-10, SEC-06, SEC-07, SEC-09, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
+
+### 8.3 Lo que no se destraba programando
+
+Cinco preguntas al cliente (§7.a: duraciones de los cursos, precios, firma de las notas,
+el email, y dirección/teléfono/horarios/año) y cuatro decisiones de Ignacio: la
+visibilidad del repositorio y qué se hace con los PDF (EXT-01), la titularidad y el
+mantenimiento (EXT-03), P8 —qué significa "autorización explícita" para una seña—
+(DB-04), y si el cliente HTTP se comparte entre las dos apps (ARQ-10).
 
 ---
 

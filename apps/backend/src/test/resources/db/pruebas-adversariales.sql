@@ -7,29 +7,34 @@
 --
 -- Nació de la auditoría del 2026-08-12, que encontró 10 formas de romper
 -- reglas que el proyecto daba por garantizadas. Cada caso de acá corresponde a
--- un ataque que ANTES DE V6 FUNCIONABA. Si alguno vuelve a pasar, se
--- reintrodujo un agujero real, no una hipótesis.
+-- un ataque que ANTES DE V6 —o, los de la tanda nueva, antes de V7—
+-- FUNCIONABA. Si alguno vuelve a pasar, se reintrodujo un agujero real, no una
+-- hipótesis.
 --
 -- CÓMO EJECUTARLO (base descartable):
 --
 --   docker compose up -d
 --   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
 --            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria; do
+--            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos; do
 --     docker cp apps/backend/src/main/resources/db/migration/$v.sql la_juanita_postgres:/tmp/$v.sql
 --   done
 --   docker cp apps/backend/src/test/resources/db/pruebas-adversariales.sql la_juanita_postgres:/tmp/adv.sql
 --   docker exec la_juanita_postgres psql -U la_juanita -d postgres -c "DROP DATABASE IF EXISTS adversarial;" -c "CREATE DATABASE adversarial;"
 --   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
 --            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria; do
+--            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos; do
 --     docker exec la_juanita_postgres psql -U la_juanita -d adversarial -v ON_ERROR_STOP=1 -f /tmp/$v.sql
 --   done
 --   docker exec la_juanita_postgres psql -U la_juanita -d adversarial -f /tmp/adv.sql
 --
 -- (En Git Bash, anteponer MSYS_NO_PATHCONV=1 a los `docker`.)
 --
--- Última corrida: 2026-08-12, 40/40 sobre el esquema V1..V6.
+-- Última corrida: 2026-08-14, 50/50 sobre el esquema V1..V7.
+--
+-- TODA MIGRACIÓN NUEVA ACTUALIZA ESTA CABECERA Y LA DE
+-- `pruebas-reglas-negocio.sql`, en el mismo commit. Correr los casos contra un
+-- esquema que no es el del proyecto no prueba nada, y no avisa.
 --
 -- LO QUE ESTE ARCHIVO **NO** CUBRE, a propósito: la concurrencia. Los dos
 -- ataques concurrentes de la auditoría (dos reservas solapadas simultáneas, y
@@ -141,14 +146,19 @@ SELECT sala2,u_clase,'2027-03-02','10:00','12:00','CANCELADA' FROM v;
 INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
 SELECT sala2,u_clase,'2027-03-02','10:00','12:00' FROM v;
 
+-- Desde V7 §2 estos UPDATE llevan `id_usuario_modifico`. NO es decoración: sin
+-- él fallarían por falta de autor y no por la regla que este caso ataca, y un
+-- caso que falla por el motivo equivocado es un caso que dejó de probar algo.
 SELECT probar('A07','ESQUIVE: resucitar una CANCELADA sobre franja ya ocupada','FALLA',
- $q$UPDATE reserva SET estado='CONFIRMADA'
+ $q$UPDATE reserva SET estado='CONFIRMADA', id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2027-03-02' AND estado='CANCELADA'$q$);
 
 SELECT probar('A08','UPDATE que mueve una MENTORIA a la cabina (uso no permitido)','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
       SELECT sala1,u_ment,prof,'2028-01-10','10:00','11:00' FROM v;
-    UPDATE reserva SET id_sala=(SELECT cabina FROM v) WHERE fecha='2028-01-10'$q$);
+    UPDATE reserva SET id_sala=(SELECT cabina FROM v),
+                       id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2028-01-10'$q$);
 
 
 -- =============================================================================
@@ -165,7 +175,7 @@ INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
 SELECT sala2,u_alq,'2027-05-11','10:00','11:00','CANCELADA' FROM v;
 
 SELECT probar('B02','ESQUIVE: resucitar una CANCELADA dentro de un bloqueo','FALLA',
- $q$UPDATE reserva SET estado='CONFIRMADA'
+ $q$UPDATE reserva SET estado='CONFIRMADA', id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2027-05-11' AND estado='CANCELADA'$q$);
 
 INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
@@ -178,8 +188,25 @@ SELECT probar('B03','ESQUIVE: bloqueo chico y despues EXTENDERLO sobre reservas'
      WHERE motivo='chico'$q$);
 
 SELECT probar('B04','ESQUIVE: MOVER una reserva existente adentro de un bloqueo','FALLA',
- $q$UPDATE reserva SET id_sala=(SELECT sala2 FROM v), fecha='2027-05-11'
+ $q$UPDATE reserva SET id_sala=(SELECT sala2 FROM v), fecha='2027-05-11',
+                    id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2027-06-01' AND id_sala=(SELECT sala1 FROM v)$q$);
+
+
+-- B05 y B06 son DB-03: hasta V7, el EXCLUDE de V6 leía la fila como un
+-- intervalo continuo y los dos triggers la leen como una franja que se repite
+-- cada día del rango. Las dos lecturas coinciden mientras el bloqueo dure un
+-- día o tome el día completo -- que es lo único que probaban los 109 casos
+-- anteriores, porque todos omitían las horas.
+SELECT probar('B05','bloqueo de manana y bloqueo de noche en la misma semana','ANDA',
+ $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+      SELECT sala1,'2027-08-02','2027-08-08','09:00','13:00','Obra de manana' FROM v;
+    INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+      SELECT sala1,'2027-08-04','2027-08-05','19:00','23:00','Evento de noche' FROM v$q$);
+
+SELECT probar('B06','ESQUIVE: bloqueo que pisa los mismos dias Y la misma franja','FALLA',
+ $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+    SELECT sala1,'2027-08-05','2027-08-06','12:00','14:00','Se pisa de verdad' FROM v$q$);
 
 
 -- =============================================================================
@@ -238,8 +265,13 @@ SELECT v.u_juan,t.id_trabajo,50000,'EFECTIVO','PAGADO'
 FROM v, trabajo_mastering t WHERE t.nombre_track='Candado';
 UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Candado';
 
+-- Desde V7 §1 toda anulación lleva autor, fecha y motivo. Van acá para que el
+-- caso siga fallando por el trigger del premaster, que es lo que ataca, y no
+-- por la constraint nueva.
 SELECT probar('D02','ANULAR el pago que respalda un premaster ya liberado','FALLA',
- $q$UPDATE pago SET estado_pago='ANULADO'
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                  motivo_anulacion='Intento de esquive'
     WHERE id_trabajo_mastering=(SELECT id_trabajo FROM trabajo_mastering WHERE nombre_track='Candado')$q$);
 
 SELECT probar('D03','BORRAR el pago que respalda un premaster ya liberado','FALLA',
@@ -249,7 +281,9 @@ SELECT probar('D03','BORRAR el pago que respalda un premaster ya liberado','FALL
 SELECT probar('D04','anular el pago SI el trabajo se marco liberado_sin_pago','ANDA',
  $q$UPDATE trabajo_mastering SET liberado_sin_pago=TRUE,
         motivo_liberacion='Arreglo a 30 dias' WHERE nombre_track='Candado';
-    UPDATE pago SET estado_pago='ANULADO'
+    UPDATE pago SET estado_pago='ANULADO',
+                   id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                   motivo_anulacion='El trabajo quedo liberado sin pago, con motivo'
      WHERE id_trabajo_mastering=(SELECT id_trabajo FROM trabajo_mastering WHERE nombre_track='Candado')$q$);
 
 -- La máquina de estados, revertida en dos pasos vía CANCELADO.
@@ -283,7 +317,72 @@ SELECT probar('E02','BORRAR un trabajo de mastering entregado','FALLA',
  $q$DELETE FROM trabajo_mastering WHERE nombre_track='Borrable'$q$);
 
 SELECT probar('E03','ANULAR el pago si es la salida documentada','ANDA',
- $q$UPDATE pago SET estado_pago='ANULADO' WHERE concepto='borrable'$q$);
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                  motivo_anulacion='Cargado por duplicado'
+    WHERE concepto='borrable'$q$);
+
+-- V7 §1: la salida existe, pero no es gratis. Anular es, para el balance, lo
+-- mismo que borrar -- el monto deja de contar -- y era la única excepción del
+-- esquema que no pedía explicación.
+--
+-- El INSERT va AFUERA de probar() a propósito: el bloque EXCEPTION de esa
+-- función es un savepoint, así que un caso que falla revierte también lo que
+-- preparó, y los tres casos siguientes se quedarían sin fila que atacar --
+-- pasando por UPDATE de cero filas, que es el falso positivo que la cabecera
+-- de estas suites advierte.
+INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,estado_pago,concepto)
+SELECT u_juan,ins_juan,777777,'EFECTIVO','PAGADO','anonimo' FROM v;
+
+SELECT probar('E04','ESQUIVE: anular sin decir quien ni por que','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO' WHERE concepto='anonimo'$q$);
+
+-- El NULL es el esquive fino: un CHECK que evalúa a NULL no rechaza nada. Sin
+-- el `coalesce` de V7 §1, este caso pasaba.
+SELECT probar('E05','ESQUIVE: anular con autor y fecha pero motivo en NULL','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now()
+    WHERE concepto='anonimo'$q$);
+
+SELECT probar('E06','ESQUIVE: motivo en blanco','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                  motivo_anulacion='    '
+    WHERE concepto='anonimo'$q$);
+
+SELECT probar('E07','ESQUIVE: invalidar el comprobante sin dejar autor','FALLA',
+ $q$UPDATE pago SET comprobante_invalido=TRUE WHERE concepto='anonimo'$q$);
+
+
+-- =============================================================================
+-- E2. EL HISTORIAL DE CLASES  (V7 §2)
+--
+-- V6 §7 implementó "nada se borra" solo para `pago` y `trabajo_mastering`: la
+-- auditoría del 12/08 leyó la regla como financiera. `reserva` y
+-- `reserva_participante` -- que SON el historial de clases y sostienen la
+-- respuesta a "¿cuántas clases le quedan?" -- quedaron afuera.
+-- =============================================================================
+INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+SELECT sala1,u_clase,prof,'2027-09-14','10:00','11:30' FROM v;
+INSERT INTO reserva_participante (id_reserva,id_usuario,estado_asistencia)
+SELECT r.id_reserva, v.u_juan, 'PRESENTE'
+FROM v, reserva r WHERE r.fecha='2027-09-14';
+
+SELECT probar('E08','BORRAR la asistencia a una clase','FALLA',
+ $q$DELETE FROM reserva_participante
+    WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2027-09-14')$q$);
+
+SELECT probar('E09','BORRAR la clase entera','FALLA',
+ $q$DELETE FROM reserva WHERE fecha='2027-09-14'$q$);
+
+SELECT probar('E10','ESQUIVE: cambiar un PRESENTE por AUSENTE sin dejar autor','FALLA',
+ $q$UPDATE reserva_participante SET estado_asistencia='AUSENTE'
+    WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2027-09-14')$q$);
+
+SELECT probar('E11','cambiarlo declarando el autor si es la salida','ANDA',
+ $q$UPDATE reserva_participante SET estado_asistencia='AUSENTE',
+                                  id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2027-09-14')$q$);
 
 
 -- =============================================================================

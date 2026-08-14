@@ -9,19 +9,19 @@
 --   # pruebas insertan con las columnas nuevas.
 --   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
 --            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria; do
+--            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos; do
 --     docker cp apps/backend/src/main/resources/db/migration/$v.sql la_juanita_postgres:/tmp/$v.sql
 --   done
 --   docker cp apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql la_juanita_postgres:/tmp/pruebas.sql
 --   docker exec la_juanita_postgres psql -U la_juanita -d postgres -c "DROP DATABASE IF EXISTS pruebas;" -c "CREATE DATABASE pruebas;"
 --   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
 --            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria; do
+--            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos; do
 --     docker exec la_juanita_postgres psql -U la_juanita -d pruebas -v ON_ERROR_STOP=1 -f /tmp/$v.sql
 --   done
 --   docker exec la_juanita_postgres psql -U la_juanita -d pruebas -f /tmp/pruebas.sql
 --
--- Última corrida: 2026-08-14, 69/69 sobre el esquema V1..V6.
+-- Última corrida: 2026-08-14, 86/86 sobre el esquema V1..V7.
 --
 -- TODA MIGRACIÓN NUEVA ACTUALIZA ESTA CABECERA Y LA DE `pruebas-adversariales.sql`,
 -- en el mismo commit. Ya pasó dos veces que no: con V4 las pruebas se editaron y
@@ -178,8 +178,10 @@ SELECT probar('10','sala inexistente','FALLA',
 -- =============================================================================
 -- REPROGRAMACIÓN — ninguna clase se pierde
 -- =============================================================================
+-- Desde V7 §2, cambiar el estado de una reserva exige decir quién lo hizo.
 SELECT probar('11','marcar una clase como REPROGRAMADA','ANDA',
- $q$UPDATE reserva SET estado='REPROGRAMADA'
+ $q$UPDATE reserva SET estado='REPROGRAMADA',
+                      id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2026-09-01' AND hora_inicio='10:00'
       AND id_sala=(SELECT sala1 FROM v)$q$);
 
@@ -459,6 +461,105 @@ SELECT probar('66','borrar un usuario que tiene historial','FALLA',
 
 SELECT probar('67','borrar una sala en uso','FALLA',
  $q$DELETE FROM sala WHERE nombre_sala='Sala 1'$q$);
+
+
+-- =============================================================================
+-- BLOQUEOS CON HORARIO PARCIAL SOBRE VARIOS DÍAS  (V7 §3)
+--
+-- Es el agujero por el que se coló DB-03: los cuatro casos que cargaban un
+-- `bloqueo_sala` en este archivo omitían las horas, así que tomaban los DEFAULT
+-- 00:00/23:59 -- justo la combinación donde las dos definiciones de "bloqueo"
+-- coincidían. Estos cuatro usan franja parcial en un rango de varios días, que
+-- es el caso principal de la pantalla de bloqueo y el único que las distingue.
+-- =============================================================================
+SELECT probar('68','bloquear una sala de 9 a 13 toda una semana','ANDA',
+ $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+    SELECT sala2,'2026-11-02','2026-11-08','09:00','13:00','Mantenimiento de manana' FROM v$q$);
+
+SELECT probar('69','otro bloqueo en esos mismos dias pero de 19 a 23','ANDA',
+ $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+    SELECT sala2,'2026-11-04','2026-11-05','19:00','23:00','Evento a la noche' FROM v$q$);
+
+SELECT probar('70','un bloqueo que SI pisa dias y franja','FALLA',
+ $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,hora_inicio,hora_fin,motivo)
+    SELECT sala2,'2026-11-05','2026-11-06','10:00','12:00','Se pisa de verdad' FROM v$q$);
+
+SELECT probar('71','reservar un dia bloqueado, pero fuera de la franja','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2026-11-03','15:00','16:00' FROM v$q$);
+
+SELECT probar('72','reservar dentro de la franja bloqueada','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2026-11-03','10:00','11:00' FROM v$q$);
+
+
+-- =============================================================================
+-- ANULAR UN PAGO DEJA RASTRO  (V7 §1)
+-- =============================================================================
+SELECT probar('73','pago para anular despues','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,concepto)
+    SELECT u_juan,ins_juan,120000,'EFECTIVO','pago que se va a anular' FROM v$q$);
+
+SELECT probar('74','anular ese pago sin decir quien ni por que','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO' WHERE concepto='pago que se va a anular'$q$);
+
+SELECT probar('75','anular con autor pero sin motivo','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now()
+    WHERE concepto='pago que se va a anular'$q$);
+
+SELECT probar('76','anular con autor, fecha y motivo','ANDA',
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                  id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                  motivo_anulacion='Cobrado dos veces por error'
+    WHERE concepto='pago que se va a anular'$q$);
+
+SELECT probar('77','marcar un comprobante invalido sin justificar','FALLA',
+ $q$UPDATE pago SET comprobante_invalido=TRUE
+    WHERE concepto='pago que se va a anular'$q$);
+
+
+-- =============================================================================
+-- EL HISTORIAL DE CLASES NO SE BORRA Y SE EDITA CON AUDITORÍA  (V7 §2)
+--
+-- La regla dura del Módulo 1 (`platform.md:275`). Es la que sostiene la
+-- respuesta a "¿cuántas clases le quedan a Juan?".
+-- =============================================================================
+SELECT probar('78','borrar una participacion en una clase','FALLA',
+ $q$DELETE FROM reserva_participante
+    WHERE id_usuario=(SELECT u_juan FROM v)$q$);
+
+SELECT probar('79','borrar una reserva entera','FALLA',
+ $q$DELETE FROM reserva WHERE fecha='2026-09-08'$q$);
+
+SELECT probar('80','cambiar la asistencia sin decir quien la cambio','FALLA',
+ $q$UPDATE reserva_participante SET estado_asistencia='AUSENTE'
+    WHERE id_usuario=(SELECT u_juan FROM v)$q$);
+
+SELECT probar('81','cambiar la asistencia diciendo quien la cambio','ANDA',
+ $q$UPDATE reserva_participante SET estado_asistencia='AUSENTE',
+                                  id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE id_usuario=(SELECT u_juan FROM v)$q$);
+
+-- El sello de la edición lo pone la base, no quien edita: si lo eligiera el
+-- cliente se podría antedatar, que es la mitad de lo que DB-07 señala.
+SELECT probar('82','la edicion quedo sellada con fecha por la base','ANDA',
+ $q$UPDATE reserva_participante SET observaciones='verificado'
+    WHERE id_usuario=(SELECT u_juan FROM v)
+      AND estado_asistencia='AUSENTE' AND fecha_modificacion IS NOT NULL$q$);
+
+-- Tocar un campo que no es el historial no exige autor: corregir una nota
+-- interna no es "editar el historial".
+SELECT probar('83','editar solo las notas de una reserva, sin autor','ANDA',
+ $q$UPDATE reserva SET notas='Traer pendrive' WHERE fecha='2026-09-08'$q$);
+
+
+-- =============================================================================
+-- SELLO DE CARGA EN LA VENTA DE EQUIPOS  (V7 §4)
+-- =============================================================================
+SELECT probar('84','toda venta queda con su fecha de carga','ANDA',
+ $q$UPDATE venta_equipo SET notas='revisada'
+    WHERE fecha_registro IS NOT NULL$q$);
 
 
 -- =============================================================================
