@@ -87,11 +87,11 @@ pruebas de base no están en ningún build, y no hay pipeline que corra nada. Lo
 proyecto tiene de sobra es criterio; lo que le falta es que ese criterio quede
 enganchado a algo automático.
 
-**Los que bloquean entrega:**
+**Los que bloquean entrega** *(estado al 2026-08-14; el detalle vive en §8)*:
 
-1. **EXT-01** — Repositorio público con material confidencial del cliente y secretos.
-2. **DOC-09 / EXT-02** — Todo el Módulo 1 y las migraciones `V4`–`V6` sin commitear.
-3. **SEC-01** — El bloqueo que impide firmar con el secreto público depende de un nombre de perfil que el deploy previsto no usa.
+1. ~~**EXT-01** — Repositorio público con material confidencial del cliente y secretos.~~ **Cerrado**: repo privado y secreto rotado; el resto quedó como riesgo asumido (§5).
+2. ~~**DOC-09 / EXT-02** — Todo el Módulo 1 y las migraciones `V4`–`V6` sin commitear.~~ **Resuelto** (commit `870b0da`).
+3. ~~**SEC-01** — El bloqueo que impide firmar con el secreto público depende de un nombre de perfil que el deploy previsto no usa.~~ **Resuelto**: falla cerrado.
 4. **DOC-07 / DOC-08** — Credenciales de Postgres commiteadas sin override, y cero procedimiento de backup, restore o deploy.
 5. **SEO-01** — La landing publica un curso inexistente y duraciones que contradicen lo confirmado, en los títulos, el `llms.txt` y el JSON-LD. Bloquea la publicación, y el propio proyecto ya lo sabía (P34, P31).
 6. **QA-02** — Precios inventados publicados sin salvedad en los dos programas, y cuatro notas técnicas inventadas firmadas —también en datos estructurados— con los nombres de Ghezz, Najles y Chapa Castelo.
@@ -1415,6 +1415,20 @@ por pantalla.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-14 — RESUELTO**, tal cual la recomendación: `puedeOperar` vive en
+> `menu.ts`, al lado de las tres reglas del menú, y `puedeAdministrar` pasó a exportarse
+> para gatear las rutas. Las dos pantallas dejaron de dibujar alta, edición, reseteo y
+> baja para quien no escribe; `/admin/*` devuelve a la home a quien no administra —antes
+> mostraba el marco y una tabla que nunca cargaba—.
+>
+> **Se usa el mismo predicado para el menú y para la ruta**, así no puede existir una
+> sección visible que la ruta rechace. Y está comentado en el código, como pedía el
+> hallazgo, que **esto no autoriza nada**: borrarlo no abriría ningún agujero, solo
+> volvería a mentirle al usuario.
+>
+> Lo que **no** cambió: `DIRECTIVO` sigue viendo las pantallas de administración. Ese era
+> el punto — lee todo y no escribe nada.
+
 ---
 
 #### SEC-06 — El registro público confirma si un teléfono ya tiene cuenta, y esa filtración nunca se decidió
@@ -1667,6 +1681,16 @@ desde el principio: las de Reservas y Pagos van a necesitarla igual.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-14 — RESUELTO.** `componentes/Paginado.tsx`, usado por las dos
+> pantallas: `pagina` es estado, se manda a `listarUsuarios` / `listarAlumnos`, y los dos
+> botones se dibujan con `totalPaginas`, que ya venía en la respuesta y ya estaba en el
+> tipo sin que nadie lo leyera. El control **no se dibuja con una sola página**: hoy no
+> aporta nada y ocupa lugar.
+>
+> Y lo que el hallazgo marcaba como la trampa: **buscar o filtrar resetea a la página 0**
+> en las dos pantallas. Sin eso, filtrar desde la página 3 devuelve vacío y parece que no
+> hay resultados.
+
 ---
 
 #### ARQ-02 — Cinco de los catorce endpoints no se pueden llamar desde la interfaz, y entre ellos están los dos de edición y el único que crea cuentas con rol
@@ -1715,6 +1739,26 @@ las dos pantallas, y `porId` si hace falta una vista de detalle. Antes de conect
 agujero puesto.
 
 **Esfuerzo: M**
+
+> **Remediado el 2026-08-14 — RESUELTO, y en el orden correcto:** SEC-04 se cerró en la
+> tanda 1, así que el formulario de edición nació sin el agujero. Además, el selector de
+> rol viene **deshabilitado sobre la propia fila**, con la explicación al lado: el backend
+> lo rechaza igual, pero el clic distraído ni siquiera existe.
+>
+> Quedaron conectados: **alta de cuenta con rol** (`altaUsuario`, que estaba escrita y no
+> la llamaba nadie — dar de alta a Micaela como STAFF exigía `curl`), **edición de
+> usuario**, **edición de alumno** y, de paso, el **reseteo de contraseña** de SEC-03, que
+> comparte el cartel de "contraseña generada" con el alta porque es el mismo hecho.
+>
+> **Los dos `GET /{id}` siguen sin usarse, y a propósito**: la fila del listado ya trae
+> todos los campos que muestran los formularios, así que una vista de detalle sería un
+> pedido de más para mostrar lo mismo. Se conectan cuando exista algo que el listado no
+> traiga —el perfil del alumno con sus inscripciones, que es el Módulo 1 pendiente—. Son
+> de lectura: no dejan ninguna operación fuera de alcance.
+>
+> **Verificado:** `npm run build:platform` (tsc + vite) y `oxlint`, los dos limpios.
+> ⚠️ **Sin verificación en navegador**: el frontend no tiene tests (QA-05, tanda 6), así
+> que lo que está probado es que compila y tipa, no que se ve bien.
 
 ---
 
@@ -1873,6 +1917,12 @@ anotación de Java a la vista; y sumar los dos archivos a la lista de `CLAUDE.md
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-14 — RESUELTO**, adelantado de la tanda 8 porque la tanda 5
+> tocaba los dos archivos y dejarlo a medias era peor. `NOMBRE_DE_ROL` es
+> `Record<Rol, string>`; los dos predicados (`puedeAdministrar` y el nuevo `puedeOperar`)
+> enumeran sus roles en un `Rol[]` en vez de negar `USUARIO`; y `CLAUDE.md` dice ahora
+> **seis** lugares, no cuatro, con el porqué de la enumeración escrito al lado.
+
 ---
 
 #### ARQ-06 — Lógica copiada literalmente entre los dos controllers, incluida una decisión de autorización
@@ -2008,6 +2058,17 @@ archivo y con el mismo nombre que el record de Java, y tiparlos en las funciones
 `administracion.ts`. Es trabajo mecánico y conviene hacerlo ahora, mientras son siete.
 
 **Esfuerzo: S**
+
+> **Remediado el 2026-08-14 — PARCIAL: los cuatro de administración, que son los que la
+> tanda 5 tocaba.** `AltaUsuario`, `EdicionUsuario`, `AltaAlumno` y `EdicionAlumno` están
+> declarados y exportados en `administracion.ts`, con una nota de qué record de Java
+> espeja cada uno. Se declararon **antes** de escribir los formularios nuevos, así que los
+> cuerpos de edición y de alta con rol nacieron tipados.
+>
+> **Quedan tres**, los de autenticación: `LoginRequest`, `RegistroRequest` y
+> `CambioPasswordRequest`. Viven en `contexto.ts` y en `CambioPasswordObligatorio.tsx`, que
+> esta tanda no tocó; van con la limpieza de la tanda 8, para no mezclar un cambio
+> mecánico con uno funcional en el mismo commit.
 
 ---
 
@@ -3176,8 +3237,17 @@ en un limbo donde se pierde sin querer.
 Decisiones que la documentación ya declara tomadas. Se evalúa si la justificación sigue
 en pie y si la mitigación prometida existe.
 
+> **Los documentos del cliente en el control de versiones pasaron acá el 2026-08-14.**
+> Ignacio pasó el repositorio a privado, rotó el secreto JWT, y **asumió expresamente lo
+> que queda**: los PDF de `docs/propuesta/` y `docs/relevamiento/` siguen versionados y en
+> el historial, y el aviso al cliente lo maneja él por fuera de este informe. Deja de
+> contar como hallazgo abierto y deja de figurar en el backlog: **es una decisión tomada
+> por el dueño del repositorio, no una tarea pendiente.** El texto original de EXT-01 se
+> conserva en §3.1 como registro de lo que la auditoría encontró y cuándo.
+
 | Decisión declarada | ¿Sigue en pie la justificación? | ¿Existe la mitigación? |
 |---|---|---|
+| **Los PDF del cliente quedan versionados** y el historial conserva el período en que el repositorio fue público (decisión de Ignacio, 2026-08-14) | Es una decisión sobre material propio y de su cliente, tomada con la información del hallazgo a la vista | ✅ **Repositorio privado** y ✅ **secreto JWT rotado**, que eran las dos mitigaciones técnicas. Lo demás —reescribir historial, avisarle al cliente— queda fuera de alcance por decisión suya |
 | **Secreto JWT commiteado** para que un clone fresco arranque (`CLAUDE.md:157`) | ❌ **No, y cambió de naturaleza.** La justificación asume repositorio privado. Con el repo público, el secreto está publicado al mundo — ver EXT-01 | ⚠️ **Existe y es insuficiente.** El aviso por log está y se lo vio disparar (`SeguridadConfig.java:114`, corrida de esta sesión); la negativa a arrancar está (`:106-112`) pero **solo con perfil `prod` activo, y nada del deploy previsto activa un perfil** — ver SEC-01 |
 | **El registro avisa que un email ya está en uso**, deshaciendo la protección anti-enumeración del login (`plan:380-384`) | ✅ Sí. El argumento —lo que se filtra es "esta dirección tiene cuenta en un estudio de música de Pilar", y la alternativa traba a quien se registró hace meses— sigue siendo razonable | ✅ Verificado en el código (`DatoDuplicadoException.java:31-34`) y con test (`RegistroTest:106`). ⚠️ **Pero se extendió sin decidirse al teléfono** — ver SEC-06 |
 | **La landing no se publica antes que la plataforma** (`plan:527`) | ✅ Sí, y es la decisión más protectora del repo. Los formularios contestan "listo" sin mandar nada | ⚠️ **Parcialmente comprometida por DOC-06**: `apps/landing/README.md` invita a deployar en Vercel |
@@ -3468,7 +3538,7 @@ Suite completa después de la tanda: **`mvn test` 72/72**, y las dos suites SQL 
 | ID | Estado | Detalle |
 |---|---|---|
 | **EXT-02 / DOC-09** | ✅ resuelto | Commit `870b0da` y **pusheado**: `main` local y remoto coinciden. Los dos días de trabajo, `V4`–`V6`, los tests y la auditoría de base dejaron de vivir en un solo disco |
-| **EXT-01** | 🟡 **a medias** | **El repositorio ya es privado (2026-08-14)**, que era el punto 1 y el que más urgía. Pero se commiteó y pusheó **antes** de cerrarlo, que es el orden que §7 marca como no negociable: el Módulo 1 completo, las migraciones y los dos informes de auditoría estuvieron públicos. Siguen abiertos los puntos 2 a 5 — los PDF del cliente rastreados, el secreto sin rotar, y el aviso al cliente |
+| **EXT-01** | ⚪ **cerrado** | **Repositorio privado y secreto JWT rotado (2026-08-14)**, que eran las dos mitigaciones técnicas. El resto —los PDF versionados, el historial y el aviso al cliente— **Ignacio lo asumió como decisión propia**: pasó a §5 y sale del backlog |
 | **EXT-03** | 🔴 abierto | Sin `LICENSE` ni nota de titularidad |
 
 ### Tanda 3 — 2026-08-14 · la migración `V7`, con las tablas todavía vacías
@@ -3516,17 +3586,37 @@ saberlo".
 suite entera si no se apaga durante `mvn test` — una máquina haciendo cientos de logins
 contra 127.0.0.1 es, para el filtro, exactamente un ataque.
 
+### Tanda 5 — 2026-08-14 · el frontend
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **ARQ-01** | `componentes/Paginado.tsx` en las dos pantallas, y buscar/filtrar vuelve a la página 0 | build + lint |
+| **SEC-05** | `puedeOperar` y `puedeAdministrar` en `menu.ts`: sin botones de escritura para `DIRECTIVO`, y `/admin/*` gateado por rol | build + lint |
+| **ARQ-02** | Alta de cuenta **con rol**, edición de usuario, edición de alumno y el botón de reseteo de SEC-03. `altaUsuario` dejó de estar escrita sin que nadie la llamara | build + lint |
+| **ARQ-09** | Los cuatro tipos de pedido de administración, declarados antes de escribir los formularios | tsc |
+| **ARQ-05** | `Record<Rol, string>` y predicados por enumeración; `CLAUDE.md` dice seis lugares, no cuatro | tsc |
+
+**La verificación de esta tanda es más débil que la de las anteriores, y conviene
+decirlo:** `npm run build:platform` (tsc + vite) y `oxlint`, los dos limpios, pero
+**nada se abrió en un navegador y el frontend no tiene tests** — QA-05, tanda 6. Lo
+probado es que compila y tipa.
+
+Con esto **la migración del Notion deja de estar bloqueada por el front**: se puede dar
+de alta al equipo con su rol, corregir lo que venga mal, resetear contraseñas y ver más
+allá de la fila 20.
+
 ### 8.1 Los 60 hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
-que no es técnica** (del cliente, o de Ignacio). La columna **Tanda** es el orden
-propuesto en §8.2; `1` es lo ya hecho.
+que no es técnica** (del cliente, o de Ignacio) · ⚪ **cerrado como riesgo asumido**: no se
+va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden propuesto en
+§8.2; `1` es lo ya hecho.
 
 | ID | Sev | Esf | Tanda | Estado | Qué falta |
 |---|:--:|:--:|:--:|:--:|---|
-| **EXT-01** | Crítico | S/M | 2 | 🟡 | **Repo privado y secreto rotado (2026-08-14).** Falta: sacar `docs/propuesta/` y `docs/relevamiento/` del control de versiones, y avisarle al cliente |
+| **EXT-01** | Crítico | S/M | — | ⚪ | **Cerrado como riesgo asumido (2026-08-14).** Repo privado y secreto rotado; lo que queda lo decidió Ignacio y pasó a §5. No es tarea pendiente |
 | **EXT-02** | Alto | XS | 1b | ✅ | — |
-| **EXT-03** | Medio | XS | 2 | 🟡 | `LICENSE` o nota de titularidad + alcance de mantenimiento. Depende de qué diga la propuesta firmada |
+| **EXT-03** | Medio | XS | 8 | 🟡 | `LICENSE` o nota de titularidad + alcance de mantenimiento. Depende de qué diga la propuesta firmada |
 | **EXT-04** | Info | XS | 1 | ✅ | — |
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
@@ -3543,20 +3633,20 @@ propuesto en §8.2; `1` es lo ya hecho.
 | **SEC-02** | Alto | M | 4 | ✅ | — |
 | **SEC-03** | Alto | S | 4 | ✅ | Backend hecho. El botón en `UsuariosPagina.tsx` va con ARQ-02 |
 | **SEC-04** | Medio | S | 1 | ✅ | — |
-| **SEC-05** | Medio | S | 5 | 🔴 | `DIRECTIVO` ve botones de escritura que el backend le niega |
+| **SEC-05** | Medio | S | 5 | ✅ | — |
 | **SEC-06** | Bajo | XS | 8 | 🟡 | Decidir explícitamente qué hacer con la enumeración de teléfonos en el registro |
 | **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
 | **SEC-08** | Bajo | S | 4 | ✅ | — |
 | **SEC-09** | Bajo | XS | 8 | 🔴 | Declarar `ESCAPE` en las dos búsquedas, o borrar la constante que nadie usa |
-| **ARQ-01** | Alto | S | 5 | 🔴 | El listado muestra 20 filas y el contador dice el total. **Bloquea la migración del Notion** |
-| **ARQ-02** | Medio | M | 5 | 🔴 | Cinco endpoints sin pantalla, incluidos los dos de edición y el alta con rol |
+| **ARQ-01** | Alto | S | 5 | ✅ | — |
+| **ARQ-02** | Medio | M | 5 | ✅ | Los dos `GET /{id}` siguen sin usarse a propósito: el listado ya trae esos campos |
 | **ARQ-03** | Medio | S | 1 | ✅ | — |
 | **ARQ-04** | Medio | S | 8 | 🔴 | Los dos formatos de error que `application.properties` dice haber unificado siguen conviviendo |
-| **ARQ-05** | Bajo | XS | 8 | 🔴 | Tipar `NOMBRE_DE_ROL` como `Record<Rol, string>` y sumar los dos archivos a la lista de `CLAUDE.md` |
+| **ARQ-05** | Bajo | XS | 5 | ✅ | — |
 | **ARQ-06** | Bajo | S | 8 | 🔴 | `esAdmin` y `acotar` copiados en los dos controllers |
 | **ARQ-07** | Bajo | XS | 8 | 🔴 | Tres `package-lock.json` versionados |
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
-| **ARQ-09** | Bajo | S | 5 | 🔴 | Los siete tipos de pedido no existen en TypeScript |
+| **ARQ-09** | Bajo | S | 5→8 | 🟡 | Los cuatro de administración, hechos. Faltan los tres de autenticación, con la limpieza de la tanda 8 |
 | **ARQ-10** | Info | — | 8 | 🟡 | Decidir si el cliente HTTP se comparte o se duplica, antes de conectar los formularios |
 | **SEO-01** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Depende de P34 y P31 (cliente) |
 | **SEO-02** | Medio | XS | 7 | 🟡 | Sacar el email del JSON-LD o confirmarlo con el cliente |
@@ -3585,15 +3675,17 @@ propuesto en §8.2; `1` es lo ya hecho.
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
 | **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
 
-**Cuentas al cierre de la tanda 4:** 59 hallazgos del informe + 1 nuevo (DB-11) =
-**60**. Resueltos **19** (✅); abiertos **41**, de los cuales **12 están bloqueados por
-una decisión** que no es de código (tuya o del cliente) y 3 quedaron a medias por esa
-misma razón (DB-04, DB-07, DB-11: lo mecánico está hecho, falta la decisión).
+**Cuentas al cierre de la tanda 5:** 59 hallazgos del informe + 1 nuevo (DB-11) =
+**60**. Resueltos **24** (✅), cerrado como riesgo asumido **1** (⚪ EXT-01); abiertos
+**35**, de los cuales **11 están bloqueados por una decisión** que no es de código (tuya
+o del cliente) y 4 quedaron a medias (DB-04, DB-07, DB-11 y ARQ-09).
 
-Por severidad, lo que queda abierto: **1 Crítico** —EXT-01, ya a medias— y **6 Altos**:
-ARQ-01, SEO-01, QA-01, QA-02, DOC-07 y DOC-08. El resto es Medio o menos.
+**Ya no queda ningún Crítico abierto.** Los Altos que siguen son **5**: SEO-01, QA-01,
+QA-02, DOC-07 y DOC-08 — y **dos de ellos son preguntas al cliente**, no código. El
+resto es Medio o menos.
 
-**Trabajo de código pendiente: 29 hallazgos.** Los otros 12 no bajan programando.
+**Trabajo de código pendiente: 24 hallazgos**, casi todo limpieza y la tanda de
+operación. Los otros 11 no bajan programando.
 
 ### 8.2 Las tandas
 
@@ -3606,18 +3698,17 @@ significa rehacer.
 | ~~**1b**~~ | ~~EXT-02, DOC-09~~ | **Hecha** — commit `870b0da`, pusheado |
 | ~~**3**~~ | ~~DB-02, DB-01, DB-03, DB-07, DB-09, DB-11, DB-04, DOC-02~~ | **Hecha** — `V7`, con las tablas todavía vacías |
 | ~~**4**~~ | ~~SEC-02, SEC-03, SEC-08~~ | **Hecha** — límite de intentos, log de eventos, reseteo de contraseña y vencimiento de la temporal |
-| **2 — Repositorio** *(lo que queda no es código)* | EXT-01, EXT-03 | Repo privado ✅ y secreto rotado ✅. **Falta**: sacar los PDF del cliente del control de versiones, avisarle al cliente, y la nota de titularidad |
-| **5 — Frontend** | ARQ-01, SEC-05, ARQ-02, ARQ-09 | El paginado y las pantallas de edición/alta son el mismo trabajo. SEC-04 ya está cerrado, que era el prerrequisito de ARQ-02 |
+| ~~**2**~~ | ~~EXT-01~~ | **Cerrada.** Repo privado ✅ y secreto rotado ✅; lo demás quedó como riesgo asumido (§5). EXT-03 —la nota de titularidad— se movió a la tanda 8 |
+| ~~**5**~~ | ~~ARQ-01, SEC-05, ARQ-02, ARQ-05, ARQ-09~~ | **Hecha** — paginado, gateo por rol, y las pantallas de alta con rol, edición y reseteo |
 | **6 — Operación, tests y CI** | DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05 | Backup/restore/deploy primero, después los tests que faltan y el script de las SQL, y recién ahí el pipeline: necesita un comando que correr |
 | **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |
-| **8 — Resto documental y menor** | DB-08, DB-10, SEC-06, SEC-07, SEC-09, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
+| **8 — Resto documental y menor** | EXT-03, DB-08, DB-10, SEC-06, SEC-07, SEC-09, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
 
 ### 8.3 Lo que no se destraba programando
 
 Cinco preguntas al cliente (§7.a: duraciones de los cursos, precios, firma de las notas,
-el email, y dirección/teléfono/horarios/año) y cuatro decisiones de Ignacio: la
-visibilidad del repositorio y qué se hace con los PDF (EXT-01), la titularidad y el
-mantenimiento (EXT-03), P8 —qué significa "autorización explícita" para una seña—
+el email, y dirección/teléfono/horarios/año) y tres decisiones de Ignacio: la titularidad
+y el mantenimiento (EXT-03), P8 —qué significa "autorización explícita" para una seña—
 (DB-04), y si el cliente HTTP se comparte entre las dos apps (ARQ-10).
 
 ---

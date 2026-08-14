@@ -1,8 +1,9 @@
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 
 import { AuthProvider } from './auth/AuthProvider'
 import { RutaProtegida } from './auth/RutaProtegida'
-import { useAuth } from './auth/contexto'
+import { useAuth, useUsuario } from './auth/contexto'
+import { puedeAdministrar } from './layout/menu'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { LoginPagina } from './paginas/LoginPagina'
@@ -30,8 +31,15 @@ function Rutas() {
           pagos…) se agregan acá y quedan protegidos solos. */}
       <Route element={<RutaProtegida />}>
         <Route index element={<InicioPagina />} />
-        <Route path="/admin/alumnos" element={<AlumnosPagina />} />
-        <Route path="/admin/usuarios" element={<UsuariosPagina />} />
+
+        {/* Las de administración exigen además un rol. Sin esto, alguien que
+            escribe /admin/usuarios en la barra de direcciones veía el marco de
+            la pantalla y una tabla que nunca cargaba: parecía un sistema roto,
+            no un permiso que falta. Quien autoriza sigue siendo el backend. */}
+        <Route element={<SoloAdministracion />}>
+          <Route path="/admin/alumnos" element={<AlumnosPagina />} />
+          <Route path="/admin/usuarios" element={<UsuariosPagina />} />
+        </Route>
       </Route>
 
       {/* Una URL que no existe no es un error para el usuario: lo devolvemos
@@ -39,6 +47,20 @@ function Rutas() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
+}
+
+/**
+ * Las rutas `/admin/*`, para quien tiene rol.
+ *
+ * Usa el mismo predicado que decide si el menú dibuja el grupo Administración,
+ * así no puede haber una sección visible que la ruta rechace ni al revés.
+ */
+function SoloAdministracion() {
+  const usuario = useUsuario()
+
+  if (!puedeAdministrar(usuario)) return <Navigate to="/" replace />
+
+  return <Outlet />
 }
 
 /**

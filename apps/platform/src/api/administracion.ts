@@ -12,6 +12,50 @@ import type {
 
 /** Los pedidos de las pantallas de administración, en un solo lugar. */
 
+/**
+ * Los cuerpos que se MANDAN, tipados igual que los que se reciben.
+ *
+ * Antes solo estaban tipadas las respuestas y estos iban como objetos sueltos
+ * declarados dentro de cada función. Es la mitad del contrato que el compilador
+ * no estaba mirando: agregarle un campo obligatorio a un DTO del backend no
+ * rompía nada acá, y el error aparecía en tiempo de ejecución como un 400.
+ *
+ * Cada uno espeja un record de `…backend.usuario.dto` / `…backend.alumno.dto`.
+ * Si allá cambia un campo, cambia acá.
+ */
+
+/** Espeja `AltaUsuarioRequest`. `rol` solo lo aplica un ADMIN; para el resto se ignora. */
+export type AltaUsuario = {
+  nombre: string
+  apellido: string
+  email: string
+  telefono?: string
+  rol?: Rol
+}
+
+/** Espeja `EdicionUsuarioRequest`. Sin contraseña: nadie cambia la de otro. */
+export type EdicionUsuario = {
+  nombre: string
+  apellido: string
+  email: string
+  telefono?: string
+  rol?: Rol
+}
+
+/** Espeja `AltaAlumnoRequest`: o `idUsuario`, o `usuarioNuevo`. Nunca los dos. */
+export type AltaAlumno = {
+  idUsuario?: number
+  usuarioNuevo?: { nombre: string; apellido: string; email: string; telefono?: string }
+  nivelIngreso?: NivelIngreso | ''
+  instagram?: string
+}
+
+/** Espeja `EdicionAlumnoRequest`. No toca nombre ni contacto: eso es del `usuario`. */
+export type EdicionAlumno = {
+  nivelIngreso?: NivelIngreso | ''
+  instagram?: string
+}
+
 function query(parametros: Record<string, string | number | undefined | null>): string {
   const partes = Object.entries(parametros)
     .filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
@@ -28,14 +72,23 @@ export function listarUsuarios(opciones: { buscar?: string; pagina?: number }) {
   )
 }
 
-export function altaUsuario(datos: {
-  nombre: string
-  apellido: string
-  email: string
-  telefono?: string
-  rol?: Rol
-}) {
+export function altaUsuario(datos: AltaUsuario) {
   return pedir<UsuarioCreado>('/api/usuarios', { metodo: 'POST', cuerpo: datos })
+}
+
+export function editarUsuario(id: number, datos: EdicionUsuario) {
+  return pedir<UsuarioResumen>(`/api/usuarios/${id}`, { metodo: 'PUT', cuerpo: datos })
+}
+
+/**
+ * Contraseña temporal nueva para quien perdió la suya.
+ *
+ * No hay mail, así que este es el único camino de vuelta: la respuesta trae la
+ * contraseña **una sola vez** y hay que pasarla por WhatsApp, igual que en el
+ * alta.
+ */
+export function resetearPasswordUsuario(id: number) {
+  return pedir<UsuarioCreado>(`/api/usuarios/${id}/password-temporal`, { metodo: 'POST' })
 }
 
 export function cambiarActivoUsuario(id: number, activo: boolean) {
@@ -65,13 +118,12 @@ export function listarAlumnos(opciones: {
  * - `idUsuario`: la persona ya tiene cuenta (se registró sola).
  * - `usuarioNuevo`: hay que crearle la cuenta, y vuelve una contraseña temporal.
  */
-export function altaAlumno(datos: {
-  idUsuario?: number
-  usuarioNuevo?: { nombre: string; apellido: string; email: string; telefono?: string }
-  nivelIngreso?: NivelIngreso | ''
-  instagram?: string
-}) {
+export function altaAlumno(datos: AltaAlumno) {
   return pedir<AltaAlumnoResultado>('/api/alumnos', { metodo: 'POST', cuerpo: datos })
+}
+
+export function editarAlumno(id: number, datos: EdicionAlumno) {
+  return pedir<AlumnoResumen>(`/api/alumnos/${id}`, { metodo: 'PUT', cuerpo: datos })
 }
 
 export function cambiarEstadoAlumno(id: number, estado: EstadoAlumno) {

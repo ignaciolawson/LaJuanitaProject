@@ -521,10 +521,16 @@ en el backend.
 
 | Pantalla del módulo | Estado |
 |---|---|
-| Listado de alumnos | 🟡 falta filtrar por disciplina, nivel y "con deuda" |
-| Alta / edición | 🟡 falta el formulario de edición y la disciplina |
+| Listado de alumnos | 🟡 ya pagina y se puede editar; falta filtrar por disciplina, nivel y "con deuda" |
+| Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14). Falta la disciplina, que vive en `inscripcion` |
 | Perfil del alumno | ❌ |
 | Alta de inscripción | ❌ |
+
+**Lo que se destrabó el 2026-08-14** (tanda 5 de la remediación): los listados paginan de
+verdad —antes mostraban 20 filas y el encabezado decía el total—, `DIRECTIVO` dejó de ver
+botones que el backend le niega, y **ya se puede dar de alta al equipo con su rol desde la
+pantalla**: hasta ahora eso exigía llamar la API con `curl`. La migración del Notion deja
+de estar bloqueada por el front.
 
 ### Lo próximo: `inscripcion`
 
@@ -556,18 +562,17 @@ ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 60 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-**Remediado hasta ahora (2026-08-14): 19 de 60.** El candado del secreto JWT falla
+**Remediado hasta ahora (2026-08-14): 24 de 60, más EXT-01 cerrado como riesgo asumido.** El candado del secreto JWT falla
 cerrado y el secreto se rotó; la auto-degradación de rol está cerrada; las reglas de la
 base llegan al usuario como mensajes legibles en vez de como "email duplicado" o como
 500; los errores de Spring salen en español; `V7` cerró los cinco huecos de base que
 había que tapar con las tablas vacías; y `V8` + el perímetro de autenticación cerraron
 lo que faltaba del login: **límite de intentos, log de eventos, reseteo de contraseña y
-vencimiento de la temporal**.
+vencimiento de la temporal**. La tanda 5 cerró el frontend: **paginado real, `DIRECTIVO`
+sin botones de escritura, y las pantallas de alta con rol, edición y reseteo**.
 
-**Lo que queda y no es trabajo de código:** EXT-01 a medias —el repositorio ya es
-privado, pero la propuesta firmada del cliente y la transcripción de la entrevista
-siguen versionadas, y al cliente todavía no se le avisó—, más cinco preguntas al cliente
-y siete decisiones tuyas. Están enumeradas en §8.3 del informe.
+**Lo que queda y no es trabajo de código:** cinco preguntas al cliente y seis decisiones
+tuyas, enumeradas en §8.3 del informe. **No queda ningún hallazgo Crítico abierto.**
 
 ### Deuda que hay que saldar antes del deploy
 
@@ -586,17 +591,17 @@ y siete decisiones tuyas. Están enumeradas en §8.3 del informe.
 6. ~~**No hay forma de recuperar una contraseña.**~~ **Resuelto el 2026-08-14** (SEC-03):
    `POST /api/usuarios/{id}/password-temporal`. Falta el botón en la pantalla, que va
    con ARQ-02.
-7. **Los listados muestran 20 filas y el contador dice el total** (ARQ-01). Con dos
-   usuarios no se nota; con los ~80 de diciembre, sí. **Bloquea la migración del Notion.**
+7. ~~**Los listados muestran 20 filas y el contador dice el total** (ARQ-01).~~
+   **Resuelto el 2026-08-14**: paginan, y buscar vuelve a la primera página.
 8. **Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6. No son
    deuda técnica: son reglas confirmadas que hoy no existen en ningún lado, y cada una
    necesita una decisión tuya antes de escribirse.
 9. **Credenciales de Postgres commiteadas sin override, y cero procedimiento de backup,
    restore o deploy** (DOC-07, DOC-08).
-10. **Los PDF del cliente siguen versionados** (`docs/propuesta/`, `docs/relevamiento/`)
-    y estuvieron públicos. El repositorio ya es privado, pero eso no despublica lo que se
-    pudo copiar: si alguna vez vuelve a ser público hay que reescribir el historial.
-    **Y falta avisarle al cliente** — es material suyo.
+10. **Los PDF del cliente quedan versionados, y está decidido así** (2026-08-14). El
+    repositorio ya es privado y el secreto se rotó; lo demás —el historial y el aviso al
+    cliente— Ignacio lo asumió como decisión propia. Figura como riesgo aceptado en §5
+    del informe de auditoría, no como pendiente.
 
 ### Cómo levantar todo
 

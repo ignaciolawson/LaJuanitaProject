@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { altaAlumno, cambiarEstadoAlumno, listarAlumnos } from '../api/administracion'
+import {
+  altaAlumno,
+  cambiarEstadoAlumno,
+  editarAlumno,
+  listarAlumnos,
+} from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { AlumnoResumen, EstadoAlumno, NivelIngreso } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
+import { Paginado } from '../componentes/Paginado'
+import { useUsuario } from '../auth/contexto'
+import { puedeOperar } from '../layout/menu'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
 const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -16,27 +24,33 @@ const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
  * próxima tanda.
  */
 export function AlumnosPagina() {
+  const puedeEscribir = puedeOperar(useUsuario())
+
   const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
   const [total, setTotal] = useState(0)
+  const [totalPaginas, setTotalPaginas] = useState(0)
+  const [pagina, setPagina] = useState(0)
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoAlumno | ''>('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
+  const [editando, setEditando] = useState<AlumnoResumen | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
     setError(null)
     try {
-      const pagina = await listarAlumnos({ buscar, estado })
-      setAlumnos(pagina.contenido)
-      setTotal(pagina.totalElementos)
+      const resultado = await listarAlumnos({ buscar, estado, pagina })
+      setAlumnos(resultado.contenido)
+      setTotal(resultado.totalElementos)
+      setTotalPaginas(resultado.totalPaginas)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cargar el listado.')
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado])
+  }, [buscar, estado, pagina])
 
   // Espera a que la persona deje de tipear antes de pedir: sin esto, cada
   // tecla dispara una consulta.
@@ -44,6 +58,18 @@ export function AlumnosPagina() {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  // Volver a la primera página al cambiar qué se busca: filtrar desde la página
+  // 3 devuelve vacío y parece que no hay resultados.
+  function cambiarBusqueda(texto: string) {
+    setBuscar(texto)
+    setPagina(0)
+  }
+
+  function cambiarFiltroEstado(nuevo: EstadoAlumno | '') {
+    setEstado(nuevo)
+    setPagina(0)
+  }
 
   async function cambiarEstado(alumno: AlumnoResumen, nuevo: EstadoAlumno) {
     try {
@@ -63,20 +89,23 @@ export function AlumnosPagina() {
             {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'alumno' : 'alumnos'}`}
           </p>
         </div>
-        <Boton onClick={() => setMostrandoAlta(true)}>Nuevo alumno</Boton>
+        {/* DIRECTIVO lee todo y no escribe nada. Ofrecerle el alta terminaba en
+            "No tenés permiso para hacer esto" después de completar el
+            formulario. Quien autoriza sigue siendo el backend. */}
+        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo alumno</Boton>}
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
           type="search"
           value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
+          onChange={(e) => cambiarBusqueda(e.target.value)}
           placeholder="Buscar por nombre, apellido o email…"
           className="min-w-64 flex-1 rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           value={estado}
-          onChange={(e) => setEstado(e.target.value as EstadoAlumno | '')}
+          onChange={(e) => cambiarFiltroEstado(e.target.value as EstadoAlumno | '')}
           className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
@@ -99,6 +128,17 @@ export function AlumnosPagina() {
           onCerrar={() => setMostrandoAlta(false)}
           onCreado={() => {
             setMostrandoAlta(false)
+            void cargar()
+          }}
+        />
+      )}
+
+      {editando && (
+        <FormularioEdicion
+          alumno={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={() => {
+            setEditando(null)
             void cargar()
           }}
         />
@@ -134,19 +174,30 @@ export function AlumnosPagina() {
                 <td className="px-4 py-3">
                   <Etiqueta estado={a.estadoAlumno} />
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <select
-                    value={a.estadoAlumno}
-                    onChange={(e) => void cambiarEstado(a, e.target.value as EstadoAlumno)}
-                    aria-label={`Cambiar estado de ${a.nombre} ${a.apellido}`}
-                    className="rounded border border-linea bg-white px-2 py-1 text-xs outline-none focus:border-red"
-                  >
-                    {ESTADOS.map((e) => (
-                      <option key={e} value={e}>
-                        {e.charAt(0) + e.slice(1).toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
+                <td className="px-4 py-3">
+                  {puedeEscribir && (
+                    <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setEditando(a)}
+                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+                      >
+                        Editar
+                      </button>
+                      <select
+                        value={a.estadoAlumno}
+                        onChange={(e) => void cambiarEstado(a, e.target.value as EstadoAlumno)}
+                        aria-label={`Cambiar estado de ${a.nombre} ${a.apellido}`}
+                        className="rounded border border-linea bg-white px-2 py-1 text-xs outline-none focus:border-red"
+                      >
+                        {ESTADOS.map((e) => (
+                          <option key={e} value={e}>
+                            {e.charAt(0) + e.slice(1).toLowerCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -163,6 +214,13 @@ export function AlumnosPagina() {
           </tbody>
         </table>
       </div>
+
+      <Paginado
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        totalElementos={total}
+        onCambiar={setPagina}
+      />
     </div>
   )
 }
@@ -178,6 +236,108 @@ function Etiqueta({ estado }: { estado: EstadoAlumno }) {
     <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${estilo}`}>
       {estado.charAt(0) + estado.slice(1).toLowerCase()}
     </span>
+  )
+}
+
+/**
+ * Edición de lo que es propio del alumno.
+ *
+ * No toca nombre, email ni teléfono: eso vive en el `usuario` y se edita desde
+ * Personas. Son dos entidades distintas y el backend las mantiene separadas
+ * (`EdicionAlumnoRequest` tampoco los acepta).
+ */
+function FormularioEdicion({
+  alumno,
+  onCerrar,
+  onGuardado,
+}: {
+  alumno: AlumnoResumen
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [datos, setDatos] = useState({
+    nivelIngreso: (alumno.nivelIngreso ?? '') as NivelIngreso | '',
+    instagram: alumno.instagram ?? '',
+  })
+  const [errores, setErrores] = useState<Record<string, string>>({})
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  function cambiar(campo: keyof typeof datos) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
+  }
+
+  async function onSubmit(evento: React.FormEvent) {
+    evento.preventDefault()
+    setErrores({})
+    setErrorGeneral(null)
+    setEnviando(true)
+
+    try {
+      await editarAlumno(alumno.idAlumno, {
+        nivelIngreso: datos.nivelIngreso || undefined,
+        instagram: datos.instagram || undefined,
+      })
+      onGuardado()
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.errores) setErrores(e.errores)
+        else setErrorGeneral(e.message)
+      } else {
+        setErrorGeneral('No se pudo conectar con el servidor.')
+      }
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+      <h3 className="mb-1 font-semibold">
+        Editar a {alumno.nombre} {alumno.apellido}
+      </h3>
+      <p className="mb-4 text-xs text-apagado">
+        El nombre y el contacto se editan desde Personas: son datos de la cuenta, no del alumno.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <CampoSelect
+          etiqueta="Nivel de ingreso"
+          value={datos.nivelIngreso}
+          onChange={cambiar('nivelIngreso')}
+          error={errores.nivelIngreso}
+        >
+          <option value="">Sin definir</option>
+          {NIVELES.map((n) => (
+            <option key={n} value={n}>
+              {n.charAt(0) + n.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </CampoSelect>
+        <Campo
+          etiqueta="Instagram"
+          value={datos.instagram}
+          onChange={cambiar('instagram')}
+          error={errores.instagram}
+          placeholder="@usuario"
+        />
+      </div>
+
+      {errorGeneral && (
+        <div className="mt-4">
+          <Aviso>{errorGeneral}</Aviso>
+        </div>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        <Boton type="submit" disabled={enviando}>
+          {enviando ? 'Guardando…' : 'Guardar'}
+        </Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
   )
 }
 

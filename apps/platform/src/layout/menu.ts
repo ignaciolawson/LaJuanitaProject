@@ -1,4 +1,4 @@
-import type { UsuarioActual } from '../api/tipos'
+import type { Rol, UsuarioActual } from '../api/tipos'
 
 /**
  * El menú del portal, armado desde la respuesta de `GET /api/me`.
@@ -87,9 +87,42 @@ const MENU: GrupoMenu[] = [
   },
 ]
 
-function puedeAdministrar(usuario: UsuarioActual): boolean {
-  return usuario.rol !== 'USUARIO'
+/**
+ * Quién ve las pantallas de administración. Espeja `@PuedeLeerAdministracion`
+ * del backend (ADMIN·DIRECTIVO·STAFF).
+ *
+ * Escrito por enumeración y no como `rol !== 'USUARIO'`: por negación funciona
+ * hoy **por coincidencia**, y un quinto rol entraría solo al menú de acá y
+ * recibiría 403 del backend. Enumerado, un rol nuevo queda afuera hasta que
+ * alguien decida lo contrario, que es el default correcto.
+ */
+export function puedeAdministrar(usuario: UsuarioActual): boolean {
+  return ADMINISTRAN.includes(usuario.rol)
 }
+
+const ADMINISTRAN: Rol[] = ['ADMIN', 'DIRECTIVO', 'STAFF']
+
+/**
+ * El segundo eje del rol: quién puede ESCRIBIR.
+ *
+ * `puedeAdministrar` dice quién ve las pantallas de administración;
+ * este dice quién puede tocar algo adentro. Son distintos, y esa diferencia
+ * es la razón de ser del rol DIRECTIVO: lee todo el sistema y no modifica nada.
+ *
+ * Espeja `@PuedeOperar` del backend (ADMIN·STAFF). Sin esto, un socio entraba a
+ * Alumnos, veía "Nuevo alumno", completaba el formulario y recibía "No tenés
+ * permiso para hacer esto" — el sistema le ofrecía algo que no podía hacer.
+ *
+ * **Esto NO autoriza nada.** Quien autoriza es el backend, que resuelve el rol
+ * contra la base en cada pedido; acá solo se deja de ofrecer lo que va a ser
+ * rechazado. Es cosmética honesta, no un control de acceso, y borrar esta
+ * función no abriría ningún agujero — solo volvería a mentirle al usuario.
+ */
+export function puedeOperar(usuario: UsuarioActual): boolean {
+  return OPERAN.includes(usuario.rol)
+}
+
+const OPERAN: Rol[] = ['ADMIN', 'STAFF']
 
 /** Devuelve el menú de esta persona, ya sin los grupos que le quedan vacíos. */
 export function menuPara(usuario: UsuarioActual): GrupoMenu[] {
