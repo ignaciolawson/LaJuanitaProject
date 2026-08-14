@@ -26,7 +26,8 @@ export function InicioPagina() {
         </h3>
 
         <dl className="divide-y divide-linea text-sm">
-          <Dato etiqueta="Nombre" valor={usuario.nombreCompleto} />
+          <Dato etiqueta="Nombre" valor={usuario.nombre} />
+          <Dato etiqueta="Apellido" valor={usuario.apellido} />
           <Dato etiqueta="Email" valor={usuario.email} />
           <Dato etiqueta="Rol (permisos)" valor={usuario.rol} />
           <Dato etiqueta="¿Es alumno?" valor={usuario.esAlumno ? 'Sí' : 'No'} />

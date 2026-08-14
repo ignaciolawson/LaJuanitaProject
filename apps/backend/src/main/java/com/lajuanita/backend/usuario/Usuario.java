@@ -35,8 +35,15 @@ public class Usuario {
     @Column(name = "id_usuario")
     private Long id;
 
-    @Column(name = "nombre_completo", nullable = false, length = 150)
-    private String nombreCompleto;
+    @Column(name = "nombre", nullable = false, length = 80)
+    private String nombre;
+
+    /**
+     * Separado del nombre a propósito (V4): el listado de alumnos se ordena y
+     * se filtra por apellido, y un único campo de texto libre no permite eso.
+     */
+    @Column(name = "apellido", nullable = false, length = 80)
+    private String apellido;
 
     /**
      * Credencial de acceso. Único sin distinguir mayúsculas -- lo impone el
@@ -76,6 +83,15 @@ public class Usuario {
      */
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
+
+    /**
+     * TRUE cuando la contraseña la generó administración y la persona todavía
+     * no eligió la suya. Mientras esté en TRUE, el sistema le exige cambiarla
+     * antes de dejarla hacer nada más: esa contraseña viajó por un WhatsApp y
+     * la conocen dos personas.
+     */
+    @Column(name = "debe_cambiar_password", nullable = false)
+    private boolean debeCambiarPassword = false;
 
     /** La escribe el DEFAULT de la base, no la aplicación. */
     @Column(name = "fecha_creacion", nullable = false, insertable = false, updatable = false)

@@ -13,8 +13,11 @@
 > - **❓Pn** — decisión pendiente. Necesita respuesta de Ignacio o del cliente.
 > - **⚠️** — contradicción o hueco detectado entre documentos.
 >
-> Estado al 2026-08-11: esqueleto completo de los 8 módulos, profundidad alta en 1–3
-> (septiembre/octubre), trazo grueso en 6–8 (se detallan en octubre).
+> Estado de ESTE DOCUMENTO al 2026-08-11: los 8 módulos descritos, profundidad alta
+> en 1–3 (septiembre/octubre), trazo grueso en 6–8 (se detallan en octubre).
+>
+> Estado del CÓDIGO: no está acá. Vive en `docs/sistema-gestion-plan.md` §6d, que es
+> el único lugar donde se lleva la cuenta de qué está construido.
 
 ---
 
@@ -59,6 +62,11 @@ Aplican a todos los módulos. Si un módulo contradice esto, gana esta sección.
 `usuario` es la identidad de login única. `alumno` y `profesor` son relaciones que
 cuelgan de `usuario`, no lo reemplazan (ver `docs/sistema-gestion-plan.md` §3.2).
 
+**Cualquiera se crea su cuenta** (P18, resuelto el 2026-08-12), sea alumno o no:
+para ver tus reservas necesitás una. Administración también puede crearla, con
+contraseña temporal. Tener cuenta **no** te hace alumno — eso es una fila en
+`alumno` que agrega administración al inscribirte.
+
 **⚠️ Corrección al plan del 2026-08-10: vuelven a ser cuatro roles, no tres.**
 El plan había colapsado los permisos en `ADMIN` / `STAFF` / `USUARIO`. La propuesta
 comercial promete explícitamente **"cuatro roles diferenciados: administrador,
@@ -76,6 +84,31 @@ Eso es una diferencia real de permisos, no un matiz. Queda:
 Los profesores son `USUARIO` **con fila en `profesor`** — su acceso a "mis alumnos"
 viene de la relación, no del rol. Ghezz es `STAFF` **y** `profesor` **y** puede
 reservarse una cabina para él: las tres cosas a la vez, sin contradicción.
+
+**Tres reglas más sobre los permisos, todas impuestas en el backend** (2026-08-12):
+
+1. **Los permisos se resuelven contra la base en cada pedido, nunca contra el token.**
+   Desactivar a alguien (`usuario.activo = FALSE`) le corta el acceso **en el acto**, y
+   bajarle el rol pega en el pedido siguiente. Sin esto, la credencial seguía valiendo
+   hasta 8 horas: se comprobó que un usuario dado de baja seguía operando y llegó a
+   crear una fila.
+2. **Solo un `ADMIN` puede editar o desactivar una cuenta que tenga rol
+   administrativo** (`ADMIN`, `DIRECTIVO` o `STAFF`). Micaela da de alta alumnos todo
+   el día, pero no puede tocar la cuenta de un socio ni la de Ignacio. Sin esta regla
+   un `STAFF` podía desactivar al único `ADMIN` y dejar el sistema sin nadie capaz de
+   administrarlo — porque además solo un `ADMIN` otorga roles.
+3. **Nadie puede sacarse a sí mismo del sistema**: ni desactivando su propia cuenta ni
+   cambiándose el rol. Son las dos puertas al mismo desastre, y la segunda estuvo
+   abierta hasta el 2026-08-14: el único `ADMIN` podía ponerse `USUARIO` a sí mismo, la
+   API contestaba 200 y el pedido siguiente ya venía 403, sin nadie capaz de deshacerlo
+   (solo un `ADMIN` otorga roles). Con las dos cerradas, la invariante *"siempre queda al
+   menos un `ADMIN` activo"* se sostiene sin contar filas: uno puede degradar o
+   desactivar a otro, nunca a sí mismo, así que el último no se puede ir.
+
+**Y una que no es de rol sino de estado:** quien tiene una contraseña generada por
+administración y todavía no la cambió **no puede operar nada** hasta hacerlo, ni por
+pantalla ni llamando la API directamente. Solo puede ver quién es y cambiar su
+contraseña.
 
 ### 2.2 Menú del portal
 
@@ -351,7 +384,11 @@ restantes) · Mis notificaciones · Mi perfil.
 
 ### Pendientes
 - **❓P17 — ¿Hasta dónde llega la autogestión, realmente?** Hay una tensión entre lo que Mica dijo querer en la entrevista (*"que los alumnos puedan anotarse solos, elegir horarios, profesores, cancelar clases"*) y lo que la propuesta promete (solicitar y que Micaela apruebe). Mica además dudó en voz alta: *"puede que los alumnos prefieran el trato personalizado"*. **La propuesta es lo contractual, así que por defecto vamos con solicitud + aprobación** — pero conviene confirmárselo, porque puede estar esperando otra cosa.
-- **❓P18 — ¿Cómo obtiene el alumno su contraseña la primera vez?** Micaela lo da de alta, no él. ¿Se le manda un mail de activación? ¿Un link por WhatsApp?
+- **✅P18 — RESUELTO (2026-08-12). Cada uno se crea su cuenta, y Micaela puede crearla con contraseña temporal.** Son dos caminos, y los dos hacen falta:
+  1. **Registro propio** (`POST /api/auth/registro`, público): nombre, apellido, email, teléfono y contraseña. **Lo puede usar cualquiera, sea alumno o no** — para ver tus reservas necesitás cuenta, y quien alquila una cabina una vez nunca va a cursar nada. Esto confirma la decisión de `usuario` como raíz del modelo: *crear una cuenta* y *ser alumno* son cosas distintas, y la segunda la agrega administración al inscribirte.
+  2. **Alta por administración**: para los ~80 alumnos que hoy viven en el Notion y para quien se anota por WhatsApp. El sistema genera una contraseña temporal, Micaela se la pasa por WhatsApp (como ya trabaja hoy) y `usuario.debe_cambiar_password` obliga a cambiarla en el primer ingreso.
+
+  **Por qué no un mail de activación:** no hay infraestructura de correo ni la va a haber pronto (`sistema-gestion-plan.md` §7 descarta el relay de mails). WhatsApp es el canal que el estudio ya usa para todo.
 - **❓P19 — ¿Un alumno inactivo pierde el acceso al portal?** La propuesta dice que el acceso requiere estar activo. Pero alguien que terminó el curso quizá quiera seguir viendo sus materiales.
 
 ---
@@ -455,7 +492,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P15 | Anular un pago mal cargado | Módulo 3 |
 | P16 | Alcance de venta de equipos | Módulo 3 |
 | P17 | Alcance real de la autogestión | Módulo 4 |
-| P18 | Primera contraseña del alumno | Módulo 4 |
+| ~~P18~~ | ✅ Se registra solo, o alta con contraseña temporal | — |
 | P19 | Acceso del alumno inactivo | Módulo 4 |
 | P20 | Liquidación automática a profesores | Módulo 5 |
 | P21 | Seguimiento de mentorías | Módulo 5 |

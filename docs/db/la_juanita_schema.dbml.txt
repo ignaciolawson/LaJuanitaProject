@@ -1,9 +1,24 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real:
-//     apps/backend/src/main/resources/db/migration/V1__baseline.sql
-//     apps/backend/src/main/resources/db/migration/V2__datos_iniciales.sql
+// Generado a partir del esquema real, migraciones V1..V6.
+//
+// Al 2026-08-14 el diagrama está AL DÍA: comparado tabla por tabla y columna
+// por columna contra el catálogo de una base con las seis migraciones
+// aplicadas, coinciden las 22 tablas y todas sus columnas. Incluye lo que
+// agregaron V4 (`nombre` + `apellido` en vez de `nombre_completo`), V5
+// (`usuario.debe_cambiar_password`) y V6 (la columna generada
+// `bloqueo_sala.periodo`).
+//
+// La cabecera anterior decía lo contrario -- "NO REFLEJA V3..V6" -- y era
+// falso: invitaba a "corregir" el diagrama volviendo a `nombre_completo`, que
+// es justo el error que quería prevenir.
+//
+// Lo que el diagrama sigue sin poder mostrar son las constraints y los
+// triggers, y eso es harina de otro costal: está explicado abajo. V6 sumó
+// 12 CHECK, 3 triggers, un EXCLUDE en `bloqueo_sala` y un UNIQUE parcial en
+// `artista.id_usuario`, todos por hallazgos de la auditoría adversarial
+// (`docs/db/auditoria-2026-08-12.md`), y ninguno se ve acá.
 //
 // Para ver el diagrama: entrar a https://dbdiagram.io > New Diagram >
 // borrar el ejemplo > pegar este archivo completo.
@@ -26,8 +41,17 @@
 //      registrado, salvo excepción explícita y con motivo.
 //   6. Los estados de trabajo_mastering y de release solo avanzan.
 //   7. Una nota de profesor va sobre una clase de ese mismo alumno.
+//   8. (V6) Dos bloqueos no se solapan sobre la misma sala.
+//   9. (V6) El pago que respalda un premaster liberado no se puede anular ni
+//      borrar sin marcar antes el trabajo como liberado_sin_pago.
+//  10. (V6) No se borran filas de `pago` ni de `trabajo_mastering`: se anulan.
 //
-// El detalle y el porqué de cada una está comentado en V1__baseline.sql.
+// El detalle y el porqué de cada una está comentado en V1__baseline.sql y en
+// V6__integridad_auditoria.sql.
+//
+// OJO con la regla 2: solo se garantiza bajo READ COMMITTED. En REPEATABLE
+// READ y en SERIALIZABLE el trigger lee un snapshot viejo y la reserva entraría
+// igual -- está medido. Desde V6 la transacción se rechaza en vez de mentir.
 //
 // ----------------------------------------------------------------------------
 // CAMBIOS RESPECTO DE LA v2 (el diagrama que estaba antes acá)
@@ -54,7 +78,8 @@
 
 Table usuario {
   id_usuario        bigint      [pk, increment]
-  nombre_completo   varchar(150) [not null]
+  nombre            varchar(80)  [not null]
+  apellido          varchar(80)  [not null, note: 'Separado del nombre (V4): el listado se ordena y filtra por apellido']
   email             varchar(150) [not null, unique]
   telefono          varchar(40)  [unique]
   password_hash     varchar(255) [not null]
@@ -64,6 +89,7 @@ Table usuario {
   bio               text
   especializacion   varchar(150)
   activo            boolean      [not null, default: true]
+  debe_cambiar_password boolean  [not null, default: false, note: 'TRUE si la contraseña la generó administración y todavía no la cambió (V5)']
   fecha_creacion    timestamptz  [not null]
   ultimo_acceso     timestamptz
 
@@ -171,6 +197,7 @@ Table bloqueo_sala {
   hora_fin             time        [not null, default: '23:59']
   motivo               text        [not null]
   fecha_registro       timestamptz [not null]
+  periodo              tsrange     [note: 'Columna generada (V6): el rango bloqueado']
 
   Note: 'Mantenimiento o uso especial. Un bloqueo y una reserva no pueden pisarse: lo garantizan dos triggers con lock de fila sobre la sala.'
 }

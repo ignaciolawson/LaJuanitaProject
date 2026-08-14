@@ -29,5 +29,18 @@ public enum Rol {
     STAFF,
 
     /** Alumnos, clientes ocasionales, profesores. Solo lo propio. */
-    USUARIO
+    USUARIO;
+
+    /**
+     * ¿Este rol administra el sistema?
+     *
+     * <p>Sirve para proteger las cuentas administrativas de quien no es ADMIN:
+     * Micaela ({@link #STAFF}) da de alta alumnos todo el día, pero no debería
+     * poder editar ni desactivar la cuenta de un ADMIN o un DIRECTIVO. Sin esta
+     * distinción podía dejar al sistema sin nadie que lo administre -- y se
+     * comprobó que podía: desactivó al ADMIN y la cuenta quedó bloqueada.
+     */
+    public boolean esAdministrativo() {
+        return this != USUARIO;
+    }
 }

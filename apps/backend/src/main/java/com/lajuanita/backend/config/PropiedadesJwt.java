@@ -24,6 +24,11 @@ import jakarta.validation.constraints.NotNull;
  * @param emisor   el claim {@code iss}. Se firma con él y se exige al validar,
  *                 así un token de otro sistema que compartiera la clave por
  *                 accidente igual no entra.
+ * @param permitirSecretoDeDesarrollo permiso explícito para firmar con el
+ *                 secreto commiteado. Vale {@code false} si la propiedad no
+ *                 está, que es justo lo que hace que un entorno que no copió
+ *                 el {@code application.properties} del repo no arranque con
+ *                 la clave pública. Ver {@code SeguridadConfig#claveDeFirma}.
  */
 @Validated
 @ConfigurationProperties(prefix = "lajuanita.jwt")
@@ -33,5 +38,7 @@ public record PropiedadesJwt(
 
         @NotNull Duration duracion,
 
-        @NotBlank String emisor) {
+        @NotBlank String emisor,
+
+        boolean permitirSecretoDeDesarrollo) {
 }

@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router'
 
-import type { UsuarioActual } from '../api/tipos'
+import { nombreCompleto, type UsuarioActual } from '../api/tipos'
 import { useAuth, useUsuario } from '../auth/contexto'
 import { menuPara } from './menu'
 
@@ -74,7 +74,7 @@ export function Layout() {
         </nav>
 
         <div className="border-t border-linea px-5 py-4">
-          <p className="truncate text-sm font-medium">{usuario.nombreCompleto}</p>
+          <p className="truncate text-sm font-medium">{nombreCompleto(usuario)}</p>
           <p className="truncate text-xs text-apagado">{usuario.email}</p>
           <button
             type="button"
@@ -88,7 +88,7 @@ export function Layout() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-linea bg-white px-8 py-4">
-          <h1 className="text-sm font-medium">Hola, {primerNombre(usuario)}</h1>
+          <h1 className="text-sm font-medium">Hola, {usuario.nombre}</h1>
           <span className="rounded-full border border-linea px-2.5 py-1 text-[11px] uppercase tracking-wider text-tenue">
             {NOMBRE_DE_ROL[usuario.rol]}
           </span>
@@ -100,8 +100,4 @@ export function Layout() {
       </div>
     </div>
   )
-}
-
-function primerNombre(usuario: UsuarioActual): string {
-  return usuario.nombreCompleto.split(' ')[0]
 }

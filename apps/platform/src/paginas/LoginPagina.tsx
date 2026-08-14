@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
 import { useAuth } from '../auth/contexto'
@@ -97,7 +98,14 @@ export function LoginPagina() {
           </button>
         </form>
 
-        <p className="mt-8 text-xs leading-relaxed text-apagado">
+        <p className="mt-8 text-sm text-tenue">
+          ¿No tenés cuenta?{' '}
+          <Link to="/registro" className="text-ink underline underline-offset-2 hover:text-red">
+            Creá una
+          </Link>
+        </p>
+
+        <p className="mt-4 text-xs leading-relaxed text-apagado">
           ¿Olvidaste la contraseña? Pedile a administración que te la resetee:
           las contraseñas se guardan encriptadas y no se pueden recuperar.
         </p>

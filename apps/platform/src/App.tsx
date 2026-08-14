@@ -3,8 +3,11 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AuthProvider } from './auth/AuthProvider'
 import { RutaProtegida } from './auth/RutaProtegida'
 import { useAuth } from './auth/contexto'
+import { AlumnosPagina } from './paginas/AlumnosPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { LoginPagina } from './paginas/LoginPagina'
+import { RegistroPagina } from './paginas/RegistroPagina'
+import { UsuariosPagina } from './paginas/UsuariosPagina'
 
 export default function App() {
   return (
@@ -19,12 +22,16 @@ export default function App() {
 function Rutas() {
   return (
     <Routes>
-      <Route path="/login" element={<SoloAnonimos />} />
+      {/* Las dos rutas públicas, y las únicas. */}
+      <Route path="/login" element={<SoloAnonimos><LoginPagina /></SoloAnonimos>} />
+      <Route path="/registro" element={<SoloAnonimos><RegistroPagina /></SoloAnonimos>} />
 
-      {/* Todo lo de adentro exige sesión. Los módulos que vienen (alumnos,
-          reservas, pagos…) se agregan acá y quedan protegidos solos. */}
+      {/* Todo lo de adentro exige sesión. Los módulos que vienen (reservas,
+          pagos…) se agregan acá y quedan protegidos solos. */}
       <Route element={<RutaProtegida />}>
         <Route index element={<InicioPagina />} />
+        <Route path="/admin/alumnos" element={<AlumnosPagina />} />
+        <Route path="/admin/usuarios" element={<UsuariosPagina />} />
       </Route>
 
       {/* Una URL que no existe no es un error para el usuario: lo devolvemos
@@ -35,11 +42,11 @@ function Rutas() {
 }
 
 /**
- * El login solo tiene sentido para quien no entró. Si ya hay sesión, esta
- * ruta devuelve a donde estaba: así el botón "atrás" del navegador después de
- * entrar no muestra el formulario de login de nuevo.
+ * Login y registro solo tienen sentido para quien no entró. Si ya hay sesión,
+ * devuelve a donde estaba: así el botón "atrás" del navegador después de entrar
+ * no muestra el formulario de nuevo.
  */
-function SoloAnonimos() {
+function SoloAnonimos({ children }: { children: React.ReactNode }) {
   const { sesion } = useAuth()
   const ubicacion = useLocation()
 
@@ -50,5 +57,5 @@ function SoloAnonimos() {
     return <Navigate to={desde ?? '/'} replace />
   }
 
-  return <LoginPagina />
+  return <>{children}</>
 }

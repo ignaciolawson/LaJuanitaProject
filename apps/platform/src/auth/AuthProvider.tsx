@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { pedir, registrarManejadorDeSesionVencida } from '../api/cliente'
 import type { LoginResponse, UsuarioActual } from '../api/tipos'
-import { AuthContext, type Sesion } from './contexto'
+import { AuthContext, type DatosDeRegistro, type Sesion } from './contexto'
 import { borrarCredencial, guardarCredencial, leerCredencial } from './credencial'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -47,6 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSesion({ estado: 'autenticado', usuario: respuesta.usuario })
   }, [])
 
+  const registrarse = useCallback(async (datos: DatosDeRegistro) => {
+    const respuesta = await pedir<LoginResponse>('/api/auth/registro', {
+      metodo: 'POST',
+      cuerpo: datos,
+      sinCredencial: true,
+    })
+
+    guardarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn })
+    setSesion({ estado: 'autenticado', usuario: respuesta.usuario })
+  }, [])
+
+  const refrescarUsuario = useCallback(async () => {
+    const usuario = await pedir<UsuarioActual>('/api/me')
+    setSesion({ estado: 'autenticado', usuario })
+  }, [])
+
   const cerrarSesion = useCallback(() => {
     borrarCredencial()
     setSesion({ estado: 'anonimo' })
@@ -64,8 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const valor = useMemo(
-    () => ({ sesion, iniciarSesion, cerrarSesion }),
-    [sesion, iniciarSesion, cerrarSesion],
+    () => ({ sesion, iniciarSesion, registrarse, cerrarSesion, refrescarUsuario }),
+    [sesion, iniciarSesion, registrarse, cerrarSesion, refrescarUsuario],
   )
 
   return <AuthContext value={valor}>{children}</AuthContext>

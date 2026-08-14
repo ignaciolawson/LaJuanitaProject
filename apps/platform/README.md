@@ -4,9 +4,10 @@ SPA autenticada. Es la parte interna del proyecto: alumnos, salas y reservas,
 pagos, portales de alumno y profesor, mix & mastering, sello y dashboard de
 dirección. Nada de esto es público — la landing es otra app (`apps/landing`).
 
-**Estado (2026-08-11):** solo está construido el login. Los ocho módulos de
-negocio vienen después; el primero es Alumnos, en septiembre. Las secciones del
-menú que todavía no existen se dibujan apagadas a propósito.
+**Estado (2026-08-12):** login, crear cuenta, y la primera tanda del Módulo 1
+(listados de alumnos y personas, alta con contraseña temporal). Falta el resto:
+inscripciones, reservas, pagos y los portales. Las secciones del menú que todavía
+no existen se dibujan apagadas a propósito.
 
 ## Correrlo
 
@@ -27,11 +28,22 @@ Credenciales de desarrollo: `admin@lajuanita.local` / `lajuanita2026`.
 
 ```
 src/
-├── api/        cliente HTTP (un solo punto de salida) y tipos del backend
-├── auth/       contexto de sesión, credencial en localStorage, ruta protegida
-├── layout/     shell con el menú lateral + las reglas del menú
-└── paginas/    pantallas
+├── api/         cliente HTTP (un solo punto de salida) y tipos del backend
+├── auth/        contexto de sesión, credencial en localStorage, ruta protegida
+├── componentes/ piezas de formulario reutilizables
+├── layout/      shell con el menú lateral + las reglas del menú
+└── paginas/     pantallas
 ```
+
+**El cambio de contraseña obligatorio se impone en `RutaProtegida`**, no en cada
+pantalla. Cuando la cuenta la creó administración, `debeCambiarPassword` viene en
+`true` y ahí se corta antes de dibujar el layout. Como todas las rutas con sesión
+pasan por ese componente, no hay URL de la app que permita esquivarlo.
+
+> Pero eso es **UX, no seguridad**: el backend rechaza igual (403) cualquier
+> operación de quien todavía no cambió su contraseña, así que tampoco se esquiva
+> llamando la API a mano. La primera versión bloqueaba solo acá, y la auditoría
+> del 2026-08-12 comprobó que por API se operaba sin cambiarla nunca.
 
 **El flujo de sesión.** `AuthProvider` arranca en estado `cargando`: si hay una
 credencial guardada y vigente, le pregunta al backend quién es con `GET /api/me`

@@ -4,13 +4,30 @@
 -- CÓMO EJECUTARLO (base descartable, no toca la de desarrollo):
 --
 --   docker compose up -d
---   docker cp apps/backend/src/main/resources/db/migration/V1__baseline.sql        la_juanita_postgres:/tmp/v1.sql
---   docker cp apps/backend/src/main/resources/db/migration/V2__datos_iniciales.sql la_juanita_postgres:/tmp/v2.sql
---   docker cp apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql        la_juanita_postgres:/tmp/pruebas.sql
+--   # TODAS las migraciones, en orden. No alcanza con V1+V2: desde V4 el
+--   # esquema tiene `nombre` y `apellido` en vez de `nombre_completo`, y estas
+--   # pruebas insertan con las columnas nuevas.
+--   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
+--            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
+--            V6__integridad_auditoria; do
+--     docker cp apps/backend/src/main/resources/db/migration/$v.sql la_juanita_postgres:/tmp/$v.sql
+--   done
+--   docker cp apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql la_juanita_postgres:/tmp/pruebas.sql
 --   docker exec la_juanita_postgres psql -U la_juanita -d postgres -c "DROP DATABASE IF EXISTS pruebas;" -c "CREATE DATABASE pruebas;"
---   docker exec la_juanita_postgres psql -U la_juanita -d pruebas -f /tmp/v1.sql
---   docker exec la_juanita_postgres psql -U la_juanita -d pruebas -f /tmp/v2.sql
+--   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
+--            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
+--            V6__integridad_auditoria; do
+--     docker exec la_juanita_postgres psql -U la_juanita -d pruebas -v ON_ERROR_STOP=1 -f /tmp/$v.sql
+--   done
 --   docker exec la_juanita_postgres psql -U la_juanita -d pruebas -f /tmp/pruebas.sql
+--
+-- Última corrida: 2026-08-14, 69/69 sobre el esquema V1..V6.
+--
+-- TODA MIGRACIÓN NUEVA ACTUALIZA ESTA CABECERA Y LA DE `pruebas-adversariales.sql`,
+-- en el mismo commit. Ya pasó dos veces que no: con V4 las pruebas se editaron y
+-- no se corrieron, y con V6 la cabecera se quedó en V5 mientras el archivo
+-- hermano ya decía V6. Correr 69 casos contra un esquema que no es el del
+-- proyecto no prueba nada, y no avisa.
 --
 -- (En Git Bash, anteponer MSYS_NO_PATHCONV=1 a los `docker` para que no
 --  convierta las rutas /tmp a rutas de Windows.)
@@ -77,11 +94,11 @@ END; $fn$ LANGUAGE plpgsql;
 -- =============================================================================
 -- SEMILLA
 -- =============================================================================
-INSERT INTO usuario (nombre_completo,email,password_hash,rol) VALUES
- ('Micaela','mica@test.local','x','STAFF'),
- ('Ghezz','ghezz@test.local','x','STAFF'),
- ('Juan','juan@test.local','x','USUARIO'),
- ('Ana','ana@test.local','x','USUARIO');
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol) VALUES
+ ('Micaela','Prueba','mica@test.local','x','STAFF'),
+ ('Ghezz','Prueba','ghezz@test.local','x','STAFF'),
+ ('Juan','Prueba','juan@test.local','x','USUARIO'),
+ ('Ana','Prueba','ana@test.local','x','USUARIO');
 
 INSERT INTO profesor (id_usuario) SELECT id_usuario FROM usuario WHERE email='ghezz@test.local';
 INSERT INTO alumno (id_usuario)   SELECT id_usuario FROM usuario WHERE email IN ('juan@test.local','ana@test.local');
@@ -405,17 +422,17 @@ SELECT probar('57','aprobar con responsable y fecha','ANDA',
 -- USUARIOS, MATERIAL, VENTAS, BORRADOS
 -- =============================================================================
 SELECT probar('58','email duplicado con otra capitalizacion','FALLA',
- $q$INSERT INTO usuario (nombre_completo,email,password_hash)
-    VALUES ('Impostor','JUAN@TEST.LOCAL','x')$q$);
+ $q$INSERT INTO usuario (nombre,apellido,email,password_hash)
+    VALUES ('Impostor','Prueba','JUAN@TEST.LOCAL','x')$q$);
 
 SELECT probar('59','telefono duplicado','FALLA',
- $q$INSERT INTO usuario (nombre_completo,email,telefono,password_hash) VALUES
-    ('Uno','uno@test.local','1155550000','x'),
-    ('Dos','dos@test.local','1155550000','x')$q$);
+ $q$INSERT INTO usuario (nombre,apellido,email,telefono,password_hash) VALUES
+    ('Uno','Prueba','uno@test.local','1155550000','x'),
+    ('Dos','Prueba','dos@test.local','1155550000','x')$q$);
 
 SELECT probar('60','rol inexistente','FALLA',
- $q$INSERT INTO usuario (nombre_completo,email,password_hash,rol)
-    VALUES ('X','x@test.local','x','JEFE')$q$);
+ $q$INSERT INTO usuario (nombre,apellido,email,password_hash,rol)
+    VALUES ('X','Prueba','x@test.local','x','JEFE')$q$);
 
 SELECT probar('61','material marcado grupal pero con alumno','FALLA',
  $q$INSERT INTO material (id_profesor,id_alumno,es_grupal,titulo,url_externa)

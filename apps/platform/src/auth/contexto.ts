@@ -15,11 +15,27 @@ export type Sesion =
   | { estado: 'anonimo' }
   | { estado: 'autenticado'; usuario: UsuarioActual }
 
+export type DatosDeRegistro = {
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
+  password: string
+}
+
 export type ContextoAuth = {
   sesion: Sesion
   /** Lanza `ApiError` si las credenciales no sirven; el formulario lo muestra. */
   iniciarSesion: (email: string, password: string) => Promise<void>
+  /** Crea la cuenta y deja a la persona adentro, sin un segundo paso de login. */
+  registrarse: (datos: DatosDeRegistro) => Promise<void>
   cerrarSesion: () => void
+  /**
+   * Vuelve a leer `/api/me`. Hace falta cuando algo que el front ya tiene
+   * guardado cambió del lado del servidor -- hoy, al cambiar la contraseña
+   * obligatoria, que apaga `debeCambiarPassword`.
+   */
+  refrescarUsuario: () => Promise<void>
 }
 
 export const AuthContext = createContext<ContextoAuth | null>(null)

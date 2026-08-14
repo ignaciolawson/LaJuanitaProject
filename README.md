@@ -79,7 +79,7 @@ npm run dev
 ### Tests
 
 ```
-cd apps/backend && mvn test        # 25 casos: login, JWT, roles
+cd apps/backend && mvn test        # 72 casos: login, JWT, registro, permisos, vigencia, errores
 cd apps/platform && npm run build  # incluye el chequeo de tipos
 cd apps/platform && npm run lint
 ```
@@ -93,12 +93,37 @@ las instrucciones están en la cabecera de
 Implementado en la Fase 0 (2026-08-11). El detalle de las decisiones está en
 [`docs/sistema-gestion-plan.md`](docs/sistema-gestion-plan.md) §6.
 
-| Endpoint | Público | Qué hace |
+| Endpoint | Acceso | Qué hace |
 |---|---|---|
-| `POST /api/auth/login` | ✅ | Recibe `{email, password}`. Verifica con BCrypt y devuelve `{token, expiraEn, usuario}`. |
-| `GET /api/me` | ❌ | Devuelve el usuario del token: datos + `rol` + `esAlumno` / `esProfesor`. |
+| `POST /api/auth/login` | **público** | `{email, password}` → `{token, expiraEn, usuario}` |
+| `POST /api/auth/registro` | **público** | Crea una cuenta y devuelve la credencial ya emitida |
+| `GET /api/me` | autenticado | El usuario del token: datos + `rol` + `esAlumno` / `esProfesor` |
+| `POST /api/me/password` | autenticado | Cambiar la propia contraseña |
+| `GET /api/usuarios` | ADMIN·DIRECTIVO·STAFF | Listado con buscador (`buscar`) y paginado (`pagina`, `tamanio`) |
+| `GET /api/usuarios/{id}` | ADMIN·DIRECTIVO·STAFF | Una cuenta |
+| `POST /api/usuarios` | ADMIN·STAFF | Alta con contraseña temporal |
+| `PUT /api/usuarios/{id}` | ADMIN·STAFF | Editar datos de contacto |
+| `PATCH /api/usuarios/{id}/activo` | ADMIN·STAFF | Baja o alta lógica |
+| `GET /api/alumnos` | ADMIN·DIRECTIVO·STAFF | Listado con buscador y filtro `estado` |
+| `GET /api/alumnos/{id}` | ADMIN·DIRECTIVO·STAFF | Perfil |
+| `POST /api/alumnos` | ADMIN·STAFF | Alta (usuario existente o cuenta nueva) |
+| `PUT /api/alumnos/{id}` | ADMIN·STAFF | Editar nivel de ingreso e Instagram |
+| `PATCH /api/alumnos/{id}/estado` | ADMIN·STAFF | Activo / inactivo / suspendido |
 
-Todo lo demás exige `Authorization: Bearer <token>`.
+Todo lo demás exige `Authorization: Bearer <token>`. Sobre los dos accesos:
+`ADMIN·STAFF` es escritura y **`DIRECTIVO` queda afuera a propósito** — lee todo
+el sistema y no modifica nada.
+
+### Cómo entra la gente al sistema
+
+Hay dos caminos, y los dos hacen falta:
+
+1. **Se crea la cuenta sola**, desde `/registro`. **Cualquiera puede, sea alumno o
+   no**: para ver tus reservas necesitás cuenta, y quien alquila una cabina una vez
+   nunca va a cursar nada. Tener cuenta **no** te hace alumno.
+2. **La crea administración**, para los alumnos que ya existen y para quien se anota
+   por WhatsApp. El sistema genera una contraseña temporal que se muestra **una sola
+   vez**, y obliga a cambiarla en el primer ingreso.
 
 **Cómo funciona.** La contraseña se guarda solo como hash BCrypt; es
 irreversible, y si alguien la olvida se resetea, no se recupera. El login
@@ -106,9 +131,13 @@ devuelve un JWT firmado con HMAC-SHA256 que vale 8 horas y lleva únicamente
 `sub` (el id del usuario) y `rol` — un JWT va firmado pero **no** encriptado,
 así que cualquiera que lo tenga puede leer sus claims. Firma y verificación las
 hace Spring Security con su propio soporte JWT: no hay ningún filtro de
-autenticación escrito a mano. `GET /api/me` **relee el usuario de la base** en
-vez de confiar en los claims, para que un cambio de rol o una baja peguen sin
-esperar a que el token venza.
+autenticación escrito a mano.
+
+**Los permisos se resuelven contra la base en cada pedido, nunca contra el
+token.** El claim `rol` es informativo y no autoriza nada. Cuesta una consulta
+por pedido y a cambio da la propiedad que el sistema promete en todos lados:
+desactivar a alguien (`usuario.activo = FALSE`) le corta el acceso **en el acto**,
+y un cambio de rol pega en el pedido siguiente, sin esperar a que venza el token.
 
 Los errores salen en formato ProblemDetail (RFC 7807): el mensaje para mostrar
 está siempre en `detail`, y los errores por campo en `errores`.
@@ -129,10 +158,10 @@ puede ser `STAFF` **y** profesor **y** alquilarse una cabina, las tres a la vez.
 El menú del portal se arma con la respuesta de `/api/me`
 (`apps/platform/src/layout/menu.ts`), nunca hardcodeado.
 
-> ⚠️ **Ocultar una opción del menú no es un mecanismo de seguridad.** Hoy el
-> backend solo exige estar autenticado; todavía no hay ningún endpoint de
-> administración que restringir. Cuando los haya, la autorización va en el
-> backend con `@PreAuthorize` (`@EnableMethodSecurity` ya está activo).
+> ⚠️ **Ocultar una opción del menú no es un mecanismo de seguridad**: cualquiera
+> puede editar el JavaScript de su navegador. Quien autoriza de verdad es el
+> backend, con `@PuedeLeerAdministracion` y `@PuedeOperar`
+> (`apps/backend/.../config/`). El menú solo decide qué se dibuja.
 
 ### Credenciales de desarrollo
 
@@ -144,12 +173,17 @@ reales y desactivar esta cuenta en una migración nueva.
 ### Antes de desplegar esto en algún lado
 
 El secreto de firma JWT está **commiteado** en `application.properties` para que
-el proyecto arranque recién clonado. Cualquiera con acceso al repo puede fabricar
-con él un token de `ADMIN` sin saber ninguna contraseña. En cualquier entorno
-accesible desde afuera hay que definir la variable de entorno `JWT_SECRET`
-(Base64, mínimo 32 bytes). La aplicación avisa por log cuando está usando el
-secreto de desarrollo, y **se niega a arrancar** si detecta un perfil de
-producción activo con ese secreto.
+el proyecto arranque recién clonado. Cualquiera que lo lea puede fabricar con él
+un token de `ADMIN` sin saber ninguna contraseña. En cualquier entorno accesible
+desde afuera hay que definir la variable de entorno `JWT_SECRET` (Base64, mínimo
+32 bytes), y ese valor tiene que ser **nuevo**: el del repo hay que darlo por
+público para siempre.
+
+El candado **falla cerrado**: la aplicación **se niega a arrancar** si está
+firmando con el secreto commiteado, salvo que
+`lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté en el
+`application.properties` — la línea que un deploy no copia. No depende de que
+alguien active un perfil de producción ni de que lea un WARN.
 
 ## Estado de la landing
 

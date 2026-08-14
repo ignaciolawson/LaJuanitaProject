@@ -1,12 +1,20 @@
 package com.lajuanita.backend.auth;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 /**
- * "¿Quién soy?". El front llama esto al arrancar (o al recuperar un token de
+ * "¿Quién soy?" y lo que puedo cambiar de mí mismo.
+ *
+ * <p>El front llama {@code /api/me} al arrancar (o al recuperar un token de
  * {@code localStorage}) y con la respuesta arma el menú del portal. Nada del
  * menú está hardcodeado del lado del cliente.
  */
@@ -26,5 +34,21 @@ public class MeController {
         // texto: convertirlo con Long.valueOf() en esta línea hacía que un token
         // con un `sub` no numérico reventara con un 500.
         return sesiones.describirPorSubject(token.getSubject());
+    }
+
+    /**
+     * Cambiar la propia contraseña.
+     *
+     * <p>No exige ningún rol: es de todos sobre sí mismos. Y no puede tocar la
+     * de otro -- el id sale del token, nunca de la URL ni del cuerpo.
+     *
+     * <p>Es además la única salida del estado {@code debeCambiarPassword}, en el
+     * que quedan las cuentas que creó administración.
+     */
+    @PostMapping("/api/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cambiarPassword(@AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody CambioPasswordRequest solicitud) {
+        sesiones.cambiarPassword(token.getSubject(), solicitud);
     }
 }

@@ -1,6 +1,5 @@
 package com.lajuanita.backend.config;
 
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 
@@ -13,7 +12,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -34,8 +32,6 @@ import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -68,11 +64,15 @@ public class SeguridadConfig {
     /**
      * El secreto que viene commiteado en {@code application.properties}.
      *
-     * <p>Está acá para poder detectarlo: cualquiera que tenga acceso al repo lo
-     * conoce, así que un despliegue que lo use permite fabricar un token de
-     * ADMIN sin saber ninguna contraseña.
+     * <p>Está acá para poder detectarlo: cualquiera que lo lea puede fabricar un
+     * token de ADMIN sin saber ninguna contraseña, así que un despliegue que lo
+     * use está abierto.
+     *
+     * <p>Visible en el paquete —y no privado— porque {@code SecretoDeDesarrolloTest}
+     * lo usa: si el secreto se rota, el test se rota con él y no queda probando
+     * contra un valor que ya no existe.
      */
-    private static final String SECRETO_DE_DESARROLLO =
+    static final String SECRETO_DE_DESARROLLO =
             "/zMQejZCLzic/mq1/t7FtpUcOsj+h0NVWf/ndnfXs6146QEfzCdoiWOFasioULoq";
 
     private final List<String> origenesPermitidos;
@@ -91,8 +91,25 @@ public class SeguridadConfig {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Falla CERRADO: el secreto commiteado solo se acepta si alguien lo autorizó
+     * explícitamente, y ese permiso vive en el {@code application.properties}
+     * del repo -- que es exactamente lo que un deploy no copia.
+     *
+     * <p>Antes el candado se disparaba solo con un perfil {@code prod} activo, y
+     * eso era operativamente vacío: nada en el repo activa un perfil, el deploy
+     * previsto (VPS con Docker Compose) no usa ninguno, y el escenario que hay
+     * que atrapar es justamente el del que se olvidó de configurar algo. El
+     * candado exigía haber configurado otra cosa, así que un
+     * {@code docker compose up} sin variables arrancaba, firmaba con la clave
+     * pública y dejaba una línea de WARN entre cientos.
+     *
+     * <p>Invertido, cualquier entorno que no traiga el archivo del repo tal cual
+     * no arranca. Y si lo trae y se olvidan de borrar la línea, el olvido es
+     * visible en el archivo en vez de invisible en el log.
+     */
     @Bean
-    SecretKey claveDeFirma(PropiedadesJwt propiedades, Environment ambiente) {
+    SecretKey claveDeFirma(PropiedadesJwt propiedades) {
         byte[] bytes = Base64.getDecoder().decode(propiedades.secreto());
         if (bytes.length < 32) {
             throw new IllegalStateException(
@@ -101,22 +118,20 @@ public class SeguridadConfig {
         }
 
         if (SECRETO_DE_DESARROLLO.equals(propiedades.secreto())) {
-            boolean pareceProduccion = Arrays.stream(ambiente.getActiveProfiles())
-                    .anyMatch(perfil -> perfil.equalsIgnoreCase("prod")
-                            || perfil.equalsIgnoreCase("produccion"));
-
-            if (pareceProduccion) {
+            if (!propiedades.permitirSecretoDeDesarrollo()) {
                 throw new IllegalStateException("""
                         Se está usando el secreto JWT de DESARROLLO, que está commiteado en el \
-                        repositorio, con un perfil de producción activo. Cualquiera con acceso \
-                        al repo podría fabricar un token de ADMIN. Definí la variable de entorno \
-                        JWT_SECRET con un valor propio (Base64, >=32 bytes) antes de arrancar.""");
+                        repositorio: cualquiera que lo lea puede fabricar un token de ADMIN sin \
+                        saber ninguna contraseña. Definí la variable de entorno JWT_SECRET con un \
+                        valor propio (Base64, >=32 bytes). Si de verdad esto es una máquina de \
+                        desarrollo, poné lajuanita.jwt.permitir-secreto-de-desarrollo=true.""");
             }
 
             log.warn("""
                     ⚠️  Firmando los tokens con el secreto JWT de DESARROLLO, que está commiteado \
                     en el repositorio. Sirve para trabajar local; en cualquier entorno accesible \
-                    desde afuera hay que definir JWT_SECRET.""");
+                    desde afuera hay que definir JWT_SECRET y sacar \
+                    lajuanita.jwt.permitir-secreto-de-desarrollo.""");
         }
 
         return new SecretKeySpec(bytes, "HmacSHA256");
@@ -151,27 +166,10 @@ public class SeguridadConfig {
                         "invalid_token", "El token no declara vencimiento.", null));
     }
 
-    /**
-     * Traduce el claim {@code rol} del token a la autoridad que entiende Spring
-     * Security. El claim trae un único valor ("ADMIN"), no una lista, y el
-     * converter lo resuelve igual.
-     *
-     * <p>El prefijo {@code ROLE_} es el que hace funcionar
-     * {@code hasRole("ADMIN")} en los controllers que vengan después.
-     */
     @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter autoridades = new JwtGrantedAuthoritiesConverter();
-        autoridades.setAuthoritiesClaimName("rol");
-        autoridades.setAuthorityPrefix("ROLE_");
-
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(autoridades);
-        return converter;
-    }
-
-    @Bean
-    SecurityFilterChain cadenaDeFiltros(HttpSecurity http, JwtAuthenticationConverter conversor) throws Exception {
+    SecurityFilterChain cadenaDeFiltros(HttpSecurity http,
+            AutenticacionDesdeBase conversor,
+            RespuestaDeNoAutenticado sinCredencial) throws Exception {
         return http
                 // Sin CSRF: no hay cookies de sesión. La credencial viaja en el
                 // header Authorization, que un formulario de otro sitio no puede
@@ -180,8 +178,11 @@ public class SeguridadConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Único endpoint abierto: pedir la credencial.
+                        // Los dos únicos endpoints abiertos: pedir la credencial
+                        // y crearse una cuenta. Los dos son POST y nada más:
+                        // abrir la ruta entera expondría métodos que no existen.
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/registro").permitAll()
                         // El preflight de CORS viaja sin Authorization por definición.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // /error NO es un endpoint: es el reenvío interno al que
@@ -192,7 +193,11 @@ public class SeguridadConfig {
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor))
+                        // Sin esto, un 401 vuelve con el cuerpo vacío y el front
+                        // no tiene mensaje que mostrar.
+                        .authenticationEntryPoint(sinCredencial))
+                .exceptionHandling(e -> e.authenticationEntryPoint(sinCredencial))
                 .build();
     }
 

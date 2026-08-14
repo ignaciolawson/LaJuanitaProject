@@ -21,12 +21,30 @@ export type Rol = 'ADMIN' | 'DIRECTIVO' | 'STAFF' | 'USUARIO'
  */
 export type UsuarioActual = {
   id: number
-  nombreCompleto: string
+  nombre: string
+  apellido: string
   email: string
+  telefono: string | null
   rol: Rol
   fotoPerfil: string | null
   esAlumno: boolean
   esProfesor: boolean
+  /**
+   * La contraseña la generó administración y esta persona todavía no eligió la
+   * suya. Mientras sea `true` hay que exigirle el cambio antes de dejarla usar
+   * el resto del sistema.
+   */
+  debeCambiarPassword: boolean
+}
+
+/** "Pérez, Juan" — como se lista en las pantallas de administración. */
+export function nombreParaListado(u: Pick<UsuarioActual, 'nombre' | 'apellido'>): string {
+  return `${u.apellido}, ${u.nombre}`
+}
+
+/** "Juan Pérez" — como se le habla a la persona. */
+export function nombreCompleto(u: Pick<UsuarioActual, 'nombre' | 'apellido'>): string {
+  return `${u.nombre} ${u.apellido}`
 }
 
 export type LoginResponse = {

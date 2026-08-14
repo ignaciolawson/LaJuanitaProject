@@ -96,6 +96,38 @@ public class SesionService {
     }
 
     /**
+     * Emite la credencial para un usuario ya validado por otro camino.
+     *
+     * <p>La usa el registro: recién creada la cuenta, la persona queda logueada
+     * sin tener que volver a escribir lo que acaba de escribir.
+     */
+    @Transactional(readOnly = true)
+    public LoginResponse credencialPara(Usuario usuario) {
+        TokenEmitido token = tokens.emitirPara(usuario);
+        return new LoginResponse(token.valor(), token.expira(), describir(usuario));
+    }
+
+    /**
+     * Cambio de la propia contraseña.
+     *
+     * <p>Además de guardar el hash nuevo, baja {@code debeCambiarPassword}: es
+     * el único lugar donde esa marca se apaga, así que la contraseña temporal
+     * que Micaela mandó por WhatsApp deja de servir en cuanto la persona elige
+     * la suya.
+     */
+    @Transactional
+    public void cambiarPassword(String subject, CambioPasswordRequest solicitud) {
+        Usuario usuario = usuarioDelToken(subject);
+
+        if (!passwordEncoder.matches(solicitud.passwordActual(), usuario.getPasswordHash())) {
+            throw new CredencialesInvalidasException();
+        }
+
+        usuario.setPasswordHash(passwordEncoder.encode(solicitud.passwordNueva()));
+        usuario.setDebeCambiarPassword(false);
+    }
+
+    /**
      * Arma la respuesta de {@code GET /api/me} a partir del {@code sub} que
      * viene en el token.
      *
@@ -109,6 +141,16 @@ public class SesionService {
      */
     @Transactional(readOnly = true)
     public UsuarioActual describirPorSubject(String subject) {
+        return describir(usuarioDelToken(subject));
+    }
+
+    /**
+     * Resuelve el {@code sub} del token a un usuario utilizable.
+     *
+     * <p>Se parsea acá y no en el controller para que un token con un
+     * {@code sub} que no es un número termine en 401 y no en un 500.
+     */
+    private Usuario usuarioDelToken(String subject) {
         long idUsuario;
         try {
             idUsuario = Long.parseLong(subject);
@@ -123,7 +165,7 @@ public class SesionService {
             throw new SesionInvalidaException();
         }
 
-        return describir(usuario);
+        return usuario;
     }
 
     /**
@@ -137,11 +179,14 @@ public class SesionService {
     private UsuarioActual describir(Usuario usuario) {
         return new UsuarioActual(
                 usuario.getId(),
-                usuario.getNombreCompleto(),
+                usuario.getNombre(),
+                usuario.getApellido(),
                 usuario.getEmail(),
+                usuario.getTelefono(),
                 usuario.getRol(),
                 usuario.getFotoPerfil(),
                 alumnos.existsByUsuarioId(usuario.getId()),
-                profesores.existsByUsuarioId(usuario.getId()));
+                profesores.existsByUsuarioId(usuario.getId()),
+                usuario.isDebeCambiarPassword());
     }
 }

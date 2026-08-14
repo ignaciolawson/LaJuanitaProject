@@ -23,7 +23,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import com.lajuanita.backend.config.AutenticacionDesdeBase;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
@@ -47,7 +47,7 @@ class TokenJwtTest {
     private JwtEncoder codificador;
 
     @Autowired
-    private JwtAuthenticationConverter conversor;
+    private AutenticacionDesdeBase conversor;
 
     @Autowired
     private TokenService tokens;
@@ -137,34 +137,35 @@ class TokenJwtTest {
     // -- Autoridades --------------------------------------------------------
 
     /**
-     * De esto dependen todos los {@code @PreAuthorize} que vengan. El claim
-     * `rol` trae un único valor, no una lista, y tiene que salir con el prefijo
-     * `ROLE_` o {@code hasRole("ADMIN")} no matchea nunca.
+     * Las autoridades salen de la BASE, no del claim.
+     *
+     * <p>El token del admin sembrado dice {@code rol: ADMIN}; acá se firma uno
+     * que miente y dice {@code USUARIO} para el mismo {@code sub}. La autoridad
+     * que sale tiene que ser la de la base, no la del token.
      *
      * <p>Ojo con una novedad de Spring Security 7: además de las autoridades
-     * propias, agrega una {@code FactorGrantedAuthority} (acá,
-     * {@code FACTOR_BEARER}) que describe *cómo* se autenticó la persona. Por
-     * eso este test comprueba que la autoridad del rol esté presente y no que
-     * sea la única -- un {@code containsExactly} rompe sin que haya nada mal.
+     * propias, agrega una {@code FactorGrantedAuthority} ({@code FACTOR_BEARER})
+     * que describe *cómo* se autenticó la persona. Por eso se comprueba que la
+     * autoridad esté presente y no que sea la única -- un
+     * {@code containsExactly} rompe sin que haya nada mal.
      */
     @Test
-    void el_claim_rol_se_convierte_en_la_autoridad_ROLE_correspondiente() {
-        for (String rol : new String[] { "ADMIN", "DIRECTIVO", "STAFF", "USUARIO" }) {
-            Jwt token = decodificador.decode(firmar(reclamosValidos().claim("rol", rol).build()));
+    void las_autoridades_salen_de_la_base_y_no_del_claim_del_token() {
+        Jwt tokenQueMiente = decodificador.decode(
+                firmar(reclamosValidos().claim("rol", "USUARIO").build()));
 
-            assertThat(conversor.convert(token).getAuthorities())
-                    .extracting(GrantedAuthority::getAuthority)
-                    .contains("ROLE_" + rol);
-        }
+        assertThat(conversor.convert(tokenQueMiente).getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .contains("ROLE_ADMIN")
+                .doesNotContain("ROLE_USUARIO");
     }
 
     /**
-     * Un token sin `rol` autentica pero sin ninguna autoridad de rol. Es el
-     * comportamiento correcto -- falla cerrado, no abierto -- y se deja fijado
-     * acá para que nadie lo cambie sin darse cuenta.
+     * Un token sin el claim `rol` funciona igual, porque el rol nunca salió de
+     * ahí. Deja fijado que ese claim es informativo y no autoriza nada.
      */
     @Test
-    void un_token_sin_rol_no_otorga_ninguna_autoridad_de_rol() {
+    void un_token_sin_el_claim_rol_igual_autoriza_segun_la_base() {
         JwtClaimsSet sinRol = JwtClaimsSet.builder()
                 .issuer("la-juanita")
                 .issuedAt(Instant.now())
@@ -172,11 +173,9 @@ class TokenJwtTest {
                 .subject("1")
                 .build();
 
-        Jwt token = decodificador.decode(firmar(sinRol));
-
-        assertThat(conversor.convert(token).getAuthorities())
+        assertThat(conversor.convert(decodificador.decode(firmar(sinRol))).getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
-                .noneMatch(autoridad -> autoridad.startsWith("ROLE_"));
+                .contains("ROLE_ADMIN");
     }
 
     // -- El token que emite la aplicación -----------------------------------
@@ -189,7 +188,8 @@ class TokenJwtTest {
     void el_token_emitido_no_lleva_datos_sensibles() {
         com.lajuanita.backend.usuario.Usuario usuario = new com.lajuanita.backend.usuario.Usuario();
         usuario.setId(42L);
-        usuario.setNombreCompleto("Prueba");
+        usuario.setNombre("Prueba");
+        usuario.setApellido("Apellido");
         usuario.setEmail("prueba@lajuanita.local");
         usuario.setPasswordHash("$2a$10$noDebeAparecerEnElToken");
         usuario.setRol(com.lajuanita.backend.usuario.Rol.STAFF);

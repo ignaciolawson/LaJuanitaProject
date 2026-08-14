@@ -13,13 +13,20 @@ import com.lajuanita.backend.usuario.Rol;
  *
  * <p>Nunca incluye {@code passwordHash}. Por eso el endpoint devuelve este
  * record y no la entidad.
+ *
+ * @param debeCambiarPassword si es {@code true}, la contraseña la generó
+ *                            administración y el front tiene que exigir que la
+ *                            cambie antes de dejar usar el resto del sistema.
  */
 public record UsuarioActual(
         Long id,
-        String nombreCompleto,
+        String nombre,
+        String apellido,
         String email,
+        String telefono,
         Rol rol,
         String fotoPerfil,
         boolean esAlumno,
-        boolean esProfesor) {
+        boolean esProfesor,
+        boolean debeCambiarPassword) {
 }

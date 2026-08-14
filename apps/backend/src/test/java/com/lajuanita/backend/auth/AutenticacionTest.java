@@ -165,7 +165,7 @@ class AutenticacionTest {
 
         mvc.perform(get("/api/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.title").value("Sesión inválida"));
+                .andExpect(jsonPath("$.title").value("No autenticado"));
     }
 
     /** Token válido de un usuario que ya no está en la base. */
@@ -182,8 +182,10 @@ class AutenticacionTest {
         mvc.perform(get("/api/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
                 // Ya no contesta "Email o contraseña incorrectos" a un pedido
-                // que no trae ni email ni contraseña.
-                .andExpect(jsonPath("$.detail").value("Tu sesión ya no es válida. Volvé a entrar."));
+                // que no trae ni email ni contraseña. Y el rechazo lo da ahora
+                // la capa de seguridad, antes de llegar al controller: el token
+                // se resuelve contra la base en cada pedido.
+                .andExpect(jsonPath("$.detail").value("Tu sesión no es válida. Volvé a entrar."));
     }
 
     /**
@@ -244,7 +246,8 @@ class AutenticacionTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(EMAIL_ADMIN))
                 .andExpect(jsonPath("$.rol").value("ADMIN"))
-                .andExpect(jsonPath("$.nombreCompleto").value("Administrador"))
+                .andExpect(jsonPath("$.nombre").value("Administrador"))
+                .andExpect(jsonPath("$.apellido").value("Sistema"))
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
     }
 

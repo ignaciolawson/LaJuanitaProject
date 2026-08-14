@@ -320,11 +320,11 @@ que el patrón de las primeras 10 estaba mal.
    CORS del backend existe pero **no se ejerce en desarrollo**. Si algún día el front
    y la API viven en dominios distintos, hay que probarlo antes de confiar en él.
 
-✅ **Fase 0 cerrada el 2026-08-11.** Hay un sistema que todavía no hace nada útil, pero
-**al que entrás con tu mail y tu contraseña**. De ahí en adelante cada módulo es repetir
-un patrón que ya funciona: el que dejó `AutenticacionTest` (DTO como `record` +
+✅ **Fase 0 cerrada el 2026-08-11.** Al terminarla el sistema todavía no hacía nada
+útil, pero ya **se entraba con mail y contraseña**. De ahí en adelante cada módulo es
+repetir un patrón que ya funciona: el que dejó `AutenticacionTest` (DTO como `record` +
 servicio transaccional + `ProblemDetail` para los errores + test del endpoint contra la
-base real).
+base real). *El primer módulo construido sobre ese patrón está en §6b.*
 
 **Deuda conocida que dejó la Fase 0**, para saldar antes de que crezca:
 
@@ -341,15 +341,111 @@ base real).
   contra `admin@lajuanita.local`. BCrypt hace que cada intento cueste ~85 ms, lo que
   ayuda pero no alcanza. Corresponde resolverlo antes de exponer el sistema a
   internet, no ahora.
-- **El secreto de firma está commiteado** (con aviso por log y bloqueo si hay perfil
-  de producción). Hay que definir `JWT_SECRET` en el deploy de diciembre.
-- **Todavía no hay ninguna autorización por rol en el backend**, solo "estar
-  autenticado" — porque aún no existe ningún endpoint de administración que
-  restringir. `@EnableMethodSecurity` ya está activo y las autoridades `ROLE_*` están
-  probadas, así que el primer `@PreAuthorize` del módulo de alumnos va a funcionar.
-  Hasta entonces, que el menú esconda una sección **no** protege nada.
-- El **primer login del alumno** (P18) sigue sin resolver: hoy solo existe la cuenta
-  sembrada. Es lo primero que pide el módulo de alumnos.
+- **El secreto de firma está commiteado.** Hay que definir `JWT_SECRET` —con un valor
+  **nuevo**— en el deploy de diciembre. ~~Con aviso por log y bloqueo si hay perfil de
+  producción.~~ **Corregido el 2026-08-14** (SEC-01 de la auditoría): ese bloqueo no
+  servía, porque nada activa un perfil en este proyecto. Ahora falla cerrado: firmar con
+  el secreto commiteado **aborta el arranque** salvo que
+  `lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté en el `application.properties`
+  local.
+- ~~Todavía no hay ninguna autorización por rol en el backend.~~ **Resuelto el
+  2026-08-12** (§6b): `@PuedeLeerAdministracion` y `@PuedeOperar` protegen los
+  endpoints de administración, con tests por los cuatro roles. Sigue valiendo la
+  advertencia de fondo: que el menú esconda una sección **no** protege nada — quien
+  autoriza es el backend.
+- ~~El primer login del alumno (P18) sigue sin resolver.~~ **Resuelto el 2026-08-12**
+  (§6b): registro propio, más alta por administración con contraseña temporal.
+- **El registro público también es un endpoint sin límite de intentos**, y encima
+  escribe: nada impide crear mil cuentas basura. Mismo tratamiento que el login —
+  hay que resolverlo antes de exponer el sistema a internet.
+
+---
+
+## 6b. Módulo 1 — Alumnos · primera tanda (2026-08-12)
+
+**Hecho:**
+
+- **`V4`** parte `usuario.nombre_completo` en `nombre` + `apellido`. Se hizo ahora
+  porque la tabla tenía una sola fila y ningún dato real: el listado se ordena y se
+  filtra por apellido, y con un campo de texto libre eso no se puede hacer bien nunca.
+- **`V5`** agrega `debe_cambiar_password`, que sostiene el flujo de la contraseña
+  temporal.
+- **Registro público** (`POST /api/auth/registro`) y **alta por administración**
+  (`POST /api/usuarios`, `POST /api/alumnos`). Cierra **P18**.
+- **CRUD de usuarios y alumnos** con buscador, filtro por estado y baja lógica.
+- **El primer control por rol real del sistema.** Hasta ayer el backend solo exigía
+  estar autenticado. Ahora `@PuedeLeerAdministracion` y `@PuedeOperar` imponen la
+  regla que estaba escrita desde el día uno y no ejercía nadie: **`DIRECTIVO` lee
+  todo y no escribe nada.** Verificado con un directivo real contra la API: 200 en
+  el listado, 403 al intentar crear.
+- Tests: **de 25 a 50**.
+
+**Decisiones tomadas acá:**
+
+- **El registro avisa que un email ya está en uso**, y eso deshace en el registro la
+  protección contra enumeración que sí tiene el login. Se eligió a conciencia: lo que
+  se filtra es "esta dirección tiene cuenta en un estudio de música de Pilar", y la
+  alternativa deja trabada a la persona que se registró hace meses y no se acuerda.
+  Está documentado en `DatoDuplicadoException`.
+- **El alta de alumno es una sola llamada y una sola transacción**, acepte una
+  persona con cuenta (`idUsuario`) o una a crear (`usuarioNuevo`). Hacerlo en dos
+  pasos dejaría una cuenta huérfana si el segundo falla.
+- **Contraseña mínima: 8 caracteres, sin reglas de complejidad.** Exigir mayúscula,
+  número y símbolo empuja a `Password1!` y a anotarla en un papel.
+- **Solo ADMIN puede otorgar roles.** Micaela (STAFF) da de alta alumnos todo el día;
+  si pide crear un ADMIN, el rol se ignora y la cuenta queda como `USUARIO`.
+
+**Dos trampas que costaron y conviene no repetir:**
+
+- **Un parámetro nulo en un `LIKE` de JPQL revienta contra Postgres** con
+  `function lower(bytea) does not exist`: sin valor, el motor no puede deducir el
+  tipo y lo liga como binario. Se resuelve no mandando nunca null — `Busqueda.patron()`
+  devuelve `"%"` para "traer todo".
+- **Editar una migración ya aplicada rompe el arranque.** Se le agregó un comentario
+  a `V3` y Flyway se negó a levantar con *"Migration checksum mismatch"*. La regla
+  "nunca se edita un archivo ya aplicado" incluye los comentarios.
+
+**Lo que NO entró y es lo próximo:** `inscripcion` (disciplina, nivel, precio,
+profesor asignado), notas internas de profesores, estado de cuenta, y "el profesor ve
+solo sus alumnos" — esto último porque esa relación vive justamente en `inscripcion`.
+
+### 6c. Auditoría de la primera tanda (2026-08-12)
+
+Se auditó atacando la API corriendo, no revisando el código. **Seis problemas reales,
+todos corregidos**, y los tests pasaron de 50 a 57.
+
+**Los tres graves eran el mismo error**, y ninguno existía el día anterior: la
+autorización que se escribió hoy leía el rol del **claim del token**, que es una foto
+de cuando se emitió y vale 8 horas. Medido contra la API:
+
+- un usuario **dado de baja** siguió listando alumnos y **creó una fila**;
+- un ADMIN **degradado a USUARIO** siguió operando como ADMIN;
+- alguien con **contraseña temporal sin cambiar** operó por API, porque ese bloqueo
+  vivía solo en el frontend.
+
+`usuario.activo = FALSE` es la forma que el sistema documenta desde `V1` para dar de
+baja a alguien; tiene que sacarlo en el acto, no dentro de ocho horas. **Ahora la
+autorización se resuelve contra la base en cada pedido** (`AutenticacionDesdeBase`).
+Cuesta un SELECT por pedido y a esta escala no se nota; el claim `rol` quedó como
+informativo y no autoriza nada.
+
+Los otros tres:
+
+- **Un STAFF podía desactivar y editar al ADMIN.** Se comprobó dejando la cuenta de
+  administrador bloqueada. Como solo un ADMIN otorga roles, alcanzaba para dejar el
+  sistema sin nadie capaz de administrarlo. Ahora las cuentas administrativas solo las
+  toca un ADMIN, y nadie puede desactivarse a sí mismo.
+- **Seis registros simultáneos con el mismo email daban cuatro 500.** El chequeo previo
+  y el INSERT no son atómicos. Lo dispara un doble clic, no hace falta un atacante.
+- **Convivían dos formatos de error**, el nuestro y el crudo de Spring, y el front busca
+  el mensaje en un solo lugar.
+
+**Una lección de proceso, no de código:** las 69 pruebas SQL de reglas de negocio se
+editaron al aplicar `V4` y **no se corrieron**. Corren aparte de `mvn test`, así que
+nada avisó. Se corrieron en la auditoría (69/69) y se corrigieron sus instrucciones,
+que seguían diciendo de aplicar solo `V1` y `V2`.
+
+---
 
 **Luego, por orden de valor:**
 
@@ -361,6 +457,73 @@ base real).
 4. **Portales alumno y profesor** — recién acá tienen sentido: muestran lo de 1/2/3.
 5. **Mix & Mastering, sello, dashboard** — los tres más "aparte", los que Ghezz maneja
    hoy en planillas sueltas.
+
+---
+
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-12
+
+> **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
+> actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
+> esta y hay que corregir la otra.
+
+### Estado real
+
+| | |
+|---|---|
+| **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
+| **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha y auditada (§6b, §6c) |
+| Módulos 2 a 8 | ⬜ sin empezar |
+
+**Qué anda hoy:** login, registro público, alta por administración con contraseña
+temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
+buscador, alta y baja lógica, y la matriz de permisos por los cuatro roles impuesta
+en el backend.
+
+**Qué falta del Módulo 1**, casi todo detrás de una sola pieza:
+
+| Pantalla del módulo | Estado |
+|---|---|
+| Listado de alumnos | 🟡 falta filtrar por disciplina, nivel y "con deuda" |
+| Alta / edición | 🟡 falta el formulario de edición y la disciplina |
+| Perfil del alumno | ❌ |
+| Alta de inscripción | ❌ |
+
+### Lo próximo: `inscripcion`
+
+Es la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la 2,
+el contenido de la 3 y toda la 4. También es la que habilita *"el profesor ve solo
+sus alumnos"*, porque la relación profesor↔alumno vive ahí.
+
+Ya tiene reglas duras definidas en `docs/requirements/platform.md`: curso cerrado de
+8 clases (P1), varias inscripciones activas a la vez pero **nunca dos niveles de la
+misma disciplina** (P3, índice único parcial), y profesor asignado explícito (P6).
+
+**Antes de arrancar hay que preguntarle al cliente dos cosas** que bloquean partes
+del módulo: **P4** (¿los alumnos informales de Ghezz entran al sistema?) y **P5**
+(¿la nivelación la hace el sistema o Micaela por WhatsApp?).
+
+### ⚠️ Revisión pendiente del desarrollador
+
+**Ignacio dejó anotado el 2026-08-12 que hay cosas de esta primera tanda que no lo
+convencen, y las va a plantear en una sesión posterior.** No están identificadas
+todavía. Hasta que las plantee, **la tanda no está bendecida**: puede haber
+decisiones para revisar, no solo detalles. Conviene preguntarle antes de construir
+encima.
+
+### Deuda que hay que saldar antes del deploy
+
+1. **Sin límite de intentos** en login ni en registro. El registro además escribe.
+2. **El secreto JWT está commiteado** (con aviso y bloqueo si hay perfil productivo).
+3. **Los tests de JPA corren contra la base de desarrollo** y ahora sí insertan y
+   borran. Testcontainers pasó de "conviene" a "hace falta pronto".
+4. **El frontend no tiene tests.**
+5. **Sin revocación de tokens.** Ya no hace falta para las bajas —la autorización se
+   resuelve contra la base—, pero un token robado sigue valiendo hasta 8 horas.
+
+### Cómo levantar todo
+
+`docker compose up -d` → `mvn spring-boot:run` en `apps/backend` → `npm run dev:platform`.
+Detalle y credenciales en el [README](../README.md).
 
 ---
 
