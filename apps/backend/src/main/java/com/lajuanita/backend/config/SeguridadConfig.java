@@ -73,7 +73,7 @@ public class SeguridadConfig {
      * contra un valor que ya no existe.
      */
     static final String SECRETO_DE_DESARROLLO =
-            "/zMQejZCLzic/mq1/t7FtpUcOsj+h0NVWf/ndnfXs6146QEfzCdoiWOFasioULoq";
+            "QwlFr0vrNFMCnzl24JRPUyKC/bVZ+R9cLvnusf1JL0k5E22Ds3XHvDjsbwWZ2doe";
 
     private final List<String> origenesPermitidos;
 
@@ -84,11 +84,25 @@ public class SeguridadConfig {
     /**
      * BCrypt: lento a propósito y con sal incluida en el propio hash. Es
      * irreversible -- nadie, ni el admin, puede leer la contraseña de nadie. Si
-     * alguien la olvida, se resetea.
+     * alguien la olvida, se resetea (POST /api/usuarios/{id}/password-temporal).
+     *
+     * <p><b>Costo 12, no el 10 del constructor sin argumentos.</b> El costo es
+     * lo que separa un volcado de la base robado de un volcado de la base
+     * <i>útil</i>: cada punto duplica el trabajo de probar cada contraseña.
+     * Medido en esta máquina el 2026-08-14, promediando cinco comparaciones:
+     * <b>costo 10 → 78 ms, costo 12 → 253 ms</b>. A este volumen —una decena de
+     * logins por día— esos 175 ms extra no los nota nadie, y multiplican por
+     * más de tres el costo de un ataque offline. (El informe estimaba ~350 ms
+     * para el costo 12; el número de arriba es el medido, no el estimado.)
+     *
+     * <p><b>No hace falta migrar nada</b>: el costo viaja adentro del hash, así
+     * que los hashes viejos (el admin de V3 entre ellos) siguen validando con
+     * su 10 original. Se vuelven a hashear solos cuando cada persona cambie su
+     * contraseña.
      */
     @Bean
     PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 
     /**

@@ -168,13 +168,24 @@ class CredencialVigenteTest {
     }
 
     private Usuario crear(Rol rol, boolean debeCambiarPassword) {
+        String hash = "$2a$10$noSeUsaEnEsteTest000000000000000000000000000000000000";
+
         Usuario usuario = new Usuario();
         usuario.setNombre("Prueba");
         usuario.setApellido(rol.name());
         usuario.setEmail(emailNuevo());
-        usuario.setPasswordHash("$2a$10$noSeUsaEnEsteTest000000000000000000000000000000000000");
         usuario.setRol(rol);
-        usuario.setDebeCambiarPassword(debeCambiarPassword);
+
+        // Las dos columnas de la temporal se mueven juntas, y desde V8 la base
+        // lo exige: poner el booleano a mano dejaba la fecha en NULL y el INSERT
+        // moría contra `usuario_password_temporal_coherente`. Por eso se pasa por
+        // los dos métodos de la entidad y no por el setter.
+        if (debeCambiarPassword) {
+            usuario.marcarPasswordTemporal(hash);
+        } else {
+            usuario.marcarPasswordElegida(hash);
+        }
+
         return usuarios.saveAndFlush(usuario);
     }
 

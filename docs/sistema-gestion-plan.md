@@ -556,37 +556,47 @@ ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 60 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-Remediado hasta ahora (2026-08-14): el candado del secreto JWT ahora falla cerrado, la
-auto-degradación de rol está cerrada, las reglas de la base llegan al usuario como
-mensajes legibles en vez de como "email duplicado" o como 500, los errores de Spring
-salen en español, la documentación del esquema está sincronizada, y `V7` cerró los
-cinco huecos de base que había que tapar con las tablas todavía vacías.
+**Remediado hasta ahora (2026-08-14): 19 de 60.** El candado del secreto JWT falla
+cerrado y el secreto se rotó; la auto-degradación de rol está cerrada; las reglas de la
+base llegan al usuario como mensajes legibles en vez de como "email duplicado" o como
+500; los errores de Spring salen en español; `V7` cerró los cinco huecos de base que
+había que tapar con las tablas vacías; y `V8` + el perímetro de autenticación cerraron
+lo que faltaba del login: **límite de intentos, log de eventos, reseteo de contraseña y
+vencimiento de la temporal**.
 
-**El que bloquea todo lo demás y no es trabajo de código: EXT-01** — el repositorio es
-público y publica la propuesta firmada del cliente, la transcripción de la entrevista,
-el secreto JWT y la contraseña del admin sembrado.
+**Lo que queda y no es trabajo de código:** EXT-01 a medias —el repositorio ya es
+privado, pero la propuesta firmada del cliente y la transcripción de la entrevista
+siguen versionadas, y al cliente todavía no se le avisó—, más cinco preguntas al cliente
+y siete decisiones tuyas. Están enumeradas en §8.3 del informe.
 
 ### Deuda que hay que saldar antes del deploy
 
-1. **Sin límite de intentos** en login ni en registro. El registro además escribe, y
-   **no queda registro de ningún evento de autenticación** (SEC-02).
+1. ~~**Sin límite de intentos** en login ni en registro.~~ **Resuelto el 2026-08-14**
+   (SEC-02): límite por email y por IP, más un log de eventos de autenticación bajo el
+   logger `seguridad`. Antes la aplicación entera tenía **una sola línea de log**.
 2. ~~**El secreto JWT está commiteado** (con aviso y bloqueo si hay perfil productivo).~~
-   El candado se corrigió el 2026-08-14 y ahora falla cerrado (SEC-01), pero **el
-   secreto sigue sin rotar** y es público.
+   El candado ahora **falla cerrado** (SEC-01) y el secreto de desarrollo se **rotó**
+   (2026-08-14). Sigue commiteado a propósito, para que un clone arranque: en producción
+   va `JWT_SECRET` con un valor nuevo.
 3. **Los tests de JPA corren contra la base de desarrollo** y ahora sí insertan y
    borran. Testcontainers pasó de "conviene" a "hace falta pronto".
 4. **El frontend no tiene tests.**
 5. **Sin revocación de tokens.** Ya no hace falta para las bajas —la autorización se
    resuelve contra la base—, pero un token robado sigue valiendo hasta 8 horas.
-6. **No hay forma de recuperar una contraseña** (SEC-03), y eso bloquea la migración
-   del Notion: si alguien pierde la temporal, no hay camino de vuelta.
+6. ~~**No hay forma de recuperar una contraseña.**~~ **Resuelto el 2026-08-14** (SEC-03):
+   `POST /api/usuarios/{id}/password-temporal`. Falta el botón en la pantalla, que va
+   con ARQ-02.
 7. **Los listados muestran 20 filas y el contador dice el total** (ARQ-01). Con dos
-   usuarios no se nota; con los ~80 de diciembre, sí.
+   usuarios no se nota; con los ~80 de diciembre, sí. **Bloquea la migración del Notion.**
 8. **Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6. No son
    deuda técnica: son reglas confirmadas que hoy no existen en ningún lado, y cada una
    necesita una decisión tuya antes de escribirse.
 9. **Credenciales de Postgres commiteadas sin override, y cero procedimiento de backup,
    restore o deploy** (DOC-07, DOC-08).
+10. **Los PDF del cliente siguen versionados** (`docs/propuesta/`, `docs/relevamiento/`)
+    y estuvieron públicos. El repositorio ya es privado, pero eso no despublica lo que se
+    pudo copiar: si alguna vez vuelve a ser público hay que reescribir el historial.
+    **Y falta avisarle al cliente** — es material suyo.
 
 ### Cómo levantar todo
 

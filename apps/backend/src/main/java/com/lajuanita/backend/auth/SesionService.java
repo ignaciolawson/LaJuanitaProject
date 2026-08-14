@@ -1,14 +1,18 @@
 package com.lajuanita.backend.auth;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.auth.TokenService.TokenEmitido;
+import com.lajuanita.backend.config.LimitadorDeIntentos;
+import com.lajuanita.backend.config.RegistroDeEventos;
 import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -22,6 +26,8 @@ public class SesionService {
     private final ProfesorRepository profesores;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
+    private final LimitadorDeIntentos limitador;
+    private final RegistroDeEventos eventos;
 
     /**
      * Hash contra el que se compara cuando el email NO existe, para que ese
@@ -34,16 +40,28 @@ public class SesionService {
      */
     private final String hashSenuelo;
 
+    /**
+     * Cuánto vale una contraseña temporal sin usar. Una semana da margen de
+     * sobra para un WhatsApp y no tanto como para que quede colgada un mes.
+     */
+    private final Duration vigenciaDeLaTemporal;
+
     public SesionService(UsuarioRepository usuarios,
             AlumnoRepository alumnos,
             ProfesorRepository profesores,
             PasswordEncoder passwordEncoder,
-            TokenService tokens) {
+            TokenService tokens,
+            LimitadorDeIntentos limitador,
+            RegistroDeEventos eventos,
+            @Value("${lajuanita.password-temporal.vigencia:7d}") Duration vigenciaDeLaTemporal) {
         this.usuarios = usuarios;
         this.alumnos = alumnos;
         this.profesores = profesores;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
+        this.limitador = limitador;
+        this.eventos = eventos;
+        this.vigenciaDeLaTemporal = vigenciaDeLaTemporal;
         this.hashSenuelo = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
@@ -74,25 +92,81 @@ public class SesionService {
      */
     @Transactional
     public LoginResponse iniciarSesion(LoginRequest solicitud) {
+        String clave = claveDeIntentos(solicitud.email());
+
+        // El límite se consulta ANTES de mirar la base, así un ataque tampoco
+        // consume el trabajo de BCrypt. Cuenta el intento gane o pierda; abajo,
+        // un login exitoso borra el contador.
+        if (!limitador.registrar(LimitadorDeIntentos.POR_EMAIL, clave)) {
+            eventos.limiteExcedido("/api/auth/login", clave);
+            throw new DemasiadosIntentosException();
+        }
+
         Usuario usuario = usuarios.findByEmailIgnoreCase(solicitud.email()).orElse(null);
 
         if (usuario == null) {
             passwordEncoder.matches(solicitud.password(), hashSenuelo);
+            eventos.loginFallido(solicitud.email(), "email inexistente");
             throw new CredencialesInvalidasException();
         }
 
         if (!passwordEncoder.matches(solicitud.password(), usuario.getPasswordHash())) {
+            eventos.loginFallido(solicitud.email(), "password incorrecta");
             throw new CredencialesInvalidasException();
         }
 
         if (!usuario.isActivo()) {
+            eventos.loginFallido(solicitud.email(), "cuenta dada de baja");
             throw new CredencialesInvalidasException();
         }
 
+        verificarQueLaTemporalNoVencio(usuario);
+
         usuario.setUltimoAcceso(OffsetDateTime.now());
+
+        // Quien sabe su contraseña no arrastra los fallos de nadie: sin esto,
+        // ocho errores de tipeo a lo largo de la mañana dejarían a Micaela
+        // afuera después de haber entrado bien.
+        limitador.limpiar(clave);
+        eventos.loginExitoso(usuario.getId(), usuario.getEmail());
 
         TokenEmitido token = tokens.emitirPara(usuario);
         return new LoginResponse(token.valor(), token.expira(), describir(usuario));
+    }
+
+    /**
+     * En minúsculas porque el email es único sin distinguir mayúsculas: si no,
+     * {@code Ana@…} y {@code ana@…} tendrían dos contadores para la misma cuenta
+     * y el límite se duplicaría con solo cambiar una letra.
+     */
+    private String claveDeIntentos(String email) {
+        return email == null ? null : "email:" + email.trim().toLowerCase();
+    }
+
+    /**
+     * Una contraseña temporal que nadie usó no vale para siempre.
+     *
+     * <p>Viajó por un WhatsApp y la conocen dos personas: cualquiera que lea ese
+     * chat —el teléfono prestado, la sesión de WhatsApp Web abierta en la compu
+     * del estudio— entra y la cambia, que es justamente lo único que ese estado
+     * habilita, y se queda con la cuenta. Se vuelve concreto en diciembre, con
+     * ~80 altas de golpe y buena parte sin entrar en semanas.
+     *
+     * <p>Va <b>después</b> de comparar la contraseña a propósito: quien llega
+     * hasta acá ya demostró conocerla, así que decirle que venció no le informa
+     * nada a un desconocido, y en cambio le dice a la persona correcta por qué
+     * no entra y qué pedir. Los tres rechazos anónimos del login
+     * —email inexistente, contraseña equivocada, cuenta dada de baja— siguen
+     * siendo indistinguibles entre sí.
+     */
+    private void verificarQueLaTemporalNoVencio(Usuario usuario) {
+        if (!usuario.isDebeCambiarPassword() || usuario.getPasswordTemporalDesde() == null) {
+            return;
+        }
+
+        if (usuario.getPasswordTemporalDesde().plus(vigenciaDeLaTemporal).isBefore(OffsetDateTime.now())) {
+            throw new PasswordTemporalVencidaException();
+        }
     }
 
     /**
@@ -123,8 +197,8 @@ public class SesionService {
             throw new CredencialesInvalidasException();
         }
 
-        usuario.setPasswordHash(passwordEncoder.encode(solicitud.passwordNueva()));
-        usuario.setDebeCambiarPassword(false);
+        usuario.marcarPasswordElegida(passwordEncoder.encode(solicitud.passwordNueva()));
+        eventos.passwordCambiada(usuario.getId());
     }
 
     /**

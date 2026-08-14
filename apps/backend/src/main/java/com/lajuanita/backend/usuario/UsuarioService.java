@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.config.RegistroDeEventos;
 import com.lajuanita.backend.usuario.dto.AltaUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.EdicionUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.RegistroRequest;
@@ -35,13 +36,16 @@ public class UsuarioService {
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
     private final GeneradorDePassword generadorDePassword;
+    private final RegistroDeEventos eventos;
 
     public UsuarioService(UsuarioRepository usuarios,
             PasswordEncoder passwordEncoder,
-            GeneradorDePassword generadorDePassword) {
+            GeneradorDePassword generadorDePassword,
+            RegistroDeEventos eventos) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
         this.generadorDePassword = generadorDePassword;
+        this.eventos = eventos;
     }
 
     /**
@@ -57,17 +61,17 @@ public class UsuarioService {
         usuario.setApellido(solicitud.apellido().trim());
         usuario.setEmail(solicitud.email().trim());
         usuario.setTelefono(normalizar(solicitud.telefono()));
-        usuario.setPasswordHash(passwordEncoder.encode(solicitud.password()));
-
         // El rol NO sale de la solicitud. Este endpoint es público: aceptar un
         // rol del cliente sería regalar una forma de darse ADMIN a uno mismo.
         usuario.setRol(Rol.USUARIO);
 
         // Eligió su propia contraseña recién ahora, así que no hay nada que
-        // forzarle a cambiar.
-        usuario.setDebeCambiarPassword(false);
+        // forzarle a cambiar ni nada que pueda vencer.
+        usuario.marcarPasswordElegida(passwordEncoder.encode(solicitud.password()));
 
-        return usuarios.save(usuario);
+        Usuario guardado = usuarios.save(usuario);
+        eventos.cuentaCreada(guardado.getId(), guardado.getEmail(), "registro publico");
+        return guardado;
     }
 
     /**
@@ -89,15 +93,44 @@ public class UsuarioService {
         usuario.setApellido(solicitud.apellido().trim());
         usuario.setEmail(solicitud.email().trim());
         usuario.setTelefono(normalizar(solicitud.telefono()));
-        usuario.setPasswordHash(passwordEncoder.encode(passwordTemporal));
         usuario.setRol(rolPermitido(solicitud.rol(), puedeAsignarRoles));
 
         // La contraseña la conocen dos personas y viajó por un chat. Se cambia
-        // sí o sí en el primer ingreso.
-        usuario.setDebeCambiarPassword(true);
+        // sí o sí en el primer ingreso, y vence si eso no pasa (V8).
+        usuario.marcarPasswordTemporal(passwordEncoder.encode(passwordTemporal));
 
         Usuario guardado = usuarios.save(usuario);
+        eventos.cuentaCreada(guardado.getId(), guardado.getEmail(), "alta por administracion");
         return new UsuarioCreado(UsuarioResumen.de(guardado), passwordTemporal);
+    }
+
+    /**
+     * Le da una contraseña temporal nueva a alguien que perdió la suya.
+     *
+     * <p>Es el camino que tres lugares del repo daban por existente —el README,
+     * el comentario de {@code EdicionUsuarioRequest} y el mensaje que ve el
+     * usuario final en {@code DatoDuplicadoException}— y que no estaba escrito.
+     * Sin él, quien olvida la contraseña queda afuera <b>para siempre</b>: no hay
+     * mail, así que no hay "olvidé mi contraseña" posible, y las dos salidas que
+     * quedaban eran un UPDATE a mano sobre la base de producción o compartir la
+     * cuenta de otro.
+     *
+     * <p>Pasa por el mismo guardia que editar y desactivar: <b>sin eso, un STAFF
+     * le resetea la contraseña a un ADMIN y se queda con el sistema</b>, que es
+     * reabrir por otra puerta el agujero que la auditoría del 12/08 cerró.
+     *
+     * @return la contraseña nueva, visible una sola vez, igual que en el alta.
+     */
+    @Transactional
+    public UsuarioCreado resetearPassword(Long id, boolean esAdmin, Long idDeQuienPide) {
+        Usuario usuario = buscar(id);
+        verificarQuePuedeTocarEstaCuenta(usuario, esAdmin);
+
+        String passwordTemporal = generadorDePassword.generar();
+        usuario.marcarPasswordTemporal(passwordEncoder.encode(passwordTemporal));
+
+        eventos.passwordReseteada(idDeQuienPide, usuario.getId());
+        return new UsuarioCreado(UsuarioResumen.de(usuario), passwordTemporal);
     }
 
     @Transactional
@@ -115,6 +148,11 @@ public class UsuarioService {
 
         if (solicitud.rol() != null && puedeAsignarRoles) {
             verificarQueNoSeSaqueElRolASiMismo(usuario, solicitud.rol(), idDeQuienPide);
+
+            if (solicitud.rol() != usuario.getRol()) {
+                eventos.rolCambiado(idDeQuienPide, usuario.getId(),
+                        usuario.getRol().name(), solicitud.rol().name());
+            }
             usuario.setRol(solicitud.rol());
         }
 
@@ -155,6 +193,10 @@ public class UsuarioService {
         // siguiente, y si era el único ADMIN, al sistema sin administrador.
         if (usuario.getId().equals(idDeQuienPide) && !activo) {
             throw new OperacionNoPermitidaException("No podés desactivar tu propia cuenta.");
+        }
+
+        if (usuario.isActivo() != activo) {
+            eventos.cuentaActivada(idDeQuienPide, usuario.getId(), activo);
         }
 
         usuario.setActivo(activo);

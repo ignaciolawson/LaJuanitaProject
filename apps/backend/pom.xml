@@ -119,6 +119,32 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!--
+						La suite entera corre desde una sola maquina contra
+						127.0.0.1 y hace cientos de logins: para el filtro de
+						frecuencia eso ES un ataque, y con el limite real puesto
+						la mitad de los tests devuelve 429.
+
+						Se apaga solo el limite POR IP, que es el que depende de
+						cuantas personas comparten la conexion. El limite POR
+						EMAIL —el que de verdad frena la fuerza bruta— queda
+						activo y tiene sus propios casos en LimiteDeIntentosTest.
+
+						Va como propiedad de sistema y no en un
+						application.properties de test: un archivo con ese nombre
+						en src/test/resources TAPA al de src/main en vez de
+						completarlo, y se llevaria puesta la configuracion de la
+						base.
+					-->
+					<systemPropertyVariables>
+						<lajuanita.limite.intentos-por-ip>1000000</lajuanita.limite.intentos-por-ip>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<executions>
 					<execution>

@@ -27,6 +27,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import com.lajuanita.backend.alumno.SolicitudInvalidaException;
 import com.lajuanita.backend.auth.CredencialesInvalidasException;
+import com.lajuanita.backend.auth.DemasiadosIntentosException;
+import com.lajuanita.backend.auth.PasswordTemporalVencidaException;
 import com.lajuanita.backend.auth.SesionInvalidaException;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.OperacionNoPermitidaException;
@@ -101,6 +103,30 @@ public class ManejadorDeErrores {
     public ProblemDetail credencialesInvalidas(CredencialesInvalidasException e) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
         problema.setTitle("No se pudo iniciar sesión");
+        return problema;
+    }
+
+    /**
+     * Límite de intentos superado. Misma forma que el 429 que devuelve
+     * {@code FiltroDeFrecuencia} por IP, para que el cliente no tenga que
+     * distinguir cuál de los dos límites se activó.
+     */
+    @ExceptionHandler(DemasiadosIntentosException.class)
+    public ProblemDetail demasiadosIntentos(DemasiadosIntentosException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+        problema.setTitle("Demasiados intentos");
+        return problema;
+    }
+
+    /**
+     * Contraseña temporal vencida. Es 401 como el resto de los rechazos de
+     * login, pero con un mensaje propio: quien lo ve acertó la contraseña, así
+     * que no hay nada que ocultarle.
+     */
+    @ExceptionHandler(PasswordTemporalVencidaException.class)
+    public ProblemDetail passwordTemporalVencida(PasswordTemporalVencidaException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
+        problema.setTitle("Contraseña vencida");
         return problema;
     }
 

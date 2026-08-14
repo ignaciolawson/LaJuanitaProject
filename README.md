@@ -79,7 +79,7 @@ npm run dev
 ### Tests
 
 ```
-cd apps/backend && mvn test        # 72 casos: login, JWT, registro, permisos, vigencia, errores
+cd apps/backend && mvn test        # 85 casos: login, JWT, registro, permisos, vigencia, errores, límites
 cd apps/platform && npm run build  # incluye el chequeo de tipos
 cd apps/platform && npm run lint
 ```
@@ -103,6 +103,7 @@ Implementado en la Fase 0 (2026-08-11). El detalle de las decisiones está en
 | `GET /api/usuarios/{id}` | ADMIN·DIRECTIVO·STAFF | Una cuenta |
 | `POST /api/usuarios` | ADMIN·STAFF | Alta con contraseña temporal |
 | `PUT /api/usuarios/{id}` | ADMIN·STAFF | Editar datos de contacto |
+| `POST /api/usuarios/{id}/password-temporal` | ADMIN·STAFF | Contraseña temporal nueva para quien perdió la suya. La devuelve **una sola vez** |
 | `PATCH /api/usuarios/{id}/activo` | ADMIN·STAFF | Baja o alta lógica |
 | `GET /api/alumnos` | ADMIN·DIRECTIVO·STAFF | Listado con buscador y filtro `estado` |
 | `GET /api/alumnos/{id}` | ADMIN·DIRECTIVO·STAFF | Perfil |
@@ -125,8 +126,23 @@ Hay dos caminos, y los dos hacen falta:
    por WhatsApp. El sistema genera una contraseña temporal que se muestra **una sola
    vez**, y obliga a cambiarla en el primer ingreso.
 
-**Cómo funciona.** La contraseña se guarda solo como hash BCrypt; es
-irreversible, y si alguien la olvida se resetea, no se recupera. El login
+**Cómo funciona.** La contraseña se guarda solo como hash BCrypt (costo 12); es
+irreversible, y si alguien la olvida **se resetea, no se recupera**: administración
+le genera una temporal nueva con `POST /api/usuarios/{id}/password-temporal` y se
+la pasa por WhatsApp. No hay mail, así que no hay ni va a haber un "olvidé mi
+contraseña" que se resuelva solo.
+
+**La contraseña temporal vence a los 7 días** (`lajuanita.password-temporal.vigencia`).
+Si nadie la usó en ese plazo deja de servir y hay que pedir otra: viajó por un chat
+y quien lo lea entra y se queda con la cuenta.
+
+**Login y registro tienen límite de intentos**, por email (8 fallos cada 15 minutos,
+que un login exitoso borra) y por IP (`lajuanita.limite.intentos-por-ip`, 120 cada 5
+minutos). Pasado el límite, 429. Y **todo lo que le pasa a una cuenta queda en el
+log** bajo el logger `seguridad`: logins exitosos y fallidos con IP, cambios de
+contraseña, reseteos, cambios de rol y bajas. Nunca contraseñas ni tokens.
+
+El login
 devuelve un JWT firmado con HMAC-SHA256 que vale 8 horas y lleva únicamente
 `sub` (el id del usuario) y `rol` — un JWT va firmado pero **no** encriptado,
 así que cualquiera que lo tenga puede leer sus claims. Firma y verificación las

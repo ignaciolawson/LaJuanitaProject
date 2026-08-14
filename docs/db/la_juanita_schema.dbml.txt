@@ -1,7 +1,7 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real, migraciones V1..V7.
+// Generado a partir del esquema real, migraciones V1..V8.
 //
 // Al 2026-08-14 el diagrama está AL DÍA: comparado tabla por tabla y columna
 // por columna contra el catálogo de una base con las migraciones aplicadas,
@@ -94,6 +94,7 @@ Table usuario {
   especializacion   varchar(150)
   activo            boolean      [not null, default: true]
   debe_cambiar_password boolean  [not null, default: false, note: 'TRUE si la contraseña la generó administración y todavía no la cambió (V5)']
+  password_temporal_desde timestamptz [note: 'Cuándo se generó la temporal vigente; NULL si ya eligió la suya (V8). Vence a los 7 días. La base exige que coincida con debe_cambiar_password']
   fecha_creacion    timestamptz  [not null]
   ultimo_acceso     timestamptz
 

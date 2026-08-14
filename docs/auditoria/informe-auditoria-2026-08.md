@@ -200,6 +200,24 @@ sembrada y cuál es.
 
 **Esfuerzo: S** (el punto 2 con reescritura de historial: **M**)
 
+> **2026-08-14 — PARCIAL. El punto 1 está hecho: Ignacio pasó el repositorio a
+> privado.** Eso detiene el sangrado y es lo que más urgía. No se verificó desde acá
+> (no hay `gh` CLI en esta máquina); queda registrado como lo informó él.
+>
+> **Sigue abierto, y conviene no darlo por cerrado por inercia:**
+>
+> - **Punto 2** — `git ls-files docs/propuesta docs/relevamiento` sigue devolviendo los
+>   tres PDF del cliente. Y aunque se saquen de `HEAD`, **siguen en el historial**: entre
+>   el 13 y el 14 de agosto el repositorio estuvo público con dos commits más encima
+>   (`0c65e9c` y `870b0da`), así que hay que asumir que lo publicado ya se pudo copiar.
+>   Si el repositorio vuelve a ser público alguna vez, hace falta reescribir el historial
+>   o crear uno nuevo.
+> - **Punto 3** — el secreto JWT sigue sin rotar. Pasar el repo a privado **no lo
+>   despublica**: el valor estuvo accesible sin autenticación y hay que darlo por
+>   conocido. Es un cambio de una línea.
+> - **Puntos 4 y 5** — avisarle al cliente, y confirmar la autorización de las fotos del
+>   equipo. No son trabajo de código.
+
 ---
 
 #### EXT-02 — Dos días de trabajo, incluidas tres migraciones, existen solo en el working tree
@@ -1157,6 +1175,34 @@ de ~80 alumnos con nombre, teléfono y, más adelante, historial de pagos.
 
 **Esfuerzo: M**
 
+> **Remediado el 2026-08-14 — RESUELTO.** Las dos piezas, en el orden que pedía.
+>
+> **El límite quedó partido en dos, y no por comodidad:** el de IP en
+> `FiltroDeFrecuencia`, que corre **antes** de la cadena de Spring Security —una avalancha
+> no tiene por qué llegar a validar tokens para recién ahí ser rechazada—; el de email en
+> `SesionService`, porque el email viaja en el cuerpo y leerlo desde un filtro obliga a
+> envolver el request a cambio de nada. Un login exitoso limpia el contador del email, así
+> que quien sabe su contraseña nunca lo ve. `ConcurrentHashMap` con ventana deslizante,
+> sin Redis ni Bucket4j: a esta escala el problema era que no hubiera ninguno.
+>
+> **Contracara documentada en el código:** quien conoce el email de otro puede dejarlo
+> bloqueado 15 minutos fallando a propósito. Es el precio de la regla y se eligió pagarlo.
+>
+> **El log de eventos** cubre los cinco que pedía el hallazgo más el límite excedido, bajo
+> el logger `seguridad`, con IP y sin contraseñas ni tokens. La aplicación pasó de **una
+> línea de log en total** a registrar todo lo que le pasa a una cuenta.
+>
+> **Verificado:** `LimiteDeIntentosTest`, 5 casos, incluido que un email inexistente se
+> frena igual —si el 429 solo apareciera para cuentas reales, sería la forma de averiguar
+> quién tiene cuenta— y que un login exitoso devuelve el margen completo.
+>
+> **Un efecto que hubo que resolver:** con el límite por IP puesto, la suite entera pasó a
+> devolver 429 — es una sola máquina haciendo cientos de logins contra 127.0.0.1, que para
+> el filtro es exactamente un ataque. Se apaga **solo el límite por IP** durante `mvn test`,
+> desde el `pom.xml`; el de email queda activo. No se usó un `application.properties` de
+> test porque un archivo con ese nombre **tapa** al de `src/main` en vez de completarlo, y
+> se llevaría puesta la configuración de la base.
+
 ---
 
 #### SEC-03 — No existe ningún camino para recuperar una contraseña, y el que la documentación describe no está implementado
@@ -1212,6 +1258,22 @@ del que ya existe en `PermisosPorRolTest:159`. Del lado del front, el botón va 
 fila de `UsuariosPagina.tsx` junto al de activar/desactivar.
 
 **Esfuerzo: S**
+
+> **Remediado el 2026-08-14 — RESUELTO del lado del backend.**
+> `POST /api/usuarios/{id}/password-temporal`, con `@PuedeOperar`, reutilizando
+> `GeneradorDePassword` y devolviendo el mismo `UsuarioCreado` del alta: la contraseña se
+> ve una sola vez. Pasa por `verificarQuePuedeTocarEstaCuenta()`, que era la parte
+> imprescindible.
+>
+> **Verificado:** tres casos nuevos en `PermisosPorRolTest` —un STAFF **no** puede
+> resetearle la contraseña a un ADMIN, sí puede a un usuario común, y un DIRECTIVO no
+> puede resetear nada— más el circuito completo en `PasswordTemporalTest`: se resetea,
+> la contraseña que la persona había elegido deja de servir, y la nueva entra marcada
+> para cambio obligatorio.
+>
+> **Queda pendiente el botón en `UsuariosPagina.tsx`**, que es ARQ-02 (tanda 5). Hasta
+> entonces el endpoint existe y se llama por API — que ya es la diferencia entre "hay
+> camino" y "no hay ninguno".
 
 ---
 
@@ -1469,6 +1531,29 @@ anotar el número medido al lado del cambio, como ya se hizo con el señuelo). (
 vencimiento a la temporal: comparar `debeCambiarPassword` contra `fechaCreacion` y
 rechazar el login pasados N días, obligando a regenerarla — que es exactamente el
 endpoint que pide SEC-03, así que conviene hacer las dos juntas.
+
+> **Remediado el 2026-08-14 — RESUELTO**, las dos, y juntas como recomendaba.
+>
+> **(1) BCrypt en costo 12**, con el número **medido acá y no estimado**: 10 → 78 ms,
+> 12 → 253 ms (el informe estimaba ~350). No hay migración de hashes: el costo viaja
+> adentro del hash, así que el admin sembrado por `V3` sigue validando con su 10 y se
+> rehashea solo cuando alguien cambie su contraseña.
+>
+> **(2) La temporal vence a los 7 días.** No se comparó contra `fecha_creacion` como
+> sugería el hallazgo: un reseteo genera una temporal nueva sobre una cuenta vieja, y ahí
+> `fecha_creacion` daría "vencida" al instante. Va una columna propia,
+> `password_temporal_desde` (`V8`), que se escribe en los dos lugares que generan una
+> temporal y se borra al elegir la propia. Las dos columnas son un solo hecho en dos
+> campos y **la base impide que se contradigan**
+> (`usuario_password_temporal_coherente`) — lo cual ya atajó un test que ponía el
+> booleano sin la fecha.
+>
+> El rechazo va **después** de comparar la contraseña, con mensaje propio: quien llega ahí
+> ya demostró conocerla, así que decirle que venció no le informa nada a un desconocido
+> y le evita a la persona correcta reintentar diez veces lo mismo.
+>
+> **Verificado:** 4 casos en `PasswordTemporalTest` — vence a los 8 días, a los 6 todavía
+> entra, resetear la destraba, y una contraseña elegida por la persona no vence nunca.
 
 **Esfuerzo: S**
 
@@ -3383,7 +3468,7 @@ Suite completa después de la tanda: **`mvn test` 72/72**, y las dos suites SQL 
 | ID | Estado | Detalle |
 |---|---|---|
 | **EXT-02 / DOC-09** | ✅ resuelto | Commit `870b0da` y **pusheado**: `main` local y remoto coinciden. Los dos días de trabajo, `V4`–`V6`, los tests y la auditoría de base dejaron de vivir en un solo disco |
-| **EXT-01** | 🔴 **abierto, y ahora con más superficie** | Se commiteó y pusheó **antes** de cerrarlo, que es el orden que §7 marca como no negociable. `git ls-files docs/propuesta docs/relevamiento` sigue devolviendo los tres PDF del cliente, y el secreto JWT sigue sin rotar. Lo que se publicó de más: el Módulo 1 completo, las tres migraciones y los dos informes de auditoría |
+| **EXT-01** | 🟡 **a medias** | **El repositorio ya es privado (2026-08-14)**, que era el punto 1 y el que más urgía. Pero se commiteó y pusheó **antes** de cerrarlo, que es el orden que §7 marca como no negociable: el Módulo 1 completo, las migraciones y los dos informes de auditoría estuvieron públicos. Siguen abiertos los puntos 2 a 5 — los PDF del cliente rastreados, el secreto sin rotar, y el aviso al cliente |
 | **EXT-03** | 🔴 abierto | Sin `LICENSE` ni nota de titularidad |
 
 ### Tanda 3 — 2026-08-14 · la migración `V7`, con las tablas todavía vacías
@@ -3408,6 +3493,29 @@ un CHECK escrito como `btrim(x) <> ''` **no cierra** —evalúa a NULL con `x` e
 CHECK solo rechaza en FALSE—; y una columna generada que explota **le roba el mensaje**
 al CHECK que iba a explicar el problema, porque se computa antes.
 
+### Tanda 4 — 2026-08-14 · el perímetro de la autenticación
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **SEC-02** | Límite de intentos por IP (filtro, antes de Spring Security) y por email (servicio, solo fallos), + log de eventos de autenticación bajo el logger `seguridad` | `LimiteDeIntentosTest`, 5 casos |
+| **SEC-03** | `POST /api/usuarios/{id}/password-temporal`, con el guardia de cuentas administrativas | 3 casos en `PermisosPorRolTest` + el circuito en `PasswordTemporalTest` |
+| **SEC-08** | BCrypt a costo 12 (medido: 78 → 253 ms) y vencimiento de la temporal a 7 días (`V8`) | 4 casos en `PasswordTemporalTest` |
+| **EXT-01 pt3** | Secreto JWT de desarrollo **rotado**. El anterior estuvo público y hay que darlo por conocido para siempre | suite completa |
+
+Suite después de la tanda: **`mvn test` 85/85** (eran 72), **86/86** y **50/50** sobre
+`V1..V8`.
+
+**Lo que la aplicación no tenía y ahora sí:** un log. Antes había **una sola línea**
+—la advertencia del secreto— y un login fallido no dejaba rastro; a la pregunta
+*"¿entraron a la cuenta de Micaela?"* la única respuesta honesta era "no hay forma de
+saberlo".
+
+**Dos cosas que aparecieron al hacerlo**, las dos anotadas donde corresponde: en Boot
+4.1 `SecurityProperties` ya no expone `DEFAULT_FILTER_ORDER` (se mudó a
+`SecurityFilterProperties`, verificado con `javap`), y el límite por IP hace fallar la
+suite entera si no se apaga durante `mvn test` — una máquina haciendo cientos de logins
+contra 127.0.0.1 es, para el filtro, exactamente un ataque.
+
 ### 8.1 Los 60 hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
@@ -3416,7 +3524,7 @@ propuesto en §8.2; `1` es lo ya hecho.
 
 | ID | Sev | Esf | Tanda | Estado | Qué falta |
 |---|:--:|:--:|:--:|:--:|---|
-| **EXT-01** | Crítico | S/M | 2 | 🟡 | Pasar el repo a privado, sacar `docs/propuesta/` y `docs/relevamiento/` del control de versiones, **rotar el secreto**, avisarle al cliente |
+| **EXT-01** | Crítico | S/M | 2 | 🟡 | **Repo privado y secreto rotado (2026-08-14).** Falta: sacar `docs/propuesta/` y `docs/relevamiento/` del control de versiones, y avisarle al cliente |
 | **EXT-02** | Alto | XS | 1b | ✅ | — |
 | **EXT-03** | Medio | XS | 2 | 🟡 | `LICENSE` o nota de titularidad + alcance de mantenimiento. Depende de qué diga la propuesta firmada |
 | **EXT-04** | Info | XS | 1 | ✅ | — |
@@ -3432,13 +3540,13 @@ propuesto en §8.2; `1` es lo ya hecho.
 | **DB-10** | Info | — | 8 | 🟡 | Preguntar por las reservas que cruzan medianoche cuando se cierre P11 |
 | **DB-11** | Bajo | XS | 3 | 🟡 | *(nuevo, 2026-08-14)* Evitado en `bloqueo_sala`; en `reserva` queda validar el orden de las horas en el DTO del Módulo 2 |
 | **SEC-01** | Alto | XS | 1 | ✅ | — |
-| **SEC-02** | Alto | M | 4 | 🔴 | Sin límite de intentos y **sin ningún registro** de eventos de autenticación |
-| **SEC-03** | Alto | S | 4 | 🔴 | No hay forma de recuperar una contraseña. **Bloquea la migración del Notion** |
+| **SEC-02** | Alto | M | 4 | ✅ | — |
+| **SEC-03** | Alto | S | 4 | ✅ | Backend hecho. El botón en `UsuariosPagina.tsx` va con ARQ-02 |
 | **SEC-04** | Medio | S | 1 | ✅ | — |
 | **SEC-05** | Medio | S | 5 | 🔴 | `DIRECTIVO` ve botones de escritura que el backend le niega |
 | **SEC-06** | Bajo | XS | 8 | 🟡 | Decidir explícitamente qué hacer con la enumeración de teléfonos en el registro |
 | **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
-| **SEC-08** | Bajo | S | 4 | 🔴 | BCrypt en costo mínimo; la contraseña temporal no vence nunca |
+| **SEC-08** | Bajo | S | 4 | ✅ | — |
 | **SEC-09** | Bajo | XS | 8 | 🔴 | Declarar `ESCAPE` en las dos búsquedas, o borrar la constante que nadie usa |
 | **ARQ-01** | Alto | S | 5 | 🔴 | El listado muestra 20 filas y el contador dice el total. **Bloquea la migración del Notion** |
 | **ARQ-02** | Medio | M | 5 | 🔴 | Cinco endpoints sin pantalla, incluidos los dos de edición y el alta con rol |
@@ -3477,13 +3585,15 @@ propuesto en §8.2; `1` es lo ya hecho.
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
 | **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
 
-**Cuentas al cierre de la tanda 3:** 59 hallazgos del informe + 1 nuevo (DB-11) =
-**60**. Resueltos **16** (✅); abiertos **44**, de los cuales **12 están bloqueados por
+**Cuentas al cierre de la tanda 4:** 59 hallazgos del informe + 1 nuevo (DB-11) =
+**60**. Resueltos **19** (✅); abiertos **41**, de los cuales **12 están bloqueados por
 una decisión** que no es de código (tuya o del cliente) y 3 quedaron a medias por esa
 misma razón (DB-04, DB-07, DB-11: lo mecánico está hecho, falta la decisión).
 
-Por severidad, lo que queda abierto: **1 Crítico** —EXT-01— y **8 Altos**: SEC-02,
-SEC-03, ARQ-01, SEO-01, QA-01, QA-02, DOC-07 y DOC-08. El resto es Medio o menos.
+Por severidad, lo que queda abierto: **1 Crítico** —EXT-01, ya a medias— y **6 Altos**:
+ARQ-01, SEO-01, QA-01, QA-02, DOC-07 y DOC-08. El resto es Medio o menos.
+
+**Trabajo de código pendiente: 29 hallazgos.** Los otros 12 no bajan programando.
 
 ### 8.2 Las tandas
 
@@ -3495,8 +3605,8 @@ significa rehacer.
 | ~~**1**~~ | ~~SEC-01, SEC-04, DB-05, ARQ-03, DOC-01, DOC-03, DOC-04, DB-06, EXT-04~~ | **Hecha** |
 | ~~**1b**~~ | ~~EXT-02, DOC-09~~ | **Hecha** — commit `870b0da`, pusheado |
 | ~~**3**~~ | ~~DB-02, DB-01, DB-03, DB-07, DB-09, DB-11, DB-04, DOC-02~~ | **Hecha** — `V7`, con las tablas todavía vacías |
-| **2 — Repositorio** *(no es código)* | EXT-01, EXT-03 | Repo a privado, sacar los PDF del cliente del control de versiones, rotar el secreto, avisarle al cliente. Es lo único que empeora solo con el tiempo, y ya se hizo un push más encima |
-| **4 — Perímetro de autenticación** | SEC-02, SEC-03, SEC-08 | Límite de intentos, log de eventos, reseteo de contraseña y vencimiento del temporal. SEC-03 bloquea la migración del Notion |
+| ~~**4**~~ | ~~SEC-02, SEC-03, SEC-08~~ | **Hecha** — límite de intentos, log de eventos, reseteo de contraseña y vencimiento de la temporal |
+| **2 — Repositorio** *(lo que queda no es código)* | EXT-01, EXT-03 | Repo privado ✅ y secreto rotado ✅. **Falta**: sacar los PDF del cliente del control de versiones, avisarle al cliente, y la nota de titularidad |
 | **5 — Frontend** | ARQ-01, SEC-05, ARQ-02, ARQ-09 | El paginado y las pantallas de edición/alta son el mismo trabajo. SEC-04 ya está cerrado, que era el prerrequisito de ARQ-02 |
 | **6 — Operación, tests y CI** | DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05 | Backup/restore/deploy primero, después los tests que faltan y el script de las SQL, y recién ahí el pipeline: necesita un comando que correr |
 | **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |

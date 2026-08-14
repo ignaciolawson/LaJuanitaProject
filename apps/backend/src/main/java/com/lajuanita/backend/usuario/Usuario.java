@@ -93,6 +93,39 @@ public class Usuario {
     @Column(name = "debe_cambiar_password", nullable = false)
     private boolean debeCambiarPassword = false;
 
+    /**
+     * Cuándo se generó la contraseña temporal vigente. {@code NULL} cuando la
+     * persona ya eligió la suya.
+     *
+     * <p>Existe para que la temporal pueda vencer: el booleano de arriba dice
+     * <i>que</i> la generó administración, no <i>cuándo</i>, y sin la fecha una
+     * contraseña que viajó por WhatsApp vale para siempre. Las dos columnas se
+     * mueven juntas -- la base lo exige con
+     * {@code usuario_password_temporal_coherente} (V8) -- así que conviene
+     * tocarlas solo por {@link #marcarPasswordTemporal()} y
+     * {@link #marcarPasswordElegida(String)}.
+     */
+    @Column(name = "password_temporal_desde")
+    private OffsetDateTime passwordTemporalDesde;
+
+    /**
+     * Las dos columnas de la contraseña temporal son una sola cosa dicha en dos
+     * campos. Se escriben acá y no en cada servicio para que no exista la
+     * combinación imposible que la base rechaza.
+     */
+    public void marcarPasswordTemporal(String hash) {
+        this.passwordHash = hash;
+        this.debeCambiarPassword = true;
+        this.passwordTemporalDesde = OffsetDateTime.now();
+    }
+
+    /** La persona eligió la suya: la temporal deja de existir. */
+    public void marcarPasswordElegida(String hash) {
+        this.passwordHash = hash;
+        this.debeCambiarPassword = false;
+        this.passwordTemporalDesde = null;
+    }
+
     /** La escribe el DEFAULT de la base, no la aplicación. */
     @Column(name = "fecha_creacion", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime fechaCreacion;

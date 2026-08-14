@@ -173,6 +173,40 @@ class PermisosPorRolTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * La misma puerta, con la llave nueva. Resetear la contraseña de alguien es
+     * quedarse con su cuenta: si un STAFF puede resetear la de un ADMIN, el
+     * agujero que la auditoría del 12/08 cerró vuelve a estar abierto, solo que
+     * por el endpoint de SEC-03 en vez de por el de baja.
+     */
+    @Test
+    void staff_no_puede_resetear_la_password_de_una_cuenta_administrativa() throws Exception {
+        Usuario admin = crear(Rol.ADMIN);
+
+        mvc.perform(post("/api/usuarios/" + admin.getId() + "/password-temporal")
+                .header("Authorization", comoUsuarioCon(Rol.STAFF)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void staff_si_puede_resetear_la_password_de_un_usuario_comun() throws Exception {
+        Usuario comun = crear(Rol.USUARIO);
+
+        mvc.perform(post("/api/usuarios/" + comun.getId() + "/password-temporal")
+                .header("Authorization", comoUsuarioCon(Rol.STAFF)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.passwordTemporal").isNotEmpty());
+    }
+
+    @Test
+    void un_directivo_no_puede_resetear_ninguna_password() throws Exception {
+        Usuario comun = crear(Rol.USUARIO);
+
+        mvc.perform(post("/api/usuarios/" + comun.getId() + "/password-temporal")
+                .header("Authorization", comoUsuarioCon(Rol.DIRECTIVO)))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void un_admin_no_puede_desactivarse_a_si_mismo() throws Exception {
         Usuario admin = crear(Rol.ADMIN);

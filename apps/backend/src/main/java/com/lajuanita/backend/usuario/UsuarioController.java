@@ -85,6 +85,19 @@ public class UsuarioController {
         return usuarios.editar(id, solicitud, esAdmin(quienPide), idDe(quienPide));
     }
 
+    /**
+     * Contraseña temporal nueva para alguien que perdió la suya.
+     *
+     * <p>No hay mail, así que no puede haber un "olvidé mi contraseña": el
+     * camino es este, y termina en Micaela pasando la contraseña nueva por
+     * WhatsApp, igual que en el alta. La respuesta la trae <b>una sola vez</b>.
+     */
+    @PostMapping("/{id}/password-temporal")
+    @PuedeOperar
+    public UsuarioCreado resetearPassword(@PathVariable Long id, Authentication quienPide) {
+        return usuarios.resetearPassword(id, esAdmin(quienPide), idDe(quienPide));
+    }
+
     /** Baja o alta lógica. Nunca borrado: el historial se conserva siempre. */
     @PatchMapping("/{id}/activo")
     @PuedeOperar
