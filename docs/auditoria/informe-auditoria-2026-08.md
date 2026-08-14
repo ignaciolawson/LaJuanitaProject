@@ -2812,6 +2812,20 @@ porque son el mismo trabajo.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-14 — RESUELTO lo que se puede sin el compose de deploy.**
+> Actuator agregado con **solo** `health` expuesto y `show-details=never`, permitido sin
+> autenticación en `SeguridadConfig`; y el healthcheck de Postgres en el compose, con
+> `start_period` para que los reintentos no se consuman durante la inicialización.
+>
+> **Verificado ejecutando las dos mitades**, no solo escribiéndolas: un caso nuevo en
+> `PermisosPorRolTest` comprueba que `/actuator/health` responde 200 sin credencial, dice
+> `UP` y **no** expone `components` —que traería el estado de la base con su URL—; y
+> `docker inspect` sobre el contenedor recreado devuelve `healthy`, con los datos intactos.
+>
+> **Queda para DOC-08**, que es donde vive: el `restart: unless-stopped` y el healthcheck
+> **del backend**, que no se pueden escribir todavía porque el backend no está en ningún
+> compose. El endpoint que van a consultar ya existe.
+
 ---
 
 ### 3.7 DOC — Documentación
@@ -3057,6 +3071,16 @@ dos.
 desactivar `admin@lajuanita.local`.
 
 **Esfuerzo: S**
+
+> **Remediado el 2026-08-14 — RESUELTO**, las dos partes. `DB_URL`, `DB_USER`,
+> `DB_PASSWORD` y `CORS_ORIGENES` van por entorno con el default de desarrollo adentro,
+> igual que el JWT; el `docker-compose.yml` hace lo mismo con `POSTGRES_*`. Y el README
+> tiene la **tabla de variables por ambiente** de siete filas, con los dos ítems que no
+> son variables: no publicar el 5432 en el VPS y desactivar el admin sembrado.
+>
+> Los defaults **siguen commiteados a propósito** —un clone tiene que arrancar—, pero
+> ahora la tabla dice explícitamente que los siete son públicos y que la contraseña de la
+> base tiene que ser otra, que era la asimetría que el hallazgo señalaba.
 
 ---
 
@@ -3605,6 +3629,19 @@ Con esto **la migración del Notion deja de estar bloqueada por el front**: se p
 de alta al equipo con su rol, corregir lo que venga mal, resetear contraseñas y ver más
 allá de la fila 20.
 
+### Tanda 6 — 2026-08-14 · empezada · operación
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **DOC-07** | `DB_URL`/`DB_USER`/`DB_PASSWORD`/`CORS_ORIGENES` y los `POSTGRES_*` por entorno, + tabla de variables por ambiente en el README | `mvn test` 86/86 |
+| **QA-07** | `/actuator/health` público y sin detalle, + healthcheck de Postgres con `start_period` | caso nuevo en `PermisosPorRolTest` y `docker inspect` → `healthy` |
+
+**Sigue abierto de esta tanda:** DOC-08 (`docs/operacion.md` con backup, **restore
+probado**, deploy y falla de migración), QA-01 (`AlumnoTest`), QA-03 (las 109 pruebas SQL
+en el build), QA-04 (el pipeline) y QA-05 (tests de front). DOC-08 es el que arrastra al
+resto: el healthcheck del backend y el `restart: unless-stopped` se escriben ahí, cuando
+exista el compose de deploy.
+
 ### 8.1 Los 60 hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
@@ -3660,14 +3697,14 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **QA-04** | Medio | M | 6 | 🔴 | No hay pipeline. Necesita QA-03 primero |
 | **QA-05** | Medio | S | 6 | 🔴 | El frontend no tiene tests ni infraestructura |
 | **QA-06** | Medio | S | 8 | 🔴 | Cuatro combinaciones de la paleta fallan AA, una es el borde de los inputs |
-| **QA-07** | Bajo | S | 6 | 🔴 | Healthcheck y `restart: unless-stopped` |
+| **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy (DOC-08) |
 | **DOC-01** | Alto | XS | 1 | ✅ | — |
 | **DOC-02** | Alto | S | 3 | ✅ | — |
 | **DOC-03** | Medio | XS | 1 | ✅ | — |
 | **DOC-04** | Medio | XS | 1 | ✅ | — |
 | **DOC-05** | Medio | S | 7 | 🔴 | `requirements/landing.md` dice que el blog no existe |
 | **DOC-06** | Medio | S | 7 | 🔴 | `apps/landing/README.md` es el boilerplate de `create-next-app` |
-| **DOC-07** | Alto | S | 6 | 🔴 | Credenciales de Postgres commiteadas sin override + tabla de variables por ambiente |
+| **DOC-07** | Alto | S | 6 | ✅ | — |
 | **DOC-08** | Alto | M | 6 | 🔴 | No existe `docs/operacion.md`: backup, **restore probado**, deploy, falla de migración |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
 | **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
@@ -3675,17 +3712,16 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
 | **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
 
-**Cuentas al cierre de la tanda 5:** 59 hallazgos del informe + 1 nuevo (DB-11) =
-**60**. Resueltos **24** (✅), cerrado como riesgo asumido **1** (⚪ EXT-01); abiertos
-**35**, de los cuales **11 están bloqueados por una decisión** que no es de código (tuya
-o del cliente) y 4 quedaron a medias (DB-04, DB-07, DB-11 y ARQ-09).
+**Cuentas al 2026-08-14, con la tanda 6 empezada:** 59 hallazgos del informe + 1 nuevo
+(DB-11) = **60**. Resueltos **25** (✅), cerrado como riesgo asumido **1** (⚪ EXT-01);
+abiertos **34**, de los cuales **11 están bloqueados por una decisión** que no es de
+código (tuya o del cliente) y 5 quedaron a medias (DB-04, DB-07, DB-11, ARQ-09 y QA-07).
 
-**Ya no queda ningún Crítico abierto.** Los Altos que siguen son **5**: SEO-01, QA-01,
-QA-02, DOC-07 y DOC-08 — y **dos de ellos son preguntas al cliente**, no código. El
-resto es Medio o menos.
+**Ya no queda ningún Crítico abierto.** Los Altos que siguen son **4**: SEO-01, QA-01,
+QA-02 y DOC-08 — y **dos de ellos son preguntas al cliente**, no código.
 
-**Trabajo de código pendiente: 24 hallazgos**, casi todo limpieza y la tanda de
-operación. Los otros 11 no bajan programando.
+**Trabajo de código pendiente: 23 hallazgos**, casi todo limpieza más lo que queda de la
+tanda 6. Los otros 11 no bajan programando.
 
 ### 8.2 Las tandas
 

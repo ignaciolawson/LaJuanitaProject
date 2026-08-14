@@ -284,6 +284,20 @@ class PermisosPorRolTest {
         mvc.perform(altaDeAlumno()).andExpect(status().isUnauthorized());
     }
 
+    /**
+     * La salud del servicio es la única excepción a "todo lo demás exige
+     * credencial", y tiene que serlo: la consulta el healthcheck del contenedor
+     * y un monitor externo, ninguno de los dos tiene sesión. No filtra nada —
+     * `show-details=never` deja la respuesta en UP o DOWN.
+     */
+    @Test
+    void la_salud_del_servicio_se_consulta_sin_credencial_y_no_dice_nada_mas() throws Exception {
+        mvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.components").doesNotExist());
+    }
+
     @Test
     void el_403_trae_un_mensaje_utilizable() throws Exception {
         mvc.perform(altaDeAlumno().header("Authorization", comoUsuarioCon(Rol.DIRECTIVO)))

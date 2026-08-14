@@ -79,7 +79,7 @@ npm run dev
 ### Tests
 
 ```
-cd apps/backend && mvn test        # 85 casos: login, JWT, registro, permisos, vigencia, errores, límites
+cd apps/backend && mvn test        # 86 casos: login, JWT, registro, permisos, vigencia, errores, límites
 cd apps/platform && npm run build  # incluye el chequeo de tipos
 cd apps/platform && npm run lint
 ```
@@ -200,6 +200,34 @@ firmando con el secreto commiteado, salvo que
 `lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté en el
 `application.properties` — la línea que un deploy no copia. No depende de que
 alguien active un perfil de producción ni de que lea un WARN.
+
+**Pero el JWT no es lo único.** Esta es la lista completa de lo que cambia por
+ambiente. Todos los valores de desarrollo están commiteados a propósito, para
+que un clone arranque; **todos son públicos y ninguno sirve en producción**:
+
+| Variable | Desarrollo (commiteado) | Producción |
+|---|---|---|
+| `JWT_SECRET` | el del `application.properties` | **valor nuevo**, Base64 ≥32 bytes |
+| `lajuanita.jwt.permitir-secreto-de-desarrollo` | `true` | **borrar la línea** |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/la_juanita` | la red interna del compose |
+| `DB_USER` | `la_juanita` | el que se decida |
+| `DB_PASSWORD` | `la_juanita` | **otra**, generada |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | ídem, en `docker-compose.yml` | tienen que coincidir con las tres de arriba |
+| `CORS_ORIGENES` | `http://localhost:5173` | el dominio real del panel |
+
+Y dos cosas más antes de exponerlo, que no son variables:
+
+1. **No publicar el puerto 5432.** El `docker-compose.yml` de desarrollo lo hace
+   para poder entrar con `psql`; en el VPS, el backend llega a la base por la red
+   interna y ese bloque no va.
+2. **Desactivar `admin@lajuanita.local`** en una migración nueva, después de crear
+   los usuarios reales.
+
+**Salud del servicio.** `GET /actuator/health` es público y responde `UP` o `DOWN`,
+sin detalle. Lo consulta el `healthcheck` del contenedor —sin healthcheck no hay
+reinicio automático: Docker no puede reiniciar lo que no sabe que está caído— y
+sirve para que un monitor externo le pegue cada cinco minutos. Es el resto de
+Actuator lo que está apagado, no éste.
 
 ## Estado de la landing
 

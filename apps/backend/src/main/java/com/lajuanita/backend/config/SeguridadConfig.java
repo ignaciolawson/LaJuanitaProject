@@ -205,6 +205,11 @@ public class SeguridadConfig {
                         // equivocado (405) vuelven como un 401 vacío, escondiendo
                         // el error real y mintiéndole al front.
                         .requestMatchers("/error").permitAll()
+                        // La salud del servicio la tiene que poder consultar
+                        // quien todavía no inició sesión: el healthcheck del
+                        // contenedor y un monitor externo. No expone nada --
+                        // `show-details=never` deja la respuesta en UP o DOWN.
+                        .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor))

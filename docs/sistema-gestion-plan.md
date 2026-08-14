@@ -596,8 +596,10 @@ tuyas, enumeradas en §8.3 del informe. **No queda ningún hallazgo Crítico abi
 8. **Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6. No son
    deuda técnica: son reglas confirmadas que hoy no existen en ningún lado, y cada una
    necesita una decisión tuya antes de escribirse.
-9. **Credenciales de Postgres commiteadas sin override, y cero procedimiento de backup,
-   restore o deploy** (DOC-07, DOC-08).
+9. ~~**Credenciales de Postgres commiteadas sin override**~~ **Resuelto el 2026-08-14**
+   (DOC-07): van por entorno y el README tiene la tabla de variables por ambiente. **Sigue
+   abierto DOC-08**: cero procedimiento de backup, restore o deploy — y es lo que más
+   duele el día que algo se rompa.
 10. **Los PDF del cliente quedan versionados, y está decidido así** (2026-08-14). El
     repositorio ya es privado y el secreto se rotó; lo demás —el historial y el aviso al
     cliente— Ignacio lo asumió como decisión propia. Figura como riesgo aceptado en §5

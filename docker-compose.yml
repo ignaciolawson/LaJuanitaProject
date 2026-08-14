@@ -1,16 +1,41 @@
+# Compose de DESARROLLO: solo la base. El backend corre con `mvn spring-boot:run`
+# y el front con `npm run dev:platform`.
+#
+# El del deploy va a ser otro archivo, con los tres servicios adentro. Cuando se
+# escriba, el backend lleva `restart: unless-stopped` y un healthcheck contra
+# `/actuator/health`, que ya existe y es publico -- responde UP o DOWN y nada
+# mas. Sin healthcheck no hay reinicio automatico: Docker no puede reiniciar lo
+# que no sabe que esta caido.
 services:
   postgres:
     image: postgres:16-alpine
     container_name: la_juanita_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: la_juanita
-      POSTGRES_USER: la_juanita
-      POSTGRES_PASSWORD: la_juanita
+      # Los valores por defecto son los de desarrollo y estan commiteados a
+      # proposito. En el VPS se definen por entorno, y la contrasena tiene que
+      # ser OTRA: `la_juanita` es publica. Ver la tabla del README.
+      POSTGRES_DB: ${POSTGRES_DB:-la_juanita}
+      POSTGRES_USER: ${POSTGRES_USER:-la_juanita}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-la_juanita}
     ports:
+      # En el VPS esto NO va asi: publicar 5432 al mundo con la contrasena por
+      # defecto es la combinacion estandar de base comprometida. Ahi el backend
+      # llega por la red interna del compose y este bloque no existe.
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` con el usuario real: sin `-U`, adentro del contenedor
+      # asume `root` y devuelve error aunque la base este perfecta.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-la_juanita} -d ${POSTGRES_DB:-la_juanita}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Postgres tarda en inicializar la primera vez. Sin esto, los reintentos
+      # se consumen antes de que llegue a estar lista y el servicio queda
+      # marcado como enfermo estando sana.
+      start_period: 30s
 
 volumes:
   postgres_data:
