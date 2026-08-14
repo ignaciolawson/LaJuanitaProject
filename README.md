@@ -179,6 +179,15 @@ El menú del portal se arma con la respuesta de `/api/me`
 > backend, con `@PuedeLeerAdministracion` y `@PuedeOperar`
 > (`apps/backend/.../config/`). El menú solo decide qué se dibuja.
 
+### Titularidad y alcance
+
+**El código es de Ignacio Lawson** (confirmado el 2026-08-14). Si la propuesta firmada
+con el cliente dice otra cosa, gana la propuesta: es contractual.
+
+Lo que se entrega es el sistema de gestión y la landing, con la migración de los datos
+reales y la capacitación de administración. **El mantenimiento posterior a diciembre no
+está acordado en este repositorio**; si hace falta, se acuerda aparte.
+
 ### Credenciales de desarrollo
 
 `admin@lajuanita.local` / `lajuanita2026`, sembradas por

@@ -531,3 +531,103 @@ correspondiente. El más urgente es **P34**, porque son números que un cliente 
 - **❓P34 — La duración de los cursos no coincide.** Relevamiento y confirmación de Ignacio: DJ = 2 meses, 8 clases, 1 por semana. Landing: DJ = 6 meses, **2 clases semanales**. Producción: 4 meses vs. 8 meses. **Alguno de los dos está mal y hay que corregirlo antes de publicar la landing**, porque son números que un cliente lee y sobre los que decide.
 - **❓P35 — "Práctica libre incluida"** aparece como beneficio del programa de DJ. Es un uso de sala **gratuito y solo para alumnos**, distinto del alquiler pago. ¿Se reserva por el sistema? Si sí, es un `tipo_uso` más.
 - **❓P36 — Eventos.** `dates.ts` anuncia clases abiertas, showcases y release parties, y el relevamiento habla de eventos en Argentina, Uruguay y Brasil. No hay módulo de eventos entre los 8 y **no está en la propuesta**, así que por defecto queda **fuera de alcance** — pero un evento ocupa una sala, así que como mínimo debería poder bloquearla.
+
+---
+
+## 13. Decisiones cerradas el 2026-08-14
+
+**Veinte preguntas que estaban trabando la remediación de la auditoría y el arranque de
+`inscripcion`, contestadas de una sola vez por Ignacio (las del cliente, ya validadas con
+él).** Esta sección gana sobre cualquier cosa que la contradiga más arriba en este
+documento.
+
+### Producto y landing
+
+- **P34 — Duración de los cursos. RESUELTO, y coincide con §1:** el formato es
+  **1:30 por clase, una vez por semana**. DJ son 8 clases (≈2 meses) y Producción 16
+  (≈4 meses). Lo que **no** existe es una fecha de fin garantizada: como ninguna clase se
+  pierde (P2), el curso termina cuando se dictaron las clases contratadas y eso depende
+  del alumno. La landing tiene que publicar **el formato y la cantidad de clases**, y si
+  menciona meses, que sea como estimación. Las duraciones que publica hoy contradicen
+  §1 y salen.
+- **P31 — Mix & Mastering. RESUELTO: es un SERVICIO, no un programa.** La landing lo
+  publica como un curso que no existe: sale de los programas, de los títulos, del
+  `llms.txt` y del JSON-LD.
+- **Precios. RESUELTO: van los de la landing, con salvedad**, hasta que se confirmen.
+  Se publican como referencia ("desde"), no como precio cerrado.
+- **Firma del blog. RESUELTO: "Equipo La Juanita".** Las seis notas están inventadas y no
+  las firma ninguna persona real — hay que corregir también el `author` del `BlogPosting`.
+- **Email `hola@lajuanitastudio.com`. RESUELTO: NO EXISTE.** Es un placeholder inventado
+  por la IA. Sale del JSON-LD y de todos lados hasta que haya una casilla real.
+- **Datos del negocio. CONFIRMADOS:**
+  | Dato | Valor |
+  |---|---|
+  | Dirección | **Office Park Quatro — Colectora Oeste Ramal Pilar 209, locales 5 y 6, B1669 Pilar, Provincia de Buenos Aires** |
+  | Teléfono | **+54 9 11 5310-8738** |
+  | Año de fundación | **2021** |
+  | Horario de atención | **10:00 a 18:00** |
+
+  **Dirección completa, confirmada el 2026-08-14.** El nombre del complejo es *Office Park
+  **Quatro***; "Office Park Pilar" del §1 es la forma corta y queda superada por esta.
+  Desglosada para el `PostalAddress` del JSON-LD:
+
+  | Campo | Valor |
+  |---|---|
+  | `streetAddress` | Colectora Oeste Ramal Pilar 209, locales 5 y 6 (Office Park Quatro) |
+  | `addressLocality` | Pilar |
+  | `postalCode` | B1669 |
+  | `addressRegion` | Provincia de Buenos Aires |
+  | `addressCountry` | AR |
+
+  Con esto **ya no queda ningún dato del negocio sin confirmar**: el `LocalBusiness` se
+  puede publicar entero, sin campos en `null`.
+
+### Módulo 1 e `inscripcion`
+
+- **P4 — Los alumnos informales de Ghezz. RESUELTO: ENTRAN al sistema** como alumnos
+  normales. Tenerlos afuera reproduce el problema que el sistema viene a resolver.
+- **P5 — Nivelación. RESUELTO: la hace el formulario de la landing**, y **Micaela puede
+  modificar el nivel después** (el alumno termina DJ inicial y pasa a intermedio).
+  *Dependencia:* hoy los formularios de la landing no envían nada; esto se completa cuando
+  se conecten al backend (~septiembre).
+- **P11 — Horario del estudio. RESUELTO: 10:00 a 18:00**, y **no se usa después de
+  medianoche**. Esto cierra DB-10: el modelo `DATE` + dos `TIME`, que impide que una
+  reserva cruce la medianoche, es el correcto y no hay que tocar nada.
+- **Clases consumidas. RESUELTO:** son 8 clases y **una clase solo se consume cuando se
+  toma**. Si no se dictó, se recupera y sigue habiendo 8. Implementación: cuentan las
+  participaciones cuya reserva **no** esté `CANCELADA` ni `REPROGRAMADA`. Con esto se puede
+  escribir por fin la regla *"no consumir más clases que las contratadas"*.
+
+### Reglas de negocio que faltaban en la base
+
+- **Dos salas a la vez. RESUELTO: NADIE**, ni profesor ni alumno. Cada profe con su
+  reserva, en su sala, con su alumno. Van dos `EXCLUDE` más, uno por `(profesor, período)`
+  y otro por `(alumno, período)`. *(Más estricto que lo que se había propuesto: se había
+  sugerido dejar el del profesor como advertencia.)*
+- **`sala.activa = FALSE`. RESUELTO por decisión técnica:** significa **que la sala no
+  acepta reservas nuevas a futuro**; las reservas ya cargadas siguen valiendo. Hoy la
+  columna no hace nada. *(Viene del modelo original del cliente y nunca se le había
+  asignado significado — de ahí la pregunta.)*
+- **`egreso` y `venta_equipo`. RESUELTO: llevan estado de anulación**, mismo patrón que
+  `pago` (autor + fecha + motivo obligatorios). Recién con eso se les puede prohibir el
+  borrado, que es lo que V6 §7 dejó pendiente.
+- **Quién paga. RESUELTO: el pagador NO tiene que ser el titular.** Un padre puede pagar
+  el curso del hijo. Queda documentado, no se impone nada.
+- **P8 — Reservar sin seña. RESUELTO, y más fuerte de lo que decía la propuesta: NO HAY
+  EXCEPCIÓN.** *"Si no se paga la seña, no se reserva."* La cláusula *"excepto autorización
+  explícita"* del §4 queda **sin efecto**: no existe tal autorización. La reserva se crea
+  junto con su seña, en una transacción.
+- **El nivel que no retrocede. RESUELTO por decisión técnica:** mismo patrón que la
+  anulación de un pago — columnas de autor y motivo, exigidas por un trigger cuando el
+  nivel baja. Es el molde que el esquema ya usa cuatro veces.
+
+### Proyecto
+
+- **Titularidad. RESUELTA: el código es de Ignacio Lawson.** Si la propuesta firmada dice
+  otra cosa, gana la propuesta.
+- **Enumeración de teléfonos en el registro. RESUELTA: se deja como está**, con el mismo
+  argumento que ya está escrito para el email.
+- **Cliente HTTP compartido entre landing y platform. RESUELTO por decisión técnica: se
+  duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que
+  ahorra.
+- **Los dos `prompt-*.md` de la raíz. RESUELTO: movidos a `docs/auditoria/`.**
