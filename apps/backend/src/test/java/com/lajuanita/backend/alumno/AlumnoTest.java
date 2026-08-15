@@ -357,6 +357,24 @@ class AlumnoTest {
     }
 
     /**
+     * El caso que depende del {@code ESCAPE} de la consulta (SEC-09). Los otros
+     * dos comodines se escapan con una barra invertida, así que buscar una barra
+     * invertida es lo único que ejercita el carácter de escape en sí: la consulta
+     * recibe {@code %\\%} y tiene que leerlo como "una barra literal", no como
+     * un escape colgado. Postgres usa la barra por defecto y por eso esto andaba
+     * sin declararlo; el test existe para que se note el día que deje de andar.
+     */
+    @Test
+    void un_buscador_con_barra_invertida_no_rompe_la_consulta() throws Exception {
+        darDeAlta(crear(Rol.USUARIO), "INICIAL");
+
+        mvc.perform(get("/api/alumnos?buscar=%5C")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(0));
+    }
+
+    /**
      * Buscar sin texto tiene que traer todo. Es el caso que rompía con
      * {@code function lower(bytea) does not exist}: sin valor, el driver no
      * puede deducir el tipo del parámetro y lo liga como binario.

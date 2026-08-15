@@ -41,9 +41,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
      */
     @Query("""
             SELECT u FROM Usuario u
-            WHERE LOWER(u.nombre)   LIKE :patron
-               OR LOWER(u.apellido) LIKE :patron
-               OR LOWER(u.email)    LIKE :patron
+            WHERE LOWER(u.nombre)   LIKE :patron ESCAPE '\\'
+               OR LOWER(u.apellido) LIKE :patron ESCAPE '\\'
+               OR LOWER(u.email)    LIKE :patron ESCAPE '\\'
             ORDER BY LOWER(u.apellido), LOWER(u.nombre)
             """)
     Page<Usuario> buscar(@Param("patron") String patron, Pageable paginado);

@@ -1615,6 +1615,25 @@ quedar es la instrucción sin cumplir.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO, con las dos mitades.** Las seis
+> cláusulas `LIKE` de las dos consultas declaran `ESCAPE '\'`, y la constante se **borró**:
+> una anotación `@Query` no puede interpolarla sin partir el bloque de texto en seis
+> concatenaciones, así que dejarla habría sido volver a escribir una instrucción que nadie
+> cumple. Lo que decía pasó al javadoc de `Busqueda`, junto con el motivo por el que esto
+> funcionaba igual.
+>
+> **Verificado en el SQL generado**, no en el JPQL: con
+> `-Dlogging.level.org.hibernate.SQL=DEBUG`, la consulta sale
+> `… lower(u1_0.nombre) like ? escape '\' or …`. Y hay un caso nuevo en `AlumnoTest`
+> —`un_buscador_con_barra_invertida_no_rompe_la_consulta`— porque es el único que
+> ejercita el carácter de escape en sí: los otros dos comodines se escapan *con* la barra,
+> así que buscarla a ella es lo único que la pone a prueba. `mvn test` **107/107** (eran
+> 106).
+>
+> **Esto no cambia ningún comportamiento hoy** y conviene decirlo: el default de Postgres
+> ya era la barra invertida, y los dos casos que protegían a `Busqueda` pasaban antes y
+> después. Lo que cambia es de qué depende que sigan pasando.
+
 ---
 
 ### 3.4 ARQ — Consistencia entre capas y arquitectura
@@ -3949,7 +3968,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **SEC-06** | Bajo | XS | 8 | ✅ | **Decidido en §13: se deja como está**, con el mismo argumento ya escrito para el email. El hallazgo pedía decidirlo explícitamente, y está decidido |
 | **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
 | **SEC-08** | Bajo | S | 4 | ✅ | — |
-| **SEC-09** | Bajo | XS | 8 | 🔴 | Declarar `ESCAPE` en las dos búsquedas, o borrar la constante que nadie usa |
+| **SEC-09** | Bajo | XS | 8 | ✅ | — |
 | **ARQ-01** | Alto | S | 5 | ✅ | — |
 | **ARQ-02** | Medio | M | 5 | ✅ | Los dos `GET /{id}` siguen sin usarse a propósito: el listado ya trae esos campos |
 | **ARQ-03** | Medio | S | 1 | ✅ | — |

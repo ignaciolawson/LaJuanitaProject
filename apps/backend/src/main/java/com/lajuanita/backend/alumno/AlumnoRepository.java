@@ -31,9 +31,9 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
             SELECT a FROM Alumno a
             JOIN FETCH a.usuario u
             WHERE (:estado IS NULL OR a.estadoAlumno = :estado)
-              AND (LOWER(u.nombre)   LIKE :patron
-                   OR LOWER(u.apellido) LIKE :patron
-                   OR LOWER(u.email)    LIKE :patron)
+              AND (LOWER(u.nombre)   LIKE :patron ESCAPE '\\'
+                   OR LOWER(u.apellido) LIKE :patron ESCAPE '\\'
+                   OR LOWER(u.email)    LIKE :patron ESCAPE '\\')
             ORDER BY LOWER(u.apellido), LOWER(u.nombre)
             """)
     Page<Alumno> buscar(@Param("patron") String patron,
