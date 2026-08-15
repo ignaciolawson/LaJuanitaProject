@@ -12,6 +12,15 @@ están corregidas en `V6__integridad_auditoria.sql` y fijadas con tests en
 Este archivo documenta **qué garantiza realmente la base y qué no**, que era la
 pregunta de la auditoría.
 
+> **Actualizado el 2026-08-14 (V9).** `platform.md` §13 —"Decisiones cerradas el
+> 2026-08-14"— contestó las preguntas que mantenían abierta §6, y `V9` escribió
+> cinco de las reglas que esta lista daba por huérfanas: nadie en dos salas a la
+> vez (profesor y alumno), el nivel que no retrocede sin firma, no consumir más
+> clases que las contratadas, `sala.activa` con significado, y la anulación de
+> `egreso` y `venta_equipo` —que era la condición que V6 §7 se había puesto a sí
+> misma para prohibirles el borrado—. **§6 queda con una sola regla sin dueño: la
+> seña.** Los inventarios de abajo están al día con V9.
+>
 > **Actualizado el 2026-08-14 (V7).** La auditoría técnica del 13/08 encontró
 > que este documento leyó *"nada se borra"* como una regla **financiera**, y por
 > eso `reserva` y `reserva_participante` —que son el historial de clases, y la
@@ -23,19 +32,18 @@ pregunta de la auditoría.
 
 ---
 
-## 1. Inventario real (post-V7, leído del catálogo, no de los archivos)
+## 1. Inventario real (post-V9, leído del catálogo, no de los archivos)
 
 | Objeto | Cantidad |
 |---|---|
 | Tablas | 22 |
 | Claves primarias | 22 (todas `BIGINT GENERATED ALWAYS AS IDENTITY`) |
-| Claves foráneas | 49 — **todas `NO ACTION`** en DELETE y en UPDATE, verificado en `pg_constraint` |
-| CHECK | 57 (43 en V1..V5 + 12 en V6 + 2 en V7) |
+| Claves foráneas | 52 — **todas `NO ACTION`** en DELETE y en UPDATE, verificado en `pg_constraint`. Las tres nuevas son de V9: los dos `id_usuario_anula` y `id_usuario_baja_nivel` |
+| CHECK | 60 (43 en V1..V5 + 12 en V6 + 2 en V7 + 1 en V8 + 2 en V9) |
 | UNIQUE | 7 + 6 índices únicos parciales |
-| EXCLUDE | 2 (`reserva`, `bloqueo_sala` — el segundo, reescrito en V7) |
-| Índices | 55 |
-| Triggers | 14 (7 de V1 + 3 de V6 + 4 de V7) |
-| Funciones propias | 11 |
+| EXCLUDE | 3 (`reserva` por sala, `bloqueo_sala` —reescrito en V7— y **`reserva` por profesor, nuevo en V9**) |
+| Triggers | 22 (7 de V1 + 3 de V6 + 4 de V7 + 8 de V9) |
+| Funciones propias | 17 — 16 de trigger + `solapamiento_de_persona`, que **no** es de trigger: la comparten los dos triggers de V9 que verifican que una persona no esté en dos salas a la vez |
 | Vistas | **0** |
 | Extensiones | `plpgsql`, `btree_gist` |
 | Tipos propios | 1 (`rango_horario`, V7: Postgres no trae un range de `time`) |
@@ -69,22 +77,22 @@ no está en ningún lado.**
 | Todo descuento lleva justificación | 🟢 CHECK |
 | El premaster no se libera sin pago | 🟢 Trigger + protección del pago (**completado en V6**) |
 | Los estados de mastering y release solo avanzan | 🟢 Trigger (**agujero cerrado en V6**) |
-| El historial financiero no se borra | 🟢 `pago` y `trabajo_mastering` (**nuevo en V6**) — ⚠️ `egreso` y `venta_equipo` NO (§6) |
+| El historial financiero no se borra | 🟢 **las cuatro** — `pago` y `trabajo_mastering` (V6), `egreso` y `venta_equipo` (**nuevo en V9**, cuando §13 les dio forma de anularse) |
 | **El historial de CLASES no se borra** | 🟢 `reserva` y `reserva_participante` (**nuevo en V7**) — esta tabla lo daba por cubierto al decir "financiero", y no lo estaba |
 | **La asistencia se edita con auditoría** | 🟢 Trigger que exige `id_usuario_modifico` y sella la fecha (**nuevo en V7**) |
 | **Anular un pago exige autor, fecha y motivo** | 🟢 CHECK (**nuevo en V7**) — antes era la única excepción del esquema que no pedía explicación |
 | **Invalidar un comprobante exige autor, fecha y motivo** | 🟢 CHECK (**nuevo en V7**) |
 | Toda venta queda con su fecha de carga | 🟢 `venta_equipo.fecha_registro` (**nuevo en V7**) |
 | Dos bloqueos no se pisan | 🟢 `EXCLUDE` sobre rango de fechas **y** franja horaria (**rehecho en V7**): el de V6 leía la fila como un intervalo continuo y rechazaba bloqueos legítimos |
-| **No se asigna horario sin seña o pago** | 🔴 **En ningún lado** (§6) — regla dura ✅ de la propuesta |
-| **El nivel no retrocede sin autorización** | 🔴 **En ningún lado** (§6) — regla dura ✅ de la propuesta |
+| **No se asigna horario sin seña o pago** | 🔴 **En ningún lado** (§6) — **la única que queda sin dueño.** §13 cerró P8 (*no hay excepción*) pero no dijo a qué reservas alcanza: una clase de una inscripción ya paga no lleva seña propia |
+| **El nivel no retrocede sin autorización** | 🟢 Trigger que exige autor, fecha y motivo (**nuevo en V9**). §13 definió que *autorizar* es **firmar**, no consultar un permiso |
 | Una clase se recupera una sola vez | 🟢 Índice único parcial |
 | No se borra a alguien con historial | 🟢 Las 46 FK en NO ACTION |
-| **No consumir más clases que las contratadas** | 🔴 **En ningún lado** (§6) |
-| **Un profesor no está en dos salas a la vez** | 🔴 **En ningún lado** (§6) |
-| **Un alumno no está en dos salas a la vez** | 🔴 **En ningún lado** (§6) |
+| **No consumir más clases que las contratadas** | 🟢 Trigger sobre `reserva_participante`, más el de reactivar una reserva cancelada (**nuevo en V9**). §13 definió qué cuenta como consumida |
+| **Un profesor no está en dos salas a la vez** | 🟢 `EXCLUDE` sobre `(id_profesor, periodo)` (**nuevo en V9**) — una sola tabla, así que aguanta concurrencia |
+| **Un alumno no está en dos salas a la vez** | 🟢 Trigger (**nuevo en V9**), y no `EXCLUDE`: el alumno vive en `reserva_participante` y el horario en `reserva`. Mismo hueco de concurrencia que los triggers de `bloqueo_sala` |
 | El pagador es el titular de lo que paga | 🔴 En ningún lado (§6) |
-| `sala.activa` / `tipo_uso.activo` / `profesor.activo` bloquean el uso | 🔴 En ningún lado — hoy son decorativos (§6) |
+| `sala.activa` / `tipo_uso.activo` / `profesor.activo` bloquean el uso | 🟡 **`sala.activa` ya no es decorativa** (**V9**): no acepta reservas nuevas a futuro y las cargadas siguen valiendo. Las otras dos siguen sin significado |
 | Un teléfono no se repite | 🟡 Parcial: UNIQUE sobre el string crudo (§4) |
 | Los estados de reserva/pago/inscripción solo avanzan | 🟡 No existe tal regla — los CHECK validan el valor, no la transición |
 | El email tiene formato válido | 🟡 Backend (Bean Validation). La base solo exige no vacío |

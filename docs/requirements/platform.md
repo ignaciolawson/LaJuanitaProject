@@ -541,6 +541,25 @@ correspondiente. El más urgente es **P34**, porque son números que un cliente 
 él).** Esta sección gana sobre cualquier cosa que la contradiga más arriba en este
 documento.
 
+> ### ✅ Estado de implementación — 2026-08-14
+>
+> **Las seis decisiones de "Reglas de negocio que faltaban en la base" ya están escritas
+> en `V9__reglas_cerradas_en_la_seccion_13.sql`**, con 35 casos nuevos en
+> `pruebas-reglas-negocio.sql` (86 → **121**, todos verdes): los dos "nadie en dos salas a
+> la vez", la anulación de `egreso` y `venta_equipo` —que habilita prohibirles el
+> borrado—, el nivel que no retrocede sin firma, `sala.activa` con significado, y el tope
+> de clases contratadas.
+>
+> **Excepción, y es la única: la seña (P8).** La decisión está tomada —*no hay
+> excepción*— pero no se puede escribir todavía porque falta saber **a qué reservas
+> alcanza**: una clase de un alumno con inscripción ya paga no lleva seña propia, un
+> alquiler de cabina sí, y hoy nada en `reserva` distingue los dos casos salvo `tipo_uso`.
+> **Es la pregunta que falta cerrar antes del Módulo 2**, y está anotada en la cabecera de
+> `V9` con la herramienta para implementarla.
+>
+> Lo demás de esta sección —producto, landing, Módulo 1— es trabajo de la tanda 7 y de
+> `inscripcion`, todavía pendiente.
+
 ### Producto y landing
 
 - **P34 — Duración de los cursos. RESUELTO, y coincide con §1:** el formato es

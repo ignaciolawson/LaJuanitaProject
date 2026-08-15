@@ -10,7 +10,7 @@
 -- con todas las migraciones aplicadas, y **sale con código distinto de cero si
 -- algún caso falla**. Corre también en CI (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-14, 86/86 sobre el esquema V1..V8.
+-- Última corrida: 2026-08-14, 121/121 sobre el esquema V1..V9.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES, y es a propósito. Antes
 -- estaban acá los nueve comandos con las ocho migraciones nombradas una por
@@ -550,6 +550,213 @@ SELECT probar('83','editar solo las notas de una reserva, sin autor','ANDA',
 SELECT probar('84','toda venta queda con su fecha de carga','ANDA',
  $q$UPDATE venta_equipo SET notas='revisada'
     WHERE fecha_registro IS NOT NULL$q$);
+
+
+-- =============================================================================
+-- V9 — LAS REGLAS QUE CERRO LA §13 DE `platform.md`
+--
+-- Fechas 2027 a proposito: los casos de arriba usan 2026-09 a 2026-11 y estos
+-- no tienen que pisarlas.
+--
+-- Recordatorio de V7 que cuesta caro olvidar: TODO UPDATE de `reserva` que
+-- toque estado, fecha, horas o sala exige `id_usuario_modifico`. Sin eso el
+-- trigger de auditoria rechaza el UPDATE ANTES de llegar a la regla que se
+-- quiere probar, y el caso "pasa" por el motivo equivocado.
+-- =============================================================================
+
+-- --- 1. Un profesor no esta en dos salas a la vez (EXCLUDE) ------------------
+
+SELECT probar('85','clase del profe en Sala 1','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,prof,'2027-03-01','10:00','12:00' FROM v$q$);
+
+SELECT probar('86','el MISMO profe en otra sala a la misma hora','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,prof,'2027-03-01','11:00','13:00' FROM v$q$);
+
+SELECT probar('87','el mismo profe mas tarde, en otra sala','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,prof,'2027-03-01','15:00','16:00' FROM v$q$);
+
+-- Una reserva sin profesor -- un alquiler de cabina -- no ocupa la agenda de
+-- nadie: si el NULL contara como un valor mas, dos reservas sin profesor
+-- chocarian entre si. Son dos casos porque hacen falta las dos filas.
+SELECT probar('88','reserva SIN profesor en la Sala 2','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_alquiler,'2027-03-01','08:00','09:00' FROM v$q$);
+
+SELECT probar('89','otra SIN profesor en la cabina, a la MISMA hora','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT cabina,u_grabacion,'2027-03-01','08:00','09:00' FROM v$q$);
+
+-- La otra sala ocupada a las 10, para los dos casos del alumno. La cabina solo
+-- admite CLASE_DJ y GRABACION_SET: la matriz sala x uso sigue rigiendo.
+SELECT probar('90','clase en la cabina a las 10','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT cabina,u_clase,'2027-03-01','10:00','12:00' FROM v$q$);
+
+
+-- --- 1.b Un alumno tampoco (trigger, porque cruza dos tablas) ---------------
+
+SELECT probar('91','Juan participa de la clase de las 10','ANDA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, v.u_juan, v.ins_juan FROM v, reserva r
+    WHERE r.fecha='2027-03-01' AND r.hora_inicio='10:00' AND r.id_sala=v.sala1$q$);
+
+SELECT probar('92','el MISMO Juan en otra sala a la misma hora','FALLA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario)
+    SELECT r.id_reserva, v.u_juan FROM v, reserva r
+    WHERE r.fecha='2027-03-01' AND r.hora_inicio='10:00' AND r.id_sala=v.cabina$q$);
+
+SELECT probar('93','OTRA alumna si puede estar en esa otra sala','ANDA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario)
+    SELECT r.id_reserva, v.u_ana FROM v, reserva r
+    WHERE r.fecha='2027-03-01' AND r.hora_inicio='10:00' AND r.id_sala=v.cabina$q$);
+
+-- El camino que se olvida: la clase no se mueve sola, se REPROGRAMA encima de
+-- otra clase del mismo alumno. Sin el segundo trigger, esto entraba.
+-- En la Sala 2, que a las 10:30 esta LIBRE. Si estuviera ocupada, el UPDATE de
+-- abajo lo rechazaria el EXCLUDE de sala y el caso probaria otra cosa.
+SELECT probar('94','clase suelta a las 18, en la Sala 2','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2027-03-01','18:00','19:00' FROM v$q$);
+
+SELECT probar('95','Juan participa de la de las 18','ANDA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario)
+    SELECT r.id_reserva, v.u_juan FROM v, reserva r
+    WHERE r.fecha='2027-03-01' AND r.hora_inicio='18:00'$q$);
+
+SELECT probar('96','MOVER la de las 18 encima de la de las 10 de Juan','FALLA',
+ $q$UPDATE reserva SET hora_inicio='10:30', hora_fin='11:30',
+        id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2027-03-01' AND hora_inicio='18:00'$q$);
+
+SELECT probar('97','moverla a un hueco libre si anda','ANDA',
+ $q$UPDATE reserva SET hora_inicio='20:00', hora_fin='21:00',
+        id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2027-03-01' AND hora_inicio='18:00'$q$);
+
+
+-- --- 2. `egreso` y `venta_equipo` se anulan, y por eso ya no se borran ------
+
+SELECT probar('98','un egreso cualquiera','ANDA',
+ $q$INSERT INTO egreso (monto,concepto) VALUES (15000,'Luz de agosto')$q$);
+
+SELECT probar('99','anular el egreso SIN motivo','FALLA',
+ $q$UPDATE egreso SET anulado=TRUE,
+        id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now()
+    WHERE concepto='Luz de agosto'$q$);
+
+SELECT probar('100','anular el egreso con autor, fecha y motivo','ANDA',
+ $q$UPDATE egreso SET anulado=TRUE,
+        id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+        motivo_anulacion='Cargado dos veces'
+    WHERE concepto='Luz de agosto'$q$);
+
+SELECT probar('101','borrar un egreso','FALLA',
+ $q$DELETE FROM egreso WHERE concepto='Luz de agosto'$q$);
+
+SELECT probar('102','anular una venta con firma completa','ANDA',
+ $q$UPDATE venta_equipo SET anulada=TRUE,
+        id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+        motivo_anulacion='La venta se cayo'
+    WHERE id_venta=(SELECT min(id_venta) FROM venta_equipo)$q$);
+
+SELECT probar('103','borrar una venta','FALLA',
+ $q$DELETE FROM venta_equipo WHERE id_venta=(SELECT min(id_venta) FROM venta_equipo)$q$);
+
+
+-- --- 3. El nivel no retrocede sin firma -------------------------------------
+
+SELECT probar('104','poner el nivel de una inscripcion que no lo tenia','ANDA',
+ $q$UPDATE inscripcion SET nivel='INTERMEDIO'
+    WHERE id_inscripcion=(SELECT ins_juan FROM v)$q$);
+
+SELECT probar('105','SUBIR de nivel no exige firma','ANDA',
+ $q$UPDATE inscripcion SET nivel='AVANZADO'
+    WHERE id_inscripcion=(SELECT ins_juan FROM v)$q$);
+
+SELECT probar('106','BAJAR de nivel sin firma','FALLA',
+ $q$UPDATE inscripcion SET nivel='INICIAL'
+    WHERE id_inscripcion=(SELECT ins_juan FROM v)$q$);
+
+SELECT probar('107','bajar con motivo en blanco','FALLA',
+ $q$UPDATE inscripcion SET nivel='INICIAL',
+        id_usuario_baja_nivel=(SELECT u_mica FROM v),
+        fecha_baja_nivel=now(), motivo_baja_nivel='   '
+    WHERE id_inscripcion=(SELECT ins_juan FROM v)$q$);
+
+SELECT probar('108','bajar con autor, fecha y motivo','ANDA',
+ $q$UPDATE inscripcion SET nivel='INICIAL',
+        id_usuario_baja_nivel=(SELECT u_mica FROM v),
+        fecha_baja_nivel=now(), motivo_baja_nivel='No alcanzo el nivel'
+    WHERE id_inscripcion=(SELECT ins_juan FROM v)$q$);
+
+
+-- --- 4. Una sala desactivada no acepta reservas nuevas a futuro -------------
+
+SELECT probar('109','desactivar la Sala 2','ANDA',
+ $q$UPDATE sala SET activa=FALSE WHERE id_sala=(SELECT sala2 FROM v)$q$);
+
+SELECT probar('110','reserva NUEVA a futuro en una sala desactivada','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2027-06-01','10:00','11:00' FROM v$q$);
+
+-- Desactivar mira para adelante: cargar una clase que ya se dio no se impide.
+SELECT probar('111','reserva PASADA en una sala desactivada','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2020-06-01','10:00','11:00' FROM v$q$);
+
+-- Y una reserva legitima que ya estaba cargada no queda congelada.
+SELECT probar('112','editar una reserva ya cargada en la sala desactivada','ANDA',
+ $q$UPDATE reserva SET notas='confirmada por WhatsApp'
+    WHERE fecha='2027-03-01' AND hora_inicio='15:00'$q$);
+
+SELECT probar('113','volver a activar la Sala 2','ANDA',
+ $q$UPDATE sala SET activa=TRUE WHERE id_sala=(SELECT sala2 FROM v)$q$);
+
+
+-- --- 5. No se consumen mas clases que las contratadas -----------------------
+
+-- Inscripcion corta a proposito: con 8 harian falta nueve casos para llegar al
+-- limite. Con 1, el limite se prueba en dos.
+SELECT probar('114','inscripcion de Ana a PRODUCCION, UNA sola clase','ANDA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
+    SELECT al_ana,'PRODUCCION',1,50000 FROM v$q$);
+
+SELECT probar('115','primera clase de esa inscripcion','ANDA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, v.u_ana,
+           (SELECT id_inscripcion FROM inscripcion
+            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+    FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='15:00'$q$);
+
+SELECT probar('116','SEGUNDA clase contra una inscripcion de una','FALLA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, v.u_ana,
+           (SELECT id_inscripcion FROM inscripcion
+            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+    FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='20:00'$q$);
+
+-- El camino de atras: cancelar libera la clase y volver a activarla la reclama.
+-- Sin el segundo trigger, cancelar y descancelar era la forma de pasarse del
+-- limite sin que nada mirara.
+SELECT probar('117','cancelar la clase de las 15 libera la unica contratada','ANDA',
+ $q$UPDATE reserva SET estado='CANCELADA',
+        id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2027-03-01' AND hora_inicio='15:00'$q$);
+
+SELECT probar('118','ahora si entra la otra clase','ANDA',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, v.u_ana,
+           (SELECT id_inscripcion FROM inscripcion
+            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+    FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='20:00'$q$);
+
+SELECT probar('119','DESCANCELAR la de las 15 dejaria 2 sobre 1','FALLA',
+ $q$UPDATE reserva SET estado='CONFIRMADA',
+        id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2027-03-01' AND hora_inicio='15:00'$q$);
 
 
 -- =============================================================================

@@ -1,16 +1,17 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real, migraciones V1..V8.
+// Generado a partir del esquema real, migraciones V1..V9.
 //
 // Al 2026-08-14 el diagrama está AL DÍA: comparado tabla por tabla y columna
 // por columna contra el catálogo de una base con las migraciones aplicadas,
 // coinciden las 22 tablas y todas sus columnas. Incluye lo que agregaron V4
 // (`nombre` + `apellido` en vez de `nombre_completo`), V5
-// (`usuario.debe_cambiar_password`) y V7 (la auditoría de la anulación de un
+// (`usuario.debe_cambiar_password`), V7 (la auditoría de la anulación de un
 // pago, la del historial de clases, el sello de carga de `venta_equipo` y las
 // dos columnas generadas de `bloqueo_sala`, que reemplazan a la `periodo` de
-// V6).
+// V6) y V9 (la anulación de `egreso` y `venta_equipo`, y la firma de la baja de
+// nivel en `inscripcion`).
 //
 // La cabecera anterior decía lo contrario -- "NO REFLEJA V3..V6" -- y era
 // falso: invitaba a "corregir" el diagrama volviendo a `nombre_completo`, que
@@ -21,7 +22,11 @@
 // 12 CHECK, 3 triggers, un EXCLUDE en `bloqueo_sala` y un UNIQUE parcial en
 // `artista.id_usuario`, todos por hallazgos de la auditoría adversarial
 // (`docs/db/auditoria-2026-08-12.md`); V7 sumó 2 CHECK, 4 triggers y rehízo
-// ese EXCLUDE. Ninguno se ve acá. Las notas al pie de cada columna dicen
+// ese EXCLUDE; V9 sumó 2 CHECK, un EXCLUDE (`reserva` por profesor) y 8
+// triggers -- contados contra el catálogo, no estimados: 58/2/14 antes y
+// 60/3/22 después--, entre ellos los que impiden que una persona esté en dos
+// salas a la vez y que se consuman más clases que las contratadas. Ninguno se
+// ve acá. Las notas al pie de cada columna dicen
 // cuáles son obligatorias y cuándo, que es lo más cerca que llega el diagrama.
 //
 // Para ver el diagrama: entrar a https://dbdiagram.io > New Diagram >
@@ -227,6 +232,9 @@ Table inscripcion {
   estado              varchar(20)   [not null, default: 'ACTIVA', note: 'ACTIVA / COMPLETADA / CANCELADA / PAUSADA']
   notas               text
   fecha_creacion      timestamptz   [not null]
+  id_usuario_baja_nivel bigint      [ref: > usuario.id_usuario, note: 'V9: quién decidió bajar el nivel']
+  fecha_baja_nivel    timestamptz   [note: 'V9: tiene que ser NUEVA en cada baja, no la de la anterior']
+  motivo_baja_nivel   text          [note: 'V9: obligatorio al bajar de nivel']
 
   Note: '''
   La pieza que faltaba en el modelo original: acá vive "Juan compró el curso de
@@ -421,6 +429,10 @@ Table egreso {
   comprobante_path    varchar(500)
   fecha_egreso        date          [not null]
   fecha_registro      timestamptz   [not null]
+  anulado             boolean       [not null, default: false, note: 'V9: se anula, no se borra']
+  id_usuario_anula    bigint        [ref: > usuario.id_usuario]
+  fecha_anulacion     timestamptz
+  motivo_anulacion    text          [note: 'V9: autor + fecha + motivo son obligatorios al anular']
 }
 
 Table venta_equipo {
@@ -438,6 +450,10 @@ Table venta_equipo {
   fecha_venta                date          [not null]
   notas                      text
   fecha_registro             timestamptz   [not null, note: 'Sello de carga (V7): fecha_venta es editable y se puede antedatar']
+  anulada                    boolean       [not null, default: false, note: 'V9: se anula, no se borra']
+  id_usuario_anula           bigint        [ref: > usuario.id_usuario]
+  fecha_anulacion            timestamptz
+  motivo_anulacion           text          [note: 'V9: autor + fecha + motivo son obligatorios al anular']
 
   Note: 'Acuerdo de distribución con Pioneer, sin stock propio: esto registra la venta, no un inventario. El comprador tiene cuenta o se anota su nombre; alguno de los dos.'
 }

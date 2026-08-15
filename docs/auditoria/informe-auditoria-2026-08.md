@@ -3870,10 +3870,10 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
 | **DB-03** | Medio | S | 3 | ✅ | — |
-| **DB-04** | Medio | M | 3 | 🔴 | **Desbloqueado por §13.** P8: **no hay excepción**, la reserva se crea con su seña en una transacción. El nivel que no retrocede: autor + motivo exigidos por trigger. Las dos son migración |
+| **DB-04** | Medio | M | 3→9 | 🟡 | **Mitad resuelta en `V9`**: el nivel no retrocede sin firma. **La seña sigue sin dueño** — §13 dijo que no hay excepción, pero no a qué reservas alcanza, y una clase de una inscripción ya paga no lleva seña propia |
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
-| **DB-07** | Bajo | S | 3 | 🔴 | **Desbloqueado por §13**: `venta_equipo` y `egreso` llevan anulación con autor + fecha + motivo, mismo patrón que `pago`. Recién con eso se les puede prohibir el borrado (V6 §7) |
+| **DB-07** | Bajo | S | 3 | ✅ | **Cerrado en `V9`**: `egreso` y `venta_equipo` se anulan con autor + fecha + motivo, y por eso ya no se borran — la condición que V6 §7 se había puesto a sí misma |
 | **DB-08** | Bajo | S | 8 | 🔴 | Seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda tabla nueva |
 | **DB-09** | Bajo | XS | 3 | ✅ | — |
 | **DB-10** | Info | — | 8 | ✅ | **Cerrado por §13 (P11): 10:00 a 18:00 y no se usa después de medianoche.** El modelo `DATE` + dos `TIME` es el correcto y no hay que tocar nada |
@@ -3975,7 +3975,6 @@ significa rehacer.
 | ~~**6**~~ | ~~DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05~~ | **Hecha** — operación, los tests que faltaban y el pipeline. El orden resultó ser el correcto: el script de las SQL tenía que existir antes del CI, porque el CI necesita un comando que correr. Queda pendiente solo lo que depende del hosting de octubre |
 | **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |
 | **8 — Resto documental y menor** | EXT-03, DB-08, DB-10, SEC-06, SEC-07, SEC-09, QA-08, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
-| **9 — Deploy** *(nueva)* | lo que resta de DOC-08 y QA-07 | **No se puede hacer antes de octubre**: Dockerfiles, `docker-compose.prod.yml`, healthcheck del backend, proxy HTTPS y destino de los backups. Todo depende de qué hosting se elija |
 
 ### 8.3 Lo que no se destraba programando
 
@@ -3992,10 +3991,14 @@ y el mantenimiento (EXT-03), P8 —qué significa "autorización explícita" par
 que es una decisión de octubre y de la que dependen el deploy (DOC-08), el healthcheck del
 backend (QA-07) y el destino de los backups.
 
-Fuera del informe queda una segunda, que no es un hallazgo pero condiciona el orden de
-trabajo: **Ignacio tiene objeciones a la primera tanda del Módulo 1 anotadas desde el
-2026-08-12 y todavía sin plantear** (`sistema-gestion-plan.md` §6d). §13 **no** las
-contesta. Conviene plantearlas antes de construir `inscripcion` encima.
+**La otra cosa que estaba trabando el orden de trabajo se cerró el 2026-08-14: Ignacio
+confirmó que NO tiene objeciones a la primera tanda del Módulo 1.** La nota del 12/08
+—que nunca llegó a enumerar ninguna— queda sin efecto: **esa tanda está bendecida y se
+puede construir encima.**
+
+*(Tampoco hay una "tanda 9". El deploy no es una tanda: es lo que resta de DOC-08 y QA-07,
+y ya figura en cada uno con su bloqueo. Agrupar en una tanda algo que no se puede empezar
+sugiere trabajo que no existe.)*
 
 ---
 

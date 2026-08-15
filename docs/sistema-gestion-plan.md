@@ -564,13 +564,18 @@ misma disciplina** (P3, índice único parcial), y profesor asignado explícito 
 del módulo: **P4** (¿los alumnos informales de Ghezz entran al sistema?) y **P5**
 (¿la nivelación la hace el sistema o Micaela por WhatsApp?).
 
-### ⚠️ Revisión pendiente del desarrollador
+### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 
-**Ignacio dejó anotado el 2026-08-12 que hay cosas de esta primera tanda que no lo
-convencen, y las va a plantear en una sesión posterior.** No están identificadas
-todavía. Hasta que las plantee, **la tanda no está bendecida**: puede haber
-decisiones para revisar, no solo detalles. Conviene preguntarle antes de construir
-encima.
+**Ignacio confirmó que NO tiene objeciones a la primera tanda del Módulo 1.**
+
+Del 2026-08-12 al 2026-08-14 esta sección dijo que había cosas que no lo convencían y
+que las iba a plantear más adelante. Nunca llegaron a enumerarse —la nota misma decía
+*"no están identificadas todavía"*— y al revisarlas no había ninguna. **La tanda está
+bendecida: se puede construir encima sin preguntar nada.**
+
+Se deja el registro en vez de borrar la sección, porque `CLAUDE.md` y el informe de
+auditoría la citaron durante esos dos días y conviene que se entienda por qué ya no
+aparece.
 
 ### Auditoría técnica del 2026-08-13 y su remediación
 
