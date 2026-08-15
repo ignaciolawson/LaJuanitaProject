@@ -12,6 +12,8 @@ Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electro
 > **Read `docs/sistema-gestion-plan.md` before doing anything on platform/backend.** It is the source of truth for scope, deadline, build order, and the technical decisions already settled (Flyway, the corrected role model, JWT, file storage, hosting shape). Written in Spanish, for the developer as much as for Claude. If a decision there changes, edit that file — don't leave the old decision alongside the new one.
 >
 > **Start at §6d "DÓNDE RETOMAR"** — it carries the current state, what's next, and open questions, and it wins over anything else in that file that contradicts it. As of 2026-08-12 it also records that **Ignacio has unstated objections to the first Módulo 1 batch** which he'll raise in a later session: don't treat that batch as settled.
+>
+> **But for anything that is a *decision*, the authority is `docs/requirements/platform.md` §13 — "Decisiones cerradas el 2026-08-14".** Twenty questions answered at once, including all five that were waiting on the client, and it postdates both the plan and the audit report. It is easy to miss because nothing else linked to it, which is exactly how the audit report spent a day listing as *"blocked on a decision"* ten findings whose decision was already written down. **Check §13 before telling anyone something is blocked.** Among what it settles: the courses' real format (1:30 weekly, DJ 8 classes / Producción 16), that **Mix & Mastering is a service and not a program**, that `hola@lajuanitastudio.com` **does not exist**, the full street address, that a reservation is **never** created without its deposit (P8, no exception), and that a class is only consumed when it is actually taken.
 
 ## Repo structure
 
@@ -154,8 +156,16 @@ they are numbers a customer would act on.
 verified facts.** Unconfirmed fields are `null` and get omitted rather than
 filled — a placeholder phone number on screen reads as provisional, but the
 same number in JSON-LD is published as a verified fact that Google can surface
-and an LLM will repeat. Still blocked on the client for: street address, phone,
-opening hours, founding year, and real Instagram/YouTube profiles.
+and an LLM will repeat.
+
+**The business data is no longer blocked — it was confirmed on 2026-08-14**
+(`docs/requirements/platform.md` §13): street address (Office Park **Quatro**,
+Colectora Oeste Ramal Pilar 209, locales 5 y 6, B1669 Pilar — already broken down
+into `PostalAddress` fields there), phone, opening hours (10–18) and founding year
+(2021). **The `LocalBusiness` can now be published whole, with no `null` fields.**
+What §13 does *not* answer, and stays `null`: real Instagram/YouTube profiles. And
+one field has to move the other way — `hola@lajuanitastudio.com` **does not exist**,
+the model invented it, so it comes out of the JSON-LD (SEO-02).
 
 The visual identity was rebuilt from the actual brand assets (the fan icon
 and the arched patch wordmark) and **deliberately supersedes**

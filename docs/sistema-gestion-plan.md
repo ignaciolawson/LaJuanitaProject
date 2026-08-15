@@ -503,6 +503,14 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
 > esta y hay que corregir la otra.
+>
+> **Y para todo lo que sea una DECISIÓN, mirá antes
+> [`docs/requirements/platform.md` §13](requirements/platform.md) — "Decisiones
+> cerradas el 2026-08-14".** Veinte preguntas contestadas de una sola vez, las
+> cinco del cliente incluidas, y es posterior a este documento y al informe de
+> auditoría. **Gana sobre los dos.** No estaba enlazada desde ningún lado, y por
+> eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
+> hallazgos que ya estaban decididos.
 
 ### Estado real
 

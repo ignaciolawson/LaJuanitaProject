@@ -31,6 +31,12 @@
 > bloque *"Remediado el ..."* al pie, y **§8 lleva el estado y el orden propuesto para
 > lo que queda**. Un hallazgo sin ese bloque sigue abierto.
 >
+> **Leer junto con `docs/requirements/platform.md` §13**, *"Decisiones cerradas el
+> 2026-08-14"*: veinte preguntas contestadas de una sola vez, entre ellas las cinco del
+> cliente que este informe daba por abiertas. **En todo lo que sea una decisión, §13 gana
+> sobre este documento.** §8 ya está sincronizada con ella; el cuerpo de los hallazgos
+> conserva el diagnóstico original, que es lo que se midió.
+>
 > **Al cerrarse la tanda 6 (2026-08-14) las cifras de arriba quedaron viejas, y de la
 > mejor manera:** `mvn test` va por **106/106**, las suites SQL por **86/86 y 50/50** sobre
 > **ocho** migraciones, el front pasó de no tener tests a tener **53**, y las tres cosas
@@ -3859,25 +3865,25 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 |---|:--:|:--:|:--:|:--:|---|
 | **EXT-01** | Crítico | S/M | — | ⚪ | **Cerrado como riesgo asumido (2026-08-14).** Repo privado y secreto rotado; lo que queda lo decidió Ignacio y pasó a §5. No es tarea pendiente |
 | **EXT-02** | Alto | XS | 1b | ✅ | — |
-| **EXT-03** | Medio | XS | 8 | 🟡 | `LICENSE` o nota de titularidad + alcance de mantenimiento. Depende de qué diga la propuesta firmada |
+| **EXT-03** | Medio | XS | 8 | 🔴 | **Desbloqueado por §13**: el código es de Ignacio, y la nota de titularidad y alcance ya está en el README. Falta solo el archivo `LICENSE` |
 | **EXT-04** | Info | XS | 1 | ✅ | — |
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
 | **DB-03** | Medio | S | 3 | ✅ | — |
-| **DB-04** | Medio | M | 3 | 🟡 | Documentadas con lo que falta decidir. La de la seña depende de P8; la del nivel, de qué significa "autorización de un administrador" |
+| **DB-04** | Medio | M | 3 | 🔴 | **Desbloqueado por §13.** P8: **no hay excepción**, la reserva se crea con su seña en una transacción. El nivel que no retrocede: autor + motivo exigidos por trigger. Las dos son migración |
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
-| **DB-07** | Bajo | S | 3 | 🟡 | Sello de carga hecho. Falta darle a `venta_equipo` una forma de anularse, que es decisión de negocio |
+| **DB-07** | Bajo | S | 3 | 🔴 | **Desbloqueado por §13**: `venta_equipo` y `egreso` llevan anulación con autor + fecha + motivo, mismo patrón que `pago`. Recién con eso se les puede prohibir el borrado (V6 §7) |
 | **DB-08** | Bajo | S | 8 | 🔴 | Seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda tabla nueva |
 | **DB-09** | Bajo | XS | 3 | ✅ | — |
-| **DB-10** | Info | — | 8 | 🟡 | Preguntar por las reservas que cruzan medianoche cuando se cierre P11 |
+| **DB-10** | Info | — | 8 | ✅ | **Cerrado por §13 (P11): 10:00 a 18:00 y no se usa después de medianoche.** El modelo `DATE` + dos `TIME` es el correcto y no hay que tocar nada |
 | **DB-11** | Bajo | XS | 3 | 🟡 | *(nuevo, 2026-08-14)* Evitado en `bloqueo_sala`; en `reserva` queda validar el orden de las horas en el DTO del Módulo 2 |
 | **SEC-01** | Alto | XS | 1 | ✅ | — |
 | **SEC-02** | Alto | M | 4 | ✅ | — |
 | **SEC-03** | Alto | S | 4 | ✅ | Backend hecho. El botón en `UsuariosPagina.tsx` va con ARQ-02 |
 | **SEC-04** | Medio | S | 1 | ✅ | — |
 | **SEC-05** | Medio | S | 5 | ✅ | — |
-| **SEC-06** | Bajo | XS | 8 | 🟡 | Decidir explícitamente qué hacer con la enumeración de teléfonos en el registro |
+| **SEC-06** | Bajo | XS | 8 | ✅ | **Decidido en §13: se deja como está**, con el mismo argumento ya escrito para el email. El hallazgo pedía decidirlo explícitamente, y está decidido |
 | **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
 | **SEC-08** | Bajo | S | 4 | ✅ | — |
 | **SEC-09** | Bajo | XS | 8 | 🔴 | Declarar `ESCAPE` en las dos búsquedas, o borrar la constante que nadie usa |
@@ -3890,15 +3896,15 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-07** | Bajo | XS | 8 | 🔴 | Tres `package-lock.json` versionados |
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
 | **ARQ-09** | Bajo | S | 5→8 | 🟡 | Los cuatro de administración, hechos. Faltan los tres de autenticación, con la limpieza de la tanda 8 |
-| **ARQ-10** | Info | — | 8 | 🟡 | Decidir si el cliente HTTP se comparte o se duplica, antes de conectar los formularios |
-| **SEO-01** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Depende de P34 y P31 (cliente) |
-| **SEO-02** | Medio | XS | 7 | 🟡 | Sacar el email del JSON-LD o confirmarlo con el cliente |
+| **ARQ-10** | Info | — | 8 | ✅ | **Decidido en §13: se duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que ahorra |
+| **SEO-01** | Alto | M | 7 | 🔴 | **DESBLOQUEADO por §13.** P34: 1:30 semanal, DJ 8 clases y Producción 16, sin fecha de fin garantizada. P31: **Mix & Mastering es un servicio, no un programa** — sale de programas, títulos, `llms.txt` y JSON-LD |
+| **SEO-02** | Medio | XS | 7 | 🔴 | **Desbloqueado por §13: el email NO EXISTE**, lo inventó la IA. Sale del JSON-LD y de todos lados |
 | **SEO-03** | Bajo | XS | 7 | 🔴 | Sacar el `Disallow: /ingresar` y dejar el `noindex` |
 | **SEO-04** | Bajo | XS | 7 | 🔴 | Cinco conteos de rutas y URLs mal, ninguno coincide |
 | **SEO-05** | Bajo | XS | 7 | 🔴 | Regla `<noscript>` que saque el telón del preloader |
 | **SEO-06** | Bajo | M | 7 | 🔴 | Medir Lighthouse en móvil con caché fría |
 | **QA-01** | Alto | M | 6 | ✅ | — |
-| **QA-02** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Precios y firma de las notas: son preguntas al cliente |
+| **QA-02** | Alto | M | 7 | 🔴 | **DESBLOQUEADO por §13.** Precios: van los de la landing **como referencia ("desde")**, no como precio cerrado. Firma: **"Equipo La Juanita"** en las seis notas, y también en el `author` del `BlogPosting` |
 | **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
 | **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
@@ -3917,21 +3923,41 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
 | **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
-| **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
+| **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |
 
-**Cuentas al 2026-08-14, con la tanda 6 cerrada:** 59 hallazgos del informe + 2 nuevos
-(DB-11 y QA-08) = **61**. Resueltos **28** (✅), cerrado como riesgo asumido **1**
-(⚪ EXT-01); abiertos **32**, de los cuales **14 están 🟡** — o bloqueados por una decisión
-que no es de código (tuya o del cliente), o a medias con la mitad que falta dependiendo de
-una (DB-04, DB-07, DB-11, ARQ-09, QA-07 y DOC-08).
+**Cuentas al 2026-08-14, con la tanda 6 cerrada y la §13 incorporada:** 59 hallazgos del
+informe + 2 nuevos (DB-11 y QA-08) = **61**. Resueltos **32** (✅), cerrado como riesgo
+asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡**.
 
-**Ya no queda ningún Crítico abierto, y de los Altos quedan 3: SEO-01, QA-02 y DOC-08 —
-los tres 🟡.** Los dos primeros son preguntas al cliente y el tercero espera el hosting de
-octubre; **ninguno de los tres se destraba programando hoy**. Es el primer momento del
-proyecto en que eso es cierto: `QA-01` era el último Alto que solo pedía escribir código.
+> ### ⚠️ Esta cuenta cambió el 2026-08-14 por `docs/requirements/platform.md` §13
+>
+> **`platform.md` §13 — "Decisiones cerradas el 2026-08-14" — contesta veinte preguntas
+> de una sola vez, incluidas las cinco del cliente**, y este informe no la conocía: hasta
+> ahora marcaba como *"bloqueado por una decisión que no es de código"* diez hallazgos
+> cuya decisión **ya estaba tomada y escrita**. Se sincronizó fila por fila.
+>
+> **Lo que eso cambió, y no es menor:**
+>
+> - **Los dos Altos que "bloqueaban publicar la landing" ya no bloquean nada**: SEO-01
+>   (P34 y P31) y QA-02 (precios y firma) pasaron de 🟡 a 🔴. Son trabajo de código, hoy.
+> - **Cuatro hallazgos se cerraron sin escribir una línea**, porque lo único que pedían
+>   era una decisión que ya existe: DB-10 (P11 cierra la pregunta de la medianoche y
+>   confirma que el modelo actual es el correcto), SEC-06, ARQ-10 y DOC-13.
+> - **DB-04 y DB-07 dejaron de ser preguntas de negocio y pasaron a ser una migración**,
+>   con la regla ya definida.
+> - **EXT-03**: la titularidad está resuelta y la nota ya está en el README; queda solo el
+>   archivo `LICENSE`.
+>
+> **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
+> acá la contradice, está viejo.
 
-**Trabajo de código pendiente: 18 hallazgos** (los 🔴), y son todos de limpieza salvo
-QA-08. Los 14 restantes no bajan programando.
+**No queda ningún Crítico, y de los Altos quedan 3: SEO-01, QA-02 y DOC-08.** Los dos
+primeros **son código y se pueden hacer ya**; el tercero espera el hosting de octubre.
+
+**Trabajo de código pendiente: 24 hallazgos.** De los 4 que siguen 🟡, **solo dos están
+realmente esperando algo**: QA-07 y DOC-08, los dos por el hosting. DB-11 espera al DTO del
+Módulo 2 y ARQ-09 es limpieza de la tanda 8 — ninguno de los dos está bloqueado, están
+programados.
 
 ### 8.2 Las tandas
 
@@ -3953,10 +3979,23 @@ significa rehacer.
 
 ### 8.3 Lo que no se destraba programando
 
-Cinco preguntas al cliente (§7.a: duraciones de los cursos, precios, firma de las notas,
+> **Esta sección quedó obsoleta el 2026-08-14 y se conserva tachada porque el resto del
+> informe la referencia.** Las ocho preguntas que enumeraba **están contestadas** en
+> `docs/requirements/platform.md` §13.
+
+~~Cinco preguntas al cliente (§7.a: duraciones de los cursos, precios, firma de las notas,
 el email, y dirección/teléfono/horarios/año) y tres decisiones de Ignacio: la titularidad
 y el mantenimiento (EXT-03), P8 —qué significa "autorización explícita" para una seña—
-(DB-04), y si el cliente HTTP se comparte entre las dos apps (ARQ-10).
+(DB-04), y si el cliente HTTP se comparte entre las dos apps (ARQ-10).~~
+
+**Lo que queda hoy que no se destraba programando es UNA sola cosa: elegir el hosting**,
+que es una decisión de octubre y de la que dependen el deploy (DOC-08), el healthcheck del
+backend (QA-07) y el destino de los backups.
+
+Fuera del informe queda una segunda, que no es un hallazgo pero condiciona el orden de
+trabajo: **Ignacio tiene objeciones a la primera tanda del Módulo 1 anotadas desde el
+2026-08-12 y todavía sin plantear** (`sistema-gestion-plan.md` §6d). §13 **no** las
+contesta. Conviene plantearlas antes de construir `inscripcion` encima.
 
 ---
 
