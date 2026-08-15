@@ -2051,6 +2051,19 @@ instala de verdad.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO**, tal cual la recomendación: los dos
+> locks de las apps salieron del repo y `apps/*/package-lock.json` entró al `.gitignore`,
+> con el porqué escrito ahí.
+>
+> **Verificado que el lock de la raíz resuelve el workspace entero** (`npm ci --dry-run`
+> desde la raíz, sin errores) y que el CI no se apoyaba en los otros dos: su paso de
+> instalación es un `npm ci` desde la raíz.
+>
+> **Un dato que salió de esa corrida y no es de este hallazgo:** el `node_modules` de esta
+> máquina **no coincide con el lock de la raíz** — un `npm ci` agregaría 69 paquetes y
+> sacaría 20. No lo causa este cambio (borrar un lock ignorado no mueve nada instalado) y
+> no rompe nada hoy, pero conviene correr `npm ci` una vez para quedar igual que el CI.
+
 ---
 
 #### ARQ-08 — La convención de idioma existe, funciona, y no está escrita en ningún lado
@@ -4085,7 +4098,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-04** | Medio | S | 8 | 🔴 | Los dos formatos de error que `application.properties` dice haber unificado siguen conviviendo |
 | **ARQ-05** | Bajo | XS | 5 | ✅ | — |
 | **ARQ-06** | Bajo | S | 8 | 🔴 | `esAdmin` y `acotar` copiados en los dos controllers |
-| **ARQ-07** | Bajo | XS | 8 | 🔴 | Tres `package-lock.json` versionados |
+| **ARQ-07** | Bajo | XS | 8 | ✅ | — |
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
 | **ARQ-09** | Bajo | S | 5→8 | 🟡 | Los cuatro de administración, hechos. Faltan los tres de autenticación, con la limpieza de la tanda 8 |
 | **ARQ-10** | Info | — | 8 | ✅ | **Decidido en §13: se duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que ahorra |
@@ -4256,7 +4269,7 @@ código fuente.
 - **Las dos pantallas de listado tienen estado de carga y estado de error en cada llamada**, y los reinician antes de cada pedido (`UsuariosPagina.tsx:33-44`, `AlumnosPagina.tsx:27-38`). El buscador tiene *debounce* de 250 ms. No hay ninguna llamada sin manejo de error.
 - **No hay lógica de negocio duplicada entre la base, el servicio y el front.** El único caso de tres capas —email y teléfono únicos— está deliberado y argumentado: pre-chequeo en el servicio por el mensaje, índice único en la base por la concurrencia, y traducción en el manejador de errores para que las dos den el mismo 409. La única validación que el front hace por su cuenta es que las dos contraseñas coincidan, y su comentario explica por qué no es una regla del sistema (`CambioPasswordObligatorio.tsx:35-36`).
 - **El menú se arma enteramente desde `/api/me`**, como la arquitectura promete: `menu.ts` no tiene un solo usuario, rol ni ruta hardcodeada por persona, y las tres reglas están separadas y explicadas. Los ítems de módulos que no existen se dibujan apagados con `aria-disabled` en vez de navegar a una pantalla vacía.
-- **El monorepo está limpio de duplicación de código**: `landing` y `platform` no comparten un solo archivo, cada una tiene su configuración de TypeScript y su linter, y el backend Maven está afuera del workspace npm, que es lo correcto. Lo único que sobra son dos lockfiles (ARQ-07).
+- **El monorepo está limpio de duplicación de código**: `landing` y `platform` no comparten un solo archivo, cada una tiene su configuración de TypeScript y su linter, y el backend Maven está afuera del workspace npm, que es lo correcto. ~~Lo único que sobra son dos lockfiles (ARQ-07).~~ **Los dos lockfiles salieron el 2026-08-15.**
 
 ### Agregado por la Fase 1 — base de datos
 

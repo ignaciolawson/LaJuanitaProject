@@ -23,3 +23,11 @@ pgdata/
 # y los hashes de las contrasenas. Ver docs/operacion.md.
 backups/
 *.dump
+
+# Locks de las apps. El unico lock del repo es el de la raiz: `workspaces` en
+# el package.json de arriba hace que `npm install` y `npm ci` desde la raiz
+# resuelvan el arbol entero ahi, e ignoren estos. Los dos que habia estaban
+# cinco dias atrasados y versionados (ARQ-07): entrar a `apps/landing` y correr
+# `npm ci` instalaba un arbol distinto del que usa el build real, y cualquier
+# diferencia de comportamiento a partir de ahi parece un misterio.
+apps/*/package-lock.json
