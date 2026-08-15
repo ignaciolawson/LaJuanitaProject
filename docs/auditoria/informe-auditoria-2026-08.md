@@ -2022,6 +2022,29 @@ representa ese concepto. Las dos son mudanzas mecánicas y hay tests que las cub
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO las dos mudanzas que pedía, y ninguna
+> más.**
+>
+> - **`esAdmin`** vive en `config/Autoridades.java`, al lado de `@PuedeOperar` y
+>   `@PuedeLeerAdministracion` — una clase nueva porque un `@interface` no puede llevar
+>   métodos estáticos. Su javadoc dice lo que el hallazgo señala: es una **pregunta**, no
+>   un guardia; quien autoriza es el servicio. Y deja anotado por qué compara con `equals`
+>   contra `"ROLE_ADMIN"` y no por prefijo — Spring Security 7 suma sus propias autoridades
+>   a la lista.
+> - **`acotar` + `TAMANIO_MAXIMO`** son `Pagina.acotarTamanio(int)` y
+>   `Pagina.TAMANIO_MAXIMO`. De paso el `20` mágico que estaba escrito dos veces pasó a ser
+>   `TAMANIO_POR_DEFECTO`, al lado del techo.
+>
+> **`normalizar` NO se tocó, a propósito.** El hallazgo lo lista como tercer bloque
+> duplicado pero su recomendación pide mover sólo los otros dos, y mudarlo obligaría a
+> decidir dónde vive un helper de dominio compartido entre dos servicios — que es una
+> decisión de arquitectura, no una limpieza. Queda como duplicación conocida de dos copias.
+>
+> **Verificado con `mvn test`: 107/107**, sin tocar un solo test. Que la matriz de permisos
+> (`PermisosPorRolTest`, 18 casos) siga en verde es la comprobación que importa: `esAdmin`
+> decide si se puede otorgar un rol y si se puede resetear la contraseña de una cuenta
+> administrativa.
+
 ---
 
 #### ARQ-07 — Tres `package-lock.json` conviviendo, los tres versionados
@@ -4114,7 +4137,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-03** | Medio | S | 1 | ✅ | — |
 | **ARQ-04** | Medio | S | 8 | 🔴 | Los dos formatos de error que `application.properties` dice haber unificado siguen conviviendo |
 | **ARQ-05** | Bajo | XS | 5 | ✅ | — |
-| **ARQ-06** | Bajo | S | 8 | 🔴 | `esAdmin` y `acotar` copiados en los dos controllers |
+| **ARQ-06** | Bajo | S | 8 | ✅ | Movidos. `normalizar` queda duplicado a propósito — ver el bloque del hallazgo |
 | **ARQ-07** | Bajo | XS | 8 | ✅ | — |
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
 | **ARQ-09** | Bajo | S | 5→8 | ✅ | — |

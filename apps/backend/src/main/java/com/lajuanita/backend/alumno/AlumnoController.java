@@ -19,6 +19,7 @@ import com.lajuanita.backend.alumno.AlumnoService.AltaAlumnoResultado;
 import com.lajuanita.backend.alumno.dto.AltaAlumnoRequest;
 import com.lajuanita.backend.alumno.dto.AlumnoResumen;
 import com.lajuanita.backend.alumno.dto.EdicionAlumnoRequest;
+import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.usuario.dto.Pagina;
@@ -36,8 +37,6 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/alumnos")
 public class AlumnoController {
 
-    private static final int TAMANIO_MAXIMO = 100;
-
     private final AlumnoService alumnos;
 
     public AlumnoController(AlumnoService alumnos) {
@@ -52,7 +51,7 @@ public class AlumnoController {
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        Pageable paginado = PageRequest.of(Math.max(pagina, 0), acotar(tamanio));
+        Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio));
         return Pagina.de(alumnos.listar(buscar, estado, paginado));
     }
 
@@ -71,7 +70,7 @@ public class AlumnoController {
     @ResponseStatus(HttpStatus.CREATED)
     public AltaAlumnoResultado alta(@Valid @RequestBody AltaAlumnoRequest solicitud,
             Authentication quienPide) {
-        return alumnos.alta(solicitud, esAdmin(quienPide));
+        return alumnos.alta(solicitud, Autoridades.esAdmin(quienPide));
     }
 
     @PutMapping("/{id}")
@@ -88,17 +87,4 @@ public class AlumnoController {
         return alumnos.cambiarEstado(id, estado);
     }
 
-    // -------------------------------------------------------------------------
-
-    private boolean esAdmin(Authentication quienPide) {
-        return quienPide.getAuthorities().stream()
-                .anyMatch(autoridad -> autoridad.getAuthority().equals("ROLE_ADMIN"));
-    }
-
-    private int acotar(int tamanio) {
-        if (tamanio < 1) {
-            return 20;
-        }
-        return Math.min(tamanio, TAMANIO_MAXIMO);
-    }
 }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.usuario.dto.AltaUsuarioRequest;
@@ -40,9 +41,6 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
 
-    /** Techo del tamaño de página: nadie pide 10.000 filas de una. */
-    private static final int TAMANIO_MAXIMO = 100;
-
     private final UsuarioService usuarios;
 
     public UsuarioController(UsuarioService usuarios) {
@@ -56,7 +54,7 @@ public class UsuarioController {
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        Pageable paginado = PageRequest.of(Math.max(pagina, 0), acotar(tamanio));
+        Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio));
         return Pagina.de(usuarios.listar(buscar, paginado));
     }
 
@@ -74,7 +72,7 @@ public class UsuarioController {
     @PuedeOperar
     @ResponseStatus(HttpStatus.CREATED)
     public UsuarioCreado alta(@Valid @RequestBody AltaUsuarioRequest solicitud, Authentication quienPide) {
-        return usuarios.altaPorAdministracion(solicitud, esAdmin(quienPide));
+        return usuarios.altaPorAdministracion(solicitud, Autoridades.esAdmin(quienPide));
     }
 
     @PutMapping("/{id}")
@@ -82,7 +80,7 @@ public class UsuarioController {
     public UsuarioResumen editar(@PathVariable Long id,
             @Valid @RequestBody EdicionUsuarioRequest solicitud,
             Authentication quienPide) {
-        return usuarios.editar(id, solicitud, esAdmin(quienPide), idDe(quienPide));
+        return usuarios.editar(id, solicitud, Autoridades.esAdmin(quienPide), idDe(quienPide));
     }
 
     /**
@@ -95,7 +93,7 @@ public class UsuarioController {
     @PostMapping("/{id}/password-temporal")
     @PuedeOperar
     public UsuarioCreado resetearPassword(@PathVariable Long id, Authentication quienPide) {
-        return usuarios.resetearPassword(id, esAdmin(quienPide), idDe(quienPide));
+        return usuarios.resetearPassword(id, Autoridades.esAdmin(quienPide), idDe(quienPide));
     }
 
     /** Baja o alta lógica. Nunca borrado: el historial se conserva siempre. */
@@ -104,30 +102,14 @@ public class UsuarioController {
     public UsuarioResumen cambiarActivo(@PathVariable Long id,
             @RequestParam boolean activo,
             Authentication quienPide) {
-        return usuarios.cambiarActivo(id, activo, esAdmin(quienPide), idDe(quienPide));
+        return usuarios.cambiarActivo(id, activo, Autoridades.esAdmin(quienPide), idDe(quienPide));
     }
 
     // -------------------------------------------------------------------------
-
-    /**
-     * Solo un ADMIN puede otorgar o cambiar roles. Micaela (STAFF) da de alta
-     * alumnos todo el día, pero no puede fabricarse un compañero con permisos
-     * de administración.
-     */
-    private boolean esAdmin(Authentication quienPide) {
-        return quienPide.getAuthorities().stream()
-                .anyMatch(autoridad -> autoridad.getAuthority().equals("ROLE_ADMIN"));
-    }
 
     /** El id sale del `sub` del token, nunca de la URL ni del cuerpo. */
     private Long idDe(Authentication quienPide) {
         return Long.valueOf(quienPide.getName());
     }
 
-    private int acotar(int tamanio) {
-        if (tamanio < 1) {
-            return 20;
-        }
-        return Math.min(tamanio, TAMANIO_MAXIMO);
-    }
 }
