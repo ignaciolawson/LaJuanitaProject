@@ -3854,6 +3854,41 @@ no arrancar, `flyway:repair`, verla arrancar.
 
 **Un hallazgo nuevo salió de acá:** QA-08, la credencial con `expiraEn` ilegible.
 
+### Tanda 7 — 2026-08-14/15 · **a medias** · la landing
+
+**Seis de los nueve, cerrados. Los tres que faltan son los tres de documentación
+y medición, ninguno toca código de la app.**
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **SEO-01** | `/programas/mix-mastering` deja de existir —era un curso que no se dicta— y las duraciones pasan a ser **clases y no meses** | build: la ruta no existe, 0 apariciones en el HTML, 2 `Course` en vez de 3 |
+| **QA-02** | `priceNote` **obligatorio** en el tipo `Program`; las seis notas firman "Equipo La Juanita" | build: la salvedad sale, 0 `Person` con nombres reales en `BlogPosting` |
+| **SEO-02** | El email inventado sale del JSON-LD y de las 4 pantallas; entran dirección, teléfono, horario y año | build: `email` y `geo` **omitidos como clave**, no en null |
+| **SEO-03** | Se saca el `Disallow: /ingresar`, que impedía leer su propio `noindex` | `robots.txt` generado |
+| **SEO-05** | `<noscript>` + **red de seguridad del telón** a los 4 s | build: el `<noscript>` sale en la página |
+| **SEO-04** | Los conteos, corregidos y —donde se pudo— eliminados | build + lint |
+
+**Lo que queda de esta tanda, y es todo trabajo de escritura salvo uno:**
+
+- **SEO-06** — medir Lighthouse en móvil con caché fría. **No se empezó.** Ojo con
+  cómo se mide: el `CLAUDE.md` de landing avisa que la primera visita paga la
+  codificación de cada imagen (~7 s en la home con `.next/cache/images` vacía),
+  así que hay que medir contra `npm run build && npm start`, **no** contra
+  `next dev`, o el número no significa nada.
+- **DOC-05** — `docs/requirements/landing.md` dice que el blog no se construyó, y
+  existe con seis notas. Ahora además está desactualizado por partida doble: sigue
+  describiendo tres programas.
+- **DOC-06** — `apps/landing/README.md` es el boilerplate intacto de
+  `create-next-app`. El patrón a copiar es `apps/platform/README.md`.
+
+**Un efecto colateral que quedó abierto y no es de la tanda:** `foundingDate` ahora
+publica **2021** (confirmado en §13), y eso contradice el *"desde 2019"* de
+`sections/Numbers.tsx` y la línea de tiempo de `/nosotros`. Los dos son texto
+inventado y ya figuraban como tales en el `CLAUDE.md` de landing; el JSON-LD
+publica el dato verificado. **Hay que corregir el texto visible**, y no es un
+hallazgo de este informe: es contenido placeholder que ahora se contradice con un
+dato confirmado.
+
 ### 8.1 Los 60 hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
@@ -3897,14 +3932,14 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
 | **ARQ-09** | Bajo | S | 5→8 | 🟡 | Los cuatro de administración, hechos. Faltan los tres de autenticación, con la limpieza de la tanda 8 |
 | **ARQ-10** | Info | — | 8 | ✅ | **Decidido en §13: se duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que ahorra |
-| **SEO-01** | Alto | M | 7 | 🔴 | **DESBLOQUEADO por §13.** P34: 1:30 semanal, DJ 8 clases y Producción 16, sin fecha de fin garantizada. P31: **Mix & Mastering es un servicio, no un programa** — sale de programas, títulos, `llms.txt` y JSON-LD |
-| **SEO-02** | Medio | XS | 7 | 🔴 | **Desbloqueado por §13: el email NO EXISTE**, lo inventó la IA. Sale del JSON-LD y de todos lados |
-| **SEO-03** | Bajo | XS | 7 | 🔴 | Sacar el `Disallow: /ingresar` y dejar el `noindex` |
-| **SEO-04** | Bajo | XS | 7 | 🔴 | Cinco conteos de rutas y URLs mal, ninguno coincide |
-| **SEO-05** | Bajo | XS | 7 | 🔴 | Regla `<noscript>` que saque el telón del preloader |
-| **SEO-06** | Bajo | M | 7 | 🔴 | Medir Lighthouse en móvil con caché fría |
+| **SEO-01** | Alto | M | 7 | ✅ | — |
+| **SEO-02** | Medio | XS | 7 | ✅ | — |
+| **SEO-03** | Bajo | XS | 7 | ✅ | — |
+| **SEO-04** | Bajo | XS | 7 | ✅ | — |
+| **SEO-05** | Bajo | XS | 7 | ✅ | — |
+| **SEO-06** | Bajo | M | 7 | 🔴 | **Lo único de la tanda 7 que no se empezó.** Medir Lighthouse en móvil con caché fría — necesita `npm run build && npm start`, no `next dev` |
 | **QA-01** | Alto | M | 6 | ✅ | — |
-| **QA-02** | Alto | M | 7 | 🔴 | **DESBLOQUEADO por §13.** Precios: van los de la landing **como referencia ("desde")**, no como precio cerrado. Firma: **"Equipo La Juanita"** en las seis notas, y también en el `author` del `BlogPosting` |
+| **QA-02** | Alto | M | 7 | ✅ | — |
 | **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
 | **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
@@ -3951,13 +3986,18 @@ asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**No queda ningún Crítico, y de los Altos quedan 3: SEO-01, QA-02 y DOC-08.** Los dos
-primeros **son código y se pueden hacer ya**; el tercero espera el hosting de octubre.
+**Al 2026-08-15 queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se
+destraba programando — es la sección de deploy, que espera el hosting de octubre. No
+queda ningún Crítico desde la tanda 1.
 
-**Trabajo de código pendiente: 24 hallazgos.** De los 4 que siguen 🟡, **solo dos están
-realmente esperando algo**: QA-07 y DOC-08, los dos por el hosting. DB-11 espera al DTO del
-Módulo 2 y ARQ-09 es limpieza de la tanda 8 — ninguno de los dos está bloqueado, están
-programados.
+**Cuentas actualizadas con la tanda 7 a medias: 39 resueltos, 16 abiertos (🔴), 5 a
+medias (🟡) y 1 cerrado como riesgo asumido.** De los 5 🟡, los únicos que esperan algo
+que no sea código son **QA-07 y DOC-08** (hosting) y **DB-04** (a qué reservas alcanza la
+seña); DB-11 espera al DTO del Módulo 2 y ARQ-09 es limpieza de la tanda 8 — esos dos no
+están bloqueados, están programados.
+
+**Los 16 🔴 son: 3 de la tanda 7** (SEO-06, DOC-05, DOC-06) **y 13 de la tanda 8**, que es
+limpieza.
 
 ### 8.2 Las tandas
 
