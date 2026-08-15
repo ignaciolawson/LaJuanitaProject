@@ -170,7 +170,7 @@ export function Navbar() {
                 se lee (y además queda nítido a 12px). */}
             <span className="t-display-tight hidden text-[15px] leading-none tracking-[0.02em] sm:block">
               La Juanita
-              <span className="t-mono ml-2 align-middle text-[9px] text-red">Studio</span>
+              <span className="t-mono ml-2 align-middle text-[9px] text-accent">Studio</span>
             </span>
             <span className="sr-only">La Juanita Studio</span>
           </Link>
@@ -187,7 +187,7 @@ export function Navbar() {
                   // dejaban de marcar su ítem apenas entrabas a una nota o a
                   // un programa.
                   isActive(pathname, item.href)
-                    ? "text-red"
+                    ? "text-accent"
                     : "opacity-70 hover:opacity-100",
                 )}
               >
@@ -251,7 +251,7 @@ export function Navbar() {
                   onClick={() => setOpen(false)}
                   className="group flex items-baseline gap-4 border-b border-bone/12 py-2.5"
                 >
-                  <span className="t-mono text-red">{item.index}</span>
+                  <span className="t-mono text-accent">{item.index}</span>
                   <span className="t-display-tight text-[9.5vw] leading-none transition-transform duration-500 group-hover:translate-x-2 sm:text-5xl">
                     {item.label}
                   </span>

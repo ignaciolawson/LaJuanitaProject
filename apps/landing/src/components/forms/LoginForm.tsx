@@ -51,7 +51,7 @@ export function LoginForm() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <label className="flex cursor-pointer items-center gap-2.5">
           <input type="checkbox" name="recordarme" className="peer sr-only" />
-          <span className="block h-4 w-4 border border-[color:var(--page-line)] transition-colors peer-checked:border-red peer-checked:bg-red peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red" />
+          <span className="block h-4 w-4 border border-[color:var(--page-field)] transition-colors peer-checked:border-red peer-checked:bg-red peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red" />
           <span className="t-mono text-[color:var(--page-muted)]">Mantener sesión</span>
         </label>
 
@@ -73,7 +73,7 @@ export function LoginForm() {
           className="t-body border border-red/40 bg-red-tint p-4 text-sm text-[color:var(--page-fg)]"
         >
           Por ahora el acceso al campus lo damos de a uno. Escribinos por{" "}
-          <Link href="/contacto" className="link-u text-red">
+          <Link href="/contacto" className="link-u text-accent">
             contacto
           </Link>{" "}
           y te habilitamos el tuyo.

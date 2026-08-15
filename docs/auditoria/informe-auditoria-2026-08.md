@@ -2966,6 +2966,47 @@ es una línea en el layout.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO los cinco puntos**, y con **dos de las
+> tres recomendaciones corregidas**: los números de este hallazgo estaban bien, pero los
+> valores propuestos para arreglarlo no alcanzaban.
+>
+> | Qué | Antes | Ahora | |
+> |---|---:|---:|---|
+> | `--page-faint` (tinta / papel) | 2,25 / 2,20 | **4,62 / 4,81** | 0.52 y 0.60 |
+> | `--page-field` — borde de input *(token nuevo)* | 1,42 / 1,48 | **3,16 / 3,29** | 0.40 y 0.48 |
+> | `--page-accent` — rojo de texto *(token nuevo)* | 4,34 / 3,51 | **5,56 / 5,04** | `#ff3a30` / `#b81a1f` |
+>
+> **La recomendación de subir `faint` a ~0.45 no llegaba**: da 3,72:1, no 4,5. El valor que
+> pasa es 0.52, y eso lo deja **casi pegado a `--page-muted` (0.56)** — la escala de tres
+> tonos se convierte en dos. Se decidió aceptarlo: un `faint` accesible y a la vez distinto
+> de `muted` no existe en esta paleta, y la jerarquía de este sitio la lleva la tipografía.
+>
+> **Y la salida de `--red-hover` para el rojo de texto era peor que el problema:** sobre
+> papel `#ff3a30` da **2,74:1**, contra los 3,51 que ya tenía. Un solo valor no sirve para
+> los dos temas, así que el rojo de texto pasó a ser un **sexto token interpolado por
+> `ThemeScroller`** (claro sobre tinta, oscuro sobre papel), con `text-red` → `text-accent`
+> en los 56 usos. **El rojo de superficie no se tocó**: botones sólidos, banda de Gear y
+> `::selection` siguen en `#e52328`, donde el blanco encima ya daba 4,56:1.
+>
+> El `outline-none` salió de `Fields.tsx`, así que vuelve a valer el `:focus-visible`
+> global; el borde de los inputs, los radios de la botonera y el checkbox del login pasaron
+> a `--page-field`.
+>
+> **El enlace de salto NO era una línea en el layout, y ese fue el hallazgo de paso:** el
+> interceptor de anclas de `SmoothScroll` hace `preventDefault()` —tiene que hacerlo, ver
+> la trampa 12— y con eso se come también el movimiento del foco, que en un salto nativo va
+> al destino. O sea que el enlace habría scrolleado dejando el teclado en la navegación:
+> no habría salteado nada. El interceptor ahora mueve el foco después de scrollear, y
+> `<main>` lleva `id="contenido"` y `tabIndex={-1}`. **Eso arregla de paso todas las anclas
+> del sitio**, que hasta hoy movían el scroll y nunca el foco.
+>
+> **Verificado en el CSS y el HTML compilados**, no en el fuente: `--page-faint:#e8e1d485`
+> (0.52), `--page-field:#e8e1d466` (0.40), `.text-accent{color:var(--page-accent)}`,
+> `<main id="contenido" tabindex="-1">` y el `.skip-link` presentes; **cero `outline-none`
+> y cero `text-red` en las 19 páginas generadas**. `npm run build:landing` y `eslint`,
+> limpios. **Sin medición en navegador**: los contrastes están calculados sobre los valores
+> de la paleta con la fórmula de WCAG, que es como se midieron los del hallazgo.
+
 ---
 
 #### QA-07 — No hay forma de saber si el sistema está vivo
@@ -3990,7 +4031,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
 | **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
-| **QA-06** | Medio | S | 8 | 🔴 | Cuatro combinaciones de la paleta fallan AA, una es el borde de los inputs |
+| **QA-06** | Medio | S | 8 | ✅ | — |
 | **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy — bloqueado por el hosting, igual que DOC-08 |
 | **QA-08** | Bajo | XS | 8 | ✅ | — |
 | **DOC-01** | Alto | XS | 1 | ✅ | — |

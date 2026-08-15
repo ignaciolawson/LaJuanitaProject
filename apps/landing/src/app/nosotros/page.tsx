@@ -196,7 +196,7 @@ export default function NosotrosPage() {
                 delay={i * 0.07}
                 className="border-t border-[color:var(--page-line)] pt-5"
               >
-                <span className="t-display text-[clamp(32px,3.5vw,54px)] leading-none text-red">
+                <span className="t-display text-[clamp(32px,3.5vw,54px)] leading-none text-accent">
                   {item.year}
                 </span>
                 <h3 className="t-display-tight mt-4 text-xl">{item.title}</h3>
@@ -313,7 +313,7 @@ export default function NosotrosPage() {
                 delay={i * 0.06}
                 className="border-t border-[color:var(--page-line)] pt-5"
               >
-                <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
+                <span className="t-mono text-accent">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="t-display-tight mt-3 text-2xl">{value.title}</h3>
                 <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
                   {value.detail}

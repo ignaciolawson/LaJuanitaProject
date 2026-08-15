@@ -69,7 +69,7 @@ export default function ProgramasPage() {
                       priority={i === 0}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--page-bg)]/70 to-transparent" />
-                    <span className="t-mono absolute left-6 top-6 text-red">
+                    <span className="t-mono absolute left-6 top-6 text-accent">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                   </div>
@@ -168,7 +168,7 @@ export default function ProgramasPage() {
                   <p className="t-body mt-2 text-sm text-[color:var(--page-muted)]">
                     {service.tagline}
                   </p>
-                  <p className="t-mono mt-4 text-red">{service.price}</p>
+                  <p className="t-mono mt-4 text-accent">{service.price}</p>
                 </li>
               ))}
             </ul>

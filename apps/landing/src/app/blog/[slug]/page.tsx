@@ -119,7 +119,7 @@ export default async function PostPage({ params }: PageProps<"/blog/[slug]">) {
           </article>
 
           <div className="mt-20 max-w-[68ch] border-t border-[color:var(--page-line)] pt-8">
-            <Link href="/blog" data-cursor="VOLVER" className="t-mono link-u text-red">
+            <Link href="/blog" data-cursor="VOLVER" className="t-mono link-u text-accent">
               ← Todas las notas
             </Link>
           </div>

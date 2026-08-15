@@ -159,7 +159,7 @@ export function Numbers() {
             <div key={stat.label} className="border-t border-[color:var(--page-line)] pt-5">
               <dd className="t-display text-[clamp(44px,6vw,92px)] leading-none">
                 <span data-stat={stat.value}>0</span>
-                <span className="text-red">{stat.suffix}</span>
+                <span className="text-accent">{stat.suffix}</span>
               </dd>
               <dt className="t-display-tight mt-4 text-sm">{stat.label}</dt>
               <dd className="t-mono mt-2 text-[color:var(--page-faint)]">{stat.note}</dd>

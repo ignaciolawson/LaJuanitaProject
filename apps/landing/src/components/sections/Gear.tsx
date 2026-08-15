@@ -96,7 +96,7 @@ export function Gear() {
                   size={26}
                   strokeWidth={1.4}
                   aria-hidden
-                  className="text-red transition-transform duration-500 group-hover:scale-110"
+                  className="text-accent transition-transform duration-500 group-hover:scale-110"
                 />
 
                 <h3 className="t-display-tight mt-6 text-2xl leading-tight">{category.name}</h3>
@@ -110,7 +110,7 @@ export function Gear() {
                       key={item}
                       className="t-body flex gap-2.5 text-sm text-[color:var(--page-muted)]"
                     >
-                      <span aria-hidden className="text-red">
+                      <span aria-hidden className="text-accent">
                         ·
                       </span>
                       {item}

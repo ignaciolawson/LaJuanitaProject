@@ -64,7 +64,7 @@ function Block({ block }: { block: PostBlock }) {
               delay={i * 0.04}
               className="grid grid-cols-[auto_minmax(0,1fr)] gap-5 border-t border-[color:var(--page-line)] py-6"
             >
-              <span className="t-mono pt-1.5 text-red">{String(i + 1).padStart(2, "0")}</span>
+              <span className="t-mono pt-1.5 text-accent">{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <h3 className="t-display-tight text-xl">{item.title}</h3>
                 <p className="t-body mt-2 text-[16px] leading-[1.6] text-[color:var(--page-muted)]">

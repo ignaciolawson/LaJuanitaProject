@@ -35,7 +35,7 @@ export function PostCard({
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 30vw"
           className="duotone object-cover transition-transform duration-700 group-hover:scale-[1.04]"
         />
-        <span className="t-mono absolute left-4 top-4 bg-[color:var(--page-bg)] px-2 py-1 text-red">
+        <span className="t-mono absolute left-4 top-4 bg-[color:var(--page-bg)] px-2 py-1 text-accent">
           {CATEGORY_LABEL[post.category]}
         </span>
       </div>
@@ -57,7 +57,7 @@ export function PostCard({
           <span>{readingMinutes(post)} min</span>
           <span
             aria-hidden
-            className="ml-auto text-red transition-transform duration-500 group-hover:translate-x-1"
+            className="ml-auto text-accent transition-transform duration-500 group-hover:translate-x-1"
           >
             →
           </span>

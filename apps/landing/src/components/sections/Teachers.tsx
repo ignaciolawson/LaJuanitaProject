@@ -151,7 +151,7 @@ export function Teachers() {
                 {/* Nombre montado sobre la foto, no debajo */}
                 <div className="absolute inset-x-0 bottom-0 p-5">
                   <h3 className="t-display-tight text-3xl text-bone">{teacher.name}</h3>
-                  <p className="t-mono mt-2 text-red">{teacher.role}</p>
+                  <p className="t-mono mt-2 text-accent">{teacher.role}</p>
                 </div>
               </div>
 

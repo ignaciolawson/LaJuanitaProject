@@ -132,7 +132,7 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
             </div>
             <div className="flex justify-between gap-4 border-t border-[color:var(--page-line)] pt-3">
               <dt className="t-mono text-[color:var(--page-faint)]">Estimado</dt>
-              <dd className="t-display-tight text-xl text-red">
+              <dd className="t-display-tight text-xl text-accent">
                 ${estimate.toLocaleString("es-AR")}
               </dd>
             </div>
@@ -145,7 +145,7 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
           <ul className="mt-6 space-y-2 border-t border-[color:var(--page-line)] pt-5">
             {current.includes.map((item) => (
               <li key={item} className="t-body flex gap-2 text-sm text-[color:var(--page-muted)]">
-                <span aria-hidden className="text-red">
+                <span aria-hidden className="text-accent">
                   ·
                 </span>
                 {item}

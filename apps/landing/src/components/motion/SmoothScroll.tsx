@@ -140,7 +140,19 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       // rompe el smoother. Aunque el destino no exista hay que frenarlo.
       event.preventDefault();
       event.stopPropagation();
-      if (scrollToHash(href, true)) history.pushState(null, "", href);
+      if (!scrollToHash(href, true)) return;
+      history.pushState(null, "", href);
+
+      // Y mover el FOCO, que el `preventDefault` de arriba dejó donde estaba.
+      // Un salto nativo lo lleva al destino; acá el salto lo hacemos nosotros,
+      // así que el teclado se quedaba en el enlace y seguía tabulando desde la
+      // navegación. Se nota sobre todo en el enlace "Saltar al contenido", que
+      // existe justamente para eso y sin esto no salteaba nada.
+      // `preventScroll` porque el scroll ya lo está haciendo el smoother, y
+      // sobre un elemento sin `tabindex` esto no hace nada: no molesta al
+      // resto de las anclas.
+      const destino = document.querySelector(href);
+      if (destino instanceof HTMLElement) destino.focus({ preventScroll: true });
     };
 
     // Volver atrás después de un ancla: el navegador intenta su propio salto,

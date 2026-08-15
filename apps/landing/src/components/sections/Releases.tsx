@@ -156,7 +156,7 @@ export function Releases() {
                 </div>
 
                 <div className="min-w-0">
-                  <span className="t-mono text-red">
+                  <span className="t-mono text-accent">
                     {String(i + 1).padStart(2, "0")} — {release.genre}
                   </span>
                   <h3 className="t-display-tight mt-3 text-[clamp(30px,4.4vw,62px)] leading-[0.94]">

@@ -52,9 +52,9 @@ export default function ContactoPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 data-cursor="ABRIR"
-                className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
+                className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-accent"
               >
-                <MessageCircle size={20} className="text-red" aria-hidden />
+                <MessageCircle size={20} className="text-accent" aria-hidden />
                 {CONTACT.whatsappDisplay}
               </a>
               {/* Sólo si hay casilla real. El mail que estaba acá no existe
@@ -63,14 +63,14 @@ export default function ContactoPage() {
               {CONTACT.email && (
                 <a
                   href={`mailto:${CONTACT.email}`}
-                  className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
+                  className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-accent"
                 >
-                  <Mail size={20} className="text-red" aria-hidden />
+                  <Mail size={20} className="text-accent" aria-hidden />
                   {CONTACT.email}
                 </a>
               )}
               <p className="flex items-center gap-3 text-[color:var(--page-fg)]">
-                <MapPin size={20} className="text-red" aria-hidden />
+                <MapPin size={20} className="text-accent" aria-hidden />
                 {CONTACT.address}
               </p>
             </div>

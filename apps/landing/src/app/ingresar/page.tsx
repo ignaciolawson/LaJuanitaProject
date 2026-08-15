@@ -57,7 +57,7 @@ export default function IngresarPage() {
 
             <p className="t-mono mt-10 border-t border-[color:var(--page-line)] pt-6 text-[color:var(--page-faint)]">
               ¿Todavía no estudiás acá?{" "}
-              <Link href="/programas" className="link-u text-red">
+              <Link href="/programas" className="link-u text-accent">
                 Mirá los programas
               </Link>
             </p>

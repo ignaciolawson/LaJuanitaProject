@@ -195,7 +195,7 @@ export function Hero() {
               <span className="t-display h-xl block">La Juanita</span>
             </span>
             <span data-hero-line className="block pl-[3vw] sm:pl-[5vw]">
-              <span className="t-serif h-xl block normal-case text-red">Studio</span>
+              <span className="t-serif h-xl block normal-case text-accent">Studio</span>
             </span>
           </h1>
 

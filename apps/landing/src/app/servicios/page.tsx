@@ -79,7 +79,7 @@ export default function ServiciosPage() {
                   <ul className="mt-4 grid gap-2.5">
                     {service.includes.map((item) => (
                       <li key={item} className="t-body flex gap-3 text-[15px]">
-                        <span aria-hidden className="text-red">
+                        <span aria-hidden className="text-accent">
                           ·
                         </span>
                         <span>{item}</span>
@@ -140,7 +140,7 @@ export default function ServiciosPage() {
               href={`https://wa.me/${CONTACT.whatsapp}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="link-u text-red"
+              className="link-u text-accent"
             >
               Escribinos y lo armamos
             </a>

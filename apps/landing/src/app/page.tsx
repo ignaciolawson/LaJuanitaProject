@@ -71,7 +71,7 @@ export default function Home() {
           speed={34}
           items={UPCOMING_DATES.map((d) => (
             <span key={d.title} className="flex items-center gap-3">
-              <span className="text-red">
+              <span className="text-accent">
                 {d.day} {d.month}
               </span>
               <span>{d.title}</span>

@@ -155,7 +155,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                 delay={i * 0.06}
                 className="border-t border-[color:var(--page-line)] pt-5"
               >
-                <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
+                <span className="t-mono text-accent">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="t-display-tight mt-3 text-2xl">{reason.title}</h3>
                 <p className="t-body mt-3 max-w-[42ch] text-sm text-[color:var(--page-muted)]">
                   {reason.detail}
@@ -182,7 +182,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                     as="li"
                     className="flex gap-4 border-b border-[color:var(--page-line)] pb-5"
                   >
-                    <span aria-hidden className="t-mono shrink-0 text-red">
+                    <span aria-hidden className="t-mono shrink-0 text-accent">
                       →
                     </span>
                     <span className="t-body text-[17px]">{item}</span>
@@ -195,7 +195,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                 <ul className="mt-8 space-y-3">
                   {program.outcomes.map((item) => (
                     <li key={item} className="t-body flex gap-3 text-sm">
-                      <span aria-hidden className="text-red">
+                      <span aria-hidden className="text-accent">
                         ·
                       </span>
                       <span className="text-[color:var(--page-muted)]">{item}</span>
@@ -257,7 +257,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                     href={`https://wa.me/${CONTACT.whatsapp}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="link-u text-red"
+                    className="link-u text-accent"
                   >
                     Escribinos por WhatsApp
                   </a>
@@ -324,7 +324,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                 </div>
                 <span
                   aria-hidden
-                  className="t-mono ml-auto shrink-0 text-red transition-transform duration-500 group-hover:translate-x-1"
+                  className="t-mono ml-auto shrink-0 text-accent transition-transform duration-500 group-hover:translate-x-1"
                 >
                   →
                 </span>

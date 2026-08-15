@@ -170,7 +170,7 @@ export function Footer() {
           </span>
           <span
             data-footer-fill
-            className="t-display absolute inset-0 block w-full text-[15.5vw] leading-[0.8] text-red"
+            className="t-display absolute inset-0 block w-full text-[15.5vw] leading-[0.8] text-accent"
           >
             La Juanita
           </span>

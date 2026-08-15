@@ -104,7 +104,7 @@ export function VelocityMarquee({
       {items.map((item, i) => (
         <span key={i} className="flex shrink-0 items-center">
           <span className="px-6">{item}</span>
-          <span className="px-6 text-red" aria-hidden>
+          <span className="px-6 text-accent" aria-hidden>
             {separator}
           </span>
         </span>

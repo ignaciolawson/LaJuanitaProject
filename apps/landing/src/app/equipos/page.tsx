@@ -122,7 +122,7 @@ export default function EquiposPage() {
                   <article className="group flex h-full flex-col border border-[color:var(--page-line)] p-7 transition-colors hover:border-red sm:p-9">
                     <div className="flex items-start justify-between gap-6">
                       <div className="min-w-0">
-                        <span className="t-mono text-red">
+                        <span className="t-mono text-accent">
                           {String(i + 1).padStart(2, "0")}
                         </span>
                         <h3 className="t-display-tight mt-3 text-[clamp(26px,2.8vw,40px)] leading-[0.96]">
@@ -136,7 +136,7 @@ export default function EquiposPage() {
                         size={34}
                         strokeWidth={1.3}
                         aria-hidden
-                        className="shrink-0 text-red transition-transform duration-500 group-hover:scale-110"
+                        className="shrink-0 text-accent transition-transform duration-500 group-hover:scale-110"
                       />
                     </div>
 
@@ -149,7 +149,7 @@ export default function EquiposPage() {
                       <ul className="mt-4 grid gap-2 border-t border-[color:var(--page-line)] pt-5">
                         {category.covers.map((item) => (
                           <li key={item} className="t-body flex gap-2.5 text-sm">
-                            <span aria-hidden className="text-red">
+                            <span aria-hidden className="text-accent">
                               ·
                             </span>
                             <span className="text-[color:var(--page-muted)]">{item}</span>
@@ -194,7 +194,7 @@ export default function EquiposPage() {
                   href={`https://wa.me/${CONTACT.whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="link-u text-red"
+                  className="link-u text-accent"
                 >
                   Escribinos por WhatsApp
                 </a>

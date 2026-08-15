@@ -163,7 +163,7 @@ export function ProgramsRail() {
           </div>
 
           <div className="t-mono hidden items-center gap-4 text-[color:var(--page-faint)] rail:flex">
-            <span data-rail-count className="text-red">
+            <span data-rail-count className="text-accent">
               01
             </span>
             <span>/</span>
@@ -190,7 +190,7 @@ export function ProgramsRail() {
             >
               <div className="flex shrink-0 items-start justify-between gap-5">
                 <div className="min-w-0">
-                  <span className="t-mono text-red">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="t-mono text-accent">{String(i + 1).padStart(2, "0")}</span>
                   <h3 className="t-display-tight mt-2 text-[clamp(24px,2.6vw,38px)] leading-[0.96]">
                     {program.name}
                   </h3>
@@ -259,7 +259,7 @@ export function ProgramsRail() {
                   <Link
                     href={`/programas/${program.slug}`}
                     data-cursor={program.cta === "apply" ? "INSCRIBIRME" : "CONSULTAR"}
-                    className="t-mono link-u text-red"
+                    className="t-mono link-u text-accent"
                   >
                     {program.cta === "apply" ? "Ver e inscribirme" : "Ver y consultar"}
                   </Link>

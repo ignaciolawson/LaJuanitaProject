@@ -93,7 +93,7 @@ export default function BlogPage() {
               </div>
 
               <div className="flex flex-col justify-center p-7 sm:p-12">
-                <span className="t-mono text-red">{CATEGORY_LABEL[featured.category]}</span>
+                <span className="t-mono text-accent">{CATEGORY_LABEL[featured.category]}</span>
                 <h2 className="t-display-tight mt-4 text-[clamp(30px,3.6vw,52px)] leading-[0.98]">
                   {featured.title}
                 </h2>
@@ -109,7 +109,7 @@ export default function BlogPage() {
                 </div>
                 <span
                   aria-hidden
-                  className="t-mono mt-8 inline-flex items-center gap-2 text-red transition-transform duration-500 group-hover:translate-x-1"
+                  className="t-mono mt-8 inline-flex items-center gap-2 text-accent transition-transform duration-500 group-hover:translate-x-1"
                 >
                   Leer la nota →
                 </span>

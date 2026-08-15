@@ -65,6 +65,38 @@ vuelve a parecer una plantilla.
 (`components/brand/Fan.tsx`) con cada varilla como nodo propio, para que se
 abra, se cierre y se dibuje con el scroll.
 
+### El rojo de texto NO es el rojo de marca (2026-08-15, QA-06)
+
+`#e52328` da **4,34:1 sobre tinta y 3,51:1 sobre papel**: como texto no pasa AA
+en ninguno de los dos temas, y no se arregla con un solo valor —`--red-hover`
+rinde 5,56:1 sobre tinta y **empeora a 2,74:1** sobre papel—. Así que el rojo se
+partió en dos y hay que elegir cuál usar:
+
+| | Qué es | Dónde |
+| --- | --- | --- |
+| `--red` (`bg-red`, `border-red`) | El rojo de marca, **superficie** | Botón sólido, banda de Gear, `::selection`, el outline de foco. Blanco encima da 4,56:1 ✅ |
+| `--page-accent` (`text-accent`) | El rojo cuando es **texto**, interpolado por tema | `#ff3a30` en tinta (5,56:1), `#b81a1f` en papel (5,04:1) |
+
+**Si escribís rojo sobre texto, va `text-accent`.** `text-red` ya no existe en el
+repo: los 56 usos se renombraron. Lo mismo vale para `.label`, que lo toma de
+`--page-accent` en el CSS.
+
+Y los otros dos tokens que se movieron por lo mismo:
+
+- **`--page-faint` pasó de 0.30 a 0.52/0.60** (2,25:1 → 4,6/4,8:1). Es el color de
+  las etiquetas de formulario y de todos los metadatos mono. **Queda casi pegado a
+  `--page-muted`, y está decidido así**: un `faint` que pase AA y que además se
+  distinga de `muted` no existe en esta paleta, y acá la jerarquía la lleva la
+  tipografía. El token se conserva por su rol, no por su color.
+- **`--page-field` es nuevo**: el borde de los inputs, que pide 3:1 y con
+  `--page-line` daba 1,42:1. `--page-line` se quedó con las líneas decorativas,
+  que no piden contraste y que subirlas ensucia el dibujo de la página. **Un
+  control de formulario va con `--page-field`; una línea que decora, con
+  `--page-line`.**
+
+Los siete tokens de página los interpola `ThemeScroller` y los valores por
+defecto viven en `globals.css`: **si cambiás uno, cambialo en los dos lados**.
+
 ### Utilidades tipográficas (`globals.css`)
 
 | Clase | Para qué |
@@ -291,6 +323,11 @@ scroll animado se sienta roto en el celular y perfecto en el escritorio.
     captura, resuelve el hash al navegar y deja un guard que devuelve el
     wrapper a 0. Vale para las anclas de página (`#programas`), para las de
     otra ruta (`/servicios#reservar`) y para los `href="#"` de placeholder.
+    **Corolario: ese `preventDefault` también se come el movimiento del FOCO**,
+    que en un salto nativo va al destino. Por eso el interceptor lo mueve a
+    mano después de scrollear. Se ve en el enlace "Saltar al contenido" del
+    layout, que sin eso scrollea pero deja el teclado en la navegación — o sea
+    que no saltea nada, que es su única función.
 13. **Para llevar el scroll a algún lado, tweeneá `smoother.scrollTop`.** No
     `smoother.scrollTo(target, true)`: con `normalizeScroll: true` esa rama
     escribe el scroll nativo directo y el normalizador —que es quien maneja

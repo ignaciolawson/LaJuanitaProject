@@ -127,6 +127,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         />
 
+        {/* Salto al contenido: primer elemento tabulable de la página, oculto
+            hasta que recibe el foco. La navegación tiene nueve ítems y está en
+            las 19 páginas, así que sin esto quien navega con teclado la recorre
+            entera cada vez.
+            El foco lo mueve el interceptor de <SmoothScroll> — ver el comentario
+            ahí: como el salto nativo está anulado, moverlo es parte de saltar. */}
+        <a href="#contenido" className="skip-link t-mono">
+          Saltar al contenido
+        </a>
+
         {/* Identidad del negocio, en todas las páginas.
             Va en el layout y no en la home porque es la definición de QUIÉN
             publica el sitio: cualquier página puede ser la primera (y a
@@ -148,7 +158,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Navbar />
 
         <SmoothScroll>
-          <main>{children}</main>
+          {/* `tabIndex={-1}` para que pueda recibir el foco del salto de arriba
+              sin entrar en el orden de tabulación. */}
+          <main id="contenido" tabIndex={-1}>
+            {children}
+          </main>
           <Footer />
         </SmoothScroll>
       </body>

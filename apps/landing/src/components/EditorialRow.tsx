@@ -121,7 +121,7 @@ export function EditorialRow({
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-4 font-display text-sm font-semibold uppercase tracking-wide text-red">
+          <p className="mt-4 font-display text-sm font-semibold uppercase tracking-wide text-accent">
             {subtitle}
           </p>
         )}

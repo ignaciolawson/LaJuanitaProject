@@ -70,7 +70,7 @@ export default function SelloPage() {
               />
             </RevealImage>
             <Reveal className="lg:w-[55%]">
-              <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-red">
+              <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-accent">
                 {featured.genre} · {featured.date}
               </p>
               <h2 className="mt-3 t-display-tight text-4xl leading-[0.95] text-[color:var(--page-fg)] sm:text-5xl">
@@ -122,7 +122,7 @@ export default function SelloPage() {
       <section data-theme="ink" className="border-t border-[color:var(--page-line)] bg-ink-2 py-20 sm:py-28">
         <Container>
           <Reveal>
-            <span className="font-display text-xs font-semibold uppercase tracking-[0.25em] text-red">
+            <span className="font-display text-xs font-semibold uppercase tracking-[0.25em] text-accent">
               Agenda
             </span>
             <h2 className="mt-3 t-display-tight text-3xl leading-[0.95] text-[color:var(--page-fg)] sm:text-4xl">
@@ -142,7 +142,7 @@ export default function SelloPage() {
               >
                 <div className="flex items-baseline gap-2 sm:w-24 sm:flex-col sm:items-start sm:gap-0">
                   <span className="font-display text-3xl font-bold text-[color:var(--page-fg)]">{item.day}</span>
-                  <span className="font-display text-sm font-semibold uppercase tracking-wide text-red">
+                  <span className="font-display text-sm font-semibold uppercase tracking-wide text-accent">
                     {item.month}
                   </span>
                 </div>
@@ -153,7 +153,7 @@ export default function SelloPage() {
                   <p className="mt-1 t-display-tight text-lg text-[color:var(--page-fg)]">{item.title}</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-[color:var(--page-muted)]">
-                  <MapPin size={16} className="text-red" aria-hidden />
+                  <MapPin size={16} className="text-accent" aria-hidden />
                   {item.location}
                 </div>
               </li>

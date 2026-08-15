@@ -26,7 +26,7 @@ export function FaqAccordion({ items }: { items: FaqItem[] }) {
               </span>
               <Plus
                 size={20}
-                className={clsx("shrink-0 text-red transition-transform duration-300",
+                className={clsx("shrink-0 text-accent transition-transform duration-300",
                   isOpen && "rotate-45",
                 )}
                 aria-hidden

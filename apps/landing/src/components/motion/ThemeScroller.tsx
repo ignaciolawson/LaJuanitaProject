@@ -26,22 +26,43 @@ type Palette = {
   muted: string;
   faint: string;
   line: string;
+  field: string;
+  accent: string;
 };
 
+/**
+ * Las claves son los nombres de las variables sin el prefijo: `faint` escribe
+ * `--page-faint`. Una clave nueva acá se interpola sola — no hay ninguna otra
+ * lista que actualizar.
+ */
+const KEYS = ["bg", "fg", "muted", "faint", "line", "field", "accent"] as const;
+
+/**
+ * Los contrastes de `faint`, `field` y `accent` están medidos y son el mínimo
+ * que pasa AA; el porqué de cada uno está en `globals.css`, donde viven los
+ * valores por defecto. Si cambiás un número acá, cambialo también allá: son
+ * los mismos tokens, y este archivo pisa al otro apenas arranca el scroll.
+ */
 const THEMES: Record<string, Palette> = {
   ink: {
     bg: "#0a0a0b",
     fg: "#e8e1d4",
     muted: "rgba(232,225,212,0.56)",
-    faint: "rgba(232,225,212,0.30)",
+    faint: "rgba(232,225,212,0.52)",
     line: "rgba(232,225,212,0.16)",
+    field: "rgba(232,225,212,0.40)",
+    accent: "#ff3a30",
   },
   bone: {
     bg: "#e8e1d4",
     fg: "#0a0a0b",
     muted: "rgba(10,10,11,0.62)",
-    faint: "rgba(10,10,11,0.34)",
+    faint: "rgba(10,10,11,0.60)",
     line: "rgba(10,10,11,0.18)",
+    field: "rgba(10,10,11,0.48)",
+    // El rojo de marca sobre papel da 3,51:1. Este da 5,04:1 y mantiene el
+    // tono; el de marca sigue vivo en las superficies, que no cambian.
+    accent: "#b81a1f",
   },
 };
 
@@ -56,15 +77,9 @@ export function ThemeScroller() {
     // desde una sección de papel el tema queda pegado y te comés una
     // página blanca con texto blanco.
     if (!sections.length) {
-      const ink = THEMES.ink;
-      root.style.setProperty("--page-bg", ink.bg);
-      root.style.setProperty("--page-fg", ink.fg);
-      root.style.setProperty("--page-muted", ink.muted);
-      root.style.setProperty("--page-faint", ink.faint);
-      root.style.setProperty("--page-line", ink.line);
+      KEYS.forEach((k) => root.style.setProperty(`--page-${k}`, THEMES.ink[k]));
       return;
     }
-    const KEYS = ["bg", "fg", "muted", "faint", "line"] as const;
     /** Paleta pedida por la sección que estás mirando. */
     let current: Palette = THEMES.ink;
     /** Paleta que hay REALMENTE en pantalla, frame a frame. */
@@ -132,9 +147,7 @@ export function ThemeScroller() {
 
     return () => {
       triggers.forEach((t) => t.kill());
-      (["bg", "fg", "muted", "faint", "line"] as const).forEach((k) =>
-        root.style.removeProperty(`--page-${k}`),
-      );
+      KEYS.forEach((k) => root.style.removeProperty(`--page-${k}`));
     };
   }, [pathname]);
 

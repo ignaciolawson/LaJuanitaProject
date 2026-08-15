@@ -22,8 +22,20 @@ import clsx from "clsx";
  * el resto del sistema.
  */
 
+/**
+ * El borde va con `--page-field` y no con `--page-line`: es un componente de
+ * interfaz, no una línea decorativa, y a 0.16 de opacidad daba 1,42:1 — la
+ * mitad del 3:1 que pide AA para saber dónde se escribe.
+ *
+ * Y NO lleva `outline-none`. Lo llevaba, y con eso anulaba el
+ * `:focus-visible` global de `globals.css` (un outline rojo de 2px con 3px de
+ * offset, que está bien definido) y lo dejaba reemplazado por `focus:border-red`:
+ * o sea que navegando con teclado, saber en qué campo estabas dependía de
+ * notar que una línea de 1px había cambiado de tono. El cambio de borde se
+ * conserva, pero como refuerzo del outline, no en su lugar.
+ */
 const fieldBase =
-  "w-full border-0 border-b border-[color:var(--page-line)] bg-transparent px-0 py-3 text-[color:var(--page-fg)] outline-none transition-colors placeholder:text-[color:var(--page-faint)] focus:border-red";
+  "w-full border-0 border-b border-[color:var(--page-field)] bg-transparent px-0 py-3 text-[color:var(--page-fg)] transition-colors placeholder:text-[color:var(--page-faint)] focus:border-red";
 
 export function Field({
   label,
@@ -45,7 +57,7 @@ export function Field({
     <div>
       <label htmlFor={id} className="t-mono block text-[color:var(--page-faint)]">
         {label}
-        {required && <span className="ml-1 text-red">*</span>}
+        {required && <span className="ml-1 text-accent">*</span>}
       </label>
       <input
         id={id}
@@ -179,7 +191,7 @@ export function ChoiceGrid({
  * ahí: una utilidad `block` acá le ganaría al centrado vertical en táctil.
  */
 export const choiceOption =
-  "choice-option t-mono border border-[color:var(--page-line)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red";
+  "choice-option t-mono border border-[color:var(--page-field)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red";
 
 /**
  * Envoltorio de formulario con estado de confirmación.
@@ -213,7 +225,7 @@ export function FormShell({
         <button
           type="button"
           onClick={() => setSent(false)}
-          className="t-mono link-u mt-6 text-red"
+          className="t-mono link-u mt-6 text-accent"
         >
           Cargar otra
         </button>

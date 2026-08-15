@@ -97,7 +97,7 @@ export function Services() {
                   />
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--page-bg)] via-transparent to-transparent" />
-                <span className="t-mono absolute left-5 top-5 text-red">
+                <span className="t-mono absolute left-5 top-5 text-accent">
                   {String(i + 1).padStart(2, "0")}
                 </span>
               </div>
@@ -118,7 +118,7 @@ export function Services() {
                   <ul className="mt-3 grid gap-2">
                     {service.includes.map((item) => (
                       <li key={item} className="t-body flex gap-2.5 text-sm">
-                        <span aria-hidden className="text-red">
+                        <span aria-hidden className="text-accent">
                           ·
                         </span>
                         <span className="text-[color:var(--page-muted)]">{item}</span>
