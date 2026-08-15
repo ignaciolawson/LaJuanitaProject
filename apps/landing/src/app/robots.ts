@@ -6,9 +6,8 @@ import { SITE_URL } from "@/lib/seo";
  * robots.txt
  *
  * No existía. Sin él el sitio igual se rastrea (la ausencia equivale a
- * "permitido todo"), pero se pierden dos cosas: el puntero al sitemap, que es
- * la forma más directa de que un buscador descubra las 21 URLs de una, y el
- * control sobre qué NO indexar.
+ * "permitido todo"), pero se pierde el puntero al sitemap, que es la forma más
+ * directa de que un buscador descubra las 18 URLs de una.
  *
  * ── Sobre los bots de IA ──
  *
@@ -27,9 +26,23 @@ import { SITE_URL } from "@/lib/seo";
  * `CCBot` (Common Crawl) queda afuera: es un dataset de entrenamiento a granel
  * que no cita fuentes ni deriva tráfico. Es el único bloqueo que sale gratis.
  *
- * `/ingresar` se excluye porque es una pantalla de acceso al campus, sin valor
- * de búsqueda. La página además ya declara `robots: { index: false }`; esto es
- * la otra mitad, que ahorra el rastreo.
+ * ── Por qué NO hay `Disallow: /ingresar` ──
+ *
+ * Lo hubo, con este comentario al lado: *"la página ya declara
+ * `robots: { index: false }`; esto es la otra mitad, que ahorra el rastreo"*.
+ * **No eran dos mitades: una anulaba a la otra.**
+ *
+ * Para obedecer un `noindex` hay que leerlo, y para leerlo hay que descargar la
+ * página — que es exactamente lo que el `Disallow` prohíbe. Y las catorce
+ * páginas del sitio enlazan a `/ingresar` desde el layout (navbar, menú móvil y
+ * pie), así que Google descubre la URL igual, ve que no puede rastrearla, nunca
+ * llega al `noindex` y **puede indexarla sin contenido**: es lo que Search
+ * Console reporta como "Indexada aunque bloqueada por robots.txt".
+ *
+ * Se elige una de las dos, no se suman. Queda el `noindex`, que es la que
+ * efectivamente saca la página del índice; el rastreo de una URL en un sitio de
+ * veinte no cuesta nada. Si algún día hiciera falta ahorrarlo, el camino es
+ * `rel="nofollow"` en los tres enlaces del layout, no volver a poner esta línea.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -37,7 +50,6 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/ingresar"],
       },
       {
         // Bots de motores de respuesta: permitidos para poder ser citados.
@@ -55,7 +67,6 @@ export default function robots(): MetadataRoute.Robots {
           "Bingbot",
         ],
         allow: "/",
-        disallow: ["/ingresar"],
       },
       {
         // Entrenamiento a granel sin cita ni tráfico de vuelta.
