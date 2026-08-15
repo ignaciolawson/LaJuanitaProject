@@ -30,6 +30,12 @@
 > **Remediación en curso desde el 2026-08-14.** Los hallazgos ya resueltos llevan un
 > bloque *"Remediado el ..."* al pie, y **§8 lleva el estado y el orden propuesto para
 > lo que queda**. Un hallazgo sin ese bloque sigue abierto.
+>
+> **Al cerrarse la tanda 6 (2026-08-14) las cifras de arriba quedaron viejas, y de la
+> mejor manera:** `mvn test` va por **106/106**, las suites SQL por **86/86 y 50/50** sobre
+> **ocho** migraciones, el front pasó de no tener tests a tener **53**, y las tres cosas
+> corren solas en un pipeline. Las cifras originales se dejan como estaban porque son el
+> estado que la auditoría midió; el actual está en §8.
 
 ---
 
@@ -2525,6 +2531,32 @@ y **un caso de buscador con un patrón que incluya un `%`**, que es el que prote
 
 **Esfuerzo: M**
 
+> **Remediado el 2026-08-14 — RESUELTO, con 20 casos en vez de los 6 recomendados.**
+> `AlumnoTest`, mismo formato que el resto de la suite (`@SpringBootTest`, `MockMvc`,
+> `@Transactional`). `mvn test` **106/106**, eran 86.
+>
+> Los seis de la recomendación, más los que aparecieron al escribirlos:
+>
+> - **El camino `idUsuario`**, que ningún test ejecutaba nunca. Verifica además que no se
+>   cree una segunda cuenta y que no venga contraseña temporal: es el caso que justifica
+>   que `usuario` sea la identidad raíz.
+> - Los dos caminos juntos, ninguno de los dos, y el usuario inexistente (404).
+> - El guardia de alumno duplicado.
+> - **La promesa transaccional** del javadoc, que era una afirmación falsable que nada
+>   falseaba. Con una salvedad honesta: se fuerza el fallo con un email ya tomado, que es
+>   **el único modo de falla que el endpoint puede producir hoy** por ese camino. Cuando
+>   `inscripcion` agregue pasos posteriores a la creación de la cuenta va a hacer falta un
+>   caso que falle más tarde.
+> - `editar` (incluido el recorte de espacios y el instagram vacío → `null`),
+>   `cambiarEstado` —el único endpoint que la pantalla usa y ningún test tocaba—,
+>   `GET /{id}`, el filtro por estado y el acotado del tamaño de página.
+> - **Y el buscador**: `?buscar=` con un `%`, con un `_`, y vacío. Los tres casos de
+>   `Busqueda`, que nunca se había ejecutado con un patrón real.
+>
+> Dos casos fallaron al escribirlos, por un error propio que vale anotar: `comoStaff()`
+> crea su propio usuario, así que pedir la credencial **después** de contar las cuentas
+> mueve el número que se está midiendo.
+
 ---
 
 #### QA-02 — Precios inventados publicados sin salvedad, y seis notas técnicas firmadas con los nombres de tres personas reales
@@ -2636,6 +2668,33 @@ prueba de que el hueco se cuela: una contradicción entre un trigger y un EXCLUD
 
 **Esfuerzo: M**
 
+> **Remediado el 2026-08-14 — RESUELTO por el escalón 1, que es el que la recomendación
+> decía que valía la pena aunque no se hiciera el segundo.** `scripts/pruebas-sql.sh`.
+>
+> Hace algo más que empaquetar los nueve comandos: **la lista de migraciones no se
+> escribe, se lee del directorio** (`sort -V`, para que `V10` no se aplique antes que
+> `V2`). Eso ataca la causa raíz que el hallazgo señala —la lista duplicada en las dos
+> cabeceras, que se desactualizó con `V4` y con `V6`—, así que **las dos cabeceras dejaron
+> de llevarla** y una migración nueva entra en la corrida sola.
+>
+> Y lo que lo hace usable desde un pipeline: **sale con código distinto de cero si algún
+> caso falla**, nombrándolo. Las suites imprimen su resumen pero terminan en 0 pase lo que
+> pase, así que sin esto el CI las habría corrido siempre en verde.
+>
+> Dos modos, para que el mismo script sirva local y en CI: `docker exec` contra el
+> contenedor de desarrollo, o `psql` directo si hay `PGHOST` — en Actions Postgres es un
+> servicio, no un contenedor al que se le pueda hacer `exec`.
+>
+> **Verificado en verde y en rojo**, que es lo que hay que verificar de un script así:
+> 86/86 y 50/50 con exit 0; y dando vuelta a mano la expectativa del caso 84, reporta
+> `#84 … PASO cuando debería haber fallado` y sale con exit 1. El modo `directo` se
+> ejercitó aparte, dentro de un contenedor con cliente de Postgres, porque en esta máquina
+> no hay `psql` en el `PATH`.
+>
+> **El escalón 2 (Testcontainers) sigue abierto**, y ahora es menos urgente: las 136
+> pruebas ya corren en cada push. Lo que Testcontainers agregaría es sacarlas del `docker`
+> del host y resolver la deuda #3 del plan.
+
 ---
 
 #### QA-04 — No hay pipeline: nada corre nada salvo que alguien se acuerde
@@ -2680,6 +2739,29 @@ se commiteen los dos días de trabajo pendientes es cuando más falta hace que a
 
 **Esfuerzo: M**
 
+> **Remediado el 2026-08-14 — RESUELTO.** `.github/workflows/ci.yml`, dos jobs en
+> paralelo, con los cuatro pasos de la recomendación más los tests de front que QA-05
+> agregó.
+>
+> - **backend**: JDK 21 y un servicio de Postgres con los mismos valores que el compose de
+>   desarrollo —que son los *defaults* del `application.properties`—, así el job no define
+>   ninguna variable. `mvn test` prueba dos cosas a la vez, porque Flyway aplica al
+>   arrancar el contexto: los 106 casos, **y que las ocho migraciones apliquen sobre una
+>   base vacía**, que es exactamente el punto del hallazgo. Después, `scripts/pruebas-sql.sh`.
+> - **front**: `npm ci` (no `install`: falla si el lock y el `package.json` no coinciden),
+>   los 53 tests del panel, los dos builds y los dos linters.
+>
+> **Se verificó comando por comando en local**, no solo escribiendo el YAML: `mvn test`
+> 106/106; el script SQL en su modo `directo` —el que **solo** usa el CI y en esta máquina
+> nunca se había ejercitado, porque no hay `psql` en el `PATH`— corrido dentro de un
+> contenedor con cliente de Postgres, 86/86 y 50/50, exit 0; los dos builds y los dos
+> linters limpios; y `npm ci --dry-run` para confirmar que el lock está en sync.
+>
+> Node 22 y no 20: Vite 8 pide `^20.19 || >=22.12` y Vitest 4, `20 || 22 || >=24`.
+>
+> **Lo que queda sin verificar es el YAML corriendo en Actions**, que no se puede probar
+> desde acá: se confirma en el primer push.
+
 ---
 
 #### QA-05 — El frontend no tiene tests, ni infraestructura para tenerlos
@@ -2720,6 +2802,74 @@ Ninguno necesita backend. Con eso, las tres piezas donde una regresión es invis
 quedan cubiertas, y existe el andamio para que el sexto test cueste cinco minutos.
 
 **Esfuerzo: S**
+
+> **Remediado el 2026-08-14 — RESUELTO.** Vitest + Testing Library sobre jsdom, y los
+> cinco archivos que la recomendación eligió: **53 casos, todos verdes**, ninguno necesita
+> backend (los que hablan con la API mockean `fetch`).
+>
+> `menuPara()` (20), `leerCredencial()` (7), el cliente HTTP y su interpretación de
+> errores (11), `RutaProtegida` (5) y `AlumnosPagina` (10). Los dos defectos que este
+> hallazgo usa para calibrar el riesgo tienen su caso: **81 filas en 5 páginas** (ARQ-01) y
+> **un `DIRECTIVO` sin botones de escritura** (SEC-05).
+>
+> Tres casos que no estaban en la lista y merecen nombre: el **caso Ghezz** (STAFF *y*
+> profesor, que es la razón de que los dos ejes estén separados); un **rol inventado** que
+> tiene que quedar afuera de los dos predicados, que es lo que fija que estén escritos por
+> enumeración y no por negación; y que el **401 del login NO cierre la sesión** mientras el
+> de un pedido con credencial sí.
+>
+> **Vitest 4.1 y no 3.x**: la 3 no soporta Vite 8 y npm instalaba una segunda copia de Vite
+> anidada, con lo que `tsc -b` moría comparando dos tipos `Plugin` de dos árboles distintos.
+>
+> **Encontrado escribiéndolos, no arreglado por estar fuera del alcance de la tanda** — ver
+> el hallazgo nuevo QA-08 más abajo: una credencial con `expiraEn` ilegible pasa por
+> vigente para siempre. Queda anotado en `credencial.test.ts`, en el lugar donde iría el
+> caso.
+>
+> **Sigue valiendo lo que este hallazgo dice de fondo:** esto es el andamio y las cinco
+> piezas críticas, no cobertura. Las pantallas de `Usuarios`, los formularios de alta y
+> `AuthProvider` no tienen tests; ahora el sexto cuesta cinco minutos.
+
+---
+
+#### QA-08 — Una credencial con fecha de vencimiento ilegible pasa por vigente para siempre
+
+**Severidad: Bajo** · *hallazgo nuevo, encontrado el 2026-08-14 escribiendo los tests de QA-05*
+
+**Evidencia.** `apps/platform/src/auth/credencial.ts`, en `leerCredencial()`:
+
+```ts
+if (Date.parse(credencial.expiraEn) <= Date.now()) {
+  borrarCredencial()
+  return null
+}
+```
+
+`Date.parse` de algo que no es una fecha devuelve `NaN`, y **toda comparación con `NaN` es
+`false`**. Así que `{"token":"x","expiraEn":"mañana"}` en `localStorage` pasa el chequeo de
+vencimiento y `leerCredencial()` lo devuelve como válido. Medido: el test existía, falló, y
+se sacó del archivo dejando la nota en su lugar.
+
+**Qué pasa hoy.** Poco, y por eso es Bajo: el token igual lo valida el backend, que lo
+rechaza con 401 y ahí el cliente cierra la sesión. El daño real es el que este mismo
+archivo dice querer evitar en su javadoc — *"evita el caso feo de arrancar la app, mandar un
+pedido con un token muerto y recién ahí enterarse"*—: con la fecha corrupta, la app arranca
+creyendo que hay sesión y se entera por el camino largo.
+
+**Impacto concreto.** El caso llega por un formato viejo de la credencial, no por un
+ataque. Es exactamente lo que va a pasar el día que `expiraEn` cambie de forma y alguien
+tenga la versión anterior guardada en el navegador.
+
+**Recomendación.** Una línea, en el mismo `if`:
+
+```ts
+const vence = Date.parse(credencial.expiraEn)
+if (Number.isNaN(vence) || vence <= Date.now()) { … }
+```
+
+y descomentar el caso que ya está escrito en `credencial.test.ts`.
+
+**Esfuerzo: XS**
 
 ---
 
@@ -3115,6 +3265,41 @@ frecuencia, retención, destino; (2) **restore probado**, con fecha del último 
 mismatch, migración a medio aplicar, rollback.
 
 **Esfuerzo: M**
+
+> **Remediado el 2026-08-14 — RESUELTO en tres de las cuatro secciones; la de deploy
+> queda deliberadamente abierta.** `docs/operacion.md`, y **todo lo que afirma se
+> ejecutó**.
+>
+> **El restore está probado de punta a punta, que era el corazón del hallazgo.** Dump de
+> la base de desarrollo → base descartable, y el catálogo coincide exacto: 23 tablas, 139
+> constraints, 14 triggers, 55 índices, 8 migraciones en `flyway_schema_history`,
+> `btree_gist` presente. Pero contar filas y tablas **no alcanza**, porque el modo de
+> falla que importa es que el esquema vuelva **sin las reglas**: sobre la base restaurada
+> se ejercitaron las tres clases de regla que usa el proyecto y las tres rechazaron —el
+> `EXCLUDE` de solapamiento, la FK compuesta de la matriz sala × uso, y el trigger de V7
+> que impide borrar historial de clases—. Y el cierre: **se levantó la aplicación real
+> contra la base restaurada** y arrancó (`Successfully validated 8 migrations`, `Started
+> BackendApplication`).
+>
+> **El runbook de migraciones también se probó**, el ciclo entero: se corrompió a mano el
+> checksum de `V7`, la aplicación no arrancó con el error esperado, `flyway:repair`
+> invocado por coordenadas recalculó el checksum desde el archivo (`123456789` →
+> `456173863`), y la aplicación arrancó. El plugin **no va al `pom.xml`**: es una
+> herramienta de emergencia, no del build de todos los días. El caso B —migración a medio
+> aplicar— está escrito y **marcado como no probado**, que es la diferencia entre un
+> runbook y una intención.
+>
+> `scripts/backup.sh` da al cron algo que llamar: nombra por fecha, retiene 7 diarios + 4
+> semanales, y **verifica el dump antes de darlo por bueno** (rechaza si pesa menos de
+> 50 KB o si `pg_restore -l` no lo puede leer). `backups/` y `*.dump` al `.gitignore`:
+> desde diciembre esos archivos llevan datos reales del negocio y hashes de contraseñas.
+>
+> **La sección 3 (deploy) está incompleta y lo dice en su primer párrafo.** El hosting se
+> decide en octubre; escribir pasos de un deploy que nadie corrió sería el mismo error que
+> el documento vino a corregir. Lo que falta está listado *como lo que falta*: Dockerfiles,
+> `docker-compose.prod.yml`, proxy HTTPS. Lo que sí está escrito y verificado es la tabla
+> de **qué pasa si te olvidás de cada variable**, ordenada por lo que cuesta descubrirlo
+> (el JWT no arranca; la contraseña de la base **no avisa nunca**).
 
 ---
 
@@ -3629,18 +3814,39 @@ Con esto **la migración del Notion deja de estar bloqueada por el front**: se p
 de alta al equipo con su rol, corregir lo que venga mal, resetear contraseñas y ver más
 allá de la fila 20.
 
-### Tanda 6 — 2026-08-14 · empezada · operación
+### Tanda 6 — 2026-08-14 · **cerrada** · operación, tests y CI
 
 | ID | Qué se hizo | Verificación |
 |---|---|---|
 | **DOC-07** | `DB_URL`/`DB_USER`/`DB_PASSWORD`/`CORS_ORIGENES` y los `POSTGRES_*` por entorno, + tabla de variables por ambiente en el README | `mvn test` 86/86 |
 | **QA-07** | `/actuator/health` público y sin detalle, + healthcheck de Postgres con `start_period` | caso nuevo en `PermisosPorRolTest` y `docker inspect` → `healthy` |
+| **DOC-08** | `docs/operacion.md`: backup, **restore probado de punta a punta**, runbook de migraciones probado, y deploy explícitamente incompleto. + `scripts/backup.sh` | el ensayo completo, abajo |
+| **QA-01** | `AlumnoTest`, 20 casos: los dos caminos del alta, el duplicado, la promesa transaccional, `editar`, `cambiarEstado`, `GET /{id}` y los tres del buscador | `mvn test` **106/106** (eran 86) |
+| **QA-03** | `scripts/pruebas-sql.sh`: lee las migraciones del directorio y **sale ≠ 0 si algún caso falla** | 86/86 y 50/50 en verde, y exit 1 forzando un fallo |
+| **QA-05** | Vitest + Testing Library, cinco archivos | `npm test` **53/53** |
+| **QA-04** | `.github/workflows/ci.yml`, dos jobs | los cuatro pasos, corridos a mano en local |
 
-**Sigue abierto de esta tanda:** DOC-08 (`docs/operacion.md` con backup, **restore
-probado**, deploy y falla de migración), QA-01 (`AlumnoTest`), QA-03 (las 109 pruebas SQL
-en el build), QA-04 (el pipeline) y QA-05 (tests de front). DOC-08 es el que arrastra al
-resto: el healthcheck del backend y el `restart: unless-stopped` se escriben ahí, cuando
-exista el compose de deploy.
+**El ensayo de restore, que era el corazón de DOC-08:** dump → base descartable →
+catálogo idéntico (23 tablas, 139 constraints, 14 triggers, 55 índices, 8 migraciones) →
+**las tres clases de regla del proyecto ejercitadas sobre la base restaurada, y las tres
+rechazaron** (`EXCLUDE`, FK compuesta, trigger de V7) → **la aplicación real arrancó
+contra ella**. Contar filas no habría probado lo que importa: que el esquema vuelva *con*
+las reglas.
+
+**Se probó también el checksum mismatch**, el ciclo entero: corromper, ver la aplicación
+no arrancar, `flyway:repair`, verla arrancar.
+
+**Lo que esta tanda deja abierto, y por qué:**
+
+- **La sección de deploy de `docs/operacion.md`** (y con ella la mitad que le falta a
+  QA-07: healthcheck del backend y `restart: unless-stopped`). Depende del hosting, que se
+  decide en octubre. Está escrito *como lo que falta*, no disfrazado de procedimiento.
+- **Testcontainers**, el escalón 2 de QA-03. Menos urgente ahora que las 136 pruebas
+  corren en cada push.
+- **El YAML corriendo en Actions**: los cuatro pasos se verificaron en local, uno por uno,
+  pero el workflow en sí se confirma en el primer push.
+
+**Un hallazgo nuevo salió de acá:** QA-08, la credencial con `expiraEn` ilegible.
 
 ### 8.1 Los 60 hallazgos, uno por uno
 
@@ -3691,13 +3897,14 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **SEO-04** | Bajo | XS | 7 | 🔴 | Cinco conteos de rutas y URLs mal, ninguno coincide |
 | **SEO-05** | Bajo | XS | 7 | 🔴 | Regla `<noscript>` que saque el telón del preloader |
 | **SEO-06** | Bajo | M | 7 | 🔴 | Medir Lighthouse en móvil con caché fría |
-| **QA-01** | Alto | M | 6 | 🔴 | `AlumnoTest` con seis casos, antes de construir `inscripcion` encima |
+| **QA-01** | Alto | M | 6 | ✅ | — |
 | **QA-02** | Alto | M | 7 | 🟡 | **Bloquea publicar la landing.** Precios y firma de las notas: son preguntas al cliente |
-| **QA-03** | Medio | M | 6 | 🔴 | Las 109 pruebas SQL no están en ningún build |
-| **QA-04** | Medio | M | 6 | 🔴 | No hay pipeline. Necesita QA-03 primero |
-| **QA-05** | Medio | S | 6 | 🔴 | El frontend no tiene tests ni infraestructura |
+| **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
+| **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
+| **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
 | **QA-06** | Medio | S | 8 | 🔴 | Cuatro combinaciones de la paleta fallan AA, una es el borde de los inputs |
-| **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy (DOC-08) |
+| **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy — bloqueado por el hosting, igual que DOC-08 |
+| **QA-08** | Bajo | XS | 8 | 🔴 | *(nuevo, 2026-08-14)* `Date.parse` de una fecha ilegible da NaN, y NaN no es `<=` nada: la credencial corrupta pasa por vigente |
 | **DOC-01** | Alto | XS | 1 | ✅ | — |
 | **DOC-02** | Alto | S | 3 | ✅ | — |
 | **DOC-03** | Medio | XS | 1 | ✅ | — |
@@ -3705,23 +3912,26 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-05** | Medio | S | 7 | 🔴 | `requirements/landing.md` dice que el blog no existe |
 | **DOC-06** | Medio | S | 7 | 🔴 | `apps/landing/README.md` es el boilerplate de `create-next-app` |
 | **DOC-07** | Alto | S | 6 | ✅ | — |
-| **DOC-08** | Alto | M | 6 | 🔴 | No existe `docs/operacion.md`: backup, **restore probado**, deploy, falla de migración |
+| **DOC-08** | Alto | M | 6 | 🟡 | Backup, restore probado y runbook de migraciones, hechos. **El deploy depende del hosting (octubre)** |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
 | **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
 | **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
 | **DOC-13** | Info | XS | 8 | 🟡 | Decidir qué hacer con los dos `prompt-*.md` de la raíz |
 
-**Cuentas al 2026-08-14, con la tanda 6 empezada:** 59 hallazgos del informe + 1 nuevo
-(DB-11) = **60**. Resueltos **25** (✅), cerrado como riesgo asumido **1** (⚪ EXT-01);
-abiertos **34**, de los cuales **11 están bloqueados por una decisión** que no es de
-código (tuya o del cliente) y 5 quedaron a medias (DB-04, DB-07, DB-11, ARQ-09 y QA-07).
+**Cuentas al 2026-08-14, con la tanda 6 cerrada:** 59 hallazgos del informe + 2 nuevos
+(DB-11 y QA-08) = **61**. Resueltos **28** (✅), cerrado como riesgo asumido **1**
+(⚪ EXT-01); abiertos **32**, de los cuales **14 están 🟡** — o bloqueados por una decisión
+que no es de código (tuya o del cliente), o a medias con la mitad que falta dependiendo de
+una (DB-04, DB-07, DB-11, ARQ-09, QA-07 y DOC-08).
 
-**Ya no queda ningún Crítico abierto.** Los Altos que siguen son **4**: SEO-01, QA-01,
-QA-02 y DOC-08 — y **dos de ellos son preguntas al cliente**, no código.
+**Ya no queda ningún Crítico abierto, y de los Altos quedan 3: SEO-01, QA-02 y DOC-08 —
+los tres 🟡.** Los dos primeros son preguntas al cliente y el tercero espera el hosting de
+octubre; **ninguno de los tres se destraba programando hoy**. Es el primer momento del
+proyecto en que eso es cierto: `QA-01` era el último Alto que solo pedía escribir código.
 
-**Trabajo de código pendiente: 23 hallazgos**, casi todo limpieza más lo que queda de la
-tanda 6. Los otros 11 no bajan programando.
+**Trabajo de código pendiente: 18 hallazgos** (los 🔴), y son todos de limpieza salvo
+QA-08. Los 14 restantes no bajan programando.
 
 ### 8.2 Las tandas
 
@@ -3736,9 +3946,10 @@ significa rehacer.
 | ~~**4**~~ | ~~SEC-02, SEC-03, SEC-08~~ | **Hecha** — límite de intentos, log de eventos, reseteo de contraseña y vencimiento de la temporal |
 | ~~**2**~~ | ~~EXT-01~~ | **Cerrada.** Repo privado ✅ y secreto rotado ✅; lo demás quedó como riesgo asumido (§5). EXT-03 —la nota de titularidad— se movió a la tanda 8 |
 | ~~**5**~~ | ~~ARQ-01, SEC-05, ARQ-02, ARQ-05, ARQ-09~~ | **Hecha** — paginado, gateo por rol, y las pantallas de alta con rol, edición y reseteo |
-| **6 — Operación, tests y CI** | DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05 | Backup/restore/deploy primero, después los tests que faltan y el script de las SQL, y recién ahí el pipeline: necesita un comando que correr |
+| ~~**6**~~ | ~~DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05~~ | **Hecha** — operación, los tests que faltaban y el pipeline. El orden resultó ser el correcto: el script de las SQL tenía que existir antes del CI, porque el CI necesita un comando que correr. Queda pendiente solo lo que depende del hosting de octubre |
 | **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |
-| **8 — Resto documental y menor** | EXT-03, DB-08, DB-10, SEC-06, SEC-07, SEC-09, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
+| **8 — Resto documental y menor** | EXT-03, DB-08, DB-10, SEC-06, SEC-07, SEC-09, QA-08, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
+| **9 — Deploy** *(nueva)* | lo que resta de DOC-08 y QA-07 | **No se puede hacer antes de octubre**: Dockerfiles, `docker-compose.prod.yml`, healthcheck del backend, proxy HTTPS y destino de los backups. Todo depende de qué hosting se elija |
 
 ### 8.3 Lo que no se destraba programando
 

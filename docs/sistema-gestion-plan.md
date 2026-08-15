@@ -532,6 +532,16 @@ botones que el backend le niega, y **ya se puede dar de alta al equipo con su ro
 pantalla**: hasta ahora eso exigía llamar la API con `curl`. La migración del Notion deja
 de estar bloqueada por el front.
 
+**Y lo que se destrabó con la tanda 6, el mismo día:** `AlumnoService` ahora tiene tests
+propios (`AlumnoTest`, 20 casos). Eso importa **justo antes de `inscripcion`**, porque
+`inscripcion` se construye encima de `alumno` y obliga a refactorizarlo: hasta ayer ese
+refactor se hacía sin red, con la suite en verde porque probaba la autenticación y no el
+módulo. El camino `idUsuario` del alta —el que sostiene la decisión de `usuario` como
+identidad raíz— no lo ejercitaba **ningún** test.
+
+También existe `docs/operacion.md` con el restore ensayado, que es la red del otro lado:
+diciembre incluye migrar el Notion y correr en paralelo con el sistema viejo.
+
 ### Lo próximo: `inscripcion`
 
 Es la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la 2,
@@ -556,23 +566,32 @@ encima.
 
 ### Auditoría técnica del 2026-08-13 y su remediación
 
-Se auditó el monorepo completo: **60 hallazgos**, con `ruta:línea` y verificados
-ejecutando. Está en
+Se auditó el monorepo completo: **60 hallazgos** —hoy **61**, con dos aparecidos
+durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 [`docs/auditoria/informe-auditoria-2026-08.md`](auditoria/informe-auditoria-2026-08.md),
-y **§8 de ese informe lleva el estado de los 60 uno por uno y el orden propuesto para
+y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-**Remediado hasta ahora (2026-08-14): 24 de 60, más EXT-01 cerrado como riesgo asumido.** El candado del secreto JWT falla
-cerrado y el secreto se rotó; la auto-degradación de rol está cerrada; las reglas de la
-base llegan al usuario como mensajes legibles en vez de como "email duplicado" o como
-500; los errores de Spring salen en español; `V7` cerró los cinco huecos de base que
-había que tapar con las tablas vacías; y `V8` + el perímetro de autenticación cerraron
-lo que faltaba del login: **límite de intentos, log de eventos, reseteo de contraseña y
-vencimiento de la temporal**. La tanda 5 cerró el frontend: **paginado real, `DIRECTIVO`
-sin botones de escritura, y las pantallas de alta con rol, edición y reseteo**.
+**Remediado hasta ahora (2026-08-14): 28 de 61, más EXT-01 cerrado como riesgo asumido.**
+El candado del secreto JWT falla cerrado y el secreto se rotó; la auto-degradación de rol
+está cerrada; las reglas de la base llegan al usuario como mensajes legibles en vez de
+como "email duplicado" o como 500; los errores de Spring salen en español; `V7` cerró los
+cinco huecos de base que había que tapar con las tablas vacías; y `V8` + el perímetro de
+autenticación cerraron lo que faltaba del login: **límite de intentos, log de eventos,
+reseteo de contraseña y vencimiento de la temporal**. La tanda 5 cerró el frontend:
+**paginado real, `DIRECTIVO` sin botones de escritura, y las pantallas de alta con rol,
+edición y reseteo**.
+
+**La tanda 6 (2026-08-14) cerró operación, tests y CI**, y cambió tres números del
+proyecto: `mvn test` pasó de 86 a **106** con `AlumnoTest` —el Módulo 1 no tenía un solo
+test propio—, el front pasó de **cero tests a 53**, y las 136 pruebas SQL dejaron de
+correrse copiando nueve comandos a mano. Además existe `docs/operacion.md` con **un
+restore realmente ensayado** y un pipeline que corre las cuatro cosas en cada push.
 
 **Lo que queda y no es trabajo de código:** cinco preguntas al cliente y seis decisiones
-tuyas, enumeradas en §8.3 del informe. **No queda ningún hallazgo Crítico abierto.**
+tuyas (§8.3 del informe), más **el hosting de octubre**, del que dependen el deploy y el
+destino de los backups. **No queda ningún hallazgo Crítico abierto, y los tres Altos que
+siguen abiertos son de esos: ninguno se destraba programando hoy.**
 
 ### Deuda que hay que saldar antes del deploy
 
@@ -584,8 +603,14 @@ tuyas, enumeradas en §8.3 del informe. **No queda ningún hallazgo Crítico abi
    (2026-08-14). Sigue commiteado a propósito, para que un clone arranque: en producción
    va `JWT_SECRET` con un valor nuevo.
 3. **Los tests de JPA corren contra la base de desarrollo** y ahora sí insertan y
-   borran. Testcontainers pasó de "conviene" a "hace falta pronto".
-4. **El frontend no tiene tests.**
+   borran. Testcontainers pasó de "conviene" a "hace falta pronto" — y bajó un escalón de
+   urgencia el 2026-08-14: las 136 pruebas SQL ya corren solas sobre bases descartables
+   (`scripts/pruebas-sql.sh`) y en CI. Lo que falta resolver es esto, los tests de JPA.
+4. ~~**El frontend no tiene tests.**~~ **Resuelto el 2026-08-14** (QA-05): Vitest +
+   Testing Library, 53 casos sobre las piezas donde una regresión es invisible —el menú,
+   la credencial, la interpretación de errores, la ruta protegida y el listado—. Es el
+   andamio y lo crítico, no cobertura: las pantallas de Usuarios y los formularios de alta
+   siguen sin tests.
 5. **Sin revocación de tokens.** Ya no hace falta para las bajas —la autorización se
    resuelve contra la base—, pero un token robado sigue valiendo hasta 8 horas.
 6. ~~**No hay forma de recuperar una contraseña.**~~ **Resuelto el 2026-08-14** (SEC-03):

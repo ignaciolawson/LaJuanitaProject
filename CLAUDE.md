@@ -25,8 +25,14 @@ docs/
 ├── propuesta/     technical & commercial proposal
 ├── requirements/  per-app scope
 ├── branding/      brand assets + identity guide
-├── db/            data model (DBML)
+├── db/            data model (DBML) + the adversarial audit of the schema
+├── auditoria/     the 2026-08 technical audit and its remediation log
+├── operacion.md   backup, tested restore, deploy, migration failures
 └── sistema-gestion-plan.md   plan + settled decisions for platform/backend
+scripts/
+├── backup.sh      pg_dump with retention, for cron
+└── pruebas-sql.sh the two SQL suites against throwaway databases
+.github/workflows/ci.yml   the pipeline
 ```
 
 `apps/landing` and `apps/platform` are npm workspaces declared in the root `package.json`. `apps/backend` is a separate Maven project, not part of the npm workspace.
@@ -45,11 +51,16 @@ npm run build:platform
 cd apps/landing && npm run lint       # eslint
 cd apps/platform && npm run lint      # oxlint
 
+cd apps/platform && npm test          # vitest, 53 cases, no backend needed
+cd apps/platform && npm run test:watch
+
 cd apps/backend && mvn spring-boot:run
 cd apps/backend && mvn test
 cd apps/backend && mvn -Dtest=ClassName#methodName test   # single test
 
 docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanita)
+./scripts/pruebas-sql.sh   # the two SQL suites on throwaway databases
+./scripts/backup.sh        # pg_dump with retention — see docs/operacion.md
 ```
 
 **To see the platform running you need all three up**, in this order: `docker compose up -d`,
@@ -64,19 +75,40 @@ this machine (`curl: Failed to fetch .../apache-maven-3.9.16-bin.zip`); a workin
 compiles fine, it just isn't the mismatch it looks like. Docker Desktop is often not
 running: `docker compose up -d` fails with a named-pipe error until you launch it.
 
-**Database rule tests** — 69 cases covering every business rule the schema enforces
-(overlap, room×use matrix, premaster lock, state machines, currency, discounts,
-deletion protection). They run against a throwaway database, never the dev one.
-Full instructions are in the header of
-`apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql`. In Git Bash prefix
-`docker` calls with `MSYS_NO_PATHCONV=1` or it rewrites `/tmp` into a Windows path —
-and never set that variable in a shell where you also run `mvn`, because it breaks
-the Maven launcher's classpath.
+**Database rule tests** — 136 cases (86 business-rule + 50 adversarial) covering every
+rule the schema enforces (overlap, room×use matrix, premaster lock, state machines,
+currency, discounts, deletion protection). They run against throwaway databases, never
+the dev one. **Run them with `./scripts/pruebas-sql.sh`** — the nine-command procedure
+that used to live in the file headers is gone, and so is the hand-maintained list of
+migrations: **the script reads the migration directory**, so a new migration joins the
+run on its own. That list was duplicated in both headers and went stale twice, at V4
+and at V6. In Git Bash prefix `docker` calls with `MSYS_NO_PATHCONV=1` or it rewrites
+`/tmp` into a Windows path — and never set that variable in a shell where you also run
+`mvn`, because it breaks the Maven launcher's classpath.
+
+**`mvn test` does not run them**, and that asymmetry is the point: the CHECKs, triggers
+and EXCLUDEs are where this project put its business rules, and neither suite is part of
+the Java build. The script exits non-zero when a case fails — the suites themselves print
+a summary and exit 0 no matter what, which is why CI would have run them green forever.
 
 Two rules those tests encode, learned by getting them wrong: never hardcode IDs (a
 rejected INSERT still consumes the identity value, so IDs stop being sequential), and
 a "should succeed" case must assert rows were actually affected — an UPDATE matching
 nothing raises no error and passes vacuously.
+
+**CI runs all four checkable things** (`.github/workflows/ci.yml`): `mvn test` against a
+Postgres service — which also proves the eight migrations apply to an empty database, the
+one thing nobody had verified before the audit — the SQL script, the two builds, the two
+linters, and the platform's Vitest suite. The SQL script has a second mode for exactly
+this: with `PGHOST` set it uses `psql` directly instead of `docker exec`, because in
+Actions Postgres is a service, not a container you can exec into.
+
+**Operations live in `docs/operacion.md`**: backup, **a restore that was actually
+rehearsed**, and what to do when a migration fails. The restore rehearsal is worth knowing
+about before you need it — it verified that the restored database keeps its *rules*, not
+just its rows, and that the real application boots against it. The one section left open
+is deploy, which waits on the October hosting decision; it says so in its first paragraph
+rather than inventing a procedure nobody ran.
 
 ## Landing: current state
 
@@ -175,14 +207,14 @@ A user who still owes a password change gets the single authority `ROLE_PASSWORD
 - **`RegistroDeEventos` is the only place in the backend that reads the request context implicitly** (`RequestContextHolder`, to get the IP). That's deliberate and concentrated in one method, so six services don't have to carry an `HttpServletRequest` they need for nothing else. Behind the planned HTTPS proxy it will log the proxy's IP until `server.forward-headers-strategy` is set — that's part of putting the proxy up.
 - **A password reset exists**: `POST /api/usuarios/{id}/password-temporal`. It must keep going through `verificarQuePuedeTocarEstaCuenta` — without it a STAFF resets an ADMIN's password and owns the system, which is the 12/08 hole reopened through a new door. `PermisosPorRolTest` pins it. And the temporary password now expires (7 days, `lajuanita.password-temporal.vigencia`): `debe_cambiar_password` and `password_temporal_desde` are one fact in two columns and the database refuses to let them disagree (`usuario_password_temporal_coherente`, V8), so write them only through `Usuario.marcarPasswordTemporal` / `marcarPasswordElegida`.
 
-**Backend**: Spring Boot 4.1 / Java 21, Spring Data JPA, Spring Security (JWT), Bean Validation, Lombok. `spring.jpa.hibernate.ddl-auto=validate` — no auto-DDL, ever. Schema lives in Flyway migrations under `src/main/resources/db/migration`: `V1__baseline.sql` (22 tables), `V2__datos_iniciales.sql` (rooms + the room×use matrix), `V3__usuario_admin_inicial.sql` (dev admin), `V4__separar_nombre_apellido.sql`, `V5__cambio_de_password_obligatorio.sql`, `V6__integridad_auditoria.sql`, `V7__auditoria_historial_y_bloqueos.sql` and `V8__vencimiento_password_temporal.sql`. **V6** closes 10 integrity holes found by attacking the running schema (12 CHECKs, 3 triggers, an EXCLUDE and a partial UNIQUE); the attacks and what was deliberately left open are written up in **`docs/db/auditoria-2026-08-12.md`**, its companion document. **V7** adds the rules the scope document declares *confirmed with the client* and the schema never tried to enforce: annulling a payment now demands author, date and reason (it was the only exception in the whole schema that demanded nothing); class history — `reserva` and `reserva_participante` — can't be deleted and can't have attendance edited without naming who did it; `venta_equipo` gets a load stamp. It also fixes the `bloqueo_sala` EXCLUDE, which read a blocking row as one continuous interval while both triggers read it as a time slot repeating every day of the range — so it rejected legitimate blocks. **V8** gives the temporary password a date so it can expire. As of 2026-08-14 all eight apply cleanly to an empty database and both SQL suites pass on the result (86/86 and 50/50).
+**Backend**: Spring Boot 4.1 / Java 21, Spring Data JPA, Spring Security (JWT), Bean Validation, Lombok. `spring.jpa.hibernate.ddl-auto=validate` — no auto-DDL, ever. Schema lives in Flyway migrations under `src/main/resources/db/migration`: `V1__baseline.sql` (22 tables), `V2__datos_iniciales.sql` (rooms + the room×use matrix), `V3__usuario_admin_inicial.sql` (dev admin), `V4__separar_nombre_apellido.sql`, `V5__cambio_de_password_obligatorio.sql`, `V6__integridad_auditoria.sql`, `V7__auditoria_historial_y_bloqueos.sql` and `V8__vencimiento_password_temporal.sql`. **V6** closes 10 integrity holes found by attacking the running schema (12 CHECKs, 3 triggers, an EXCLUDE and a partial UNIQUE); the attacks and what was deliberately left open are written up in **`docs/db/auditoria-2026-08-12.md`**, its companion document. **V7** adds the rules the scope document declares *confirmed with the client* and the schema never tried to enforce: annulling a payment now demands author, date and reason (it was the only exception in the whole schema that demanded nothing); class history — `reserva` and `reserva_participante` — can't be deleted and can't have attendance edited without naming who did it; `venta_equipo` gets a load stamp. It also fixes the `bloqueo_sala` EXCLUDE, which read a blocking row as one continuous interval while both triggers read it as a time slot repeating every day of the range — so it rejected legitimate blocks. **V8** gives the temporary password a date so it can expire. As of 2026-08-14 all eight apply cleanly to an empty database and both SQL suites pass on the result (86/86 and 50/50) — and **CI now proves that on every push**, which is what "applies cleanly to an empty database" needs to keep being true.
 
 Two traps worth carrying forward, both found by tests written against V7 rather than by reading it:
 
 - **A CHECK that evaluates to NULL doesn't reject anything** — only FALSE does. `CHECK (... AND btrim(motivo) <> '')` let a row through with `motivo` NULL, because `btrim(NULL) <> ''` is NULL. Wrap the text in `coalesce(btrim(x), '')`.
 - **A generated column is computed before the CHECKs run**, so an expression that throws (`daterange`/`tsrange` with the bounds inverted) pre-empts the constraint that would have explained the problem. `reserva_horas_validas` is unreachable for exactly this reason (DB-11). V7's generated columns return NULL instead of throwing, so V1's CHECKs stay the ones that speak.
 
-**Every new migration also updates the headers of the two SQL test files** (`pruebas-reglas-negocio.sql`, `pruebas-adversariales.sql`) — they carry the list of migrations to apply, and a suite run against a schema that is no longer the project's proves nothing. It has already gone wrong twice, at V4 and at V6. Migration and headers move as one unit.
+**A new migration no longer requires editing the two SQL test headers.** It used to: they carried the list of migrations to apply, the list was duplicated, and it went stale twice — at V4 and at V6 — because a suite run against a schema that is no longer the project's proves nothing and doesn't warn. `scripts/pruebas-sql.sh` now reads the migration directory (`sort -V`, so `V10` doesn't land before `V2`), so the only thing a new migration still owes those files is a case for the rule it adds.
 
 **Spring Boot 4 moved autoconfigurations into their own modules.** Depending on raw `org.flywaydb:flyway-core` puts Flyway on the classpath but **it never runs at startup, silently** — the app boots against an empty database and `ddl-auto=validate` passes because there are no entities yet. The dependency that carries the autoconfiguration is `org.springframework.boot:spring-boot-starter-flyway`. Same pattern elsewhere in this pom: it uses `spring-boot-starter-webmvc`, not `spring-boot-starter-web`. Don't port Spring Boot 3 dependency names from memory — check the 4.1 BOM.
 
