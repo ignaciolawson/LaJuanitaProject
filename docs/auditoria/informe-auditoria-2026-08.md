@@ -2168,6 +2168,27 @@ que alguna de esas clases se toque por otro motivo.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO: la regla está escrita en `CLAUDE.md`**,
+> como tabla de seis filas más la regla de la frontera. **No se renombró nada**, tal cual
+> la recomendación.
+>
+> **Y al escribirla apareció que la regla no era la que el hallazgo enunciaba.** *"Infra en
+> inglés, dominio en español"* describe bien los **nombres de paquete** (`auth`, `config`,
+> `web`, `dto` contra `usuario`, `alumno`, `profesor`) y **falla con las clases**: dentro de
+> esos mismos paquetes de infraestructura, casi todo está en español —`SeguridadConfig`,
+> `AutenticacionDesdeBase`, `ManejadorDeErrores`, `LimitadorDeIntentos`,
+> `RespuestaDeNoAutenticado`, `SesionService`—. La regla real es más simple y explica más:
+> **inglés sólo donde lo impone el framework o la URL; todo lo demás, español.**
+>
+> Con eso, las tres "excepciones" que el hallazgo lista dejan de serlo y pasan a ser la
+> regla aplicada: `LoginRequest` y `AuthController` se llaman como el endpoint que sirven
+> (`/api/auth/login`), y `RegistroRequest` está en español porque `/api/auth/registro`
+> también lo está. `App.tsx` y `main.tsx` los impone Vite. **Escribir una convención sirve
+> para eso: obliga a mirar si la que uno creía tener es la que hay.**
+>
+> Los archivos que esta misma tanda creó salieron consistentes con la regla escrita:
+> `Autoridades`, `ErrorPorDefecto`.
+
 ---
 
 #### ARQ-09 — Solo los tipos de respuesta están en TypeScript; los de pedido son objetos sueltos
@@ -4181,7 +4202,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-05** | Bajo | XS | 5 | ✅ | — |
 | **ARQ-06** | Bajo | S | 8 | ✅ | Movidos. `normalizar` queda duplicado a propósito — ver el bloque del hallazgo |
 | **ARQ-07** | Bajo | XS | 8 | ✅ | — |
-| **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
+| **ARQ-08** | Bajo | S | 8 | ✅ | — |
 | **ARQ-09** | Bajo | S | 5→8 | ✅ | — |
 | **ARQ-10** | Info | — | 8 | ✅ | **Decidido en §13: se duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que ahorra |
 | **SEO-01** | Alto | M | 7 | ✅ | — |
