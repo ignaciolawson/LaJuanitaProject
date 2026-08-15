@@ -11,7 +11,7 @@ import { PROGRAMS } from "@/data/programs";
 /**
  * Programas — riel horizontal anclado.
  *
- * La sección se fija y los tres programas desfilan de costado. Funciona acá
+ * La sección se fija y los programas desfilan de costado. Funciona acá
  * y no en cualquier lado porque son pocos ítems comparables entre sí: el
  * gesto lateral se lee como "pasar fichas".
  *
@@ -250,6 +250,10 @@ export function ProgramsRail() {
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-[color:var(--page-line)] pt-4">
                   <div className="t-mono text-[color:var(--page-faint)]">
                     <span className="block">{program.duration}</span>
+                    {/* "desde" y no un precio cerrado: los precios de la
+                        landing siguen sin validarse uno por uno (§13). La
+                        salvedad completa va en la tarjeta de `/programas` y en
+                        el detalle; acá no entra sin romper la fila. */}
                     <span className="mt-1 block text-[color:var(--page-fg)]">{program.price}</span>
                   </div>
                   <Link

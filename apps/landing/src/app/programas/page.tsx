@@ -15,7 +15,7 @@ import { SERVICES } from "@/data/services";
 export const metadata: Metadata = pageMetadata({
   title: "Cursos de DJ y producción musical en Pilar",
   description:
-    "Tres programas presenciales o virtuales en vivo: Convertite en DJ, Producción Musical Electrónica y Mix & Mastering. Sobre Pioneer CDJ-3000 en cabina real, en Pilar, Buenos Aires.",
+    "Dos programas presenciales o virtuales en vivo: Convertite en DJ (8 clases) y Producción Musical Electrónica (16 clases), una clase por semana de una hora y media. Sobre Pioneer CDJ-3000 en cabina real, en Pilar, Buenos Aires.",
   path: "/programas",
 });
 

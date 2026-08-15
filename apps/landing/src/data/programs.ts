@@ -1,7 +1,28 @@
 /**
- * Contenido placeholder — reemplazar los textos por los definitivos.
+ * Contenido placeholder — reemplazar los textos largos por los definitivos.
+ * El FORMATO ya no es placeholder: sale de `platform.md` §13 (2026-08-14).
  *
- * Pasamos de cuatro programas a tres: "DJ Inicial" y "DJ Avanzado" eran el
+ * ── EL FORMATO, CONFIRMADO ──
+ *
+ * Cada clase dura 1:30 y va UNA VEZ POR SEMANA. DJ son 8 clases y Producción
+ * Musical, 16. La landing publicaba 6 y 8 MESES con DOS clases semanales: no
+ * era una imprecisión, era otro producto.
+ *
+ * **No hay fecha de fin garantizada, y por eso acá no se publican meses.**
+ * Ninguna clase se pierde (P2): si falta el alumno o falta el profesor, se
+ * recupera. El curso termina cuando se dictaron las clases contratadas, y eso
+ * depende de cada alumno. Si en algún texto se mencionan meses, tiene que ser
+ * como estimación y decirlo.
+ *
+ * ── UN PROGRAMA MENOS ──
+ *
+ * "Mix & Mastering" ya no está acá: **es un servicio, no un curso** (§13, P31).
+ * La landing lo había inventado como programa de 3 meses, con página propia y
+ * un `Course` de schema.org declarando instancias que se dictan. Sigue siendo
+ * una línea real del negocio y aparece como servicio en el sitio y en el
+ * `llms.txt` — lo que se fue es el curso.
+ *
+ * Pasamos de cuatro programas a tres, y de tres a dos: "DJ Inicial" y "DJ Avanzado" eran el
  * mismo camino partido en dos y obligaban a la persona a autodiagnosticarse
  * el nivel antes de entender qué se enseña. Ahora es un solo programa
  * ("Convertite en DJ") y el nivel se resuelve dentro de la solicitud, con
@@ -51,8 +72,10 @@ export type Program = {
   outcomes: string[];
   /**
    * `apply` abre el formulario de solicitud; `consult` manda a contacto.
-   * Mix & Mastering es a medida y con cupo de sala, así que pedir los mismos
-   * datos que en un programa con fecha de arranque no tendría sentido.
+   *
+   * Hoy los dos programas son `apply`. `consult` queda para el caso de un
+   * programa a medida o con cupo de sala, donde pedir los mismos datos que en
+   * uno con fecha de arranque no tendría sentido.
    */
   cta: "apply" | "consult";
 };
@@ -65,7 +88,7 @@ export const PROGRAMS: Program[] = [
     tagline: "De no tocar nada a tener tu primer set",
     description:
       "El camino completo detrás de las bandejas: desde poner dos temas en tiempo hasta leer una pista y sostener una hora sin que se te caiga.",
-    duration: "6 meses · 2 clases semanales",
+    duration: "8 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $85.000/mes",
     highlights: ["CDJ-3000 y mixer DJM", "Grupos reducidos", "Práctica libre incluida"],
@@ -146,7 +169,7 @@ export const PROGRAMS: Program[] = [
     tagline: "De la idea suelta al track terminado",
     description:
       "Diseño de sonido, arreglo y mezcla en DAW. Salís con un EP propio terminado y listo para masterizar.",
-    duration: "8 meses · 2 clases semanales",
+    duration: "16 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $110.000/mes",
     highlights: ["Ableton Live", "Diseño de sonido", "EP final incluido"],
@@ -203,63 +226,6 @@ export const PROGRAMS: Program[] = [
       "Postulación al sello con material real.",
     ],
     cta: "apply",
-  },
-  {
-    slug: "mix-mastering",
-    name: "Mix & Mastering",
-    shortName: "Mix & Mastering",
-    tagline: "El último paso, hecho bien",
-    description:
-      "Intensivo de mezcla y masterización en sala tratada, para productores que ya tienen tracks propios y quieren que suenen a la par.",
-    duration: "3 meses · 1 clase semanal",
-    modality: "Presencial — sede Pilar",
-    price: "A consultar",
-    highlights: ["Sala tratada acústicamente", "Monitoreo profesional", "1 track masterizado"],
-    image: "/images/estudio/sala-mastering.jpg",
-    level: 70,
-    levelLabel: "Para productores activos",
-    intro: [
-      "Este no es un programa para empezar. Es para el que ya produce, ya termina tracks, y se choca siempre con lo mismo: en los auriculares suena bien y en el auto o en el club se cae.",
-      "Se trabaja sobre tu propio material en la sala de mastering, con monitoreo de referencia. Vas a escuchar por primera vez lo que tus mezclas realmente tienen, que suele ser bastante distinto de lo que creías.",
-      "Es a medida y con cupo muy limitado, porque el tiempo de sala es finito. Por eso el arranque se coordina por consulta y no por inscripción abierta.",
-    ],
-    reasons: [
-      {
-        title: "Sala que no te miente",
-        detail: "Tratamiento acústico y monitoreo de referencia. Sin eso, mezclar es adivinar con confianza.",
-      },
-      {
-        title: "Sobre tu material",
-        detail: "Se trabaja con tus tracks, no con stems de ejercicio. Lo que corregís queda corregido.",
-      },
-      {
-        title: "Cupo muy reducido",
-        detail: "Pocas personas por camada para que cada una tenga tiempo real de sala.",
-      },
-      {
-        title: "Un track masterizado",
-        detail: "Terminás con al menos un tema tuyo masterizado y listo para distribuir.",
-      },
-    ],
-    forWho: [
-      "Producís y terminás tracks, pero no llegás al volumen ni a la claridad que buscás.",
-      "Tus mezclas cambian demasiado entre sistemas.",
-      "Vas a publicar y querés entender qué le estás entregando a un mastering.",
-      "Trabajás con música y necesitás profesionalizar tu salida.",
-    ],
-    modules: [
-      { title: "Escucha crítica", detail: "Acústica, monitoreo y cómo entrenar el oído para decidir." },
-      { title: "Ganancia y balance", detail: "El orden correcto antes de tocar un solo ecualizador." },
-      { title: "Ecualización y dinámica", detail: "Compresión, saturación y control en la mezcla." },
-      { title: "Profundidad y espacio", detail: "Reverb, delay y ubicación en el campo estéreo." },
-      { title: "Mastering", detail: "Cadena, loudness real, targets de plataformas y entrega." },
-    ],
-    outcomes: [
-      "Un track tuyo masterizado y listo para distribuir.",
-      "Cadena de mastering propia, entendida y no copiada.",
-      "Criterio de escucha crítica aplicable a todo lo que hagas después.",
-    ],
-    cta: "consult",
   },
 ];
 

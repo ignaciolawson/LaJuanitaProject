@@ -23,10 +23,11 @@ import { CONTACT } from "@/data/contact";
  * recién ahí el temario, y el formulario al final — cuando ya hay razones
  * para completarlo.
  *
- * Mix & Mastering no muestra formulario: es a medida y con cupo de sala, así
- * que pedirle a alguien los mismos datos que en un programa con fecha de
- * arranque sería pedirle trabajo por una respuesta que igual va a ser
- * "hablemos".
+ * Un programa con `cta: "consult"` no muestra formulario, sino que manda a
+ * contacto: si es a medida o con cupo de sala, pedirle a alguien los mismos
+ * datos que en uno con fecha de arranque es pedirle trabajo por una respuesta
+ * que igual va a ser "hablemos". Hoy los dos programas son `apply`; el caso
+ * existía por Mix & Mastering, que dejó de ser un programa (§13).
  */
 
 export function generateStaticParams() {

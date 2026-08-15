@@ -53,8 +53,12 @@ export const FAQ: FaqItem[] = [
   },
   {
     question: "¿Cuánto duran los programas?",
+    // Confirmado en `docs/requirements/platform.md` §13 (2026-08-14). Se
+    // publica la CANTIDAD DE CLASES y no una cantidad de meses: ninguna clase
+    // se pierde, así que la fecha de fin depende de cada alumno. Un número de
+    // meses acá se lee como compromiso.
     answer:
-      "Convertite en DJ dura 6 meses con dos clases semanales. Producción Musical Electrónica dura 8 meses, también con dos clases por semana. Mix & Mastering es un intensivo de 3 meses con una clase semanal, con cupo reducido porque depende del tiempo disponible de sala.",
+      "Los programas de La Juanita Studio se miden en clases, no en meses: Convertite en DJ son 8 clases y Producción Musical Electrónica son 16, en ambos casos una clase por semana de una hora y media. Como ninguna clase se pierde —si falta el alumno o el profesor se recupera—, el curso termina cuando se dictaron todas las clases contratadas.",
   },
   {
     question: "¿Puedo alquilar la cabina sin ser alumno?",
