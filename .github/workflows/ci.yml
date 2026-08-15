@@ -1,0 +1,122 @@
+# Integración continua — La Juanita Studio
+#
+# POR QUÉ EXISTE (QA-04). Antes había cuatro cosas verificables y cuatro formas
+# manuales de hacerlo, todas dependientes de que alguien se acordara. Lo que un
+# pipeline mínimo habría atajado tiene nombre y apellido en la auditoría: que las
+# migraciones apliquen limpio sobre una base VACÍA, que es algo que nadie había
+# comprobado hasta la Fase 1 — y la única forma de comprobarlo es crear una base
+# nueva, o sea exactamente lo que pasa acá en cada corrida.
+#
+# Lo que este pipeline NO ataja, para no venderlo de más: ARQ-01, SEO-01 y DB-01
+# eran huecos de DISEÑO, no regresiones, y ningún CI los encuentra.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Una corrida por rama: si se pushea dos veces seguidas, la primera se cancela
+# en vez de competir por los runners.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend + base de datos
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        # Los mismos valores que el docker-compose de desarrollo, que son los
+        # defaults del application.properties: así el job no necesita definir
+        # DB_URL ni nada. Son públicos y no importa que lo sean — esta base vive
+        # los tres minutos que dura la corrida.
+        env:
+          POSTGRES_DB: la_juanita
+          POSTGRES_USER: la_juanita
+          POSTGRES_PASSWORD: la_juanita
+        ports:
+          - 5432:5432
+        # Sin esto el job arranca contra una base que todavía se está
+        # inicializando y falla en el primer paso, de forma intermitente.
+        options: >-
+          --health-cmd "pg_isready -U la_juanita -d la_juanita"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          # El pom apunta a 21. Local hay un JDK 25 en el PATH y compila igual,
+          # pero el CI usa la versión declarada.
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # Las migraciones las aplica Flyway al arrancar el contexto de Spring, así
+      # que este paso prueba dos cosas a la vez: los tests, y que las ocho
+      # migraciones apliquen sobre una base vacía.
+      - name: mvn test
+        working-directory: apps/backend
+        run: mvn --batch-mode test
+
+      - name: Cliente de Postgres
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # Las dos suites SQL, sobre bases descartables propias. `mvn test` no las
+      # toca: los CHECK, los triggers y los EXCLUDE son donde este proyecto puso
+      # sus reglas de negocio, y ninguna de las dos entra en el build de Java.
+      #
+      # PGHOST hace que el script use `psql` directo: acá Postgres es un
+      # servicio, no un contenedor al que se le pueda hacer `docker exec`.
+      - name: Pruebas SQL (reglas de negocio + adversariales)
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: la_juanita
+          PGPASSWORD: la_juanita
+        run: ./scripts/pruebas-sql.sh
+
+  front:
+    name: Landing + panel
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22: Vite 8 pide ^20.19 || >=22.12 y Vitest 4 pide 20 || 22 || >=24.
+          node-version: '22'
+          cache: npm
+
+      # `ci` y no `install`: respeta el lock y falla si package.json y
+      # package-lock.json no coinciden, que es justo lo que hay que detectar.
+      - name: npm ci
+        run: npm ci
+
+      - name: Tests del panel
+        run: npm run test:platform
+
+      - name: Build del panel
+        run: npm run build:platform
+
+      - name: Build de la landing
+        run: npm run build:landing
+
+      - name: Lint
+        run: |
+          npm run lint:platform
+          npm run lint:landing
