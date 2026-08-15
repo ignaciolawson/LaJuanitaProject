@@ -523,34 +523,19 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: qué sigue
+### ⏭️ Si estás retomando: arrancá con `inscripcion`
 
-**La auditoría está cerrada y no queda ninguna decisión tuya pendiente.** Lo que
-sigue es producto.
+**No hay nada previo que hacer.** La auditoría se cerró el 2026-08-15, el backlog
+quedó en cero y no hay ninguna decisión tuya pendiente — la seña, que era la
+última, está tomada. Lo que sigue es producto.
 
-1. ~~**PUSHEAR.**~~ **Hecho.** `main` local y remoto coinciden (verificado con
-   `git fetch`: 0 commits de diferencia). Las tandas 6 y 7 y `V9` ya no viven en
-   un solo disco. **Lo que sigue sin confirmarse es el pipeline en Actions**: los
-   cuatro pasos se verificaron a mano en local, pero **nadie miró todavía la
-   pestaña Actions del repo**. Es un vistazo, no una tarea.
-2. ~~**Decidir la seña** (DB-04a).~~ **DECIDIDA el 2026-08-15.** *"Todo se debe
-   señar antes, todo. Menos mix y mastering, que eso lo va decidiendo Ghezz. La
-   seña es el 50% del total."* Coincide con lo que §1 ya tenía confirmado del
-   relevamiento —*"si no hay seña, el horario queda libre"*, y *"M&M sí puede
-   quedar en debe"*—. La ficha completa, con cómo se traduce a la base, está en
-   [`platform.md` §13](requirements/platform.md). **Ya no bloquea el Módulo 2**:
-   lo que queda es escribir la migración, y va con el arranque de ese módulo
-   porque el trigger obliga a insertar la reserva y su pago en la misma
-   transacción — o sea, es una condición sobre pantallas que todavía no existen.
+**Antes de escribir código, dos lecturas cortas:** la sección
+[`Lo próximo: inscripcion`](#lo-próximo-inscripcion) de acá abajo, y
+[`platform.md` §3.1](requirements/platform.md) (por qué esta tabla es el hueco
+más grande del modelo). Todo lo demás ya está decidido.
 
-3. **Arrancar `inscripcion`. Es lo único que queda por hacer**, y no lo bloquea
-   nada: la remediación terminó el 2026-08-15 —ocho tandas, 56 de 56, backlog en
-   cero— y la seña, que era el último bloqueo real, está decidida. Detalle abajo.
-
-   Y cuando después de `inscripcion` arranque el **Módulo 2**, abrí
-   [`platform.md` §5](requirements/platform.md) antes de escribir la primera
-   pantalla: ahí quedaron **las dos únicas reglas del sistema que hoy viven en un
-   documento y no en el código** — la seña y el orden de las horas.
+**Y para verificar que arrancás en verde**, los cuatro comandos del CI están al
+final de esta sección.
 
 ### Estado real
 
@@ -596,25 +581,49 @@ diciembre incluye migrar el Notion y correr en paralelo con el sistema viejo.
 
 Es la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la 2,
 el contenido de la 3 y toda la 4. También es la que habilita *"el profesor ve solo
-sus alumnos"*, porque la relación profesor↔alumno vive ahí.
+sus alumnos"*, porque la relación profesor↔alumno vive ahí — en
+`inscripcion.id_profesor`, no en el alumno, así el mismo alumno puede tener un
+profe para DJ y otro para mentoría (P6).
 
-Ya tiene reglas duras definidas en `docs/requirements/platform.md`: curso cerrado de
-8 clases (P1), varias inscripciones activas a la vez pero **nunca dos niveles de la
-misma disciplina** (P3, índice único parcial), y profesor asignado explícito (P6).
+**La tabla ya existe** desde `V1__baseline.sql`, con todo lo que hace falta:
 
-**Ya no hay nada que preguntar antes de arrancar.** P4 y P5 —las dos que este
-párrafo daba por bloqueantes— están contestadas en `platform.md` §13 desde el
-2026-08-14: los alumnos informales de Ghezz **entran** al sistema como alumnos
-normales, y la nivelación **la hace el formulario de la landing**, con Micaela
-pudiendo corregir el nivel después.
+```
+inscripcion(id_alumno, id_profesor, disciplina, nivel, clases_contratadas,
+            precio_total, moneda, cotizacion_dolar, fecha_inicio, estado, notas)
+```
 
-Lo que sí conviene cerrar antes de llegar a las reservas es **la seña** (punto 2
-de arriba). No frena `inscripcion`, frena el Módulo 2.
+**No hay nada que preguntar ni que decidir antes de arrancar.** Todo lo que este
+módulo necesita saber está cerrado:
 
-**Y `V9` ya dejó escritas en la base tres reglas que este módulo va a necesitar:**
-no se consumen más clases que las contratadas, el nivel no retrocede sin firma, y
-nadie está en dos salas a la vez. O sea que buena parte de lo que `inscripcion`
-tendría que cuidar a mano ya lo impone el esquema.
+| Regla | Dónde | Qué dice |
+|---|---|---|
+| Formato del curso | §13 (P34) | 1:30 semanal. **DJ = 8 clases, Producción = 16.** No hay fecha de fin garantizada: termina cuando se dictaron todas |
+| Una inscripción por disciplina | P3 | Varias activas a la vez sí (DJ + mentoría); **nunca dos niveles de la misma disciplina**. Ya impuesto: índice único parcial |
+| Profesor asignado | P6 | Explícito, en `inscripcion.id_profesor`. Que otro cubra una clase suelta **no** transfiere el alumno |
+| Alumnos informales de Ghezz | §13 (P4) | **Entran** como alumnos normales |
+| Nivelación | §13 (P5) | La hace el formulario de la landing; Micaela corrige después |
+| Precio | §1 | **Se paga todo antes de empezar. No hay cuotas.** La única excepción del sistema es M&M |
+| Clases restantes | §3.1 | **Se calculan, no se guardan** |
+
+**Y la base ya cuida sola tres cosas** que este módulo tendría que vigilar a mano,
+cortesía de `V9`: no se consumen más clases que las contratadas, el nivel no
+retrocede sin autor y motivo, y nadie está en dos salas a la vez.
+
+**Por dónde entrar, siguiendo el patrón que ya está armado en `alumno`:**
+
+1. `Inscripcion` (entidad) + `InscripcionRepository`, al lado de `Alumno`.
+2. `InscripcionService` **con sus tests desde el principio** — el módulo 1 se
+   escribió sin tests propios y hubo que agregarlos después (`AlumnoTest`, QA-01).
+3. `InscripcionController` con `@PuedeLeerAdministracion` / `@PuedeOperar`, y
+   `Autoridades.esAdmin()` si hace falta distinguir. **No escribas `rol == …`
+   suelto.**
+4. Tipos en `apps/platform/src/api/` — **respuesta y pedido**, los dos (ARQ-09).
+5. Pantalla 4 del Módulo 1 (*Alta de inscripción*) y, con eso, los filtros por
+   disciplina y nivel que le faltan al listado.
+
+**Ojo con el refactor que trae:** `alumno.disciplina` y `alumno.nivel_actual` son
+campos sueltos hoy y se rompen apenas alguien cursa DJ y producción a la vez. Ese
+es el cambio que `AlumnoTest` está cubriendo — por eso se escribió antes.
 
 ### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 

@@ -4135,8 +4135,9 @@ no arrancar, `flyway:repair`, verla arrancar.
   decide en octubre. Está escrito *como lo que falta*, no disfrazado de procedimiento.
 - **Testcontainers**, el escalón 2 de QA-03. Menos urgente ahora que las 136 pruebas
   corren en cada push.
-- **El YAML corriendo en Actions**: los cuatro pasos se verificaron en local, uno por uno,
-  pero el workflow en sí se confirma en el primer push.
+- ~~**El YAML corriendo en Actions**: los cuatro pasos se verificaron en local, uno por uno,
+  pero el workflow en sí se confirma en el primer push.~~ **Ya se pusheó** (2026-08-15).
+  Deja de ser un pendiente del proyecto: si el workflow falla, lo dice Actions.
 
 **Un hallazgo nuevo salió de acá:** QA-08, la credencial con `expiraEn` ilegible.
 
@@ -4317,7 +4318,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **QA-01** | Alto | M | 6 | ✅ | — |
 | **QA-02** | Alto | M | 7 | ✅ | — |
 | **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
-| **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
+| **QA-04** | Medio | M | 6 | ✅ | — |
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
 | **QA-06** | Medio | S | 8 | ✅ | — |
 | **QA-08** | Bajo | XS | 8 | ✅ | — |
