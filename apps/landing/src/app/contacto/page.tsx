@@ -57,13 +57,18 @@ export default function ContactoPage() {
                 <MessageCircle size={20} className="text-red" aria-hidden />
                 {CONTACT.whatsappDisplay}
               </a>
-              <a
-                href={`mailto:${CONTACT.email}`}
-                className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
-              >
-                <Mail size={20} className="text-red" aria-hidden />
-                {CONTACT.email}
-              </a>
+              {/* Sólo si hay casilla real. El mail que estaba acá no existe
+                  (§13): un `mailto:` a una dirección inventada no es un dato
+                  provisorio, es un mensaje que nadie recibe nunca. */}
+              {CONTACT.email && (
+                <a
+                  href={`mailto:${CONTACT.email}`}
+                  className="flex items-center gap-3 text-[color:var(--page-fg)] transition-colors hover:text-red"
+                >
+                  <Mail size={20} className="text-red" aria-hidden />
+                  {CONTACT.email}
+                </a>
+              )}
               <p className="flex items-center gap-3 text-[color:var(--page-fg)]">
                 <MapPin size={20} className="text-red" aria-hidden />
                 {CONTACT.address}

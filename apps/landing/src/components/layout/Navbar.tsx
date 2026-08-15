@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { gsap, useGSAP, ScrollTrigger, ScrollSmoother, prefersReduced } from "@/lib/gsap";
 import { Fan } from "@/components/brand/Fan";
+import { CONTACT } from "@/data/contact";
 
 const NAV = [
   { href: "/programas", label: "Programas", index: "01" },
@@ -272,9 +273,12 @@ export function Navbar() {
             </Link>
           </div>
 
+          {/* Los datos salen de `data/contact.ts`, no escritos a mano: acá
+              había un email hardcodeado que sobrevivió a que la constante
+              pasara a `null`, y se seguía dibujando en las catorce páginas. */}
           <div data-menu-item className="t-mono mt-8 flex flex-wrap gap-x-6 gap-y-2 text-bone/45">
-            <span>Pilar, Buenos Aires</span>
-            <span>hola@lajuanitastudio.com</span>
+            <span>{CONTACT.addressShort}</span>
+            <span>{CONTACT.whatsappDisplay}</span>
           </div>
         </div>
       </div>

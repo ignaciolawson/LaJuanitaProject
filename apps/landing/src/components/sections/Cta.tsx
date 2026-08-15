@@ -95,11 +95,13 @@ export function Cta() {
               Escribinos por WhatsApp
             </a>
           </Magnetic>
-          <Magnetic strength={0.32}>
-            <a href={`mailto:${CONTACT.email}`} data-cursor="MAIL" className="btn">
-              {CONTACT.email}
-            </a>
-          </Magnetic>
+          {CONTACT.email && (
+            <Magnetic strength={0.32}>
+              <a href={`mailto:${CONTACT.email}`} data-cursor="MAIL" className="btn">
+                {CONTACT.email}
+              </a>
+            </Magnetic>
+          )}
         </div>
       </Container>
     </section>

@@ -169,7 +169,14 @@ export function organizationLd(): Json {
     url: SITE_URL,
     logo: absoluteUrl("/images/logo/icon.png"),
     image: absoluteUrl("/opengraph-image"),
+    // `compact()` lo omite si es `null`, que es justo el caso hoy: el email
+    // que estaba acá no existe, lo inventó la IA, y en un `LocalBusiness` un
+    // dato inventado no es un TODO — es un hecho verificado que Google levanta.
     email: CONTACT.email,
+    // El teléfono, en cambio, es real desde §13. Va en formato internacional
+    // porque es lo que schema.org espera y lo que permite cruzarlo con la
+    // ficha del lugar.
+    telephone: `+${CONTACT.whatsapp}`,
     address: compact({
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,

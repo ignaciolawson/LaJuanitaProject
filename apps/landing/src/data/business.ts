@@ -48,40 +48,52 @@ export const BUSINESS = {
   countryName: "Argentina",
 
   /**
-   * PENDIENTE — calle y número. Hoy el sitio dice sólo "Pilar, Buenos Aires".
-   * Sin esto el `LocalBusiness` va sin `streetAddress` (sigue siendo válido y
-   * útil: localidad + provincia + país son datos reales), pero Google no puede
-   * cruzarlo con una ficha de Google Business Profile ni ubicarlo en el mapa.
-   * Es el dato de mayor impacto que falta para SEO local.
+   * VERIFICADO el 2026-08-14 (§13) — era el dato de mayor impacto que faltaba
+   * para SEO local: sin él, Google no podía cruzar el sitio con una ficha de
+   * Google Business Profile ni ubicarlo en el mapa.
+   *
+   * El nombre del complejo es Office Park **Quatro**. "Office Park Pilar", que
+   * aparecía en el relevamiento, es la forma corta y queda superada.
    */
-  streetAddress: null as string | null,
-  postalCode: null as string | null,
+  streetAddress: "Colectora Oeste Ramal Pilar 209, locales 5 y 6 (Office Park Quatro)",
+  postalCode: "B1669",
 
   /**
-   * PENDIENTE — coordenadas. Van juntas con la dirección; sin dirección
-   * confirmada, poner un punto en el mapa es inventar dónde queda el local.
+   * PENDIENTE, y sigue pendiente aunque la dirección ya esté: §13 confirmó la
+   * calle, no las coordenadas. Sacarlas de un geocodificador y publicarlas como
+   * `GeoCoordinates` sería afirmar una precisión que nadie verificó — y un
+   * punto mal puesto en el mapa manda gente a la puerta equivocada.
+   *
+   * Se completan mirando la ficha real del lugar, no derivándolas del texto.
    */
   geo: null as { latitude: number; longitude: number } | null,
 
   /**
-   * PENDIENTE — horarios de atención. No están en ningún lado del sitio.
-   * Formato esperado (schema.org OpeningHoursSpecification), por ejemplo:
-   *   [{ days: ["Monday","Tuesday","Wednesday","Thursday","Friday"],
-   *      opens: "14:00", closes: "22:00" }]
-   * Es lo segundo más valioso para SEO local: alimenta el "Abierto ahora" de
-   * Google y es una de las preguntas que más le hacen a un asistente de IA.
+   * VERIFICADO el 2026-08-14 (§13): 10:00 a 18:00. Alimenta el "Abierto ahora"
+   * de Google y es una de las preguntas que más recibe un asistente de IA.
+   *
+   * Los días son de lunes a viernes porque es lo que se desprende de "horario
+   * de atención"; **si el estudio abre sábados, hay que agregarlos acá**, que
+   * es el único lugar donde se declaran.
    */
-  openingHours: null as
-    | { days: string[]; opens: string; closes: string }[]
-    | null,
+  openingHours: [
+    {
+      days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens: "10:00",
+      closes: "18:00",
+    },
+  ] as { days: string[]; opens: string; closes: string }[] | null,
 
   /**
-   * PENDIENTE — año de fundación. El sitio dice "desde 2019" en
-   * `sections/Numbers.tsx` y en la línea de tiempo de `/nosotros`, pero el
-   * `CLAUDE.md` marca las dos cosas como inventadas. Un `foundingDate` falso
-   * es exactamente el tipo de dato que un LLM repite como verdad.
+   * VERIFICADO el 2026-08-14 (§13): **2021**.
+   *
+   * ⚠️ Y con eso queda a la vista una contradicción que hay que resolver en el
+   * contenido: `sections/Numbers.tsx` dice "desde 2019" y la línea de tiempo de
+   * `/nosotros` arranca en 2019. Los dos son texto inventado —el `CLAUDE.md` de
+   * esta app ya los listaba como tales— y ahora además contradicen el dato
+   * confirmado. **El JSON-LD publica 2021, que es el verificado.**
    */
-  foundingDate: null as string | null,
+  foundingDate: "2021",
 
   /**
    * VERIFICADO — el equipamiento aparece en `data/services.ts` y en los

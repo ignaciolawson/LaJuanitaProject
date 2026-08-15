@@ -118,12 +118,15 @@ export function Footer() {
           <address className="not-italic">
             <h2 className="t-mono text-[color:var(--page-faint)]">Dónde</h2>
             <ul className="mt-5 space-y-3 text-sm">
-              <li className="t-body text-[color:var(--page-muted)]">{CONTACT.address}</li>
-              <li>
-                <a href={`mailto:${CONTACT.email}`} className="t-body link-u">
-                  {CONTACT.email}
-                </a>
-              </li>
+              {/* La corta: la dirección completa no entra en la columna del pie. */}
+              <li className="t-body text-[color:var(--page-muted)]">{CONTACT.addressShort}</li>
+              {CONTACT.email && (
+                <li>
+                  <a href={`mailto:${CONTACT.email}`} className="t-body link-u">
+                    {CONTACT.email}
+                  </a>
+                </li>
+              )}
               <li>
                 <a
                   href={`https://wa.me/${CONTACT.whatsapp}`}
