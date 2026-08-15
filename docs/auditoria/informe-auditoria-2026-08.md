@@ -3586,6 +3586,16 @@ diferenciados— se cumple."* Las otras tres copias pueden apuntar acá.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO, y en las tres copias, no solo en la
+> fuente.** `platform.md` §2.1 invierte el orden del argumento: **primero el Módulo 8**,
+> que es el que cierra el caso —dos personas que administran con permisos distintos, y con
+> tres valores no se puede expresar—, y después la propuesta, con la aclaración de que
+> **coincide el número y no el conjunto**: nombra *profesor* y *alumno*, que acá son
+> relaciones, y no nombra `STAFF`. Lo mismo en `sistema-gestion-plan.md` §3.2 y en
+> `CLAUDE.md`, que repetían la cita como si fuera una equivalencia.
+>
+> El modelo no cambió: el defecto era la cadena de justificación, no el diseño.
+
 ---
 
 #### DOC-11 — Restos menores de estado superado
@@ -4258,7 +4268,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-07** | Alto | S | 6 | ✅ | — |
 | **DOC-08** | Alto | M | 6 | 🟡 | Backup, restore probado y runbook de migraciones, hechos. **El deploy depende del hosting (octubre)** |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
-| **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
+| **DOC-10** | Medio | XS | 8 | ✅ | — |
 | **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
 | **DOC-12** | Bajo | XS | 8 | ✅ | Reordenadas, no renumeradas: §2.6 y §3.5 están citadas desde otros cuatro lugares |
 | **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |

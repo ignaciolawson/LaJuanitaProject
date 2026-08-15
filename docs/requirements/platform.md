@@ -68,11 +68,22 @@ contraseña temporal. Tener cuenta **no** te hace alumno — eso es una fila en
 `alumno` que agrega administración al inscribirte.
 
 **⚠️ Corrección al plan del 2026-08-10: vuelven a ser cuatro roles, no tres.**
-El plan había colapsado los permisos en `ADMIN` / `STAFF` / `USUARIO`. La propuesta
-comercial promete explícitamente **"cuatro roles diferenciados: administrador,
-directivo, profesor y alumno"**, y el Módulo 8 distingue: *"Solo directivos y socios
-tienen acceso al dashboard completo. Micaela puede ver el resumen financiero básico."*
-Eso es una diferencia real de permisos, no un matiz. Queda:
+El plan había colapsado los permisos en `ADMIN` / `STAFF` / `USUARIO`.
+
+**El argumento que cierra el caso es el Módulo 8**, que distingue: *"Solo directivos y
+socios tienen acceso al dashboard completo. Micaela puede ver el resumen financiero
+básico."* Eso es una diferencia real de permisos entre dos personas que administran, no
+un matiz — y sin un cuarto valor no se puede expresar.
+
+**La propuesta comercial también promete "cuatro roles diferenciados: administrador,
+directivo, profesor y alumno", pero ojo: no son estos cuatro.** Lo que coincide es el
+número, no el conjunto. `profesor` y `alumno` **no son roles acá**: se implementan como
+relaciones (una fila en `profesor` o en `alumno`), por el motivo que explica el párrafo de
+arriba — quien alquila una cabina una vez no es ninguna de las dos cosas y necesita
+cuenta igual. Y `STAFF`, que es el rol operativo del día a día, la propuesta no lo nombra.
+**Lo que la propuesta compromete —cuatro niveles de acceso diferenciados— se cumple**; la
+enumeración literal no se puede mapear uno a uno, y citarla como si fuera equivalente es
+un argumento más débil que el del Módulo 8. Queda:
 
 | Rol | Quién | Puede |
 |---|---|---|

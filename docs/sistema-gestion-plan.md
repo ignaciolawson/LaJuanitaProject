@@ -86,10 +86,16 @@ Se separa en dos ejes independientes:
 `usuario.rol` pasa a tener cuatro valores:
 
 > ⚠️ **Corregido el 2026-08-11.** Este plan había colapsado los permisos en tres roles.
-> La propuesta comercial promete explícitamente *"cuatro roles diferenciados"* y el
-> Módulo 8 distingue de verdad entre directivo y staff. Volvieron a ser cuatro; el
-> detalle del porqué está en `docs/requirements/platform.md` §2.1, que manda sobre
-> esta tabla. Ya están así en el CHECK de `V1__baseline.sql` y en el enum `Rol`.
+> Volvieron a ser cuatro porque **el Módulo 8 distingue de verdad entre directivo y
+> staff** — *"solo directivos y socios ven el dashboard completo; Micaela ve el resumen
+> financiero básico"*—, que es una diferencia real de permisos y no se puede expresar con
+> tres valores.
+>
+> La propuesta comercial también promete *"cuatro roles diferenciados"*, pero **no son
+> estos cuatro: coincide el número, no el conjunto** (ella nombra profesor y alumno, que
+> acá son relaciones, y no nombra `STAFF`). El detalle está en
+> `docs/requirements/platform.md` §2.1, que manda sobre esta tabla. Ya están así en el
+> CHECK de `V1__baseline.sql` y en el enum `Rol`.
 
 | Rol | Quién | Alcance |
 |---|---|---|
