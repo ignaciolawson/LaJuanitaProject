@@ -89,11 +89,14 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
               { k: "Duración", v: program.duration },
               { k: "Modalidad", v: program.modality },
               { k: "Nivel", v: program.levelLabel },
-              { k: "Inversión", v: program.price },
+              { k: "Inversión", v: program.price, note: program.priceNote },
             ].map((item) => (
               <div key={item.k}>
                 <dt className="t-mono text-[color:var(--page-faint)]">{item.k}</dt>
                 <dd className="t-body mt-2 text-sm text-[color:var(--page-fg)]">{item.v}</dd>
+                {item.note && (
+                  <p className="t-mono mt-1.5 text-[color:var(--page-faint)]">{item.note}</p>
+                )}
               </div>
             ))}
           </dl>

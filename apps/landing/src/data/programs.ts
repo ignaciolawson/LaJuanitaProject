@@ -47,6 +47,16 @@ export type Program = {
   duration: string;
   modality: string;
   price: string;
+  /**
+   * Salvedad del precio, y NO es opcional.
+   *
+   * Los dos servicios de `services.ts` la tenían desde el principio y los dos
+   * programas no, que son las decisiones de plata más grandes del catálogo:
+   * el número chico estaba protegido y el grande no. §13 confirmó que los
+   * precios de la landing se publican **como referencia**, no cerrados, hasta
+   * que se validen uno por uno.
+   */
+  priceNote: string;
   highlights: string[];
   image: string;
   /**
@@ -91,6 +101,7 @@ export const PROGRAMS: Program[] = [
     duration: "8 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $85.000/mes",
+    priceNote: "Precio de referencia — se confirma al inscribirte",
     highlights: ["CDJ-3000 y mixer DJM", "Grupos reducidos", "Práctica libre incluida"],
     image: "/images/estudio/equipos.jpg",
     level: 55,
@@ -172,6 +183,7 @@ export const PROGRAMS: Program[] = [
     duration: "16 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $110.000/mes",
+    priceNote: "Precio de referencia — se confirma al inscribirte",
     highlights: ["Ableton Live", "Diseño de sonido", "EP final incluido"],
     image: "/images/estudio/team.jpg",
     cardImage: false,

@@ -51,6 +51,22 @@ export type Post = {
   /** Bajada. Se usa en la tarjeta, en el hero y como meta description. */
   excerpt: string;
   category: PostCategory;
+  /**
+   * Firma de la nota.
+   *
+   * **Siempre "Equipo La Juanita" mientras las notas sean las de ejemplo.**
+   * Cuatro de las seis estaban firmadas con los nombres de Ghezz, Najles y
+   * Chapa Castelo — los tres profesores reales que `data/teachers.ts` presenta
+   * con foto y biografía—, y ninguno las escribió. No era sólo texto en
+   * pantalla: el `BlogPosting` emite `author: { "@type": "Person" }`, que es
+   * exactamente el marcado con el que Google atribuye autoría y con el que un
+   * motor de respuesta cita *"según Ghezz, de La Juanita Studio…"*. Atribuirle
+   * a alguien una opinión técnica que no dio, en un rubro donde el criterio
+   * propio es el activo, es su reputación y no la nuestra.
+   *
+   * Una persona real vuelve a firmar acá cuando esa persona haya escrito o
+   * revisado la nota. Decidido en §13 (2026-08-14).
+   */
   author: string;
   /** ISO `YYYY-MM-DD`. Se ordena y se formatea con esto — ver `formatPostDate`. */
   date: string;
@@ -66,7 +82,7 @@ const ENTRIES: Post[] = [
     excerpt:
       "Los cinco efectos que más se usan arriba de la cabina, para qué sirve cada uno y en qué momento del tema conviene meterlos.",
     category: "tecnica",
-    author: "Ghezz",
+    author: "Equipo La Juanita",
     date: "2026-08-05",
     cover: "/images/estudio/equipos.jpg",
     body: [
@@ -130,7 +146,7 @@ const ENTRIES: Post[] = [
     excerpt:
       "El truco de producción más viejo de la electrónica, explicado sin jerga: qué hace, por qué le da aire a la mezcla y cómo saber cuándo te pasaste.",
     category: "tecnica",
-    author: "Najles",
+    author: "Equipo La Juanita",
     date: "2026-07-22",
     cover: "/images/estudio/sala-mastering.jpg",
     body: [
@@ -215,7 +231,7 @@ const ENTRIES: Post[] = [
     excerpt:
       "El paso que separa a alguien que mezcla dos temas de alguien que sostiene una hora: pensar el set como una curva y no como una playlist.",
     category: "tecnica",
-    author: "Chapa Castelo",
+    author: "Equipo La Juanita",
     date: "2026-06-19",
     cover: "/images/espacio/sala-trabajo.jpg",
     body: [
@@ -309,7 +325,7 @@ const ENTRIES: Post[] = [
     excerpt:
       "No es una lista de los mejores: son los cinco que mejor explican de dónde salió el sonido que hoy suena en todos lados.",
     category: "cultura",
-    author: "Ghezz",
+    author: "Equipo La Juanita",
     date: "2026-05-12",
     cover: "/images/artistas/ghezz.webp",
     body: [
