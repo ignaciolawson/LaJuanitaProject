@@ -541,7 +541,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 | **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
-| **Auditoría** | 🟡 **46 de 61 resueltos**. Lo que queda es una pasada de limpieza + 3 decisiones |
+| **Auditoría** | 🟡 **51 de 61 resueltos**. Lo que queda son 5 de documentación + 3 decisiones |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -618,16 +618,19 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-> **Al 2026-08-15: 46 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 9
-> que siguen abiertos son TODOS de la tanda 8**, o sea limpieza que no bloquea
-> nada. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
+> **Al 2026-08-15: 51 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 5
+> que siguen abiertos son TODOS de la tanda 8 y TODOS de documentación**: nada
+> que bloquee ni que cambie el comportamiento de nada. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
 > sección de deploy— y no se destraba programando: espera el hosting de octubre.
 >
 > Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
-> enteras, y **de la 8 se hicieron los cuatro defectos** (QA-08, SEC-09, QA-06,
-> SEC-07): la credencial corrupta que pasaba por vigente, el `ESCAPE` que ninguna
-> consulta declaraba, los tres tokens de paleta que fallaban AA y la CSP de las
-> dos apps. **Lo que queda de esa tanda no cambia el comportamiento de nada.**
+> enteras, y **de la 8 se hicieron los cuatro defectos y los cinco de código**:
+> la credencial corrupta que pasaba por vigente, el `ESCAPE` que ninguna consulta
+> declaraba, los tres tokens de paleta que fallaban AA, la CSP de las dos apps,
+> el desagüe de `/error` que seguía contestando en el formato viejo, la lógica de
+> autorización copiada en dos controllers, los tipos de pedido que faltaban, los
+> dos `package-lock.json` de más y la convención de idioma, escrita por primera
+> vez. **Lo que queda de esa tanda es documentación.**
 > El párrafo de abajo describe hasta la tanda 5 y se conserva como registro; el
 > estado fino, hallazgo por hallazgo, está en §8 del informe.
 
@@ -697,22 +700,30 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
 
 ### Lo que queda del backlog de auditoría, en una línea
 
-**9 hallazgos, todos de la tanda 8, todos limpieza y ninguno bloquea nada:**
-EXT-03 (`LICENSE`), DB-08 (seis nombres para "cuándo se creó esta fila"), ARQ-04
-(los dos formatos de error que conviven), ARQ-06 (lógica copiada entre los dos
-controllers), ARQ-07 (tres `package-lock.json`), ARQ-08 (la convención de idioma
-sin escribir) y DOC-10 a DOC-12.
+**5 hallazgos, todos de la tanda 8 y todos de documentación:** EXT-03 (falta el
+archivo `LICENSE`; la titularidad ya está resuelta y escrita en el README), DB-08
+(seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda
+tabla nueva), DOC-10 (los cuatro roles se justifican citando una promesa
+comercial que nombra otros cuatro), DOC-11 (restos de estado superado) y DOC-12
+(renumerar secciones y completar el árbol de `docs/` en el README).
 
-Más **5 a medias**, de los cuales sólo tres esperan algo: QA-07 y DOC-08 (hosting)
-y DB-04 (la seña). DB-11 espera al DTO del Módulo 2 y ARQ-09 se barre con la
-tanda 8.
+Más **4 a medias**, de los cuales sólo tres esperan algo: QA-07 y DOC-08
+(hosting) y DB-04 (la seña). DB-11 no está bloqueado, está programado: espera al
+DTO del Módulo 2.
 
-**Y los cuatro que sí cambiaban el comportamiento del sistema salieron el
-2026-08-15**: QA-08 (la credencial con vencimiento ilegible pasaba por vigente),
+**Todo lo que era código salió el 2026-08-15**, en dos partes: primero los cuatro
+defectos —QA-08 (la credencial con vencimiento ilegible pasaba por vigente),
 SEC-09 (ninguna consulta declaraba su `ESCAPE`), QA-06 (`--page-faint` en 2,25:1
-era el color de las etiquetas de los formularios) y SEC-07 (CSP y cabeceras en
-las dos apps). Dos de las recomendaciones del informe estaban mal y se
-corrigieron en vez de seguirse — los números están en el bloque de QA-06.
+era el color de las etiquetas de los formularios) y SEC-07 (CSP y cabeceras)— y
+después los cinco de arquitectura (ARQ-04 y ARQ-06 a ARQ-09).
+
+**Cuatro veces el informe estuvo mal o quedó viejo, y las cuatro se corrigieron
+en vez de seguirse**: los dos valores de paleta de QA-06 (0.45 no llega a AA;
+`--red-hover` empeora el tema papel), la puerta de ARQ-04 (el caso que el informe
+midió hoy sale bien; el que sobrevivía era `GET /error`) y la regla que enunciaba
+ARQ-08. Están documentadas una por una en el informe. El prompt de remediación
+dice que *"el informe es una entrada, no una orden"*: esta tanda es la primera
+que lo ejerce.
 
 ### Cómo levantar todo
 
@@ -722,9 +733,9 @@ Detalle y credenciales en el [README](../README.md).
 **Y para verificar que nada se rompió**, los cuatro comandos que corre el CI:
 
 ```
-cd apps/backend && mvn test     # 107
+cd apps/backend && mvn test     # 108
 ./scripts/pruebas-sql.sh        # 121 + 50, sobre 9 migraciones
-npm run test:platform           # 54
+npm run test:platform           # 55
 npm run build:landing && npm run build:platform
 ```
 

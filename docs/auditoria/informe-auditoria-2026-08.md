@@ -3946,7 +3946,7 @@ primero es una pregunta al cliente, no trabajo de código**.
 
 ## 8. Estado de la remediación
 
-**46 de los 61 hallazgos están resueltos** (al 2026-08-15), más uno cerrado como riesgo
+**51 de los 61 hallazgos están resueltos** (al 2026-08-15), más uno cerrado como riesgo
 asumido. Cada uno lleva su bloque *"Remediado el ..."* al pie del hallazgo, con qué se
 hizo y cómo se verificó; esta sección es solo el índice y el orden propuesto para lo que
 queda. **La cuenta fina, hallazgo por hallazgo, está en §8.1** — esta línea es lo primero
@@ -4158,9 +4158,29 @@ prompt de remediación se ejerce.
 - **Una CSP en `<meta>` ignora `frame-ancestors`**, así que esa mitad del panel depende
   del proxy y no se puede cerrar hoy: quedó como punto 5 del deploy en `docs/operacion.md`.
 
-**Lo que queda de la tanda 8 son nueve hallazgos**, todos de limpieza sin riesgo:
-`ARQ-04`, `ARQ-06`, `ARQ-07`, `ARQ-08` y `ARQ-09` (código), y `EXT-03`, `DB-08`, `DOC-10`,
-`DOC-11` y `DOC-12` (documentación y un archivo `LICENSE`).
+#### Y después los cinco de código — mismo día
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **ARQ-07** | Un solo `package-lock.json`, el de la raíz; los dos de las apps salieron del repo y entraron al `.gitignore` | `npm ci --dry-run` desde la raíz |
+| **ARQ-09** | Los tres tipos de pedido de autenticación, y **un cuarto tipo borrado** que era el mismo contrato con otro nombre (`DatosDeRegistro`) | `tsc` rechaza un campo mal escrito, a propósito |
+| **ARQ-06** | `esAdmin` → `config/Autoridades`; `acotar` + `TAMANIO_MAXIMO` → `Pagina` | `mvn test` **107/107** sin tocar un test |
+| **ARQ-04** | `web/ErrorPorDefecto` atiende `/error`, y el front trata un cuerpo sin `detail` como cuerpo inservible | `GET /error` contra la **API corriendo**; `mvn test` **108/108**, panel **55/55** |
+| **ARQ-08** | La convención de idioma, escrita en `CLAUDE.md` como tabla + la regla de la frontera | lectura; no se renombró nada |
+
+**Otras dos veces el informe resultó estar desactualizado o incompleto, y las dos se
+corrigieron en vez de seguirse:**
+
+- **ARQ-04 cambió de puerta.** El caso exacto que el informe midió —`POST` sin
+  `Content-Type`— **hoy sale bien**. El formato viejo seguía saliendo por `GET /error`,
+  que es peor: no hace falta ni un error previo, y `/error` es `permitAll`.
+- **La regla de ARQ-08 no era la que el hallazgo enunciaba.** *"Infra en inglés, dominio en
+  español"* describe los nombres de paquete y falla con las clases. La real es *"inglés
+  sólo donde lo impone el framework o la URL"*, y con esa, las tres excepciones que el
+  hallazgo listaba dejan de serlo.
+
+**Lo que queda de la tanda 8 son cinco hallazgos, todos de documentación:** `EXT-03` (el
+archivo `LICENSE`), `DB-08`, `DOC-10`, `DOC-11` y `DOC-12`.
 
 ### 8.1 Los 61 hallazgos, uno por uno
 
@@ -4233,9 +4253,10 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
 | **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |
 
-**Cuentas al 2026-08-14, con la tanda 6 cerrada y la §13 incorporada:** 59 hallazgos del
-informe + 2 nuevos (DB-11 y QA-08) = **61**. Resueltos **32** (✅), cerrado como riesgo
-asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡**.
+**De dónde sale el 61:** 59 hallazgos del informe original + 2 aparecidos durante la
+remediación (DB-11 y QA-08). *(Las cuentas del 2026-08-14 —32 resueltos, 28 abiertos—
+quedaron viejas dos veces en un día; el número que vale es el del párrafo de abajo, que se
+actualiza al cerrar cada tanda.)*
 
 > ### ⚠️ Esta cuenta cambió el 2026-08-14 por `docs/requirements/platform.md` §13
 >
@@ -4259,8 +4280,8 @@ asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15, con las tandas 6 y 7 cerradas y los cuatro defectos de la 8: 46 resueltos
-de 61**, 1 cerrado como riesgo asumido, **9 abiertos (🔴)** y 5 a medias (🟡).
+**Al 2026-08-15, con las tandas 6 y 7 cerradas y la 8 hasta su parte de código: 51
+resueltos de 61**, 1 cerrado como riesgo asumido, **5 abiertos (🔴)** y 4 a medias (🟡).
 
 **Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
 programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
@@ -4295,7 +4316,7 @@ significa rehacer.
 | ~~**5**~~ | ~~ARQ-01, SEC-05, ARQ-02, ARQ-05, ARQ-09~~ | **Hecha** — paginado, gateo por rol, y las pantallas de alta con rol, edición y reseteo |
 | ~~**6**~~ | ~~DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05~~ | **Hecha** — operación, los tests que faltaban y el pipeline. El orden resultó ser el correcto: el script de las SQL tenía que existir antes del CI, porque el CI necesita un comando que correr. Queda pendiente solo lo que depende del hosting de octubre |
 | ~~**7 — Landing**~~ | ~~SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06~~ | **Hecha** — los nueve. Las cinco preguntas al cliente que la abrían están contestadas en `platform.md` §13 |
-| **8 — Resto documental y menor** | ~~QA-08, SEC-09, QA-06, SEC-07~~ **hechos el 15/08**; quedan EXT-03, DB-08, ARQ-04, ARQ-06 a ARQ-09, DOC-10 a DOC-12 | Nada bloquea; conviene barrerlo de una sola pasada. Se empezó por los cuatro que cambiaban el comportamiento del sistema; lo que queda no lo cambia |
+| **8 — Resto documental y menor** | ~~QA-08, SEC-09, QA-06, SEC-07, ARQ-04, ARQ-06, ARQ-07, ARQ-08, ARQ-09~~ **hechos el 15/08**; quedan **EXT-03, DB-08, DOC-10, DOC-11, DOC-12** | Nada bloquea. Se hizo en dos partes y en ese orden a propósito: primero los cuatro que cambiaban el comportamiento del sistema, después los cinco de código. **Lo que queda es documentación y un archivo `LICENSE`**, y conviene hacerlo último porque registra todo lo anterior de una vez |
 
 ### 8.3 Lo que no se destraba programando
 
