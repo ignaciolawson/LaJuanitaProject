@@ -3854,10 +3854,9 @@ no arrancar, `flyway:repair`, verla arrancar.
 
 **Un hallazgo nuevo salió de acá:** QA-08, la credencial con `expiraEn` ilegible.
 
-### Tanda 7 — 2026-08-14/15 · **a medias** · la landing
+### Tanda 7 — 2026-08-14/15 · **cerrada** · la landing
 
-**Seis de los nueve, cerrados. Los tres que faltan son los tres de documentación
-y medición, ninguno toca código de la app.**
+**Los nueve.**
 
 | ID | Qué se hizo | Verificación |
 |---|---|---|
@@ -3868,26 +3867,45 @@ y medición, ninguno toca código de la app.**
 | **SEO-05** | `<noscript>` + **red de seguridad del telón** a los 4 s | build: el `<noscript>` sale en la página |
 | **SEO-04** | Los conteos, corregidos y —donde se pudo— eliminados | build + lint |
 
-**Lo que queda de esta tanda, y es todo trabajo de escritura salvo uno:**
+| **DOC-06** | El README de landing deja de ser el boilerplate de `create-next-app` | lectura |
+| **DOC-05** | El alcance dice lo que el sitio es: blog incluido, dos programas, y *Pendiente* partido en "bloquea publicar" y "no bloquea" | lectura |
+| **SEO-06** | **Primera medición de Core Web Vitals del proyecto** | Lighthouse móvil sobre el build de producción |
 
-- **SEO-06** — medir Lighthouse en móvil con caché fría. **No se empezó.** Ojo con
-  cómo se mide: el `CLAUDE.md` de landing avisa que la primera visita paga la
-  codificación de cada imagen (~7 s en la home con `.next/cache/images` vacía),
-  así que hay que medir contra `npm run build && npm start`, **no** contra
-  `next dev`, o el número no significa nada.
-- **DOC-05** — `docs/requirements/landing.md` dice que el blog no se construyó, y
-  existe con seis notas. Ahora además está desactualizado por partida doble: sigue
-  describiendo tres programas.
-- **DOC-06** — `apps/landing/README.md` es el boilerplate intacto de
-  `create-next-app`. El patrón a copiar es `apps/platform/README.md`.
+**Lo que dio la medición de SEO-06**, que era el hallazgo cuyo contenido era
+justamente no tener números:
 
-**Un efecto colateral que quedó abierto y no es de la tanda:** `foundingDate` ahora
-publica **2021** (confirmado en §13), y eso contradice el *"desde 2019"* de
-`sections/Numbers.tsx` y la línea de tiempo de `/nosotros`. Los dos son texto
-inventado y ya figuraban como tales en el `CLAUDE.md` de landing; el JSON-LD
-publica el dato verificado. **Hay que corregir el texto visible**, y no es un
-hallazgo de este informe: es contenido placeholder que ahora se contradice con un
-dato confirmado.
+| Ruta | Score | LCP | CLS | TBT |
+|---|:--:|:--:|:--:|:--:|
+| `/` | 63 | 4,2 s | **0** | 670 ms |
+| `/programas/convertite-en-dj` | 72 | 4,4 s | **0** | 330 ms |
+| `/faq` | 80 | 3,7 s | **0** | 220 ms |
+
+**El CLS es 0 en las tres** — el número difícil, y salió gratis por cómo están
+puestas las imágenes. El LCP no llega: 3,7–4,4 s contra un umbral de 2,5 s, y el
+desglose muestra que **el 90% es *render delay***, no red ni imágenes (TTFB
+461 ms, la imagen del hero ya con `priority` y `Load Time` 0). La página tarda en
+pintarse, no en llegar.
+
+**Y una medición que el hallazgo no pedía y cambia la conclusión:** corriendo el
+mismo build con `--force-prefers-reduced-motion` —que apaga preloader y reveals—
+el LCP baja a 3,6 s y el TBT a la mitad. O sea que **el preloader cuesta ~600 ms
+y apagarlo no alcanza**: el piso lo pone el bundle. La recomendación del hallazgo
+era "acortar el preloader o diferir el motion"; los números dicen que lo primero
+ayuda poco y lo segundo es lo que importa.
+
+**Lo que NO se hizo, a propósito:** diferir el bundle de motion en las rutas
+interiores. Es el cambio con más rendimiento y también el más delicado del repo
+—toca la arquitectura de movimiento, que es la identidad del sitio, y varias de
+las diecinueve trampas documentadas viven ahí—. Pide una sesión dedicada y volver
+a medir. **No bloquea nada**: el sitio no se publica hasta que los formularios
+estén conectados, y estos números son de un build sin el contenido real.
+
+**Y se cerró el efecto colateral que había quedado abierto:** el *"desde 2019"* de
+la home y la línea de tiempo de `/nosotros` contradecían el `foundingDate: 2021`
+que el JSON-LD publica como hecho verificado. Los dos pasan a 2021. De paso
+apareció otro que nadie había anotado: la home decía **"4 Programas activos"**
+—eran cuatro hace dos refactors, y desde SEO-01 son dos—; ahora el número sale de
+`PROGRAMS.length` y no se puede volver a desincronizar.
 
 ### 8.1 Los 60 hallazgos, uno por uno
 
@@ -3905,7 +3923,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
 | **DB-03** | Medio | S | 3 | ✅ | — |
-| **DB-04** | Medio | M | 3→9 | 🟡 | **Mitad resuelta en `V9`**: el nivel no retrocede sin firma. **La seña sigue sin dueño** — §13 dijo que no hay excepción, pero no a qué reservas alcanza, y una clase de una inscripción ya paga no lleva seña propia |
+| **DB-04** | Medio | M | 3→? | 🟡 | **Mitad resuelta en `V9`**: el nivel no retrocede sin firma. **La seña sigue sin dueño** — §13 dijo que no hay excepción, pero no a qué reservas alcanza, y una clase de una inscripción ya paga no lleva seña propia |
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
 | **DB-07** | Bajo | S | 3 | ✅ | **Cerrado en `V9`**: `egreso` y `venta_equipo` se anulan con autor + fecha + motivo, y por eso ya no se borran — la condición que V6 §7 se había puesto a sí misma |
@@ -3937,7 +3955,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **SEO-03** | Bajo | XS | 7 | ✅ | — |
 | **SEO-04** | Bajo | XS | 7 | ✅ | — |
 | **SEO-05** | Bajo | XS | 7 | ✅ | — |
-| **SEO-06** | Bajo | M | 7 | 🔴 | **Lo único de la tanda 7 que no se empezó.** Medir Lighthouse en móvil con caché fría — necesita `npm run build && npm start`, no `next dev` |
+| **SEO-06** | Bajo | M | 7 | ✅ | **Medido el 2026-08-15.** CLS 0; LCP 3,7–4,4 s, 90% *render delay*. La decisión y los números, en el `CLAUDE.md` de landing |
 | **QA-01** | Alto | M | 6 | ✅ | — |
 | **QA-02** | Alto | M | 7 | ✅ | — |
 | **QA-03** | Medio | M | 6 | ✅ | Escalón 1 hecho. Testcontainers (escalón 2) queda como mejora, no como hueco |
@@ -3950,8 +3968,8 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-02** | Alto | S | 3 | ✅ | — |
 | **DOC-03** | Medio | XS | 1 | ✅ | — |
 | **DOC-04** | Medio | XS | 1 | ✅ | — |
-| **DOC-05** | Medio | S | 7 | 🔴 | `requirements/landing.md` dice que el blog no existe |
-| **DOC-06** | Medio | S | 7 | 🔴 | `apps/landing/README.md` es el boilerplate de `create-next-app` |
+| **DOC-05** | Medio | S | 7 | ✅ | — |
+| **DOC-06** | Medio | S | 7 | ✅ | — |
 | **DOC-07** | Alto | S | 6 | ✅ | — |
 | **DOC-08** | Alto | M | 6 | 🟡 | Backup, restore probado y runbook de migraciones, hechos. **El deploy depende del hosting (octubre)** |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
@@ -3986,18 +4004,23 @@ asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15 queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se
-destraba programando — es la sección de deploy, que espera el hosting de octubre. No
-queda ningún Crítico desde la tanda 1.
+**Al 2026-08-15, con las tandas 6 y 7 cerradas: 42 resueltos de 61**, 1 cerrado como
+riesgo asumido, 13 abiertos (🔴) y 5 a medias (🟡).
 
-**Cuentas actualizadas con la tanda 7 a medias: 39 resueltos, 16 abiertos (🔴), 5 a
-medias (🟡) y 1 cerrado como riesgo asumido.** De los 5 🟡, los únicos que esperan algo
-que no sea código son **QA-07 y DOC-08** (hosting) y **DB-04** (a qué reservas alcanza la
-seña); DB-11 espera al DTO del Módulo 2 y ARQ-09 es limpieza de la tanda 8 — esos dos no
-están bloqueados, están programados.
+**Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
+programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
+Crítico desde la tanda 1.
 
-**Los 16 🔴 son: 3 de la tanda 7** (SEO-06, DOC-05, DOC-06) **y 13 de la tanda 8**, que es
-limpieza.
+**Los 13 🔴 son todos de la tanda 8**, o sea limpieza: nada bloquea nada y conviene
+barrerlos de una sola pasada.
+
+**De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
+DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
+dos no están bloqueados, están programados: DB-11 espera al DTO del Módulo 2 y ARQ-09 se
+barre con la tanda 8.
+
+**Dicho de otra forma: el backlog de la auditoría dejó de ser trabajo de arreglar y pasó
+a ser una pasada de limpieza más tres decisiones.**
 
 ### 8.2 Las tandas
 

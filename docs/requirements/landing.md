@@ -118,7 +118,13 @@ existe sólo desde 1024px; abajo es lista vertical.
 ## Performance
 
 Lazy loading, code splitting y optimización de imágenes vía `next/image`.
-Objetivo Lighthouse > 95 — **sigue sin medirse** (SEO-06).
+Objetivo Lighthouse > 95 — **medido el 2026-08-15 y no se alcanza:** 63 en la
+home, 72 en una página de programa, 80 en la FAQ (Lighthouse móvil, build de
+producción). El detalle y la decisión están en `apps/landing/CLAUDE.md`.
+
+Lo bueno: **CLS 0 en las tres**. Lo que falta: el LCP queda en 3,7–4,4 s contra
+un umbral de 2,5 s, y el 90% de eso es *render delay* — la página tarda en
+pintarse, no en llegar.
 
 Una de las dos deudas que este párrafo declaraba ya está saldada: las fotos se
 recomprimieron (`public/images`: 11 MB → 2,7 MB, lado largo acotado a 2000px).
@@ -151,11 +157,13 @@ eso se paga seguido, así que el número no significaría nada.
   fuera de `sameAs`.
 - Coordenadas del local. La dirección está confirmada; el punto del mapa, no.
 - Política de privacidad.
-- Medir Lighthouse (SEO-06).
-- Corregir el "desde 2019" de `sections/Numbers.tsx` y la línea de tiempo de
-  `/nosotros`: el año confirmado es **2021**, y es lo que publica el JSON-LD.
+- **Mejorar el LCP.** Ya está medido (ver *Performance*); lo que queda es
+  decidir si se difiere el bundle de motion en las rutas interiores. Volver a
+  medir cuando esté el contenido real.
 - Las páginas interiores conservan estructura vieja; funcionan y son coherentes,
   pero no están al nivel de la home.
 
 **Ya no está pendiente:** la OG image existe y se genera en build
-(`app/opengraph-image.tsx`), y las fotos ya se optimizaron en origen.
+(`app/opengraph-image.tsx`), las fotos ya se optimizaron en origen, y el texto
+visible ya no dice "desde 2019" — el año confirmado es 2021 y es el que publica
+el JSON-LD.

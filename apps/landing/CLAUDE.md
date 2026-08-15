@@ -597,9 +597,73 @@ cd apps/landing && npm run lint
 
 ## Rendimiento
 
+### Medido el 2026-08-15 — Lighthouse móvil, build de producción
+
+**Primera medición del sitio.** Hasta acá los Core Web Vitals eran desconocidos
+(SEO-06). Lighthouse 12, preset móvil (CPU ×4, 4G lento), sobre
+`npm run build && next start`, caché fría y `sessionStorage` limpio, o sea con el
+preloader corriendo.
+
+| Ruta | Score | LCP | FCP | CLS | TBT |
+|---|:--:|:--:|:--:|:--:|:--:|
+| `/` | 63 | **4,2 s** | 1,6 s | **0** | 670 ms |
+| `/programas/convertite-en-dj` | 72 | **4,4 s** | 1,4 s | **0** | 330 ms |
+| `/faq` | 80 | **3,7 s** | 1,2 s | **0** | 220 ms |
+
+**El CLS es 0 en las tres**, que es el número difícil de conseguir y acá salió
+gratis: las 16 imágenes usan el modo `fill` con el contenedor ya dimensionado.
+No hay nada que arreglar ahí.
+
+**El LCP está arriba del umbral de 2,5 s en las tres, y el desglose dice por qué:**
+
+```
+TTFB          461 ms
+Load Delay      0 ms     ← la imagen del hero ya tiene `priority`
+Load Time       0 ms
+Render Delay  3777 ms    ← el 90% del LCP
+```
+
+O sea: **no es la red, no es el peso de las imágenes y no es el servidor.** La
+página tarda en PINTARSE, no en llegar (508 KB transferidos en total). El hilo
+principal se va en `Script Evaluation` 1582 ms + `Style & Layout` 1441 ms, con
+1,6 s de bootup.
+
+**Cuánto de eso es la capa de movimiento**, medido con el mismo build y
+`--force-prefers-reduced-motion` (que apaga el preloader y los reveals):
+
+| | Score | LCP | TBT |
+|---|:--:|:--:|:--:|
+| Movimiento ON | 63 | 4,2 s | 670 ms |
+| `prefers-reduced-motion` | 72 | **3,6 s** | 350 ms |
+
+**El preloader y los reveals cuestan ~600 ms de LCP y la mitad del TBT — pero
+apagarlos NO alcanza:** sin nada de movimiento el LCP sigue en 3,6 s. El piso lo
+pone el bundle, no la animación. Acortar el preloader es una mejora real y
+chica; no es la solución.
+
+### Qué hacer con eso, en orden de rendimiento por riesgo
+
+1. **Diferir el bundle de motion en las rutas interiores.** Es donde está la
+   plata: GSAP, sus plugins y ScrollSmoother cargan en las 19 páginas, y `/faq`
+   no necesita ScrollSmoother para nada. Es también el cambio más delicado del
+   repo — toca la arquitectura de movimiento, que es la identidad del sitio, y
+   varias de las trampas de más arriba viven ahí. **No se hizo**: pide una
+   sesión dedicada y volver a medir.
+2. **Acortar el preloader.** ~600 ms de LCP, riesgo bajo. Ya corre 1,45× más
+   rápido en táctil; se puede bajar más o saltarlo en la primera visita desde
+   móvil.
+3. **`Reduce unused JavaScript`** (270–340 ms según la ruta) y *legacy
+   JavaScript* (190 ms en las interiores).
+
+**Nada de esto bloquea nada hoy**, porque el sitio no se publica hasta que los
+formularios estén conectados (~septiembre). El momento de volver acá es ese, y
+**hay que volver a medir**: estos números son de un build sin el contenido real
+del cliente.
+
+### Reglas que ya se pagaron y conviene no volver a introducir
+
 Las decisiones específicas de teléfono y tablet están en
-[Móvil y tablet](#móvil-y-tablet). Lo que sigue vale para todos lados —
-cosas que ya se pagaron y conviene no volver a introducir:
+[Móvil y tablet](#móvil-y-tablet). Lo que sigue vale para todos lados:
 
 - **Nada de escribir custom properties sobre `<html>` en cada frame.** Es lo
   más caro que hay: invalida el estilo del documento entero. Era el cuello de
