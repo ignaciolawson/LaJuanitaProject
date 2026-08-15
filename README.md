@@ -1,6 +1,6 @@
 # La Juanita Studio / La Juanita Music
 
-Sistema completo para el sello discográfico y academia de DJ y producción de música electrónica La Juanita (Pilar). Proyecto académico desarrollado por Ignacio Lawson.
+Sistema completo para el sello discográfico y academia de DJ y producción de música electrónica La Juanita (Pilar). Desarrollado por Ignacio Lawson como proyecto académico, **con destino de uso real**: se deploya, administra pagos y datos personales de un negocio en funcionamiento, e incluye la migración de los datos que hoy viven en Notion. Las dos cosas a la vez — decir sólo "proyecto académico" es la caracterización que peor describe a dónde va. Titularidad y alcance de la entrega: [`LICENSE`](LICENSE) y la sección [Titularidad y alcance](#titularidad-y-alcance).
 
 Dos entregables:
 
@@ -204,7 +204,11 @@ El menú del portal se arma con la respuesta de `/api/me`
 ### Titularidad y alcance
 
 **El código es de Ignacio Lawson** (confirmado el 2026-08-14). Si la propuesta firmada
-con el cliente dice otra cosa, gana la propuesta: es contractual.
+con el cliente dice otra cosa, gana la propuesta: es contractual. Está escrito también
+en [`LICENSE`](LICENSE), que no fija términos nuevos: dice de quién es el código, que el
+cliente puede usarlo para operar su negocio, y **qué cosas siguen sin acordarse** —el
+mantenimiento posterior a diciembre y qué pasa si el desarrollador deja el proyecto—,
+para que no queden resueltas por omisión.
 
 Lo que se entrega es el sistema de gestión y la landing, con la migración de los datos
 reales y la capacitación de administración. **El mantenimiento posterior a diciembre no

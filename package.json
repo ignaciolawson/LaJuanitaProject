@@ -1,6 +1,7 @@
 {
   "name": "la-juanita",
   "private": true,
+  "license": "UNLICENSED",
   "workspaces": [
     "apps/landing",
     "apps/platform"

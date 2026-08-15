@@ -1,0 +1,29 @@
+Copyright (c) 2026 Ignacio Lawson. Todos los derechos reservados.
+
+Este software y su documentación son propiedad de Ignacio Lawson (confirmado el
+2026-08-14). No se otorga ninguna licencia de uso, copia, modificación,
+distribución ni sublicencia, salvo la que se indica abajo.
+
+USO POR PARTE DEL CLIENTE
+
+La Juanita Studio / La Juanita Music puede usar este software para operar su
+negocio, en los términos de la propuesta firmada entre las partes.
+
+**La propuesta firmada manda sobre este archivo.** Si dice otra cosa sobre
+titularidad, alcance o mantenimiento, gana la propuesta: es contractual. Este
+archivo existe para que el repositorio no quede sin decir de quién es el código
+--- no para fijar términos nuevos ni para reemplazar lo acordado.
+
+QUE ESTE ARCHIVO NO DICE
+
+- **Qué mantenimiento hay después de la entrega de diciembre de 2026.** No está
+  acordado en este repositorio; si hace falta, se acuerda aparte.
+- **Qué pasa si el desarrollador deja el proyecto.** Tampoco está acordado acá.
+
+Las dos cosas están declaradas como pendientes, y no resueltas por omisión, en
+la sección "Titularidad y alcance" del README.
+
+DEPENDENCIAS DE TERCEROS
+
+Cada dependencia conserva su propia licencia. Este archivo cubre únicamente el
+código escrito para este proyecto.
