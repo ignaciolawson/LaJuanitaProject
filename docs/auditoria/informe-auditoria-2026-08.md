@@ -3996,8 +3996,9 @@ primero es una pregunta al cliente, no trabajo de código**.
 
 ## 8. Estado de la remediación
 
-**51 de los 61 hallazgos están resueltos** (al 2026-08-15), más uno cerrado como riesgo
-asumido. Cada uno lleva su bloque *"Remediado el ..."* al pie del hallazgo, con qué se
+**56 de los 61 hallazgos están resueltos** (al 2026-08-15), más uno cerrado como riesgo
+asumido. **No queda ninguno abierto**: los cuatro restantes están a medias y esperan una
+decisión o una pieza que todavía no existe. Cada uno lleva su bloque *"Remediado el ..."* al pie del hallazgo, con qué se
 hizo y cómo se verificó; esta sección es solo el índice y el orden propuesto para lo que
 queda. **La cuenta fina, hallazgo por hallazgo, está en §8.1** — esta línea es lo primero
 que envejece.
@@ -4229,8 +4230,28 @@ corrigieron en vez de seguirse:**
   sólo donde lo impone el framework o la URL"*, y con esa, las tres excepciones que el
   hallazgo listaba dejan de serlo.
 
-**Lo que queda de la tanda 8 son cinco hallazgos, todos de documentación:** `EXT-03` (el
-archivo `LICENSE`), `DB-08`, `DOC-10`, `DOC-11` y `DOC-12`.
+#### Y por último los cinco de documentación — mismo día · **tanda 8 cerrada**
+
+| ID | Qué se hizo |
+|---|---|
+| **EXT-03** | `LICENSE` + `"license": "UNLICENSED"`, y la primera línea del README deja de decir sólo *"proyecto académico"* |
+| **DOC-12** | §2.5 y §3.5 movidas a su lugar **conservando el número**, y `sistema-gestion-plan.md` entra al árbol del README |
+| **DOC-10** | El argumento de los cuatro roles se apoya en el Módulo 8, y la propuesta queda citada con la salvedad de que coincide el número y no el conjunto |
+| **DB-08** | `fecha_creacion` fijado para toda tabla nueva, con la tabla de equivalencias de las cinco excepciones |
+| **DOC-11** | Los restos de estado superado |
+
+**Tres cosas que salieron de hacerlos, y que valen más que los hallazgos en sí:**
+
+- **DOC-12 se resolvió al revés de como lo pedía.** Renumerar habría roto **cuatro
+  referencias** a §2.6 y §3.5 desde otros documentos, para arreglar un orden de lectura.
+  Se movieron los bloques conservando el número: mismo resultado, cero referencias rotas.
+- **De los cuatro restos de DOC-11, dos ya no existían** —los habían barrido SEO-04 y
+  DOC-05 en la tanda 7—, y **apareció un quinto con más filo que los cuatro**: el plan
+  decía que los roles viven en *tres* lugares y `CLAUDE.md` decía seis. Dos documentos
+  contradiciéndose sobre una regla cuyo incumplimiento deja un rol a medio agregar.
+- **El `LICENSE` dice explícitamente qué NO dice**: mantenimiento posterior a diciembre y
+  qué pasa si el desarrollador deja el proyecto. Los dos son huecos reales, y el riesgo de
+  un archivo de licencia genérico es que los cierre por omisión.
 
 ### 8.1 Los 61 hallazgos, uno por uno
 
@@ -4243,7 +4264,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 |---|:--:|:--:|:--:|:--:|---|
 | **EXT-01** | Crítico | S/M | — | ⚪ | **Cerrado como riesgo asumido (2026-08-14).** Repo privado y secreto rotado; lo que queda lo decidió Ignacio y pasó a §5. No es tarea pendiente |
 | **EXT-02** | Alto | XS | 1b | ✅ | — |
-| **EXT-03** | Medio | XS | 8 | 🔴 | **Desbloqueado por §13**: el código es de Ignacio, y la nota de titularidad y alcance ya está en el README. Falta solo el archivo `LICENSE` |
+| **EXT-03** | Medio | XS | 8 | ✅ | — |
 | **EXT-04** | Info | XS | 1 | ✅ | — |
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
@@ -4330,8 +4351,8 @@ actualiza al cerrar cada tanda.)*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15, con las tandas 6 y 7 cerradas y la 8 hasta su parte de código: 51
-resueltos de 61**, 1 cerrado como riesgo asumido, **5 abiertos (🔴)** y 4 a medias (🟡).
+**Al 2026-08-15, con las tandas 6, 7 y 8 cerradas: 56 resueltos de 61**, 1 cerrado como
+riesgo asumido y **4 a medias (🟡). No queda ningún hallazgo abierto (🔴).**
 
 **Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
 programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
@@ -4339,9 +4360,10 @@ Crítico desde la tanda 1. De los Medios quedan **tres**, y ninguno es de compor
 EXT-03 (falta el archivo `LICENSE`), ARQ-04 (dos formatos de error conviviendo) y DOC-10
 (una justificación mal citada).
 
-**Los 9 🔴 son todos de la tanda 8**, o sea limpieza: nada bloquea nada y conviene
-barrerlos de una sola pasada. **Ninguno cambia el comportamiento del sistema** — los
-cuatro que sí lo cambiaban ya están hechos.
+**Los 4 🟡 son lo único que queda, y ninguno se destraba escribiendo código hoy:** DB-04
+espera la decisión de la seña, QA-07 y DOC-08 el hosting de octubre, y DB-11 el DTO del
+Módulo 2, que todavía no existe. **El backlog de la auditoría dejó de ser una lista de
+trabajo y pasó a ser una lista de esperas.**
 
 **De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
 DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
@@ -4366,7 +4388,7 @@ significa rehacer.
 | ~~**5**~~ | ~~ARQ-01, SEC-05, ARQ-02, ARQ-05, ARQ-09~~ | **Hecha** — paginado, gateo por rol, y las pantallas de alta con rol, edición y reseteo |
 | ~~**6**~~ | ~~DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05~~ | **Hecha** — operación, los tests que faltaban y el pipeline. El orden resultó ser el correcto: el script de las SQL tenía que existir antes del CI, porque el CI necesita un comando que correr. Queda pendiente solo lo que depende del hosting de octubre |
 | ~~**7 — Landing**~~ | ~~SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06~~ | **Hecha** — los nueve. Las cinco preguntas al cliente que la abrían están contestadas en `platform.md` §13 |
-| **8 — Resto documental y menor** | ~~QA-08, SEC-09, QA-06, SEC-07, ARQ-04, ARQ-06, ARQ-07, ARQ-08, ARQ-09~~ **hechos el 15/08**; quedan **EXT-03, DB-08, DOC-10, DOC-11, DOC-12** | Nada bloquea. Se hizo en dos partes y en ese orden a propósito: primero los cuatro que cambiaban el comportamiento del sistema, después los cinco de código. **Lo que queda es documentación y un archivo `LICENSE`**, y conviene hacerlo último porque registra todo lo anterior de una vez |
+| ~~**8 — Resto documental y menor**~~ | ~~QA-08, SEC-09, QA-06, SEC-07, ARQ-04, ARQ-06 a ARQ-09, EXT-03, DB-08, DOC-10 a DOC-12~~ | **Hecha** — los catorce, el 2026-08-15. En tres partes y en ese orden a propósito: primero los cuatro que cambiaban el comportamiento del sistema, después los cinco de código, y la documentación al final, que así registra todo lo anterior de una vez en vez de reescribir el mismo párrafo tres veces |
 
 ### 8.3 Lo que no se destraba programando
 

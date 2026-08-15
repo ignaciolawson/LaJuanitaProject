@@ -538,11 +538,11 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
    seña propia; un alquiler de cabina sí. La cabecera de
    `V9__reglas_cerradas_en_la_seccion_13.sql` tiene la pregunta exacta y la
    herramienta para implementarla el día que se decida.
-3. **Arrancar `inscripcion`** (abajo) **o terminar la tanda 8** (limpieza, quedan
-   **9** hallazgos, no bloquea nada). `inscripcion` es lo que mueve la aguja del
-   producto; la tanda 8 es lo que se puede hacer sin decidir nada — y **los
-   cuatro que cambiaban el comportamiento del sistema ya están hechos**
-   (2026-08-15), así que lo que queda ahí no cambia cómo se comporta nada.
+3. **Arrancar `inscripcion`** (abajo). Ya no hay alternativa que postergarlo:
+   **la remediación de la auditoría terminó el 2026-08-15** —las ocho tandas
+   cerradas, 56 de 61, ninguno abierto— y lo único que queda de ella son cuatro
+   hallazgos esperando decisiones o el hosting. `inscripcion` es lo que mueve la
+   aguja del producto y no está bloqueado por nada.
 
 ### Estado real
 
@@ -552,7 +552,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 | **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
-| **Auditoría** | 🟡 **51 de 61 resueltos**. Lo que queda son 5 de documentación + 3 decisiones |
+| **Auditoría** | ✅ **56 de 61 resueltos** y **ninguno abierto**. Los 4 que faltan esperan decisiones, no código |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -629,19 +629,20 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-> **Al 2026-08-15: 51 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 5
-> que siguen abiertos son TODOS de la tanda 8 y TODOS de documentación**: nada
-> que bloquee ni que cambie el comportamiento de nada. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
+> **Al 2026-08-15: 56 de 61 resueltos**, 1 cerrado como riesgo asumido, y
+> **ninguno abierto**. Las ocho tandas están cerradas. Lo único que queda son
+> **cuatro hallazgos a medias, y ninguno se destraba escribiendo código hoy.** **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
 > sección de deploy— y no se destraba programando: espera el hosting de octubre.
 >
 > Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
-> enteras, y **de la 8 se hicieron los cuatro defectos y los cinco de código**:
+> enteras, y **la 8 también, entera**. De sus catorce:
 > la credencial corrupta que pasaba por vigente, el `ESCAPE` que ninguna consulta
 > declaraba, los tres tokens de paleta que fallaban AA, la CSP de las dos apps,
 > el desagüe de `/error` que seguía contestando en el formato viejo, la lógica de
 > autorización copiada en dos controllers, los tipos de pedido que faltaban, los
-> dos `package-lock.json` de más y la convención de idioma, escrita por primera
-> vez. **Lo que queda de esa tanda es documentación.**
+> dos `package-lock.json` de más, la convención de idioma escrita por primera
+> vez, el `LICENSE` que no existía, y los restos de estado superado que quedaban
+> en este mismo documento.
 > El párrafo de abajo describe hasta la tanda 5 y se conserva como registro; el
 > estado fino, hallazgo por hallazgo, está en §8 del informe.
 
@@ -711,30 +712,33 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
 
 ### Lo que queda del backlog de auditoría, en una línea
 
-**5 hallazgos, todos de la tanda 8 y todos de documentación:** EXT-03 (falta el
-archivo `LICENSE`; la titularidad ya está resuelta y escrita en el README), DB-08
-(seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda
-tabla nueva), DOC-10 (los cuatro roles se justifican citando una promesa
-comercial que nombra otros cuatro), DOC-11 (restos de estado superado) y DOC-12
-(renumerar secciones y completar el árbol de `docs/` en el README).
+**Cero.** No queda ningún hallazgo abierto: las ocho tandas están cerradas.
 
-Más **4 a medias**, de los cuales sólo tres esperan algo: QA-07 y DOC-08
-(hosting) y DB-04 (la seña). DB-11 no está bloqueado, está programado: espera al
-DTO del Módulo 2.
+Quedan **4 a medias**, y ninguno es trabajo de código pendiente:
 
-**Todo lo que era código salió el 2026-08-15**, en dos partes: primero los cuatro
-defectos —QA-08 (la credencial con vencimiento ilegible pasaba por vigente),
-SEC-09 (ninguna consulta declaraba su `ESCAPE`), QA-06 (`--page-faint` en 2,25:1
-era el color de las etiquetas de los formularios) y SEC-07 (CSP y cabeceras)— y
-después los cinco de arquitectura (ARQ-04 y ARQ-06 a ARQ-09).
+| ID | Espera |
+|---|---|
+| **DB-04** | Que decidas **a qué reservas alcanza la seña**. Es lo único que bloquea el Módulo 2 |
+| **DOC-08** | El hosting de octubre (la sección de deploy) |
+| **QA-07** | El hosting de octubre (healthcheck del backend, que necesita el compose de deploy) |
+| **DB-11** | El DTO del Módulo 2, que todavía no existe |
 
-**Cuatro veces el informe estuvo mal o quedó viejo, y las cuatro se corrigieron
-en vez de seguirse**: los dos valores de paleta de QA-06 (0.45 no llega a AA;
-`--red-hover` empeora el tema papel), la puerta de ARQ-04 (el caso que el informe
-midió hoy sale bien; el que sobrevivía era `GET /error`) y la regla que enunciaba
-ARQ-08. Están documentadas una por una en el informe. El prompt de remediación
-dice que *"el informe es una entrada, no una orden"*: esta tanda es la primera
-que lo ejerce.
+**La tanda 8 se hizo entera el 2026-08-15**, en tres partes y en ese orden: los
+cuatro defectos —QA-08 (la credencial con vencimiento ilegible pasaba por
+vigente), SEC-09 (ninguna consulta declaraba su `ESCAPE`), QA-06 (`--page-faint`
+en 2,25:1 era el color de las etiquetas de los formularios) y SEC-07 (CSP y
+cabeceras)—, después los cinco de código (ARQ-04 y ARQ-06 a ARQ-09), y la
+documentación al final, para que registrara todo lo anterior de una vez.
+
+**Seis veces el informe estuvo mal, viejo o incompleto, y las seis se corrigieron
+en vez de seguirse:** los dos valores de paleta de QA-06 (0.45 no llega a AA;
+`--red-hover` *empeora* el tema papel), la puerta de ARQ-04 (el caso que el
+informe midió hoy sale bien; el que sobrevivía era `GET /error`), la regla que
+enunciaba ARQ-08, la renumeración de DOC-12 (habría roto cuatro referencias:
+se movieron los bloques conservando el número) y dos de los cuatro restos de
+DOC-11, que ya no existían. Están documentadas una por una en el informe. El
+prompt de remediación dice que *"el informe es una entrada, no una orden"*: la
+tanda 8 es la primera que lo ejerce.
 
 ### Cómo levantar todo
 
