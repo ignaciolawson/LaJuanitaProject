@@ -1,10 +1,59 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, type Plugin } from 'vitest/config'
+
+/**
+ * Content-Security-Policy del panel, inyectada en el HTML del build (SEC-07).
+ *
+ * Va como `<meta>` y no como cabecera porque hoy nadie sirve esto: el panel es
+ * un montón de archivos estáticos y el reverse proxy que los va a servir se
+ * decide con el hosting, en octubre. La meta cubre lo que se puede cubrir sin
+ * servidor; **`frame-ancestors` y HSTS se ignoran en `<meta>` y tienen que ir
+ * en el proxy** — está anotado en la sección de deploy de `docs/operacion.md`,
+ * que es donde se va a escribir esa configuración.
+ *
+ * Solo en `build`. En desarrollo Vite inyecta scripts inline (el preámbulo de
+ * React Refresh) y con `script-src 'self'` el panel no arranca: una CSP fija en
+ * `index.html` rompería `npm run dev` sin decir por qué.
+ *
+ * `script-src` NO lleva `'unsafe-inline'` — el build de Vite deja los scripts
+ * en archivos aparte, así que acá sí se puede lo que en la landing no. Los
+ * estilos sí: son los `style={{…}}` de React.
+ */
+function cspEnElBuild(): Plugin {
+  const politica = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "form-action 'self'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "script-src 'self'",
+    // El panel habla con su propia API a través del proxy, o sea mismo origen.
+    "connect-src 'self'",
+  ].join('; ')
+
+  return {
+    name: 'lajuanita-csp',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) =>
+        // Después del charset y no antes: la declaración de codificación tiene
+        // que entrar en los primeros 1024 bytes del documento, y la política
+        // ocupa 250.
+        html.replace(
+          '<meta charset="UTF-8" />',
+          `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${politica}" />`,
+        ),
+    },
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cspEnElBuild()],
   server: {
     proxy: {
       // El front pide siempre rutas relativas (`/api/...`) y en desarrollo

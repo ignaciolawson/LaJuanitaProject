@@ -1520,6 +1520,39 @@ CSP mal escrita rompe el preloader y las animaciones sin decir por qué.
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO en las dos apps, con una diferencia entre
+> ellas que vale entender.**
+>
+> **Landing**: bloque `headers()` en `next.config.ts` con CSP, `Referrer-Policy`,
+> `X-Content-Type-Options`, `X-Frame-Options` y `Permissions-Policy`. **`script-src` lleva
+> `'unsafe-inline'` y es deliberado**: Next mete el payload de RSC en un script inline por
+> página, y la alternativa —un nonce por respuesta— exige middleware, o sea render
+> dinámico, en un sitio que es 100% estático. Lo que la política igual impide es cargar un
+> script de otro origen y **mandar datos afuera** (`connect-src 'self'`), que es lo que
+> buscaba el hallazgo. `'unsafe-eval'` entra sólo en desarrollo, porque estas cabeceras
+> también corren en `next dev` y el HMR lo necesita.
+>
+> **Panel**: la CSP va en un `<meta>` del `index.html`, **inyectado sólo en el build** por
+> un plugin de doce líneas en `vite.config.ts` — en desarrollo Vite inyecta el preámbulo de
+> React Refresh como script inline, así que una política fija en el HTML rompería
+> `npm run dev` sin decir por qué. Ahí `script-src` **no** necesita `'unsafe-inline'`: el
+> build de Vite deja todos los scripts en archivos aparte (verificado: cero scripts inline
+> en `dist/index.html`). Lo que un `<meta>` no puede llevar —`frame-ancestors` y HSTS—
+> quedó escrito como punto 5 de la sección de deploy de `docs/operacion.md`, que es donde
+> se va a configurar el proxy.
+>
+> **Verificación, y en qué se quedó corta.** Las cinco cabeceras se leyeron de un
+> `next start` real (`Invoke-WebRequest` a `/contacto`), no del archivo de configuración, y
+> se confirmó que `'unsafe-eval'` **no** sale en el build de producción. La verificación en
+> navegador que pide el hallazgo **no se pudo hacer**: Edge headless no devuelve el DOM en
+> esta máquina. En su lugar se atacó lo mismo por el otro lado — se enumeraron **todos** los
+> orígenes externos de las páginas generadas (sólo enlaces, el iframe del mapa y los dos
+> reproductores del blog: los tres están en `frame-src`; ningún script, estilo, fuente ni
+> imagen de afuera) y se buscó en el bundle de producción lo único que esta política podría
+> romper: **`eval(` 0, `new Function(` 0, `new Worker(` 0, y ninguna fuente `data:` en el
+> CSS**. O sea que la capa de movimiento no puede estar violando la CSP. Aun así, **el día
+> que alguien abra el sitio con la consola abierta, mírela**: es la comprobación que falta.
+
 ---
 
 #### SEC-08 — BCrypt en el costo mínimo, y la contraseña temporal no vence nunca
@@ -4007,7 +4040,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **SEC-04** | Medio | S | 1 | ✅ | — |
 | **SEC-05** | Medio | S | 5 | ✅ | — |
 | **SEC-06** | Bajo | XS | 8 | ✅ | **Decidido en §13: se deja como está**, con el mismo argumento ya escrito para el email. El hallazgo pedía decidirlo explícitamente, y está decidido |
-| **SEC-07** | Bajo | S | 8 | 🔴 | CSP y cabeceras de seguridad en las dos apps |
+| **SEC-07** | Bajo | S | 8 | ✅ | Las dos apps. `frame-ancestors` y HSTS del panel van en el proxy — anotadas en el deploy de `operacion.md` |
 | **SEC-08** | Bajo | S | 4 | ✅ | — |
 | **SEC-09** | Bajo | XS | 8 | ✅ | — |
 | **ARQ-01** | Alto | S | 5 | ✅ | — |

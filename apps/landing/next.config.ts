@@ -1,6 +1,76 @@
 import type { NextConfig } from "next";
 
+/**
+ * Content-Security-Policy del sitio público.
+ *
+ * Se escribe AHORA porque hoy es barata: el sitio no carga un solo script de
+ * terceros. El día que entre un pixel de Instagram o un chat, escribir la
+ * política pasa a ser negociar con cada proveedor.
+ *
+ * ⚠️ `script-src` lleva `'unsafe-inline'`, y no es un descuido. Next inyecta
+ * scripts inline en cada página (el payload de RSC va en
+ * `self.__next_f.push(...)`), y la alternativa —un nonce por respuesta— exige
+ * middleware, o sea render dinámico: este sitio es 100% estático y perdería
+ * su razón de ser. Lo que la política igual impide, que es lo que importa acá,
+ * es cargar un script de OTRO origen y, sobre todo, que algo mande datos afuera
+ * (`connect-src 'self'`).
+ *
+ * `'unsafe-eval'` entra SÓLO en desarrollo: el HMR de Next lo necesita y estas
+ * cabeceras también corren en `next dev`. En el build de producción no está.
+ *
+ * Los tres `frame-src` son los embebidos reales del sitio, y no hay más: el
+ * mapa de `/contacto` y los dos reproductores que puede traer una nota del blog
+ * (`PostBody`). Si aparece un cuarto, va acá o el iframe queda en blanco sin
+ * decir por qué.
+ */
+const cspDirectivas = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  // Los estilos inline los escriben React (`style={{…}}`) y el propio Next.
+  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+  "connect-src 'self'",
+  "frame-src https://www.google.com https://www.youtube-nocookie.com https://open.spotify.com",
+].join("; ");
+
 const nextConfig: NextConfig = {
+  /**
+   * Cabeceras de seguridad. Ninguna de las dos apps declaraba una sola (SEC-07);
+   * la API sí quedaba cubierta, por los defaults de Spring Security.
+   *
+   * `Permissions-Policy` corta lo que este sitio no usa nunca y deja pasar el
+   * resto a propósito: los embebidos de YouTube piden `accelerometer` y
+   * `gyroscope` en su `allow`, y una política de documento que los niegue se
+   * los quita al iframe.
+   *
+   * HSTS no está acá: pertenece al proxy que termine el TLS, junto con la
+   * decisión de hosting de octubre. Ponerla en la app no sirve si el proxy
+   * responde en HTTP.
+   */
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: cspDirectivas },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Redundante con `frame-ancestors` en navegadores actuales; sigue
+          // sirviendo en los que no leen CSP nivel 2.
+          { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     /**
      * WebP solo, a propósito — no agregar AVIF.

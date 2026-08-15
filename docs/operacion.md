@@ -225,6 +225,20 @@ antes de que llegue a estar lista.
    `server.forward-headers-strategy`, o el log de seguridad va a registrar la IP
    del proxy en cada evento en vez de la del cliente, y con eso el registro de
    intentos de login no sirve para nada.
+5. **Las dos cabeceras que el panel no puede ponerse solo** (SEC-07). El panel
+   ya declara su Content-Security-Policy, pero la declara en un `<meta>` del
+   `index.html` porque es estático y no tiene servidor propio, y **hay dos
+   directivas que un `<meta>` no puede llevar**: el navegador las ignora ahí.
+   Van en el proxy que sirva `apps/platform/dist`:
+
+   | Cabecera | Valor | Por qué no puede ir en el `<meta>` |
+   |---|---|---|
+   | `Content-Security-Policy` | `frame-ancestors 'none'` (además de lo que ya declara el meta) | `frame-ancestors` sólo se respeta como cabecera. Sin ella, el panel se puede embeber en un iframe ajeno |
+   | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | HSTS es del transporte: la pone quien termina el TLS |
+
+   La landing no necesita esto: sirve sus cabeceras desde `next.config.ts`
+   —incluida `frame-ancestors 'none'`— y se verificó contra `next start`. Lo
+   único suyo que también espera al proxy es la HSTS.
 
 ---
 
