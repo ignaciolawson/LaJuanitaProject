@@ -498,7 +498,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-14
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-15
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -512,13 +512,34 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
+### ⏭️ Si estás retomando: las tres cosas que siguen
+
+**En este orden. La primera lleva cinco minutos y las otras dos dependen de vos.**
+
+1. **PUSHEAR.** Al 2026-08-15 hay **13 commits sólo en el disco de Ignacio** —las
+   tandas 6 y 7 enteras, más `V9`— y **el pipeline nunca corrió en Actions**. Los
+   cuatro pasos se verificaron a mano en local, pero el workflow se confirma en el
+   primer push. Es lo más barato y lo que más riesgo saca de encima: es
+   exactamente el escenario de EXT-02, dos días de trabajo en un solo disco.
+2. **Decidir la seña** (DB-04a). Es la única regla de negocio que quedó sin dueño
+   y **bloquea el Módulo 2**: §13 resolvió que no hay excepción, pero no dijo *a
+   qué reservas alcanza*. Una clase de un alumno con inscripción ya paga no lleva
+   seña propia; un alquiler de cabina sí. La cabecera de
+   `V9__reglas_cerradas_en_la_seccion_13.sql` tiene la pregunta exacta y la
+   herramienta para implementarla el día que se decida.
+3. **Arrancar `inscripcion`** (abajo) **o barrer la tanda 8** (limpieza, 13
+   hallazgos, no bloquea nada). `inscripcion` es lo que mueve la aguja del
+   producto; la tanda 8 es lo que se puede hacer sin decidir nada.
+
 ### Estado real
 
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha y auditada (§6b, §6c) |
+| **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
+| **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
+| **Auditoría** | 🟡 **42 de 61 resueltos**. Lo que queda es una pasada de limpieza + 3 decisiones |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -560,9 +581,19 @@ Ya tiene reglas duras definidas en `docs/requirements/platform.md`: curso cerrad
 8 clases (P1), varias inscripciones activas a la vez pero **nunca dos niveles de la
 misma disciplina** (P3, índice único parcial), y profesor asignado explícito (P6).
 
-**Antes de arrancar hay que preguntarle al cliente dos cosas** que bloquean partes
-del módulo: **P4** (¿los alumnos informales de Ghezz entran al sistema?) y **P5**
-(¿la nivelación la hace el sistema o Micaela por WhatsApp?).
+**Ya no hay nada que preguntar antes de arrancar.** P4 y P5 —las dos que este
+párrafo daba por bloqueantes— están contestadas en `platform.md` §13 desde el
+2026-08-14: los alumnos informales de Ghezz **entran** al sistema como alumnos
+normales, y la nivelación **la hace el formulario de la landing**, con Micaela
+pudiendo corregir el nivel después.
+
+Lo que sí conviene cerrar antes de llegar a las reservas es **la seña** (punto 2
+de arriba). No frena `inscripcion`, frena el Módulo 2.
+
+**Y `V9` ya dejó escritas en la base tres reglas que este módulo va a necesitar:**
+no se consumen más clases que las contratadas, el nivel no retrocede sin firma, y
+nadie está en dos salas a la vez. O sea que buena parte de lo que `inscripcion`
+tendría que cuidar a mano ya lo impone el esquema.
 
 ### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 
@@ -585,7 +616,16 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-**Remediado hasta ahora (2026-08-14): 28 de 61, más EXT-01 cerrado como riesgo asumido.**
+> **Al 2026-08-15: 42 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 13
+> que siguen abiertos son TODOS de la tanda 8**, o sea limpieza que no bloquea
+> nada. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
+> sección de deploy— y no se destraba programando: espera el hosting de octubre.
+>
+> Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
+> enteras. El párrafo de abajo describe hasta la tanda 5 y se conserva como
+> registro; el estado fino, hallazgo por hallazgo, está en §8 del informe.
+
+**Remediado hasta el 2026-08-14: 28 de 61, más EXT-01 cerrado como riesgo asumido.**
 El candado del secreto JWT falla cerrado y el secreto se rotó; la auto-degradación de rol
 está cerrada; las reglas de la base llegan al usuario como mensajes legibles en vez de
 como "email duplicado" o como 500; los errores de Spring salen en español; `V7` cerró los
@@ -617,8 +657,9 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
    va `JWT_SECRET` con un valor nuevo.
 3. **Los tests de JPA corren contra la base de desarrollo** y ahora sí insertan y
    borran. Testcontainers pasó de "conviene" a "hace falta pronto" — y bajó un escalón de
-   urgencia el 2026-08-14: las 136 pruebas SQL ya corren solas sobre bases descartables
-   (`scripts/pruebas-sql.sh`) y en CI. Lo que falta resolver es esto, los tests de JPA.
+   urgencia el 2026-08-14: las **171** pruebas SQL ya corren solas sobre bases
+   descartables (`scripts/pruebas-sql.sh`) y en CI. Lo que falta resolver es esto,
+   los tests de JPA.
 4. ~~**El frontend no tiene tests.**~~ **Resuelto el 2026-08-14** (QA-05): Vitest +
    Testing Library, 53 casos sobre las piezas donde una regresión es invisible —el menú,
    la credencial, la interpretación de errores, la ruta protegida y el listado—. Es el
@@ -631,22 +672,51 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
    con ARQ-02.
 7. ~~**Los listados muestran 20 filas y el contador dice el total** (ARQ-01).~~
    **Resuelto el 2026-08-14**: paginan, y buscar vuelve a la primera página.
-8. **Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6. No son
-   deuda técnica: son reglas confirmadas que hoy no existen en ningún lado, y cada una
-   necesita una decisión tuya antes de escribirse.
+8. ~~**Las reglas de negocio sin dueño** de `docs/db/auditoria-2026-08-12.md` §6.~~
+   **Cinco de las seis se escribieron en `V9`** (2026-08-14), en cuanto §13 tomó las
+   decisiones que faltaban: nadie en dos salas a la vez (profesor y alumno), el nivel
+   que no retrocede sin firma, no consumir más clases que las contratadas,
+   `sala.activa` con significado, y la anulación de `egreso` y `venta_equipo`.
+   **Queda una: la seña**, que es el punto 2 de arriba.
 9. ~~**Credenciales de Postgres commiteadas sin override**~~ **Resuelto el 2026-08-14**
-   (DOC-07): van por entorno y el README tiene la tabla de variables por ambiente. **Sigue
-   abierto DOC-08**: cero procedimiento de backup, restore o deploy — y es lo que más
-   duele el día que algo se rompa.
+   (DOC-07): van por entorno y el README tiene la tabla de variables por ambiente.
+   **DOC-08 pasó a parcial**: `docs/operacion.md` ya tiene backup, **restore
+   ensayado de punta a punta** y el runbook de fallas de migración, los tres
+   probados ejecutándolos. Lo único que falta ahí es el **deploy**, que depende del
+   hosting de octubre — y con él el healthcheck del backend (QA-07).
 10. **Los PDF del cliente quedan versionados, y está decidido así** (2026-08-14). El
     repositorio ya es privado y el secreto se rotó; lo demás —el historial y el aviso al
     cliente— Ignacio lo asumió como decisión propia. Figura como riesgo aceptado en §5
     del informe de auditoría, no como pendiente.
 
+### Lo que queda del backlog de auditoría, en una línea
+
+**13 hallazgos, todos de la tanda 8, todos limpieza y ninguno bloquea nada:**
+EXT-03 (`LICENSE`), DB-08 (seis nombres para "cuándo se creó esta fila"), SEC-07
+(CSP), SEC-09 (`ESCAPE` en las búsquedas), QA-06 (**cuatro combinaciones de la
+paleta fallan AA, y una es el borde de los inputs** — el de más impacto visible),
+QA-08 (una credencial con fecha ilegible pasa por vigente), ARQ-04 (los dos
+formatos de error que conviven), ARQ-06, ARQ-07, ARQ-08 y DOC-10 a DOC-12.
+
+Más **5 a medias**, de los cuales sólo tres esperan algo: QA-07 y DOC-08 (hosting)
+y DB-04 (la seña). DB-11 espera al DTO del Módulo 2 y ARQ-09 se barre con la
+tanda 8.
+
 ### Cómo levantar todo
 
 `docker compose up -d` → `mvn spring-boot:run` en `apps/backend` → `npm run dev:platform`.
 Detalle y credenciales en el [README](../README.md).
+
+**Y para verificar que nada se rompió**, los cuatro comandos que corre el CI:
+
+```
+cd apps/backend && mvn test     # 106
+./scripts/pruebas-sql.sh        # 121 + 50, sobre 9 migraciones
+npm run test:platform           # 53
+npm run build:landing && npm run build:platform
+```
+
+Al 2026-08-15 los cuatro pasan.
 
 ---
 

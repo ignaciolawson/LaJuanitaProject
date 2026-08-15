@@ -397,15 +397,15 @@ Casi todo el texto largo está escrito con la voz del negocio, pero es
 
 | Archivo | Qué está inventado |
 | --- | --- |
-| `data/services.ts` | Precios ($18.000/h cabina, $65.000/h grabación) y el "qué incluye" |
-| `data/business.ts` | Lo contrario: lo que falta está como `null` y documentado. Dirección exacta, teléfono, horarios y año de fundación — los cuatro frenan el SEO local |
+| `data/services.ts` | Precios ($18.000/h cabina, $65.000/h grabación) y el "qué incluye". **Los precios bloquean publicar** |
+| `data/business.ts` | **Ya no tiene nada inventado.** Dirección, teléfono, horario y año se confirmaron el 2026-08-14 (§13). Siguen en `null`, y por eso se omiten del JSON-LD: las coordenadas |
 | `data/gear.ts` | Qué entra en cada categoría |
-| `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario, precios |
-| `data/posts.ts` | Las seis notas del blog, enteras. Firmadas con nombres de profesores que no las escribieron — ver abajo |
+| `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario. **Los precios bloquean publicar**; el formato (clases, no meses) ya es el confirmado |
+| `data/posts.ts` | Las seis notas del blog, enteras. **Bloquean publicar.** Ya no llevan firma de personas reales (hoy: "Equipo La Juanita") — ver abajo |
 | `data/releases.ts`, `dates.ts`, `teachers.ts`, `faq.ts` | Placeholder heredado |
-| `data/contact.ts` | WhatsApp `5491100000000` es falso. Spotify e Instagram ya son reales |
-| `sections/Numbers.tsx` | 200+ alumnos, 12 lanzamientos, "desde 2019" |
-| `app/nosotros/page.tsx` | La línea de tiempo (2019 → 2021 → 2023) |
+| `data/contact.ts` | Ya no: el WhatsApp es el real y el email inventado se sacó (queda en `null`). Falta el Instagram real — hoy es el dominio pelado |
+| `sections/Numbers.tsx` | 200+ alumnos y 12 lanzamientos. El año ya es el confirmado (2021) y la cantidad de programas sale de `PROGRAMS.length` |
+| `app/nosotros/page.tsx` | La línea de tiempo. Arranca en 2021, que es el único año confirmado; los demás siguen inventados |
 
 **Sobre `data/gear.ts`:** no hay marcas ni modelos, y es deliberado.
 Publicar un modelo concreto es un compromiso de venta — si no está en stock,
@@ -728,12 +728,33 @@ Las decisiones específicas de teléfono y tablet están en
 
 ## Falta
 
-- **Datos del negocio sin confirmar**, que hoy bloquean SEO local: dirección
-  exacta, teléfono, horarios de atención y año de fundación. Ver
-  `data/business.ts`; en cuanto estén, salen solos en el JSON-LD.
+> **Estado al 2026-08-15.** La lista de alcance, partida en "bloquea publicar" y
+> "no bloquea", vive en
+> [`docs/requirements/landing.md`](../../docs/requirements/landing.md). Acá va lo
+> que le toca a esta app.
+
+**Bloquea publicar:**
+
+- **Conectar los formularios.** Los cinco contestan "listo" sin enviar nada. Es
+  *la* razón por la que el sitio no se publica.
+- **Reescribir o borrar las seis notas del blog.**
+- **Validar los precios**, que hoy salen con la salvedad "precio de referencia".
+
+**No bloquea:**
+
 - Perfiles reales de Instagram y YouTube en `data/contact.ts` (hoy son el
   dominio pelado y quedan fuera de `sameAs`).
+- Coordenadas del local, para el `geo` del `LocalBusiness`. La dirección está
+  confirmada; el punto en el mapa, no — y un punto mal puesto manda gente a la
+  puerta equivocada.
+- Una casilla de email. Hoy no existe y `CONTACT.email` está en `null`, así que
+  los cuatro lugares que la mostraban se ausentan solos.
+- **Mejorar el LCP** — ya medido, ver *Rendimiento*. El camino es diferir el
+  bundle de motion en las rutas interiores, y es el cambio más delicado del repo.
 - Política de privacidad.
+
+**Ya no falta:** los datos del negocio (dirección, teléfono, horario y año) se
+confirmaron el 2026-08-14 y el `LocalBusiness` se publica entero.
 - Las páginas interiores (`/sello`, `/profesores`, `/faq`, `/contacto`)
   recibieron migración de tokens y tipografía, pero conservan estructura
   vieja (`EditorialRow`). Son coherentes, no están al nivel de la home.
