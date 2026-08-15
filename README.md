@@ -85,14 +85,22 @@ npm run dev
 ### Tests
 
 ```
-cd apps/backend && mvn test        # 86 casos: login, JWT, registro, permisos, vigencia, errores, límites
+cd apps/backend && mvn test        # 106 casos: login, JWT, registro, permisos, vigencia, errores, límites, alumnos
 cd apps/platform && npm run build  # incluye el chequeo de tipos
 cd apps/platform && npm run lint
 ```
 
-Las pruebas de reglas de negocio de la base (69 casos SQL) se corren aparte;
-las instrucciones están en la cabecera de
-`apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql`.
+Las reglas de negocio de la base se prueban aparte, con **136 casos SQL** (86 de
+reglas + 50 adversariales) que corren sobre una base descartable:
+
+```
+./scripts/pruebas-sql.sh           # aplica todas las migraciones y corre las dos suites
+```
+
+`mvn test` **no las toca**: los CHECK, los triggers y los EXCLUDE son donde este
+proyecto puso sus reglas de negocio, y ninguna de las dos suites entra en el
+build de Java. El script sale con código distinto de cero si algún caso falla,
+así que el pipeline las corre como un paso más.
 
 ## Autenticación
 
