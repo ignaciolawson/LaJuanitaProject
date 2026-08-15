@@ -86,20 +86,37 @@ export async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T
   return (await respuesta.json()) as T
 }
 
+/**
+ * Mensaje para cuando el cuerpo del error no sirve — sea porque no vino, porque
+ * no es JSON, o porque es un JSON sin `detail`.
+ *
+ * Los tres son el mismo caso desde acá: no hay nada que mostrarle a la persona.
+ * Antes solo el segundo entraba al `catch` (ARQ-04): un cuerpo con `timestamp`
+ * y `error` en vez de `detail` parseaba perfecto, no encontraba el campo, y se
+ * quedaba con el texto genérico aunque el status dijera algo mucho más útil.
+ */
+function mensajePorEstado(estado: number): string {
+  if (estado === 401) return 'Tu sesión venció. Volvé a entrar.'
+  if (estado === 403) return 'No tenés permiso para hacer esto.'
+  if (estado === 404) return 'No encontramos lo que estabas buscando.'
+  if (estado === 429) return 'Demasiados intentos. Esperá un momento y probá de nuevo.'
+  if (estado >= 500) return 'El servidor tuvo un problema. Probá de nuevo en un momento.'
+  return 'No se pudo completar la operación.'
+}
+
 async function interpretarError(respuesta: Response): Promise<ApiError> {
-  let detalle = 'No se pudo completar la operación.'
+  let detalle: string | undefined
   let errores: Record<string, string> | undefined
 
   try {
     const cuerpo = await respuesta.json()
-    if (typeof cuerpo?.detail === 'string') detalle = cuerpo.detail
+    if (typeof cuerpo?.detail === 'string' && cuerpo.detail.trim() !== '') detalle = cuerpo.detail
     if (cuerpo?.errores && typeof cuerpo.errores === 'object') errores = cuerpo.errores
   } catch {
-    // Un 401 del filtro de seguridad viene sin cuerpo: Spring rechaza el
-    // pedido antes de llegar al @RestControllerAdvice. Nos quedamos con el
-    // mensaje por defecto.
-    if (respuesta.status === 401) detalle = 'Tu sesión venció. Volvé a entrar.'
+    // Sin cuerpo o con un cuerpo que no es JSON. Pasa, por ejemplo, con un 401
+    // del filtro de seguridad: Spring rechaza el pedido antes de llegar al
+    // @RestControllerAdvice.
   }
 
-  return new ApiError(respuesta.status, detalle, errores)
+  return new ApiError(respuesta.status, detalle ?? mensajePorEstado(respuesta.status), errores)
 }

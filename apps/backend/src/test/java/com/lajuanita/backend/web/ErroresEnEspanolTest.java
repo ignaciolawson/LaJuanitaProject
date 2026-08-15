@@ -95,6 +95,30 @@ class ErroresEnEspanolTest {
                 .andExpect(jsonPath("$.detail").value("Ese dato no tiene un valor válido."));
     }
 
+    /**
+     * El desagüe (ARQ-04). Todo lo que no resuelve ningún {@code @ExceptionHandler}
+     * sale reenviado a {@code /error}, y ahí contestaba el
+     * {@code BasicErrorController} de Spring con el OTRO formato:
+     * {@code {"timestamp":…,"status":999,"error":"None"}} — sin {@code detail},
+     * que es el único campo que el front lee. Medido contra la API corriendo, no
+     * deducido.
+     *
+     * <p>Se pide {@code /error} directamente porque es lo que se puede pedir: es
+     * {@code permitAll} —tiene que serlo, es un reenvío interno— así que este es
+     * además el peor caso, el de alguien entrando de afuera sin ningún error
+     * previo que contar.
+     */
+    @Test
+    void el_desague_de_errores_tambien_contesta_en_el_formato_de_la_API() throws Exception {
+        mvc.perform(get("/error"))
+                .andExpect(jsonPath("$.detail").exists())
+                .andExpect(jsonPath("$.title").exists())
+                // Los dos campos del formato viejo, que es de lo que se trata
+                // este hallazgo: no tienen que estar más.
+                .andExpect(jsonPath("$.timestamp").doesNotExist())
+                .andExpect(jsonPath("$.error").doesNotExist());
+    }
+
     // -------------------------------------------------------------------------
 
     private String comoAdmin() {

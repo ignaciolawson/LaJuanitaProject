@@ -1938,6 +1938,48 @@ queda afuera. Lo que no conviene es dejar escrito que el problema está resuelto
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO las dos mitades, y también la tercera
+> opción: el comentario ahora dice la verdad.**
+>
+> **Lo primero fue volver a medir, y el hallazgo cambió de puerta.** El caso exacto que
+> el informe reprodujo —`POST` sin `Content-Type`— **hoy sale bien**: contesta un 415 con
+> `detail`. Lo que sigue vivo, medido contra la API corriendo, es el propio desagüe:
+>
+> ```
+> GET /error   →   {"timestamp":"…","status":999,"error":"None"}     HTTP 500
+> ```
+>
+> Sin `detail`, con un status inventado, y **alcanzable por cualquiera**: `/error` es
+> `permitAll`, y tiene que serlo porque es un reenvío interno, no un endpoint. O sea que la
+> afirmación del `application.properties` seguía siendo más fuerte que lo que el sistema
+> cumplía, exactamente como decía el hallazgo.
+>
+> - **Backend**: `web/ErrorPorDefecto` atiende `/error` y devuelve `ProblemDetail`. El
+>   mensaje sale **del código de estado y de ningún lado más** — ni de la excepción, ni del
+>   `jakarta.servlet.error.message` que Spring deja en la petición, que puede traer texto
+>   interno—, y son los mismos textos que ya da `ManejadorDeErrores` para el mismo caso.
+> - **Front**: `interpretarError` trata un cuerpo **sin `detail`** (o con un `detail` en
+>   blanco) igual que un cuerpo que no parsea, y cae a un mensaje por status. Antes ese era
+>   el peor de los dos casos: el JSON crudo parseaba bien, no encontraba `detail` y por eso
+>   **no entraba al `catch`** que existía para esto.
+> - **`application.properties`**: el comentario dice qué cubre esa línea y qué no, y
+>   apunta a la clase que cierra la otra mitad.
+>
+> **Verificado en los dos niveles.** Con la API corriendo, `GET /error` ahora contesta
+> `{"detail":"Hubo un error inesperado. Probá de nuevo en un momento.","instance":"/error",`
+> `"status":500,"title":"Error inesperado"}`. Y quedó pinchado en tests: `mvn test`
+> **108/108** (era 107) con un caso que exige `detail` y `title` y que **`timestamp` y
+> `error` no estén**, más `npm run test:platform` **55/55** (era 54), donde los dos casos
+> que fijaban el comportamiento viejo se reescribieron — estaban ahí como registro de este
+> hallazgo, y ahora fijan el nuevo.
+>
+> **Encontrado de paso, y NO arreglado** (queda anotado, no es este hallazgo): dos mensajes
+> de Spring que salen **en inglés** y con vocabulario interno —
+> *"No static resource api/noexiste."* (404) y
+> *"Content-Type 'application/octet-stream' is not supported."* (415)—. Ya tienen el
+> formato correcto, así que ARQ-04 está cerrado; el idioma es de la familia de ARQ-03, que
+> tradujo otros tres. Son dos entradas más en `ManejadorDeErrores`.
+
 ---
 
 #### ARQ-05 — Hay un quinto y un sexto lugar que razonan sobre los cuatro roles, y la lista oficial dice que son cuatro
@@ -4135,7 +4177,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-01** | Alto | S | 5 | ✅ | — |
 | **ARQ-02** | Medio | M | 5 | ✅ | Los dos `GET /{id}` siguen sin usarse a propósito: el listado ya trae esos campos |
 | **ARQ-03** | Medio | S | 1 | ✅ | — |
-| **ARQ-04** | Medio | S | 8 | 🔴 | Los dos formatos de error que `application.properties` dice haber unificado siguen conviviendo |
+| **ARQ-04** | Medio | S | 8 | ✅ | — |
 | **ARQ-05** | Bajo | XS | 5 | ✅ | — |
 | **ARQ-06** | Bajo | S | 8 | ✅ | Movidos. `normalizar` queda duplicado a propósito — ver el bloque del hallazgo |
 | **ARQ-07** | Bajo | XS | 8 | ✅ | — |

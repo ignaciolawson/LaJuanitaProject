@@ -99,18 +99,31 @@ describe('interpretación de errores', () => {
   })
 
   /**
-   * El formato crudo de Spring (`timestamp`/`error`, sin `detail`) es ARQ-04:
-   * los dos formatos todavía conviven. Lo que este caso fija es que cuando
-   * llega el que no tiene `detail`, la persona igual ve un mensaje y no una
-   * pantalla vacía o un "undefined".
+   * El formato crudo de Spring (`timestamp`/`error`, sin `detail`).
+   *
+   * **Este era el agujero de ARQ-04**, y era el peor de los dos posibles: ese
+   * cuerpo es JSON válido, así que parseaba bien, no encontraba `detail`, y por
+   * eso **no entraba al `catch`** que existe justamente para poner un mensaje
+   * razonable cuando el cuerpo no sirve. Quedaba el texto genérico aunque el
+   * status dijera algo mucho más útil. Ahora un cuerpo sin `detail` se trata
+   * como cuerpo inservible, igual que uno que no parsea.
    */
-  it('un cuerpo sin `detail` cae en el mensaje por defecto, no en undefined', async () => {
+  it('un cuerpo sin `detail` cae en el mensaje por status, no en el genérico', async () => {
     mockearFetch(responder(500, { timestamp: '2026-08-14T00:00:00Z', error: 'Internal Server Error' }))
 
     const error = (await pedir('/api/alumnos').catch((e: unknown) => e)) as ApiError
 
-    expect(error.message).toBe('No se pudo completar la operación.')
+    expect(error.message).toBe('El servidor tuvo un problema. Probá de nuevo en un momento.')
     expect(error.errores).toBeUndefined()
+  })
+
+  /** Un `detail` vacío es lo mismo que no tenerlo: no hay nada que mostrar. */
+  it('un `detail` en blanco tampoco se muestra', async () => {
+    mockearFetch(responder(404, { detail: '   ' }))
+
+    const error = (await pedir('/api/alumnos/1').catch((e: unknown) => e)) as ApiError
+
+    expect(error.message).toBe('No encontramos lo que estabas buscando.')
   })
 
   it('un cuerpo que no es JSON tampoco rompe', async () => {
@@ -120,7 +133,7 @@ describe('interpretación de errores', () => {
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(502)
-    expect(error.message).toBe('No se pudo completar la operación.')
+    expect(error.message).toBe('El servidor tuvo un problema. Probá de nuevo en un momento.')
   })
 
   /**

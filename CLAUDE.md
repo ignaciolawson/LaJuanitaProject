@@ -241,6 +241,7 @@ The same reshuffle hits **packages and libraries**, not just artifact ids. Verif
 | `@AutoConfigureMockMvc` | `…boot.test.autoconfigure.web.servlet` | `…boot.webmvc.test.autoconfigure` |
 | JSON | Jackson 2, `com.fasterxml.jackson.databind` | **Jackson 3, `tools.jackson.databind`** |
 | OAuth2 resource server starter | `spring-boot-starter-oauth2-resource-server` | either that or `spring-boot-starter-security-oauth2-resource-server` — the BOM ships **both, and they are identical** (checked); prefer the second for consistency |
+| `ErrorController` | `…boot.web.servlet.error` | **`…boot.webmvc.error`** (verified with `jar tf` on `spring-boot-webmvc-4.1.0.jar`) |
 
 When something won't resolve, list what's actually there instead of guessing: `mvn dependency:list`, or `jar tf` over the jars in `~/.m2`.
 
