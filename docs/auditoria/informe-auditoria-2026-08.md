@@ -921,6 +921,20 @@ Si en algún momento hay otra migración sobre esas tablas, se renombran de paso
 
 **Esfuerzo: S**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO tal cual la recomendación: sin migración
+> de renombre.** `CLAUDE.md` fija **`fecha_creacion`** (`TIMESTAMPTZ NOT NULL DEFAULT
+> now()`) para toda tabla nueva, con la tabla de equivalencias de las cinco excepciones y
+> la regla de qué hacer si otra migración toca alguna de ellas.
+>
+> **Verificado contra las migraciones y no contra el informe** (`grep` sobre
+> `db/migration/*.sql`): 10 usos de `fecha_creacion`, 7 de `fecha_registro`, y uno de cada
+> uno de los otros cuatro. El inventario del hallazgo estaba bien.
+>
+> Se dejó anotado además lo que el hallazgo señala al pasar y es lo único con filo:
+> **`alumno` y `profesor` no tienen sello de creación de la relación**, y
+> `alumno.fecha_ingreso` **no** sirve para eso — es un `DATE` de negocio, editable, que
+> contesta otra pregunta.
+
 ---
 
 #### DB-09 — Tres de los cuatro destinos de `pago` no tienen índice, y uno de ellos respalda dos triggers activos
@@ -4222,7 +4236,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
 | **DB-07** | Bajo | S | 3 | ✅ | **Cerrado en `V9`**: `egreso` y `venta_equipo` se anulan con autor + fecha + motivo, y por eso ya no se borran — la condición que V6 §7 se había puesto a sí misma |
-| **DB-08** | Bajo | S | 8 | 🔴 | Seis nombres para "cuándo se creó esta fila": fijar `fecha_creacion` para toda tabla nueva |
+| **DB-08** | Bajo | S | 8 | ✅ | — |
 | **DB-09** | Bajo | XS | 3 | ✅ | — |
 | **DB-10** | Info | — | 8 | ✅ | **Cerrado por §13 (P11): 10:00 a 18:00 y no se usa después de medianoche.** El modelo `DATE` + dos `TIME` es el correcto y no hay que tocar nada |
 | **DB-11** | Bajo | XS | 3 | 🟡 | *(nuevo, 2026-08-14)* Evitado en `bloqueo_sala`; en `reserva` queda validar el orden de las horas en el DTO del Módulo 2 |

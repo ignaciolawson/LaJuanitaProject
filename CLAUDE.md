@@ -260,6 +260,19 @@ The same reshuffle hits **packages and libraries**, not just artifact ids. Verif
 
 When something won't resolve, list what's actually there instead of guessing: `mvn dependency:list`, or `jar tf` over the jars in `~/.m2`.
 
+**A new table's creation stamp is called `fecha_creacion`** — `TIMESTAMPTZ NOT NULL DEFAULT now()`. There are **six different names** for that column in the existing schema (DB-08), which costs nothing today and will cost when Module 8 asks "what was loaded this month": that query has to remember which column each table uses, and getting it wrong produces an incomplete report with no error in sight. The name is settled for anything new; the existing ones are **not worth a rename migration on their own**, but if another migration touches one of these tables, rename it there.
+
+| Column | Tables |
+|---|---|
+| **`fecha_creacion`** ← use this | `usuario`, `inscripcion`, `reserva`, `nota_profesor`, `notificacion`, `release`, `trabajo_mastering` |
+| `fecha_registro` | `bloqueo_sala`, `pago`, `egreso`, `reserva_participante` |
+| `fecha_alta` | `artista` |
+| `fecha_carga` | `contrato_sello` |
+| `fecha_subida` | `material` |
+| `fecha_actualizacion` | `seguimiento_alumno` |
+
+Five tables have no creation stamp at all. For `sala`, `tipo_uso` and `sala_tipo_uso` that's fine — they're semi-static catalog. For **`alumno` and `profesor` it's a real gap**: nothing records when the relation was created. Don't reach for `alumno.fecha_ingreso` to fill it — that's a `DATE` of the business (when the student started), editable by staff, and it answers a different question.
+
 **Business rules are enforced in the database, not only in services.** A Postgres `EXCLUDE` constraint makes overlapping `reserva` rows for the same `sala` impossible; a composite FK to `sala_tipo_uso` makes an unauthorized room/use combination impossible (no recording in Sala 1, no mentoring in the recording booth); triggers keep reservations and `bloqueo_sala` from overlapping; a partial unique index allows only one active `inscripcion` per discipline per student. Read the comments in `V1__baseline.sql` before changing any of them — each one encodes a decision from `docs/requirements/platform.md`. **`V6__integridad_auditoria.sql` is the other half of those rules** — money can't be deleted, a premaster can't be released without a payment behind it, state machines can't be walked backwards in two steps — and its rationale is in `docs/db/auditoria-2026-08-12.md`, including the list of rules deliberately left unimplemented.
 
 Those rules only reach the user through `ManejadorDeErrores`. It maps constraint names to Spanish messages and turns a trigger's `RAISE EXCEPTION` (SQLSTATE `P0001`) into a 409 carrying the trigger's own text — without it, the 103 constraints all came out as *"Ese email o ese teléfono ya están registrados"* and the 10 triggers came out as **500**. When you add a rule to the database, add its message to that map.
