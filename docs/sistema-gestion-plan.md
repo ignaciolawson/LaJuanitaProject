@@ -498,7 +498,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-15
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-15 (tarde)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -516,20 +516,22 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 **En este orden. La primera lleva cinco minutos y las otras dos dependen de vos.**
 
-1. **PUSHEAR.** Al 2026-08-15 hay **13 commits sólo en el disco de Ignacio** —las
-   tandas 6 y 7 enteras, más `V9`— y **el pipeline nunca corrió en Actions**. Los
-   cuatro pasos se verificaron a mano en local, pero el workflow se confirma en el
-   primer push. Es lo más barato y lo que más riesgo saca de encima: es
-   exactamente el escenario de EXT-02, dos días de trabajo en un solo disco.
+1. ~~**PUSHEAR.**~~ **Hecho.** `main` local y remoto coinciden (verificado con
+   `git fetch`: 0 commits de diferencia). Las tandas 6 y 7 y `V9` ya no viven en
+   un solo disco. **Lo que sigue sin confirmarse es el pipeline en Actions**: los
+   cuatro pasos se verificaron a mano en local, pero **nadie miró todavía la
+   pestaña Actions del repo**. Es un vistazo, no una tarea.
 2. **Decidir la seña** (DB-04a). Es la única regla de negocio que quedó sin dueño
    y **bloquea el Módulo 2**: §13 resolvió que no hay excepción, pero no dijo *a
    qué reservas alcanza*. Una clase de un alumno con inscripción ya paga no lleva
    seña propia; un alquiler de cabina sí. La cabecera de
    `V9__reglas_cerradas_en_la_seccion_13.sql` tiene la pregunta exacta y la
    herramienta para implementarla el día que se decida.
-3. **Arrancar `inscripcion`** (abajo) **o barrer la tanda 8** (limpieza, 13
-   hallazgos, no bloquea nada). `inscripcion` es lo que mueve la aguja del
-   producto; la tanda 8 es lo que se puede hacer sin decidir nada.
+3. **Arrancar `inscripcion`** (abajo) **o terminar la tanda 8** (limpieza, quedan
+   **9** hallazgos, no bloquea nada). `inscripcion` es lo que mueve la aguja del
+   producto; la tanda 8 es lo que se puede hacer sin decidir nada — y **los
+   cuatro que cambiaban el comportamiento del sistema ya están hechos**
+   (2026-08-15), así que lo que queda ahí no cambia cómo se comporta nada.
 
 ### Estado real
 
@@ -539,7 +541,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 | **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
-| **Auditoría** | 🟡 **42 de 61 resueltos**. Lo que queda es una pasada de limpieza + 3 decisiones |
+| **Auditoría** | 🟡 **46 de 61 resueltos**. Lo que queda es una pasada de limpieza + 3 decisiones |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -616,14 +618,18 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-> **Al 2026-08-15: 42 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 13
+> **Al 2026-08-15: 46 de 61 resueltos**, 1 cerrado como riesgo asumido, y **los 9
 > que siguen abiertos son TODOS de la tanda 8**, o sea limpieza que no bloquea
 > nada. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
 > sección de deploy— y no se destraba programando: espera el hosting de octubre.
 >
 > Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
-> enteras. El párrafo de abajo describe hasta la tanda 5 y se conserva como
-> registro; el estado fino, hallazgo por hallazgo, está en §8 del informe.
+> enteras, y **de la 8 se hicieron los cuatro defectos** (QA-08, SEC-09, QA-06,
+> SEC-07): la credencial corrupta que pasaba por vigente, el `ESCAPE` que ninguna
+> consulta declaraba, los tres tokens de paleta que fallaban AA y la CSP de las
+> dos apps. **Lo que queda de esa tanda no cambia el comportamiento de nada.**
+> El párrafo de abajo describe hasta la tanda 5 y se conserva como registro; el
+> estado fino, hallazgo por hallazgo, está en §8 del informe.
 
 **Remediado hasta el 2026-08-14: 28 de 61, más EXT-01 cerrado como riesgo asumido.**
 El candado del secreto JWT falla cerrado y el secreto se rotó; la auto-degradación de rol
@@ -691,16 +697,22 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
 
 ### Lo que queda del backlog de auditoría, en una línea
 
-**13 hallazgos, todos de la tanda 8, todos limpieza y ninguno bloquea nada:**
-EXT-03 (`LICENSE`), DB-08 (seis nombres para "cuándo se creó esta fila"), SEC-07
-(CSP), SEC-09 (`ESCAPE` en las búsquedas), QA-06 (**cuatro combinaciones de la
-paleta fallan AA, y una es el borde de los inputs** — el de más impacto visible),
-QA-08 (una credencial con fecha ilegible pasa por vigente), ARQ-04 (los dos
-formatos de error que conviven), ARQ-06, ARQ-07, ARQ-08 y DOC-10 a DOC-12.
+**9 hallazgos, todos de la tanda 8, todos limpieza y ninguno bloquea nada:**
+EXT-03 (`LICENSE`), DB-08 (seis nombres para "cuándo se creó esta fila"), ARQ-04
+(los dos formatos de error que conviven), ARQ-06 (lógica copiada entre los dos
+controllers), ARQ-07 (tres `package-lock.json`), ARQ-08 (la convención de idioma
+sin escribir) y DOC-10 a DOC-12.
 
 Más **5 a medias**, de los cuales sólo tres esperan algo: QA-07 y DOC-08 (hosting)
 y DB-04 (la seña). DB-11 espera al DTO del Módulo 2 y ARQ-09 se barre con la
 tanda 8.
+
+**Y los cuatro que sí cambiaban el comportamiento del sistema salieron el
+2026-08-15**: QA-08 (la credencial con vencimiento ilegible pasaba por vigente),
+SEC-09 (ninguna consulta declaraba su `ESCAPE`), QA-06 (`--page-faint` en 2,25:1
+era el color de las etiquetas de los formularios) y SEC-07 (CSP y cabeceras en
+las dos apps). Dos de las recomendaciones del informe estaban mal y se
+corrigieron en vez de seguirse — los números están en el bloque de QA-06.
 
 ### Cómo levantar todo
 
@@ -710,9 +722,9 @@ Detalle y credenciales en el [README](../README.md).
 **Y para verificar que nada se rompió**, los cuatro comandos que corre el CI:
 
 ```
-cd apps/backend && mvn test     # 106
+cd apps/backend && mvn test     # 107
 ./scripts/pruebas-sql.sh        # 121 + 50, sobre 9 migraciones
-npm run test:platform           # 53
+npm run test:platform           # 54
 npm run build:landing && npm run build:platform
 ```
 

@@ -3830,9 +3830,11 @@ primero es una pregunta al cliente, no trabajo de código**.
 
 ## 8. Estado de la remediación
 
-**9 de los 59 hallazgos están resueltos.** Cada uno lleva su bloque
-*"Remediado el ..."* al pie del hallazgo, con qué se hizo y cómo se verificó; esta
-sección es solo el índice y el orden propuesto para lo que queda.
+**46 de los 61 hallazgos están resueltos** (al 2026-08-15), más uno cerrado como riesgo
+asumido. Cada uno lleva su bloque *"Remediado el ..."* al pie del hallazgo, con qué se
+hizo y cómo se verificó; esta sección es solo el índice y el orden propuesto para lo que
+queda. **La cuenta fina, hallazgo por hallazgo, está en §8.1** — esta línea es lo primero
+que envejece.
 
 ### Tanda 1 — 2026-08-14 · perímetro del backend y errores
 
@@ -4010,7 +4012,41 @@ apareció otro que nadie había anotado: la home decía **"4 Programas activos"*
 —eran cuatro hace dos refactors, y desde SEO-01 son dos—; ahora el número sale de
 `PROGRAMS.length` y no se puede volver a desincronizar.
 
-### 8.1 Los 60 hallazgos, uno por uno
+### Tanda 8 — 2026-08-15 · en curso · los cuatro defectos primero
+
+La tanda 8 es limpieza y no bloquea nada, así que se atacó **por lo que cambia el
+comportamiento del sistema**, no por lo que es más barato. Los cuatro defectos, cerrados:
+
+| ID | Qué se hizo | Verificación |
+|---|---|---|
+| **QA-08** | La credencial con vencimiento ilegible se descarta en vez de darse por vigente | `npm run test:platform` **54/54**; el caso nuevo **falla** si se saca el arreglo |
+| **SEC-09** | Las seis cláusulas `LIKE` declaran `ESCAPE '\'`; la constante que nadie referenciaba se borró | El **SQL generado**, con `logging.level.org.hibernate.SQL=DEBUG`. `mvn test` **107/107** |
+| **QA-06** | `--page-faint` a 4,6:1, `--page-field` (token nuevo) a 3,2:1, `--page-accent` (token nuevo, por tema) a 5,0:1, fuera el `outline-none`, y el enlace de salto | CSS y HTML **compilados**: cero `outline-none` y cero `text-red` en las 19 páginas |
+| **SEC-07** | CSP + cuatro cabeceras en la landing; CSP en el panel, inyectada sólo en el build | Las cabeceras leídas de un `next start` **corriendo** |
+
+**Dos recomendaciones del informe resultaron estar mal, y se corrigieron en vez de
+seguirse:** subir `--page-faint` a 0.45 da **3,72:1**, no 4,5; y usar `--red-hover` como
+rojo de texto **empeora** el tema papel, de 3,51 a 2,74:1 (ver el bloque de QA-06). El
+informe es una entrada, no una orden — y esta es la primera vez que esa cláusula del
+prompt de remediación se ejerce.
+
+**Tres cosas aparecieron haciéndolo**, las tres anotadas donde corresponde:
+
+- **Un `ESCAPE` no se puede meter en un `@Query` sin partir el bloque de texto** en seis
+  concatenaciones, así que la constante se borró en vez de "usarse": la opción que el
+  hallazgo daba como alternativa era la única que dejaba el código legible.
+- **El enlace de salto no era una línea en el layout.** El interceptor de anclas de
+  `SmoothScroll` hace `preventDefault()`, y con eso se come el movimiento del foco: el
+  enlace habría scrolleado dejando el teclado en la navegación. **Arreglarlo arregló de
+  paso todas las anclas del sitio**, que movían el scroll y nunca el foco.
+- **Una CSP en `<meta>` ignora `frame-ancestors`**, así que esa mitad del panel depende
+  del proxy y no se puede cerrar hoy: quedó como punto 5 del deploy en `docs/operacion.md`.
+
+**Lo que queda de la tanda 8 son nueve hallazgos**, todos de limpieza sin riesgo:
+`ARQ-04`, `ARQ-06`, `ARQ-07`, `ARQ-08` y `ARQ-09` (código), y `EXT-03`, `DB-08`, `DOC-10`,
+`DOC-11` y `DOC-12` (documentación y un archivo `LICENSE`).
+
+### 8.1 Los 61 hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
 que no es técnica** (del cliente, o de Ignacio) · ⚪ **cerrado como riesgo asumido**: no se
@@ -4107,15 +4143,18 @@ asumido **1** (⚪ EXT-01); abiertos **28**, de los cuales **solo 4 siguen 🟡*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15, con las tandas 6 y 7 cerradas: 42 resueltos de 61**, 1 cerrado como
-riesgo asumido, 13 abiertos (🔴) y 5 a medias (🟡).
+**Al 2026-08-15, con las tandas 6 y 7 cerradas y los cuatro defectos de la 8: 46 resueltos
+de 61**, 1 cerrado como riesgo asumido, **9 abiertos (🔴)** y 5 a medias (🟡).
 
 **Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
 programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
-Crítico desde la tanda 1.
+Crítico desde la tanda 1. De los Medios quedan **tres**, y ninguno es de comportamiento:
+EXT-03 (falta el archivo `LICENSE`), ARQ-04 (dos formatos de error conviviendo) y DOC-10
+(una justificación mal citada).
 
-**Los 13 🔴 son todos de la tanda 8**, o sea limpieza: nada bloquea nada y conviene
-barrerlos de una sola pasada.
+**Los 9 🔴 son todos de la tanda 8**, o sea limpieza: nada bloquea nada y conviene
+barrerlos de una sola pasada. **Ninguno cambia el comportamiento del sistema** — los
+cuatro que sí lo cambiaban ya están hechos.
 
 **De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
 DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
@@ -4139,8 +4178,8 @@ significa rehacer.
 | ~~**2**~~ | ~~EXT-01~~ | **Cerrada.** Repo privado ✅ y secreto rotado ✅; lo demás quedó como riesgo asumido (§5). EXT-03 —la nota de titularidad— se movió a la tanda 8 |
 | ~~**5**~~ | ~~ARQ-01, SEC-05, ARQ-02, ARQ-05, ARQ-09~~ | **Hecha** — paginado, gateo por rol, y las pantallas de alta con rol, edición y reseteo |
 | ~~**6**~~ | ~~DOC-07, DOC-08, QA-07, QA-01, QA-03, QA-04, QA-05~~ | **Hecha** — operación, los tests que faltaban y el pipeline. El orden resultó ser el correcto: el script de las SQL tenía que existir antes del CI, porque el CI necesita un comando que correr. Queda pendiente solo lo que depende del hosting de octubre |
-| **7 — Landing** | SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06 | Empieza con cinco preguntas al cliente (§7.a). Bloquea publicar la landing, no el deploy de la plataforma |
-| **8 — Resto documental y menor** | EXT-03, DB-08, DB-10, SEC-06, SEC-07, SEC-09, QA-08, ARQ-04 a ARQ-08, ARQ-10, QA-06, DOC-10 a DOC-13 | Nada bloquea; conviene barrerlo de una sola pasada |
+| ~~**7 — Landing**~~ | ~~SEO-01, QA-02, SEO-02, SEO-03, SEO-05, SEO-06, SEO-04, DOC-05, DOC-06~~ | **Hecha** — los nueve. Las cinco preguntas al cliente que la abrían están contestadas en `platform.md` §13 |
+| **8 — Resto documental y menor** | ~~QA-08, SEC-09, QA-06, SEC-07~~ **hechos el 15/08**; quedan EXT-03, DB-08, ARQ-04, ARQ-06 a ARQ-09, DOC-10 a DOC-12 | Nada bloquea; conviene barrerlo de una sola pasada. Se empezó por los cuatro que cambiaban el comportamiento del sistema; lo que queda no lo cambia |
 
 ### 8.3 Lo que no se destraba programando
 

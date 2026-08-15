@@ -55,7 +55,7 @@ npm run build:platform
 cd apps/landing && npm run lint       # eslint
 cd apps/platform && npm run lint      # oxlint
 
-cd apps/platform && npm test          # vitest, 53 cases, no backend needed
+cd apps/platform && npm test          # vitest, 54 cases, no backend needed
 cd apps/platform && npm run test:watch
 
 cd apps/backend && mvn spring-boot:run
