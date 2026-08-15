@@ -3174,6 +3174,13 @@ es una línea en el layout.
 
 #### QA-07 — No hay forma de saber si el sistema está vivo
 
+> **FUERA DEL BACKLOG desde el 2026-08-15, por decisión de Ignacio.** Lo que falta de este
+> hallazgo es deploy, y el deploy no se puede empezar hasta elegir el hosting (octubre).
+> Se saca de la lista de pendientes de la auditoría —donde sólo agregaba ruido durante dos
+> meses— y **el trabajo concreto vive en `docs/operacion.md` §3**, que es el archivo que se
+> abre el día del deploy. La ficha se conserva como registro de qué se encontró y qué se
+> hizo; no es una tarea pendiente.
+
 **Severidad: Bajo** · *complementa DOC-08 (sin backup ni deploy) y SEC-02 (sin logs)*
 
 **Evidencia.** `grep -rn "actuator|health"` sobre `pom.xml`, `application.properties` y
@@ -3474,6 +3481,13 @@ desactivar `admin@lajuanita.local`.
 ---
 
 #### DOC-08 — No existe ningún procedimiento operativo: backup/restore, deploy, o qué hacer cuando falla una migración
+
+> **FUERA DEL BACKLOG desde el 2026-08-15, por decisión de Ignacio.** Lo que falta de este
+> hallazgo es deploy, y el deploy no se puede empezar hasta elegir el hosting (octubre).
+> Se saca de la lista de pendientes de la auditoría —donde sólo agregaba ruido durante dos
+> meses— y **el trabajo concreto vive en `docs/operacion.md` §3**, que es el archivo que se
+> abre el día del deploy. La ficha se conserva como registro de qué se encontró y qué se
+> hizo; no es una tarea pendiente.
 
 **Severidad: Alto**
 
@@ -4253,7 +4267,7 @@ corrigieron en vez de seguirse:**
   qué pasa si el desarrollador deja el proyecto. Los dos son huecos reales, y el riesgo de
   un archivo de licencia genérico es que los cierre por omisión.
 
-### 8.1 Los 61 hallazgos, uno por uno
+### 8.1 Los hallazgos, uno por uno
 
 Leyenda de **Estado**: ✅ resuelto · 🔴 abierto · 🟡 abierto y **bloqueado por una decisión
 que no es técnica** (del cliente, o de Ignacio) · ⚪ **cerrado como riesgo asumido**: no se
@@ -4308,7 +4322,6 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **QA-04** | Medio | M | 6 | ✅ | Falta verlo correr en Actions: se confirma en el primer push |
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
 | **QA-06** | Medio | S | 8 | ✅ | — |
-| **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy — bloqueado por el hosting, igual que DOC-08 |
 | **QA-08** | Bajo | XS | 8 | ✅ | — |
 | **DOC-01** | Alto | XS | 1 | ✅ | — |
 | **DOC-02** | Alto | S | 3 | ✅ | — |
@@ -4317,17 +4330,22 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-05** | Medio | S | 7 | ✅ | — |
 | **DOC-06** | Medio | S | 7 | ✅ | — |
 | **DOC-07** | Alto | S | 6 | ✅ | — |
-| **DOC-08** | Alto | M | 6 | 🟡 | Backup, restore probado y runbook de migraciones, hechos. **El deploy depende del hosting (octubre)** |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
 | **DOC-10** | Medio | XS | 8 | ✅ | — |
 | **DOC-11** | Bajo | XS | 8 | ✅ | Dos seguían vivos; los otros dos los había barrido la tanda 7. Apareció un quinto |
 | **DOC-12** | Bajo | XS | 8 | ✅ | Reordenadas, no renumeradas: §2.6 y §3.5 están citadas desde otros cuatro lugares |
 | **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |
 
-**De dónde sale el 61:** 59 hallazgos del informe original + 2 aparecidos durante la
-remediación (DB-11 y QA-08). *(Las cuentas del 2026-08-14 —32 resueltos, 28 abiertos—
-quedaron viejas dos veces en un día; el número que vale es el del párrafo de abajo, que se
-actualiza al cerrar cada tanda.)*
+**Cuidado con los dos números parecidos, que no son lo mismo:**
+
+- **61 hallazgos encontrados** en total: 59 del informe original + 2 aparecidos durante la
+  remediación (DB-11 y QA-08).
+- **59 en el backlog** al 2026-08-15: los mismos 61 menos DOC-08 y QA-07, que salieron por
+  decisión de Ignacio y se siguen desde `docs/operacion.md`.
+
+Que coincidan en 59 es casualidad. *(Y las cuentas del 2026-08-14 —32 resueltos, 28
+abiertos— quedaron viejas dos veces en un solo día; el número que vale es el del párrafo
+de arriba, que se actualiza al cerrar cada tanda.)*
 
 > ### ⚠️ Esta cuenta cambió el 2026-08-14 por `docs/requirements/platform.md` §13
 >
@@ -4351,8 +4369,15 @@ actualiza al cerrar cada tanda.)*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15, con las tandas 6, 7 y 8 cerradas: 56 resueltos de 61**, 1 cerrado como
-riesgo asumido y **4 a medias (🟡). No queda ningún hallazgo abierto (🔴).**
+**Al 2026-08-15, con las tandas 6, 7 y 8 cerradas: 56 resueltos de 59**, 1 cerrado como
+riesgo asumido y **2 a medias (🟡). No queda ningún hallazgo abierto (🔴).**
+
+> **59 y no 61: QA-07 y DOC-08 salieron del backlog por decisión de Ignacio (2026-08-15).**
+> Los dos son el deploy, no se pueden empezar hasta elegir el hosting en octubre, y
+> tenerlos en una lista de pendientes durante dos meses no los acerca. **El trabajo no se
+> perdió**: vive donde se va a usar, en la sección 3 de
+> [`docs/operacion.md`](../operacion.md) —"Lo que falta para cerrar esta sección"—, que es
+> el archivo que se abre el día del deploy. Sus fichas siguen más arriba, marcadas.
 
 **Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
 programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
@@ -4360,10 +4385,9 @@ Crítico desde la tanda 1. De los Medios quedan **tres**, y ninguno es de compor
 EXT-03 (falta el archivo `LICENSE`), ARQ-04 (dos formatos de error conviviendo) y DOC-10
 (una justificación mal citada).
 
-**Los 4 🟡 son lo único que queda, y ninguno se destraba escribiendo código hoy:** DB-04
-espera la decisión de la seña, QA-07 y DOC-08 el hosting de octubre, y DB-11 el DTO del
-Módulo 2, que todavía no existe. **El backlog de la auditoría dejó de ser una lista de
-trabajo y pasó a ser una lista de esperas.**
+**Los 2 🟡 que quedan son lo único, y ninguno se destraba escribiendo código hoy:** DB-04
+espera la decisión de la seña y DB-11 el DTO del Módulo 2, que todavía no existe. **El
+backlog de la auditoría está terminado salvo por esas dos esperas.**
 
 **De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
 DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
@@ -4401,9 +4425,15 @@ el email, y dirección/teléfono/horarios/año) y tres decisiones de Ignacio: la
 y el mantenimiento (EXT-03), P8 —qué significa "autorización explícita" para una seña—
 (DB-04), y si el cliente HTTP se comparte entre las dos apps (ARQ-10).~~
 
-**Lo que queda hoy que no se destraba programando es UNA sola cosa: elegir el hosting**,
+~~**Lo que queda hoy que no se destraba programando es UNA sola cosa: elegir el hosting**,
 que es una decisión de octubre y de la que dependen el deploy (DOC-08), el healthcheck del
-backend (QA-07) y el destino de los backups.
+backend (QA-07) y el destino de los backups.~~
+
+**Actualizado el 2026-08-15: el hosting salió del backlog de la auditoría**, junto con
+DOC-08 y QA-07. Sigue siendo una decisión de octubre y sigue habiendo trabajo detrás —el
+deploy, el healthcheck del backend y el destino de los backups—, pero se sigue desde
+`docs/operacion.md` §3 y no desde este informe. **Lo único que este informe todavía espera
+de Ignacio es la seña (DB-04).**
 
 **La otra cosa que estaba trabando el orden de trabajo se cerró el 2026-08-14: Ignacio
 confirmó que NO tiene objeciones a la primera tanda del Módulo 1.** La nota del 12/08

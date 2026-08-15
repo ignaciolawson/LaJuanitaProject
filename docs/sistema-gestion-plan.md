@@ -552,7 +552,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 | **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
-| **Auditoría** | ✅ **56 de 61 resueltos** y **ninguno abierto**. Los 4 que faltan esperan decisiones, no código |
+| **Auditoría** | ✅ **56 de 59** y **ninguno abierto**. Quedan 2, y esperan decisiones, no código |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -629,9 +629,10 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-> **Al 2026-08-15: 56 de 61 resueltos**, 1 cerrado como riesgo asumido, y
+> **Al 2026-08-15: 56 de 59 resueltos**, 1 cerrado como riesgo asumido, y
 > **ninguno abierto**. Las ocho tandas están cerradas. Lo único que queda son
-> **cuatro hallazgos a medias, y ninguno se destraba escribiendo código hoy.** **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
+> **dos hallazgos a medias, y ninguno se destraba escribiendo código hoy** —
+> DOC-08 y QA-07 salieron del backlog el mismo día, ver abajo. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
 > sección de deploy— y no se destraba programando: espera el hosting de octubre.
 >
 > Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
@@ -719,9 +720,13 @@ Quedan **4 a medias**, y ninguno es trabajo de código pendiente:
 | ID | Espera |
 |---|---|
 | **DB-04** | Que decidas **a qué reservas alcanza la seña**. Es lo único que bloquea el Módulo 2 |
-| **DOC-08** | El hosting de octubre (la sección de deploy) |
-| **QA-07** | El hosting de octubre (healthcheck del backend, que necesita el compose de deploy) |
-| **DB-11** | El DTO del Módulo 2, que todavía no existe |
+| **DB-11** | El DTO del Módulo 2, que todavía no existe. No está bloqueado: está programado |
+
+**Eran cuatro. DOC-08 y QA-07 salieron del backlog el 2026-08-15**, por decisión de
+Ignacio: los dos son deploy, no se pueden empezar hasta elegir el hosting en octubre, y
+tenerlos dos meses en una lista de pendientes no los acerca. **El trabajo sigue escrito
+donde se va a usar**, en [`docs/operacion.md`](operacion.md) §3 — el archivo que se abre
+el día del deploy — y no en el informe de auditoría.
 
 **La tanda 8 se hizo entera el 2026-08-15**, en tres partes y en ese orden: los
 cuatro defectos —QA-08 (la credencial con vencimiento ilegible pasaba por
