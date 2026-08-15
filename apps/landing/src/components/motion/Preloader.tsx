@@ -32,7 +32,13 @@ export function Preloader() {
       const seen =
         typeof sessionStorage !== "undefined" && sessionStorage.getItem("lj:intro") === "1";
 
+      // Idempotente: ahora tiene dos disparadores —el final de la timeline y la
+      // red de seguridad de abajo— y el que llegue segundo no tiene que volver
+      // a emitir el evento que destraba el Hero.
+      let terminado = false;
       const finish = () => {
+        if (terminado) return;
+        terminado = true;
         document.body.dataset.intro = "done";
         // El hero escucha esto para encadenar su entrada. Antes era un
         // `delay` fijo adivinado, que se desincroniza en cuanto tocás la
@@ -48,6 +54,16 @@ export function Preloader() {
       }
 
       document.body.dataset.intro = "running";
+
+      // Red de seguridad del telón, hermana de la que ya tiene el Hero.
+      //
+      // La intro dura ~2s. Si por lo que sea la timeline no llega al final —un
+      // error en un plugin, una fuente que no carga— el telón se queda puesto y
+      // la página es un rectángulo negro con todo el contenido abajo. Esto lo
+      // saca igual. **Tiene que seguir siendo más larga que la intro**: si se
+      // tocan las duraciones de abajo, se toca este número.
+      gsap.delayedCall(4, finish);
+
       const ribs = el.querySelectorAll("[data-rib]");
       const counter = el.querySelector<HTMLElement>("[data-count]");
       const count = { v: 0 };

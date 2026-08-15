@@ -112,6 +112,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${archivo.variable} ${instrument.variable} ${spaceMono.variable} antialiased`}
     >
       <body>
+        {/* Sin JavaScript, el telón del preloader se queda puesto: son tres
+            paneles `bg-ink` a pantalla completa que sólo se corren cuando GSAP
+            los anima, así que la página quedaba tapada por un rectángulo negro
+            —con el contenido entero abajo, en el HTML, pero invisible—.
+            El contenido siempre estuvo en el servidor, así que un extractor de
+            texto (los motores de respuesta) nunca vio el problema: esto es para
+            el navegador que aplica CSS y no corre JS, y sobre todo para el caso
+            más probable de todos, que es que el bundle falle en producción. El
+            sitio tiene que degradarse, no apagarse. */}
+        <noscript
+          dangerouslySetInnerHTML={{
+            __html: "<style>[data-curtain],[data-intro-mark]{display:none!important}</style>",
+          }}
+        />
+
         {/* Identidad del negocio, en todas las páginas.
             Va en el layout y no en la home porque es la definición de QUIÉN
             publica el sitio: cualquier página puede ser la primera (y a
