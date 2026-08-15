@@ -532,17 +532,20 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
    un solo disco. **Lo que sigue sin confirmarse es el pipeline en Actions**: los
    cuatro pasos se verificaron a mano en local, pero **nadie miró todavía la
    pestaña Actions del repo**. Es un vistazo, no una tarea.
-2. **Decidir la seña** (DB-04a). Es la única regla de negocio que quedó sin dueño
-   y **bloquea el Módulo 2**: §13 resolvió que no hay excepción, pero no dijo *a
-   qué reservas alcanza*. Una clase de un alumno con inscripción ya paga no lleva
-   seña propia; un alquiler de cabina sí. La cabecera de
-   `V9__reglas_cerradas_en_la_seccion_13.sql` tiene la pregunta exacta y la
-   herramienta para implementarla el día que se decida.
-3. **Arrancar `inscripcion`** (abajo). Ya no hay alternativa que postergarlo:
-   **la remediación de la auditoría terminó el 2026-08-15** —las ocho tandas
-   cerradas, 56 de 61, ninguno abierto— y lo único que queda de ella son cuatro
-   hallazgos esperando decisiones o el hosting. `inscripcion` es lo que mueve la
-   aguja del producto y no está bloqueado por nada.
+2. ~~**Decidir la seña** (DB-04a).~~ **DECIDIDA el 2026-08-15.** *"Todo se debe
+   señar antes, todo. Menos mix y mastering, que eso lo va decidiendo Ghezz. La
+   seña es el 50% del total."* Coincide con lo que §1 ya tenía confirmado del
+   relevamiento —*"si no hay seña, el horario queda libre"*, y *"M&M sí puede
+   quedar en debe"*—. La ficha completa, con cómo se traduce a la base, está en
+   [`platform.md` §13](requirements/platform.md). **Ya no bloquea el Módulo 2**:
+   lo que queda es escribir la migración, y va con el arranque de ese módulo
+   porque el trigger obliga a insertar la reserva y su pago en la misma
+   transacción — o sea, es una condición sobre pantallas que todavía no existen.
+
+3. **Arrancar `inscripcion`.** Es lo único que queda por hacer, y no lo bloquea
+   nada: **la remediación de la auditoría terminó el 2026-08-15** —las ocho
+   tandas cerradas, 56 de 59, ninguno abierto— y la seña, que era el último
+   bloqueo real, está decidida. Detalle abajo.
 
 ### Estado real
 
@@ -719,8 +722,13 @@ Quedan **4 a medias**, y ninguno es trabajo de código pendiente:
 
 | ID | Espera |
 |---|---|
-| **DB-04** | Que decidas **a qué reservas alcanza la seña**. Es lo único que bloquea el Módulo 2 |
+| **DB-04** | **Ya no espera una decisión: está tomada** (2026-08-15). Espera la migración, que va con el arranque del Módulo 2 |
 | **DB-11** | El DTO del Módulo 2, que todavía no existe. No está bloqueado: está programado |
+
+**Los dos son ahora la misma espera: el Módulo 2.** Ninguno de los dos se puede
+adelantar — el trigger de la seña necesita pantallas que inserten reserva y pago
+en una transacción, y la validación de horas necesita un DTO de reserva que
+todavía no existe.
 
 **Eran cuatro. DOC-08 y QA-07 salieron del backlog el 2026-08-15**, por decisión de
 Ignacio: los dos son deploy, no se pueden empezar hasta elegir el hosting en octubre, y

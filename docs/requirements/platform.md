@@ -561,15 +561,45 @@ documento.
 > borrado—, el nivel que no retrocede sin firma, `sala.activa` con significado, y el tope
 > de clases contratadas.
 >
-> **Excepción, y es la única: la seña (P8).** La decisión está tomada —*no hay
-> excepción*— pero no se puede escribir todavía porque falta saber **a qué reservas
-> alcanza**: una clase de un alumno con inscripción ya paga no lleva seña propia, un
-> alquiler de cabina sí, y hoy nada en `reserva` distingue los dos casos salvo `tipo_uso`.
-> **Es la pregunta que falta cerrar antes del Módulo 2**, y está anotada en la cabecera de
-> `V9` con la herramienta para implementarla.
+> **Excepción, y es la única: la seña (P8). ✅ CERRADA el 2026-08-15** — ver abajo.
 >
 > Lo demás de esta sección —producto, landing, Módulo 1— es trabajo de la tanda 7 y de
 > `inscripcion`, todavía pendiente.
+
+### ✅ P8 / DB-04 — La seña. Cerrada el 2026-08-15
+
+**La regla, como la dio Ignacio:** *"Todo se debe señar antes, todo. Menos mix y
+mastering, que eso lo va decidiendo Ghezz. La seña es el 50% del total."*
+
+| | |
+|---|---|
+| **Alcance** | **Todos los tipos de uso**, con una excepción |
+| **Excepción** | `MIX_MASTERING`. Lo decide Ghezz caso por caso; **el sistema no exige seña** para ese tipo de uso (respuesta por defecto: *no*) |
+| **Monto** | **50% del total** |
+| **Momento** | Antes de que exista la reserva. No hay autorización que lo saltee (P8) |
+
+**Cómo se traduce eso a la base, que es donde la regla vive:**
+
+- **"Todo se seña antes" = ninguna `reserva` existe sin dinero detrás**, verificado al
+  COMMIT. El dinero puede llegar por dos caminos, y los dos cuentan:
+  1. Un `pago` que apunta a la reserva (`pago.id_reserva`) — el caso del alquiler de
+     cabina y de la grabación de set.
+  2. La **inscripción que cubre esa clase**, a través de
+     `reserva_participante.id_inscripcion`. **Un alumno que ya pagó su curso no paga una
+     seña por cada clase**: eso sería cobrarle dos veces, y contradice que el curso se
+     paga entero por adelantado. La plata entró antes, que es lo que la regla pide.
+- **El 50% se puede verificar en la inscripción y todavía no en la reserva.**
+  `inscripcion.precio_total` existe, así que ahí el 50% es una cuenta. **`reserva` no
+  tiene precio** —el de un alquiler sale de las horas por una tarifa que todavía no está
+  en el sistema (P13, Módulo 3)—, así que hasta que exista ese precio, la base puede
+  exigir *que haya un pago* pero no *que sea el 50%*. Esa mitad la impone la pantalla, y
+  la base la toma cuando `reserva` tenga su precio.
+
+**Qué falta hacer, y cuándo:** la migración (`CONSTRAINT TRIGGER … DEFERRABLE INITIALLY
+DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V9`). Va
+**con el arranque del Módulo 2**, no antes: el trigger obliga a que la reserva y su pago
+se inserten en la misma transacción, y eso es una condición sobre pantallas que todavía
+no existen.
 
 ### Producto y landing
 

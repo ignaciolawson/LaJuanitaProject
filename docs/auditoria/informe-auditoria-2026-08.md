@@ -4283,7 +4283,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
 | **DB-03** | Medio | S | 3 | ✅ | — |
-| **DB-04** | Medio | M | 3→? | 🟡 | **Mitad resuelta en `V9`**: el nivel no retrocede sin firma. **La seña sigue sin dueño** — §13 dijo que no hay excepción, pero no a qué reservas alcanza, y una clase de una inscripción ya paga no lleva seña propia |
+| **DB-04** | Medio | M | 3→M2 | 🟡 | **Decidido el 2026-08-15**, ya no espera nada de Ignacio: todo lleva seña del 50% menos `MIX_MASTERING`. Falta la migración, que va con el arranque del Módulo 2 — ver `platform.md` §13 |
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
 | **DB-07** | Bajo | S | 3 | ✅ | **Cerrado en `V9`**: `egreso` y `venta_equipo` se anulan con autor + fecha + motivo, y por eso ya no se borran — la condición que V6 §7 se había puesto a sí misma |
@@ -4385,9 +4385,10 @@ Crítico desde la tanda 1. De los Medios quedan **tres**, y ninguno es de compor
 EXT-03 (falta el archivo `LICENSE`), ARQ-04 (dos formatos de error conviviendo) y DOC-10
 (una justificación mal citada).
 
-**Los 2 🟡 que quedan son lo único, y ninguno se destraba escribiendo código hoy:** DB-04
-espera la decisión de la seña y DB-11 el DTO del Módulo 2, que todavía no existe. **El
-backlog de la auditoría está terminado salvo por esas dos esperas.**
+**Los 2 🟡 que quedan esperan lo mismo: el Módulo 2.** DB-04 ya no espera una decisión
+—la seña se cerró el 2026-08-15— sino la migración, que necesita pantallas que inserten
+la reserva y su pago en una sola transacción; DB-11 necesita el DTO de reserva. **El
+backlog de la auditoría está terminado: no queda nada que se pueda hacer hoy.**
 
 **De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
 DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
