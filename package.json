@@ -9,6 +9,9 @@
     "dev:landing": "npm run dev -w apps/landing",
     "dev:platform": "npm run dev -w apps/platform",
     "build:landing": "npm run build -w apps/landing",
-    "build:platform": "npm run build -w apps/platform"
+    "build:platform": "npm run build -w apps/platform",
+    "test:platform": "npm run test -w apps/platform",
+    "lint:landing": "npm run lint -w apps/landing",
+    "lint:platform": "npm run lint -w apps/platform"
   }
 }

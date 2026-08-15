@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -18,5 +18,17 @@ export default defineConfig({
       // separan los dominios, hay que probarlo antes de confiar en él.
       '/api': 'http://localhost:8080',
     },
+  },
+  test: {
+    // Los tests corren en jsdom porque casi todo lo que vale la pena probar acá
+    // toca el DOM o `localStorage`. Ninguno necesita backend: los que hablan con
+    // la API mockean `fetch`.
+    environment: 'jsdom',
+    // `cleanup()` del Testing Library después de cada caso, sin escribirlo en
+    // cada archivo. Sin esto, dos tests que renderizan lo mismo se pisan y el
+    // segundo encuentra los nodos del primero.
+    globals: false,
+    restoreMocks: true,
+    setupFiles: ['./src/pruebas/preparar.ts'],
   },
 })

@@ -86,9 +86,17 @@ npm run dev
 
 ```
 cd apps/backend && mvn test        # 106 casos: login, JWT, registro, permisos, vigencia, errores, límites, alumnos
+cd apps/platform && npm test       # 53 casos: menú, credencial, cliente HTTP, ruta protegida, listado
 cd apps/platform && npm run build  # incluye el chequeo de tipos
 cd apps/platform && npm run lint
 ```
+
+Los del front corren en **jsdom con Vitest y ninguno necesita backend**: los que
+hablan con la API mockean `fetch`. Cubren las tres piezas donde una regresión es
+invisible —`menuPara()`, `leerCredencial()` y la interpretación de errores— más
+los dos defectos que la auditoría encontró en pantalla: el listado que mostraba
+20 de 81 filas, y el `DIRECTIVO` al que se le ofrecían botones que el backend le
+niega.
 
 Las reglas de negocio de la base se prueban aparte, con **136 casos SQL** (86 de
 reglas + 50 adversariales) que corren sobre una base descartable:
