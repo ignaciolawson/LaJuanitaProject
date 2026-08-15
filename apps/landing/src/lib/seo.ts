@@ -9,7 +9,7 @@ import { CONTACT } from "@/data/contact";
  *
  * Los HECHOS del negocio viven en `data/business.ts`; acá sólo está la forma
  * de expresarlos. Si hay que corregir un dato del local, se corrige allá y
- * cambia en los quince lugares donde se declara.
+ * cambia en todos los lugares donde se declara.
  */
 
 export { SITE_URL };
@@ -52,9 +52,9 @@ export const WEBSITE_ID = `${SITE_URL}/#website`;
  *
  * Como `pageMetadata()` declara `openGraph` en todas las páginas interiores,
  * el resultado medido fue que sólo la home y las notas del blog tenían
- * `og:image`: las once páginas restantes —incluidas las tres de programa, que
- * son las que alguien comparte por WhatsApp— salían sin imagen. Por eso la
- * default va explícita acá.
+ * `og:image`: todas las demás —incluidas las de programa, que son las que
+ * alguien comparte por WhatsApp— salían sin imagen. Por eso la default va
+ * explícita acá.
  *
  * Se referencia sin el hash de caché que Next agrega en la home
  * (`?e3672ba9…`), porque ese hash no está expuesto en ninguna API pública. La
@@ -72,7 +72,7 @@ const OG_IMAGE = {
  * Metadata de una página.
  *
  * El canonical es la razón de ser de este helper. No había ninguno en el sitio
- * — 22 páginas generadas, cero `<link rel="canonical">` — y sin él cualquier
+ * —ni uno solo, en ninguna de las páginas generadas— y sin él cualquier
  * variante de URL que llegue a existir (con `?utm_source=`, con barra final,
  * en www y sin www, en el dominio de preview de Vercel) es para Google una
  * página distinta con el mismo contenido. Con un canonical autorreferencial
@@ -151,8 +151,10 @@ function compact(obj: Json): Json {
  * cerca"), y `EducationalOrganization` es lo que describe lo que realmente
  * vende. Con uno solo se pierde una de las dos lecturas.
  *
- * Los campos que faltan (dirección, teléfono, horarios) NO se rellenan: se
- * omiten. Ver `data/business.ts`.
+ * Los campos sin confirmar NO se rellenan: se omiten. Desde §13 (2026-08-14)
+ * dirección, teléfono, horarios y año de fundación están confirmados y salen;
+ * lo que sigue omitido son las coordenadas y el email, que no existe. Ver
+ * `data/business.ts`.
  */
 export function organizationLd(): Json {
   const profiles = verifiedProfiles({

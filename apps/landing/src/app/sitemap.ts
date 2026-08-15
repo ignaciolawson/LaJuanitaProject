@@ -7,9 +7,14 @@ import { POSTS } from "@/data/posts";
 /**
  * sitemap.xml
  *
- * No existía. En un sitio de 21 URLs sin enlaces entrantes todavía, es la
- * diferencia entre que Google descubra las páginas de a poco siguiendo enlaces
- * y que las conozca todas desde la primera visita.
+ * No existía. En un sitio sin enlaces entrantes todavía, es la diferencia
+ * entre que Google descubra las páginas de a poco siguiendo enlaces y que las
+ * conozca todas desde la primera visita.
+ *
+ * NO se escribe acá cuántas URLs son. El número sale de este mismo archivo
+ * (`sitemap().length`) y envejece con cada página nueva: estaba en 21 cuando
+ * eran 19, y hoy son 18. Media docena de comentarios repetían esa cifra y se
+ * actualizó uno solo cuando entró el blog (SEO-04).
  *
  * ── Sobre las prioridades ──
  *

@@ -21,10 +21,15 @@ equipamiento. Next.js (App Router) + Tailwind v4 + GSAP. Todo estático.
 
 ## Rutas
 
+**13 archivos de ruta → 19 páginas generadas, 18 en el sitemap** (`/ingresar` va
+`noindex`). Los números salen del build; no los copies a un comentario nuevo —
+había seis lugares con un conteo a mano, cinco equivocados y ninguno coincidía
+con otro (SEO-04).
+
 ```
 /                     home
-/programas            índice de los tres programas
-/programas/[slug]     detalle + solicitud (SSG, 3 slugs)
+/programas            índice de los dos programas
+/programas/[slug]     detalle + solicitud (SSG, 2 slugs)
 /servicios            alquiler de cabina y grabación + reserva
 /equipos              La Juanita Shop + consulta
 /sello                La Juanita Records
@@ -474,7 +479,7 @@ justifique, el lugar es `/blog/categoria/[slug]`.
 ## SEO y GEO
 
 Implementado el 2026-08-10. Antes de esto el sitio tenía metadata por página y
-nada más: **cero canonical en las 22 páginas generadas, sin sitemap, sin
+nada más: **cero canonical en todas las páginas generadas, sin sitemap, sin
 robots.txt, sin imagen social y sin un solo bloque de datos estructurados.**
 
 ```
@@ -482,7 +487,7 @@ data/business.ts        hechos de la entidad (NAP, zona, equipamiento)
 lib/seo.ts              SITE_URL, pageMetadata(), constructores de JSON-LD
 components/seo/JsonLd   inserta un bloque de datos estructurados
 app/robots.ts           robots.txt
-app/sitemap.ts          sitemap.xml (19 URLs)
+app/sitemap.ts          sitemap.xml (todas las páginas menos /ingresar)
 app/opengraph-image.tsx imagen social 1200×630, generada en build
 public/llms.txt         resumen del sitio para sistemas de IA
 ```

@@ -114,10 +114,12 @@ rather than inventing a procedure nobody ran.
 
 ## Landing: current state
 
-Static Next.js App Router site, no dynamic data. Fourteen routes, including
-program detail pages and blog post pages (both SSG), plus sections for
-programs, services (booth rental and set recording), gear sales, and the
-record label.
+Static Next.js App Router site, no dynamic data. **13 route files → 19 generated
+pages, 18 of them in the sitemap** (`/ingresar` is `noindex`), including program
+detail pages and blog post pages (both SSG), plus sections for programs,
+services (booth rental and set recording), gear sales, and the record label.
+Don't hardcode those counts anywhere new — six comments carried a route count,
+five of them wrong and none agreeing with another (SEO-04).
 
 **The blog (`/blog`) is the one section built to be handed over to a CMS.**
 It renders from `data/posts.ts`, whose post bodies are arrays of typed

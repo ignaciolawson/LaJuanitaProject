@@ -4,7 +4,7 @@ Sistema completo para el sello discográfico y academia de DJ y producción de m
 
 Dos entregables:
 
-1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual. Catorce rutas, estática. Ver [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
+1. **Landing pública de marketing** (`apps/landing`) — reemplaza el Linktree actual. Estática, 19 páginas generadas. Ver [`apps/landing/CLAUDE.md`](apps/landing/CLAUDE.md).
 2. **Sistema de gestión interno** (`apps/platform` + `apps/backend`) — alumnos, horarios/salas, pagos, portal alumno, portal profesor, mix & mastering, sello discográfico, dashboard de dirección.
 
 ## Estructura del repo
@@ -98,7 +98,7 @@ los dos defectos que la auditoría encontró en pantalla: el listado que mostrab
 20 de 81 filas, y el `DIRECTIVO` al que se le ofrecían botones que el backend le
 niega.
 
-Las reglas de negocio de la base se prueban aparte, con **136 casos SQL** (86 de
+Las reglas de negocio de la base se prueban aparte, con **171 casos SQL** (121 de
 reglas + 50 adversariales) que corren sobre una base descartable:
 
 ```

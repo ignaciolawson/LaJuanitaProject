@@ -8,7 +8,7 @@
 
 Este archivo sigue la convención de llmstxt.org: es un resumen en texto plano
 del sitio, pensado para que un sistema de IA entienda de qué se trata sin tener
-que rastrear e interpretar catorce páginas de HTML con animaciones.
+que rastrear e interpretar el sitio entero en HTML con animaciones.
 
 MANTENIMIENTO: es un archivo estático y puede quedar desactualizado respecto
 del sitio. Si cambian los programas, los servicios o los datos de contacto, hay
