@@ -321,6 +321,21 @@ Por eso varias quedan como pregunta y no como hecho.
 | Bloquear sala | ✅ | — | ✅ | — | — |
 | Solicitar reprogramación | — | — | — | ❓P9 | ✅ |
 
+### ⚠️ Dos reglas que este módulo tiene que traer consigo
+
+**Están decididas y escritas, y son las únicas dos del sistema que viven hoy en un
+documento y no en el código.** Vinieron de la auditoría, no se pudieron implementar antes
+por falta de este módulo, y **son parte de darlo por terminado**:
+
+| Regla | Qué falta | Por qué no se pudo antes |
+|---|---|---|
+| **La seña (DB-04 / P8)** | Una migración: `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` sobre `reserva`, que al COMMIT exija plata detrás. La regla completa está en §13; el `V9` deja anotada la herramienta | El trigger obliga a insertar la reserva **y su pago en la misma transacción**. Eso es una condición sobre estas pantallas: sin ellas, lo único que se lograba era que no se pudiera cargar ninguna reserva —incluidas las 40 de las suites SQL, que hoy se insertan sin pago— |
+| **El orden de las horas (DB-11)** | Una validación en el DTO de reserva (Bean Validation), antes del INSERT | `reserva.periodo` es una columna generada y **se computa antes que los CHECK**: cargar 20:00→19:00 explota en `tsrange()` con un error sin nombre de constraint, y el mensaje bueno (`reserva_horas_validas`) no se alcanza nunca. No se arregla en la base: la columna viene de `V1` y una migración aplicada no se edita |
+
+**Si el módulo se construye sin ellas**, las dos pasan de ser una línea sobre tablas
+vacías a una decisión sobre datos reales — que es exactamente lo que se evitó con `V6`,
+`V7` y `V9`.
+
 ### Reglas duras ✅
 - **Nunca dos reservas solapadas en la misma sala.** Se garantiza en la base de datos, no solo en la pantalla. *(Esta es la regla más importante del sistema entero.)*
 - Una sala **bloqueada** no acepta reservas mientras dure el bloqueo.
@@ -331,7 +346,7 @@ Por eso varias quedan como pregunta y no como hecho.
 ### Pendientes
 - **✅P6 — RESUELTO (2026-08-11). Asignación explícita**: cada profe con su/s alumno/s. Vive en `inscripcion.id_profesor`, no en el alumno — así el mismo alumno puede tener a un profe para DJ y a otro para mentoría, y *Mis Alumnos* sale de ahí. Que otro profesor cubra una clase suelta **no** le transfiere el alumno.
 - **❓P7 — ¿El sistema genera las 8 clases semanales de una?** El curso es 1 clase por semana durante 8 semanas. ¿Micaela carga 8 reservas a mano o el sistema las crea solo al inscribir? **Recomiendo generarlas**, y que después se puedan mover de a una.
-- **❓P8 — "sin autorización manual" — ¿de quién y cómo?** La propuesta dice que no se puede reservar con estado 'debe' *"sin autorización manual"*. ¿Quién autoriza (solo ADMIN?) y queda registrado con motivo?
+- **✅P8 — RESUELTO (2026-08-14 y 2026-08-15). No hay autorización manual: no existe la excepción.** No se reserva sin seña, y la seña es el **50% del total**, para todos los tipos de uso menos `MIX_MASTERING` —que Ghezz decide caso por caso y el sistema no exige—. La ficha completa está en §13; lo que falta es la migración, arriba.
 - **❓P9 — ¿Un profesor puede pedir mover su propia clase?** Hoy todo pasa por Micaela. ¿Le damos al profesor el mismo botón de "solicitar reprogramación" que al alumno, o sigue siendo un mensaje a Mica?
 - **✅P10 — RESUELTO (2026-08-11).** Son **tres salas: Sala 1, Sala 2 y Cabina de grabación.** No existe una "Sala de Producción" — el relevamiento está mal. La matriz de qué se puede hacer en cada una está en §2.6.
 - **✅P29 — RESUELTO (2026-08-11).** El **alquiler de cabina** es un uso propio y va en **Sala 1 y Sala 2** (no en la de grabación). Es un servicio **distinto** de la grabación de set. Ambos están en la matriz de §2.6.

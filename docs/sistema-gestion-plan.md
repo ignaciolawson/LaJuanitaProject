@@ -523,9 +523,10 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: las tres cosas que siguen
+### ⏭️ Si estás retomando: qué sigue
 
-**En este orden. La primera lleva cinco minutos y las otras dos dependen de vos.**
+**La auditoría está cerrada y no queda ninguna decisión tuya pendiente.** Lo que
+sigue es producto.
 
 1. ~~**PUSHEAR.**~~ **Hecho.** `main` local y remoto coinciden (verificado con
    `git fetch`: 0 commits de diferencia). Las tandas 6 y 7 y `V9` ya no viven en
@@ -542,10 +543,14 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
    porque el trigger obliga a insertar la reserva y su pago en la misma
    transacción — o sea, es una condición sobre pantallas que todavía no existen.
 
-3. **Arrancar `inscripcion`.** Es lo único que queda por hacer, y no lo bloquea
-   nada: **la remediación de la auditoría terminó el 2026-08-15** —las ocho
-   tandas cerradas, 56 de 59, ninguno abierto— y la seña, que era el último
-   bloqueo real, está decidida. Detalle abajo.
+3. **Arrancar `inscripcion`. Es lo único que queda por hacer**, y no lo bloquea
+   nada: la remediación terminó el 2026-08-15 —ocho tandas, 56 de 56, backlog en
+   cero— y la seña, que era el último bloqueo real, está decidida. Detalle abajo.
+
+   Y cuando después de `inscripcion` arranque el **Módulo 2**, abrí
+   [`platform.md` §5](requirements/platform.md) antes de escribir la primera
+   pantalla: ahí quedaron **las dos únicas reglas del sistema que hoy viven en un
+   documento y no en el código** — la seña y el orden de las horas.
 
 ### Estado real
 
@@ -555,7 +560,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 | **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
-| **Auditoría** | ✅ **56 de 59** y **ninguno abierto**. Quedan 2, y esperan decisiones, no código |
+| **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
@@ -632,10 +637,13 @@ durante la remediación—, con `ruta:línea` y verificados ejecutando. Está en
 y **§8 de ese informe lleva el estado de los 61 uno por uno y el orden propuesto para
 lo que queda** — es la lista que hay que mirar antes de decidir en qué trabajar.
 
-> **Al 2026-08-15: 56 de 59 resueltos**, 1 cerrado como riesgo asumido, y
-> **ninguno abierto**. Las ocho tandas están cerradas. Lo único que queda son
-> **dos hallazgos a medias, y ninguno se destraba escribiendo código hoy** —
-> DOC-08 y QA-07 salieron del backlog el mismo día, ver abajo. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
+> **La remediación se cerró el 2026-08-15.** Las ocho tandas hechas, 56 de 56
+> resueltos, backlog en cero. De los 61 encontrados, 1 quedó como riesgo
+> aceptado y **4 dejaron de ser hallazgos de auditoría para volverse trabajo de
+> otro documento**: DOC-08 y QA-07 son el deploy y viven en `operacion.md` §3;
+> **DB-04 (la seña) y DB-11 (el orden de las horas) son parte de terminar el
+> Módulo 2** y viven en `platform.md` §5. Ninguna de esas cuatro se cierra sola:
+> hay que abrir esos dos archivos cuando toque. **Queda un solo hallazgo Alto abierto en todo el proyecto** —DOC-08, la
 > sección de deploy— y no se destraba programando: espera el hosting de octubre.
 >
 > Las tandas **6** (operación, tests y CI) y **7** (la landing) se cerraron
@@ -720,15 +728,16 @@ siguen abiertos son de esos: ninguno se destraba programando hoy.**
 
 Quedan **4 a medias**, y ninguno es trabajo de código pendiente:
 
-| ID | Espera |
-|---|---|
-| **DB-04** | **Ya no espera una decisión: está tomada** (2026-08-15). Espera la migración, que va con el arranque del Módulo 2 |
-| **DB-11** | El DTO del Módulo 2, que todavía no existe. No está bloqueado: está programado |
+**Nada de la auditoría.** Las dos que quedaban —la seña y el orden de las horas—
+**se mudaron al Módulo 2**, que es donde se pueden hacer: las dos necesitan
+pantallas que todavía no existen. Están escritas como parte de terminar ese
+módulo en [`platform.md` §5](requirements/platform.md), con qué falta y por qué
+no se pudo antes.
 
-**Los dos son ahora la misma espera: el Módulo 2.** Ninguno de los dos se puede
-adelantar — el trigger de la seña necesita pantallas que inserten reserva y pago
-en una transacción, y la validación de horas necesita un DTO de reserva que
-todavía no existe.
+**La seña, en particular, no se implementó hoy a propósito:** el trigger obliga
+a insertar la reserva y su pago en la misma transacción, y sin las pantallas lo
+único que se conseguía era que no se pudiera cargar ninguna reserva — incluidas
+las 40 que las suites SQL insertan hoy sin pago.
 
 **Eran cuatro. DOC-08 y QA-07 salieron del backlog el 2026-08-15**, por decisión de
 Ignacio: los dos son deploy, no se pueden empezar hasta elegir el hosting en octubre, y

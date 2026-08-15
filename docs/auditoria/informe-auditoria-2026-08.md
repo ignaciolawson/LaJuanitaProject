@@ -4283,14 +4283,12 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DB-01** | Alto | M | 3 | ✅ | — |
 | **DB-02** | Alto | S | 3 | ✅ | — |
 | **DB-03** | Medio | S | 3 | ✅ | — |
-| **DB-04** | Medio | M | 3→M2 | 🟡 | **Decidido el 2026-08-15**, ya no espera nada de Ignacio: todo lleva seña del 50% menos `MIX_MASTERING`. Falta la migración, que va con el arranque del Módulo 2 — ver `platform.md` §13 |
 | **DB-05** | Medio | S | 1 | ✅ | — |
 | **DB-06** | Bajo | XS | 1 | ✅ | — |
 | **DB-07** | Bajo | S | 3 | ✅ | **Cerrado en `V9`**: `egreso` y `venta_equipo` se anulan con autor + fecha + motivo, y por eso ya no se borran — la condición que V6 §7 se había puesto a sí misma |
 | **DB-08** | Bajo | S | 8 | ✅ | — |
 | **DB-09** | Bajo | XS | 3 | ✅ | — |
 | **DB-10** | Info | — | 8 | ✅ | **Cerrado por §13 (P11): 10:00 a 18:00 y no se usa después de medianoche.** El modelo `DATE` + dos `TIME` es el correcto y no hay que tocar nada |
-| **DB-11** | Bajo | XS | 3 | 🟡 | *(nuevo, 2026-08-14)* Evitado en `bloqueo_sala`; en `reserva` queda validar el orden de las horas en el DTO del Módulo 2 |
 | **SEC-01** | Alto | XS | 1 | ✅ | — |
 | **SEC-02** | Alto | M | 4 | ✅ | — |
 | **SEC-03** | Alto | S | 4 | ✅ | Backend hecho. El botón en `UsuariosPagina.tsx` va con ARQ-02 |
@@ -4369,15 +4367,21 @@ de arriba, que se actualiza al cerrar cada tanda.)*
 > **`platform.md` §13 gana sobre este informe en todo lo que sea una decisión.** Si algo de
 > acá la contradice, está viejo.
 
-**Al 2026-08-15, con las tandas 6, 7 y 8 cerradas: 56 resueltos de 59**, 1 cerrado como
-riesgo asumido y **2 a medias (🟡). No queda ningún hallazgo abierto (🔴).**
+**Al 2026-08-15: 56 resueltos de 56, más 1 cerrado como riesgo asumido. El backlog quedó
+en cero.**
 
-> **59 y no 61: QA-07 y DOC-08 salieron del backlog por decisión de Ignacio (2026-08-15).**
-> Los dos son el deploy, no se pueden empezar hasta elegir el hosting en octubre, y
-> tenerlos en una lista de pendientes durante dos meses no los acerca. **El trabajo no se
-> perdió**: vive donde se va a usar, en la sección 3 de
-> [`docs/operacion.md`](../operacion.md) —"Lo que falta para cerrar esta sección"—, que es
-> el archivo que se abre el día del deploy. Sus fichas siguen más arriba, marcadas.
+> **56 y no 61.** Los cinco que faltan para llegar a los 61 encontrados **no se
+> abandonaron: cambiaron de lista**, porque ninguno era ya trabajo de auditoría.
+>
+> | Salieron | A dónde | Por qué |
+> |---|---|---|
+> | **DOC-08**, **QA-07** | `docs/operacion.md` §3 | Son el deploy. No se pueden empezar hasta elegir el hosting (octubre), y el archivo que se abre ese día es el runbook, no este informe |
+> | **DB-04**, **DB-11** | `platform.md` §5, como parte de terminar el **Módulo 2** | Las dos reglas están decididas y escritas; lo que les falta son pantallas que todavía no existen. Ver abajo |
+> | ~~EXT-01~~ | §5, riesgo aceptado | Decisión de Ignacio del 2026-08-14 |
+>
+> **Ninguna de las cuatro primeras se cierra sola.** Si el Módulo 2 se construye sin mirar
+> `platform.md` §5, la seña y el orden de las horas pasan de ser una línea sobre tablas
+> vacías a una decisión sobre datos reales.
 
 **Queda UN SOLO Alto abierto en todo el proyecto: DOC-08**, y no se destraba
 programando — es la sección de deploy, que espera el hosting de octubre. No queda ningún
@@ -4385,10 +4389,31 @@ Crítico desde la tanda 1. De los Medios quedan **tres**, y ninguno es de compor
 EXT-03 (falta el archivo `LICENSE`), ARQ-04 (dos formatos de error conviviendo) y DOC-10
 (una justificación mal citada).
 
-**Los 2 🟡 que quedan esperan lo mismo: el Módulo 2.** DB-04 ya no espera una decisión
-—la seña se cerró el 2026-08-15— sino la migración, que necesita pantallas que inserten
-la reserva y su pago en una sola transacción; DB-11 necesita el DTO de reserva. **El
-backlog de la auditoría está terminado: no queda nada que se pueda hacer hoy.**
+**No queda nada.** Ni abierto, ni a medias, ni esperando una decisión de Ignacio: la
+última que faltaba —la seña— se tomó el 2026-08-15.
+
+### 🔒 La remediación se da por cerrada el 2026-08-15
+
+**Empezó el 2026-08-14 con 61 hallazgos y ocho tandas propuestas. Las ocho están hechas.**
+De los 61: **56 resueltos**, 1 cerrado como riesgo aceptado, y 4 que dejaron de ser
+hallazgos de auditoría para volverse trabajo de otro documento (arriba).
+
+**Lo que cambió de verdad, más allá de la cuenta:** el sistema pasó de tener **una sola
+línea de log** a tener registro de todo lo que le pasa a una cuenta; de **cero tests de
+frontend** a 55 y de 86 a 108 en el backend; de **nueve comandos copiados a mano** a un
+script y un pipeline; de un restore que nadie había probado a uno **ensayado de punta a
+punta**; y de 103 constraints que llegaban al usuario como *"ese email ya está
+registrado"* a mensajes que dicen qué pasó. Tres migraciones (`V7`, `V8`, `V9`) escribieron
+en la base reglas que hasta entonces sólo estaban en un PDF.
+
+**Lo que NO hizo esta remediación, y conviene tenerlo escrito:** no revisó `V2` contra los
+PDF del cliente, no abrió el sitio en un navegador para verificar la CSP, y no dejó los
+tests de JPA sobre Testcontainers. Los tres están anotados en §6 *"No verificado"* y en los
+bloques de sus hallazgos.
+
+**Este informe deja de ser una lista de trabajo.** Sigue sirviendo como registro de qué se
+encontró, qué se hizo y por qué — incluidas las seis veces en que el informe estaba
+equivocado y se corrigió en vez de seguirse.
 
 **De los 5 🟡, solo tres esperan una decisión**: QA-07 y DOC-08 (el hosting de octubre) y
 DB-04 (a qué reservas alcanza la seña, que conviene cerrar antes del Módulo 2). Los otros
