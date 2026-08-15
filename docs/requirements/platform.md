@@ -136,6 +136,12 @@ Comprobantes, contratos, material de clase, entregas de M&M, fotos de perfil.
 Todos pasan por la misma pieza intercambiable (`StorageService`), en disco local
 durante el desarrollo. **Los comprobantes no se eliminan: se marcan como inválidos.**
 
+### 2.5 Auditoría
+
+- El historial de clases **no se borra**, se edita dejando registro.
+- Toda modificación de reserva guarda **quién** y **cuándo**.
+- Los estados de M&M y de release **solo avanzan, no retroceden**.
+
 ### 2.6 Salas y usos — matriz de compatibilidad ✅
 
 Confirmado por Ignacio el 2026-08-11. **Sustituye lo que dice el relevamiento.**
@@ -170,12 +176,6 @@ Tres consecuencias de modelado:
    reservar (*"esta cabina no tiene silla, tele ni escritorio — solo apta para clases
    de práctica"*). Bloquearlo sería rígido de más para un caso legítimo; no avisar nada
    deja que Micaela mande una clase teórica a una sala sin escritorio.
-
-### 2.5 Auditoría
-
-- El historial de clases **no se borra**, se edita dejando registro.
-- Toda modificación de reserva guarda **quién** y **cuándo**.
-- Los estados de M&M y de release **solo avanzan, no retroceden**.
 
 ---
 
@@ -229,6 +229,11 @@ El relevamiento pide saber "si recuperó la clase". `historial_clase` tiene
 `estado_asistencia` pero nada que vincule una clase de recuperación con la que
 reemplaza. **Propuesta:** `reserva.id_reserva_recupera` (opcional).
 
+### 3.5 Falta la asignación **profesor ↔ alumno**
+
+El Módulo 1 lista `profesor_asignado` y el Módulo 5 habla de "alumnos asignados", pero
+el DBML solo relaciona profesor y alumno a través de cada `reserva`. Ver **❓P6**.
+
 ### 3.6 ⚠️ Lo que la landing vende y el modelo no contempla
 
 Revisión de `apps/landing/src/data/` contra los 8 módulos, hecha el 2026-08-11.
@@ -248,11 +253,6 @@ Por eso varias quedan como pregunta y no como hecho.
 | **Eventos, clases abiertas, showcases, release parties** (`dates.ts`) | 🟡 No hay módulo de eventos en los 8, y el relevamiento menciona eventos en Argentina, Uruguay y Brasil. Ver ❓P36 |
 | **Catálogo del sello con género y portada** | 🟡 `release` no tiene ni género ni imagen. Trivial de agregar, hace falta si algún día la landing lee el catálogo del backend |
 | **Equipos por categoría** (controladores, monitores, auriculares, accesorios) | 🟡 `venta_equipo` tiene modelo y marca, no categoría. Trivial |
-
-### 3.5 Falta la asignación **profesor ↔ alumno**
-
-El Módulo 1 lista `profesor_asignado` y el Módulo 5 habla de "alumnos asignados", pero
-el DBML solo relaciona profesor y alumno a través de cada `reserva`. Ver **❓P6**.
 
 ---
 

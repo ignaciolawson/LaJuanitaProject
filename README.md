@@ -22,7 +22,9 @@ docs/
 ├── branding/      assets de marca (la guía visual está supersedida)
 ├── db/            modelo de datos (DBML) y auditoría de la base
 ├── auditoria/     auditoría técnica del 2026-08 y su remediación
-└── operacion.md   backup, restore probado, deploy y fallas de migración
+├── operacion.md   backup, restore probado, deploy y fallas de migración
+└── sistema-gestion-plan.md   plan y decisiones cerradas de platform/backend.
+                              Empezá por §6d "DÓNDE RETOMAR"
 
 scripts/
 ├── backup.sh      volcado diario con retención (ver docs/operacion.md)

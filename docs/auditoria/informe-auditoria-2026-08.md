@@ -3618,6 +3618,16 @@ propio README referencia en `:94` y `:200`; `CLAUDE.md:23-29` sí lo incluye.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO, pero por reordenamiento y no por
+> renumeración.** Los bloques se movieron a su lugar (2.5 antes de 2.6, 3.5 antes de 3.6)
+> conservando su número. **Renumerar habría sido peor:** §2.6 está citada desde otros tres
+> lugares —`platform.md:31`, `:325` y `:326`, las tres apuntando a la matriz sala×uso— y
+> §3.5 desde `sistema-gestion-plan.md:178`. Cambiarles el número rompía cuatro referencias
+> para arreglar un orden de lectura; moverlos arregla el orden y no rompe ninguna.
+>
+> El árbol del README suma `sistema-gestion-plan.md`, que era el archivo que el propio
+> README referencia dos veces y su índice no listaba, con el puntero a §6d.
+
 ---
 
 #### DOC-13 — `prompt-auditoria-lajuanita.md` sin trackear en la raíz
@@ -4250,7 +4260,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
 | **DOC-10** | Medio | XS | 8 | 🔴 | Matizar la justificación de los cuatro roles |
 | **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
-| **DOC-12** | Bajo | XS | 8 | 🔴 | Renumerar secciones y completar el árbol de `docs/` |
+| **DOC-12** | Bajo | XS | 8 | ✅ | Reordenadas, no renumeradas: §2.6 y §3.5 están citadas desde otros cuatro lugares |
 | **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |
 
 **De dónde sale el 61:** 59 hallazgos del informe original + 2 aparecidos durante la
