@@ -2877,6 +2877,16 @@ y descomentar el caso que ya está escrito en `credencial.test.ts`.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO.** `leerCredencial()` calcula el
+> vencimiento una sola vez y rechaza `Number.isNaN(vence)` antes de compararlo, con el
+> porqué escrito al lado: una comparación con NaN es siempre false, así que sin ese
+> chequeo la credencial corrupta no la rechazaba nadie. El caso que faltaba **entró al
+> archivo de tests** —la nota que lo explicaba se reemplazó por el test— y se verificó en
+> los dos sentidos: con el arreglo, `npm run test:platform` da **54/54**; guardando el
+> arreglo en un stash y volviendo a correr, ese caso **falla**
+> (*"expected { token: 'x', expiraEn: 'mañana' } to be null"*) y el resto queda en 53.
+> `oxlint` limpio.
+
 ---
 
 #### QA-06 — Cuatro combinaciones de la paleta fallan el contraste AA, y una es el borde de los campos de formulario
@@ -3963,7 +3973,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **QA-05** | Medio | S | 6 | ✅ | El andamio y las cinco piezas críticas. No es cobertura, y no pretende serlo |
 | **QA-06** | Medio | S | 8 | 🔴 | Cuatro combinaciones de la paleta fallan AA, una es el borde de los inputs |
 | **QA-07** | Bajo | S | 6 | 🟡 | Endpoint de salud y healthcheck de Postgres, hechos. Falta el del backend, que necesita el compose de deploy — bloqueado por el hosting, igual que DOC-08 |
-| **QA-08** | Bajo | XS | 8 | 🔴 | *(nuevo, 2026-08-14)* `Date.parse` de una fecha ilegible da NaN, y NaN no es `<=` nada: la credencial corrupta pasa por vigente |
+| **QA-08** | Bajo | XS | 8 | ✅ | — |
 | **DOC-01** | Alto | XS | 1 | ✅ | — |
 | **DOC-02** | Alto | S | 3 | ✅ | — |
 | **DOC-03** | Medio | XS | 1 | ✅ | — |

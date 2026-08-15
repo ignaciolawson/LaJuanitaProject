@@ -31,7 +31,11 @@ export function leerCredencial(): Credencial | null {
     const credencial = JSON.parse(guardado) as Credencial
     if (!credencial.token || !credencial.expiraEn) return null
 
-    if (Date.parse(credencial.expiraEn) <= Date.now()) {
+    // `Date.parse` de algo que no es una fecha devuelve NaN, y toda comparación
+    // con NaN es false: sin el `isNaN`, un `expiraEn` ilegible pasaba el
+    // chequeo y la credencial corrupta se daba por vigente para siempre.
+    const vence = Date.parse(credencial.expiraEn)
+    if (Number.isNaN(vence) || vence <= Date.now()) {
       borrarCredencial()
       return null
     }

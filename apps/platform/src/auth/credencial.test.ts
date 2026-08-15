@@ -64,13 +64,19 @@ describe('leerCredencial', () => {
     expect(leerCredencial()).toBeNull()
   })
 
-  // NOTA: falta un caso, y falta a propósito. Una credencial con `expiraEn`
-  // ilegible ("mañana") HOY pasa por vigente: `Date.parse` de algo que no es
-  // fecha da NaN, y `NaN <= Date.now()` es false, así que el chequeo de
-  // vencimiento no la rechaza. Se descubrió escribiendo estos tests y quedó
-  // anotado como hallazgo nuevo en vez de arreglarse acá, porque el arreglo es
-  // de `credencial.ts` y esta tanda no lo tiene en alcance. Cuando se corrija,
-  // el caso va acá.
+  /**
+   * El caso de QA-08. `Date.parse` de algo que no es fecha da NaN, y toda
+   * comparación con NaN es false: sin el chequeo explícito, esta credencial
+   * pasaba por vigente para siempre. Llega por un formato viejo guardado en el
+   * navegador, no por un ataque — que es exactamente lo que va a pasar el día
+   * que `expiraEn` cambie de forma.
+   */
+  it('una credencial con vencimiento ilegible se descarta, no se da por vigente', () => {
+    localStorage.setItem(CLAVE, JSON.stringify({ token: 'x', expiraEn: 'mañana' }))
+
+    expect(leerCredencial()).toBeNull()
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+  })
 })
 
 describe('borrarCredencial', () => {
