@@ -1,0 +1,10 @@
+# Los scripts de shell van SIEMPRE con finales de linea LF, aunque se editen en
+# Windows. Con CRLF, Linux lee el `\r` como parte del interprete y el script
+# muere con `bad interpreter: /usr/bin/env bash^M` -- que es exactamente lo que
+# pasaria en el runner de CI, donde corren `scripts/pruebas-sql.sh` y
+# `scripts/backup.sh`. Esta maquina tiene `core.autocrlf=true`, asi que sin esta
+# linea el working tree los convierte solo.
+*.sh text eol=lf
+
+# Los .sql se copian adentro del contenedor de Postgres y los lee psql en Linux.
+*.sql text eol=lf

@@ -14,29 +14,21 @@
 -- CÓMO EJECUTARLO (base descartable):
 --
 --   docker compose up -d
---   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
---            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos \
---            V8__vencimiento_password_temporal; do
---     docker cp apps/backend/src/main/resources/db/migration/$v.sql la_juanita_postgres:/tmp/$v.sql
---   done
---   docker cp apps/backend/src/test/resources/db/pruebas-adversariales.sql la_juanita_postgres:/tmp/adv.sql
---   docker exec la_juanita_postgres psql -U la_juanita -d postgres -c "DROP DATABASE IF EXISTS adversarial;" -c "CREATE DATABASE adversarial;"
---   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
---            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos \
---            V8__vencimiento_password_temporal; do
---     docker exec la_juanita_postgres psql -U la_juanita -d adversarial -v ON_ERROR_STOP=1 -f /tmp/$v.sql
---   done
---   docker exec la_juanita_postgres psql -U la_juanita -d adversarial -f /tmp/adv.sql
+--   ./scripts/pruebas-sql.sh
 --
--- (En Git Bash, anteponer MSYS_NO_PATHCONV=1 a los `docker`.)
+-- Ese script corre este archivo y `pruebas-reglas-negocio.sql`, cada uno sobre
+-- una base nueva con todas las migraciones aplicadas, y **sale con código
+-- distinto de cero si algún caso falla**. Corre también en CI
+-- (`.github/workflows/ci.yml`).
 --
 -- Última corrida: 2026-08-14, 50/50 sobre el esquema V1..V8.
 --
--- TODA MIGRACIÓN NUEVA ACTUALIZA ESTA CABECERA Y LA DE
--- `pruebas-reglas-negocio.sql`, en el mismo commit. Correr los casos contra un
--- esquema que no es el del proyecto no prueba nada, y no avisa.
+-- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES: el script lee el
+-- directorio y las aplica en orden de versión, así que una migración nueva
+-- entra en la corrida sola. Ver la explicación completa en la cabecera de
+-- `pruebas-reglas-negocio.sql` — la lista duplicada en las dos cabeceras ya se
+-- desactualizó dos veces, y correr los casos contra un esquema que no es el del
+-- proyecto no prueba nada y no avisa.
 --
 -- LO QUE ESTE ARCHIVO **NO** CUBRE, a propósito: la concurrencia. Los dos
 -- ataques concurrentes de la auditoría (dos reservas solapadas simultáneas, y

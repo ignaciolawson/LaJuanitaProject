@@ -4,35 +4,23 @@
 -- CÓMO EJECUTARLO (base descartable, no toca la de desarrollo):
 --
 --   docker compose up -d
---   # TODAS las migraciones, en orden. No alcanza con V1+V2: desde V4 el
---   # esquema tiene `nombre` y `apellido` en vez de `nombre_completo`, y estas
---   # pruebas insertan con las columnas nuevas.
---   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
---            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos \
---            V8__vencimiento_password_temporal; do
---     docker cp apps/backend/src/main/resources/db/migration/$v.sql la_juanita_postgres:/tmp/$v.sql
---   done
---   docker cp apps/backend/src/test/resources/db/pruebas-reglas-negocio.sql la_juanita_postgres:/tmp/pruebas.sql
---   docker exec la_juanita_postgres psql -U la_juanita -d postgres -c "DROP DATABASE IF EXISTS pruebas;" -c "CREATE DATABASE pruebas;"
---   for v in V1__baseline V2__datos_iniciales V3__usuario_admin_inicial \
---            V4__separar_nombre_apellido V5__cambio_de_password_obligatorio \
---            V6__integridad_auditoria V7__auditoria_historial_y_bloqueos \
---            V8__vencimiento_password_temporal; do
---     docker exec la_juanita_postgres psql -U la_juanita -d pruebas -v ON_ERROR_STOP=1 -f /tmp/$v.sql
---   done
---   docker exec la_juanita_postgres psql -U la_juanita -d pruebas -f /tmp/pruebas.sql
+--   ./scripts/pruebas-sql.sh
+--
+-- Ese script corre ESTE archivo y el adversarial, cada uno sobre una base nueva
+-- con todas las migraciones aplicadas, y **sale con código distinto de cero si
+-- algún caso falla**. Corre también en CI (`.github/workflows/ci.yml`).
 --
 -- Última corrida: 2026-08-14, 86/86 sobre el esquema V1..V8.
 --
--- TODA MIGRACIÓN NUEVA ACTUALIZA ESTA CABECERA Y LA DE `pruebas-adversariales.sql`,
--- en el mismo commit. Ya pasó dos veces que no: con V4 las pruebas se editaron y
--- no se corrieron, y con V6 la cabecera se quedó en V5 mientras el archivo
--- hermano ya decía V6. Correr 69 casos contra un esquema que no es el del
--- proyecto no prueba nada, y no avisa.
---
--- (En Git Bash, anteponer MSYS_NO_PATHCONV=1 a los `docker` para que no
---  convierta las rutas /tmp a rutas de Windows.)
+-- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES, y es a propósito. Antes
+-- estaban acá los nueve comandos con las ocho migraciones nombradas una por
+-- una, repetidos en el archivo hermano: agregar una migración era acordarse de
+-- editar tres lugares, y ya falló dos veces —con V4 las pruebas se editaron y
+-- no se corrieron, y con V6 esta cabecera se quedó en V5 mientras la otra ya
+-- decía V6—. El script lee el directorio de migraciones y las aplica en orden
+-- de versión, así que **una migración nueva entra en la corrida sola** y no hay
+-- lista que se pueda desactualizar. Correr estos casos contra un esquema que no
+-- es el del proyecto no prueba nada, y no avisa.
 --
 -- Al final imprime el resumen y la lista de casos que no se comportaron como
 -- se esperaba. Si esa lista sale vacía, pasaron todos.
