@@ -53,3 +53,45 @@ export type LoginResponse = {
   expiraEn: string
   usuario: UsuarioActual
 }
+
+/**
+ * Los cuerpos que se MANDAN a `/api/auth` y a `/api/me/password`.
+ *
+ * Van tipados por el mismo motivo que los de administración (ver la nota en
+ * `administracion.ts`): un pedido mal formado **no explota en ninguna capa**.
+ * Jackson descarta en silencio los campos que no conoce, así que un nombre mal
+ * escrito viaja, el backend lo ignora y el dato queda sin cargar, sin error
+ * arriba ni abajo. Una respuesta mal tipada, en cambio, se ve enseguida.
+ *
+ * Cada uno espeja un record de `…backend.auth` (y `RegistroRequest`, de
+ * `…backend.usuario.dto`). Si allá cambia un campo, cambia acá.
+ */
+
+/** Espeja `LoginRequest`. */
+export type LoginRequest = {
+  email: string
+  password: string
+}
+
+/**
+ * Espeja `RegistroRequest`. Fijate lo que NO tiene: `rol`. El endpoint es
+ * público y el rol se fuerza a `USUARIO` del lado del servidor — mandarlo desde
+ * acá no haría nada, y tenerlo en el tipo sugeriría lo contrario.
+ */
+export type RegistroRequest = {
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
+  password: string
+}
+
+/**
+ * Espeja `CambioPasswordRequest`. Pide la contraseña actual aunque la sesión ya
+ * esté abierta: una sesión olvidada en la computadora del estudio no debería
+ * alcanzar para quedarse con la cuenta.
+ */
+export type CambioPasswordRequest = {
+  passwordActual: string
+  passwordNueva: string
+}

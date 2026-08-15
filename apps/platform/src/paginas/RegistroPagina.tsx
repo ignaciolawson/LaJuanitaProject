@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
+import type { RegistroRequest } from '../api/tipos'
 import { useAuth } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
@@ -17,7 +18,10 @@ import { Campo } from '../componentes/Campo'
 export function RegistroPagina() {
   const { registrarse } = useAuth()
 
-  const [datos, setDatos] = useState({
+  // Tipado con el contrato y no inferido del literal: así, si al backend le
+  // aparece un campo obligatorio, el formulario deja de compilar acá en vez de
+  // mandar un cuerpo incompleto que nadie rechaza.
+  const [datos, setDatos] = useState<RegistroRequest>({
     nombre: '',
     apellido: '',
     email: '',

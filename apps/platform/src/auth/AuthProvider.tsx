@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { pedir, registrarManejadorDeSesionVencida } from '../api/cliente'
-import type { LoginResponse, UsuarioActual } from '../api/tipos'
-import { AuthContext, type DatosDeRegistro, type Sesion } from './contexto'
+import type { LoginRequest, LoginResponse, RegistroRequest, UsuarioActual } from '../api/tipos'
+import { AuthContext, type Sesion } from './contexto'
 import { borrarCredencial, guardarCredencial, leerCredencial } from './credencial'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const iniciarSesion = useCallback(async (email: string, password: string) => {
     const respuesta = await pedir<LoginResponse>('/api/auth/login', {
       metodo: 'POST',
-      cuerpo: { email, password },
+      cuerpo: { email, password } satisfies LoginRequest,
       sinCredencial: true,
     })
 
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSesion({ estado: 'autenticado', usuario: respuesta.usuario })
   }, [])
 
-  const registrarse = useCallback(async (datos: DatosDeRegistro) => {
+  const registrarse = useCallback(async (datos: RegistroRequest) => {
     const respuesta = await pedir<LoginResponse>('/api/auth/registro', {
       metodo: 'POST',
       cuerpo: datos,

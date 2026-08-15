@@ -2147,6 +2147,23 @@ archivo y con el mismo nombre que el record de Java, y tiparlos en las funciones
 > esta tanda no tocó; van con la limpieza de la tanda 8, para no mezclar un cambio
 > mecánico con uno funcional en el mismo commit.
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO los tres que faltaban.** `LoginRequest`,
+> `RegistroRequest` y `CambioPasswordRequest` están declarados en `tipos.ts`, al lado de
+> `LoginResponse` y con el mismo nombre que el record de Java, y aplicados en los tres
+> lugares que arman el cuerpo (`satisfies` en los dos literales, y el `useState` del
+> formulario de registro tipado con el contrato en vez de inferido del literal).
+>
+> **Y se borró un cuarto tipo que era el mismo contrato con otro nombre:**
+> `DatosDeRegistro`, en `contexto.ts`, tenía exactamente los cinco campos de
+> `RegistroRequest` — existía porque los tipos de pedido no vivían en ningún lado. Ahora
+> el contrato tiene un solo nombre y un solo lugar donde cambiarlo.
+>
+> **Verificado que el tipado agarra el error que el hallazgo describe**, no sólo que
+> compila: escribiendo `passwordNuevaa` en el cuerpo, `tsc` falla con
+> *"'passwordNuevaa' does not exist in type 'CambioPasswordRequest'"* — que es exactamente
+> el campo que antes se mandaba, Jackson descartaba en silencio y nadie rechazaba. Build,
+> `oxlint` y los **54** tests del panel, en verde.
+
 ---
 
 #### ARQ-10 — `landing` y `platform` no comparten nada, y en septiembre las dos van a hablar con la misma API
@@ -4100,7 +4117,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **ARQ-06** | Bajo | S | 8 | 🔴 | `esAdmin` y `acotar` copiados en los dos controllers |
 | **ARQ-07** | Bajo | XS | 8 | ✅ | — |
 | **ARQ-08** | Bajo | S | 8 | 🔴 | La convención de idioma no está escrita |
-| **ARQ-09** | Bajo | S | 5→8 | 🟡 | Los cuatro de administración, hechos. Faltan los tres de autenticación, con la limpieza de la tanda 8 |
+| **ARQ-09** | Bajo | S | 5→8 | ✅ | — |
 | **ARQ-10** | Info | — | 8 | ✅ | **Decidido en §13: se duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que ahorra |
 | **SEO-01** | Alto | M | 7 | ✅ | — |
 | **SEO-02** | Medio | XS | 7 | ✅ | — |

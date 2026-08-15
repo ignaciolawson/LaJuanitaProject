@@ -1,5 +1,5 @@
 import { pedir } from './cliente'
-import type { Rol } from './tipos'
+import type { CambioPasswordRequest, Rol } from './tipos'
 import type {
   AltaAlumnoResultado,
   AlumnoResumen,
@@ -135,6 +135,6 @@ export function cambiarEstadoAlumno(id: number, estado: EstadoAlumno) {
 export function cambiarMiPassword(passwordActual: string, passwordNueva: string) {
   return pedir<void>('/api/me/password', {
     metodo: 'POST',
-    cuerpo: { passwordActual, passwordNueva },
+    cuerpo: { passwordActual, passwordNueva } satisfies CambioPasswordRequest,
   })
 }

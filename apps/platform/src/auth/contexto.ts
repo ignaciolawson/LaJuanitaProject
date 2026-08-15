@@ -1,6 +1,6 @@
 import { createContext, use } from 'react'
 
-import type { UsuarioActual } from '../api/tipos'
+import type { RegistroRequest, UsuarioActual } from '../api/tipos'
 
 /**
  * Los tres estados posibles de la sesión, como unión discriminada.
@@ -15,20 +15,19 @@ export type Sesion =
   | { estado: 'anonimo' }
   | { estado: 'autenticado'; usuario: UsuarioActual }
 
-export type DatosDeRegistro = {
-  nombre: string
-  apellido: string
-  email: string
-  telefono: string
-  password: string
-}
+/*
+ * Acá vivía `DatosDeRegistro`, que era `RegistroRequest` con otro nombre: los
+ * mismos cinco campos, declarados aparte porque los tipos de pedido no estaban
+ * en `tipos.ts`. Ahora sí están (ARQ-09), así que el contrato tiene un solo
+ * nombre y un solo lugar donde cambiarlo.
+ */
 
 export type ContextoAuth = {
   sesion: Sesion
   /** Lanza `ApiError` si las credenciales no sirven; el formulario lo muestra. */
   iniciarSesion: (email: string, password: string) => Promise<void>
   /** Crea la cuenta y deja a la persona adentro, sin un segundo paso de login. */
-  registrarse: (datos: DatosDeRegistro) => Promise<void>
+  registrarse: (datos: RegistroRequest) => Promise<void>
   cerrarSesion: () => void
   /**
    * Vuelve a leer `/api/me`. Hace falta cuando algo que el front ya tiene
