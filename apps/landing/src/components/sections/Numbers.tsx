@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef } from "react";
+
+import { PROGRAMS } from "@/data/programs";
 import { gsap, useGSAP, ScrollTrigger, prefersReduced, isLite } from "@/lib/gsap";
 import { scrollVelocity } from "@/lib/velocity";
 import { Container } from "@/components/ui/Container";
@@ -17,9 +19,17 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
  * que reaccionan a vos y no a un `Math.random()` en loop.
  */
 
+// PLACEHOLDER, salvo el año: 200 alumnos y 12 lanzamientos son inventados y hay
+// que validarlos con el cliente antes de publicar. **2021 sí es el dato
+// confirmado** (§13 de `docs/requirements/platform.md`), y es el que publica el
+// `foundingDate` del JSON-LD: acá decía 2019 y contradecía su propio marcado.
+//
+// "Programas activos" decía 4 cuando eran tres, y quedaron dos: Mix & Mastering
+// dejó de ser un programa (SEO-01). El número sale de `data/programs.ts`, no
+// escrito a mano, así que no se puede volver a desincronizar.
 const STATS = [
-  { value: 200, suffix: "+", label: "Alumnos formados", note: "Desde 2019" },
-  { value: 4, suffix: "", label: "Programas activos", note: "DJ, producción, mastering" },
+  { value: 200, suffix: "+", label: "Alumnos formados", note: "Desde 2021" },
+  { value: PROGRAMS.length, suffix: "", label: "Programas activos", note: "DJ y producción" },
   { value: 12, suffix: "", label: "Lanzamientos del sello", note: "La Juanita Records" },
   { value: 100, suffix: "%", label: "Práctica en cabina real", note: "Pioneer DJ" },
 ];

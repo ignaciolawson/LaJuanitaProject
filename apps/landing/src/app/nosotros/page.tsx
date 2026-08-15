@@ -29,15 +29,20 @@ export const metadata: Metadata = pageMetadata({
  * Los textos son placeholder — la historia real la escribe el cliente.
  */
 
+// ⚠️ De esta línea de tiempo hay UN dato confirmado y sólo uno: **2021, el año
+// de fundación** (§13 de `docs/requirements/platform.md`). Arrancaba en 2019 y
+// contradecía el `foundingDate` que el JSON-LD publica como hecho verificado.
+// Los otros años y los cuatro relatos siguen siendo placeholder: la historia
+// real la escribe el cliente.
 const TIMELINE = [
   {
-    year: "2019",
+    year: "2021",
     title: "Empieza el sello",
     detail:
       "La Juanita arranca como sello discográfico, publicando a artistas de la zona norte que no tenían dónde sacar su música.",
   },
   {
-    year: "2021",
+    year: "2022",
     title: "El estudio",
     detail:
       "Se arma la sala de mastering con tratamiento acústico propio, para dejar de depender de estudios de terceros.",
