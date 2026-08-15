@@ -20,7 +20,13 @@ docs/
 ├── propuesta/     propuesta técnica y comercial
 ├── requirements/  alcance por app
 ├── branding/      assets de marca (la guía visual está supersedida)
-└── db/            modelo de datos (DBML)
+├── db/            modelo de datos (DBML) y auditoría de la base
+├── auditoria/     auditoría técnica del 2026-08 y su remediación
+└── operacion.md   backup, restore probado, deploy y fallas de migración
+
+scripts/
+├── backup.sh      volcado diario con retención (ver docs/operacion.md)
+└── pruebas-sql.sh las dos suites SQL contra una base descartable
 ```
 
 ## Stack
@@ -231,6 +237,13 @@ Y dos cosas más antes de exponerlo, que no son variables:
    interna y ese bloque no va.
 2. **Desactivar `admin@lajuanita.local`** en una migración nueva, después de crear
    los usuarios reales.
+
+**Backup, restore, deploy y qué hacer cuando falla una migración** están en
+[`docs/operacion.md`](docs/operacion.md). El restore está **probado** —dump,
+restauración en una base limpia, reglas de negocio verificadas sobre ella y la
+aplicación real arrancando contra la restaurada— y el volcado diario lo hace
+`scripts/backup.sh`. Lo único que ese documento deja abierto es el deploy, que
+depende del hosting que se elige en octubre.
 
 **Salud del servicio.** `GET /actuator/health` es público y responde `UP` o `DOWN`,
 sin detalle. Lo consulta el `healthcheck` del contenedor —sin healthcheck no hay

@@ -17,3 +17,9 @@ Thumbs.db
 
 # docker volumes (bind-mounted local data, if any)
 pgdata/
+
+# volcados de la base (scripts/backup.sh). Nunca se commitean: a partir de
+# diciembre tienen los datos reales del negocio -- alumnos, telefonos, pagos --
+# y los hashes de las contrasenas. Ver docs/operacion.md.
+backups/
+*.dump
