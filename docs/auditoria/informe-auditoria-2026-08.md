@@ -3627,6 +3627,22 @@ diferenciados— se cumple."* Las otras tres copias pueden apuntar acá.
 
 **Esfuerzo: XS**
 
+> **Remediado el 2026-08-15 (tanda 8) — RESUELTO, y sólo dos de los cuatro seguían vivos.**
+> Antes de tocar nada se verificó cada uno contra el código:
+>
+> | # | Estado real al 15/08 |
+> |---|---|
+> | a | 🔴 vivo. `V1__baseline.sql` tiene **22** `CREATE TABLE` (contados); el plan decía 20 en un lugar y 22 en otros tres. Corregido |
+> | b | 🔴 vivo, y en el peor lugar: la **cabecera** del documento declarado fuente de verdad. Ahora enlaza a `platform.md`, dice que está hecho, y aprovecha para señalar que **§13 gana sobre el plan en todo lo que sea una decisión** — que es lo que a ese archivo le faltaba decir |
+> | c | ✅ ya estaba corregido por **SEO-04** (tanda 7) |
+> | d | ✅ ya estaba corregido por **DOC-05** (tanda 7) |
+>
+> **Y apareció un quinto**, de la misma familia y con más filo que los cuatro: el plan
+> decía que los roles viven en **tres** lugares y que agregar uno es *"una migración más
+> dos archivos"*. Son **seis** desde ARQ-05, y `CLAUDE.md` ya lo decía — o sea que dos
+> documentos se contradecían sobre una regla cuyo incumplimiento deja un rol a medio
+> agregar. Corregido, apuntando a `CLAUDE.md` como la lista que manda.
+
 ---
 
 #### DOC-12 — Secciones fuera de orden y árbol de `docs/` incompleto en el README
@@ -4283,7 +4299,7 @@ va a hacer, y está decidido así (ver §5). La columna **Tanda** es el orden pr
 | **DOC-08** | Alto | M | 6 | 🟡 | Backup, restore probado y runbook de migraciones, hechos. **El deploy depende del hosting (octubre)** |
 | **DOC-09** | Alto | XS | 1b | ✅ | — |
 | **DOC-10** | Medio | XS | 8 | ✅ | — |
-| **DOC-11** | Bajo | XS | 8 | 🔴 | Cuatro restos de estado superado |
+| **DOC-11** | Bajo | XS | 8 | ✅ | Dos seguían vivos; los otros dos los había barrido la tanda 7. Apareció un quinto |
 | **DOC-12** | Bajo | XS | 8 | ✅ | Reordenadas, no renumeradas: §2.6 y §3.5 están citadas desde otros cuatro lugares |
 | **DOC-13** | Info | XS | 8 | ✅ | **Hecho**: movidos a `docs/auditoria/` (§13). Verificado — la raíz no tiene ningún `prompt-*.md` |
 

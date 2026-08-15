@@ -7,8 +7,10 @@
 > cambia, se edita este archivo — no se deja la decisión vieja conviviendo con la nueva.
 >
 > Lo que NO está acá: el detalle funcional de los 8 módulos (pantallas, permisos,
-> reglas de negocio). Eso va a `docs/requirements/platform.md`, que todavía no existe
-> y es la primera tarea de la Fase 0.
+> reglas de negocio). Eso vive en
+> [`docs/requirements/platform.md`](requirements/platform.md) —fue la primera tarea de
+> la Fase 0 y está hecho—. **Y su §13 gana sobre este documento en todo lo que sea una
+> decisión**, porque es posterior.
 
 ---
 
@@ -62,7 +64,7 @@ y no hay migraciones.~~ **Resuelto el 2026-08-11**: existen `V1`, `V2` y `V3`, y
 
 ### 3.1 Migraciones: Flyway
 
-Archivos `.sql` numerados y versionados en el repo. `V1__baseline.sql` crea las 20
+Archivos `.sql` numerados y versionados en el repo. `V1__baseline.sql` crea las 22
 tablas; cada cambio posterior es un archivo nuevo (`V2__`, `V3__`…). **Nunca se edita
 un archivo ya aplicado.**
 
@@ -126,8 +128,11 @@ tiene. El front dibuja el menú con esa respuesta. Nada hardcodeado, nada que se
 desincronice.
 
 ✅ **Aplicado el 2026-08-11** en el CHECK `usuario_rol_valido` de `V1__baseline.sql`, en
-el enum `Rol` de Java y en el tipo `Rol` de TypeScript. Las tres definiciones tienen que
-moverse juntas: si se agrega un rol, es una migración *más* dos archivos de código.
+el enum `Rol` de Java y en el tipo `Rol` de TypeScript. **Hoy son seis los lugares que
+tienen que moverse juntos**, no tres: se sumaron el DBML, los dos predicados de
+`apps/platform/src/layout/menu.ts` y la tabla `NOMBRE_DE_ROL` de `UsuariosPagina.tsx`
+(ARQ-05). La lista completa está en `CLAUDE.md` y es la que manda: agregar un rol es una
+migración **más cinco archivos**.
 
 ### 3.3 Login: credencial firmada (JWT)
 
