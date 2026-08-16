@@ -540,21 +540,77 @@ en una celda vacía abre el alta con esa fecha y esa hora puestas.
 P7 (las clases se cargan **a mano**, no se generan), P37 (una clase **no** exige
 profesor asignado), DB-11 (hecho) y la seña (**pasa al Módulo 3**).
 
-### Estado anterior — arrancá el Módulo 2
-
-**El Módulo 1 está cerrado hasta donde puede** (2026-08-16): las cuatro pantallas
-existen y lo único que le falta depende de módulos que no se construyeron. El
-detalle está en el recuadro de [Estado real](#estado-real).
-
-**Lo que sigue es el Módulo 2 — Horarios y salas**, y trae consigo las dos reglas
-que quedaron escritas esperándolo. Ver [`Lo próximo`](#lo-próximo-el-módulo-2).
-
 **No hay ninguna decisión tuya pendiente.** La auditoría se cerró el 2026-08-15
-con el backlog en cero, la seña está decidida, y el filtro por disciplina se
-resolvió el 2026-08-16.
+con el backlog en cero, y las cuatro preguntas que quedaban de producto se
+contestaron el 2026-08-16.
 
-**Y para verificar que arrancás en verde**, los cuatro comandos del CI están al
-final de esta sección.
+### 📋 Qué pasó el 2026-08-16 (fue un día largo)
+
+Se cerró el Módulo 1 entero y casi todo el Módulo 2. En orden:
+
+| # | Qué se hizo | Dónde |
+|---|---|---|
+| 1 | **`inscripcion`, backend** — alta, listado con 4 filtros, edición, estado, clases restantes calculadas | `backend/inscripcion` |
+| 2 | **Pantalla de inscripciones** + `GET /api/profesores`, que faltaba para poder asignar profe | `/admin/inscripciones` |
+| 3 | **Filtro por disciplina y nivel** en el listado de alumnos, y la columna "Cursa" | `AlumnosPagina` |
+| 4 | **Perfil del alumno** | `/admin/alumnos/:id` |
+| 5 | **Módulo 2, backend** — salas, tipos de uso, reservas, participantes, toma de lista | `backend/reserva`, `backend/sala` |
+| 6 | **Calendario semanal** | `/admin/reservas` |
+
+**Las suites pasaron de 108 → 192 (backend) y de 55 → 103 (front).** Las dos SQL
+siguen en 121 y 50.
+
+**Decisiones que tomó Ignacio ese día**, todas escritas en `platform.md`:
+
+- **P7 — las clases se cargan a mano, de a una.** Se descartó que el sistema
+  generara las ocho semanales al inscribir, que era la recomendación del propio
+  documento. El costo queda anotado: 8 cargas por alumno y ~80 alumnos en
+  diciembre. Agregar la generación después es barato; sacarla no.
+- **P37 — una clase no exige profesor asignado.**
+- **La seña pasa al Módulo 3.** Su trigger necesita un `pago` que ningún módulo
+  puede crear todavía; activarlo ahora dejaba sin poder cargar alquileres de
+  cabina.
+- **El filtro por disciplina mira las inscripciones vigentes** (`ACTIVA` +
+  `PAUSADA`), y quien cursa dos disciplinas aparece en las dos listas.
+
+**Cuatro cosas que salieron mal y conviene no repetir:**
+
+1. **`npx tsc --noEmit` no chequea nada acá.** El `tsconfig.json` raíz es un
+   archivo de solución (`files: []`), así que sin `-b` no tiene entrada y sale 0
+   siempre. Se usó como verificación durante horas y era humo. **Usar `npx tsc -b`.**
+2. **Hibernate ordena los INSERT antes que los UPDATE.** Rompía la reprogramación
+   al correr una clase una hora. `ReservaService` hace `flush()`; hay test.
+3. **Una consulta nativa vacía la sesión entera; una JPQL no.** Al convertir
+   `contarClasesConsumidas` a JPQL, un 409 se volvió 200 en silencio. Arreglado
+   con `InscripcionService.empujarALaBase()`, no volviendo atrás.
+4. **Un `catch` que muestra el error y después recarga, borra el error.** `cargar()`
+   arranca con `setError(null)`. Hay que recargar primero y mostrar después.
+
+**Y una corrección al propio plan:** este documento avisaba que `inscripcion`
+obligaba a refactorizar `alumno.disciplina` y `alumno.nivel_actual`. **No
+existían** — `V1` ya decía en un comentario que viven en `inscripcion`. El aviso
+le sobrevivió a la decisión.
+
+### 🟢 Para verificar que arrancás en verde
+
+```
+cd apps/backend && mvn test          # 192
+cd apps/platform && npm test         # 103
+cd apps/platform && npx tsc -b       # NO `--noEmit`
+./scripts/pruebas-sql.sh             # 121 + 50
+```
+
+**Para ver el sistema andando** hacen falta los tres, en este orden:
+`docker compose up -d`, `mvn spring-boot:run` en `apps/backend`, y
+`npm run dev:platform`. Entrás por **http://localhost:5173** con
+`admin@lajuanita.local` / `lajuanita2026`.
+
+> **Hay datos de ejemplo cargados en la base de desarrollo**, todos con email
+> `demo-*@lajuanita.local`: dos profesores, cinco alumnos, seis inscripciones y
+> unas clases dictadas. Están elegidos para que se vea cada regla — alguien que
+> cursa dos disciplinas, uno con el curso terminado, uno pausado, y un alumno sin
+> nada. Se borran con un `DELETE ... WHERE email LIKE 'demo-%'` o con
+> `docker compose down -v`.
 
 ### Estado real
 
@@ -573,7 +629,9 @@ buscador, alta y baja lógica, la matriz de permisos por los cuatro roles impues
 en el backend, y **el módulo de inscripciones completo** — alta, listado con
 cuatro filtros, edición, cambio de estado, clases restantes y su pantalla.
 
-**Las suites:** 159 casos en el backend, 87 en el front.
+**Las suites al cierre del día:** 192 casos en el backend, 103 en el front, más
+las dos SQL (121 + 50). *(Este bloque describe el Módulo 1; los números son del
+proyecto entero.)*
 
 | Pantalla del módulo | Estado |
 |---|---|
