@@ -549,6 +549,53 @@ necesita un `pago` que ningún módulo puede crear todavía.
 última regla del sistema que vive en un documento y no en el código**. La ficha
 completa está en `platform.md` §13 y la herramienta, en la cabecera de `V9`.
 
+### 💰 Módulo 3 — Pagos · empezado el 2026-08-16
+
+**Backend completo** (`backend/pago`) y **cinco de sus seis pantallas**:
+`/admin/pagos`, `/admin/estado-de-cuenta/:idUsuario`, `/admin/caja`,
+`/admin/deudores` y `/admin/egresos`. Suites: **278 backend, 197 front.**
+
+**Lo primero que se hizo fue revisar los cinco pendientes de §6, y ninguno
+bloqueaba.** Tres ya estaban contestados —P12 en §13, P15 en `V6`/`V7`, P16 en
+un comentario de `V1`— y esa lista no se había actualizado; P14 no cambia lo que
+hay que construir. **El único abierto de verdad es P13 (la lista de precios), y
+§13 ya había decidido cómo seguir sin él.** Es el mismo patrón que con P11 y que
+con los diez hallazgos que la auditoría listó como trabados: la respuesta estaba
+escrita en otro lado. Los cuatro quedaron tachados en §6 y en el índice.
+
+**Tres decisiones que no se leen del esquema:**
+
+- **`Moneda` se mudó a un paquete `dinero`.** El archivo tenía escrito que se
+  mudara *"cuando exista el segundo usuario"*, y el segundo usuario apareció con
+  `pago` y `egreso`. Copiarla habrían sido dos enums que se separan el día que
+  alguien agregue una tercera moneda.
+- **Nunca se resta entre monedas** (§2.3). Un curso en pesos con un pago en
+  dólares no tiene saldo: tiene dos renglones. Vale para el estado de cuenta, la
+  caja y los deudores.
+- **La antigüedad de una deuda se cuenta desde el renglón más viejo** (`MIN`, no
+  `MAX`). Con `MAX`, anotarle una cuota nueva a quien debe hace dos meses le
+  rejuvenecería la deuda a cero días.
+
+**Y un hueco del esquema que apareció leyendo:** `pago.id_usuario` y
+`pago.id_inscripcion` son dos columnas sueltas y **ninguna FK las ata**. Se
+podía acreditar el pago de Juan contra el curso de Ana y las dos cuentas
+quedaban mal en silencio. Lo tapa `PagoService`; es el mismo hueco que `V1` §8.2
+tapó del lado de las clases, con un trigger.
+
+**Dos cosas que encontraron los tests:**
+
+1. **El mismo importe se serializaba de tres formas.** Recién creado salía
+   `90000` (el `BigDecimal` del JSON del pedido, escala 0), releído de la base
+   `90000.00`, y las sumas agregadas traían una tercera. Para el front son tres
+   formatos para la misma cosa. Se normaliza en `dinero/Importe.java`.
+2. **Anular no escribía hasta el commit**, así que la respuesta describía una
+   fila que la base todavía no había aceptado y `pago_anulacion_justificada`
+   hablaba al final de la transacción. `flush()` en las dos excepciones.
+
+**Falta:** la migración `V10` con el trigger de la seña —va **última**, cuando la
+pantalla de reservas pueda crear la reserva y su pago en la misma transacción— y
+la sub-sección de venta de equipos.
+
 **El calendario, en corto:** días en columnas y horas en filas, con filtro por
 sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
 quedaba de un día y lo que hay que ver para no pisarse es la semana. La sala va
@@ -666,7 +713,7 @@ le sobrevivió a la decisión.
 
 ```
 cd apps/backend && mvn test          # 278
-cd apps/platform && npm test         # 139
+cd apps/platform && npm test         # 197
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 121 + 50
 ```
@@ -690,7 +737,7 @@ cd apps/platform && npx tsc -b       # NO `--noEmit`
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
 | **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend y sus cuatro pantallas. La seña se fue al Módulo 3 |
-| Módulo 3 — Pagos | ⬜ **lo próximo.** Arranca debiendo la seña, que le llegó del Módulo 2 |
+| Módulo 3 — Pagos | 🟡 **backend y 5 de sus 6 pantallas** (2026-08-16). Faltan `V10` con la seña y venta de equipos |
 | Módulos 4 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |

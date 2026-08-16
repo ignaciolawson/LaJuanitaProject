@@ -4,6 +4,13 @@ import type {
   AltaAlumnoResultado,
   AlumnoResumen,
   BloqueoResumen,
+  CajaDelPeriodo,
+  Deudor,
+  EgresoResumen,
+  EstadoDeCuenta,
+  EstadoPago,
+  MedioPago,
+  PagoResumen,
   Disciplina,
   EstadoAlumno,
   EstadoInscripcion,
@@ -394,6 +401,102 @@ export function usoDeSalas(opciones: { desde: string; hasta: string; idSala?: nu
       idSala: opciones.idSala,
     })}`,
   )
+}
+
+// -- Pagos -------------------------------------------------------------------
+
+/** Espeja `AltaPagoRequest`. Exactamente uno de los cuatro destinos. */
+export type AltaPago = {
+  idUsuario: number
+  idInscripcion?: number
+  idReserva?: number
+  idTrabajoMastering?: number
+  idVentaEquipo?: number
+  concepto?: string
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  medioPago: MedioPago
+  descuentoPorcentaje?: number
+  motivoDescuento?: string
+  estadoPago?: EstadoPago
+  fechaPago?: string
+  comprobantePath?: string
+}
+
+export function listarPagos(opciones: {
+  buscar?: string
+  idUsuario?: number
+  estado?: EstadoPago | ''
+  moneda?: Moneda | ''
+  desde?: string
+  hasta?: string
+  pagina?: number
+}) {
+  return pedir<Pagina<PagoResumen>>(`/api/pagos${query({ ...opciones })}`)
+}
+
+export function registrarPago(datos: AltaPago) {
+  return pedir<PagoResumen>('/api/pagos', { metodo: 'POST', cuerpo: datos })
+}
+
+/**
+ * Anular un pago mal cargado.
+ *
+ * **Es un PATCH y no un DELETE, y eso no es estilo REST:** en este esquema la
+ * plata no se borra (`V6`). El autor y la fecha los pone el servidor con el
+ * token y el reloj; de acá solo viaja el motivo.
+ */
+export function anularPago(id: number, motivo: string) {
+  return pedir<PagoResumen>(`/api/pagos/${id}/anulacion`, { metodo: 'PATCH', cuerpo: { motivo } })
+}
+
+/** Marcar el comprobante como inválido. Tampoco se borra: se marca. */
+export function invalidarComprobante(id: number, motivo: string) {
+  return pedir<PagoResumen>(`/api/pagos/${id}/comprobante-invalido`, {
+    metodo: 'PATCH',
+    cuerpo: { motivo },
+  })
+}
+
+export function estadoDeCuenta(idUsuario: number) {
+  return pedir<EstadoDeCuenta>(`/api/pagos/estado-de-cuenta/${idUsuario}`)
+}
+
+/** La caja del período: **siempre las dos monedas**, aunque una esté en cero. */
+export function caja(desde: string, hasta: string) {
+  return pedir<CajaDelPeriodo[]>(`/api/pagos/caja${query({ desde, hasta })}`)
+}
+
+export function listarDeudores() {
+  return pedir<Deudor[]>('/api/pagos/deudores')
+}
+
+// -- Egresos -----------------------------------------------------------------
+
+/** Espeja `AltaEgresoRequest`. */
+export type AltaEgreso = {
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  concepto: string
+  destinatario?: string
+  idUsuarioDestino?: number
+  fechaEgreso?: string
+  comprobantePath?: string
+}
+
+export function listarEgresos(opciones: {
+  buscar?: string
+  desde?: string
+  hasta?: string
+  pagina?: number
+}) {
+  return pedir<Pagina<EgresoResumen>>(`/api/egresos${query({ ...opciones })}`)
+}
+
+export function registrarEgreso(datos: AltaEgreso) {
+  return pedir<EgresoResumen>('/api/egresos', { metodo: 'POST', cuerpo: datos })
 }
 
 // -- Propio -----------------------------------------------------------------

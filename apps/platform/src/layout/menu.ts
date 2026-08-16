@@ -91,7 +91,10 @@ const MENU: GrupoMenu[] = [
         visible: puedeAdministrar,
         disponible: true,
       },
-      { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: false },
+      { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: true },
+      { etiqueta: 'Caja', ruta: '/admin/caja', visible: puedeAdministrar, disponible: true },
+      { etiqueta: 'Deudores', ruta: '/admin/deudores', visible: puedeAdministrar, disponible: true },
+      { etiqueta: 'Egresos', ruta: '/admin/egresos', visible: puedeAdministrar, disponible: true },
       {
         etiqueta: 'Dashboard',
         ruta: '/admin/dashboard',

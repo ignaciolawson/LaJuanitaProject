@@ -7,10 +7,15 @@ import { puedeAdministrar } from './layout/menu'
 import { AlumnoPerfilPagina } from './paginas/AlumnoPerfilPagina'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
 import { BloqueosPagina } from './paginas/BloqueosPagina'
+import { CajaPagina } from './paginas/CajaPagina'
 import { CalendarioPagina } from './paginas/CalendarioPagina'
+import { DeudoresPagina } from './paginas/DeudoresPagina'
+import { EgresosPagina } from './paginas/EgresosPagina'
+import { EstadoDeCuentaPagina } from './paginas/EstadoDeCuentaPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
+import { PagosPagina } from './paginas/PagosPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
 import { UsuariosPagina } from './paginas/UsuariosPagina'
@@ -48,6 +53,11 @@ function Rutas() {
           <Route path="/admin/reservas" element={<CalendarioPagina />} />
           <Route path="/admin/bloqueos" element={<BloqueosPagina />} />
           <Route path="/admin/uso-salas" element={<UsoDeSalasPagina />} />
+          <Route path="/admin/pagos" element={<PagosPagina />} />
+          <Route path="/admin/estado-de-cuenta/:idUsuario" element={<EstadoDeCuentaPagina />} />
+          <Route path="/admin/caja" element={<CajaPagina />} />
+          <Route path="/admin/deudores" element={<DeudoresPagina />} />
+          <Route path="/admin/egresos" element={<EgresosPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>

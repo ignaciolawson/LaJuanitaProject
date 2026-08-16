@@ -1,0 +1,315 @@
+import { useCallback, useEffect, useState } from 'react'
+
+import { listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
+import { ApiError } from '../api/cliente'
+import type { EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
+import { useUsuario } from '../auth/contexto'
+import { Aviso, Boton } from '../componentes/Boton'
+import { Campo, CampoSelect } from '../componentes/Campo'
+import { Paginado } from '../componentes/Paginado'
+import { importe } from '../componentes/dinero'
+import { hoy } from '../componentes/semana'
+import { puedeOperar } from '../layout/menu'
+
+/**
+ * Módulo 3, pantalla 5 — la plata que sale.
+ *
+ * <p>Sueldos de profesores, alquiler, equipamiento. Es la otra mitad de la caja:
+ * sin esto, *"¿cuánto quedó?"* se sigue contestando cruzando el Excel con el
+ * Notion a mano.
+ *
+ * <p><b>Se carga y se lista, y nada más.</b> No hay edición ni borrado — `V9`
+ * prohíbe el DELETE sobre {@code egreso} desde que le dio estado de anulación, y
+ * la anulación llega cuando alguien la pida: una operación irreversible sin caso
+ * de uso es peor que no tenerla.
+ */
+export function EgresosPagina() {
+  const puedeEscribir = puedeOperar(useUsuario())
+
+  const [egresos, setEgresos] = useState<EgresoResumen[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPaginas, setTotalPaginas] = useState(0)
+  const [pagina, setPagina] = useState(0)
+  const [buscar, setBuscar] = useState('')
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [mostrandoAlta, setMostrandoAlta] = useState(false)
+
+  const cargar = useCallback(async () => {
+    setCargando(true)
+    setError(null)
+    try {
+      const resultado = await listarEgresos({ buscar, pagina })
+      setEgresos(resultado.contenido)
+      setTotal(resultado.totalElementos)
+      setTotalPaginas(resultado.totalPaginas)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo cargar el listado.')
+    } finally {
+      setCargando(false)
+    }
+  }, [buscar, pagina])
+
+  useEffect(() => {
+    const id = setTimeout(cargar, 250)
+    return () => clearTimeout(id)
+  }, [cargar])
+
+  return (
+    <div>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Egresos</h2>
+          <p className="mt-1 text-sm text-tenue">
+            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'egreso' : 'egresos'}`}
+          </p>
+        </div>
+        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar egreso</Boton>}
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="search"
+          value={buscar}
+          onChange={(e) => {
+            setBuscar(e.target.value)
+            setPagina(0)
+          }}
+          placeholder="Buscar por concepto o destinatario…"
+          className="w-full rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+        />
+      </div>
+
+      {error && (
+        <div className="mb-4">
+          <Aviso>{error}</Aviso>
+        </div>
+      )}
+
+      {mostrandoAlta && puedeEscribir && (
+        <FormularioEgreso
+          onCerrar={() => setMostrandoAlta(false)}
+          onGuardado={() => {
+            setMostrandoAlta(false)
+            void cargar()
+          }}
+        />
+      )}
+
+      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
+              <th className="px-4 py-3 font-semibold">Concepto</th>
+              <th className="px-4 py-3 font-semibold">A quién</th>
+              <th className="px-4 py-3 font-semibold">Monto</th>
+              <th className="px-4 py-3 font-semibold">Fecha</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-linea">
+            {egresos.map((e) => (
+              <tr key={e.idEgreso}>
+                <td className="px-4 py-3 font-medium">{e.concepto}</td>
+                <td className="px-4 py-3 text-tenue">
+                  {e.destinatario ?? <span className="text-apagado">—</span>}
+                  {/* Vale distinguirlo: un egreso a alguien con cuenta se puede
+                      cruzar contra sus clases; uno a texto libre, no. */}
+                  {e.idUsuarioDestino && (
+                    <div className="text-xs text-apagado">tiene cuenta en el sistema</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums">
+                  {importe(e.monto, e.moneda)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-tenue">
+                  {e.fechaEgreso.split('-').reverse().join('/')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {!cargando && egresos.length === 0 && (
+        <p className="mt-4 text-center text-sm text-tenue">No hay egresos cargados.</p>
+      )}
+
+      <Paginado
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        totalElementos={total}
+        onCambiar={setPagina}
+      />
+    </div>
+  )
+}
+
+function FormularioEgreso({
+  onCerrar,
+  onGuardado,
+}: {
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [profesores, setProfesores] = useState<ProfesorResumen[]>([])
+  const [datos, setDatos] = useState({
+    concepto: '',
+    monto: '',
+    moneda: 'ARS' as Moneda,
+    cotizacionDolar: '',
+    destinatario: '',
+    idProfesor: '',
+    fechaEgreso: hoy(),
+    comprobantePath: '',
+  })
+  const [errores, setErrores] = useState<Record<string, string>>({})
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  // El caso más frecuente del negocio es el sueldo de un profesor, así que se
+  // puede elegir de la lista; todo lo demás va como texto libre.
+  useEffect(() => {
+    listarProfesores(true)
+      .then(setProfesores)
+      .catch(() => setErrorGeneral('No se pudo cargar el listado de profesores.'))
+  }, [])
+
+  function cambiar(campo: keyof typeof datos) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
+  }
+
+  const profesor = profesores.find((p) => String(p.idProfesor) === datos.idProfesor)
+
+  async function onSubmit(evento: React.FormEvent) {
+    evento.preventDefault()
+
+    const locales: Record<string, string> = {}
+    if (!datos.concepto.trim()) locales.concepto = 'Escribí a qué corresponde el egreso.'
+    if (!datos.monto || Number(datos.monto) <= 0) locales.monto = 'Poné un monto mayor a cero.'
+    if (datos.moneda === 'USD' && !datos.cotizacionDolar) {
+      locales.cotizacionPresenteSiEsUsd = 'Un egreso en dólares necesita la cotización del día.'
+    }
+    if (Object.keys(locales).length > 0) {
+      setErrores(locales)
+      return
+    }
+
+    setErrores({})
+    setErrorGeneral(null)
+    setEnviando(true)
+
+    try {
+      await registrarEgreso({
+        monto: Number(datos.monto),
+        moneda: datos.moneda,
+        cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : null,
+        concepto: datos.concepto.trim(),
+        destinatario: datos.destinatario || undefined,
+        idUsuarioDestino: profesor?.idUsuario,
+        fechaEgreso: datos.fechaEgreso,
+        comprobantePath: datos.comprobantePath || undefined,
+      })
+      onGuardado()
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.errores) setErrores(e.errores)
+        else setErrorGeneral(e.message)
+      } else {
+        setErrorGeneral('No se pudo conectar con el servidor.')
+      }
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+      <h3 className="mb-4 font-semibold">Registrar egreso</h3>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo
+          etiqueta="Concepto"
+          value={datos.concepto}
+          onChange={cambiar('concepto')}
+          placeholder="Clases de marzo, alquiler, equipamiento…"
+          error={errores.concepto}
+          className="sm:col-span-2"
+        />
+
+        <Campo
+          etiqueta="Monto"
+          type="number"
+          step="0.01"
+          value={datos.monto}
+          onChange={cambiar('monto')}
+          error={errores.monto}
+        />
+
+        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+          <option value="ARS">Pesos</option>
+          <option value="USD">Dólares</option>
+        </CampoSelect>
+
+        {datos.moneda === 'USD' && (
+          <Campo
+            etiqueta="Cotización del dólar"
+            type="number"
+            step="0.01"
+            value={datos.cotizacionDolar}
+            onChange={cambiar('cotizacionDolar')}
+            error={errores.cotizacionPresenteSiEsUsd}
+          />
+        )}
+
+        <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
+          <option value="">No es un pago a un profesor</option>
+          {profesores.map((p) => (
+            <option key={p.idProfesor} value={p.idProfesor}>
+              {p.nombreCompleto}
+            </option>
+          ))}
+        </CampoSelect>
+
+        {/* Solo cuando no es un profesor: los dos campos juntos invitan a
+            llenar los dos, y el nombre de la cuenta gana igual. */}
+        {!datos.idProfesor && (
+          <Campo
+            etiqueta="A quién"
+            value={datos.destinatario}
+            onChange={cambiar('destinatario')}
+            placeholder="Inmobiliaria, proveedor…"
+          />
+        )}
+
+        <Campo
+          etiqueta="Fecha"
+          type="date"
+          value={datos.fechaEgreso}
+          onChange={cambiar('fechaEgreso')}
+        />
+
+        <Campo
+          etiqueta="Comprobante"
+          value={datos.comprobantePath}
+          onChange={cambiar('comprobantePath')}
+          placeholder="/comprobantes/…"
+        />
+      </div>
+
+      {errorGeneral && (
+        <div className="mt-4">
+          <Aviso>{errorGeneral}</Aviso>
+        </div>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        <Boton type="submit" disabled={enviando}>
+          {enviando ? 'Guardando…' : 'Registrar'}
+        </Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}

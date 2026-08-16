@@ -283,3 +283,142 @@ export type UsoPorTipo = {
   reservas: number
   horas: number
 }
+
+// -- Módulo 3: pagos ---------------------------------------------------------
+
+export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'PAYPAL' | 'CUENTA_EEUU' | 'OTRO'
+
+/**
+ * Estado de un pago. Espeja `EstadoPago`.
+ *
+ * **Una fila de `pago` no es siempre plata que entró:** `DEBE` y `VENCIDO` son
+ * la deuda anotada y `ANULADO` es lo que se dio de baja. El backend ya manda
+ * `entro` calculado — no lo deduzcas de acá, o la pantalla y la caja se separan.
+ */
+export type EstadoPago = 'SENADO' | 'PAGADO' | 'DEBE' | 'VENCIDO' | 'ANULADO'
+
+/** Los cuatro destinos posibles. Un pago salda uno, exactamente. */
+export type DestinoDePago = 'INSCRIPCION' | 'RESERVA' | 'TRABAJO_MASTERING' | 'VENTA_EQUIPO'
+
+/** Una fila del listado de pagos. Espeja `PagoResumen`. */
+export type PagoResumen = {
+  idPago: number
+  idUsuario: number
+  nombre: string
+  apellido: string
+  email: string
+  destino: DestinoDePago
+  idDestino: number
+  /** Ya legible, resuelto en el servidor: "DJ · INICIAL", "Sala 2 · 14/08 10:00". */
+  queSalda: string
+  concepto: string | null
+  monto: number
+  moneda: Moneda
+  cotizacionDolar: number | null
+  medioPago: MedioPago
+  descuentoPorcentaje: number
+  motivoDescuento: string | null
+  estadoPago: EstadoPago
+  /** Si suma a la caja. Lo decide el backend. */
+  entro: boolean
+  comprobantePath: string | null
+  comprobanteInvalido: boolean
+  motivoInvalidacion: string | null
+  motivoAnulacion: string | null
+  fechaAnulacion: string | null
+  fechaPago: string
+  fechaRegistro: string
+}
+
+/**
+ * El estado de cuenta de una persona. Espeja `EstadoDeCuenta`.
+ *
+ * **Los saldos van por moneda y nunca se restan entre sí** (§2.3): un curso en
+ * pesos con un pago en dólares no tiene saldo, tiene dos renglones.
+ */
+export type EstadoDeCuenta = {
+  idUsuario: number
+  nombre: string
+  apellido: string
+  email: string
+  saldos: SaldoPorMoneda[]
+  contratos: ContratoDelAlumno[]
+  pagos: PagoResumen[]
+}
+
+export type SaldoPorMoneda = { moneda: Moneda; pagado: number; adeudado: number }
+
+export type ContratoDelAlumno = {
+  idInscripcion: number
+  disciplina: Disciplina
+  nivel: Nivel | null
+  estado: EstadoInscripcion
+  moneda: Moneda
+  precioTotal: number
+  pagado: number
+  saldo: number
+  /** Si cubrió el 50% que §13 exige antes de reservar. */
+  senado: boolean
+  saldado: boolean
+}
+
+/** La caja de un período, una fila por moneda. Espeja `CajaDelPeriodo`. */
+export type CajaDelPeriodo = {
+  moneda: Moneda
+  ingresos: number
+  egresos: number
+  neto: number
+  /** Lo anotado como deuda. No suma al neto: todavía no entró. */
+  adeudado: number
+  cantidadDePagos: number
+  cantidadDeEgresos: number
+  porMedio: { medioPago: MedioPago; monto: number; cantidad: number }[]
+}
+
+/** Espeja `Deudor`. `diasDeAtraso` se cuenta desde el renglón más viejo. */
+export type Deudor = {
+  idUsuario: number
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string | null
+  moneda: Moneda
+  adeudado: number
+  cantidadDePagos: number
+  desde: string
+  diasDeAtraso: number
+  vencido: boolean
+}
+
+/** Espeja `EgresoResumen`. */
+export type EgresoResumen = {
+  idEgreso: number
+  monto: number
+  moneda: Moneda
+  cotizacionDolar: number | null
+  concepto: string
+  destinatario: string | null
+  idUsuarioDestino: number | null
+  comprobantePath: string | null
+  fechaEgreso: string
+  fechaRegistro: string
+}
+
+/** A partir de acá una deuda está vencida (§6). Espeja `DIAS_PARA_VENCER`. */
+export const DIAS_PARA_VENCER = 7
+
+export const NOMBRE_DE_MEDIO: Record<MedioPago, string> = {
+  EFECTIVO: 'Efectivo',
+  TRANSFERENCIA: 'Transferencia',
+  PAYPAL: 'PayPal',
+  CUENTA_EEUU: 'Cuenta EEUU',
+  OTRO: 'Otro',
+}
+
+export const NOMBRE_DE_ESTADO_PAGO: Record<EstadoPago, string> = {
+  SENADO: 'Señado',
+  PAGADO: 'Pagado',
+  DEBE: 'Debe',
+  VENCIDO: 'Vencido',
+  ANULADO: 'Anulado',
+}
