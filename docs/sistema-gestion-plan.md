@@ -523,7 +523,17 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: arrancá el Módulo 2
+### ⏭️ Si estás retomando: el calendario del Módulo 2
+
+**El backend del Módulo 2 está hecho** (2026-08-16): salas, tipos de uso,
+reservas, participantes y toma de lista, con 33 casos propios. **Falta la
+pantalla**, que es la grilla semanal — la pieza más grande de front del proyecto.
+
+**Cuatro decisiones se cerraron el 2026-08-16** y están en `platform.md`:
+P7 (las clases se cargan **a mano**, no se generan), P37 (una clase **no** exige
+profesor asignado), DB-11 (hecho) y la seña (**pasa al Módulo 3**).
+
+### Estado anterior — arrancá el Módulo 2
 
 **El Módulo 1 está cerrado hasta donde puede** (2026-08-16): las cuatro pantallas
 existen y lo único que le falta depende de módulos que no se construyeron. El
@@ -545,7 +555,8 @@ final de esta sección.
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
-| Módulos 2 a 8 | ⬜ sin empezar |
+| **Módulo 2 — Horarios y salas** | 🟡 **backend hecho** (2026-08-16, 33 casos). Falta la grilla del calendario |
+| Módulos 3 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
 
@@ -681,7 +692,55 @@ El listado además **muestra** lo que cada uno cursa, no solo filtra por eso: un
 lista filtrada que no dice de qué es cada fila obliga a confiar en que el filtro
 hizo lo que dijo.
 
-### Lo próximo: el Módulo 2
+### ✅ Módulo 2 — el backend, cerrado el 2026-08-16
+
+Salas y tipos de uso (`/api/salas`, `/api/tipos-uso`, con la matriz de §2.6),
+reservas (`/api/reservas`: agenda por rango, alta, edición, cambio de estado) y
+participantes (anotar y tomar lista). **33 casos** en `ReservaTest`; la suite del
+backend pasó de 159 a 192.
+
+**Casi ninguna regla del módulo está en Java, y ese es el punto.** El
+solapamiento lo impide un EXCLUDE, la combinación sala×uso una FK compuesta, los
+bloqueos y "nadie en dos salas a la vez" unos triggers. Lo que `ReservaTest`
+verifica no es que las reglas existan —para eso están las suites SQL— sino que
+**lleguen a la pantalla** con el estado HTTP correcto y un mensaje legible. Una
+regla que la base cumple y que sale como 500 no sirve.
+
+**Tres cosas que vive en el servicio porque la base no puede hacerlas:** declarar
+el autor de una edición (`V7` lo exige y solo lo sabe la aplicación), acotar el
+rango de la agenda, y cerrar el círculo de la reprogramación.
+
+**Dos hallazgos del orden de escritura de Hibernate**, los dos encontrados por
+tests y los dos con la misma raíz:
+
+- **Hibernate ordena los INSERT antes que los UPDATE.** Al crear una recuperación,
+  la reserva nueva se insertaba mientras la original todavía figuraba ocupando su
+  franja, y el EXCLUDE la rechazaba. No se nota moviendo una clase a otra semana;
+  se nota **corriéndola una hora**, que es el caso más común. `ReservaService`
+  hace `flush()` antes de insertar, y hay un test que lo pinea.
+- **Una consulta nativa vacía la sesión entera; una JPQL no.** Al pasar
+  `contarClasesConsumidas` a JPQL, el índice único de "una inscripción activa por
+  disciplina" dejó de hablar durante el pedido y la reactivación devolvía 200. El
+  arreglo no fue volver atrás sino dejar de depender de un efecto colateral:
+  `InscripcionService.empujarALaBase()`, con el porqué escrito.
+
+### Lo próximo: la grilla del calendario
+
+Es la pieza de front más grande del proyecto y **el riesgo #1 del plan**
+(§5: *"el calendario de salas parece fácil y no lo es"*). Salas en columnas,
+franjas horarias en filas, colores por tipo de uso, vista semanal y mensual.
+El horario del estudio es **10:00 a 18:00** (§13, P11), así que la grilla tiene
+ocho filas por día y no veinticuatro.
+
+La API ya está: `GET /api/reservas?desde=&hasta=` trae la agenda entera del rango
+con sus participantes, `GET /api/salas` las columnas con qué se puede hacer en
+cada una, y `GET /api/tipos-uso` los colores.
+
+**Faltan además las otras dos pantallas del módulo:** bloqueo de sala
+(`bloqueo_sala` existe en `V1` y no tiene endpoint todavía) e historial de uso por
+sala y período.
+
+### Referencia: cómo se planteaba el Módulo 2 antes de empezarlo
 
 **Horarios y salas** (`platform.md` §5): el calendario semanal por sala, el alta
 de reserva, el bloqueo de sala y el historial de uso. Es el corazón operativo del

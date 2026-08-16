@@ -327,14 +327,15 @@ Por eso varias quedan como pregunta y no como hecho.
 documento y no en el código.** Vinieron de la auditoría, no se pudieron implementar antes
 por falta de este módulo, y **son parte de darlo por terminado**:
 
-| Regla | Qué falta | Por qué no se pudo antes |
-|---|---|---|
-| **La seña (DB-04 / P8)** | Una migración: `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` sobre `reserva`, que al COMMIT exija plata detrás. La regla completa está en §13; el `V9` deja anotada la herramienta | El trigger obliga a insertar la reserva **y su pago en la misma transacción**. Eso es una condición sobre estas pantallas: sin ellas, lo único que se lograba era que no se pudiera cargar ninguna reserva —incluidas las 40 de las suites SQL, que hoy se insertan sin pago— |
-| **El orden de las horas (DB-11)** | Una validación en el DTO de reserva (Bean Validation), antes del INSERT | `reserva.periodo` es una columna generada y **se computa antes que los CHECK**: cargar 20:00→19:00 explota en `tsrange()` con un error sin nombre de constraint, y el mensaje bueno (`reserva_horas_validas`) no se alcanza nunca. No se arregla en la base: la columna viene de `V1` y una migración aplicada no se edita |
+| Regla | Estado |
+|---|---|
+| **El orden de las horas (DB-11)** | ✅ **HECHO (2026-08-16).** Es un `@AssertTrue` en `AltaReservaRequest` y `EdicionReservaRequest`. `reserva.periodo` es una columna generada que se computa **antes que los CHECK**, así que 20:00→19:00 explota en `tsrange()` con un error sin nombre de constraint y el mensaje bueno (`reserva_horas_validas`) no se alcanza nunca. No se arregla en la base: la columna viene de `V1` y una migración aplicada no se edita. El CHECK queda como defensa en profundidad |
+| **La seña (DB-04 / P8)** | 🟡 **POSTERGADA AL MÓDULO 3, decidido con Ignacio el 2026-08-16.** El trigger exige un `pago` apuntando a la reserva, y `pago` no tiene módulo hasta el 3. Activarlo ahora deja pasar las clases de alumnos con inscripción —las cubre la inscripción— y **hace imposible cargar un alquiler de cabina**, además de romper las reservas de las suites SQL. La herramienta sigue escrita en la cabecera de `V9` |
 
-**Si el módulo se construye sin ellas**, las dos pasan de ser una línea sobre tablas
-vacías a una decisión sobre datos reales — que es exactamente lo que se evitó con `V6`,
-`V7` y `V9`.
+**La seña es ahora la única regla del sistema que vive en un documento y no en el
+código.** Sobre tablas vacías era una línea; con `reserva` cargada de verdad pasa a ser
+una decisión sobre datos reales. **Es parte de dar por terminado el Módulo 3, no de
+empezarlo.**
 
 ### Reglas duras ✅
 - **Nunca dos reservas solapadas en la misma sala.** Se garantiza en la base de datos, no solo en la pantalla. *(Esta es la regla más importante del sistema entero.)*
@@ -345,7 +346,7 @@ vacías a una decisión sobre datos reales — que es exactamente lo que se evit
 
 ### Pendientes
 - **✅P6 — RESUELTO (2026-08-11). Asignación explícita**: cada profe con su/s alumno/s. Vive en `inscripcion.id_profesor`, no en el alumno — así el mismo alumno puede tener a un profe para DJ y a otro para mentoría, y *Mis Alumnos* sale de ahí. Que otro profesor cubra una clase suelta **no** le transfiere el alumno.
-- **❓P7 — ¿El sistema genera las 8 clases semanales de una?** El curso es 1 clase por semana durante 8 semanas. ¿Micaela carga 8 reservas a mano o el sistema las crea solo al inscribir? **Recomiendo generarlas**, y que después se puedan mover de a una.
+- **✅P7 — RESUELTO (2026-08-16): se cargan A MANO, de a una.** Se evaluó que el sistema generara las ocho semanales al inscribir —era la recomendación de este documento— y **Ignacio lo descartó**. Queda anotado el costo, porque es real y se paga en diciembre: son 8 cargas por alumno, y la migración del Notion trae ~80. Si al usarlo se vuelve insoportable, la generación se puede agregar después sin tocar nada de lo construido: es un endpoint que llama ocho veces al alta que ya existe. Lo que **no** se puede agregar después barato es lo contrario.
 - **✅P8 — RESUELTO (2026-08-14 y 2026-08-15). No hay autorización manual: no existe la excepción.** No se reserva sin seña, y la seña es el **50% del total**, para todos los tipos de uso menos `MIX_MASTERING` —que Ghezz decide caso por caso y el sistema no exige—. La ficha completa está en §13; lo que falta es la migración, arriba.
 - **❓P9 — ¿Un profesor puede pedir mover su propia clase?** Hoy todo pasa por Micaela. ¿Le damos al profesor el mismo botón de "solicitar reprogramación" que al alumno, o sigue siendo un mensaje a Mica?
 - **✅P10 — RESUELTO (2026-08-11).** Son **tres salas: Sala 1, Sala 2 y Cabina de grabación.** No existe una "Sala de Producción" — el relevamiento está mal. La matriz de qué se puede hacer en cada una está en §2.6.
@@ -553,7 +554,7 @@ correspondiente. El más urgente es **P34**, porque son números que un cliente 
 - **✅P31 — RESUELTO (2026-08-11).** El curso de Mix & Mastering **no existe**: es un servicio y nada más. La landing lo inventó como programa de 3 meses. *(Ver P34: hay que sacarlo de la landing antes de publicar.)*
 - **✅P32 — RESUELTO (2026-08-11). Todo presencial, no hay clases virtuales.** Y el razonamiento que las descarta del modelo aunque algún día existan: **la sala se ocupa igual, porque el profesor está ahí usando los equipos.** Por eso `reserva.id_sala` es NOT NULL sin excepciones.
 - **✅P33 — RESUELTO (2026-08-11). No hay cuotas mensuales**: se paga todo antes de empezar a cursar, como dice el relevamiento. El "$85.000/mes" de la landing es placeholder. Única excepción: Mix & Mastering, que se cobra después de entregar.
-- **❓P37 — ¿Una reserva de tipo clase exige profesor asignado?** El modelo dice "profesor a cargo, si la reserva es una clase", y `tipo_uso.es_clase` existe para distinguirlas — pero **la regla no está impuesta a propósito**: operativamente puede ser legítimo cargar la clase en el calendario antes de saber qué profe la toma. Si se confirma que siempre hay profe, es un trigger de cinco líneas.
+- **✅P37 — RESUELTO (2026-08-16): NO se exige.** Confirmado por Ignacio: se puede cargar una clase en el calendario antes de saber qué profe la toma. El campo existe y queda vacío hasta que se decida. Consecuencia útil y no obvia: un `id_profesor` en NULL tampoco choca contra la EXCLUDE de `V9` que impide que el mismo profe esté en dos salas a la vez, que es exactamente lo que se quiere — un alquiler de cabina no ocupa la agenda de nadie.
 - **❓P34 — La duración de los cursos no coincide.** Relevamiento y confirmación de Ignacio: DJ = 2 meses, 8 clases, 1 por semana. Landing: DJ = 6 meses, **2 clases semanales**. Producción: 4 meses vs. 8 meses. **Alguno de los dos está mal y hay que corregirlo antes de publicar la landing**, porque son números que un cliente lee y sobre los que decide.
 - **❓P35 — "Práctica libre incluida"** aparece como beneficio del programa de DJ. Es un uso de sala **gratuito y solo para alumnos**, distinto del alquiler pago. ¿Se reserva por el sistema? Si sí, es un `tipo_uso` más.
 - **❓P36 — Eventos.** `dates.ts` anuncia clases abiertas, showcases y release parties, y el relevamiento habla de eventos en Argentina, Uruguay y Brasil. No hay módulo de eventos entre los 8 y **no está en la propuesta**, así que por defecto queda **fuera de alcance** — pero un evento ocupa una sala, así que como mínimo debería poder bloquearla.

@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.lajuanita.backend.reserva.EstadoAsistencia;
+import com.lajuanita.backend.reserva.EstadoReserva;
+
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> {
 
     /**
@@ -74,25 +77,29 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * sin avisar no devuelve la clase, y eso es lo que le da sentido a
      * {@code AUSENTE_JUSTIFICADO} como estado aparte.
      *
-     * <p>Va en SQL nativo porque {@code reserva} y {@code reserva_participante}
-     * no tienen entidad todavía: llegan con el Módulo 2. Devuelve
-     * {@code Object[]} y no una proyección para no depender de cómo Spring Data
-     * hace calzar los alias de una consulta nativa, que en Postgres además
-     * vuelven en minúscula.
+     * <p><b>Era SQL nativo</b> hasta el 2026-08-16, porque {@code reserva} y
+     * {@code reserva_participante} no tenían entidad. Ahora que la tienen se
+     * escribe en JPQL, y eso no es cosmética: las dos exclusiones dejaron de ser
+     * literales sueltas y pasan por {@link EstadoAsistencia#CANCELADA} y
+     * {@link EstadoReserva#OCUPAN_LA_SALA}, que son las mismas constantes que usa
+     * el resto del sistema. Un estado nuevo ya no puede quedarse afuera de esta
+     * cuenta en silencio.
      *
      * @param ids no puede venir vacía — un {@code IN ()} es un error de sintaxis.
      *        {@code InscripcionService} corta antes.
      * @return filas {@code [id_inscripcion, cantidad]}; las inscripciones sin
      *         ninguna clase dada no aparecen
      */
-    @Query(value = """
-            SELECT p.id_inscripcion, count(*)
-            FROM reserva_participante p
-            JOIN reserva r ON r.id_reserva = p.id_reserva
-            WHERE p.id_inscripcion IN (:ids)
-              AND p.estado_asistencia <> 'CANCELADA'
-              AND r.estado NOT IN ('CANCELADA', 'REPROGRAMADA')
-            GROUP BY p.id_inscripcion
-            """, nativeQuery = true)
-    List<Object[]> contarClasesConsumidas(@Param("ids") Collection<Long> ids);
+    @Query("""
+            SELECT p.inscripcion.id, count(p)
+            FROM ReservaParticipante p
+            JOIN p.reserva r
+            WHERE p.inscripcion.id IN :ids
+              AND p.estadoAsistencia <> :cancelada
+              AND r.estado IN :ocupan
+            GROUP BY p.inscripcion.id
+            """)
+    List<Object[]> contarClasesConsumidas(@Param("ids") Collection<Long> ids,
+            @Param("cancelada") EstadoAsistencia cancelada,
+            @Param("ocupan") Collection<EstadoReserva> ocupan);
 }

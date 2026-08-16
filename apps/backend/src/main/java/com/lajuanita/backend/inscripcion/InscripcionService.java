@@ -17,6 +17,8 @@ import com.lajuanita.backend.inscripcion.dto.EdicionInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.InscripcionResumen;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
+import com.lajuanita.backend.reserva.EstadoAsistencia;
+import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
@@ -140,6 +142,7 @@ public class InscripcionService {
         inscripcion.setCotizacionDolar(solicitud.cotizacionDolar());
         inscripcion.setFechaInicio(solicitud.fechaInicio());
         inscripcion.setNotas(normalizar(solicitud.notas()));
+        empujarALaBase();
 
         return InscripcionResumen.de(inscripcion,
                 clasesConsumidas(List.of(inscripcion)).getOrDefault(id, 0));
@@ -157,11 +160,33 @@ public class InscripcionService {
     public InscripcionResumen cambiarEstado(Long id, EstadoInscripcion estado) {
         Inscripcion inscripcion = buscar(id);
         inscripcion.setEstado(estado);
+        empujarALaBase();
         return InscripcionResumen.de(inscripcion,
                 clasesConsumidas(List.of(inscripcion)).getOrDefault(id, 0));
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * Manda los cambios pendientes a la base <b>ahora</b>, para que las reglas
+     * que viven ahí puedan rechazarlos durante el pedido.
+     *
+     * <p>Las dos reglas de este módulo que no están en Java —el índice único de
+     * "una activa por disciplina" y el trigger de `V9` que exige firmar una baja
+     * de nivel— solo hablan cuando el UPDATE llega. Hibernate, por su cuenta,
+     * lo posterga hasta el commit.
+     *
+     * <p><b>Esto funcionaba sin querer hasta el 2026-08-16.</b>
+     * {@code contarClasesConsumidas} era una consulta nativa, y ante una nativa
+     * Hibernate no puede saber qué tablas toca, así que vacía la sesión entera
+     * por las dudas. Al pasarla a JPQL —que sí sabe, y por eso ya no vacía nada
+     * ajeno— la reactivación de una inscripción que choca con otra activa
+     * empezó a devolver 200. Lo encontró un test, y la corrección no es volver
+     * a la consulta nativa sino dejar de depender de un efecto colateral.
+     */
+    private void empujarALaBase() {
+        inscripciones.flush();
+    }
 
     /**
      * Cuántas clases lleva dictadas cada inscripción de la lista, en una sola
@@ -175,7 +200,8 @@ public class InscripcionService {
         }
 
         Map<Long, Integer> porInscripcion = new HashMap<>();
-        for (Object[] fila : inscripciones.contarClasesConsumidas(ids)) {
+        for (Object[] fila : inscripciones.contarClasesConsumidas(
+                ids, EstadoAsistencia.CANCELADA, EstadoReserva.OCUPAN_LA_SALA)) {
             porInscripcion.put(((Number) fila[0]).longValue(), ((Number) fila[1]).intValue());
         }
         return porInscripcion;

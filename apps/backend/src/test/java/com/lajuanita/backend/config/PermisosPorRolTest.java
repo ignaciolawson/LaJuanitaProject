@@ -69,6 +69,13 @@ class PermisosPorRolTest {
                     .andExpect(status().isOk());
             mvc.perform(get("/api/profesores").header("Authorization", credencial))
                     .andExpect(status().isOk());
+            mvc.perform(get("/api/salas").header("Authorization", credencial))
+                    .andExpect(status().isOk());
+            mvc.perform(get("/api/tipos-uso").header("Authorization", credencial))
+                    .andExpect(status().isOk());
+            mvc.perform(get("/api/reservas?desde=2027-03-01&hasta=2027-03-07")
+                    .header("Authorization", credencial))
+                    .andExpect(status().isOk());
         }
     }
 
@@ -102,6 +109,8 @@ class PermisosPorRolTest {
         mvc.perform(altaDeUsuario().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(altaDeInscripcion().header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+        mvc.perform(altaDeReserva().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/usuarios/1")
                 .header("Authorization", credencial)
@@ -339,6 +348,16 @@ class PermisosPorRolTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"idAlumno":1,"disciplina":"DJ","precioTotal":180000}
+                        """);
+    }
+
+    /** Mismo cuidado que el de inscripción: el cuerpo tiene que ser válido. */
+    private MockHttpServletRequestBuilder altaDeReserva() {
+        return post("/api/reservas")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idSala":1,"idTipoUso":1,"fecha":"2027-03-01",
+                         "horaInicio":"10:00","horaFin":"11:30"}
                         """);
     }
 
