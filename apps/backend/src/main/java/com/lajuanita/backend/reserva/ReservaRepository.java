@@ -46,6 +46,45 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("incluirCanceladas") boolean incluirCanceladas,
             @Param("ocupan") Iterable<EstadoReserva> ocupan);
 
+    /**
+     * El uso de cada sala en un período, desglosado por tipo de uso.
+     *
+     * <p><b>Va en SQL nativo y agrupado en la base, no en Java.</b> Traer las
+     * reservas y contarlas acá funcionaría hoy —son cientos— y dejaría de
+     * funcionar sin avisar el día que el período sea un año: el informe anual es
+     * justamente el que va a pedir el Módulo 8.
+     *
+     * <p>Los tres {@code FILTER} son la definición canónica de "ocupa la sala"
+     * aplicada a contar: una cancelada existe en el historial pero no consumió
+     * la sala, así que suma en su columna y no en las horas. La lista de estados
+     * viaja como parámetro —{@code EstadoReserva.OCUPAN_LA_SALA}— para no
+     * escribirla acá por sexta vez.
+     *
+     * <p>Las horas salen en segundos divididos por 3600 en vez de restando horas
+     * directamente porque {@code hora_fin - hora_inicio} da un {@code interval},
+     * y sumar intervalos devuelve algo que el driver no mapea a un número.
+     *
+     * @return filas {@code [id_sala, id_tipo_uso, reservas, horas, canceladas,
+     *         reprogramadas]}
+     */
+    @Query(value = """
+            SELECT r.id_sala,
+                   r.id_tipo_uso,
+                   count(*) FILTER (WHERE r.estado IN (:ocupan))                      AS reservas,
+                   coalesce(sum(EXTRACT(EPOCH FROM (r.hora_fin - r.hora_inicio)) / 3600)
+                            FILTER (WHERE r.estado IN (:ocupan)), 0)                  AS horas,
+                   count(*) FILTER (WHERE r.estado = 'CANCELADA')                     AS canceladas,
+                   count(*) FILTER (WHERE r.estado = 'REPROGRAMADA')                  AS reprogramadas
+            FROM reserva r
+            WHERE r.fecha BETWEEN :desde AND :hasta
+              AND (:idSala IS NULL OR r.id_sala = :idSala)
+            GROUP BY r.id_sala, r.id_tipo_uso
+            """, nativeQuery = true)
+    List<Object[]> usoPorSala(@Param("desde") LocalDate desde,
+            @Param("hasta") LocalDate hasta,
+            @Param("idSala") Long idSala,
+            @Param("ocupan") Iterable<String> ocupan);
+
     /** Una reserva con todo lo que la pantalla de detalle necesita. */
     @Query("""
             SELECT r FROM Reserva r

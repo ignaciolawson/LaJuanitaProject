@@ -523,12 +523,31 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: faltan dos pantallas del Módulo 2
+### ⏭️ Si estás retomando: **empieza el Módulo 3 (Pagos)**
 
-**El Módulo 2 está casi entero** (2026-08-16): backend completo y **la grilla
-semanal andando** en `/admin/reservas`. Faltan sus otras dos pantallas —
-**bloqueo de sala** e **historial de uso por sala** — y la seña, que se decidió
-mover al Módulo 3.
+**El Módulo 2 está cerrado** (2026-08-16, segunda tanda del día): backend
+completo y sus **cuatro pantallas**, `/admin/reservas`, `/admin/bloqueos` y
+`/admin/uso-salas` sobre la grilla que ya estaba. Lo único que le queda
+pendiente **no es suyo**: la seña se movió al Módulo 3 porque su trigger
+necesita un `pago` que ningún módulo puede crear todavía.
+
+**Las dos pantallas que faltaban, en corto:**
+
+- **`/admin/bloqueos`** — sacar una sala de servicio. Lo caro de esta pantalla
+  no es cargarla, es **cómo se lee**: una fila es *una franja horaria que se
+  repite todos los días del rango*, no un intervalo continuo. Es la lectura que
+  `V6` perdió y `V7` tuvo que rescatar en la base, y la pantalla la dice con
+  todas las letras ("09:00 a 13:00, **todos los días**"). El día entero es el
+  default y las horas ni se muestran hasta pedirlas.
+- **`/admin/uso-salas`** — cuánto se usó cada sala, con desglose por tipo de
+  uso. **Una sala sin uso sale en cero, no desaparece**: el cero es justo el
+  número que se viene a buscar. Lo cancelado y lo reprogramado se cuentan aparte
+  y **no suman horas** — una sala con veinte clases dictadas y una con veinte
+  canceladas no se usaron igual.
+
+**Lo que trajo el Módulo 3 desde acá:** la seña (DB-04a / P8), que es **la
+última regla del sistema que vive en un documento y no en el código**. La ficha
+completa está en `platform.md` §13 y la herramienta, en la cabecera de `V9`.
 
 **El calendario, en corto:** días en columnas y horas en filas, con filtro por
 sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
@@ -587,9 +606,30 @@ Se cerró el Módulo 1 entero y casi todo el Módulo 2. En orden:
 | 4 | **Perfil del alumno** | `/admin/alumnos/:id` |
 | 5 | **Módulo 2, backend** — salas, tipos de uso, reservas, participantes, toma de lista | `backend/reserva`, `backend/sala` |
 | 6 | **Calendario semanal** | `/admin/reservas` |
+| 7 | **Tres arreglos de la grilla** (ver el recuadro de arriba) | `CalendarioPagina` |
+| 8 | **Bloqueo de sala**, backend y pantalla | `backend/sala`, `/admin/bloqueos` |
+| 9 | **Historial de uso por sala** | `GET /api/reservas/uso`, `/admin/uso-salas` |
 
-**Las suites pasaron de 108 → 192 (backend) y de 55 → 110 (front).** Las dos SQL
+**Las suites pasaron de 108 → 229 (backend) y de 55 → 139 (front).** Las dos SQL
 siguen en 121 y 50.
+
+**Tres cosas que salieron mal cerrando el Módulo 2, todas de Hibernate y todas
+la misma familia:**
+
+1. **`@Column(insertable = false)` no alcanza para devolver un DEFAULT de la
+   base.** Hibernate no relee la columna después del INSERT, así que el alta de
+   un bloqueo contestaba con `fechaRegistro` en null. Va con
+   `@Generated(event = INSERT)`. Las otras cuatro entidades con sello de carga
+   tienen el mismo `insertable = false` y **no** están rotas: ninguna lo expone
+   en un DTO, por eso nunca se notó.
+2. **Los INSERT van antes que los UPDATE** (otra vez). Cancelar una clase y
+   bloquear la sala en la misma transacción rechazaba el bloqueo por la clase
+   recién cancelada: el trigger lee SQL, no la sesión. `BloqueoSalaService.alta`
+   hace `flush()` antes de insertar.
+3. **Y los DELETE van al final, después de los INSERT** — la mitad que faltaba.
+   Desbloquear y cargar la clase que estaba esperando, en la misma transacción,
+   insertaba la reserva con el bloqueo todavía en la base. `eliminar` hace
+   `flush()` después de borrar.
 
 **Decisiones que tomó Ignacio ese día**, todas escritas en `platform.md`:
 
@@ -625,8 +665,8 @@ le sobrevivió a la decisión.
 ### 🟢 Para verificar que arrancás en verde
 
 ```
-cd apps/backend && mvn test          # 192
-cd apps/platform && npm test         # 110
+cd apps/backend && mvn test          # 229
+cd apps/platform && npm test         # 139
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 121 + 50
 ```
@@ -649,8 +689,9 @@ cd apps/platform && npx tsc -b       # NO `--noEmit`
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
-| **Módulo 2 — Horarios y salas** | 🟡 **backend + calendario hechos** (2026-08-16). Faltan bloqueo de sala e historial de uso |
-| Módulos 3 a 8 | ⬜ sin empezar |
+| **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend y sus cuatro pantallas. La seña se fue al Módulo 3 |
+| Módulo 3 — Pagos | ⬜ **lo próximo.** Arranca debiendo la seña, que le llegó del Módulo 2 |
+| Módulos 4 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
 

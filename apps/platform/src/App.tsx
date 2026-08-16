@@ -6,11 +6,13 @@ import { useAuth, useUsuario } from './auth/contexto'
 import { puedeAdministrar } from './layout/menu'
 import { AlumnoPerfilPagina } from './paginas/AlumnoPerfilPagina'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
+import { BloqueosPagina } from './paginas/BloqueosPagina'
 import { CalendarioPagina } from './paginas/CalendarioPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
+import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
 import { UsuariosPagina } from './paginas/UsuariosPagina'
 
 export default function App() {
@@ -44,6 +46,8 @@ function Rutas() {
           <Route path="/admin/alumnos/:id" element={<AlumnoPerfilPagina />} />
           <Route path="/admin/inscripciones" element={<InscripcionesPagina />} />
           <Route path="/admin/reservas" element={<CalendarioPagina />} />
+          <Route path="/admin/bloqueos" element={<BloqueosPagina />} />
+          <Route path="/admin/uso-salas" element={<UsoDeSalasPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>

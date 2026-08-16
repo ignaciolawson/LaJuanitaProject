@@ -307,11 +307,21 @@ Por eso varias quedan como pregunta y no como hecho.
 
 *El corazón operativo. Resuelve el conflicto recurrente de Ghezz enterándose tarde de los cambios de sala.*
 
+> ## ✅ MÓDULO CERRADO el 2026-08-16
+>
+> Backend (`backend/reserva`, `backend/sala`) y las cuatro pantallas. Lo único
+> que este módulo no entregó es **la seña**, que se movió al Módulo 3 con
+> decisión de Ignacio: su trigger exige un `pago` apuntando a la reserva y esa
+> tabla no tiene módulo hasta el 3. Sigue siendo **la última regla del sistema
+> que vive en un documento y no en el código**.
+>
+> Suites: 229 en el backend, 139 en el front, más las dos SQL (121 + 50).
+
 ### Pantallas
-1. **Calendario semanal** tipo grilla: salas en columnas, franjas horarias en filas, colores por tipo de uso. Vista semanal y mensual.
-2. **Alta / edición de reserva** — sala, fecha, horario, tipo de uso, alumno, profesor.
-3. **Bloqueo de sala** — mantenimiento o uso especial, por rango de fechas.
-4. **Historial de uso por sala** y por período.
+1. ✅ **Calendario semanal** — `/admin/reservas`. **Días en columnas y horas en filas**, no salas en columnas: con tres salas la versión del alcance entraba, pero la vista quedaba de un día y lo que hay que ver para no pisarse es la semana. La sala va dentro de cada bloque y el filtro da la vista "la semana de la Sala 1". Si alguna vez son diez salas, la decisión se da vuelta.
+2. ✅ **Alta / edición de reserva** — sobre la misma grilla; los participantes se anotan aparte, porque una clase puede ser grupal (P30).
+3. ✅ **Bloqueo de sala** — `/admin/bloqueos`. Por rango de fechas, con franja horaria opcional. **Una fila es una franja que se repite todos los días del rango**, no un intervalo continuo, y la pantalla lo dice así.
+4. ✅ **Historial de uso por sala** — `/admin/uso-salas`. Por período, con desglose por tipo de uso. Una sala sin uso sale en cero; lo cancelado y lo reprogramado se cuentan aparte y no suman horas.
 
 ### Quién puede qué
 | | ADMIN | DIRECTIVO | STAFF | Profesor | Alumno |
@@ -352,7 +362,7 @@ empezarlo.**
 - **✅P10 — RESUELTO (2026-08-11).** Son **tres salas: Sala 1, Sala 2 y Cabina de grabación.** No existe una "Sala de Producción" — el relevamiento está mal. La matriz de qué se puede hacer en cada una está en §2.6.
 - **✅P29 — RESUELTO (2026-08-11).** El **alquiler de cabina** es un uso propio y va en **Sala 1 y Sala 2** (no en la de grabación). Es un servicio **distinto** de la grabación de set. Ambos están en la matriz de §2.6.
 - **✅P30 — RESUELTO (2026-08-11). Las clases SÍ pueden ser grupales.** Por eso una reserva no lleva un alumno sino una tabla de participantes (`reserva_participante`), donde cada uno trae su propia inscripción y su propia asistencia. Esa tabla además reemplazó a `historial_clase` del modelo viejo.
-- **❓P11 — ¿Horario de apertura del estudio?** El calendario necesita saber de qué hora a qué hora se puede reservar. Ghezz llega 8–9 AM; hay profes hasta la noche.
+- **✅P11 — RESUELTO (2026-08-14, §13): de 10:00 a 18:00**, y nada después de medianoche. Es lo que dibuja la grilla (`HORA_APERTURA` / `HORA_CIERRE`), pero **no es un límite**: una reserva cargada fuera de horario se dibuja igual, porque una reserva que existe y no se ve es el peor error posible acá. Esto además cerró DB-10 — el modelo `DATE` + dos `TIME` es el correcto. *(La respuesta estaba en §13 desde el 14 y esta línea siguió diciendo que estaba abierta hasta el 16: es el mismo problema que el informe de auditoría tuvo con las otras diez.)*
 
 ---
 
@@ -512,7 +522,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P8 | Quién autoriza reservar con deuda | Módulo 2 |
 | P9 | ¿El profesor puede pedir mover su clase? | Módulo 2 |
 | ~~P10~~ | ✅ Sala 1, Sala 2, Cabina de grabación | — |
-| P11 | Horario de apertura del estudio | Módulo 2 |
+| ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
 | P12 | Modelo de la seña | Módulo 3 |
 | P13 | ¿Lista de precios en el sistema? | Módulo 3 |
 | P14 | Descuento de ex alumno | Módulo 3 |

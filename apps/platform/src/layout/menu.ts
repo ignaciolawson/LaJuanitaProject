@@ -79,6 +79,18 @@ const MENU: GrupoMenu[] = [
       },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Calendario', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: true },
+      {
+        etiqueta: 'Salas bloqueadas',
+        ruta: '/admin/bloqueos',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
+        etiqueta: 'Uso de salas',
+        ruta: '/admin/uso-salas',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
       { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: false },
       {
         etiqueta: 'Dashboard',

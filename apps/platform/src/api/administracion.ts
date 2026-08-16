@@ -3,6 +3,7 @@ import type { CambioPasswordRequest, Rol } from './tipos'
 import type {
   AltaAlumnoResultado,
   AlumnoResumen,
+  BloqueoResumen,
   Disciplina,
   EstadoAlumno,
   EstadoInscripcion,
@@ -18,6 +19,7 @@ import type {
   ReservaResumen,
   SalaResumen,
   TipoUsoResumen,
+  UsoDeSala,
   UsuarioCreado,
   UsuarioResumen,
 } from './tiposAdmin'
@@ -338,6 +340,59 @@ export function cambiarAsistencia(idParticipacion: number, estado: EstadoAsisten
   return pedir<ParticipanteResumen>(
     `/api/reservas/participantes/${idParticipacion}?estado=${estado}`,
     { metodo: 'PATCH' },
+  )
+}
+
+// -- Bloqueo de sala --------------------------------------------------------
+
+/** Espeja `AltaBloqueoRequest`. Sin horas = el día entero. */
+export type AltaBloqueo = {
+  idSala: number
+  fechaInicio: string
+  fechaFin: string
+  horaInicio?: string | null
+  horaFin?: string | null
+  motivo: string
+}
+
+/**
+ * Las salas fuera de servicio.
+ *
+ * Sin `desde`, el backend arranca en hoy: un bloqueo vencido ya no rechaza nada
+ * y mezclarlo con los vigentes convierte la pantalla en un archivo. El histórico
+ * se pide bajando la fecha.
+ */
+export function listarBloqueos(opciones: { desde?: string; idSala?: number } = {}) {
+  return pedir<BloqueoResumen[]>(
+    `/api/bloqueos${query({ desde: opciones.desde, idSala: opciones.idSala })}`,
+  )
+}
+
+export function altaBloqueo(datos: AltaBloqueo) {
+  return pedir<BloqueoResumen>('/api/bloqueos', { metodo: 'POST', cuerpo: datos })
+}
+
+/** Desbloquear. Acá sí se borra: un bloqueo no es historial de nada. */
+export function eliminarBloqueo(id: number) {
+  return pedir<void>(`/api/bloqueos/${id}`, { metodo: 'DELETE' })
+}
+
+// -- Historial de uso -------------------------------------------------------
+
+/**
+ * Cuánto se usó cada sala en un período.
+ *
+ * Devuelve **las tres salas siempre**, aunque alguna no se haya usado: el cero
+ * es justo el número que se viene a buscar. El techo del rango es un año — más
+ * alto que el de la agenda, porque acá la respuesta no crece con el período.
+ */
+export function usoDeSalas(opciones: { desde: string; hasta: string; idSala?: number }) {
+  return pedir<UsoDeSala[]>(
+    `/api/reservas/uso${query({
+      desde: opciones.desde,
+      hasta: opciones.hasta,
+      idSala: opciones.idSala,
+    })}`,
   )
 }
 

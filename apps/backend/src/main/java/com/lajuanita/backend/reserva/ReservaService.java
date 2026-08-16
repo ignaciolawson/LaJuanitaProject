@@ -1,9 +1,12 @@
 package com.lajuanita.backend.reserva;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,8 @@ import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.EdicionReservaRequest;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
+import com.lajuanita.backend.reserva.dto.UsoDeSala;
+import com.lajuanita.backend.reserva.dto.UsoDeSala.UsoPorTipo;
 import com.lajuanita.backend.sala.Sala;
 import com.lajuanita.backend.sala.SalaRepository;
 import com.lajuanita.backend.sala.TipoUso;
@@ -67,6 +72,9 @@ public class ReservaService {
      * listado por sala y período.
      */
     public static final int MAXIMO_DE_DIAS = 62;
+
+    /** Techo del informe de uso. Ver {@code verificarRangoDelInforme}. */
+    public static final int MAXIMO_DE_DIAS_DEL_INFORME = 366;
 
     private final ReservaRepository reservas;
     private final ReservaParticipanteRepository participantes;
@@ -118,6 +126,68 @@ public class ReservaService {
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la reserva " + id + "."));
         return ReservaResumen.de(reserva,
                 participantesDe(List.of(reserva)).getOrDefault(id, List.of()));
+    }
+
+    /**
+     * Módulo 2, pantalla 4 — el historial de uso por sala y período.
+     *
+     * <p><b>Arranca del catálogo de salas, no de las reservas</b>, y por eso una
+     * sala sin uso sale en cero en vez de no salir. Pide las inactivas también:
+     * un período pasado puede tener adentro una sala que hoy ya no se usa, y
+     * omitirla haría que los totales no cierren contra el calendario.
+     */
+    @Transactional(readOnly = true)
+    public List<UsoDeSala> uso(LocalDate desde, LocalDate hasta, Long idSala) {
+        verificarRangoDelInforme(desde, hasta);
+
+        List<String> ocupan = EstadoReserva.OCUPAN_LA_SALA.stream().map(Enum::name).toList();
+        Map<Long, String> nombreDelTipo = new HashMap<>();
+        Map<Long, String> colorDelTipo = new HashMap<>();
+        for (TipoUso tipo : tiposDeUso.listar(true)) {
+            nombreDelTipo.put(tipo.getId(), tipo.getNombre());
+            colorDelTipo.put(tipo.getId(), tipo.getColor());
+        }
+
+        Map<Long, List<UsoPorTipo>> desglose = new HashMap<>();
+        Map<Long, long[]> totales = new HashMap<>();
+
+        for (Object[] fila : reservas.usoPorSala(desde, hasta, idSala, ocupan)) {
+            Long deSala = ((Number) fila[0]).longValue();
+            Long deTipo = ((Number) fila[1]).longValue();
+            long cantidad = ((Number) fila[2]).longValue();
+            BigDecimal horas = redondear(fila[3]);
+            long canceladas = ((Number) fila[4]).longValue();
+            long reprogramadas = ((Number) fila[5]).longValue();
+
+            // Un tipo que no ocupó nada en el período no aporta una fila al
+            // desglose: sería una lista de ceros por sala y no dice nada. Lo que
+            // sí se pierde de vista es lo que se cayó, y por eso va al total.
+            if (cantidad > 0) {
+                desglose.computeIfAbsent(deSala, id -> new ArrayList<>()).add(new UsoPorTipo(
+                        deTipo, nombreDelTipo.get(deTipo), colorDelTipo.get(deTipo), cantidad, horas));
+            }
+
+            long[] acumulado = totales.computeIfAbsent(deSala, id -> new long[3]);
+            acumulado[0] += cantidad;
+            acumulado[1] += canceladas;
+            acumulado[2] += reprogramadas;
+        }
+
+        return salas.listar(true).stream()
+                .filter(s -> idSala == null || s.getId().equals(idSala))
+                .map(s -> {
+                    List<UsoPorTipo> porTipo = desglose.getOrDefault(s.getId(), List.of()).stream()
+                            .sorted(Comparator.comparing(UsoPorTipo::horas).reversed())
+                            .toList();
+                    long[] acumulado = totales.getOrDefault(s.getId(), new long[3]);
+                    BigDecimal horas = porTipo.stream()
+                            .map(UsoPorTipo::horas)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    return new UsoDeSala(s.getId(), s.getNombreSala(), s.isActiva(),
+                            acumulado[0], horas, acumulado[1], acumulado[2], porTipo);
+                })
+                .toList();
     }
 
     // == Alta y edición ======================================================
@@ -251,6 +321,37 @@ public class ReservaService {
             throw new SolicitudInvalidaException(
                     "El calendario se pide de a " + MAXIMO_DE_DIAS + " días como máximo.");
         }
+    }
+
+    /**
+     * El informe tiene otro techo que la agenda, y la razón es distinta.
+     *
+     * <p>Lo que acota a la agenda es el <b>tamaño de la respuesta</b>: son todas
+     * las reservas, una por una. Acá la respuesta son tres salas por seis tipos
+     * de uso, pida el período que pida — lo que se acota es el barrido, y un año
+     * es el período natural del informe anual que va a pedir el Módulo 8.
+     */
+    private void verificarRangoDelInforme(LocalDate desde, LocalDate hasta) {
+        if (hasta.isBefore(desde)) {
+            throw new SolicitudInvalidaException("La fecha de fin no puede ser anterior a la de inicio.");
+        }
+        if (ChronoUnit.DAYS.between(desde, hasta) > MAXIMO_DE_DIAS_DEL_INFORME) {
+            throw new SolicitudInvalidaException("El informe se pide de a un año como máximo.");
+        }
+    }
+
+    /**
+     * Las horas, con dos decimales.
+     *
+     * <p>La suma llega como {@code BigDecimal} o como {@code Double} según cómo
+     * el driver resuelva la división, así que se normaliza en un solo lugar.
+     * {@code HALF_UP} porque esto se lee, no se cobra.
+     */
+    private BigDecimal redondear(Object valor) {
+        BigDecimal horas = valor instanceof BigDecimal exacto
+                ? exacto
+                : BigDecimal.valueOf(((Number) valor).doubleValue());
+        return horas.setScale(2, RoundingMode.HALF_UP);
     }
 
     private Map<Long, List<ParticipanteResumen>> participantesDe(Collection<Reserva> filas) {

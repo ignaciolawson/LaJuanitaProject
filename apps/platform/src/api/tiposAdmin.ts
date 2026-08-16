@@ -232,3 +232,54 @@ export type InscripcionResumen = {
   estado: EstadoInscripcion
   notas: string | null
 }
+
+/**
+ * Una sala fuera de servicio. Espeja `BloqueoResumen`.
+ *
+ * <b>Una fila es una franja horaria que se repite todos los días del rango</b>,
+ * no un intervalo continuo: "de 9 a 13 toda la semana" deja la sala libre de 13
+ * en adelante todos esos días. Es la lectura que `V7` tuvo que rescatar de una
+ * migración que la había perdido, y la pantalla tiene que decirlo así.
+ *
+ * `diaCompleto` y `vigente` los calcula el servidor. El segundo sobre todo:
+ * deducirlo en el front lo deja a merced del reloj del navegador.
+ */
+export type BloqueoResumen = {
+  idBloqueo: number
+  idSala: number
+  sala: string
+  fechaInicio: string
+  fechaFin: string
+  horaInicio: string
+  horaFin: string
+  diaCompleto: boolean
+  motivo: string
+  vigente: boolean
+  registradoPor: string | null
+  fechaRegistro: string
+}
+
+/**
+ * Cuánto se usó una sala en un período. Espeja `UsoDeSala`.
+ *
+ * Las canceladas y las reprogramadas van aparte y **no suman horas**: una sala
+ * con veinte clases dictadas y una con veinte canceladas no se usaron igual.
+ */
+export type UsoDeSala = {
+  idSala: number
+  sala: string
+  activa: boolean
+  reservas: number
+  horas: number
+  canceladas: number
+  reprogramadas: number
+  porTipo: UsoPorTipo[]
+}
+
+export type UsoPorTipo = {
+  idTipoUso: number
+  tipoUso: string
+  color: string | null
+  reservas: number
+  horas: number
+}

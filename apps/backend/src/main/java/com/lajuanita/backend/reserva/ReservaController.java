@@ -25,6 +25,7 @@ import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.EdicionReservaRequest;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
+import com.lajuanita.backend.reserva.dto.UsoDeSala;
 
 import jakarta.validation.Valid;
 
@@ -72,6 +73,22 @@ public class ReservaController {
             @RequestParam(defaultValue = "false") boolean incluirCanceladas) {
 
         return reservas.agenda(desde, hasta, idSala, idProfesor, incluirCanceladas);
+    }
+
+    /**
+     * Pantalla 4 — el historial de uso por sala y período.
+     *
+     * <p>Va antes que {@code /{id}} a propósito: si quedara debajo, Spring
+     * intentaría leer "uso" como un id y devolvería un 400 en vez del informe.
+     */
+    @GetMapping("/uso")
+    @PuedeLeerAdministracion
+    public List<UsoDeSala> uso(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) Long idSala) {
+
+        return reservas.uso(desde, hasta, idSala);
     }
 
     @GetMapping("/{id}")
