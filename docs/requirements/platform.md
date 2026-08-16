@@ -649,10 +649,48 @@ mastering, que eso lo va decidiendo Ghezz. La seña es el 50% del total."*
   la base la toma cuando `reserva` tenga su precio.
 
 **Qué falta hacer, y cuándo:** la migración (`CONSTRAINT TRIGGER … DEFERRABLE INITIALLY
-DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V9`). Va
-**con el arranque del Módulo 2**, no antes: el trigger obliga a que la reserva y su pago
-se inserten en la misma transacción, y eso es una condición sobre pantallas que todavía
-no existen.
+DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V9`).
+
+> ### ⚠️ Corrección del 2026-08-16 — la premisa de arriba no se cumplió
+>
+> Esta ficha decía que la migración iba *"con el arranque del Módulo 2"* porque el
+> trigger **obliga a que la reserva y su pago entren en la misma transacción**. El
+> Módulo 2 se construyó, y **no** se construyó así: el alta crea la `reserva` sin
+> participantes y la gente se anota después, en otro pedido. Está decidido y escrito
+> en `AltaReservaRequest` — *"cargar la reserva y anotar a la gente son dos gestos
+> distintos también en la pantalla"*.
+>
+> Con ese flujo, un trigger que al COMMIT exija dinero detrás de la reserva **rechaza
+> todas las altas de clase**: en ese instante no hay participante, así que no hay ni
+> inscripción que la cubra ni pago que la apunte. Se detectó **antes** de escribir la
+> migración, no después.
+>
+> ### ✅ DECIDIDO el 2026-08-16: el alta de una clase crea la reserva y su participante juntos
+>
+> De las tres salidas posibles se elige **adaptar el flujo, no la regla**. Las otras
+> dos —correr el trigger al anotar al participante, o exigir seña solo a los usos que
+> no son clase— convierten la invariante en condicional: *"toda reserva tiene plata
+> detrás, salvo que esté vacía"* / *"salvo que sea una clase"*. **Una regla con
+> excepciones que dependen del estado es la que después nadie sabe si se está
+> cumpliendo**, y esta regla existe justamente porque el cliente dijo *"no hay
+> excepción"* (P8).
+>
+> **Qué hay que hacer, en este orden:**
+>
+> 1. **`AltaReservaRequest` acepta una lista de participantes opcional**, y
+>    `ReservaService.alta` los inserta en la misma transacción. Opcional y no
+>    obligatoria: un alquiler de cabina no tiene participantes y su plata llega por
+>    `pago.id_reserva`.
+> 2. **El alta del calendario carga alumno + inscripción junto con la clase.** El
+>    formulario de "Anotar a alguien" del detalle ya existe y ya resuelve elegir la
+>    inscripción — se reusa, no se escribe de nuevo.
+> 3. **Recién ahí, `V10`.** El `CONSTRAINT TRIGGER` es lo último, cuando el flujo que
+>    lo satisface ya esté andando y con tests.
+>
+> **Ojo con el orden de escritura de Hibernate**, que en este módulo ya mordió cuatro
+> veces: el trigger es `DEFERRABLE INITIALLY DEFERRED` justamente para que corra al
+> COMMIT y no le importe si el `reserva_participante` se insertó antes o después que
+> la `reserva`. Eso es lo que hace que la opción 1 sea implementable.
 
 ### Producto y landing
 

@@ -523,13 +523,38 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: **empieza el Módulo 3 (Pagos)**
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-16, fin del día
 
-**El Módulo 2 está cerrado** (2026-08-16, segunda tanda del día): backend
-completo y sus **cuatro pantallas**, `/admin/reservas`, `/admin/bloqueos` y
-`/admin/uso-salas` sobre la grilla que ya estaba. Lo único que le queda
-pendiente **no es suyo**: la seña se movió al Módulo 3 porque su trigger
-necesita un `pago` que ningún módulo puede crear todavía.
+**Módulos 1 y 2 cerrados. El 3 está a dos cosas de cerrar**, y las dos están
+decididas y escritas. Nada está bloqueado esperando una respuesta tuya.
+
+| Qué | Dónde |
+|---|---|
+| **1. La seña — los tres pasos** | El detalle completo, más abajo en *"⛔ La seña (`V10`)"* y en [`platform.md` §13](requirements/platform.md). **Arrancá por el paso 1, no por la migración.** |
+| **2. Venta de equipos** | La sexta pantalla de §6. No depende de la seña: se puede hacer primero si querés algo más corto |
+
+**Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
+`npm run dev:platform`. Las cuatro suites: **278 backend · 210 front · 121 + 50
+SQL**. La base de desarrollo tiene datos de ejemplo pero **`pago` está vacía** —
+ninguna pantalla podía crear filas hasta hoy—, así que Caja, Deudores y Estado
+de cuenta arrancan en cero hasta que cargues algún pago desde `/admin/pagos`.
+
+> **Dos cosas que esta sesión aprendió a los golpes y conviene no repetir:**
+>
+> - **Un módulo no está cerrado porque las dos mitades tengan tests.** El Módulo
+>   2 se dio por cerrado con el backend probado y el front probado, y **no se
+>   podía anotar a nadie en una clase**: el endpoint existía, la pantalla no lo
+>   llamaba, y ningún caso cruzaba el puente. Antes de cerrar un módulo,
+>   preguntá de dónde sale el primer dato de cada tabla que toca.
+> - **Mirá `platform.md` §13 antes de decir que algo está bloqueado.** Pasó otra
+>   vez: los cinco pendientes de §6 figuraban abiertos y tres ya estaban
+>   contestados. Van cuatro veces que este proyecto pierde tiempo con lo mismo.
+
+---
+
+**El Módulo 2 está cerrado** (2026-08-16): backend, sus **cuatro pantallas**
+—`/admin/reservas`, `/admin/bloqueos`, `/admin/uso-salas`— y **anotar alumnos en
+una clase**, que faltaba y se detectó tarde. La seña se movió al Módulo 3.
 
 **Las dos pantallas que faltaban, en corto:**
 
@@ -553,7 +578,7 @@ completa está en `platform.md` §13 y la herramienta, en la cabecera de `V9`.
 
 **Backend completo** (`backend/pago`) y **cinco de sus seis pantallas**:
 `/admin/pagos`, `/admin/estado-de-cuenta/:idUsuario`, `/admin/caja`,
-`/admin/deudores` y `/admin/egresos`. Suites: **278 backend, 197 front.**
+`/admin/deudores` y `/admin/egresos`. Suites: **278 backend, 210 front.**
 
 **Lo primero que se hizo fue revisar los cinco pendientes de §6, y ninguno
 bloqueaba.** Tres ya estaban contestados —P12 en §13, P15 en `V6`/`V7`, P16 en
@@ -632,10 +657,40 @@ apunte. Las tres salidas posibles, para decidir antes de escribir nada:
    grabación), donde el pago sí apunta a la reserva y no hay inscripción de por
    medio.
 
-**No se implementó ninguna**: elegir es una decisión de negocio sobre cómo se
-carga una clase, y las tres son defendibles. Es la misma disciplina que ya se
-aplicó con la seña dos veces — se posterga con la razón escrita, no se
-implementa a ciegas.
+**✅ Se eligió la 1 el 2026-08-16** (Ignacio, y coincide el análisis): **se
+adapta el flujo, no la regla.** Las otras dos convierten la invariante en
+condicional —*"toda reserva tiene plata detrás, salvo que esté vacía"* / *"salvo
+que sea una clase"*— y una regla con excepciones que dependen del estado es la
+que después nadie sabe si se está cumpliendo. Esta regla existe justamente
+porque el cliente dijo que **no hay excepción** (P8).
+
+La ficha completa, con el orden de implementación, está en
+[`platform.md` §13](requirements/platform.md) bajo *"P8 / DB-04 — La seña"*.
+**Empezá por ahí, no por la migración.**
+
+### ⏭️ Lo próximo, concreto
+
+**No se arrancó por falta de contexto en la sesión, no por una duda.** Los tres
+pasos, en este orden y ninguno antes que el anterior:
+
+1. **`AltaReservaRequest` acepta una lista de participantes opcional**, y
+   `ReservaService.alta` los inserta en la misma transacción. Opcional: un
+   alquiler de cabina no tiene participantes y su plata llega por
+   `pago.id_reserva`.
+2. **El alta del calendario carga alumno + inscripción junto con la clase.**
+   `FormularioParticipante` ya existe en `CalendarioPagina` y ya resuelve elegir
+   la inscripción — se reusa.
+3. **Recién ahí `V10`**, el `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED`
+   cuya plantilla está en la cabecera de `V9`. Es lo último, con el flujo que lo
+   satisface ya andando y con tests.
+
+**Por qué es implementable:** el trigger es `DEFERRABLE INITIALLY DEFERRED`, así
+que corre al COMMIT y no le importa el orden en que Hibernate escriba la
+`reserva` y su `reserva_participante` — que en este módulo ya mordió cuatro
+veces.
+
+**Y lo otro que le falta al Módulo 3 no depende de esto:** la sub-sección de
+venta de equipos.
 
 **El calendario, en corto:** días en columnas y horas en filas, con filtro por
 sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
