@@ -1,0 +1,132 @@
+package com.lajuanita.backend.pago;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.lajuanita.backend.config.Autoridades;
+import com.lajuanita.backend.config.PuedeLeerAdministracion;
+import com.lajuanita.backend.config.PuedeOperar;
+import com.lajuanita.backend.dinero.Moneda;
+import com.lajuanita.backend.pago.dto.AltaPagoRequest;
+import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
+import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
+import com.lajuanita.backend.pago.dto.MotivoRequest;
+import com.lajuanita.backend.pago.dto.PagoResumen;
+import com.lajuanita.backend.usuario.dto.Pagina;
+
+import jakarta.validation.Valid;
+
+/**
+ * Módulo 3 — Pagos y Cobros. Unifica el Excel financiero con el Notion operativo.
+ *
+ * <p><b>Todo lo de acá es administración.</b> El alcance dice que un alumno ve su
+ * propio estado de cuenta y descarga su comprobante, pero eso es el Módulo 4:
+ * hoy no hay forma de que entre a ver lo suyo, y darle
+ * {@code @PuedeLeerAdministracion} le abriría de paso la caja del estudio. El
+ * filtro {@code idUsuario} existe para que administración mire la cuenta de uno,
+ * y el portal del alumno va a salir de ahí.
+ *
+ * <p>Las dos operaciones de reversa son {@code PATCH} y no {@code DELETE} a
+ * propósito, y eso no es estilo REST: <b>en este esquema la plata no se borra</b>
+ * (`V6`), y un comprobante tampoco (§6). Las dos exigen motivo, y el autor y la
+ * fecha los pone el servidor.
+ */
+@RestController
+@RequestMapping("/api/pagos")
+public class PagoController {
+
+    private final PagoService pagos;
+
+    public PagoController(PagoService pagos) {
+        this.pagos = pagos;
+    }
+
+    @GetMapping
+    @PuedeLeerAdministracion
+    public Pagina<PagoResumen> listar(
+            @RequestParam(required = false) String buscar,
+            @RequestParam(required = false) Long idUsuario,
+            @RequestParam(required = false) EstadoPago estado,
+            @RequestParam(required = false) Moneda moneda,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanio) {
+
+        return pagos.listar(buscar, idUsuario, estado, moneda, desde, hasta, pagina, tamanio);
+    }
+
+    /**
+     * La caja del período, una fila por moneda (§6, pantalla 3).
+     *
+     * <p>Va antes que {@code /{id}}: debajo, Spring leería "caja" como un id y
+     * devolvería un 400 en vez del informe.
+     */
+    @GetMapping("/caja")
+    @PuedeLeerAdministracion
+    public List<CajaDelPeriodo> caja(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return pagos.caja(desde, hasta);
+    }
+
+    /** Quién debe, cuánto y hace cuántos días (§6, pantalla 4). */
+    @GetMapping("/deudores")
+    @PuedeLeerAdministracion
+    public List<Deudor> deudores() {
+        return pagos.deudores();
+    }
+
+    /** El estado de cuenta de una persona (§6, pantalla 2). */
+    @GetMapping("/estado-de-cuenta/{idUsuario}")
+    @PuedeLeerAdministracion
+    public EstadoDeCuenta estadoDeCuenta(@PathVariable Long idUsuario) {
+        return pagos.estadoDeCuenta(idUsuario);
+    }
+
+    @GetMapping("/{id}")
+    @PuedeLeerAdministracion
+    public PagoResumen porId(@PathVariable Long id) {
+        return pagos.porId(id);
+    }
+
+    @PostMapping
+    @PuedeOperar
+    @ResponseStatus(HttpStatus.CREATED)
+    public PagoResumen registrar(@Valid @RequestBody AltaPagoRequest solicitud,
+            Authentication quienPide) {
+        return pagos.registrar(solicitud, Autoridades.idDe(quienPide));
+    }
+
+    /** Anular un pago mal cargado. No se edita y no se borra (P15). */
+    @PatchMapping("/{id}/anulacion")
+    @PuedeOperar
+    public PagoResumen anular(@PathVariable Long id,
+            @Valid @RequestBody MotivoRequest solicitud,
+            Authentication quienPide) {
+        return pagos.anular(id, solicitud.motivo(), Autoridades.idDe(quienPide));
+    }
+
+    /** Marcar el comprobante como inválido. Tampoco se borra. */
+    @PatchMapping("/{id}/comprobante-invalido")
+    @PuedeOperar
+    public PagoResumen invalidarComprobante(@PathVariable Long id,
+            @Valid @RequestBody MotivoRequest solicitud,
+            Authentication quienPide) {
+        return pagos.invalidarComprobante(id, solicitud.motivo(), Autoridades.idDe(quienPide));
+    }
+}

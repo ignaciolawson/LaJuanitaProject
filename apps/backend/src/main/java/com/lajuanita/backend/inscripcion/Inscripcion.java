@@ -21,6 +21,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.lajuanita.backend.dinero.Moneda;
 
 /**
  * "Juan compró el curso de DJ inicial: 8 clases, $X, con Tomás."

@@ -23,6 +23,7 @@ import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
+import com.lajuanita.backend.dinero.Moneda;
 
 /**
  * El curso contratado: qué cursa cada alumno, con quién, cuántas clases y por

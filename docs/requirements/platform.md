@@ -397,11 +397,38 @@ empezarlo.**
 - Registrar el pago **habilita automáticamente** la reserva (elimina la doble carga Excel↔Notion — es el beneficio central prometido).
 
 ### Pendientes
-- **❓P12 — ¿Cómo se modela la seña?** ¿Es un pago parcial contra la inscripción (y el saldo es otro pago), o un registro aparte? **Recomiendo: pagos parciales contra la inscripción**, y el estado sale de la suma.
-- **❓P13 — ¿Los precios viven en el sistema?** ¿Hay una lista de precios por servicio que Micaela mantiene, o cada inscripción lleva el precio escrito a mano? Con inflación y dos monedas, esto importa.
-- **❓P14 — Descuento de ex alumno: ¿porcentaje fijo o caso por caso?**
-- **❓P15 — ¿Alguien tiene que poder anular un pago mal cargado?** Micaela va a equivocarse alguna vez. ¿Se anula (dejando rastro) o se edita?
-- **❓P16 — Venta de equipos:** ¿el sistema registra la venta después de hecha, o hay que gestionar el pedido a Pioneer? (El relevamiento dice que no hay stock propio.)
+> **Revisados los cinco el 2026-08-16, al arrancar el módulo: ninguno lo
+> bloquea.** Tres ya estaban contestados —dos en §13 y en el esquema, y esta
+> lista no se había actualizado—, uno no cambia lo que hay que construir, y del
+> último §13 ya decidió cómo seguir sin él. Es el mismo patrón que con P11 y con
+> los diez hallazgos que la auditoría listó como trabados: **la respuesta estaba
+> escrita en otro lado.**
+
+- **✅P12 — RESUELTO en §13 (P8 / DB-04a).** La seña es **un pago parcial contra
+  la inscripción**, no un registro aparte, y el estado sale de la suma — que era
+  la recomendación de esta misma línea. El dinero detrás de una reserva llega por
+  uno de dos caminos: un `pago` que la apunta (`pago.id_reserva`), o la
+  inscripción que cubre esa clase (`reserva_participante.id_inscripcion`). El
+  esquema ya lo acompaña con `estado_pago = 'SENADO'`.
+- **❓P13 — ¿Los precios viven en el sistema?** El único realmente abierto, **y
+  §13 ya decidió cómo seguir sin él**: `reserva` no tiene precio, así que la base
+  exige *que haya un pago* y no *que sea el 50%*; esa mitad la impone la pantalla
+  y la base la toma cuando `reserva` tenga precio. **Módulo 3 no construye tabla
+  de tarifas** — no está entre sus seis pantallas. Si Micaela la quiere, es un
+  módulo aparte y hay que decidirlo como tal.
+- **✅P14 — No bloquea: se construye caso por caso**, que es el superconjunto. El
+  esquema acepta cualquier porcentaje (0–100) y **exige justificación escrita**
+  (`pago_descuento_justificado`). Si mañana se fija un porcentaje de ex alumno,
+  es un valor por defecto en el formulario, no un cambio de modelo.
+- **✅P15 — RESUELTO por el código, desde `V6` y `V7`. Se anula dejando rastro;
+  no se edita y no se borra.** `ANULADO` es un estado válido desde `V1`, `V6`
+  prohíbe el DELETE sobre `pago`, y `V7` exige **autor, fecha y motivo** para
+  anular (`pago_anulacion_justificada`) — era la única excepción del esquema que
+  no exigía nada. El comprobante tiene su propio mecanismo, con las mismas tres
+  exigencias: se marca inválido, no se borra.
+- **✅P16 — RESUELTO por el esquema.** El comentario de `venta_equipo` en `V1` lo
+  dice: **sin stock propio, se registra la venta, no el pedido a Pioneer.** Desde
+  `V9` además lleva estado de anulación, igual que `pago`.
 
 ---
 
@@ -523,11 +550,11 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P9 | ¿El profesor puede pedir mover su clase? | Módulo 2 |
 | ~~P10~~ | ✅ Sala 1, Sala 2, Cabina de grabación | — |
 | ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
-| P12 | Modelo de la seña | Módulo 3 |
+| ~~P12~~ | ✅ Pago parcial contra la inscripción; el estado sale de la suma (§13) | — |
 | P13 | ¿Lista de precios en el sistema? | Módulo 3 |
-| P14 | Descuento de ex alumno | Módulo 3 |
-| P15 | Anular un pago mal cargado | Módulo 3 |
-| P16 | Alcance de venta de equipos | Módulo 3 |
+| ~~P14~~ | ✅ Caso por caso, con justificación escrita obligatoria | — |
+| ~~P15~~ | ✅ Se anula con autor, fecha y motivo (`V7`). No se edita ni se borra | — |
+| ~~P16~~ | ✅ Registra la venta, no el pedido: no hay stock propio (`V1`) | — |
 | P17 | Alcance real de la autogestión | Módulo 4 |
 | ~~P18~~ | ✅ Se registra solo, o alta con contraseña temporal | — |
 | P19 | Acceso del alumno inactivo | Módulo 4 |

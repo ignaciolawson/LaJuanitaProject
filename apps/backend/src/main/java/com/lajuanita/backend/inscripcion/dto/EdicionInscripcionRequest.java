@@ -3,12 +3,12 @@ package com.lajuanita.backend.inscripcion.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import com.lajuanita.backend.inscripcion.Moneda;
 import com.lajuanita.backend.inscripcion.Nivel;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import com.lajuanita.backend.dinero.Moneda;
 
 /**
  * Edición de una inscripción ya cargada.

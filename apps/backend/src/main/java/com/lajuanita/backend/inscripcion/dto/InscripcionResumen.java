@@ -6,9 +6,9 @@ import java.time.LocalDate;
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.EstadoInscripcion;
 import com.lajuanita.backend.inscripcion.Inscripcion;
-import com.lajuanita.backend.inscripcion.Moneda;
 import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.profesor.Profesor;
+import com.lajuanita.backend.dinero.Moneda;
 
 /**
  * Una fila del listado de inscripciones.

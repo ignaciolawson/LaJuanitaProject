@@ -4,12 +4,12 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
-import com.lajuanita.backend.inscripcion.Moneda;
 import com.lajuanita.backend.inscripcion.Nivel;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import com.lajuanita.backend.dinero.Moneda;
 
 /**
  * Alta de una inscripción: quién cursa qué, con quién, cuántas clases y por

@@ -102,4 +102,24 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     List<Object[]> contarClasesConsumidas(@Param("ids") Collection<Long> ids,
             @Param("cancelada") EstadoAsistencia cancelada,
             @Param("ocupan") Collection<EstadoReserva> ocupan);
+
+    /**
+     * Las inscripciones de una persona, por {@code usuario} y no por {@code alumno}.
+     *
+     * <p>La distinción importa acá más que en ningún otro lado: {@code pago} se
+     * lleva contra {@code id_usuario} —como todas las tablas transaccionales—
+     * mientras que {@code inscripcion} cuelga de {@code alumno}. El estado de
+     * cuenta cruza las dos cosas, así que necesita entrar por la identidad raíz.
+     *
+     * <p>Trae todas, de cualquier estado: una inscripción cancelada con un saldo
+     * a favor sigue siendo parte de la cuenta de esa persona.
+     */
+    @Query("""
+            SELECT i FROM Inscripcion i
+            JOIN FETCH i.alumno a
+            JOIN FETCH a.usuario u
+            WHERE u.id = :idUsuario
+            ORDER BY i.id
+            """)
+    List<Inscripcion> deLaPersona(@Param("idUsuario") Long idUsuario);
 }
