@@ -89,6 +89,7 @@ function alumno(cambios: Partial<AlumnoResumen> = {}): AlumnoResumen {
     fechaIngreso: '2026-03-01',
     instagram: null,
     usuarioActivo: true,
+    disciplinas: [],
     ...cambios,
   }
 }

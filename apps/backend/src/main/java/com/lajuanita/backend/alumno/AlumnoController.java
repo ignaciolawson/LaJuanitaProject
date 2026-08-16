@@ -22,6 +22,8 @@ import com.lajuanita.backend.alumno.dto.EdicionAlumnoRequest;
 import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
+import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.usuario.dto.Pagina;
 
 import jakarta.validation.Valid;
@@ -47,16 +49,26 @@ public class AlumnoController {
         this.alumnos = alumnos;
     }
 
+    /**
+     * El listado. {@code disciplina} y {@code nivel} miran las inscripciones
+     * vigentes del alumno: quien cursa DJ y mentoría aparece en las dos listas,
+     * y quien terminó DJ el año pasado no aparece en ninguna.
+     *
+     * <p>Combinados, exigen <b>una misma</b> inscripción que cumpla los dos —
+     * "DJ avanzado" no trae a quien hace DJ inicial y producción avanzada.
+     */
     @GetMapping
     @PuedeLeerAdministracion
     public Pagina<AlumnoResumen> listar(
             @RequestParam(required = false) String buscar,
             @RequestParam(required = false) EstadoAlumno estado,
+            @RequestParam(required = false) Disciplina disciplina,
+            @RequestParam(required = false) Nivel nivel,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
         Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio));
-        return Pagina.de(alumnos.listar(buscar, estado, paginado));
+        return Pagina.de(alumnos.listar(buscar, estado, disciplina, nivel, paginado));
     }
 
     @GetMapping("/{id}")

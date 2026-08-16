@@ -1,5 +1,11 @@
 package com.lajuanita.backend.alumno;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -8,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lajuanita.backend.alumno.dto.AltaAlumnoRequest;
 import com.lajuanita.backend.alumno.dto.AlumnoResumen;
 import com.lajuanita.backend.alumno.dto.EdicionAlumnoRequest;
+import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.EstadoInscripcion;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
@@ -80,17 +89,28 @@ public class AlumnoService {
         alumno.setInstagram(normalizar(solicitud.instagram()));
 
         Alumno guardado = alumnos.save(alumno);
-        return new AltaAlumnoResultado(AlumnoResumen.de(guardado), passwordTemporal);
+        // Acaba de nacer: no cursa nada todavía, y no hay nada que consultar.
+        return new AltaAlumnoResultado(AlumnoResumen.recienCreado(guardado), passwordTemporal);
     }
 
     @Transactional(readOnly = true)
-    public Page<AlumnoResumen> listar(String buscar, EstadoAlumno estado, Pageable paginado) {
-        return alumnos.buscar(Busqueda.patron(buscar), estado, paginado).map(AlumnoResumen::de);
+    public Page<AlumnoResumen> listar(String buscar,
+            EstadoAlumno estado,
+            Disciplina disciplina,
+            Nivel nivel,
+            Pageable paginado) {
+
+        Page<Alumno> pagina = alumnos.buscar(
+                Busqueda.patron(buscar), estado, disciplina, nivel,
+                EstadoInscripcion.VIGENTES, paginado);
+
+        Map<Long, List<Disciplina>> disciplinas = disciplinasDe(pagina.getContent());
+        return pagina.map(a -> AlumnoResumen.de(a, disciplinas.getOrDefault(a.getId(), List.of())));
     }
 
     @Transactional(readOnly = true)
     public AlumnoResumen porId(Long id) {
-        return AlumnoResumen.de(buscar(id));
+        return conDisciplinas(buscar(id));
     }
 
     @Transactional
@@ -98,7 +118,7 @@ public class AlumnoService {
         Alumno alumno = buscar(id);
         alumno.setNivelIngreso(solicitud.nivelIngreso());
         alumno.setInstagram(normalizar(solicitud.instagram()));
-        return AlumnoResumen.de(alumno);
+        return conDisciplinas(alumno);
     }
 
     /**
@@ -109,10 +129,36 @@ public class AlumnoService {
     public AlumnoResumen cambiarEstado(Long id, EstadoAlumno estado) {
         Alumno alumno = buscar(id);
         alumno.setEstadoAlumno(estado);
-        return AlumnoResumen.de(alumno);
+        return conDisciplinas(alumno);
     }
 
     // -------------------------------------------------------------------------
+
+    private AlumnoResumen conDisciplinas(Alumno alumno) {
+        return AlumnoResumen.de(alumno,
+                disciplinasDe(List.of(alumno)).getOrDefault(alumno.getId(), List.of()));
+    }
+
+    /**
+     * Qué está cursando cada alumno, en una sola consulta para toda la página.
+     *
+     * <p>Una por alumno sería el mismo N+1 que el {@code JOIN FETCH} del usuario
+     * ya evita en la consulta de al lado.
+     */
+    private Map<Long, List<Disciplina>> disciplinasDe(Collection<Alumno> filas) {
+        List<Long> ids = filas.stream().map(Alumno::getId).toList();
+        if (ids.isEmpty()) {
+            // `IN ()` no es SQL válido: sin esto, una página vacía revienta.
+            return Map.of();
+        }
+
+        Map<Long, List<Disciplina>> porAlumno = new HashMap<>();
+        for (Object[] fila : alumnos.disciplinasVigentes(ids, EstadoInscripcion.VIGENTES)) {
+            porAlumno.computeIfAbsent(((Number) fila[0]).longValue(), id -> new ArrayList<>())
+                    .add((Disciplina) fila[1]);
+        }
+        return porAlumno;
+    }
 
     private Alumno buscar(Long id) {
         return alumnos.findById(id)

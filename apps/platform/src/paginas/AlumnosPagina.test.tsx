@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
 import type { AlumnoResumen } from '../api/tiposAdmin'
@@ -53,6 +54,7 @@ function alumnos(cantidad: number): AlumnoResumen[] {
     fechaIngreso: '2026-03-01',
     instagram: null,
     usuarioActivo: true,
+    disciplinas: ['DJ'],
   }))
 }
 
@@ -76,6 +78,12 @@ function montar(rol: UsuarioActual['rol']) {
 function paginaDe(contenido: AlumnoResumen[], totalElementos: number, totalPaginas: number) {
   return { contenido, pagina: 0, tamanio: 20, totalElementos, totalPaginas }
 }
+
+// Los casos de filtros miran `mock.lastCall`, así que las llamadas de un caso no
+// pueden sobrevivir al siguiente.
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 describe('paginado (ARQ-01)', () => {
   /**
@@ -161,6 +169,79 @@ describe('eje de escritura (SEC-05)', () => {
     // dibuja en el primer render, así que buscar "Editar" justo después llega
     // con la tabla todavía vacía.
     expect(await screen.findAllByRole('button', { name: 'Editar' })).toHaveLength(3)
+  })
+})
+
+describe('qué cursa cada alumno', () => {
+  /**
+   * Se muestra siempre, no solo al filtrar: una lista filtrada que no dice de
+   * qué es cada fila obliga a confiar en que el filtro hizo lo que dijo.
+   */
+  it('la columna dice las disciplinas vigentes', async () => {
+    const [uno] = alumnos(1)
+    vi.mocked(listarAlumnos).mockResolvedValue(
+      paginaDe([{ ...uno, disciplinas: ['DJ', 'MENTORIA'] }], 1, 1),
+    )
+
+    montar('STAFF')
+
+    expect(await screen.findByText('DJ, Mentoría')).toBeDefined()
+  })
+
+  /** Sin nada vigente se dice, no se deja la celda en blanco. */
+  it('quien no cursa nada lo dice con palabras', async () => {
+    const [uno] = alumnos(1)
+    vi.mocked(listarAlumnos).mockResolvedValue(paginaDe([{ ...uno, disciplinas: [] }], 1, 1))
+
+    montar('STAFF')
+
+    expect(await screen.findByText('Nada vigente')).toBeDefined()
+  })
+
+  /**
+   * Los dos filtros viajan al backend, que es donde está la semántica: miran
+   * inscripciones vigentes y, combinados, exigen una misma inscripción. La
+   * pantalla no recorta nada por su cuenta.
+   */
+  it('filtrar por disciplina y nivel del curso se lo pide al backend', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarAlumnos).mockResolvedValue(paginaDe(alumnos(3), 3, 1))
+
+    montar('STAFF')
+    await screen.findByText('Apellido1, Nombre1')
+
+    await user.selectOptions(screen.getByLabelText('Filtrar por disciplina'), 'DJ')
+    await user.selectOptions(screen.getByLabelText('Filtrar por nivel del curso'), 'AVANZADO')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({
+        disciplina: 'DJ',
+        nivel: 'AVANZADO',
+      }),
+    )
+  })
+
+  /** Filtrar desde la página 3 devuelve vacío y parece que no hay resultados. */
+  it('cambiar un filtro vuelve a la primera página', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarAlumnos).mockResolvedValue(paginaDe(alumnos(20), 81, 5))
+
+    montar('STAFF')
+    await screen.findByText('Apellido1, Nombre1')
+
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() =>
+      expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({ pagina: 1 }),
+    )
+
+    await user.selectOptions(screen.getByLabelText('Filtrar por disciplina'), 'DJ')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({
+        disciplina: 'DJ',
+        pagina: 0,
+      }),
+    )
   })
 })
 

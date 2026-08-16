@@ -437,7 +437,166 @@ class AlumnoTest {
                 .andExpect(status().isNotFound());
     }
 
+    // == Filtro por disciplina y nivel ========================================
+    //
+    // La semántica la decidió Ignacio el 2026-08-16 y estos casos son los que la
+    // sostienen. Ninguno es evidente leyendo la consulta, y los tres primeros
+    // dan resultados distintos según cómo se escriba el EXISTS.
+
+    @Test
+    void el_filtro_por_disciplina_trae_solo_a_quien_la_esta_cursando() throws Exception {
+        Long deDj = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        Long deProduccion = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        inscribir(deDj, "DJ", null);
+        inscribir(deProduccion, "PRODUCCION", null);
+
+        mvc.perform(get("/api/alumnos?disciplina=DJ").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + deDj + ")]").exists())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + deProduccion + ")]")
+                        .doesNotExist());
+    }
+
+    /** <b>La decisión:</b> quien cursa dos cosas aparece en las dos listas. */
+    @Test
+    void quien_cursa_dj_y_mentoria_aparece_en_las_dos_listas() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        inscribir(idAlumno, "DJ", null);
+        inscribirConClases(idAlumno, "MENTORIA", null, 4);
+
+        for (String disciplina : new String[] { "DJ", "MENTORIA" }) {
+            mvc.perform(get("/api/alumnos?disciplina=" + disciplina)
+                    .header("Authorization", comoStaff()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + idAlumno + ")]").exists());
+        }
+    }
+
+    /**
+     * El listado de alumnos es la herramienta del día a día: quien terminó DJ el
+     * año pasado no es hoy un alumno de DJ. Esa pregunta la contesta la pantalla
+     * de Inscripciones, que filtra por estado explícitamente.
+     */
+    @Test
+    void una_inscripcion_completada_deja_de_contar_para_el_filtro() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        long idInscripcion = inscribir(idAlumno, "DJ", null);
+
+        mvc.perform(patch("/api/inscripciones/" + idInscripcion + "/estado?estado=COMPLETADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/alumnos?disciplina=DJ").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + idAlumno + ")]")
+                        .doesNotExist());
+    }
+
+    /**
+     * La otra mitad, y la que se discute: una inscripción <b>pausada</b> sigue
+     * contando. Es un curso empezado con clases sin dar; esconder a esa persona
+     * de la lista de DJ la esconde justo de quien tiene que ir a buscarla.
+     */
+    @Test
+    void una_inscripcion_pausada_sigue_contando() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        long idInscripcion = inscribir(idAlumno, "DJ", null);
+
+        mvc.perform(patch("/api/inscripciones/" + idInscripcion + "/estado?estado=PAUSADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/alumnos?disciplina=DJ").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + idAlumno + ")]").exists());
+    }
+
+    /**
+     * <b>El caso que justifica que el EXISTS sea uno solo y no dos.</b> Quien
+     * hace DJ inicial y producción avanzada <i>no</i> hace DJ avanzado. Con una
+     * subconsulta por filtro, este alumno aparecería igual: una se satisface con
+     * la inscripción de DJ y la otra con la de producción.
+     */
+    @Test
+    void disciplina_y_nivel_juntos_exigen_la_misma_inscripcion() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        inscribir(idAlumno, "DJ", "INICIAL");
+        inscribir(idAlumno, "PRODUCCION", "AVANZADO");
+
+        mvc.perform(get("/api/alumnos?disciplina=DJ&nivel=AVANZADO")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + idAlumno + ")]")
+                        .doesNotExist());
+
+        // Y el control: la combinación que sí tiene sí lo trae.
+        mvc.perform(get("/api/alumnos?disciplina=DJ&nivel=INICIAL")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + idAlumno + ")]").exists());
+    }
+
+    /**
+     * El listado muestra lo que cada uno cursa, no solo filtra por eso: una lista
+     * filtrada que no dice de qué es cada fila obliga a confiar en que el filtro
+     * hizo lo que dijo.
+     */
+    @Test
+    void el_listado_dice_que_esta_cursando_cada_alumno() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+        inscribir(idAlumno, "DJ", null);
+        inscribirConClases(idAlumno, "MENTORIA", null, 4);
+
+        mvc.perform(get("/api/alumnos/" + idAlumno).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disciplinas").isArray())
+                .andExpect(jsonPath("$.disciplinas.length()").value(2));
+    }
+
+    /** Un alumno recién dado de alta no cursa nada, y eso es una lista vacía. */
+    @Test
+    void un_alumno_sin_inscripciones_trae_la_lista_de_disciplinas_vacia() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+
+        mvc.perform(get("/api/alumnos/" + idAlumno).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.disciplinas").isEmpty());
+    }
+
+    /** Sin filtros, el listado no puede perder a nadie por no tener inscripciones. */
+    @Test
+    void sin_filtro_de_disciplina_siguen_apareciendo_los_que_no_cursan_nada() throws Exception {
+        Long sinCursar = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+
+        mvc.perform(get("/api/alumnos").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == " + sinCursar + ")]").exists());
+    }
+
     // =========================================================================
+
+    /** Inscribe con las clases de fábrica de la disciplina. */
+    private long inscribir(Long idAlumno, String disciplina, String nivel) throws Exception {
+        return inscribirConClases(idAlumno, disciplina, nivel, null);
+    }
+
+    private long inscribirConClases(Long idAlumno, String disciplina, String nivel, Integer clases)
+            throws Exception {
+        String respuesta = mvc.perform(post("/api/inscripciones")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idAlumno":%d,"disciplina":"%s","nivel":%s,%s"precioTotal":180000}
+                        """.formatted(idAlumno, disciplina,
+                        nivel == null ? "null" : "\"" + nivel + "\"",
+                        clases == null ? "" : "\"clasesContratadas\":" + clases + ",")))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        int desde = respuesta.indexOf("\"idInscripcion\":") + "\"idInscripcion\":".length();
+        int hasta = respuesta.indexOf(',', desde);
+        return Long.parseLong(respuesta.substring(desde, hasta).trim());
+    }
 
     /** Da de alta por el camino {@code idUsuario} y devuelve el id del alumno. */
     private Long darDeAlta(Usuario persona, String nivel) throws Exception {

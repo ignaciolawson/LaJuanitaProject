@@ -47,6 +47,15 @@ export type AlumnoResumen = {
   fechaIngreso: string
   instagram: string | null
   usuarioActivo: boolean
+  /**
+   * Lo que está cursando hoy — vacía si no cursa nada.
+   *
+   * Es una lista y no un campo porque alguien puede estar haciendo DJ y
+   * producción a la vez, que es la razón por la que `alumno.disciplina` no
+   * existe en el esquema. Trae solo las inscripciones vigentes (`ACTIVA` o
+   * `PAUSADA`): quien terminó DJ el año pasado no figura como alumno de DJ.
+   */
+  disciplinas: Disciplina[]
 }
 
 export type AltaAlumnoResultado = {

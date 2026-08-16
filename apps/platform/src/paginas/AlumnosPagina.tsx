@@ -7,7 +7,13 @@ import {
   listarAlumnos,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import type { AlumnoResumen, EstadoAlumno, NivelIngreso } from '../api/tiposAdmin'
+import type {
+  AlumnoResumen,
+  Disciplina,
+  EstadoAlumno,
+  Nivel,
+  NivelIngreso,
+} from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
@@ -16,12 +22,23 @@ import { puedeOperar } from '../layout/menu'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
 const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
+const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
+
+const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
+  DJ: 'DJ',
+  PRODUCCION: 'Producción',
+  MENTORIA: 'Mentoría',
+}
 
 /**
  * Módulo 1 — el listado que reemplaza el Notion de Micaela.
  *
- * Todavía sin disciplina ni nivel actual: eso vive en `inscripcion`, que es la
- * próxima tanda.
+ * **Ojo con los dos "nivel" de esta pantalla, que no son el mismo.** El de la
+ * columna es `alumno.nivel_ingreso`: con qué nivel entró la persona al estudio,
+ * una vez, en su ficha. El del filtro es `inscripcion.nivel`: el nivel del curso
+ * que está haciendo, que cambia con cada inscripción y puede ser distinto en DJ
+ * y en producción. Por eso el filtro dice "nivel del curso" y no "nivel" a
+ * secas.
  */
 export function AlumnosPagina() {
   const puedeEscribir = puedeOperar(useUsuario())
@@ -32,6 +49,8 @@ export function AlumnosPagina() {
   const [pagina, setPagina] = useState(0)
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoAlumno | ''>('')
+  const [disciplina, setDisciplina] = useState<Disciplina | ''>('')
+  const [nivelCurso, setNivelCurso] = useState<Nivel | ''>('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
@@ -41,7 +60,13 @@ export function AlumnosPagina() {
     setCargando(true)
     setError(null)
     try {
-      const resultado = await listarAlumnos({ buscar, estado, pagina })
+      const resultado = await listarAlumnos({
+        buscar,
+        estado,
+        disciplina,
+        nivel: nivelCurso,
+        pagina,
+      })
       setAlumnos(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -50,7 +75,7 @@ export function AlumnosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, pagina])
+  }, [buscar, estado, disciplina, nivelCurso, pagina])
 
   // Espera a que la persona deje de tipear antes de pedir: sin esto, cada
   // tecla dispara una consulta.
@@ -66,9 +91,12 @@ export function AlumnosPagina() {
     setPagina(0)
   }
 
-  function cambiarFiltroEstado(nuevo: EstadoAlumno | '') {
-    setEstado(nuevo)
-    setPagina(0)
+  /** Todo filtro vuelve a la página 1, por el mismo motivo que la búsqueda. */
+  function filtrar<T>(set: (valor: T) => void) {
+    return (valor: T) => {
+      set(valor)
+      setPagina(0)
+    }
   }
 
   async function cambiarEstado(alumno: AlumnoResumen, nuevo: EstadoAlumno) {
@@ -105,13 +133,43 @@ export function AlumnosPagina() {
         />
         <select
           value={estado}
-          onChange={(e) => cambiarFiltroEstado(e.target.value as EstadoAlumno | '')}
+          onChange={(e) => filtrar(setEstado)(e.target.value as EstadoAlumno | '')}
+          aria-label="Filtrar por estado"
           className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
             <option key={e} value={e}>
               {e.charAt(0) + e.slice(1).toLowerCase()}
+            </option>
+          ))}
+        </select>
+        {/* Los dos filtros que miran las inscripciones vigentes del alumno.
+            Combinados exigen una MISMA inscripción: "DJ avanzado" no trae a
+            quien hace DJ inicial y producción avanzada. */}
+        <select
+          value={disciplina}
+          onChange={(e) => filtrar(setDisciplina)(e.target.value as Disciplina | '')}
+          aria-label="Filtrar por disciplina"
+          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+        >
+          <option value="">Todas las disciplinas</option>
+          {DISCIPLINAS.map((d) => (
+            <option key={d} value={d}>
+              {NOMBRE_DE_DISCIPLINA[d]}
+            </option>
+          ))}
+        </select>
+        <select
+          value={nivelCurso}
+          onChange={(e) => filtrar(setNivelCurso)(e.target.value as Nivel | '')}
+          aria-label="Filtrar por nivel del curso"
+          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+        >
+          <option value="">Todos los niveles del curso</option>
+          {NIVELES.map((n) => (
+            <option key={n} value={n}>
+              {n.charAt(0) + n.slice(1).toLowerCase()}
             </option>
           ))}
         </select>
@@ -150,6 +208,7 @@ export function AlumnosPagina() {
             <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
               <th className="px-4 py-3 font-semibold">Alumno</th>
               <th className="px-4 py-3 font-semibold">Contacto</th>
+              <th className="px-4 py-3 font-semibold">Cursa</th>
               <th className="px-4 py-3 font-semibold">Nivel de ingreso</th>
               <th className="px-4 py-3 font-semibold">Estado</th>
               <th className="px-4 py-3" />
@@ -169,6 +228,14 @@ export function AlumnosPagina() {
                 <td className="px-4 py-3 text-tenue">
                   <div>{a.email}</div>
                   {a.telefono && <div className="text-xs">{a.telefono}</div>}
+                </td>
+                {/* Se muestra siempre, no solo al filtrar: una lista filtrada
+                    que no dice de qué es cada fila obliga a confiar en que el
+                    filtro hizo lo que dijo. */}
+                <td className="px-4 py-3 text-tenue">
+                  {a.disciplinas.length > 0
+                    ? a.disciplinas.map((d) => NOMBRE_DE_DISCIPLINA[d]).join(', ')
+                    : <span className="text-apagado">Nada vigente</span>}
                 </td>
                 <td className="px-4 py-3 text-tenue">{a.nivelIngreso ?? '—'}</td>
                 <td className="px-4 py-3">
@@ -204,8 +271,8 @@ export function AlumnosPagina() {
 
             {!cargando && alumnos.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-tenue">
-                  {buscar || estado
+                <td colSpan={6} className="px-4 py-10 text-center text-tenue">
+                  {buscar || estado || disciplina || nivelCurso
                     ? 'No hay alumnos que coincidan con la búsqueda.'
                     : 'Todavía no hay alumnos cargados.'}
                 </td>

@@ -541,7 +541,7 @@ final de esta sección.
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | 🟡 **~75%**. `inscripcion` cerrada de punta a punta; falta el perfil |
+| **Módulo 1 — Alumnos** | 🟡 **~85%**. Solo falta el perfil del alumno |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
@@ -552,20 +552,14 @@ buscador, alta y baja lógica, la matriz de permisos por los cuatro roles impues
 en el backend, y **el módulo de inscripciones completo** — alta, listado con
 cuatro filtros, edición, cambio de estado, clases restantes y su pantalla.
 
-**Las suites:** 151 casos en el backend, 72 en el front.
+**Las suites:** 159 casos en el backend, 76 en el front.
 
 | Pantalla del módulo | Estado |
 |---|---|
-| Listado de alumnos | 🟡 pagina, se busca y se edita. **Falta filtrar por disciplina y nivel** — ver la aclaración de abajo |
+| Listado de alumnos | ✅ pagina, busca, edita, **filtra por disciplina y nivel del curso** y muestra qué cursa cada uno (2026-08-16) |
 | Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14) |
 | Inscripciones | ✅ **`/admin/inscripciones`** (2026-08-16) |
-| Perfil del alumno | ❌ — es lo próximo |
-
-> **Ojo con el filtro por disciplina, que este documento dio por resuelto y no lo
-> está.** La pantalla de Inscripciones contesta *"¿quiénes están cursando DJ?"*,
-> que no es lo mismo que *"filtrame el listado de alumnos por disciplina"*: ese
-> filtro necesita que `GET /api/alumnos` cruce con `inscripcion`, y eso todavía no
-> existe. Son dos pantallas distintas y solo una está hecha.
+| Perfil del alumno | ❌ — es lo único que falta |
 
 **Lo que se destrabó el 2026-08-14** (tanda 5 de la remediación): los listados paginan de
 verdad —antes mostraban 20 filas y el encabezado decía el total—, `DIRECTIVO` dejó de ver
@@ -638,18 +632,40 @@ avisaba que `alumno.disciplina` y `alumno.nivel_actual` eran campos sueltos que
 decisión estaba tomada desde el baseline y el aviso sobrevivió a la decisión.
 `AlumnoTest` sigue siendo la red que hacía falta, por otros motivos.
 
+### ✅ El filtro por disciplina y nivel — decidido el 2026-08-16
+
+Era la última pregunta abierta del módulo, y era de producto. **Las respuestas de
+Ignacio, y lo que significan en la consulta:**
+
+| Pregunta | Respuesta | Cómo queda |
+|---|---|---|
+| ¿Quien cursa DJ y producción aparece en las dos listas? | **Sí** | Un `EXISTS`, no un `JOIN` — con un JOIN el alumno se repetiría una vez por curso y el total de la página mentiría |
+| ¿Cuenta una inscripción ya terminada? | A criterio → **no** | Solo `ACTIVA` y `PAUSADA`, en `EstadoInscripcion.VIGENTES` |
+
+**Por qué `PAUSADA` cuenta y `COMPLETADA` no.** El listado de alumnos es la
+herramienta del día a día: filtrar por "DJ" tiene que traer a quien está haciendo
+DJ, no a quien lo terminó el año pasado. Pero una inscripción **pausada** es un
+curso empezado con clases sin dar — esconder a esa persona de la lista la esconde
+justo de quien tiene que ir a buscarla. La pregunta histórica (*"¿quién hizo DJ
+alguna vez?"*) la contesta la pantalla de Inscripciones, que filtra por estado
+explícitamente. Son dos preguntas distintas y cada una tiene su pantalla.
+
+**Y un tercer detalle que nadie preguntó y cambia resultados:** disciplina y nivel
+combinados exigen **una misma** inscripción. Quien hace DJ inicial y producción
+avanzada *no* hace DJ avanzado, y con un `EXISTS` por filtro aparecería igual —
+uno se satisface con una inscripción y el otro con la otra. Está en un test
+(`disciplina_y_nivel_juntos_exigen_la_misma_inscripcion`) porque es invisible al
+leer la consulta.
+
+El listado además **muestra** lo que cada uno cursa, no solo filtra por eso: una
+lista filtrada que no dice de qué es cada fila obliga a confiar en que el filtro
+hizo lo que dijo.
+
 ### Lo próximo: el perfil del alumno
 
-Quedan dos cosas para cerrar el Módulo 1, y **son de tamaño muy distinto**:
-
-1. **Perfil del alumno.** Es la más chica: sus datos, sus inscripciones —que ya
-   se piden con `GET /api/inscripciones?idAlumno=`, sin backend nuevo— y su
-   historial. Nada lo bloquea.
-2. **Filtrar el listado de alumnos por disciplina y nivel.** Esta **sí necesita
-   backend**: `GET /api/alumnos` tiene que cruzar con `inscripcion`, y hay que
-   decidir qué significa el filtro cuando alguien cursa dos disciplinas —¿aparece
-   en las dos listas?— y si mira solo las inscripciones activas. Es la única
-   pregunta abierta que queda del módulo, y es de producto, no técnica.
+**Es lo único que falta del Módulo 1, y no necesita backend nuevo:** sus datos,
+sus inscripciones —que ya se piden con `GET /api/inscripciones?idAlumno=`— y su
+historial.
 
 **Después de eso arranca el Módulo 2** (salas y reservas). Dos cosas lo esperan
 ahí, ya escritas y decididas: la migración de la seña (`V9` deja anotada la

@@ -145,15 +145,27 @@ export function cambiarActivoUsuario(id: number, activo: boolean) {
 
 // -- Alumnos ----------------------------------------------------------------
 
+/**
+ * El listado de alumnos.
+ *
+ * `disciplina` y `nivel` miran las inscripciones **vigentes**: quien cursa DJ y
+ * mentoría aparece en las dos listas, y quien terminó DJ el año pasado no
+ * aparece en ninguna. Combinados exigen una *misma* inscripción que cumpla los
+ * dos — "DJ avanzado" no trae a quien hace DJ inicial y producción avanzada.
+ */
 export function listarAlumnos(opciones: {
   buscar?: string
   estado?: EstadoAlumno | ''
+  disciplina?: Disciplina | ''
+  nivel?: Nivel | ''
   pagina?: number
 }) {
   return pedir<Pagina<AlumnoResumen>>(
     `/api/alumnos${query({
       buscar: opciones.buscar,
       estado: opciones.estado,
+      disciplina: opciones.disciplina,
+      nivel: opciones.nivel,
       pagina: opciones.pagina,
     })}`,
   )
