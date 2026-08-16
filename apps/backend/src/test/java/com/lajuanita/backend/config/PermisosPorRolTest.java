@@ -67,6 +67,8 @@ class PermisosPorRolTest {
                     .andExpect(status().isOk());
             mvc.perform(get("/api/inscripciones").header("Authorization", credencial))
                     .andExpect(status().isOk());
+            mvc.perform(get("/api/profesores").header("Authorization", credencial))
+                    .andExpect(status().isOk());
         }
     }
 

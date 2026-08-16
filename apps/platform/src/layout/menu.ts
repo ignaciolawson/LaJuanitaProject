@@ -71,6 +71,12 @@ const MENU: GrupoMenu[] = [
       // DIRECTIVO ve estas pantallas pero no escribe nada; eso lo impone el
       // backend, no el menú. Ocultárselas acá sería mentir sobre lo que puede.
       { etiqueta: 'Alumnos', ruta: '/admin/alumnos', visible: puedeAdministrar, disponible: true },
+      {
+        etiqueta: 'Inscripciones',
+        ruta: '/admin/inscripciones',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Reservas', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: false },
       { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: false },

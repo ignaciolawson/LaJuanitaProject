@@ -523,12 +523,12 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: la pantalla de inscripciones
+### ⏭️ Si estás retomando: el perfil del alumno
 
-**`inscripcion` ya existe del lado del backend, entera y con tests** (2026-08-16).
-Lo que falta es la pantalla, y con ella los filtros que el listado de alumnos
-todavía no tiene. El detalle de qué quedó hecho y qué no está en
-[`Lo próximo: la pantalla de inscripciones`](#lo-próximo-la-pantalla-de-inscripciones).
+**`inscripcion` está terminada de punta a punta** (2026-08-16): backend, pantalla
+en `/admin/inscripciones`, y tests de los dos lados. Lo que queda del Módulo 1
+son dos cosas, y están en
+[`Lo próximo`](#lo-próximo-el-perfil-del-alumno).
 
 **No hay ninguna decisión tuya pendiente.** La auditoría se cerró el 2026-08-15
 con el backlog en cero, y la seña —que era la última que esperaba— está tomada.
@@ -541,7 +541,7 @@ final de esta sección.
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | 🟡 **~55%**. `inscripcion` cerrada del lado del backend; faltan pantallas |
+| **Módulo 1 — Alumnos** | 🟡 **~75%**. `inscripcion` cerrada de punta a punta; falta el perfil |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
@@ -549,18 +549,23 @@ final de esta sección.
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
 buscador, alta y baja lógica, la matriz de permisos por los cuatro roles impuesta
-en el backend, y **la API completa de inscripciones** — alta, listado con cuatro
-filtros, edición, cambio de estado y el cálculo de clases restantes.
+en el backend, y **el módulo de inscripciones completo** — alta, listado con
+cuatro filtros, edición, cambio de estado, clases restantes y su pantalla.
 
-**Qué falta del Módulo 1.** La pieza que bloqueaba a las cuatro pantallas ya
-está; lo que queda es dibujarlas:
+**Las suites:** 151 casos en el backend, 72 en el front.
 
 | Pantalla del módulo | Estado |
 |---|---|
-| Listado de alumnos | 🟡 ya pagina y se puede editar; **falta filtrar por disciplina y nivel — ya se puede, sale de `GET /api/inscripciones`** |
+| Listado de alumnos | 🟡 pagina, se busca y se edita. **Falta filtrar por disciplina y nivel** — ver la aclaración de abajo |
 | Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14) |
-| Perfil del alumno | ❌ — sus inscripciones ya se piden con `?idAlumno=` |
-| Alta de inscripción | 🟡 **backend hecho y probado (39 casos); falta la pantalla** |
+| Inscripciones | ✅ **`/admin/inscripciones`** (2026-08-16) |
+| Perfil del alumno | ❌ — es lo próximo |
+
+> **Ojo con el filtro por disciplina, que este documento dio por resuelto y no lo
+> está.** La pantalla de Inscripciones contesta *"¿quiénes están cursando DJ?"*,
+> que no es lo mismo que *"filtrame el listado de alumnos por disciplina"*: ese
+> filtro necesita que `GET /api/alumnos` cruce con `inscripcion`, y eso todavía no
+> existe. Son dos pantallas distintas y solo una está hecha.
 
 **Lo que se destrabó el 2026-08-14** (tanda 5 de la remediación): los listados paginan de
 verdad —antes mostraban 20 filas y el encabezado decía el total—, `DIRECTIVO` dejó de ver
@@ -578,13 +583,12 @@ identidad raíz— no lo ejercitaba **ningún** test.
 También existe `docs/operacion.md` con el restore ensayado, que es la red del otro lado:
 diciembre incluye migrar el Notion y correr en paralelo con el sistema viejo.
 
-### ✅ `inscripcion` — backend cerrado el 2026-08-16
+### ✅ `inscripcion` — cerrada de punta a punta el 2026-08-16
 
 Era la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la
-2, el contenido de la 3 y toda la 4. **Del lado del servidor ya está entera**, con
-39 casos propios (`InscripcionTest`), y la suite del backend pasó de 108 a 147.
-
-Qué quedó, en el paquete `com.lajuanita.backend.inscripcion`:
+2, el contenido de la 3 y toda la 4. **Está entera**, con 39 casos en el backend
+(`InscripcionTest`) y 17 en el front (`InscripcionesPagina.test.tsx`): las suites
+pasaron de 108 a 151 y de 55 a 72.
 
 | Pieza | Qué hace |
 |---|---|
@@ -592,6 +596,8 @@ Qué quedó, en el paquete `com.lajuanita.backend.inscripcion`:
 | `InscripcionService` | Alta, listado, edición, cambio de estado |
 | `InscripcionController` | `/api/inscripciones`, con `@PuedeLeerAdministracion` / `@PuedeOperar` |
 | `Disciplina` · `Nivel` · `Moneda` · `EstadoInscripcion` | Los cuatro CHECK del esquema, del lado de Java |
+| `ProfesorController` | `GET /api/profesores`, **la pieza que faltaba** — sin ella la inscripción no podía nombrar a su profe |
+| `InscripcionesPagina.tsx` | `/admin/inscripciones`: listado con tres filtros, alta, edición y cambio de estado |
 | Tipos y llamadas en el front | `tiposAdmin.ts` y `administracion.ts` — **respuesta y pedido, los dos** (ARQ-09) |
 
 **Tres decisiones de implementación que no se leen del esquema:**
@@ -608,7 +614,22 @@ Qué quedó, en el paquete `com.lajuanita.backend.inscripcion`:
   clases y la base rechaza la siguiente.
 - **La firma de una baja de nivel la pone el servidor.** Del pedido viene solo el
   motivo; el autor sale del token y la fecha del reloj. Una firma que el cliente
-  pudiera dictar no firma nada.
+  pudiera dictar no firma nada. La pantalla pide el motivo **antes** de enviar, no
+  para imponer la regla —la impone `V9`— sino para no rebotar un formulario ya
+  completo.
+
+**Y dos del lado de la pantalla:**
+
+- **El alumno se elige con un buscador, no con un `<select>`.** Con los ~80 del
+  Notion una lista desplegable ya incomoda y con 300 sería inusable *sin que nada
+  se rompa*, que es el modo de falla que la auditoría encontró en el listado
+  (ARQ-01). Cuando hay más resultados de los que entran, lo dice.
+- **`GET /api/profesores` no pagina, a diferencia de todo el resto.** El tamaño de
+  los otros listados lo decide el negocio creciendo; el de este, la nómina del
+  estudio — y lo consume un `<select>`, donde paginar empeora las cosas. Si algún
+  día molesta, lo que corresponde es convertirlo en buscador, no paginarlo.
+  Devuelve solo los activos por defecto: ofrecer a alguien que ya no da clases en
+  una inscripción nueva es un error de carga que conviene no ofrecer.
 
 **Lo que se creía que había que refactorizar y no hizo falta:** este documento
 avisaba que `alumno.disciplina` y `alumno.nivel_actual` eran campos sueltos que
@@ -617,24 +638,23 @@ avisaba que `alumno.disciplina` y `alumno.nivel_actual` eran campos sueltos que
 decisión estaba tomada desde el baseline y el aviso sobrevivió a la decisión.
 `AlumnoTest` sigue siendo la red que hacía falta, por otros motivos.
 
-### Lo próximo: la pantalla de inscripciones
+### Lo próximo: el perfil del alumno
 
-**Es trabajo de front, y nada lo bloquea.** La API está y las llamadas ya están
-tipadas en `apps/platform/src/api/administracion.ts`.
+Quedan dos cosas para cerrar el Módulo 1, y **son de tamaño muy distinto**:
 
-1. **Pantalla 4 — Alta de inscripción.** El patrón está en `AlumnosPagina.tsx`:
-   listado con buscador, paginado y formulario. Ojo con dos cosas que la pantalla
-   sí tiene que resolver: mostrar las clases de fábrica al elegir disciplina (y
-   pedirlas a mano en mentoría), y pedir el motivo cuando el nivel baja — el
-   backend devuelve 400 si falta, pero avisar antes es mejor que rebotar.
-2. **Los filtros por disciplina y nivel del listado de alumnos**, que era lo que
-   esperaba a esta tabla.
-3. **Perfil del alumno**, que es este mismo listado con `?idAlumno=`.
+1. **Perfil del alumno.** Es la más chica: sus datos, sus inscripciones —que ya
+   se piden con `GET /api/inscripciones?idAlumno=`, sin backend nuevo— y su
+   historial. Nada lo bloquea.
+2. **Filtrar el listado de alumnos por disciplina y nivel.** Esta **sí necesita
+   backend**: `GET /api/alumnos` tiene que cruzar con `inscripcion`, y hay que
+   decidir qué significa el filtro cuando alguien cursa dos disciplinas —¿aparece
+   en las dos listas?— y si mira solo las inscripciones activas. Es la única
+   pregunta abierta que queda del módulo, y es de producto, no técnica.
 
-**Después de eso, el Módulo 1 queda cerrado y arranca el Módulo 2** (salas y
-reservas). Dos cosas lo esperan ahí, ya escritas y decididas: la migración de la
-seña (`V9` deja anotada la herramienta) y el orden de horas de la reserva — las
-dos en [`platform.md` §5](requirements/platform.md).
+**Después de eso arranca el Módulo 2** (salas y reservas). Dos cosas lo esperan
+ahí, ya escritas y decididas: la migración de la seña (`V9` deja anotada la
+herramienta) y el orden de horas de la reserva — las dos en
+[`platform.md` §5](requirements/platform.md).
 
 ### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 

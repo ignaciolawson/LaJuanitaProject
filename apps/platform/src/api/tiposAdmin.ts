@@ -55,6 +55,26 @@ export type AltaAlumnoResultado = {
   passwordTemporal: string | null
 }
 
+// -- Profesores -------------------------------------------------------------
+
+/**
+ * Un profesor, para elegirlo al armar una inscripción. Espeja `ProfesorResumen`.
+ *
+ * El listado que lo trae **no pagina**: su tamaño lo decide la nómina del
+ * estudio, no el negocio creciendo, y lo consume un `<select>`.
+ */
+export type ProfesorResumen = {
+  idProfesor: number
+  idUsuario: number
+  nombre: string
+  apellido: string
+  /** Ya armado del servidor, para que no haya tres formas del mismo nombre. */
+  nombreCompleto: string
+  email: string
+  especialidad: string | null
+  activo: boolean
+}
+
 // -- Inscripciones ----------------------------------------------------------
 
 export type Disciplina = 'DJ' | 'PRODUCCION' | 'MENTORIA'
@@ -76,6 +96,22 @@ export const CLASES_ESTANDAR: Record<Disciplina, number | null> = {
   DJ: 8,
   PRODUCCION: 16,
   MENTORIA: null,
+}
+
+const ORDEN_NIVEL: Record<Nivel, number> = { INICIAL: 1, INTERMEDIO: 2, AVANZADO: 3 }
+
+/**
+ * ¿Pasar de `anterior` a `nuevo` es bajar de nivel?
+ *
+ * Espeja `Nivel.esRetrocesoDesde` de Java y, detrás, el `CASE` del trigger
+ * `verificar_baja_de_nivel_firmada` en `V9`. Acá sirve **solo para pedir el
+ * motivo antes de enviar**: quien exige la firma es la base, y el backend
+ * devuelve 400 igual si falta. Poner o sacar el nivel no es retroceder — es
+ * completar una ficha.
+ */
+export function esBajaDeNivel(anterior: Nivel | null, nuevo: Nivel | ''): boolean {
+  if (!anterior || !nuevo) return false
+  return ORDEN_NIVEL[nuevo] < ORDEN_NIVEL[anterior]
 }
 
 /**

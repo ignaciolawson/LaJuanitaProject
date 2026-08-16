@@ -11,6 +11,7 @@ import type {
   Nivel,
   NivelIngreso,
   Pagina,
+  ProfesorResumen,
   UsuarioCreado,
   UsuarioResumen,
 } from './tiposAdmin'
@@ -175,6 +176,20 @@ export function editarAlumno(id: number, datos: EdicionAlumno) {
 
 export function cambiarEstadoAlumno(id: number, estado: EstadoAlumno) {
   return pedir<AlumnoResumen>(`/api/alumnos/${id}/estado?estado=${estado}`, { metodo: 'PATCH' })
+}
+
+// -- Profesores -------------------------------------------------------------
+
+/**
+ * Los profesores, para asignarlos a una inscripción.
+ *
+ * Devuelve **solo los activos** salvo que se pidan todos: ofrecer a alguien que
+ * ya no da clases en el selector de una inscripción nueva es un error de carga
+ * que conviene no ofrecer. `incluirInactivos` es para las pantallas que muestran
+ * inscripciones viejas y necesitan nombrar a quien las dio.
+ */
+export function listarProfesores(incluirInactivos = false) {
+  return pedir<ProfesorResumen[]>(`/api/profesores${incluirInactivos ? '?incluirInactivos=true' : ''}`)
 }
 
 // -- Inscripciones ----------------------------------------------------------

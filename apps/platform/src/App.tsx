@@ -6,6 +6,7 @@ import { useAuth, useUsuario } from './auth/contexto'
 import { puedeAdministrar } from './layout/menu'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
 import { InicioPagina } from './paginas/InicioPagina'
+import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsuariosPagina } from './paginas/UsuariosPagina'
@@ -38,6 +39,7 @@ function Rutas() {
             no un permiso que falta. Quien autoriza sigue siendo el backend. */}
         <Route element={<SoloAdministracion />}>
           <Route path="/admin/alumnos" element={<AlumnosPagina />} />
+          <Route path="/admin/inscripciones" element={<InscripcionesPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>
