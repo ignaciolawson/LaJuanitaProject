@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.Egreso;
 import com.lajuanita.backend.usuario.Usuario;
@@ -27,7 +28,7 @@ public record EgresoResumen(
 
         return new EgresoResumen(
                 egreso.getId(),
-                egreso.getMonto(),
+                Importe.normalizar(egreso.getMonto()),
                 egreso.getMoneda(),
                 egreso.getCotizacionDolar(),
                 egreso.getConcepto(),

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.MedioPago;
@@ -64,7 +65,7 @@ public record PagoResumen(
                 idDestinoDe(pago),
                 queSaldaDe(pago),
                 pago.getConcepto(),
-                pago.getMonto(),
+                Importe.normalizar(pago.getMonto()),
                 pago.getMoneda(),
                 pago.getCotizacionDolar(),
                 pago.getMedioPago(),

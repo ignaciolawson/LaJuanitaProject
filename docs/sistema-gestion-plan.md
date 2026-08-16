@@ -665,7 +665,7 @@ le sobrevivió a la decisión.
 ### 🟢 Para verificar que arrancás en verde
 
 ```
-cd apps/backend && mvn test          # 229
+cd apps/backend && mvn test          # 278
 cd apps/platform && npm test         # 139
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 121 + 50

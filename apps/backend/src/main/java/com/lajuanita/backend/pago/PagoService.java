@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
@@ -167,6 +168,13 @@ public class PagoService {
         }
 
         pago.anular(idAutor, motivo.trim());
+
+        // El flush no es decorativo: sin él el UPDATE viaja recién en el commit,
+        // y hasta entonces esta respuesta describe una fila que la base todavía
+        // no aceptó. `pago_anulacion_justificada` tiene que hablar ACÁ, donde el
+        // error se puede atribuir a esta operación y no a "algo del final de la
+        // transacción". Es la misma razón por la que el alta usa `saveAndFlush`.
+        pagos.flush();
         return PagoResumen.de(pago);
     }
 
@@ -183,6 +191,7 @@ public class PagoService {
         }
 
         pago.invalidarComprobante(idAutor, motivo.trim());
+        pagos.flush();
         return PagoResumen.de(pago);
     }
 
@@ -221,7 +230,8 @@ public class PagoService {
             // Una moneda sin ningún movimiento no aporta un renglón de ceros:
             // acá el cero no es información, a diferencia del informe de uso.
             if (entro.signum() != 0 || debe.signum() != 0) {
-                saldos.add(new SaldoPorMoneda(moneda.name(), entro, debe));
+                saldos.add(new SaldoPorMoneda(moneda.name(),
+                        Importe.normalizar(entro), Importe.normalizar(debe)));
             }
         }
 
@@ -259,9 +269,9 @@ public class PagoService {
                     inscripcion.getNivel() == null ? null : inscripcion.getNivel().name(),
                     inscripcion.getEstado().name(),
                     inscripcion.getMoneda().name(),
-                    total,
-                    pagadoAcá,
-                    saldo,
+                    Importe.normalizar(total),
+                    Importe.normalizar(pagadoAcá),
+                    Importe.normalizar(saldo),
                     // El 50% de §13: si ya lo cubrió, la seña está hecha.
                     pagadoAcá.multiply(BigDecimal.TWO).compareTo(total) >= 0,
                     saldo.signum() <= 0);
@@ -304,7 +314,8 @@ public class PagoService {
         for (Object[] fila : pagos.cajaPorMedio(desde, hasta, EstadoPago.ENTRARON)) {
             porMedio.computeIfAbsent(((Moneda) fila[0]).name(), m -> new ArrayList<>())
                     .add(new PorMedioDePago(((MedioPago) fila[1]).name(),
-                            (BigDecimal) fila[2], ((Number) fila[3]).longValue()));
+                            Importe.normalizar((BigDecimal) fila[2]),
+                            ((Number) fila[3]).longValue()));
         }
 
         // Las dos monedas siempre, aunque una no tenga movimientos: "en dólares
@@ -313,7 +324,9 @@ public class PagoService {
         return List.of(Moneda.values()).stream().map(moneda -> {
             BigDecimal[] m = montos.get(moneda.name());
             long[] c = cantidades.get(moneda.name());
-            return new CajaDelPeriodo(moneda.name(), m[0], m[1], m[0].subtract(m[1]), m[2],
+            return new CajaDelPeriodo(moneda.name(),
+                    Importe.normalizar(m[0]), Importe.normalizar(m[1]),
+                    Importe.normalizar(m[0].subtract(m[1])), Importe.normalizar(m[2]),
                     c[0], c[1], porMedio.getOrDefault(moneda.name(), List.of()));
         }).toList();
     }
@@ -338,7 +351,7 @@ public class PagoService {
 
             return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
                     persona.getEmail(), persona.getTelefono(),
-                    ((Moneda) fila[1]).name(), (BigDecimal) fila[2],
+                    ((Moneda) fila[1]).name(), Importe.normalizar((BigDecimal) fila[2]),
                     ((Number) fila[3]).longValue(), desde, dias, dias > DIAS_PARA_VENCER);
         }).toList();
     }
