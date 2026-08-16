@@ -11,16 +11,72 @@ import { AlumnoPerfilPagina } from './AlumnoPerfilPagina'
  * Lo que estos casos sostienen es sobre todo **qué muestra y qué no**: el perfil
  * lista TODAS las inscripciones (ahí vive el "recorrido formativo, niveles
  * completados" del alcance) mientras que el listado de alumnos filtra por
- * vigentes, y **nombra las tres secciones que todavía no existen** en vez de
- * omitirlas.
+ * vigentes, y **nombra la sección que todavía no existe** en vez de omitirla.
+ *
+ * Eran tres las que faltaban; el 2026-08-16 quedó una sola, porque historial de
+ * clases y estado de cuenta se llenaron al llegar los módulos 2 y 3.
  */
 
 vi.mock('../api/administracion', () => ({
   obtenerAlumno: vi.fn(),
   listarInscripciones: vi.fn(),
+  agenda: vi.fn(),
+  estadoDeCuenta: vi.fn(),
 }))
 
-const { listarInscripciones, obtenerAlumno } = await import('../api/administracion')
+const { agenda, estadoDeCuenta, listarInscripciones, obtenerAlumno } = await import(
+  '../api/administracion'
+)
+
+/** El de hoy, para que el historial —que pide los últimos 45 días— lo alcance. */
+function hoyIso(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function claseDe(idUsuario: number, cambios: Record<string, unknown> = {}) {
+  return {
+    idReserva: 1,
+    idSala: 1,
+    sala: 'Sala 1',
+    idTipoUso: 1,
+    tipoUso: 'Clase de DJ',
+    color: '#e63946',
+    esClase: true,
+    idProfesor: null,
+    profesor: null,
+    fecha: hoyIso(),
+    horaInicio: '10:00:00',
+    horaFin: '11:30:00',
+    estado: 'FINALIZADA',
+    notas: null,
+    idReservaRecupera: null,
+    motivoReprogramacion: null,
+    participantes: [
+      {
+        idParticipacion: 1,
+        idUsuario,
+        nombre: 'Juan',
+        apellido: 'Pérez',
+        idInscripcion: 7,
+        disciplina: 'DJ',
+        estadoAsistencia: 'PRESENTE',
+        observaciones: null,
+      },
+    ],
+    ...cambios,
+  }
+}
+
+const CUENTA_VACIA = {
+  idUsuario: 100,
+  nombre: 'Juan',
+  apellido: 'Pérez',
+  email: 'juan@lajuanita.local',
+  saldos: [],
+  contratos: [],
+  pagos: [],
+}
 
 function alumno(cambios: Partial<AlumnoResumen> = {}): AlumnoResumen {
   return {
@@ -87,6 +143,8 @@ function montar(id: string | number = 10) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(agenda).mockResolvedValue([])
+  vi.mocked(estadoDeCuenta).mockResolvedValue(CUENTA_VACIA as never)
   vi.mocked(obtenerAlumno).mockResolvedValue(alumno())
   vi.mocked(listarInscripciones).mockResolvedValue(paginaDe([inscripcion()]))
 })
@@ -200,13 +258,137 @@ describe('lo que todavía no existe', () => {
    * clases y no lo encuentra no puede distinguir "no está todavía" de "el
    * sistema perdió el dato".
    */
-  it('nombra las tres secciones que faltan y el módulo que las trae', async () => {
+  /**
+   * Ya solo falta uno. Los otros dos se llenaron con los módulos 2 y 3, y este
+   * caso es lo que avisa el día que alguien construya el 5 y se olvide de borrar
+   * el cartel.
+   */
+  it('nombra la única sección que falta y el módulo que la trae', async () => {
     montar()
 
     expect(await screen.findByText('Todavía no disponible')).toBeDefined()
-    expect(screen.getByText('Historial de clases')).toBeDefined()
-    expect(screen.getByText('Estado de cuenta')).toBeDefined()
-    expect(screen.getByText(/Módulo 2 — Horarios y salas/)).toBeDefined()
+    expect(screen.getByText(/Notas de profesores y materiales/)).toBeDefined()
+    expect(screen.getByText(/Módulo 5/)).toBeDefined()
+    // Y los dos que ya existen no se siguen anunciando como pendientes.
+    expect(screen.queryByText(/Módulo 2 — Horarios y salas/)).toBeNull()
+  })
+})
+
+/** Bloque 4, disponible desde el Módulo 2. */
+describe('el historial de clases', () => {
+  it('muestra las clases del alumno con su asistencia', async () => {
+    vi.mocked(agenda).mockResolvedValue([claseDe(100)] as never)
+
+    montar()
+
+    expect(await screen.findByText('Historial de clases')).toBeDefined()
+    expect(await screen.findByText(/Clase de DJ/)).toBeDefined()
+    expect(screen.getByText('Presente')).toBeDefined()
+  })
+
+  /** La agenda es por sala: las clases de otro no son de este alumno. */
+  it('no muestra las clases de otra persona', async () => {
+    vi.mocked(agenda).mockResolvedValue([claseDe(999)] as never)
+
+    montar()
+
+    expect(await screen.findByText('No tiene clases cargadas en este período.')).toBeDefined()
+  })
+
+  /** Una cancelada es parte del historial: explica por qué no bajaron las clases. */
+  it('muestra también las que se cayeron', async () => {
+    vi.mocked(agenda).mockResolvedValue([claseDe(100, { estado: 'CANCELADA' })] as never)
+
+    montar()
+
+    expect(await screen.findByText('Cancelada')).toBeDefined()
+  })
+
+  it('avisa cuando una clase no descuenta del curso', async () => {
+    vi.mocked(agenda).mockResolvedValue([
+      claseDe(100, {
+        participantes: [
+          {
+            idParticipacion: 1,
+            idUsuario: 100,
+            nombre: 'Juan',
+            apellido: 'Pérez',
+            idInscripcion: null,
+            disciplina: null,
+            estadoAsistencia: 'PRESENTE',
+            observaciones: null,
+          },
+        ],
+      }),
+    ] as never)
+
+    montar()
+
+    expect(await screen.findByText('no descuenta clases')).toBeDefined()
+  })
+})
+
+/** Bloque 5, disponible desde el Módulo 3. */
+describe('el estado de cuenta', () => {
+  it('muestra lo pagado por moneda', async () => {
+    vi.mocked(estadoDeCuenta).mockResolvedValue({
+      ...CUENTA_VACIA,
+      saldos: [{ moneda: 'ARS', pagado: 90000, adeudado: 0 }],
+    } as never)
+
+    montar()
+
+    expect(await screen.findByText('Pagado en pesos')).toBeDefined()
+    expect(screen.getByText('$ 90.000,00')).toBeDefined()
+  })
+
+  /** §2.3: dos monedas son dos renglones, nunca una resta. */
+  it('no mezcla pesos con dólares', async () => {
+    vi.mocked(estadoDeCuenta).mockResolvedValue({
+      ...CUENTA_VACIA,
+      saldos: [
+        { moneda: 'ARS', pagado: 90000, adeudado: 0 },
+        { moneda: 'USD', pagado: 150, adeudado: 0 },
+      ],
+    } as never)
+
+    montar()
+
+    expect(await screen.findByText('Pagado en pesos')).toBeDefined()
+    expect(screen.getByText('Pagado en dólares')).toBeDefined()
+  })
+
+  /** §13: sin el 50% cubierto no se le puede dar un horario. */
+  it('avisa cuando a un curso le falta la seña', async () => {
+    vi.mocked(estadoDeCuenta).mockResolvedValue({
+      ...CUENTA_VACIA,
+      saldos: [{ moneda: 'ARS', pagado: 10000, adeudado: 0 }],
+      contratos: [
+        {
+          idInscripcion: 7,
+          disciplina: 'DJ',
+          nivel: 'INICIAL',
+          estado: 'ACTIVA',
+          moneda: 'ARS',
+          precioTotal: 180000,
+          pagado: 10000,
+          saldo: 170000,
+          senado: false,
+          saldado: false,
+        },
+      ],
+    } as never)
+
+    montar()
+
+    expect(await screen.findByText('sin seña')).toBeDefined()
+    expect(screen.getByText('resta $ 170.000,00')).toBeDefined()
+  })
+
+  it('sin movimientos lo dice en vez de mostrar ceros', async () => {
+    montar()
+
+    expect(await screen.findByText('Todavía no tiene movimientos.')).toBeDefined()
   })
 })
 

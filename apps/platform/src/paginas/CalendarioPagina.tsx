@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   agenda,
+  agregarParticipante,
   altaReserva,
   cambiarAsistencia,
   cambiarEstadoReserva,
   editarReserva,
+  listarAlumnos,
+  listarInscripciones,
   listarProfesores,
   listarSalas,
   listarTiposUso,
@@ -13,7 +16,9 @@ import {
 import { ApiError } from '../api/cliente'
 import {
   HORA_APERTURA,
+  type AlumnoResumen,
   type EstadoAsistencia,
+  type InscripcionResumen,
   type ProfesorResumen,
   type ReservaResumen,
   type SalaResumen,
@@ -22,7 +27,7 @@ import {
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
-import { capitalizar } from '../componentes/presentacion'
+import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import {
   diaYMes,
   diasDesde,
@@ -284,6 +289,7 @@ export function CalendarioPagina() {
           onEditar={() => setEditando(elegida)}
           onCancelar={() => void cancelar(elegida)}
           onAsistencia={marcarAsistencia}
+          onAnotado={() => void cargar()}
         />
       )}
 
@@ -439,6 +445,7 @@ function Detalle({
   onEditar,
   onCancelar,
   onAsistencia,
+  onAnotado,
 }: {
   reserva: ReservaResumen
   puedeEscribir: boolean
@@ -446,6 +453,7 @@ function Detalle({
   onEditar: () => void
   onCancelar: () => void
   onAsistencia: (idParticipacion: number, estado: EstadoAsistencia) => void
+  onAnotado: () => void
 }) {
   return (
     <div className="mb-6 rounded-lg border border-linea bg-white p-5">
@@ -509,6 +517,10 @@ function Detalle({
       )}
 
       {puedeEscribir && reserva.estado !== 'CANCELADA' && (
+        <FormularioParticipante reserva={reserva} onAnotado={onAnotado} />
+      )}
+
+      {puedeEscribir && reserva.estado !== 'CANCELADA' && (
         <div className="mt-5 flex gap-3">
           <Boton variante="secundario" onClick={onEditar}>
             Mover
@@ -519,6 +531,157 @@ function Detalle({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Anotar a alguien en la clase.
+ *
+ * <p><b>Es la pieza que le faltaba al Módulo 2</b>, y sin ella el resto del
+ * módulo no servía de nada: el backend expone el endpoint desde el 2026-08-16,
+ * pero ninguna pantalla lo usaba — no se podía tomar lista, las clases restantes
+ * nunca bajaban, y el historial del alumno quedaba vacío para siempre.
+ *
+ * <p><b>La inscripción es lo que hace que la clase descuente del curso.</b> Va
+ * vacía cuando la persona viene sin cursar —un alquiler de cabina— y por eso se
+ * elige aparte del alumno en vez de deducirse: alguien con dos cursos activos
+ * tiene dos, y adivinar cuál descontar es adivinar mal la mitad de las veces.
+ * Cuando tiene una sola, viene puesta.
+ */
+function FormularioParticipante({
+  reserva,
+  onAnotado,
+}: {
+  reserva: ReservaResumen
+  onAnotado: () => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
+  const [cursos, setCursos] = useState<InscripcionResumen[]>([])
+  const [idAlumno, setIdAlumno] = useState('')
+  const [idInscripcion, setIdInscripcion] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    if (!abierto) return
+    listarAlumnos({ pagina: 0 })
+      .then((r) => setAlumnos(r.contenido))
+      .catch(() => setError('No se pudo cargar el listado de alumnos.'))
+  }, [abierto])
+
+  // Solo las vigentes: anotar una clase contra un curso terminado no descuenta
+  // nada real, y ofrecerlo es ofrecer un error de carga.
+  useEffect(() => {
+    if (!idAlumno) {
+      setCursos([])
+      setIdInscripcion('')
+      return
+    }
+    listarInscripciones({ idAlumno: Number(idAlumno), estado: 'ACTIVA' })
+      .then((r) => {
+        setCursos(r.contenido)
+        // Con un solo curso no hay nada que elegir.
+        setIdInscripcion(r.contenido.length === 1 ? String(r.contenido[0].idInscripcion) : '')
+      })
+      .catch(() => setError('No se pudieron cargar las inscripciones.'))
+  }, [idAlumno])
+
+  const alumno = alumnos.find((a) => String(a.idAlumno) === idAlumno)
+
+  async function anotar(evento: React.FormEvent) {
+    evento.preventDefault()
+    if (!alumno) {
+      setError('Elegí a quién anotar.')
+      return
+    }
+
+    setError(null)
+    setEnviando(true)
+    try {
+      await agregarParticipante(reserva.idReserva, {
+        idUsuario: alumno.idUsuario,
+        idInscripcion: idInscripcion ? Number(idInscripcion) : null,
+      })
+      setIdAlumno('')
+      setIdInscripcion('')
+      setAbierto(false)
+      onAnotado()
+    } catch (e) {
+      // Acá caen las reglas de la base: la persona ya anotada, la misma persona
+      // en otra sala a esa hora, y la de `V9` §5 —no consumir más clases que las
+      // contratadas—, que además nombra la salida.
+      setError(e instanceof ApiError ? e.message : 'No se pudo anotar.')
+      setEnviando(false)
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="mt-3 text-xs text-tenue underline underline-offset-2 hover:text-red"
+      >
+        + Anotar a alguien
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={anotar} noValidate className="mt-4 rounded-md border border-linea p-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <CampoSelect
+          etiqueta="Quién"
+          value={idAlumno}
+          onChange={(e) => setIdAlumno(e.target.value)}
+        >
+          <option value="">Elegí un alumno</option>
+          {alumnos.map((a) => (
+            <option key={a.idAlumno} value={a.idAlumno}>
+              {a.apellido}, {a.nombre}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <CampoSelect
+          etiqueta="Descuenta de"
+          value={idInscripcion}
+          onChange={(e) => setIdInscripcion(e.target.value)}
+        >
+          {/* El vacío es una opción válida y no un "elegí algo": una clase que
+              no descuenta de ningún curso es el alquiler de cabina. */}
+          <option value="">No descuenta clases</option>
+          {cursos.map((i) => (
+            <option key={i.idInscripcion} value={i.idInscripcion}>
+              {NOMBRE_DE_DISCIPLINA[i.disciplina]} — le quedan {i.clasesRestantes}
+            </option>
+          ))}
+        </CampoSelect>
+      </div>
+
+      {error && (
+        <div className="mt-3">
+          <Aviso>{error}</Aviso>
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-3">
+        <Boton type="submit" disabled={enviando}>
+          {enviando ? 'Anotando…' : 'Anotar'}
+        </Boton>
+        <Boton
+          type="button"
+          variante="secundario"
+          onClick={() => {
+            setAbierto(false)
+            setError(null)
+          }}
+        >
+          Cancelar
+        </Boton>
+      </div>
+    </form>
   )
 }
 

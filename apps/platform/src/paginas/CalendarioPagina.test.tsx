@@ -18,6 +18,9 @@ import { CalendarioPagina } from './CalendarioPagina'
 
 vi.mock('../api/administracion', () => ({
   agenda: vi.fn(),
+  agregarParticipante: vi.fn(),
+  listarAlumnos: vi.fn(),
+  listarInscripciones: vi.fn(),
   listarSalas: vi.fn(),
   listarTiposUso: vi.fn(),
   listarProfesores: vi.fn(),
@@ -27,9 +30,19 @@ vi.mock('../api/administracion', () => ({
   cambiarAsistencia: vi.fn(),
 }))
 
-const { agenda, listarProfesores, listarSalas, listarTiposUso } = await import(
-  '../api/administracion'
-)
+const {
+  agenda,
+  agregarParticipante,
+  listarAlumnos,
+  listarInscripciones,
+  listarProfesores,
+  listarSalas,
+  listarTiposUso,
+} = await import('../api/administracion')
+
+function pagina<T>(contenido: T[]) {
+  return { contenido, pagina: 0, tamanio: 20, totalElementos: contenido.length, totalPaginas: 1 }
+}
 
 // El lunes de la semana que usan los casos que renderizan.
 const LUNES = lunesDe(hoyIso())
@@ -116,6 +129,8 @@ beforeEach(() => {
   vi.mocked(listarSalas).mockResolvedValue(SALAS)
   vi.mocked(listarTiposUso).mockResolvedValue(TIPOS)
   vi.mocked(listarProfesores).mockResolvedValue([])
+  vi.mocked(listarAlumnos).mockResolvedValue(pagina([]) as never)
+  vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
   vi.mocked(agenda).mockResolvedValue([reserva()])
 })
 
@@ -330,6 +345,99 @@ describe('una reserva ocupa todas sus filas, no solo la de arranque', () => {
 
     expect(await screen.findByText('10:00–11:30')).toBeDefined()
     expect(screen.getByTitle(/sigue desde 10:00/)).toBeDefined()
+  })
+})
+
+/**
+ * <b>La pieza que le faltaba al Módulo 2 y que se agregó el 2026-08-16.</b> El
+ * backend expone `POST /api/reservas/{id}/participantes` desde que se construyó
+ * el módulo, pero ninguna pantalla lo usaba: no se podía anotar a nadie en una
+ * clase, así que no se podía tomar lista, las clases restantes nunca bajaban y
+ * el historial del alumno quedaba vacío para siempre.
+ */
+describe('anotar a alguien en una clase', () => {
+  const ALUMNOS = [
+    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com' },
+  ]
+
+  async function abrirDetalle() {
+    const user = userEvent.setup()
+    vi.mocked(listarAlumnos).mockResolvedValue(pagina(ALUMNOS) as never)
+    montar()
+    await user.click(await screen.findByText('10:00–11:30'))
+    return user
+  }
+
+  it('el detalle ofrece anotar', async () => {
+    await abrirDetalle()
+
+    expect(screen.getByRole('button', { name: '+ Anotar a alguien' })).toBeDefined()
+  })
+
+  /** La inscripción es lo que hace que la clase descuente del curso. */
+  it('anota al alumno descontando de su curso', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
+    )
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
+    const [idReserva, cuerpo] = vi.mocked(agregarParticipante).mock.calls[0]
+    expect(idReserva).toBe(1)
+    // El usuario, no el alumno: `usuario` es la identidad raíz.
+    expect(cuerpo.idUsuario).toBe(30)
+    // Con un solo curso vigente viene puesto: no hay nada que elegir.
+    expect(cuerpo.idInscripcion).toBe(7)
+  })
+
+  /** Un alquiler de cabina no descuenta de ningún curso, y eso es válido. */
+  it('se puede anotar a alguien sin descontar clases', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
+    expect(vi.mocked(agregarParticipante).mock.calls[0][1].idInscripcion).toBeNull()
+  })
+
+  /**
+   * El rechazo más caro del módulo: `V9` §5 impide consumir más clases que las
+   * contratadas, y su mensaje nombra la salida. Tiene que llegar tal cual.
+   */
+  it('muestra el rechazo de la base tal como viene', async () => {
+    const { ApiError } = await import('../api/cliente')
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 0 }]) as never,
+    )
+    vi.mocked(agregarParticipante).mockRejectedValue(
+      new ApiError(409, 'Esa inscripcion ya consumio sus 8 clases contratadas'),
+    )
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+
+    expect(
+      await screen.findByText('Esa inscripcion ya consumio sus 8 clases contratadas'),
+    ).toBeDefined()
+  })
+
+  it('un DIRECTIVO no puede anotar a nadie', async () => {
+    const user = userEvent.setup()
+    montar('DIRECTIVO')
+    await user.click(await screen.findByText('10:00–11:30'))
+
+    expect(screen.queryByRole('button', { name: '+ Anotar a alguien' })).toBeNull()
   })
 })
 

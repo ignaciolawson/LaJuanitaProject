@@ -342,6 +342,32 @@ export function cambiarEstadoReserva(id: number, estado: EstadoReserva) {
   return pedir<ReservaResumen>(`/api/reservas/${id}/estado?estado=${estado}`, { metodo: 'PATCH' })
 }
 
+/** Espeja `AltaParticipanteRequest`. */
+export type AltaParticipante = {
+  idUsuario: number
+  /** Sin esto la clase **no descuenta** del curso. */
+  idInscripcion?: number | null
+  observaciones?: string
+}
+
+/**
+ * Anotar a alguien en una clase.
+ *
+ * **`idInscripcion` es lo que hace que la clase se descuente del curso.** Va
+ * vacío cuando la persona participa sin cursar —un alquiler de cabina—, y cuando
+ * viene, la base exige que esa inscripción sea de esa misma persona: sin ese
+ * control se podía anotar a Juan descontándole la clase a Ana.
+ *
+ * Acá también salta la regla de `V9` §5, "no consumir más clases que las
+ * contratadas", con un mensaje que nombra la salida.
+ */
+export function agregarParticipante(idReserva: number, datos: AltaParticipante) {
+  return pedir<ParticipanteResumen>(`/api/reservas/${idReserva}/participantes`, {
+    metodo: 'POST',
+    cuerpo: datos,
+  })
+}
+
 /** Tomar lista. Queda firmado quién lo hizo, con el usuario del token. */
 export function cambiarAsistencia(idParticipacion: number, estado: EstadoAsistencia) {
   return pedir<ParticipanteResumen>(

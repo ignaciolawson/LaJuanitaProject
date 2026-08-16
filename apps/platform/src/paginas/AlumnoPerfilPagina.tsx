@@ -1,25 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
-import { listarInscripciones, obtenerAlumno } from '../api/administracion'
+import { agenda, estadoDeCuenta, listarInscripciones, obtenerAlumno } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import type { AlumnoResumen, EstadoInscripcion, InscripcionResumen } from '../api/tiposAdmin'
+import type {
+  AlumnoResumen,
+  EstadoDeCuenta as EstadoDeCuentaResumen,
+  EstadoInscripcion,
+  InscripcionResumen,
+  ReservaResumen,
+} from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { Paginado } from '../componentes/Paginado'
+import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import { hoy, sumarDias } from '../componentes/semana'
 
 /**
  * Módulo 1, pantalla 3 — el perfil del alumno.
  *
- * **De los seis bloques que pide `platform.md` §4, esta pantalla puede construir
- * dos.** Datos e inscripciones se arman con endpoints que existen; historial de
- * clases, estado de cuenta y notas/materiales dependen de `reserva`, `pago` y
- * `nota_profesor`, que llegan con los módulos 2, 3 y 5.
+ * **De los seis bloques que pide `platform.md` §4, esta pantalla construye
+ * cinco** (2026-08-16). Eran dos cuando se escribió: historial de clases y
+ * estado de cuenta se llenaron al llegar los módulos 2 y 3, que son los que
+ * traen `reserva` y `pago`. El sexto —notas y materiales— necesita
+ * `nota_profesor` y llega con el Módulo 5.
  *
- * Los tres que faltan **se dibujan igual, dichos**, en vez de omitirse. Es la
- * misma decisión que toma `menu.ts` con las secciones todavía no construidas: un
+ * El que falta **se dibuja igual, dicho**, en vez de omitirse. Es la misma
+ * decisión que toma `menu.ts` con las secciones todavía no construidas: un
  * bloque ausente se lee como que el sistema perdió el dato, y uno que dice
- * "llega con el Módulo 2" se lee como lo que es.
+ * "llega con el Módulo 5" se lee como lo que es.
  */
 export function AlumnoPerfilPagina() {
   const { id } = useParams()
@@ -194,6 +203,9 @@ export function AlumnoPerfilPagina() {
         onCambiar={setPagina}
       />
 
+      {alumno && <HistorialDeClases idUsuario={alumno.idUsuario} />}
+      {alumno && <EstadoDeCuenta idUsuario={alumno.idUsuario} />}
+
       <Pendientes />
     </div>
   )
@@ -244,34 +256,196 @@ function EtiquetaEstado({ estado }: { estado: EstadoInscripcion }) {
 }
 
 /**
- * Los tres bloques del perfil que todavía no existen, nombrados.
+ * Lo que al perfil todavía le falta, nombrado.
  *
- * Se dicen en vez de omitirse porque quien abre el perfil buscando el historial
- * de clases y no lo encuentra no puede distinguir "el sistema no lo tiene
- * todavía" de "el sistema perdió el dato". Cada uno nombra el módulo que lo
- * trae, así el cartel también sirve de estado de avance.
+ * <p>Se dice en vez de omitirse porque quien abre el perfil buscando las notas
+ * del profesor y no las encuentra no puede distinguir "el sistema no las tiene
+ * todavía" de "el sistema perdió el dato". Nombra el módulo que lo trae, así el
+ * cartel también sirve de estado de avance.
+ *
+ * <p><b>Eran tres y quedó uno</b> (2026-08-16): historial de clases y estado de
+ * cuenta se llenaron cuando llegaron los módulos 2 y 3. Cuando llegue el 5, este
+ * bloque se borra entero.
  */
 function Pendientes() {
-  const faltan = [
-    ['Historial de clases', 'Módulo 2 — Horarios y salas'],
-    ['Estado de cuenta', 'Módulo 3 — Pagos'],
-    ['Notas de profesores y materiales', 'Módulo 5 — Portal del profesor'],
-  ]
-
   return (
     <section className="mt-8 rounded-lg border border-dashed border-linea p-5">
       <h3 className="mb-1 text-sm font-semibold text-tenue">Todavía no disponible</h3>
-      <p className="mb-3 text-xs text-apagado">
-        El perfil completo incluye estas tres secciones. Cada una necesita un módulo que
-        todavía no se construyó.
+      <p className="text-sm text-tenue">
+        Notas de profesores y materiales{' '}
+        <span className="text-xs text-apagado">— Módulo 5, Portal del profesor</span>
       </p>
-      <ul className="space-y-1 text-sm text-tenue">
-        {faltan.map(([que, cuando]) => (
-          <li key={que}>
-            {que} <span className="text-xs text-apagado">— {cuando}</span>
-          </li>
-        ))}
-      </ul>
+    </section>
+  )
+}
+
+/**
+ * <b>Bloque 4 del perfil, disponible desde el Módulo 2.</b>
+ *
+ * <p>Las clases del alumno, de la más reciente a la más vieja, incluidas las que
+ * se cayeron: una clase cancelada es parte del historial y además explica por
+ * qué las clases restantes no bajaron.
+ *
+ * <p><b>Se filtra por participante del lado del cliente</b>, y eso es una
+ * decisión con fecha de vencimiento: la agenda es por sala, no por persona, y un
+ * endpoint "las clases de este alumno" es del portal del alumno (Módulo 4).
+ * Mientras tanto el rango acotado es lo que lo hace barato — el backend rechaza
+ * más de 62 días de agenda, y la pregunta del perfil es qué viene y qué pasó
+ * hace poco, no el año entero.
+ */
+function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
+  const [clases, setClases] = useState<ReservaResumen[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    agenda({ desde: sumarDias(hoy(), -45), hasta: sumarDias(hoy(), 15), incluirCanceladas: true })
+      .then((todas) =>
+        setClases(
+          todas
+            .filter((r) => r.participantes.some((p) => p.idUsuario === idUsuario))
+            .sort((a, b) => (a.fecha < b.fecha ? 1 : -1)),
+        ),
+      )
+      .catch((e) =>
+        setError(e instanceof ApiError ? e.message : 'No se pudo cargar el historial.'),
+      )
+      .finally(() => setCargando(false))
+  }, [idUsuario])
+
+  return (
+    <section className="mt-8">
+      <h3 className="mb-3 font-semibold">
+        Historial de clases{' '}
+        <span className="text-sm font-normal text-tenue">(últimos 45 días)</span>
+      </h3>
+
+      {error && <Aviso>{error}</Aviso>}
+      {!error && cargando && <p className="text-sm text-tenue">Cargando…</p>}
+      {!error && !cargando && clases.length === 0 && (
+        <p className="text-sm text-apagado">No tiene clases cargadas en este período.</p>
+      )}
+
+      {clases.length > 0 && (
+        <ul className="divide-y divide-linea rounded-lg border border-linea bg-white">
+          {clases.map((clase) => {
+            const suya = clase.participantes.find((p) => p.idUsuario === idUsuario)!
+            const caida = clase.estado === 'CANCELADA' || clase.estado === 'REPROGRAMADA'
+
+            return (
+              <li
+                key={clase.idReserva}
+                className={`flex items-baseline justify-between gap-4 px-4 py-3 text-sm ${
+                  caida ? 'text-apagado' : ''
+                }`}
+              >
+                <div>
+                  <span className={caida ? 'line-through' : 'font-medium'}>
+                    {fecha(clase.fecha)}
+                  </span>{' '}
+                  <span className="text-tenue">
+                    {clase.horaInicio.slice(0, 5)} · {clase.tipoUso} · {clase.sala}
+                  </span>
+                  {/* Sin inscripción la clase no le descontó nada del curso, y
+                      eso es la mitad de la cuenta de clases restantes. */}
+                  {suya.idInscripcion === null && (
+                    <div className="text-xs text-apagado">no descuenta clases</div>
+                  )}
+                </div>
+                <span className="whitespace-nowrap text-xs text-tenue">
+                  {caida
+                    ? capitalizar(clase.estado)
+                    : capitalizar(suya.estadoAsistencia.replace('_', ' '))}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/**
+ * <b>Bloque 5 del perfil, disponible desde el Módulo 3.</b>
+ *
+ * <p>El resumen, no la pantalla entera: saldos por moneda y lo que resta de cada
+ * curso, con un enlace al estado de cuenta completo. <b>No hay un saldo único</b>
+ * (§3.3) ni se resta entre monedas (§2.3) — acá tampoco, aunque entre en una
+ * línea.
+ */
+function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
+  const [cuenta, setCuenta] = useState<EstadoDeCuentaResumen | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    estadoDeCuenta(idUsuario)
+      .then(setCuenta)
+      .catch((e) =>
+        setError(e instanceof ApiError ? e.message : 'No se pudo cargar el estado de cuenta.'),
+      )
+  }, [idUsuario])
+
+  if (error) return <Aviso>{error}</Aviso>
+  if (!cuenta) return null
+
+  const debiendo = cuenta.contratos.filter((c) => !c.saldado)
+
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex items-baseline justify-between gap-4">
+        <h3 className="font-semibold">Estado de cuenta</h3>
+        <Link
+          to={`/admin/estado-de-cuenta/${idUsuario}`}
+          className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+        >
+          Ver completo
+        </Link>
+      </div>
+
+      {cuenta.saldos.length === 0 ? (
+        <p className="text-sm text-apagado">Todavía no tiene movimientos.</p>
+      ) : (
+        <div className="rounded-lg border border-linea bg-white p-5">
+          <dl className="space-y-1.5 text-sm">
+            {cuenta.saldos.map((s) => (
+              <div key={s.moneda} className="flex items-baseline justify-between gap-3">
+                <dt className="text-tenue">
+                  Pagado en {s.moneda === 'USD' ? 'dólares' : 'pesos'}
+                </dt>
+                <dd className="tabular-nums">{importe(s.pagado, s.moneda)}</dd>
+              </div>
+            ))}
+            {cuenta.saldos
+              .filter((s) => s.adeudado > 0)
+              .map((s) => (
+                <div
+                  key={`debe-${s.moneda}`}
+                  className="flex items-baseline justify-between gap-3 text-red"
+                >
+                  <dt>Debe</dt>
+                  <dd className="tabular-nums">{importe(s.adeudado, s.moneda)}</dd>
+                </div>
+              ))}
+          </dl>
+
+          {debiendo.length > 0 && (
+            <ul className="mt-4 space-y-1 border-t border-linea pt-3 text-xs text-tenue">
+              {debiendo.map((c) => (
+                <li key={c.idInscripcion} className="flex justify-between gap-3">
+                  <span>
+                    {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+                    {/* §13: con el 50% cubierto ya se puede reservar. Es el dato
+                        previo a darle un horario. */}
+                    {!c.senado && <span className="ml-2 text-red">sin seña</span>}
+                  </span>
+                  <span className="tabular-nums">resta {importe(c.saldo, c.moneda)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </section>
   )
 }

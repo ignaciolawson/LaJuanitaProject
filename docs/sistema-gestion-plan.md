@@ -592,9 +592,50 @@ tapó del lado de las clases, con un trigger.
    fila que la base todavía no había aceptado y `pago_anulacion_justificada`
    hablaba al final de la transacción. `flush()` en las dos excepciones.
 
-**Falta:** la migración `V10` con el trigger de la seña —va **última**, cuando la
-pantalla de reservas pueda crear la reserva y su pago en la misma transacción— y
-la sub-sección de venta de equipos.
+**Falta:** la migración `V10` con el trigger de la seña y la sub-sección de venta
+de equipos. Sobre la seña, ver el aviso de abajo: **no es solo escribir la
+migración.**
+
+### ⚠️ Un agujero del Módulo 2 que se tapó el 2026-08-16
+
+**Se lo había dado por cerrado y no se podía anotar a nadie en una clase.** El
+backend expone `POST /api/reservas/{id}/participantes` desde que se construyó el
+módulo, pero **ninguna pantalla lo llamaba** — `administracion.ts` ni siquiera
+tenía la función. Consecuencia en cadena: no se podía tomar lista, las clases
+restantes nunca bajaban de las contratadas, y el historial del alumno iba a estar
+vacío para siempre. Ahora está en el detalle de la clase, en el calendario.
+
+**Cómo se coló:** el backend tenía su test (`ReservaTest` anota participantes por
+la API) y el front tenía el suyo (la grilla dibuja participantes y toma lista),
+pero **ningún caso cruzaba los dos**: nadie preguntó *de dónde sale el primer
+participante*. Cada mitad probaba su lado de un puente que no existía.
+
+### ⛔ La seña (`V10`) tiene un problema de diseño, no de implementación
+
+**§13 asume que la reserva y su pago entran en la misma transacción**, y el
+Módulo 2 **no** se construyó así: el alta crea la `reserva` sin participantes, y
+la gente se anota después, en otro pedido. Está decidido y escrito así en
+`AltaReservaRequest` —*"cargar la reserva y anotar a la gente son dos gestos
+distintos también en la pantalla"*—.
+
+Entonces un `CONSTRAINT TRIGGER … DEFERRABLE` que al COMMIT exija dinero detrás
+de la reserva **rechaza todas las altas de clase**: en ese momento no hay
+participante, y por lo tanto no hay inscripción que la cubra ni pago que la
+apunte. Las tres salidas posibles, para decidir antes de escribir nada:
+
+1. **Que el alta de una clase cree la reserva y su participante juntos.** Es la
+   que respeta §13 tal como está escrita, y cambia el flujo del calendario.
+2. **Que el trigger corra al anotar al participante, no al crear la reserva.**
+   Deja existir una reserva vacía sin plata detrás, que en la práctica es un
+   horario apartado — y eso puede ser exactamente lo que Micaela hace.
+3. **Que la seña se exija solo a los usos que no son clase** (alquiler,
+   grabación), donde el pago sí apunta a la reserva y no hay inscripción de por
+   medio.
+
+**No se implementó ninguna**: elegir es una decisión de negocio sobre cómo se
+carga una clase, y las tres son defendibles. Es la misma disciplina que ya se
+aplicó con la seña dos veces — se posterga con la razón escrita, no se
+implementa a ciegas.
 
 **El calendario, en corto:** días en columnas y horas en filas, con filtro por
 sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
@@ -713,7 +754,7 @@ le sobrevivió a la decisión.
 
 ```
 cd apps/backend && mvn test          # 278
-cd apps/platform && npm test         # 197
+cd apps/platform && npm test         # 210
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 121 + 50
 ```
@@ -735,8 +776,8 @@ cd apps/platform && npx tsc -b       # NO `--noEmit`
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
-| **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend y sus cuatro pantallas. La seña se fue al Módulo 3 |
+| **Módulo 1 — Alumnos** | ✅ **cerrado**, y el perfil pasó de 2 a **5 de sus 6 bloques** al llegar los módulos 2 y 3. El sexto espera el Módulo 5 |
+| **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend, sus cuatro pantallas y **anotar alumnos en una clase**, que faltaba. La seña se fue al Módulo 3 |
 | Módulo 3 — Pagos | 🟡 **backend y 5 de sus 6 pantallas** (2026-08-16). Faltan `V10` con la seña y venta de equipos |
 | Módulos 4 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
