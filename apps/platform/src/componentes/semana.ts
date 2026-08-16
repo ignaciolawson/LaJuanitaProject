@@ -67,6 +67,28 @@ export function horaDe(hora: string): number {
   return Number(hora.slice(0, 2))
 }
 
+/** `10:30:00` → 630. Para comparar horarios sin construir un `Date`. */
+export function minutosDe(hora: string): number {
+  const [h, m] = hora.split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * Si esa reserva ocupa esa fila de la grilla.
+ *
+ * <p><b>Ocupar no es empezar.</b> Las clases duran 1:30 (§13), así que la de las
+ * 10:00 termina 11:30 y se come media fila más. Dibujarla solo en la fila donde
+ * empieza deja la de las 11:00 con pinta de libre — y esa celda, al clickearla,
+ * ofrecía cargar algo que la sala ya tenía ocupado. El fin es exclusivo: una de
+ * 10:00–11:00 no ocupa la fila 11.
+ */
+export function ocupaLaHora(
+  reserva: { horaInicio: string; horaFin: string },
+  hora: number,
+): boolean {
+  return minutosDe(reserva.horaInicio) < (hora + 1) * 60 && minutosDe(reserva.horaFin) > hora * 60
+}
+
 /**
  * Las filas de la grilla: el horario del estudio, **más lo que haga falta** para
  * que ninguna reserva quede sin dibujar.

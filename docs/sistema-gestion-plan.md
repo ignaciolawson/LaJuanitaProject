@@ -534,7 +534,38 @@ mover al Módulo 3.
 sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
 quedaba de un día y lo que hay que ver para no pisarse es la semana. La sala va
 dentro de cada bloque y el filtro da la vista "la semana de la Sala 1". Un clic
-en una celda vacía abre el alta con esa fecha y esa hora puestas.
+en un hueco abre el alta con esa fecha y esa hora puestas.
+
+> **Corregido el 2026-08-16 (segunda pasada).** La primera versión de la grilla
+> se veía como si **no dejara cargar más de una reserva por día**. No era el
+> backend —la API acepta las dos, hay caso— sino dos defectos de la pantalla que
+> se sumaban, y los dos fallaban **en silencio**:
+>
+> - **Una celda era un día por una hora, pero adentro hay tres salas.** Con
+>   cualquier sala ocupada, la celda dejaba de ofrecer el alta: no había forma de
+>   cargar la Sala 2 a las 10:00 si la Sala 1 ya estaba tomada. Ahora la celda se
+>   cierra solo cuando **no queda ninguna sala libre a esa hora**, y cuando queda
+>   una sola, viene puesta en el formulario —la misma idea que `permitidos` con
+>   la matriz de §2.6: no ofrecer lo que la base va a rechazar—.
+> - **Una clase de 1:30 se dibujaba solo en la fila donde arranca.** La de
+>   10:00–11:30 dejaba la fila 11 con pinta de libre, y esa celda ofrecía una
+>   franja que el EXCLUDE iba a rechazar. Ahora la reserva se dibuja en **todas**
+>   las filas que ocupa: entera en la suya, y como continuación (`↳ Sala 1 ·
+>   sigue`) en las demás. Es el mismo principio que ya sostenía `filasDeHoras` —
+>   una reserva que existe y no se ve es el peor error del calendario—, aplicado
+>   al eje que faltaba.
+>
+> Y una tercera, de React, que es la que más se parecía al síntoma reportado:
+> **el formulario de alta no se reapuntaba.** Con el formulario abierto, clickear
+> otro hueco cambiaba el estado pero no la pantalla —`useState` solo corre su
+> inicializador al montar—, así que al guardar se volvía a apuntar a la franja
+> del primer clic y la base rechazaba por solapamiento. Se arregla con un `key`
+> por franja; el de edición tenía el mismo agujero y lleva `key` también.
+>
+> El hueco pasó de ser un `onClick` sobre el `<div>` de la celda a un `<button>`
+> con nombre accesible (`Cargar reserva el 24/08 a las 15:00`), que además se
+> puede alcanzar con el teclado. Los tres defectos quedan fijados por tests
+> (`CalendarioPagina.test.tsx`, front **103 → 110**).
 
 **Cuatro decisiones se cerraron el 2026-08-16** y están en `platform.md`:
 P7 (las clases se cargan **a mano**, no se generan), P37 (una clase **no** exige
@@ -557,7 +588,7 @@ Se cerró el Módulo 1 entero y casi todo el Módulo 2. En orden:
 | 5 | **Módulo 2, backend** — salas, tipos de uso, reservas, participantes, toma de lista | `backend/reserva`, `backend/sala` |
 | 6 | **Calendario semanal** | `/admin/reservas` |
 
-**Las suites pasaron de 108 → 192 (backend) y de 55 → 103 (front).** Las dos SQL
+**Las suites pasaron de 108 → 192 (backend) y de 55 → 110 (front).** Las dos SQL
 siguen en 121 y 50.
 
 **Decisiones que tomó Ignacio ese día**, todas escritas en `platform.md`:
@@ -595,7 +626,7 @@ le sobrevivió a la decisión.
 
 ```
 cd apps/backend && mvn test          # 192
-cd apps/platform && npm test         # 103
+cd apps/platform && npm test         # 110
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 121 + 50
 ```

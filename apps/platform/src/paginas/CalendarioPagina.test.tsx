@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReservaResumen, SalaResumen, TipoUsoResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
-import { filasDeHoras, lunesDe } from '../componentes/semana'
+import { diaYMes, filasDeHoras, lunesDe, ocupaLaHora, sumarDias } from '../componentes/semana'
 import { CalendarioPagina } from './CalendarioPagina'
 
 /**
@@ -62,16 +62,19 @@ function reserva(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
   }
 }
 
-const SALAS: SalaResumen[] = [
-  {
-    idSala: 1,
-    nombre: 'Sala 1',
+function sala(idSala: number, nombre: string, cambios: Partial<SalaResumen> = {}): SalaResumen {
+  return {
+    idSala,
+    nombre,
     descripcion: null,
     activa: true,
-    orden: 1,
+    orden: idSala,
     usosPermitidos: [{ idTipoUso: 1, advertencia: null }],
-  },
-]
+    ...cambios,
+  }
+}
+
+const SALAS: SalaResumen[] = [sala(1, 'Sala 1'), sala(2, 'Sala 2')]
 
 const TIPOS: TipoUsoResumen[] = [
   { idTipoUso: 1, codigo: 'CLASE_DJ', nombre: 'Clase de DJ', esClase: true, color: '#e63946', activo: true },
@@ -233,6 +236,100 @@ describe('la grilla', () => {
     await user.click(await screen.findByText('10:00–11:30'))
 
     expect(await screen.findByText('(no descuenta clases)')).toBeDefined()
+  })
+})
+
+/**
+ * <b>El bug que reportó Ignacio el 2026-08-16:</b> *"solamente dejaba tener 1
+ * reserva por día"*. No era una regla del backend —la API acepta las dos— sino
+ * la grilla, y eran dos defectos que se sumaban: una celda con una sala ocupada
+ * no ofrecía cargar en las otras, y una clase de 1:30 se dibujaba solo en la
+ * fila donde arranca.
+ */
+describe('varias reservas el mismo día', () => {
+  function hueco(dia: string, hora: number) {
+    return `Cargar reserva el ${diaYMes(dia)} a las ${String(hora).padStart(2, '0')}:00`
+  }
+
+  /** La celda es un día por una hora, y adentro hay tres salas. */
+  it('con la Sala 1 ocupada, la celda sigue ofreciendo cargar', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByLabelText(hueco(LUNES, 10)))
+
+    expect(await screen.findByRole('heading', { name: 'Nueva reserva' })).toBeDefined()
+    // Y la única sala libre viene puesta: ofrecer la ocupada es ofrecer un 409.
+    expect(screen.getByLabelText<HTMLSelectElement>('Sala').value).toBe('2')
+  })
+
+  it('sin ninguna sala libre a esa hora no ofrece el hueco', async () => {
+    vi.mocked(agenda).mockResolvedValue([
+      reserva({ idReserva: 1, idSala: 1, sala: 'Sala 1' }),
+      reserva({ idReserva: 2, idSala: 2, sala: 'Sala 2' }),
+    ])
+
+    montar()
+    await screen.findAllByText('10:00–11:30')
+
+    expect(screen.queryByLabelText(hueco(LUNES, 10))).toBeNull()
+  })
+
+  /** Misma definición canónica que el EXCLUDE: una cancelada no ocupa nada. */
+  it('una reserva cancelada no bloquea la sala', async () => {
+    const user = userEvent.setup()
+    vi.mocked(agenda).mockResolvedValue([
+      reserva({ idReserva: 1, idSala: 1, sala: 'Sala 1', estado: 'CANCELADA' }),
+      reserva({ idReserva: 2, idSala: 2, sala: 'Sala 2' }),
+    ])
+
+    montar()
+    await user.click(await screen.findByLabelText(hueco(LUNES, 10)))
+
+    expect(screen.getByLabelText<HTMLSelectElement>('Sala').value).toBe('1')
+  })
+
+  /**
+   * El segundo defecto, y el que hacía ver el sistema como si no dejara cargar:
+   * con el formulario ya abierto, clickear otro hueco no cambiaba nada en
+   * pantalla. Se guardaba contra la franja del primer clic y la base la
+   * rechazaba por solapamiento.
+   */
+  it('clickear otro hueco con el formulario abierto lo reapunta', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByLabelText(hueco(LUNES, 12)))
+    expect(screen.getByLabelText<HTMLInputElement>('Fecha').value).toBe(LUNES)
+    expect(screen.getByLabelText<HTMLInputElement>('Desde').value).toBe('12:00')
+
+    const martes = sumarDias(LUNES, 1)
+    await user.click(screen.getByLabelText(hueco(martes, 15)))
+
+    expect(screen.getByLabelText<HTMLInputElement>('Fecha').value).toBe(martes)
+    expect(screen.getByLabelText<HTMLInputElement>('Desde').value).toBe('15:00')
+  })
+})
+
+describe('una reserva ocupa todas sus filas, no solo la de arranque', () => {
+  it('una clase de 1:30 ocupa también la fila siguiente', () => {
+    const clase = { horaInicio: '10:00:00', horaFin: '11:30:00' }
+
+    expect(ocupaLaHora(clase, 10)).toBe(true)
+    expect(ocupaLaHora(clase, 11)).toBe(true)
+    expect(ocupaLaHora(clase, 12)).toBe(false)
+  })
+
+  it('el fin es exclusivo: 10:00–11:00 no ocupa la fila 11', () => {
+    expect(ocupaLaHora({ horaInicio: '10:00:00', horaFin: '11:00:00' }, 11)).toBe(false)
+  })
+
+  /** Sin esto la fila 11 parecía libre, y era la Sala 1 a las 11 dada dos veces. */
+  it('la grilla dibuja la continuación en la fila que la reserva sigue ocupando', async () => {
+    montar()
+
+    expect(await screen.findByText('10:00–11:30')).toBeDefined()
+    expect(screen.getByTitle(/sigue desde 10:00/)).toBeDefined()
   })
 })
 

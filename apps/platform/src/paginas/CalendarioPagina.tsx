@@ -31,6 +31,7 @@ import {
   horaDe,
   hoy,
   lunesDe,
+  ocupaLaHora,
   rangoLegible,
   sumarDias,
 } from '../componentes/semana'
@@ -45,6 +46,13 @@ const ASISTENCIAS: EstadoAsistencia[] = [
   'AUSENTE_JUSTIFICADO',
   'CANCELADA',
 ]
+
+/**
+ * El hueco al que apunta el alta: día, hora y —si la celda tenía una sola sala
+ * libre— cuál. La sala viaja para no ofrecer un formulario que la base va a
+ * rechazar, igual que hace `permitidos` con la matriz de §2.6.
+ */
+type Franja = { fecha: string; hora: number; idSala?: number }
 
 /**
  * Módulo 2 — el calendario semanal. La pantalla que resuelve el problema que el
@@ -77,7 +85,7 @@ export function CalendarioPagina() {
   const [error, setError] = useState<string | null>(null)
 
   const [elegida, setElegida] = useState<ReservaResumen | null>(null)
-  const [nueva, setNueva] = useState<{ fecha: string; hora: number } | null>(null)
+  const [nueva, setNueva] = useState<Franja | null>(null)
   const [editando, setEditando] = useState<ReservaResumen | null>(null)
 
   const dias = useMemo(() => diasDesde(lunes), [lunes])
@@ -117,6 +125,13 @@ export function CalendarioPagina() {
   }, [cargar])
 
   const horas = useMemo(() => filasDeHoras(reservas), [reservas])
+
+  // Con el filtro puesto, la vista es "la semana de la Sala 1" y el hueco libre
+  // que importa es el de esa sala. Sin filtro, cualquiera de las activas sirve.
+  const salasActivas = useMemo(
+    () => salas.filter((s) => s.activa && (idSala === '' || s.idSala === idSala)),
+    [salas, idSala],
+  )
 
   function mover(semanas: number) {
     setLunes(sumarDias(lunes, semanas * 7))
@@ -164,7 +179,17 @@ export function CalendarioPagina() {
           </p>
         </div>
         {puedeEscribir && (
-          <Boton onClick={() => setNueva({ fecha: dias[0], hora: HORA_APERTURA })}>
+          <Boton
+            onClick={() =>
+              setNueva({
+                // El lunes de una semana que ya empezó es una fecha rara para
+                // proponer; si hoy está a la vista, hoy.
+                fecha: dias.includes(hoy()) ? hoy() : dias[0],
+                hora: HORA_APERTURA,
+                idSala: idSala === '' ? undefined : idSala,
+              })
+            }
+          >
             Nueva reserva
           </Boton>
         )}
@@ -215,6 +240,12 @@ export function CalendarioPagina() {
 
       {nueva && puedeEscribir && (
         <FormularioReserva
+          // El `key` es la corrección, no un detalle de React: sin él el
+          // formulario ya montado se queda con la franja del primer clic, y
+          // clickear otra celda no cambia nada en pantalla. Guardar volvía a
+          // apuntar al hueco viejo y la base rechazaba por solapamiento — que
+          // desde afuera se lee como "no deja cargar más de una reserva".
+          key={`${nueva.fecha}-${nueva.hora}-${nueva.idSala ?? ''}`}
           salas={salas}
           tipos={tipos}
           profesores={profesores}
@@ -229,6 +260,9 @@ export function CalendarioPagina() {
 
       {editando && puedeEscribir && (
         <FormularioReserva
+          // Por lo mismo que el de arriba: elegir otra reserva y darle "Mover"
+          // con el formulario abierto dejaba en pantalla los datos de la primera.
+          key={editando.idReserva}
           salas={salas}
           tipos={tipos}
           profesores={profesores}
@@ -282,24 +316,50 @@ export function CalendarioPagina() {
               </div>
 
               {dias.map((dia) => {
-                const enLaCelda = reservas.filter(
-                  (r) => r.fecha === dia && horaDe(r.horaInicio) === hora,
+                // Ocupan la celda, no "empiezan en" la celda: una clase de 1:30
+                // se come dos filas y la segunda no puede parecer libre.
+                const ocupan = reservas.filter((r) => r.fecha === dia && ocupaLaHora(r, hora))
+                const empiezan = ocupan.filter((r) => horaDe(r.horaInicio) === hora)
+                const vienen = ocupan.filter((r) => horaDe(r.horaInicio) !== hora)
+
+                // Una celda ocupada NO es una celda llena: son tres salas. Lo
+                // que la cierra es que no quede ninguna libre a esa hora.
+                const libres = salasActivas.filter(
+                  (s) => !ocupan.some((r) => r.idSala === s.idSala && !cayo(r)),
                 )
+                const sePuedeCargar = puedeEscribir && libres.length > 0
 
                 return (
-                  <div
-                    key={dia + hora}
-                    className="min-h-14 border-l border-linea p-1"
-                    // Un clic en el vacío abre el alta con esa fecha y esa hora
-                    // puestas. Es la diferencia entre cargar una clase en dos
-                    // clics o en ocho campos.
-                    onClick={() =>
-                      puedeEscribir && enLaCelda.length === 0 && setNueva({ fecha: dia, hora })
-                    }
-                  >
-                    {enLaCelda.map((r) => (
+                  <div key={dia + hora} className="flex min-h-14 flex-col border-l border-linea p-1">
+                    {empiezan.map((r) => (
                       <Bloque key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
                     ))}
+                    {vienen.map((r) => (
+                      <Continuacion key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
+                    ))}
+
+                    {/* El hueco: abre el alta con esa fecha y esa hora puestas.
+                        Es la diferencia entre cargar una clase en dos clics o en
+                        ocho campos. Va como <button> y no como un onClick sobre
+                        la celda porque también hay que poder llegar con el
+                        teclado, y porque una celda ya ocupada por una sala sigue
+                        teniendo hueco en las otras dos. */}
+                    {sePuedeCargar && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setNueva({
+                            fecha: dia,
+                            hora,
+                            idSala: libres.length === 1 ? libres[0].idSala : undefined,
+                          })
+                        }
+                        aria-label={`Cargar reserva el ${diaYMes(dia)} a las ${String(hora).padStart(2, '0')}:00`}
+                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-papel hover:text-apagado focus:bg-papel focus:text-apagado focus:outline-none"
+                      >
+                        + reservar
+                      </button>
+                    )}
                   </div>
                 )
               })}
@@ -319,17 +379,23 @@ export function CalendarioPagina() {
 
 const COLUMNAS = '4rem repeat(7, minmax(0, 1fr))'
 
+/**
+ * La DEFINICIÓN CANÓNICA de `V1`, del lado del front: estos dos estados no
+ * ocupan la sala. Una cancelada se dibuja (con "Ver canceladas") pero no impide
+ * cargar otra cosa encima, que es exactamente lo que hace el EXCLUDE.
+ */
+function cayo(reserva: ReservaResumen): boolean {
+  return reserva.estado === 'CANCELADA' || reserva.estado === 'REPROGRAMADA'
+}
+
 /** Un bloque del calendario. El color lo manda el backend desde `tipo_uso`. */
 function Bloque({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () => void }) {
-  const caida = reserva.estado === 'CANCELADA' || reserva.estado === 'REPROGRAMADA'
+  const caida = cayo(reserva)
 
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        onElegir()
-      }}
+      onClick={onElegir}
       style={{ borderLeftColor: reserva.color ?? '#999' }}
       className={`mb-1 block w-full border-l-4 bg-papel px-1.5 py-1 text-left text-[11px] leading-tight transition-colors hover:bg-bone-2/60 ${
         caida ? 'opacity-50 line-through' : ''
@@ -340,6 +406,28 @@ function Bloque({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () =
       </div>
       <div className="truncate text-tenue">{reserva.sala}</div>
       <div className="truncate text-apagado">{reserva.tipoUso}</div>
+    </button>
+  )
+}
+
+/**
+ * La misma reserva, vista desde una fila que no es la suya: la clase de 10:00 a
+ * 11:30 sigue ocupando la sala a las 11. Se dibuja apagada y sin repetir el
+ * horario para que no se lea como una segunda reserva, pero se dibuja — que la
+ * fila 11 pareciera vacía era lo que hacía ofrecer una franja ya tomada.
+ */
+function Continuacion({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onElegir}
+      style={{ borderLeftColor: reserva.color ?? '#999' }}
+      title={`${reserva.tipoUso} · ${reserva.sala} · sigue desde ${hhmm(reserva.horaInicio)}`}
+      className={`mb-1 block w-full border-l-4 border-dashed bg-papel/50 px-1.5 py-0.5 text-left text-[10px] leading-tight text-apagado transition-colors hover:bg-bone-2/60 ${
+        cayo(reserva) ? 'opacity-50 line-through' : ''
+      }`}
+    >
+      <span className="truncate">↳ {reserva.sala} · sigue</span>
     </button>
   )
 }
@@ -446,13 +534,13 @@ function FormularioReserva({
   salas: SalaResumen[]
   tipos: TipoUsoResumen[]
   profesores: ProfesorResumen[]
-  inicial?: { fecha: string; hora: number }
+  inicial?: Franja
   reserva?: ReservaResumen
   onCerrar: () => void
   onGuardada: () => void
 }) {
   const [datos, setDatos] = useState({
-    idSala: reserva ? String(reserva.idSala) : '',
+    idSala: reserva ? String(reserva.idSala) : inicial?.idSala ? String(inicial.idSala) : '',
     idTipoUso: reserva ? String(reserva.idTipoUso) : '',
     idProfesor: reserva?.idProfesor ? String(reserva.idProfesor) : '',
     fecha: reserva?.fecha ?? inicial?.fecha ?? '',
