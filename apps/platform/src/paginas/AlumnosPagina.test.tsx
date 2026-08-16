@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
@@ -67,10 +68,14 @@ function montar(rol: UsuarioActual['rol']) {
     refrescarUsuario: async () => {},
   }
 
+  // El nombre de cada fila es un `Link` al perfil, y un Link sin Router
+  // arriba explota. No es decorado del test: es la navegación de la pantalla.
   return render(
-    <AuthContext value={contexto}>
-      <AlumnosPagina />
-    </AuthContext>,
+    <MemoryRouter>
+      <AuthContext value={contexto}>
+        <AlumnosPagina />
+      </AuthContext>
+    </MemoryRouter>,
   )
 }
 

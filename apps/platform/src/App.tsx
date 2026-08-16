@@ -4,6 +4,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { RutaProtegida } from './auth/RutaProtegida'
 import { useAuth, useUsuario } from './auth/contexto'
 import { puedeAdministrar } from './layout/menu'
+import { AlumnoPerfilPagina } from './paginas/AlumnoPerfilPagina'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
@@ -39,6 +40,7 @@ function Rutas() {
             no un permiso que falta. Quien autoriza sigue siendo el backend. */}
         <Route element={<SoloAdministracion />}>
           <Route path="/admin/alumnos" element={<AlumnosPagina />} />
+          <Route path="/admin/alumnos/:id" element={<AlumnoPerfilPagina />} />
           <Route path="/admin/inscripciones" element={<InscripcionesPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>

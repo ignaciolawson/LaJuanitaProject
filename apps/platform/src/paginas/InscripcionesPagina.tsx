@@ -24,17 +24,12 @@ import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { puedeOperar } from '../layout/menu'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
 const NIVELES: Nivel[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
 const ESTADOS: EstadoInscripcion[] = ['ACTIVA', 'COMPLETADA', 'PAUSADA', 'CANCELADA']
-
-const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
-  DJ: 'DJ',
-  PRODUCCION: 'Producción',
-  MENTORIA: 'Mentoría',
-}
 
 /**
  * Módulo 1 — el curso contratado de cada alumno.
@@ -300,10 +295,6 @@ function Etiqueta({ estado }: { estado: EstadoInscripcion }) {
       {capitalizar(estado)}
     </span>
   )
-}
-
-function capitalizar(texto: string): string {
-  return texto.charAt(0) + texto.slice(1).toLowerCase()
 }
 
 function precio(monto: number, moneda: Moneda): string {

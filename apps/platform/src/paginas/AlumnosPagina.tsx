@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router'
 
 import {
   altaAlumno,
@@ -17,18 +18,13 @@ import type {
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { useUsuario } from '../auth/contexto'
 import { puedeOperar } from '../layout/menu'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
 const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
-
-const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
-  DJ: 'DJ',
-  PRODUCCION: 'Producción',
-  MENTORIA: 'Mentoría',
-}
 
 /**
  * Módulo 1 — el listado que reemplaza el Notion de Micaela.
@@ -218,9 +214,15 @@ export function AlumnosPagina() {
             {alumnos.map((a) => (
               <tr key={a.idAlumno}>
                 <td className="px-4 py-3">
-                  <span className="font-medium">
+                  {/* El nombre es la puerta al perfil. Va en la fila entera y no
+                      como una columna "Ver" al final: es donde la gente hace
+                      clic sin que se lo digan. */}
+                  <Link
+                    to={`/admin/alumnos/${a.idAlumno}`}
+                    className="font-medium underline-offset-2 transition-colors hover:text-red hover:underline"
+                  >
                     {a.apellido}, {a.nombre}
-                  </span>
+                  </Link>
                   {!a.usuarioActivo && (
                     <span className="ml-2 text-xs text-apagado">(cuenta desactivada)</span>
                   )}

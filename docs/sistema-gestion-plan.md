@@ -523,15 +523,18 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: el perfil del alumno
+### ⏭️ Si estás retomando: arrancá el Módulo 2
 
-**`inscripcion` está terminada de punta a punta** (2026-08-16): backend, pantalla
-en `/admin/inscripciones`, y tests de los dos lados. Lo que queda del Módulo 1
-son dos cosas, y están en
-[`Lo próximo`](#lo-próximo-el-perfil-del-alumno).
+**El Módulo 1 está cerrado hasta donde puede** (2026-08-16): las cuatro pantallas
+existen y lo único que le falta depende de módulos que no se construyeron. El
+detalle está en el recuadro de [Estado real](#estado-real).
+
+**Lo que sigue es el Módulo 2 — Horarios y salas**, y trae consigo las dos reglas
+que quedaron escritas esperándolo. Ver [`Lo próximo`](#lo-próximo-el-módulo-2).
 
 **No hay ninguna decisión tuya pendiente.** La auditoría se cerró el 2026-08-15
-con el backlog en cero, y la seña —que era la última que esperaba— está tomada.
+con el backlog en cero, la seña está decidida, y el filtro por disciplina se
+resolvió el 2026-08-16.
 
 **Y para verificar que arrancás en verde**, los cuatro comandos del CI están al
 final de esta sección.
@@ -541,7 +544,7 @@ final de esta sección.
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | 🟡 **~85%**. Solo falta el perfil del alumno |
+| **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
@@ -552,14 +555,31 @@ buscador, alta y baja lógica, la matriz de permisos por los cuatro roles impues
 en el backend, y **el módulo de inscripciones completo** — alta, listado con
 cuatro filtros, edición, cambio de estado, clases restantes y su pantalla.
 
-**Las suites:** 159 casos en el backend, 76 en el front.
+**Las suites:** 159 casos en el backend, 87 en el front.
 
 | Pantalla del módulo | Estado |
 |---|---|
-| Listado de alumnos | ✅ pagina, busca, edita, **filtra por disciplina y nivel del curso** y muestra qué cursa cada uno (2026-08-16) |
-| Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14) |
-| Inscripciones | ✅ **`/admin/inscripciones`** (2026-08-16) |
-| Perfil del alumno | ❌ — es lo único que falta |
+| 1. Listado de alumnos | ✅ pagina, busca, edita, **filtra por disciplina y nivel del curso** y muestra qué cursa cada uno (2026-08-16) |
+| 2. Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14) |
+| 3. Perfil del alumno | ✅ **`/admin/alumnos/:id`** (2026-08-16) — dos de sus seis bloques; ver abajo |
+| 4. Alta de inscripción | ✅ **`/admin/inscripciones`** (2026-08-16) |
+
+> **Qué significa "cerrado hasta donde puede".** Dos cosas que el alcance pide de
+> este módulo **no se pueden construir todavía**, y no por falta de tiempo:
+>
+> - **El perfil pide seis bloques** (`platform.md` §4, pantalla 3) y tres de ellos
+>   —historial de clases, estado de cuenta, notas y materiales— viven en
+>   `reserva`, `pago` y `nota_profesor`. Llegan con los módulos 2, 3 y 5. La
+>   pantalla **los dibuja igual, nombrados**, con el módulo que los trae: un
+>   bloque ausente se lee como que el sistema perdió el dato, y uno que dice
+>   "llega con el Módulo 2" se lee como lo que es. Es la misma decisión que toma
+>   `menu.ts` con las secciones todavía no construidas.
+> - **El listado pide filtrar por "estado de pago" y marcar "con deuda"** (§4,
+>   pantalla 1). Eso es `pago`, o sea el Módulo 3. Y ojo: §3.3 ya dejó dicho que
+>   *"el estado de pago de Juan" no es un valor único* — cuando se construya, va
+>   por transacción y no como un campo del alumno.
+>
+> **No queda nada del Módulo 1 que dependa solo de sí mismo.**
 
 **Lo que se destrabó el 2026-08-14** (tanda 5 de la remediación): los listados paginan de
 verdad —antes mostraban 20 filas y el encabezado decía el total—, `DIRECTIVO` dejó de ver
@@ -661,16 +681,31 @@ El listado además **muestra** lo que cada uno cursa, no solo filtra por eso: un
 lista filtrada que no dice de qué es cada fila obliga a confiar en que el filtro
 hizo lo que dijo.
 
-### Lo próximo: el perfil del alumno
+### Lo próximo: el Módulo 2
 
-**Es lo único que falta del Módulo 1, y no necesita backend nuevo:** sus datos,
-sus inscripciones —que ya se piden con `GET /api/inscripciones?idAlumno=`— y su
-historial.
+**Horarios y salas** (`platform.md` §5): el calendario semanal por sala, el alta
+de reserva, el bloqueo de sala y el historial de uso. Es el corazón operativo del
+sistema y el que resuelve el problema que el relevamiento marca como más caro —
+Ghezz enterándose tarde de un cambio de sala.
 
-**Después de eso arranca el Módulo 2** (salas y reservas). Dos cosas lo esperan
-ahí, ya escritas y decididas: la migración de la seña (`V9` deja anotada la
-herramienta) y el orden de horas de la reserva — las dos en
-[`platform.md` §5](requirements/platform.md).
+**Tres cosas que ya lo están esperando, todas escritas:**
+
+1. **La migración de la seña (DB-04a).** `V9` deja anotada la herramienta —un
+   `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` que verifica al COMMIT— y
+   la razón por la que no se escribió antes: obliga a que la reserva y su pago
+   entren en la misma transacción, que es una condición sobre pantallas que no
+   existían. **Va con el arranque del módulo, no antes.**
+2. **El orden de horas de la reserva (DB-11).** En `platform.md` §5.
+3. **La base ya sabe casi todo.** El EXCLUDE de solapamiento, la matriz
+   sala×uso como FK compuesta, los triggers de `bloqueo_sala`, nadie en dos salas
+   a la vez (`V9` §1) y no consumir más clases que las contratadas (`V9` §5) ya
+   están puestos. **`reserva` y `reserva_participante` no tienen entidad todavía**
+   — son lo primero a escribir, y con ellas el `InscripcionRepository
+   .contarClasesConsumidas` nativo se puede pasar a JPQL.
+
+**Y algo del Módulo 1 se termina de cerrar recién con el Módulo 3:** el filtro por
+estado de pago del listado y el estado de cuenta del perfil. Los dos están
+dibujados como pendientes en la pantalla, no olvidados.
 
 ### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 

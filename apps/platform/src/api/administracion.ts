@@ -178,6 +178,11 @@ export function listarAlumnos(opciones: {
  * - `idUsuario`: la persona ya tiene cuenta (se registró sola).
  * - `usuarioNuevo`: hay que crearle la cuenta, y vuelve una contraseña temporal.
  */
+/** Un alumno solo, para su perfil. */
+export function obtenerAlumno(id: number) {
+  return pedir<AlumnoResumen>(`/api/alumnos/${id}`)
+}
+
 export function altaAlumno(datos: AltaAlumno) {
   return pedir<AltaAlumnoResultado>('/api/alumnos', { metodo: 'POST', cuerpo: datos })
 }
