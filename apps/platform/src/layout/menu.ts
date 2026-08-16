@@ -78,7 +78,7 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
-      { etiqueta: 'Reservas', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: false },
+      { etiqueta: 'Calendario', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: false },
       {
         etiqueta: 'Dashboard',

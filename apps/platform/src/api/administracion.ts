@@ -8,10 +8,16 @@ import type {
   EstadoInscripcion,
   InscripcionResumen,
   Moneda,
+  EstadoAsistencia,
+  EstadoReserva,
   Nivel,
   NivelIngreso,
   Pagina,
+  ParticipanteResumen,
   ProfesorResumen,
+  ReservaResumen,
+  SalaResumen,
+  TipoUsoResumen,
   UsuarioCreado,
   UsuarioResumen,
 } from './tiposAdmin'
@@ -251,6 +257,88 @@ export function cambiarEstadoInscripcion(id: number, estado: EstadoInscripcion) 
   return pedir<InscripcionResumen>(`/api/inscripciones/${id}/estado?estado=${estado}`, {
     metodo: 'PATCH',
   })
+}
+
+// -- Salas y calendario -----------------------------------------------------
+
+/** Las columnas posibles del calendario, con qué se puede hacer en cada una. */
+export function listarSalas(incluirInactivas = false) {
+  return pedir<SalaResumen[]>(`/api/salas${incluirInactivas ? '?incluirInactivas=true' : ''}`)
+}
+
+/** Los tipos de uso, que son también los colores de la grilla. */
+export function listarTiposUso() {
+  return pedir<TipoUsoResumen[]>('/api/tipos-uso')
+}
+
+/**
+ * La agenda de un rango de fechas.
+ *
+ * **No pagina, y no debe hacerlo:** media semana no es media respuesta, es una
+ * respuesta equivocada. Lo que la acota es el rango — el backend rechaza más de
+ * 62 días.
+ */
+export function agenda(opciones: {
+  desde: string
+  hasta: string
+  idSala?: number
+  idProfesor?: number
+  incluirCanceladas?: boolean
+}) {
+  return pedir<ReservaResumen[]>(
+    `/api/reservas${query({
+      desde: opciones.desde,
+      hasta: opciones.hasta,
+      idSala: opciones.idSala,
+      idProfesor: opciones.idProfesor,
+      incluirCanceladas: opciones.incluirCanceladas ? 'true' : undefined,
+    })}`,
+  )
+}
+
+/** Espeja `AltaReservaRequest`. */
+export type AltaReserva = {
+  idSala: number
+  idTipoUso: number
+  idProfesor?: number | null
+  fecha: string
+  horaInicio: string
+  horaFin: string
+  notas?: string
+  idReservaRecupera?: number
+  motivoReprogramacion?: string
+}
+
+/** Espeja `EdicionReservaRequest`. Sin autor: lo pone el servidor con el token. */
+export type EdicionReserva = {
+  idSala: number
+  idTipoUso: number
+  idProfesor?: number | null
+  fecha: string
+  horaInicio: string
+  horaFin: string
+  notas?: string
+}
+
+export function altaReserva(datos: AltaReserva) {
+  return pedir<ReservaResumen>('/api/reservas', { metodo: 'POST', cuerpo: datos })
+}
+
+export function editarReserva(id: number, datos: EdicionReserva) {
+  return pedir<ReservaResumen>(`/api/reservas/${id}`, { metodo: 'PUT', cuerpo: datos })
+}
+
+/** Cancelar, finalizar o reactivar. Nunca borra: es historial de clases. */
+export function cambiarEstadoReserva(id: number, estado: EstadoReserva) {
+  return pedir<ReservaResumen>(`/api/reservas/${id}/estado?estado=${estado}`, { metodo: 'PATCH' })
+}
+
+/** Tomar lista. Queda firmado quién lo hizo, con el usuario del token. */
+export function cambiarAsistencia(idParticipacion: number, estado: EstadoAsistencia) {
+  return pedir<ParticipanteResumen>(
+    `/api/reservas/participantes/${idParticipacion}?estado=${estado}`,
+    { metodo: 'PATCH' },
+  )
 }
 
 // -- Propio -----------------------------------------------------------------

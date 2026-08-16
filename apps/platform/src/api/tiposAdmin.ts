@@ -64,6 +64,86 @@ export type AltaAlumnoResultado = {
   passwordTemporal: string | null
 }
 
+// -- Salas y calendario -----------------------------------------------------
+
+export type EstadoReserva =
+  | 'CONFIRMADA'
+  | 'MODIFICADA'
+  | 'CANCELADA'
+  | 'REPROGRAMADA'
+  | 'FINALIZADA'
+
+export type EstadoAsistencia =
+  | 'PENDIENTE'
+  | 'PRESENTE'
+  | 'AUSENTE'
+  | 'AUSENTE_JUSTIFICADO'
+  | 'CANCELADA'
+
+/**
+ * Horario del estudio: 10 a 18 (§13, P11).
+ *
+ * La grilla arranca con estas filas, pero **no se limita a ellas**: si hay una
+ * reserva fuera de horario, la vista la incluye igual. Una reserva que existe y
+ * no se dibuja es el peor error posible en un calendario — nadie lo reporta,
+ * simplemente dos personas aparecen en la misma sala.
+ */
+export const HORA_APERTURA = 10
+export const HORA_CIERRE = 18
+
+export type SalaResumen = {
+  idSala: number
+  nombre: string
+  descripcion: string | null
+  activa: boolean
+  orden: number
+  /** La matriz de §2.6: qué se puede hacer en esta sala. */
+  usosPermitidos: { idTipoUso: number; advertencia: string | null }[]
+}
+
+export type TipoUsoResumen = {
+  idTipoUso: number
+  codigo: string
+  nombre: string
+  esClase: boolean
+  color: string | null
+  activo: boolean
+}
+
+export type ParticipanteResumen = {
+  idParticipacion: number
+  idUsuario: number
+  nombre: string
+  apellido: string
+  /** Presente = esta clase le descuenta una de su curso. */
+  idInscripcion: number | null
+  disciplina: Disciplina | null
+  estadoAsistencia: EstadoAsistencia
+  observaciones: string | null
+}
+
+export type ReservaResumen = {
+  idReserva: number
+  idSala: number
+  sala: string
+  idTipoUso: number
+  tipoUso: string
+  /** Sale de `tipo_uso`, no del front: el calendario no inventa colores. */
+  color: string | null
+  esClase: boolean
+  idProfesor: number | null
+  profesor: string | null
+  fecha: string
+  /** `HH:mm:ss` — así serializa un `LocalTime`. */
+  horaInicio: string
+  horaFin: string
+  estado: EstadoReserva
+  notas: string | null
+  idReservaRecupera: number | null
+  motivoReprogramacion: string | null
+  participantes: ParticipanteResumen[]
+}
+
 // -- Profesores -------------------------------------------------------------
 
 /**

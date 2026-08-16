@@ -523,11 +523,18 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: el calendario del Módulo 2
+### ⏭️ Si estás retomando: faltan dos pantallas del Módulo 2
 
-**El backend del Módulo 2 está hecho** (2026-08-16): salas, tipos de uso,
-reservas, participantes y toma de lista, con 33 casos propios. **Falta la
-pantalla**, que es la grilla semanal — la pieza más grande de front del proyecto.
+**El Módulo 2 está casi entero** (2026-08-16): backend completo y **la grilla
+semanal andando** en `/admin/reservas`. Faltan sus otras dos pantallas —
+**bloqueo de sala** e **historial de uso por sala** — y la seña, que se decidió
+mover al Módulo 3.
+
+**El calendario, en corto:** días en columnas y horas en filas, con filtro por
+sala. El alcance pedía salas en columnas; con tres salas entraba, pero la vista
+quedaba de un día y lo que hay que ver para no pisarse es la semana. La sala va
+dentro de cada bloque y el filtro da la vista "la semana de la Sala 1". Un clic
+en una celda vacía abre el alta con esa fecha y esa hora puestas.
 
 **Cuatro decisiones se cerraron el 2026-08-16** y están en `platform.md`:
 P7 (las clases se cargan **a mano**, no se generan), P37 (una clase **no** exige
@@ -555,7 +562,7 @@ final de esta sección.
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado hasta donde puede** (2026-08-16). Lo que falta depende de los módulos 2, 3 y 5 |
-| **Módulo 2 — Horarios y salas** | 🟡 **backend hecho** (2026-08-16, 33 casos). Falta la grilla del calendario |
+| **Módulo 2 — Horarios y salas** | 🟡 **backend + calendario hechos** (2026-08-16). Faltan bloqueo de sala e historial de uso |
 | Módulos 3 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
@@ -724,21 +731,34 @@ tests y los dos con la misma raíz:
   arreglo no fue volver atrás sino dejar de depender de un efecto colateral:
   `InscripcionService.empujarALaBase()`, con el porqué escrito.
 
-### Lo próximo: la grilla del calendario
+### ✅ El calendario — hecho el 2026-08-16
 
-Es la pieza de front más grande del proyecto y **el riesgo #1 del plan**
-(§5: *"el calendario de salas parece fácil y no lo es"*). Salas en columnas,
-franjas horarias en filas, colores por tipo de uso, vista semanal y mensual.
-El horario del estudio es **10:00 a 18:00** (§13, P11), así que la grilla tiene
-ocho filas por día y no veinticuatro.
+`/admin/reservas`. Grilla semanal, navegación entre semanas, filtro por sala,
+detalle de cada reserva con sus participantes y toma de lista, alta y "mover".
+16 casos propios; la suite del front pasó de 87 a 103.
 
-La API ya está: `GET /api/reservas?desde=&hasta=` trae la agenda entera del rango
-con sus participantes, `GET /api/salas` las columnas con qué se puede hacer en
-cada una, y `GET /api/tipos-uso` los colores.
+**Dos cosas que se pueden romper en silencio, y por eso tienen tests aparte** en
+`componentes/semana.ts`:
 
-**Faltan además las otras dos pantallas del módulo:** bloqueo de sala
-(`bloqueo_sala` existe en `V1` y no tiene endpoint todavía) e historial de uso por
-sala y período.
+- **Una reserva fuera del horario del estudio se dibuja igual.** Las filas
+  arrancan en 10–18 (§13, P11) pero se estiran para cubrir lo que haya. Una
+  reserva que existe y no aparece es el peor error posible acá: nadie reporta lo
+  que no ve, y el resultado son dos personas en la misma sala.
+- **Ninguna fecha pasa por UTC.** `new Date('2026-08-16')` se interpreta como UTC
+  y en Argentina devuelve el día anterior; todas las cuentas componen el `Date`
+  por partes. Un calendario corrido un día no avisa.
+
+### Lo próximo: las otras dos pantallas del Módulo 2
+
+- **Bloqueo de sala.** `bloqueo_sala` existe desde `V1` —con sus dos triggers y
+  el EXCLUDE que `V7` arregló— y **no tiene endpoint todavía**. Es lo más chico
+  que queda del módulo.
+- **Historial de uso por sala y período.** La agenda ya acepta `idSala` y
+  `incluirCanceladas`; falta la pantalla que lo presente como reporte.
+
+Después de eso, el **Módulo 3 — Pagos**, que además se lleva dos deudas anotadas:
+la **seña** (la única regla del sistema que todavía vive en un documento) y el
+filtro por estado de pago del listado de alumnos.
 
 ### Referencia: cómo se planteaba el Módulo 2 antes de empezarlo
 
