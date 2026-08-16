@@ -3,7 +3,12 @@ import type { CambioPasswordRequest, Rol } from './tipos'
 import type {
   AltaAlumnoResultado,
   AlumnoResumen,
+  Disciplina,
   EstadoAlumno,
+  EstadoInscripcion,
+  InscripcionResumen,
+  Moneda,
+  Nivel,
   NivelIngreso,
   Pagina,
   UsuarioCreado,
@@ -54,6 +59,48 @@ export type AltaAlumno = {
 export type EdicionAlumno = {
   nivelIngreso?: NivelIngreso | ''
   instagram?: string
+}
+
+/**
+ * Espeja `AltaInscripcionRequest`.
+ *
+ * `clasesContratadas` es opcional a propósito: sin él, el backend pone las
+ * clases de fábrica de la disciplina. La mentoría no tiene, así que ahí es
+ * obligatorio — y el 400 que vuelve lo dice.
+ */
+export type AltaInscripcion = {
+  idAlumno: number
+  idProfesor?: number | null
+  disciplina: Disciplina
+  nivel?: Nivel | ''
+  clasesContratadas?: number
+  precioTotal: number
+  moneda?: Moneda
+  cotizacionDolar?: number | null
+  fechaInicio?: string
+  notas?: string
+}
+
+/**
+ * Espeja `EdicionInscripcionRequest`.
+ *
+ * Sin `idAlumno` ni `disciplina`: cambiar cualquiera de los dos no es corregir
+ * esta inscripción, es otra. Se cancela y se crea la que corresponde.
+ *
+ * `motivoBajaNivel` solo hace falta cuando el nivel **baja**, y no lleva autor
+ * ni fecha: los pone el servidor con el usuario del token. Una firma que el
+ * cliente pudiera dictar no firma nada.
+ */
+export type EdicionInscripcion = {
+  idProfesor?: number | null
+  nivel?: Nivel | ''
+  clasesContratadas: number
+  precioTotal: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  fechaInicio?: string
+  notas?: string
+  motivoBajaNivel?: string
 }
 
 function query(parametros: Record<string, string | number | undefined | null>): string {
@@ -128,6 +175,50 @@ export function editarAlumno(id: number, datos: EdicionAlumno) {
 
 export function cambiarEstadoAlumno(id: number, estado: EstadoAlumno) {
   return pedir<AlumnoResumen>(`/api/alumnos/${id}/estado?estado=${estado}`, { metodo: 'PATCH' })
+}
+
+// -- Inscripciones ----------------------------------------------------------
+
+/**
+ * El listado, con los cuatro filtros del módulo.
+ *
+ * `idProfesor` filtra la agenda de un profe **para administración**. El portal
+ * del profesor —donde cada uno ve la suya— llega con el Módulo 2, y va a salir
+ * de este mismo dato.
+ */
+export function listarInscripciones(opciones: {
+  buscar?: string
+  idAlumno?: number
+  idProfesor?: number
+  disciplina?: Disciplina | ''
+  estado?: EstadoInscripcion | ''
+  pagina?: number
+}) {
+  return pedir<Pagina<InscripcionResumen>>(
+    `/api/inscripciones${query({
+      buscar: opciones.buscar,
+      idAlumno: opciones.idAlumno,
+      idProfesor: opciones.idProfesor,
+      disciplina: opciones.disciplina,
+      estado: opciones.estado,
+      pagina: opciones.pagina,
+    })}`,
+  )
+}
+
+export function altaInscripcion(datos: AltaInscripcion) {
+  return pedir<InscripcionResumen>('/api/inscripciones', { metodo: 'POST', cuerpo: datos })
+}
+
+export function editarInscripcion(id: number, datos: EdicionInscripcion) {
+  return pedir<InscripcionResumen>(`/api/inscripciones/${id}`, { metodo: 'PUT', cuerpo: datos })
+}
+
+/** Completar, pausar o cancelar. Nunca borra: el historial se conserva. */
+export function cambiarEstadoInscripcion(id: number, estado: EstadoInscripcion) {
+  return pedir<InscripcionResumen>(`/api/inscripciones/${id}/estado?estado=${estado}`, {
+    metodo: 'PATCH',
+  })
 }
 
 // -- Propio -----------------------------------------------------------------

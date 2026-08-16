@@ -12,8 +12,9 @@ import com.lajuanita.backend.alumno.NivelIngreso;
  * <p>Trae los datos de la persona aplanados junto a los del alumno: la pantalla
  * los muestra juntos y no tiene sentido obligar al front a cruzar dos listas.
  *
- * <p>Todavía sin disciplina ni nivel actual: eso vive en {@code inscripcion},
- * que es la próxima tanda de este módulo.
+ * <p>Sin disciplina ni nivel actual, y no por falta: eso vive en
+ * {@code inscripcion}, y un alumno puede tener varias. La pantalla que las
+ * necesita las pide aparte, con {@code GET /api/inscripciones?idAlumno=}.
  */
 public record AlumnoResumen(
         Long idAlumno,

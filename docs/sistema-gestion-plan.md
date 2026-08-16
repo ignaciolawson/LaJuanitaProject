@@ -509,7 +509,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-15 (tarde)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-16
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -523,16 +523,15 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ Si estás retomando: arrancá con `inscripcion`
+### ⏭️ Si estás retomando: la pantalla de inscripciones
 
-**No hay nada previo que hacer.** La auditoría se cerró el 2026-08-15, el backlog
-quedó en cero y no hay ninguna decisión tuya pendiente — la seña, que era la
-última, está tomada. Lo que sigue es producto.
+**`inscripcion` ya existe del lado del backend, entera y con tests** (2026-08-16).
+Lo que falta es la pantalla, y con ella los filtros que el listado de alumnos
+todavía no tiene. El detalle de qué quedó hecho y qué no está en
+[`Lo próximo: la pantalla de inscripciones`](#lo-próximo-la-pantalla-de-inscripciones).
 
-**Antes de escribir código, dos lecturas cortas:** la sección
-[`Lo próximo: inscripcion`](#lo-próximo-inscripcion) de acá abajo, y
-[`platform.md` §3.1](requirements/platform.md) (por qué esta tabla es el hueco
-más grande del modelo). Todo lo demás ya está decidido.
+**No hay ninguna decisión tuya pendiente.** La auditoría se cerró el 2026-08-15
+con el backlog en cero, y la seña —que era la última que esperaba— está tomada.
 
 **Y para verificar que arrancás en verde**, los cuatro comandos del CI están al
 final de esta sección.
@@ -542,24 +541,26 @@ final de esta sección.
 | | |
 |---|---|
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
-| **Módulo 1 — Alumnos** | 🟡 **~35%**. Primera tanda hecha, auditada y con tests propios |
+| **Módulo 1 — Alumnos** | 🟡 **~55%**. `inscripcion` cerrada del lado del backend; faltan pantallas |
 | Módulos 2 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
 
 **Qué anda hoy:** login, registro público, alta por administración con contraseña
 temporal, cambio obligatorio de contraseña, listados de personas y de alumnos con
-buscador, alta y baja lógica, y la matriz de permisos por los cuatro roles impuesta
-en el backend.
+buscador, alta y baja lógica, la matriz de permisos por los cuatro roles impuesta
+en el backend, y **la API completa de inscripciones** — alta, listado con cuatro
+filtros, edición, cambio de estado y el cálculo de clases restantes.
 
-**Qué falta del Módulo 1**, casi todo detrás de una sola pieza:
+**Qué falta del Módulo 1.** La pieza que bloqueaba a las cuatro pantallas ya
+está; lo que queda es dibujarlas:
 
 | Pantalla del módulo | Estado |
 |---|---|
-| Listado de alumnos | 🟡 ya pagina y se puede editar; falta filtrar por disciplina, nivel y "con deuda" |
-| Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14). Falta la disciplina, que vive en `inscripcion` |
-| Perfil del alumno | ❌ |
-| Alta de inscripción | ❌ |
+| Listado de alumnos | 🟡 ya pagina y se puede editar; **falta filtrar por disciplina y nivel — ya se puede, sale de `GET /api/inscripciones`** |
+| Alta / edición | ✅ alta con rol, edición de cuenta y de alumno, y reseteo de contraseña (2026-08-14) |
+| Perfil del alumno | ❌ — sus inscripciones ya se piden con `?idAlumno=` |
+| Alta de inscripción | 🟡 **backend hecho y probado (39 casos); falta la pantalla** |
 
 **Lo que se destrabó el 2026-08-14** (tanda 5 de la remediación): los listados paginan de
 verdad —antes mostraban 20 filas y el encabezado decía el total—, `DIRECTIVO` dejó de ver
@@ -577,53 +578,63 @@ identidad raíz— no lo ejercitaba **ningún** test.
 También existe `docs/operacion.md` con el restore ensayado, que es la red del otro lado:
 diciembre incluye migrar el Notion y correr en paralelo con el sistema viejo.
 
-### Lo próximo: `inscripcion`
+### ✅ `inscripcion` — backend cerrado el 2026-08-16
 
-Es la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la 2,
-el contenido de la 3 y toda la 4. También es la que habilita *"el profesor ve solo
-sus alumnos"*, porque la relación profesor↔alumno vive ahí — en
-`inscripcion.id_profesor`, no en el alumno, así el mismo alumno puede tener un
-profe para DJ y otro para mentoría (P6).
+Era la tabla de la que dependen los filtros de la pantalla 1, la disciplina de la
+2, el contenido de la 3 y toda la 4. **Del lado del servidor ya está entera**, con
+39 casos propios (`InscripcionTest`), y la suite del backend pasó de 108 a 147.
 
-**La tabla ya existe** desde `V1__baseline.sql`, con todo lo que hace falta:
+Qué quedó, en el paquete `com.lajuanita.backend.inscripcion`:
 
-```
-inscripcion(id_alumno, id_profesor, disciplina, nivel, clases_contratadas,
-            precio_total, moneda, cotizacion_dolar, fecha_inicio, estado, notas)
-```
+| Pieza | Qué hace |
+|---|---|
+| `Inscripcion` + `InscripcionRepository` | La entidad y el listado con `JOIN FETCH` de alumno, persona y profesor |
+| `InscripcionService` | Alta, listado, edición, cambio de estado |
+| `InscripcionController` | `/api/inscripciones`, con `@PuedeLeerAdministracion` / `@PuedeOperar` |
+| `Disciplina` · `Nivel` · `Moneda` · `EstadoInscripcion` | Los cuatro CHECK del esquema, del lado de Java |
+| Tipos y llamadas en el front | `tiposAdmin.ts` y `administracion.ts` — **respuesta y pedido, los dos** (ARQ-09) |
 
-**No hay nada que preguntar ni que decidir antes de arrancar.** Todo lo que este
-módulo necesita saber está cerrado:
+**Tres decisiones de implementación que no se leen del esquema:**
 
-| Regla | Dónde | Qué dice |
-|---|---|---|
-| Formato del curso | §13 (P34) | 1:30 semanal. **DJ = 8 clases, Producción = 16.** No hay fecha de fin garantizada: termina cuando se dictaron todas |
-| Una inscripción por disciplina | P3 | Varias activas a la vez sí (DJ + mentoría); **nunca dos niveles de la misma disciplina**. Ya impuesto: índice único parcial |
-| Profesor asignado | P6 | Explícito, en `inscripcion.id_profesor`. Que otro cubra una clase suelta **no** transfiere el alumno |
-| Alumnos informales de Ghezz | §13 (P4) | **Entran** como alumnos normales |
-| Nivelación | §13 (P5) | La hace el formulario de la landing; Micaela corrige después |
-| Precio | §1 | **Se paga todo antes de empezar. No hay cuotas.** La única excepción del sistema es M&M |
-| Clases restantes | §3.1 | **Se calculan, no se guardan** |
+- **Las clases de fábrica las pone el servidor, no el formulario.** Un alta que
+  no dice `clasesContratadas` recibe 8 en DJ y 16 en Producción (§13, P34). La
+  mentoría no tiene número estándar y ahí el alta exige decirlo. El front tiene la
+  misma tabla en `CLASES_ESTANDAR` **para mostrarla**, no para decidirla: si las
+  dos se separan, la que vale es la de Java.
+- **Las clases restantes se calculan en cada lectura**, con una consulta nativa
+  contra `reserva_participante` — `reserva` no tiene entidad hasta el Módulo 2.
+  Esa consulta **es la misma definición de "clase consumida" que `V9` §5**, y
+  tienen que moverse juntas: si se separan, la pantalla dice que quedan tres
+  clases y la base rechaza la siguiente.
+- **La firma de una baja de nivel la pone el servidor.** Del pedido viene solo el
+  motivo; el autor sale del token y la fecha del reloj. Una firma que el cliente
+  pudiera dictar no firma nada.
 
-**Y la base ya cuida sola tres cosas** que este módulo tendría que vigilar a mano,
-cortesía de `V9`: no se consumen más clases que las contratadas, el nivel no
-retrocede sin autor y motivo, y nadie está en dos salas a la vez.
+**Lo que se creía que había que refactorizar y no hizo falta:** este documento
+avisaba que `alumno.disciplina` y `alumno.nivel_actual` eran campos sueltos que
+`inscripcion` iba a romper. **No existían** — ni en la entidad `Alumno` ni en
+`V1`, que ya dice en un comentario que esos dos campos viven en `inscripcion`. La
+decisión estaba tomada desde el baseline y el aviso sobrevivió a la decisión.
+`AlumnoTest` sigue siendo la red que hacía falta, por otros motivos.
 
-**Por dónde entrar, siguiendo el patrón que ya está armado en `alumno`:**
+### Lo próximo: la pantalla de inscripciones
 
-1. `Inscripcion` (entidad) + `InscripcionRepository`, al lado de `Alumno`.
-2. `InscripcionService` **con sus tests desde el principio** — el módulo 1 se
-   escribió sin tests propios y hubo que agregarlos después (`AlumnoTest`, QA-01).
-3. `InscripcionController` con `@PuedeLeerAdministracion` / `@PuedeOperar`, y
-   `Autoridades.esAdmin()` si hace falta distinguir. **No escribas `rol == …`
-   suelto.**
-4. Tipos en `apps/platform/src/api/` — **respuesta y pedido**, los dos (ARQ-09).
-5. Pantalla 4 del Módulo 1 (*Alta de inscripción*) y, con eso, los filtros por
-   disciplina y nivel que le faltan al listado.
+**Es trabajo de front, y nada lo bloquea.** La API está y las llamadas ya están
+tipadas en `apps/platform/src/api/administracion.ts`.
 
-**Ojo con el refactor que trae:** `alumno.disciplina` y `alumno.nivel_actual` son
-campos sueltos hoy y se rompen apenas alguien cursa DJ y producción a la vez. Ese
-es el cambio que `AlumnoTest` está cubriendo — por eso se escribió antes.
+1. **Pantalla 4 — Alta de inscripción.** El patrón está en `AlumnosPagina.tsx`:
+   listado con buscador, paginado y formulario. Ojo con dos cosas que la pantalla
+   sí tiene que resolver: mostrar las clases de fábrica al elegir disciplina (y
+   pedirlas a mano en mentoría), y pedir el motivo cuando el nivel baja — el
+   backend devuelve 400 si falta, pero avisar antes es mejor que rebotar.
+2. **Los filtros por disciplina y nivel del listado de alumnos**, que era lo que
+   esperaba a esta tabla.
+3. **Perfil del alumno**, que es este mismo listado con `?idAlumno=`.
+
+**Después de eso, el Módulo 1 queda cerrado y arranca el Módulo 2** (salas y
+reservas). Dos cosas lo esperan ahí, ya escritas y decididas: la migración de la
+seña (`V9` deja anotada la herramienta) y el orden de horas de la reserva — las
+dos en [`platform.md` §5](requirements/platform.md).
 
 ### ✅ Revisión del desarrollador — cerrada el 2026-08-14
 

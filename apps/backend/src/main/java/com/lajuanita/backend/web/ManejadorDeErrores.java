@@ -25,7 +25,6 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import com.lajuanita.backend.alumno.SolicitudInvalidaException;
 import com.lajuanita.backend.auth.CredencialesInvalidasException;
 import com.lajuanita.backend.auth.DemasiadosIntentosException;
 import com.lajuanita.backend.auth.PasswordTemporalVencidaException;
@@ -33,6 +32,7 @@ import com.lajuanita.backend.auth.SesionInvalidaException;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.OperacionNoPermitidaException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 
 /**
  * Traduce las excepciones a respuestas JSON con forma estable, para que el
@@ -82,7 +82,9 @@ public class ManejadorDeErrores {
             Map.entry("pago_monto_positivo", "El monto tiene que ser mayor a cero."),
             Map.entry("pago_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),
             Map.entry("inscripcion_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),
-            Map.entry("inscripcion_clases_positivas", "La cantidad de clases tiene que ser mayor a cero."));
+            Map.entry("inscripcion_clases_positivas", "La cantidad de clases tiene que ser mayor a cero."),
+            Map.entry("inscripcion_una_activa_por_disciplina",
+                    "Ese alumno ya tiene una inscripción activa en esa disciplina."));
 
     /**
      * Postgres pone el nombre de la constraint entre comillas en el texto del

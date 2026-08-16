@@ -42,4 +42,21 @@ public final class Autoridades {
         return quienPide.getAuthorities().stream()
                 .anyMatch(autoridad -> autoridad.getAuthority().equals("ROLE_ADMIN"));
     }
+
+    /**
+     * Quién está pidiendo, por id.
+     *
+     * <p>El nombre de la autenticación es el {@code sub} del token, que
+     * {@code TokenService} escribió con el id del usuario. Sale de ahí y nunca
+     * del cuerpo ni de la URL: es lo que sostiene tanto "nadie puede sacarse a
+     * sí mismo del sistema" como la firma de una baja de nivel — una firma que
+     * el cliente pudiera elegir no firma nada.
+     *
+     * <p>Estaba como método privado en {@code UsuarioController} y subió acá al
+     * necesitarla el segundo controller, que es el mismo camino que ya recorrió
+     * {@link #esAdmin} (ARQ-06).
+     */
+    public static Long idDe(Authentication quienPide) {
+        return Long.valueOf(quienPide.getName());
+    }
 }

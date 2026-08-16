@@ -29,9 +29,13 @@ import jakarta.validation.Valid;
 /**
  * Módulo 1 — Gestión de Alumnos. Reemplaza el Notion de Micaela.
  *
- * <p>Todavía sin inscripciones (disciplina, nivel, precio, profesor asignado),
- * que son la próxima tanda. Por eso tampoco existe acá "el profesor ve solo sus
- * alumnos": esa relación vive justamente en {@code inscripcion}.
+ * <p>La disciplina, el nivel, el precio y el profesor asignado <b>no están acá</b>:
+ * viven en {@code inscripcion}, que tiene su propio controller desde el
+ * 2026-08-16. Un alumno puede cursar DJ y producción a la vez, así que ninguno
+ * de esos cuatro es un campo del alumno.
+ *
+ * <p>Por lo mismo, "el profesor ve solo sus alumnos" tampoco sale de acá: esa
+ * relación es {@code inscripcion.id_profesor}.
  */
 @RestController
 @RequestMapping("/api/alumnos")

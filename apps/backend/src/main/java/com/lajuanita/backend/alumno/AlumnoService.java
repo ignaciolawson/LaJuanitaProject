@@ -11,6 +11,7 @@ import com.lajuanita.backend.alumno.dto.EdicionAlumnoRequest;
 import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
 import com.lajuanita.backend.usuario.UsuarioService;

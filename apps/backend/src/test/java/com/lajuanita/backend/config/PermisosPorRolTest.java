@@ -65,6 +65,8 @@ class PermisosPorRolTest {
                     .andExpect(status().isOk());
             mvc.perform(get("/api/usuarios").header("Authorization", credencial))
                     .andExpect(status().isOk());
+            mvc.perform(get("/api/inscripciones").header("Authorization", credencial))
+                    .andExpect(status().isOk());
         }
     }
 
@@ -75,6 +77,8 @@ class PermisosPorRolTest {
         mvc.perform(get("/api/alumnos").header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/usuarios").header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/inscripciones").header("Authorization", credencial))
                 .andExpect(status().isForbidden());
     }
 
@@ -94,6 +98,8 @@ class PermisosPorRolTest {
         mvc.perform(altaDeAlumno().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(altaDeUsuario().header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+        mvc.perform(altaDeInscripcion().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/usuarios/1")
                 .header("Authorization", credencial)
@@ -121,6 +127,8 @@ class PermisosPorRolTest {
         mvc.perform(altaDeAlumno().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
         mvc.perform(altaDeUsuario().header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+        mvc.perform(altaDeInscripcion().header("Authorization", credencial))
                 .andExpect(status().isForbidden());
     }
 
@@ -315,6 +323,21 @@ class PermisosPorRolTest {
                         {"usuarioNuevo":{"nombre":"Alumno","apellido":"Prueba","email":"%s"},
                          "nivelIngreso":"INICIAL"}
                         """.formatted(emailNuevo()));
+    }
+
+    /**
+     * El cuerpo tiene que pasar Bean Validation aunque el pedido vaya a
+     * rechazarse por rol: los argumentos se resuelven antes de que corra el
+     * {@code @PreAuthorize}, así que un cuerpo incompleto devolvería 400 y el
+     * caso no probaría nada sobre permisos. El alumno 1 puede no existir — nunca
+     * se llega al servicio.
+     */
+    private MockHttpServletRequestBuilder altaDeInscripcion() {
+        return post("/api/inscripciones")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idAlumno":1,"disciplina":"DJ","precioTotal":180000}
+                        """);
     }
 
     private MockHttpServletRequestBuilder altaDeUsuario() {

@@ -80,7 +80,7 @@ public class UsuarioController {
     public UsuarioResumen editar(@PathVariable Long id,
             @Valid @RequestBody EdicionUsuarioRequest solicitud,
             Authentication quienPide) {
-        return usuarios.editar(id, solicitud, Autoridades.esAdmin(quienPide), idDe(quienPide));
+        return usuarios.editar(id, solicitud, Autoridades.esAdmin(quienPide), Autoridades.idDe(quienPide));
     }
 
     /**
@@ -93,7 +93,7 @@ public class UsuarioController {
     @PostMapping("/{id}/password-temporal")
     @PuedeOperar
     public UsuarioCreado resetearPassword(@PathVariable Long id, Authentication quienPide) {
-        return usuarios.resetearPassword(id, Autoridades.esAdmin(quienPide), idDe(quienPide));
+        return usuarios.resetearPassword(id, Autoridades.esAdmin(quienPide), Autoridades.idDe(quienPide));
     }
 
     /** Baja o alta lógica. Nunca borrado: el historial se conserva siempre. */
@@ -102,14 +102,7 @@ public class UsuarioController {
     public UsuarioResumen cambiarActivo(@PathVariable Long id,
             @RequestParam boolean activo,
             Authentication quienPide) {
-        return usuarios.cambiarActivo(id, activo, Autoridades.esAdmin(quienPide), idDe(quienPide));
-    }
-
-    // -------------------------------------------------------------------------
-
-    /** El id sale del `sub` del token, nunca de la URL ni del cuerpo. */
-    private Long idDe(Authentication quienPide) {
-        return Long.valueOf(quienPide.getName());
+        return usuarios.cambiarActivo(id, activo, Autoridades.esAdmin(quienPide), Autoridades.idDe(quienPide));
     }
 
 }
