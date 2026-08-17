@@ -404,6 +404,33 @@ export type EgresoResumen = {
   fechaRegistro: string
 }
 
+/**
+ * Una venta de equipamiento (§6, pantalla 6). Espeja `VentaResumen`.
+ *
+ * **El estudio no tiene stock propio**: se vende contra el de Pioneer, así que
+ * esto no es un inventario sino el registro de una operación que ya pasó.
+ */
+export type VentaResumen = {
+  idVenta: number
+  /** El nombre de la cuenta si la hay; si no, el texto libre. */
+  comprador: string
+  idUsuarioComprador: number | null
+  contactoCompradorExterno: string | null
+  vendedor: string
+  idUsuarioVendedor: number
+  categoria: string | null
+  marca: string | null
+  modeloEquipo: string
+  precio: number
+  moneda: Moneda
+  cotizacionDolar: number | null
+  fechaVenta: string
+  notas: string | null
+  fechaRegistro: string
+  /** Si ya entró la plata. La venta y su cobro son dos hechos. */
+  cobrada: boolean
+}
+
 /** A partir de acá una deuda está vencida (§6). Espeja `DIAS_PARA_VENCER`. */
 export const DIAS_PARA_VENCER = 7
 

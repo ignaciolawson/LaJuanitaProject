@@ -99,6 +99,25 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             @Param("entraron") Iterable<EstadoPago> entraron);
 
     /**
+     * Cuáles de estas ventas ya tienen la plata adentro.
+     *
+     * <p>Una sola consulta para la página entera, no una por fila: con veinte
+     * ventas por página lo segundo son veinte viajes para pintar una etiqueta.
+     *
+     * <p>Usa {@code ENTRARON} y no "distinto de ANULADO", que es la misma lista
+     * escrita de otra forma y se despega el día que aparezca un estado nuevo — la
+     * definición de "plata que entró" vive en {@link EstadoPago#ENTRARON} y en
+     * ningún otro lado.
+     */
+    @Query("""
+            SELECT DISTINCT p.idVentaEquipo
+            FROM Pago p
+            WHERE p.idVentaEquipo IN :ids AND p.estadoPago IN :entraron
+            """)
+    List<Long> ventasConPago(@Param("ids") List<Long> ids,
+            @Param("entraron") Iterable<EstadoPago> entraron);
+
+    /**
      * La caja del período: cuánto entró y cuánto se anotó como deuda, por moneda.
      *
      * @return filas {@code [moneda, ingresos, cantidad, adeudado]}

@@ -368,13 +368,21 @@ function PedirMotivo({
 /**
  * Registrar un pago.
  *
- * <p><b>Hoy solo salda inscripciones.</b> Los otros tres destinos que el esquema
- * admite —reserva, trabajo de mastering, venta de equipo— necesitan un precio o
- * un módulo que no existe: el alquiler de cabina no tiene tarifa en el sistema
- * (P13) y los otros dos llegan con los módulos 6 y 3-ventas. El selector se
- * dibuja igual, con lo que falta nombrado, por lo mismo que `menu.ts` con las
- * secciones no construidas: una opción ausente se lee como que el sistema no
- * puede, y una nombrada dice que todavía no.
+ * <p><b>Hoy solo salda inscripciones</b>, y los otros tres destinos que el esquema
+ * admite se cobran cada uno desde su propia pantalla, en la misma transacción que
+ * crea lo que saldan:
+ *
+ * <ul>
+ *   <li><b>Reserva</b> — la seña, desde el calendario (`V10` la exige al COMMIT,
+ *       así que no puede llegar después).
+ *   <li><b>Venta de equipo</b> — el cobro, desde `/admin/ventas` (2026-08-17).
+ *   <li><b>Trabajo de mastering</b> — todavía no existe: llega con el Módulo 6.
+ * </ul>
+ *
+ * <p><b>Lo que eso deja abierto, y conviene saberlo:</b> una venta cargada sin
+ * cobro no tiene después por dónde cobrarse, porque esta pantalla no acepta ese
+ * destino. Aceptarlo es rehacer este formulario —hoy es alumno → sus
+ * inscripciones— y nadie pidió todavía la venta en cuotas.
  */
 function FormularioPago({
   onCerrar,

@@ -11,6 +11,7 @@ import { CajaPagina } from './paginas/CajaPagina'
 import { CalendarioPagina } from './paginas/CalendarioPagina'
 import { DeudoresPagina } from './paginas/DeudoresPagina'
 import { EgresosPagina } from './paginas/EgresosPagina'
+import { VentasPagina } from './paginas/VentasPagina'
 import { EstadoDeCuentaPagina } from './paginas/EstadoDeCuentaPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
@@ -58,6 +59,7 @@ function Rutas() {
           <Route path="/admin/caja" element={<CajaPagina />} />
           <Route path="/admin/deudores" element={<DeudoresPagina />} />
           <Route path="/admin/egresos" element={<EgresosPagina />} />
+          <Route path="/admin/ventas" element={<VentasPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>

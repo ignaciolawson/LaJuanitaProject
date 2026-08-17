@@ -96,6 +96,12 @@ const MENU: GrupoMenu[] = [
       { etiqueta: 'Deudores', ruta: '/admin/deudores', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Egresos', ruta: '/admin/egresos', visible: puedeAdministrar, disponible: true },
       {
+        etiqueta: 'Venta de equipos',
+        ruta: '/admin/ventas',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
         etiqueta: 'Dashboard',
         ruta: '/admin/dashboard',
         // El dashboard ejecutivo completo (facturación) es solo de dirección.

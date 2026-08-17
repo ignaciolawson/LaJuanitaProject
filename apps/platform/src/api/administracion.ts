@@ -29,6 +29,7 @@ import type {
   UsoDeSala,
   UsuarioCreado,
   UsuarioResumen,
+  VentaResumen,
 } from './tiposAdmin'
 
 /** Los pedidos de las pantallas de administración, en un solo lugar. */
@@ -557,6 +558,49 @@ export function listarEgresos(opciones: {
 
 export function registrarEgreso(datos: AltaEgreso) {
   return pedir<EgresoResumen>('/api/egresos', { metodo: 'POST', cuerpo: datos })
+}
+
+// -- Venta de equipos (§6, pantalla 6) ---------------------------------------
+
+/** Espeja `AltaVentaRequest`. */
+export type AltaVenta = {
+  /** Cuando el comprador tiene cuenta. Si no, va el nombre de abajo. */
+  idUsuarioComprador?: number | null
+  nombreCompradorExterno?: string
+  contactoCompradorExterno?: string
+  idUsuarioVendedor: number
+  categoria?: string
+  marca?: string
+  modeloEquipo: string
+  precio: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  fechaVenta?: string
+  notas?: string
+  /**
+   * Cómo se cobró, **si ya se cobró**.
+   *
+   * Presente, se registra el pago por el precio total en la misma transacción —
+   * el caso normal de un proceso ad hoc: se vendió y se cobró. Ausente, la venta
+   * queda sin cobrar y el listado lo dice.
+   *
+   * Necesita que el comprador tenga cuenta: `pago.id_usuario` es NOT NULL y no
+   * hay dónde colgar el pago de alguien que no está en el sistema.
+   */
+  medioPago?: MedioPago
+}
+
+export function listarVentas(opciones: {
+  buscar?: string
+  desde?: string
+  hasta?: string
+  pagina?: number
+}) {
+  return pedir<Pagina<VentaResumen>>(`/api/ventas${query({ ...opciones })}`)
+}
+
+export function registrarVenta(datos: AltaVenta) {
+  return pedir<VentaResumen>('/api/ventas', { metodo: 'POST', cuerpo: datos })
 }
 
 // -- Propio -----------------------------------------------------------------

@@ -368,6 +368,11 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 
 *Unifica el Excel financiero con el Notion operativo.*
 
+> **✅ CERRADO el 2026-08-17.** Las seis pantallas existen, más la seña (`V10`).
+> Lo que queda abierto a propósito está listado en `sistema-gestion-plan.md` §6d —
+> son tres cosas y las tres son la misma decisión: no construir una operación
+> irreversible que nadie pidió.
+
 ### Pantallas
 1. **Registrar pago** — a qué corresponde, monto, moneda, cotización, medio, descuento + justificación, comprobante.
 2. **Estado de cuenta por persona** — qué contrató, qué pagó, qué debe.

@@ -528,16 +528,35 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 **Módulos 1 y 2 cerrados. El 3 está a dos cosas de cerrar**, y las dos están
 decididas y escritas. Nada está bloqueado esperando una respuesta tuya.
 
-**✅ LA SEÑA ESTÁ CERRADA (2026-08-17).** Era la última regla del sistema que
-vivía en un documento y no en el código. **Al Módulo 3 le queda una sola cosa:**
+## ✅ MÓDULO 3 CERRADO — 2026-08-17
 
-| Qué | Dónde |
-|---|---|
-| **Venta de equipos** | La sexta y última pantalla de §6: modelo, marca, precio, comprador (con o sin cuenta), vendedor. No depende de nada de lo anterior |
+**Sus seis pantallas existen, y la seña ya no vive en un documento sino en la
+base.** Con esto quedan cerrados los módulos 1, 2 y 3. **Lo próximo es el
+Módulo 4 (Portal del alumno)**, según el orden de fases de §5.
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Las cuatro suites: **288 backend · 217 front · 127 + 50
+`npm run dev:platform`. Las cuatro suites: **303 backend · 231 front · 127 + 50
 SQL**.
+
+> **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
+> una reserva vacía. Una **clase** entra con su alumno y su inscripción; un
+> **alquiler o una grabación** entran con su seña. Los dos campos son opcionales en
+> el DTO y ninguno lo es en la práctica — el que corresponde según el tipo de uso
+> lo exige la pantalla, y el que falte lo rechaza `V10` al COMMIT.
+
+> **Lo único que el Módulo 3 deja abierto a propósito**, y las tres cosas son la
+> misma decisión —*no construir una operación irreversible que nadie pidió*—:
+>
+> - **`egreso` y `venta_equipo` no se pueden anular ni corregir.** `V9` les dio las
+>   columnas de anulación, pero eso fue para poder prohibirles el DELETE; la
+>   pantalla de anulación llega cuando alguien la pida. **La consecuencia es real:
+>   un egreso o una venta mal cargados hoy quedan así.**
+> - **Una venta cargada sin cobro no tiene después por dónde cobrarse.** El cobro
+>   entra junto con la venta; `/admin/pagos` sigue saldando solo inscripciones y
+>   aceptar el otro destino es rehacer ese formulario. Nadie pidió venta en cuotas.
+> - **La seña se puede romper después de creada**, anulando el pago: el trigger de
+>   `V10` corre solo al INSERT de `reserva`. Cerrarlo es una decisión sobre
+>   devoluciones.
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
 > una reserva vacía. Una **clase** entra con su alumno y su inscripción; un
@@ -582,7 +601,7 @@ una clase**, que faltaba y se detectó tarde. La seña se movió al Módulo 3.
 última regla del sistema que vive en un documento y no en el código**. La ficha
 completa está en `platform.md` §13 y la herramienta, en la cabecera de `V9`.
 
-### 💰 Módulo 3 — Pagos · empezado el 2026-08-16
+### 💰 Módulo 3 — Pagos · empezado el 2026-08-16, **cerrado el 2026-08-17**
 
 **Backend completo** (`backend/pago`) y **cinco de sus seis pantallas**:
 `/admin/pagos`, `/admin/estado-de-cuenta/:idUsuario`, `/admin/caja`,
@@ -626,9 +645,20 @@ tapó del lado de las clases, con un trigger.
    fila que la base todavía no había aceptado y `pago_anulacion_justificada`
    hablaba al final de la transacción. `flush()` en las dos excepciones.
 
-**Falta:** la migración `V10` con el trigger de la seña y la sub-sección de venta
-de equipos. Sobre la seña, ver el aviso de abajo: **no es solo escribir la
-migración.**
+**Cerrado el 2026-08-17** con la seña (`V10`) y la **venta de equipos**
+(`/admin/ventas`). Tres cosas de esa última pantalla que no se leen del esquema:
+
+- **No es un inventario.** No hay stock propio —se vende contra el de Pioneer
+  (§1)— así que no hay unidades que descontar ni artículos que dar de alta antes
+  de venderlos: es el registro de una operación que ya pasó.
+- **El comprador puede no tener cuenta**, y por eso el formulario tiene los dos
+  caminos en vez de obligar a crear un usuario. Es la contracara de `usuario` como
+  raíz: tener cuenta y ser cliente son cosas distintas. Lo que **sí** exige una
+  cuenta es el cobro, porque `pago.id_usuario` es NOT NULL — la pantalla lo dice
+  antes en vez de mandar un pedido que la base rechaza.
+- **El listado marca lo que falta, no lo normal:** una venta sin cobrar se señala
+  y una cobrada no lleva etiqueta. Una venta sin cobrar que no se ve es una venta
+  que nadie reclama.
 
 ### ⚠️ Un agujero del Módulo 2 que se tapó el 2026-08-16
 
@@ -871,7 +901,7 @@ le sobrevivió a la decisión.
 
 ```
 cd apps/backend && mvn test          # 278
-cd apps/platform && npm test         # 217
+cd apps/platform && npm test         # 231
 cd apps/platform && npx tsc -b       # NO `--noEmit`
 ./scripts/pruebas-sql.sh             # 127 + 50
 ```
@@ -895,7 +925,7 @@ cd apps/platform && npx tsc -b       # NO `--noEmit`
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado**, y el perfil pasó de 2 a **5 de sus 6 bloques** al llegar los módulos 2 y 3. El sexto espera el Módulo 5 |
 | **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend, sus cuatro pantallas y **anotar alumnos en una clase**, que faltaba. La seña se fue al Módulo 3 |
-| Módulo 3 — Pagos | 🟡 **backend y 5 de sus 6 pantallas** (2026-08-16). De la seña están los pasos 1 y 2 (2026-08-17); faltan `V10` y venta de equipos |
+| Módulo 3 — Pagos | ✅ **CERRADO el 2026-08-17.** Las seis pantallas, la seña (`V10`) y la venta de equipos |
 | Módulos 4 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
