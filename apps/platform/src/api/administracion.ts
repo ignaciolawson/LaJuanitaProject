@@ -316,6 +316,40 @@ export type AltaReserva = {
   notas?: string
   idReservaRecupera?: number
   motivoReprogramacion?: string
+  /**
+   * Los participantes, **en el mismo pedido que la reserva** (paso 2 de la seña,
+   * 2026-08-17).
+   *
+   * Es opcional a propósito: una grabación de set no tiene participantes y su
+   * plata llega por `pago.id_reserva`. Pero para una **clase** este campo es lo
+   * que la hace cargable una vez que exista `V10` — el trigger corre al COMMIT y
+   * busca el dinero detrás de la reserva, que ahí es la inscripción del que
+   * asiste. Mandar la clase vacía y anotar después son dos transacciones, y la
+   * primera no tendría con qué cerrar.
+   *
+   * `agregarParticipante` sigue existiendo para quien se suma más tarde.
+   */
+  participantes?: AltaParticipante[]
+  /**
+   * La seña, para lo que **no** es clase (alquiler de cabina, grabación de set).
+   *
+   * El otro camino del dinero de `V10`. Una clase la cubre la inscripción del
+   * alumno; un alquiler no tiene inscripción ninguna, así que su plata es un
+   * `pago` apuntando a esta reserva — y tiene que entrar en el mismo pedido,
+   * porque un pago no puede apuntar a una reserva que todavía no existe.
+   *
+   * El `idReserva` no va acá: lo pone el servidor con la reserva recién creada.
+   */
+  sena?: AltaSena
+}
+
+/** Espeja `AltaSenaRequest`. */
+export type AltaSena = {
+  idUsuario: number
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  medioPago: MedioPago
 }
 
 /** Espeja `EdicionReservaRequest`. Sin autor: lo pone el servidor con el token. */

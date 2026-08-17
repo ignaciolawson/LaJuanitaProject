@@ -101,14 +101,36 @@ CREATE VIEW v AS SELECT
  (SELECT id_tipo_uso FROM tipo_uso WHERE codigo='ALQUILER_CABINA') AS u_alq;
 
 
+-- -----------------------------------------------------------------------------
+-- LA SEÑA (V10): toda reserva que sobreviva al COMMIT lleva plata detrás.
+--
+-- El razonamiento completo está en la cabecera equivalente de
+-- `pruebas-reglas-negocio.sql`. El resumen: el chequeo es un CONSTRAINT TRIGGER
+-- diferido, psql está en autocommit, así que salta AFUERA del EXCEPTION de
+-- `probar()` y se lleva puesto el `INSERT INTO _resultado` — el caso no falla,
+-- desaparece del resumen.
+--
+-- **Este archivo es el que lo sufrió peor**, y vale como advertencia: sus
+-- reservas de semilla son top-level, así que al aparecer `V10` se cayeron seis, y
+-- ocho casos posteriores acusaron *"EL AGUJERO VOLVIO"* sobre reglas que estaban
+-- perfectas. Un resultado peor que un fallo: uno que apunta al lugar equivocado.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sena(p_id_reserva BIGINT) RETURNS BIGINT AS $$
+    INSERT INTO pago (id_usuario, id_reserva, monto, medio_pago, concepto)
+    SELECT (SELECT u_mica FROM v), p_id_reserva, 1, 'EFECTIVO', 'sena de prueba'
+    RETURNING id_reserva;
+$$ LANGUAGE sql;
+
+
 -- =============================================================================
 -- A. GEOMETRÍA DEL EXCLUDE
 --
 -- Los 69 originales probaban solape parcial y reservas pegadas. Faltaban las
 -- otras cuatro formas en que dos intervalos se pisan.
 -- =============================================================================
-INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
-SELECT sala1,u_clase,prof,'2027-03-01','14:00','18:00' FROM v;
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+SELECT sala1,u_clase,prof,'2027-03-01','14:00','18:00' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
 
 SELECT probar('A01','reserva CONTENIDA dentro de otra (15-16 en 14-18)','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
@@ -127,18 +149,25 @@ SELECT probar('A04','solape de UN MINUTO (17:59-19:00)','FALLA',
     SELECT sala1,u_clase,'2027-03-01','17:59','19:00' FROM v$q$);
 
 SELECT probar('A05','borde exacto: termina donde la otra empieza','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala1,u_clase,'2027-03-01','12:00','14:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,'2027-03-01','12:00','14:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('A06','reserva de duracion CERO','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
     SELECT sala2,u_clase,'2027-03-01','16:00','16:00' FROM v$q$);
 
 -- El esquive más obvio: cancelo (libera la franja), otro la ocupa, resucito.
-INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
-SELECT sala2,u_clase,'2027-03-02','10:00','12:00','CANCELADA' FROM v;
-INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-SELECT sala2,u_clase,'2027-03-02','10:00','12:00' FROM v;
+--
+-- La CANCELADA también lleva seña: `V10` no exime por estado -- una regla cuyas
+-- excepciones dependen del estado es la que después nadie sabe si se cumple, y
+-- además el trigger solo corre al INSERT, donde la reserva todavía no se cancela.
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
+SELECT sala2,u_clase,'2027-03-02','10:00','12:00','CANCELADA' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+SELECT sala2,u_clase,'2027-03-02','10:00','12:00' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
 
 -- Desde V7 §2 estos UPDATE llevan `id_usuario_modifico`. NO es decoración: sin
 -- él fallarían por falta de autor y no por la regla que este caso ataca, y un
@@ -165,15 +194,17 @@ SELECT probar('B01','DOS BLOQUEOS SOLAPADOS en la misma sala','FALLA',
  $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,motivo)
     SELECT sala2,'2027-05-11','2027-05-15','Otra obra' FROM v$q$);
 
-INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
-SELECT sala2,u_alq,'2027-05-11','10:00','11:00','CANCELADA' FROM v;
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
+SELECT sala2,u_alq,'2027-05-11','10:00','11:00','CANCELADA' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
 
 SELECT probar('B02','ESQUIVE: resucitar una CANCELADA dentro de un bloqueo','FALLA',
  $q$UPDATE reserva SET estado='CONFIRMADA', id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2027-05-11' AND estado='CANCELADA'$q$);
 
-INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-SELECT sala1,u_alq,'2027-06-01','10:00','11:00' FROM v;
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+SELECT sala1,u_alq,'2027-06-01','10:00','11:00' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
 
 SELECT probar('B03','ESQUIVE: bloqueo chico y despues EXTENDERLO sobre reservas','FALLA',
  $q$INSERT INTO bloqueo_sala (id_sala,fecha_inicio,fecha_fin,motivo)
@@ -356,8 +387,9 @@ SELECT probar('E07','ESQUIVE: invalidar el comprobante sin dejar autor','FALLA',
 -- `reserva_participante` -- que SON el historial de clases y sostienen la
 -- respuesta a "¿cuántas clases le quedan?" -- quedaron afuera.
 -- =============================================================================
-INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
-SELECT sala1,u_clase,prof,'2027-09-14','10:00','11:30' FROM v;
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+SELECT sala1,u_clase,prof,'2027-09-14','10:00','11:30' FROM v RETURNING id_reserva)
+SELECT sena(id_reserva) FROM nueva;
 INSERT INTO reserva_participante (id_reserva,id_usuario,estado_asistencia)
 SELECT r.id_reserva, v.u_juan, 'PRESENTE'
 FROM v, reserva r WHERE r.fecha='2027-09-14';
@@ -440,8 +472,9 @@ SELECT probar('G03','reservar con la sesion en SERIALIZABLE','FALLA',
 SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 SELECT probar('G04','la misma reserva en READ COMMITTED (el modo soportado)','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala1,u_alq,'2027-11-01','10:00','11:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alq,'2027-11-01','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 
 -- =============================================================================

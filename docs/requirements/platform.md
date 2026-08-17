@@ -340,12 +340,10 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 | Regla | Estado |
 |---|---|
 | **El orden de las horas (DB-11)** | ✅ **HECHO (2026-08-16).** Es un `@AssertTrue` en `AltaReservaRequest` y `EdicionReservaRequest`. `reserva.periodo` es una columna generada que se computa **antes que los CHECK**, así que 20:00→19:00 explota en `tsrange()` con un error sin nombre de constraint y el mensaje bueno (`reserva_horas_validas`) no se alcanza nunca. No se arregla en la base: la columna viene de `V1` y una migración aplicada no se edita. El CHECK queda como defensa en profundidad |
-| **La seña (DB-04 / P8)** | 🟡 **POSTERGADA AL MÓDULO 3, decidido con Ignacio el 2026-08-16.** El trigger exige un `pago` apuntando a la reserva, y `pago` no tiene módulo hasta el 3. Activarlo ahora deja pasar las clases de alumnos con inscripción —las cubre la inscripción— y **hace imposible cargar un alquiler de cabina**, además de romper las reservas de las suites SQL. La herramienta sigue escrita en la cabecera de `V9` |
+| **La seña (DB-04 / P8)** | ✅ **CERRADA el 2026-08-17, `V10__sena_obligatoria.sql`.** Las tres advertencias que decía esta fila se cumplieron todas y se resolvieron: el alquiler de cabina quedaba incargable (lo arregla `AltaSenaRequest`, que entra en la misma transacción) y las suites SQL se rompieron (21 sentencias adaptadas). Ver `sistema-gestion-plan.md` §6d |
 
-**La seña es ahora la única regla del sistema que vive en un documento y no en el
-código.** Sobre tablas vacías era una línea; con `reserva` cargada de verdad pasa a ser
-una decisión sobre datos reales. **Es parte de dar por terminado el Módulo 3, no de
-empezarlo.**
+**Ya no queda ninguna regla del sistema viviendo en un documento y no en el código
+(2026-08-17).** La seña era la última.
 
 ### Reglas duras ✅
 - **Nunca dos reservas solapadas en la misma sala.** Se garantiza en la base de datos, no solo en la pantalla. *(Esta es la regla más importante del sistema entero.)*
@@ -677,15 +675,30 @@ DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V
 >
 > **Qué hay que hacer, en este orden:**
 >
-> 1. **`AltaReservaRequest` acepta una lista de participantes opcional**, y
->    `ReservaService.alta` los inserta en la misma transacción. Opcional y no
->    obligatoria: un alquiler de cabina no tiene participantes y su plata llega por
->    `pago.id_reserva`.
-> 2. **El alta del calendario carga alumno + inscripción junto con la clase.** El
->    formulario de "Anotar a alguien" del detalle ya existe y ya resuelve elegir la
->    inscripción — se reusa, no se escribe de nuevo.
-> 3. **Recién ahí, `V10`.** El `CONSTRAINT TRIGGER` es lo último, cuando el flujo que
->    lo satisface ya esté andando y con tests.
+> 1. **✅ HECHO el 2026-08-17. `AltaReservaRequest` acepta una lista de participantes
+>    opcional**, y `ReservaService.alta` los inserta en la misma transacción.
+>    Opcional y no obligatoria: un alquiler de cabina no tiene participantes y su
+>    plata llega por `pago.id_reserva`.
+> 2. **✅ HECHO el 2026-08-17. El alta del calendario carga alumno + inscripción
+>    junto con la clase.** El selector salió del formulario de "Anotar a alguien" a
+>    un hook que usan los dos. Pide alumno **solo si el tipo de uso es clase y solo
+>    en el alta**, y esa es la mitad de la seña que impone la pantalla.
+> 3. **✅ HECHO el 2026-08-17: `V10__sena_obligatoria.sql`.** El
+>    `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED` sobre `reserva`.
+>
+> **Y este plan estaba incompleto en un punto que casi cuesta caro:** hablaba solo
+> de las clases. Un **alquiler de cabina o una grabación de set no tienen
+> inscripción que los cubra**, así que `V10` los dejaba incargables — el pago tiene
+> que apuntar a la reserva y no puede apuntar a algo que todavía no existe. Se
+> resolvió simétrico al paso 2: `AltaReservaRequest` acepta también una `sena`
+> (`AltaSenaRequest`), que entra en la misma transacción como `SENADO`.
+>
+> **El otro tropiezo, para no repetirlo:** un trigger diferido **no se dispara en
+> una transacción que se revierte**, así que `mvn test` lo ignoraba por completo y
+> la suite quedaba verde con la regla sin verificar. Se fuerza con
+> `SET CONSTRAINTS reserva_con_sena IMMEDIATE` tras un `flush()`. Las suites SQL
+> tenían el problema espejo y hubo que darle plata a 21 sentencias. Todo el detalle
+> está en `docs/sistema-gestion-plan.md` §6d.
 >
 > **Ojo con el orden de escritura de Hibernate**, que en este módulo ya mordió cuatro
 > veces: el trigger es `DEFERRABLE INITIALLY DEFERRED` justamente para que corra al

@@ -24,6 +24,7 @@ vi.mock('../api/administracion', () => ({
   listarSalas: vi.fn(),
   listarTiposUso: vi.fn(),
   listarProfesores: vi.fn(),
+  listarUsuarios: vi.fn(),
   altaReserva: vi.fn(),
   editarReserva: vi.fn(),
   cambiarEstadoReserva: vi.fn(),
@@ -33,11 +34,13 @@ vi.mock('../api/administracion', () => ({
 const {
   agenda,
   agregarParticipante,
+  altaReserva,
   listarAlumnos,
   listarInscripciones,
   listarProfesores,
   listarSalas,
   listarTiposUso,
+  listarUsuarios,
 } = await import('../api/administracion')
 
 function pagina<T>(contenido: T[]) {
@@ -131,6 +134,7 @@ beforeEach(() => {
   vi.mocked(listarProfesores).mockResolvedValue([])
   vi.mocked(listarAlumnos).mockResolvedValue(pagina([]) as never)
   vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
+  vi.mocked(listarUsuarios).mockResolvedValue(pagina([]) as never)
   vi.mocked(agenda).mockResolvedValue([reserva()])
 })
 
@@ -438,6 +442,190 @@ describe('anotar a alguien en una clase', () => {
     await user.click(await screen.findByText('10:00–11:30'))
 
     expect(screen.queryByRole('button', { name: '+ Anotar a alguien' })).toBeNull()
+  })
+})
+
+/**
+ * <b>Paso 2 de la seña (P8 / DB-04a), 2026-08-17.</b>
+ *
+ * El alta de una clase carga al alumno en el mismo pedido que la reserva. No es
+ * comodidad: el `CONSTRAINT TRIGGER` de `V10` corre al COMMIT y busca el dinero
+ * detrás de la reserva, que para una clase es la inscripción del que asiste — con
+ * el alta vacía, ese COMMIT no tiene nada que mirar y rechaza toda alta de clase.
+ *
+ * <b>Y estos casos existen porque `altaReserva` estaba mockeado y ningún caso lo
+ * ejercía</b>: el formulario de alta no tenía una sola prueba que lo enviara. Es
+ * el mismo agujero que el 2026-08-16 dejó al Módulo 2 sin poder anotar a nadie —
+ * cada mitad probaba su lado de un puente que nadie cruzaba.
+ */
+describe('el alta carga la clase junto con su alumno', () => {
+  const GRABACION: TipoUsoResumen = {
+    idTipoUso: 9,
+    codigo: 'GRABACION_SET',
+    nombre: 'Grabación de set',
+    esClase: false,
+    color: '#457b9d',
+    activo: true,
+  }
+  /** La única excepción de la seña (§13), y por eso está en las fixtures. */
+  const MIX: TipoUsoResumen = {
+    idTipoUso: 4,
+    codigo: 'MIX_MASTERING',
+    nombre: 'Mix & Mastering',
+    esClase: false,
+    color: '#8d5a97',
+    activo: true,
+  }
+  const TODOS = [
+    { idTipoUso: 1, advertencia: null },
+    { idTipoUso: 9, advertencia: null },
+    { idTipoUso: 4, advertencia: null },
+  ]
+  const ALUMNOS = [
+    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com' },
+  ]
+  // Quien alquila puede no ser alumno de nada: la seña lista usuarios, no alumnos.
+  const PERSONAS = [
+    { id: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', telefono: null,
+      rol: 'USUARIO' as const, activo: true, debeCambiarPassword: false },
+  ]
+
+  /** Por el hueco de la grilla, que ya deja puestas la sala, la fecha y la hora. */
+  async function abrirAlta() {
+    const user = userEvent.setup()
+    vi.mocked(agenda).mockResolvedValue([])
+    vi.mocked(listarSalas).mockResolvedValue([sala(1, 'Sala 1', { usosPermitidos: TODOS })])
+    vi.mocked(listarTiposUso).mockResolvedValue([...TIPOS, GRABACION, MIX])
+    vi.mocked(listarAlumnos).mockResolvedValue(pagina(ALUMNOS) as never)
+    vi.mocked(listarUsuarios).mockResolvedValue(pagina(PERSONAS) as never)
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
+    )
+    vi.mocked(altaReserva).mockResolvedValue({} as never)
+
+    montar()
+    await user.click(
+      await screen.findByLabelText(`Cargar reserva el ${diaYMes(LUNES)} a las 10:00`),
+    )
+    return user
+  }
+
+  it('una clase manda al alumno y su inscripción en el mismo pedido', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '1')
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    // Con un solo curso vigente viene puesto; sin esperarlo, el click puede salir
+    // antes de que llegue y la clase no descontaría de nada.
+    await waitFor(() =>
+      expect(screen.getByLabelText<HTMLSelectElement>('Descuenta de').value).toBe('7'),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    await waitFor(() => expect(altaReserva).toHaveBeenCalled())
+    const cuerpo = vi.mocked(altaReserva).mock.calls[0][0]
+    // El usuario, no el alumno: `usuario` es la identidad raíz.
+    expect(cuerpo.participantes).toEqual([{ idUsuario: 30, idInscripcion: 7 }])
+  })
+
+  /**
+   * <b>La otra mitad de la decisión, y la fácil de romper "arreglando" la
+   * primera:</b> una grabación de set no tiene a quién anotar. Pero **sí tiene
+   * que pagar**: su plata llega por `pago.id_reserva`, que es el otro camino de
+   * `V10`. Pedirle un alumno dejaría incargable medio calendario; no pedirle nada
+   * lo dejaría incargable igual, contra el trigger.
+   */
+  it('una grabación de set pide seña en vez de participantes', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+
+    expect(screen.queryByLabelText('Quién')).toBeNull()
+    expect(await screen.findByLabelText('Quién paga')).toBeDefined()
+
+    await user.selectOptions(screen.getByLabelText('Quién paga'), '30')
+    await user.type(screen.getByLabelText('Monto'), '45000')
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    await waitFor(() => expect(altaReserva).toHaveBeenCalled())
+    const cuerpo = vi.mocked(altaReserva).mock.calls[0][0]
+    expect(cuerpo.participantes).toBeUndefined()
+    expect(cuerpo.sena).toMatchObject({
+      idUsuario: 30,
+      monto: 45000,
+      moneda: 'ARS',
+      medioPago: 'EFECTIVO',
+    })
+  })
+
+  /** El espejo del caso de la clase sin alumno, por el otro camino del dinero. */
+  it('una grabación sin seña no se manda', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+    await screen.findByLabelText('Quién paga')
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    expect(await screen.findByText(/Decí quién paga la seña/)).toBeDefined()
+    expect(altaReserva).not.toHaveBeenCalled()
+  })
+
+  /**
+   * La única excepción de la regla, y va por catálogo y no por estado: lo decide
+   * Ghezz caso por caso, y el relevamiento ya lo mostraba fiado.
+   */
+  it('mix & mastering no pide seña: es la excepción de Ghezz', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '4')
+
+    expect(screen.queryByLabelText('Quién paga')).toBeNull()
+    expect(screen.queryByLabelText('Quién')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    await waitFor(() => expect(altaReserva).toHaveBeenCalled())
+    expect(vi.mocked(altaReserva).mock.calls[0][0].sena).toBeUndefined()
+  })
+
+  /**
+   * La mitad de la seña que impone la pantalla (§13). Hasta que exista `V10` esta
+   * es la única que la sostiene, y después sigue siendo la que la explica: el
+   * trigger rechaza al COMMIT con un mensaje de base, no con este.
+   */
+  it('una clase sin alumno no se manda', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '1')
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    expect(await screen.findByText(/una clase se carga junto con quién la toma/)).toBeDefined()
+    expect(altaReserva).not.toHaveBeenCalled()
+  })
+
+  /** El listado de alumnos no se pide hasta que haga falta: son ~80 filas. */
+  it('no trae el listado de alumnos para cargar una grabación', async () => {
+    const user = await abrirAlta()
+
+    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+
+    await waitFor(() => expect(screen.queryByLabelText('Quién')).toBeNull())
+    expect(listarAlumnos).not.toHaveBeenCalled()
+  })
+
+  /** Mover una reserva no toca a los participantes: el PUT no los lleva. */
+  it('mover una reserva no pide participantes', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarSalas).mockResolvedValue([sala(1, 'Sala 1', { usosPermitidos: TODOS })])
+    vi.mocked(listarTiposUso).mockResolvedValue([...TIPOS, GRABACION, MIX])
+    montar()
+
+    await user.click(await screen.findByText('10:00–11:30'))
+    await user.click(screen.getByRole('button', { name: 'Mover' }))
+
+    expect(await screen.findByRole('heading', { name: 'Mover la reserva' })).toBeDefined()
+    expect(screen.queryByLabelText('Quién')).toBeNull()
   })
 })
 

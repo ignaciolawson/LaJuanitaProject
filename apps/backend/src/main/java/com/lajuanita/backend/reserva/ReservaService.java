@@ -16,10 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
+import com.lajuanita.backend.pago.EstadoPago;
+import com.lajuanita.backend.pago.PagoService;
+import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
+import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
 import com.lajuanita.backend.reserva.dto.EdicionReservaRequest;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
@@ -45,7 +49,7 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  * mensaje redactado para que lo lea una persona, y {@code ManejadorDeErrores} lo
  * pasa tal cual.
  *
- * <p>Lo que sí vive acá son las tres cosas que la base no puede hacer:
+ * <p>Lo que sí vive acá son las cuatro cosas que la base no puede hacer:
  *
  * <ul>
  *   <li><b>Declarar el autor.</b> `V7` exige {@code id_usuario_modifico} para
@@ -57,6 +61,12 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  *       marcar la vieja como REPROGRAMADA es un solo gesto del negocio, y si se
  *       hace en dos pasos, el que se olvida del segundo deja la sala ocupada dos
  *       veces.
+ *   <li><b>Meter la reserva y sus participantes en una sola transacción</b>
+ *       (2026-08-17). Esto no es comodidad: es la condición para que exista la
+ *       seña. El {@code CONSTRAINT TRIGGER} de `V10` corre al COMMIT y busca el
+ *       dinero detrás de la reserva, que para una clase es la inscripción del que
+ *       asiste — si los participantes llegan en un pedido posterior, ese COMMIT no
+ *       tiene nada que mirar y rechaza el alta. Ver {@link AltaReservaRequest}.
  * </ul>
  */
 @Service
@@ -84,13 +94,20 @@ public class ReservaService {
     private final UsuarioRepository usuarios;
     private final InscripcionRepository inscripciones;
 
+    /**
+     * Para la seña. Es el único service del que depende este, y no hay ciclo:
+     * {@code PagoService} habla con repositorios, no con este.
+     */
+    private final PagoService pagos;
+
     public ReservaService(ReservaRepository reservas,
             ReservaParticipanteRepository participantes,
             SalaRepository salas,
             TipoUsoRepository tiposDeUso,
             ProfesorRepository profesores,
             UsuarioRepository usuarios,
-            InscripcionRepository inscripciones) {
+            InscripcionRepository inscripciones,
+            PagoService pagos) {
         this.reservas = reservas;
         this.participantes = participantes;
         this.salas = salas;
@@ -98,6 +115,7 @@ public class ReservaService {
         this.profesores = profesores;
         this.usuarios = usuarios;
         this.inscripciones = inscripciones;
+        this.pagos = pagos;
     }
 
     // == El calendario ========================================================
@@ -193,8 +211,9 @@ public class ReservaService {
     // == Alta y edición ======================================================
 
     /**
-     * Carga una reserva. Si viene {@code idReservaRecupera}, además cierra el
-     * círculo: la reserva original pasa a REPROGRAMADA en la misma transacción.
+     * Carga una reserva, <b>con los participantes que traiga</b>. Si viene
+     * {@code idReservaRecupera}, además cierra el círculo: la reserva original
+     * pasa a REPROGRAMADA en la misma transacción.
      */
     @Transactional
     public ReservaResumen alta(AltaReservaRequest solicitud, Long idAutor) {
@@ -228,7 +247,56 @@ public class ReservaService {
         }
 
         Reserva guardada = reservas.save(reserva);
-        return ReservaResumen.de(guardada, List.of());
+
+        // Los participantes van en ESTA transacción, no en un pedido aparte, y de
+        // eso depende la seña: ver el cuarto punto de la cabeza de la clase.
+        //
+        // El orden importa y sale gratis: `reserva` es IDENTITY, así que el `save`
+        // de arriba ya escribió la fila y le puso el id. Los triggers de `V9` que
+        // corren al anotar a alguien -- "nadie en dos salas a la vez" y "no más
+        // clases que las contratadas" -- leen `reserva` por SQL, no la sesión, y
+        // acá ya la encuentran.
+        List<AltaParticipanteRequest> aAnotar = solicitud.participantes() == null
+                ? List.of()
+                : solicitud.participantes();
+        List<ParticipanteResumen> anotados = aAnotar.stream()
+                .map(cada -> ParticipanteResumen.de(anotar(guardada, cada)))
+                .toList();
+
+        // El otro camino del dinero, para lo que no es clase. Se delega en
+        // `PagoService` en vez de armar el `Pago` acá: las reglas de la plata
+        // -normalización del importe, la cotización del dólar, quién registra-
+        // son suyas, y duplicarlas sería la segunda copia que se olvida de una.
+        if (solicitud.sena() != null) {
+            registrarLaSena(solicitud.sena(), guardada.getId(), idAutor);
+        }
+
+        return ReservaResumen.de(guardada, anotados);
+    }
+
+    /**
+     * La seña de una reserva que no es clase (`V10`).
+     *
+     * <p>{@code idReserva} lo pone el servidor con la reserva recién creada, nunca
+     * el pedido: el que carga no puede conocer ese id, y dejarlo entrar sería dejar
+     * acreditar la seña contra la reserva de otro.
+     *
+     * <p>{@code SENADO}, no {@code PAGADO}: es plata que entró contra un total que
+     * todavía no se completó.
+     */
+    private void registrarLaSena(AltaSenaRequest sena, Long idReserva, Long idAutor) {
+        pagos.registrar(new AltaPagoRequest(
+                sena.idUsuario(),
+                null, idReserva, null, null,
+                "Seña de la reserva",
+                sena.monto(),
+                sena.moneda(),
+                sena.cotizacionDolar(),
+                sena.medioPago(),
+                null, null,
+                EstadoPago.SENADO,
+                null, null),
+                idAutor);
     }
 
     @Transactional
@@ -262,17 +330,37 @@ public class ReservaService {
 
     // == Participantes =======================================================
 
+    /**
+     * Anotar a alguien en una clase que ya existe. <b>Sigue existiendo aunque el
+     * alta ahora acepte participantes</b>: un alumno que se suma a una clase
+     * grupal la semana siguiente es un gesto real, y las recuperaciones caen acá.
+     */
     @Transactional
     public ParticipanteResumen agregarParticipante(Long idReserva, AltaParticipanteRequest solicitud) {
-        Reserva reserva = buscar(idReserva);
+        return ParticipanteResumen.de(anotar(buscar(idReserva), solicitud));
+    }
 
+    /**
+     * Anotar a una persona en una reserva, por los dos caminos que llevan acá: el
+     * alta que trae sus participantes y {@code POST .../participantes}.
+     *
+     * <p><b>Es uno solo a propósito.</b> Las reglas que se disparan al anotar
+     * —que la inscripción sea del que asiste (`V1` §8.2), que nadie esté en dos
+     * salas a la vez y que no se consuman más clases que las contratadas (`V9`)—
+     * son de la base y no distinguen por dónde se entró. Dos copias de este método
+     * serían dos lugares donde olvidarse del pre-chequeo.
+     */
+    private ReservaParticipante anotar(Reserva reserva, AltaParticipanteRequest solicitud) {
         Usuario persona = usuarios.findById(solicitud.idUsuario())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "No existe el usuario " + solicitud.idUsuario() + "."));
 
         // La base ya lo impide con `participante_unico_por_reserva`; esto existe
-        // para que salga un mensaje y no una violación de constraint.
-        if (participantes.existsByReservaIdAndUsuarioId(idReserva, persona.getId())) {
+        // para que salga un mensaje y no una violación de constraint. Y cubre
+        // también a la misma persona repetida dos veces en un alta: la fila
+        // anterior ya está en la base -- `reserva_participante` es IDENTITY, así
+        // que cada `save` escribe en el momento -- y no solo en la sesión.
+        if (participantes.existsByReservaIdAndUsuarioId(reserva.getId(), persona.getId())) {
             throw new DatoDuplicadoException("idUsuario", "Esa persona ya está anotada en esa clase.");
         }
 
@@ -282,7 +370,7 @@ public class ReservaService {
         participante.setInscripcion(buscarInscripcion(solicitud.idInscripcion()));
         participante.setObservaciones(normalizar(solicitud.observaciones()));
 
-        return ParticipanteResumen.de(participantes.save(participante));
+        return participantes.save(participante);
     }
 
     /**

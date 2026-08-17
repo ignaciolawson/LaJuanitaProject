@@ -332,6 +332,189 @@ class ReservaTest {
                         org.hamcrest.Matchers.containsString("ampliar la inscripcion")));
     }
 
+    // == El alta con participantes: paso 1 de la seña ==========================
+    //
+    // Hasta el 2026-08-17 la reserva se cargaba siempre vacía y la gente se
+    // anotaba en un pedido aparte. Eso hacía IMPOSIBLE la seña (P8 / DB-04a): el
+    // CONSTRAINT TRIGGER de `V10` corre al COMMIT y, para una clase, el dinero
+    // está en la inscripción del que asiste -- así que al cerrar el alta no habría
+    // nada que mirar y toda alta de clase se rechazaría.
+    //
+    // Lo que estos casos NO prueban es que la seña se cumpla: eso lo prueba `V10`
+    // cuando exista. Prueban que el camino que la va a satisfacer anda.
+
+    @Test
+    void el_alta_puede_traer_sus_participantes_y_les_descuenta_la_clase() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno, 8);
+
+        mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.participantes[0].idUsuario")
+                        .value(alumno.getUsuario().getId()))
+                .andExpect(jsonPath("$.participantes[0].idInscripcion").value(inscripcion.getId()))
+                .andExpect(jsonPath("$.participantes[0].disciplina").value("DJ"));
+
+        // Que la respuesta los dibuje no alcanza: lo que importa es que la clase
+        // quedó consumida, porque ese es el mismo número que la seña va a leer.
+        mvc.perform(get("/api/inscripciones/" + inscripcion.getId())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clasesRestantes").value(7));
+    }
+
+    /** Una clase grupal entra completa, no de a un participante por pedido. */
+    @Test
+    void una_clase_grupal_se_carga_con_sus_dos_alumnos_de_una() throws Exception {
+        Alumno uno = alumnoNuevo();
+        Alumno otro = alumnoNuevo();
+
+        mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(uno.getUsuario().getId(), null) + ","
+                        + participante(otro.getUsuario().getId(), null)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(2)));
+    }
+
+    /**
+     * <b>La otra mitad de la decisión, y la que es fácil de romper "arreglando" la
+     * primera:</b> la lista es opcional. Una grabación de set no tiene
+     * participantes y su plata llega por {@code pago.id_reserva} — volverla
+     * obligatoria dejaría incargable la mitad del calendario.
+     */
+    @Test
+    void el_alta_sigue_andando_sin_participantes() throws Exception {
+        mvc.perform(alta(cabina, grabacion, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    /**
+     * El {@code @Valid} de la lista. Sin él las validaciones de cada participante
+     * no corren, y uno sin persona llega hasta el NOT NULL de la base como un 409
+     * que no señala ningún campo.
+     */
+    @Test
+    void un_participante_sin_persona_es_un_400_y_no_un_error_de_la_base() throws Exception {
+        mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(null, null)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores").isNotEmpty());
+    }
+
+    /**
+     * La misma persona dos veces en un mismo alta. El pre-chequeo la ve porque
+     * {@code reserva_participante} es IDENTITY: cada {@code save} escribe en el
+     * momento, así que la fila anterior ya está en la base y no solo en la sesión.
+     */
+    @Test
+    void la_misma_persona_dos_veces_en_el_alta_se_rechaza() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long persona = alumno.getUsuario().getId();
+
+        mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(persona, null) + "," + participante(persona, null)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errores.idUsuario").isNotEmpty());
+    }
+
+    // == La seña (V10) ========================================================
+    //
+    // ⚠️ ESTOS DOS CASOS NO SE PUEDEN ESCRIBIR COMO LOS DEMÁS, y entender por qué
+    // es la mitad del trabajo. El chequeo de la seña es un CONSTRAINT TRIGGER
+    // DEFERRABLE INITIALLY DEFERRED: **corre al COMMIT**. Esta clase es
+    // `@Transactional` y revierte cada caso, así que el trigger no se dispararía
+    // NUNCA y la suite entera quedaría en verde con la seña sin verificar.
+    //
+    // `SET CONSTRAINTS reserva_con_sena IMMEDIATE` ejecuta en el momento lo que
+    // está pendiente. El `em.flush()` va antes y no es opcional: sin él el INSERT
+    // de la reserva sigue en la sesión de Hibernate, no hay nada encolado en la
+    // base, y el SET CONSTRAINTS no encuentra qué chequear -- el caso pasaría sin
+    // haber probado nada, que es el falso positivo que estas suites persiguen.
+
+    /**
+     * <b>El caso que justifica los pasos 1 y 2.</b> Una clase cargada junto con su
+     * alumno tiene plata detrás —la inscripción que la cubre— y pasa el chequeo.
+     *
+     * <p>Si alguien "simplifica" el alta para que vuelva a crear la reserva vacía y
+     * anotar después, este caso se cae: serían dos transacciones, y al cerrar la
+     * primera no habría ni inscripción ni pago.
+     */
+    @Test
+    void una_clase_cargada_con_su_alumno_tiene_plata_detras() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno, 8);
+
+        mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                .andExpect(status().isCreated());
+
+        em.flush();
+        jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE");
+    }
+
+    /** Y el otro lado: una clase sin nadie anotado es un horario sin plata. */
+    @Test
+    void una_clase_sin_nadie_anotado_no_pasa_el_chequeo_de_la_sena() throws Exception {
+        mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated());
+
+        em.flush();
+        assertThatThrownBy(() -> jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE"))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("No se aparta un horario sin pago por adelantado");
+    }
+
+    /**
+     * <b>El otro camino del dinero, y el que casi deja la mitad del calendario
+     * incargable.</b> Una grabación de set no tiene inscripción que la cubra, así
+     * que su plata es un {@code pago} apuntando a la reserva — y no puede apuntar a
+     * algo que todavía no existe. Los dos entran en la misma transacción.
+     */
+    @Test
+    void una_grabacion_con_su_sena_tiene_plata_detras() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+
+        mvc.perform(altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated());
+
+        em.flush();
+        jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE");
+
+        // Y la seña quedó como SENADO, no como PAGADO: es plata que entró contra un
+        // total que todavía no se completó.
+        assertThat(jdbc.queryForObject(
+                "SELECT estado_pago FROM pago WHERE id_reserva IS NOT NULL", String.class))
+                .isEqualTo("SENADO");
+    }
+
+    @Test
+    void una_grabacion_sin_sena_no_pasa_el_chequeo() throws Exception {
+        mvc.perform(alta(cabina, grabacion, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated());
+
+        em.flush();
+        assertThatThrownBy(() -> jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE"))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("No se aparta un horario sin pago por adelantado");
+    }
+
+    /** La seña se acredita contra la reserva recién creada, no contra una del pedido. */
+    @Test
+    void la_sena_apunta_a_la_reserva_que_se_acaba_de_crear() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        long id = idDe(mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated()));
+
+        em.flush();
+        assertThat(jdbc.queryForObject(
+                "SELECT id_reserva FROM pago WHERE id_usuario = ?", Long.class, quienPaga.getId()))
+                .isEqualTo(id);
+    }
+
     // == Auditoría (V7) =======================================================
 
     @Test
@@ -598,6 +781,37 @@ class ReservaTest {
                          "horaInicio":"%s","horaFin":"%s"}
                         """.formatted(idSala, idTipoUso,
                         idProfesor == null ? "null" : idProfesor, fecha, desde, hasta));
+    }
+
+    /** Un alta que trae su gente: el paso 1 de la seña. */
+    private MockHttpServletRequestBuilder altaConParticipantes(Long idSala, Long idTipoUso,
+            LocalDate fecha, String desde, String hasta, String participantes) {
+        return post("/api/reservas")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s",
+                         "horaFin":"%s","participantes":[%s]}
+                        """.formatted(idSala, idTipoUso, fecha, desde, hasta, participantes));
+    }
+
+    /** Un alta que trae su seña: el otro camino del dinero. */
+    private MockHttpServletRequestBuilder altaConSena(Long idSala, Long idTipoUso,
+            LocalDate fecha, String desde, String hasta, Long idUsuario) {
+        return post("/api/reservas")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s",
+                         "sena":{"idUsuario":%d,"monto":45000,"moneda":"ARS","medioPago":"EFECTIVO"}}
+                        """.formatted(idSala, idTipoUso, fecha, desde, hasta, idUsuario));
+    }
+
+    private String participante(Long idUsuario, Long idInscripcion) {
+        return """
+                {"idUsuario":%s,"idInscripcion":%s}""".formatted(
+                idUsuario == null ? "null" : idUsuario,
+                idInscripcion == null ? "null" : idInscripcion);
     }
 
     private ResultActions anotar(long idReserva, Long idUsuario, Long idInscripcion)

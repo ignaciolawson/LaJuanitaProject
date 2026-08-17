@@ -528,14 +528,22 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 **Módulos 1 y 2 cerrados. El 3 está a dos cosas de cerrar**, y las dos están
 decididas y escritas. Nada está bloqueado esperando una respuesta tuya.
 
+**✅ LA SEÑA ESTÁ CERRADA (2026-08-17).** Era la última regla del sistema que
+vivía en un documento y no en el código. **Al Módulo 3 le queda una sola cosa:**
+
 | Qué | Dónde |
 |---|---|
-| **1. La seña — los tres pasos** | El detalle completo, más abajo en *"⛔ La seña (`V10`)"* y en [`platform.md` §13](requirements/platform.md). **Arrancá por el paso 1, no por la migración.** |
-| **2. Venta de equipos** | La sexta pantalla de §6. No depende de la seña: se puede hacer primero si querés algo más corto |
+| **Venta de equipos** | La sexta y última pantalla de §6: modelo, marca, precio, comprador (con o sin cuenta), vendedor. No depende de nada de lo anterior |
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Las cuatro suites: **278 backend · 210 front · 121 + 50
-SQL**. La base de desarrollo tiene datos de ejemplo pero **`pago` está vacía** —
+`npm run dev:platform`. Las cuatro suites: **288 backend · 217 front · 127 + 50
+SQL**.
+
+> **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
+> una reserva vacía. Una **clase** entra con su alumno y su inscripción; un
+> **alquiler o una grabación** entran con su seña. Los dos campos son opcionales en
+> el DTO y ninguno lo es en la práctica — el que corresponde según el tipo de uso
+> lo exige la pantalla, y el que falte lo rechaza `V10` al COMMIT. La base de desarrollo tiene datos de ejemplo pero **`pago` está vacía** —
 ninguna pantalla podía crear filas hasta hoy—, así que Caja, Deudores y Estado
 de cuenta arrancan en cero hasta que cargues algún pago desde `/admin/pagos`.
 
@@ -578,7 +586,8 @@ completa está en `platform.md` §13 y la herramienta, en la cabecera de `V9`.
 
 **Backend completo** (`backend/pago`) y **cinco de sus seis pantallas**:
 `/admin/pagos`, `/admin/estado-de-cuenta/:idUsuario`, `/admin/caja`,
-`/admin/deudores` y `/admin/egresos`. Suites: **278 backend, 210 front.**
+`/admin/deudores` y `/admin/egresos`. Suites al empezar el módulo: **278 backend,
+210 front**; al cerrar la seña quedaron en **288 · 217 · 127 + 50**.
 
 **Lo primero que se hizo fue revisar los cinco pendientes de §6, y ninguno
 bloqueaba.** Tres ya estaban contestados —P12 en §13, P15 en `V6`/`V7`, P16 en
@@ -670,24 +679,77 @@ La ficha completa, con el orden de implementación, está en
 
 ### ⏭️ Lo próximo, concreto
 
-**No se arrancó por falta de contexto en la sesión, no por una duda.** Los tres
-pasos, en este orden y ninguno antes que el anterior:
+Los tres pasos, en este orden y ninguno antes que el anterior:
 
-1. **`AltaReservaRequest` acepta una lista de participantes opcional**, y
-   `ReservaService.alta` los inserta en la misma transacción. Opcional: un
-   alquiler de cabina no tiene participantes y su plata llega por
-   `pago.id_reserva`.
-2. **El alta del calendario carga alumno + inscripción junto con la clase.**
-   `FormularioParticipante` ya existe en `CalendarioPagina` y ya resuelve elegir
-   la inscripción — se reusa.
-3. **Recién ahí `V10`**, el `CONSTRAINT TRIGGER … DEFERRABLE INITIALLY DEFERRED`
-   cuya plantilla está en la cabecera de `V9`. Es lo último, con el flujo que lo
-   satisface ya andando y con tests.
+1. **✅ HECHO el 2026-08-17. `AltaReservaRequest` acepta una lista de
+   participantes opcional**, y `ReservaService.alta` los inserta en la misma
+   transacción. Opcional: un alquiler de cabina no tiene participantes y su plata
+   llega por `pago.id_reserva`. `agregarParticipante` y el alta comparten un solo
+   `ReservaService.anotar` — las reglas que se disparan al anotar son de la base y
+   no distinguen por dónde se entró. 5 casos nuevos.
+2. **✅ HECHO el 2026-08-17. El alta del calendario carga alumno + inscripción
+   junto con la clase.** El selector salió de `FormularioParticipante` a un
+   `useParticipante`, que ahora usan los dos formularios. **Solo pide alumno si el
+   tipo de uso es clase y solo en el alta**: una grabación de set no tiene a quién
+   anotar, y mover una reserva no toca participantes. 5 casos nuevos.
+   > **Y el paso 2 destapó el mismo agujero que el 2026-08-16:** `altaReserva`
+   > estaba mockeado y **ningún caso lo ejercía** — el formulario de alta no tenía
+   > una sola prueba que lo enviara. Van dos veces que aparece el mismo patrón en
+   > este módulo. Los cinco casos nuevos cruzan el puente.
+3. **✅ HECHO el 2026-08-17. `V10__sena_obligatoria.sql`**, el `CONSTRAINT TRIGGER
+   … DEFERRABLE INITIALLY DEFERRED` sobre `reserva`. **La seña ya no vive en un
+   documento: vive en la base.**
 
-**Por qué es implementable:** el trigger es `DEFERRABLE INITIALLY DEFERRED`, así
-que corre al COMMIT y no le importa el orden en que Hibernate escriba la
-`reserva` y su `reserva_participante` — que en este módulo ya mordió cuatro
-veces.
+### ✅ La seña, cerrada el 2026-08-17 — y lo que costó de más
+
+La migración en sí es corta. Lo caro fue todo lo demás, y son cuatro cosas que
+conviene no volver a descubrir:
+
+1. **Un trigger diferido no se dispara en una transacción que se revierte.**
+   `ReservaTest` es `@Transactional`, así que `V10` habría quedado **escrita y sin
+   verificar, con la suite en verde** — el peor resultado posible. Se fuerza con
+   `SET CONSTRAINTS reserva_con_sena IMMEDIATE` después de un `flush()`. El
+   `flush()` no es opcional: sin él no hay nada encolado y el caso pasa sin haber
+   probado nada.
+2. **Las suites SQL tienen el problema espejo.** psql está en autocommit, así que
+   cada `SELECT probar(...)` es su propia transacción y el trigger salta **afuera**
+   del `EXCEPTION` de `probar()`, llevándose puesto el `INSERT INTO _resultado`. El
+   caso no falla: *desaparece del resumen*. **Se midió en vivo:** al aplicar `V10`
+   sin tocar nada, la suite adversarial pasó de 50 casos a 44 y **8 casos
+   acusaron *"EL AGUJERO VOLVIO"* sobre reglas intactas**. Un resultado peor que un
+   fallo: uno que apunta al lugar equivocado.
+3. **Se adaptaron 21 sentencias** (opción A, decidida con Ignacio): toda reserva
+   que sobrevive al COMMIT entra con su pago en un CTE, vía una función `sena()`
+   que cada suite define en su semilla. El CTE tiene la reserva adentro y el
+   `SELECT` final afuera **a propósito**, para que el ROW_COUNT que ve `probar()`
+   siga saliendo de la reserva y la regla de "un `'ANDA'` tiene que afectar filas"
+   siga en pie. Los `'FALLA'` no se tocaron: los rechaza un EXCLUDE o un trigger
+   `BEFORE` antes del COMMIT, así que no dejan fila.
+4. **⚠️ Y lo que casi se escapa: `V10` dejaba incargable la mitad del calendario.**
+   Una clase la cubre la inscripción del alumno, pero **un alquiler de cabina o una
+   grabación de set no tienen inscripción ninguna**: su plata es un `pago`
+   apuntando a la reserva, y un pago no puede apuntar a una reserva que todavía no
+   existe. Sin resolverlo, el alta de todo lo que no es clase se rechazaba al
+   COMMIT. La salida es simétrica al paso 2: **`AltaReservaRequest` acepta también
+   una `sena`**, `ReservaService` la delega en `PagoService.registrar` con el
+   `id_reserva` recién creado, y la pantalla la pide cuando el tipo de uso no es
+   clase. Entra como `SENADO`, que es el estado que existe justamente para esto.
+
+**Cómo quedó la regla**, para no tener que leer la migración: ninguna `reserva`
+existe sin dinero detrás, verificado al COMMIT, y el dinero llega por **dos
+caminos que cuentan igual** — un `pago` apuntando a la reserva, o la inscripción
+del participante. Un pago `ANULADO` no cuenta. La **única** excepción es
+`MIX_MASTERING`, y va por `tipo_uso.codigo` y no por estado de la fila.
+
+**Hueco deliberado, documentado en la cabecera de `V10` al estilo de `V6` y `V7`:**
+el trigger corre **solo al INSERT de `reserva`**, así que la invariante se
+establece al crear y se puede romper después anulando el pago. Cerrarlo es una
+decisión del Módulo 3 sobre devoluciones —anular para corregir y anular para
+quedarse sin seña son el mismo UPDATE— y no de esta migración.
+
+**El 50% sigue sin verificarse en la base, y no es un olvido:** `reserva` no tiene
+precio, porque el de un alquiler sale de las horas por una tarifa que no está en el
+sistema (P13). Esa mitad la sostiene la pantalla hasta que exista.
 
 **Y lo otro que le falta al Módulo 3 no depende de esto:** la sub-sección de
 venta de equipos.
@@ -809,9 +871,9 @@ le sobrevivió a la decisión.
 
 ```
 cd apps/backend && mvn test          # 278
-cd apps/platform && npm test         # 210
+cd apps/platform && npm test         # 217
 cd apps/platform && npx tsc -b       # NO `--noEmit`
-./scripts/pruebas-sql.sh             # 121 + 50
+./scripts/pruebas-sql.sh             # 127 + 50
 ```
 
 **Para ver el sistema andando** hacen falta los tres, en este orden:
@@ -833,7 +895,7 @@ cd apps/platform && npx tsc -b       # NO `--noEmit`
 | **Fase 0** | ✅ cerrada y auditada (§6, §4b) |
 | **Módulo 1 — Alumnos** | ✅ **cerrado**, y el perfil pasó de 2 a **5 de sus 6 bloques** al llegar los módulos 2 y 3. El sexto espera el Módulo 5 |
 | **Módulo 2 — Horarios y salas** | ✅ **cerrado** (2026-08-16). Backend, sus cuatro pantallas y **anotar alumnos en una clase**, que faltaba. La seña se fue al Módulo 3 |
-| Módulo 3 — Pagos | 🟡 **backend y 5 de sus 6 pantallas** (2026-08-16). Faltan `V10` con la seña y venta de equipos |
+| Módulo 3 — Pagos | 🟡 **backend y 5 de sus 6 pantallas** (2026-08-16). De la seña están los pasos 1 y 2 (2026-08-17); faltan `V10` y venta de equipos |
 | Módulos 4 a 8 | ⬜ sin empezar |
 | **Landing** | ✅ terminada como sitio. No se publica hasta conectar los formularios |
 | **Auditoría** | ✅ **CERRADA el 2026-08-15.** 56 de 56, backlog en cero |
@@ -1214,7 +1276,7 @@ Detalle y credenciales en el [README](../README.md).
 
 ```
 cd apps/backend && mvn test     # 108
-./scripts/pruebas-sql.sh        # 121 + 50, sobre 9 migraciones
+./scripts/pruebas-sql.sh        # 127 + 50, sobre 10 migraciones
 npm run test:platform           # 55
 npm run build:landing && npm run build:platform
 ```

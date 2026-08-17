@@ -42,11 +42,20 @@ import jakarta.validation.Valid;
  * el listado de alumnos entero. El filtro {@code idProfesor} existe para que
  * administración mire la agenda de uno; el portal del profesor va a salir de ahí.
  *
- * <p><b>Lo que este módulo todavía no trae:</b> la seña. El trigger que exige
- * plata detrás de cada reserva necesita un {@code pago} apuntándole, y esa tabla
- * no tiene módulo hasta el 3 — activarlo hoy dejaría sin poder cargar ningún
- * alquiler de cabina. Decidido con Ignacio el 2026-08-16; la herramienta está
- * escrita en la cabecera de `V9`.
+ * <p><b>La seña está desde el 2026-08-17</b> (`V10`), y le cambió la forma al
+ * alta: {@link com.lajuanita.backend.reserva.dto.AltaReservaRequest} acepta ahora
+ * <b>sus participantes</b> —para una clase, la plata es la inscripción del que
+ * asiste— y <b>su seña</b>
+ * ({@link com.lajuanita.backend.reserva.dto.AltaSenaRequest}) —para un alquiler o
+ * una grabación, es un {@code pago} apuntando a la reserva—. Los dos son
+ * opcionales en el DTO y ninguno lo es en la práctica: el que no corresponda por
+ * el tipo de uso lo exige la pantalla, y el que falte lo rechaza el trigger al
+ * COMMIT. La única excepción es {@code MIX_MASTERING}, que lo decide Ghezz.
+ *
+ * <p><b>Ojo al escribir un test que la toque:</b> el trigger es diferido, esta
+ * suite revierte cada caso, y entonces <b>no se dispara nunca</b>. Hay que
+ * forzarlo con {@code SET CONSTRAINTS reserva_con_sena IMMEDIATE} después de un
+ * {@code flush()}. Sin eso el caso pasa sin haber probado nada.
  */
 @RestController
 @RequestMapping("/api/reservas")

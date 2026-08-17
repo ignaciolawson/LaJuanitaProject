@@ -121,24 +121,61 @@ CREATE VIEW v AS SELECT
  (SELECT id_tipo_uso FROM tipo_uso WHERE codigo='GRABACION_SET')    AS u_grabacion;
 
 
+-- -----------------------------------------------------------------------------
+-- LA SEÑA, Y POR QUÉ CASI TODA RESERVA DE ESTE ARCHIVO LA LLEVA  (V10)
+--
+-- Desde `V10` ninguna reserva existe sin dinero detrás, y se verifica **al
+-- COMMIT** con un CONSTRAINT TRIGGER diferido. Acá eso pega de una forma que hay
+-- que entender antes de agregar un caso:
+--
+-- psql está en autocommit, así que **cada `SELECT probar(...)` es su propia
+-- transacción**. El chequeo diferido corre al cerrarla, o sea AFUERA del bloque
+-- EXCEPTION de `probar()` — y el error se lleva puesto también el
+-- `INSERT INTO _resultado`. El caso no falla: **desaparece del resumen**, y los
+-- que dependían de su fila reportan agujeros que no existen. Se midió: 8 casos
+-- de la suite adversarial acusaron *"EL AGUJERO VOLVIO"* por esto.
+--
+-- Entonces: **toda reserva que se espera que ANDE entra con su seña, en la misma
+-- sentencia**, con un CTE. Las que se esperan FALLA no la necesitan — las rechaza
+-- un EXCLUDE o un trigger BEFORE antes del COMMIT, así que no dejan fila y al
+-- diferido no le queda nada que mirar.
+--
+-- El CTE tiene la reserva ADENTRO y el `SELECT` final afuera a propósito: así el
+-- ROW_COUNT que ve `probar()` sigue saliendo de la reserva. Si el INSERT no
+-- afecta nada, `nueva` queda vacía, el SELECT devuelve 0 filas y el caso 'ANDA'
+-- falla como debe — la regla 2 de la cabecera de este archivo sigue en pie.
+--
+-- La seña EN SÍ se prueba en la sección "LA SEÑA" del final, donde el chequeo se
+-- fuerza con `SET CONSTRAINTS ... IMMEDIATE` para poder verlo dentro de un caso.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION sena(p_id_reserva BIGINT) RETURNS BIGINT AS $$
+    INSERT INTO pago (id_usuario, id_reserva, monto, medio_pago, concepto)
+    SELECT (SELECT u_mica FROM v), p_id_reserva, 1, 'EFECTIVO', 'sena de prueba'
+    RETURNING id_reserva;
+$$ LANGUAGE sql;
+
+
 -- =============================================================================
 -- SALAS Y RESERVAS — la regla más crítica del sistema
 -- =============================================================================
 SELECT probar('01','reserva normal en Sala 1','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
-    SELECT sala1,u_clase,prof,'2026-09-01','10:00','11:30' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,prof,'2026-09-01','10:00','11:30' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('02','otra reserva SOLAPADA en la misma sala','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
     SELECT sala1,u_clase,'2026-09-01','11:00','12:00' FROM v$q$);
 
 SELECT probar('03','misma hora en otra sala','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_clase,'2026-09-01','11:00','12:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2026-09-01','11:00','12:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('04','reserva pegada, sin solapar (11:30-13:00)','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala1,u_clase,'2026-09-01','11:30','13:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,'2026-09-01','11:30','13:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('05','grabar un set en la Sala 1','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
@@ -153,8 +190,9 @@ SELECT probar('07','alquiler de cabina en la cabina de grabacion','FALLA',
     SELECT cabina,u_alquiler,'2026-09-02','15:00','17:00' FROM v$q$);
 
 SELECT probar('08','grabar un set en la cabina','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT cabina,u_grabacion,'2026-09-02','15:00','17:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT cabina,u_grabacion,'2026-09-02','15:00','17:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('09','hora_fin anterior a hora_inicio','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
@@ -176,9 +214,11 @@ SELECT probar('11','marcar una clase como REPROGRAMADA','ANDA',
       AND id_sala=(SELECT sala1 FROM v)$q$);
 
 SELECT probar('12','la franja reprogramada queda libre','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin,id_reserva_recupera)
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin,id_reserva_recupera)
     SELECT v.sala1,v.u_clase,v.prof,'2026-09-08','10:00','11:30',
-           (SELECT id_reserva FROM reserva WHERE estado='REPROGRAMADA' LIMIT 1) FROM v$q$);
+           (SELECT id_reserva FROM reserva WHERE estado='REPROGRAMADA' LIMIT 1) FROM v
+    RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('13','dos reservas recuperan la MISMA clase','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,id_reserva_recupera)
@@ -475,8 +515,9 @@ SELECT probar('70','un bloqueo que SI pisa dias y franja','FALLA',
     SELECT sala2,'2026-11-05','2026-11-06','10:00','12:00','Se pisa de verdad' FROM v$q$);
 
 SELECT probar('71','reservar un dia bloqueado, pero fuera de la franja','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_clase,'2026-11-03','15:00','16:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2026-11-03','15:00','16:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('72','reservar dentro de la franja bloqueada','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
@@ -567,33 +608,38 @@ SELECT probar('84','toda venta queda con su fecha de carga','ANDA',
 -- --- 1. Un profesor no esta en dos salas a la vez (EXCLUDE) ------------------
 
 SELECT probar('85','clase del profe en Sala 1','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
-    SELECT sala1,u_clase,prof,'2027-03-01','10:00','12:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,prof,'2027-03-01','10:00','12:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('86','el MISMO profe en otra sala a la misma hora','FALLA',
  $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
     SELECT sala2,u_clase,prof,'2027-03-01','11:00','13:00' FROM v$q$);
 
 SELECT probar('87','el mismo profe mas tarde, en otra sala','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_clase,prof,'2027-03-01','15:00','16:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,prof,'2027-03-01','15:00','16:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 -- Una reserva sin profesor -- un alquiler de cabina -- no ocupa la agenda de
 -- nadie: si el NULL contara como un valor mas, dos reservas sin profesor
 -- chocarian entre si. Son dos casos porque hacen falta las dos filas.
 SELECT probar('88','reserva SIN profesor en la Sala 2','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_alquiler,'2027-03-01','08:00','09:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_alquiler,'2027-03-01','08:00','09:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('89','otra SIN profesor en la cabina, a la MISMA hora','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT cabina,u_grabacion,'2027-03-01','08:00','09:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT cabina,u_grabacion,'2027-03-01','08:00','09:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 -- La otra sala ocupada a las 10, para los dos casos del alumno. La cabina solo
 -- admite CLASE_DJ y GRABACION_SET: la matriz sala x uso sigue rigiendo.
 SELECT probar('90','clase en la cabina a las 10','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT cabina,u_clase,'2027-03-01','10:00','12:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT cabina,u_clase,'2027-03-01','10:00','12:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 
 -- --- 1.b Un alumno tampoco (trigger, porque cruza dos tablas) ---------------
@@ -618,8 +664,9 @@ SELECT probar('93','OTRA alumna si puede estar en esa otra sala','ANDA',
 -- En la Sala 2, que a las 10:30 esta LIBRE. Si estuviera ocupada, el UPDATE de
 -- abajo lo rechazaria el EXCLUDE de sala y el caso probaria otra cosa.
 SELECT probar('94','clase suelta a las 18, en la Sala 2','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_clase,'2027-03-01','18:00','19:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2027-03-01','18:00','19:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 SELECT probar('95','Juan participa de la de las 18','ANDA',
  $q$INSERT INTO reserva_participante (id_reserva,id_usuario)
@@ -704,8 +751,9 @@ SELECT probar('110','reserva NUEVA a futuro en una sala desactivada','FALLA',
 
 -- Desactivar mira para adelante: cargar una clase que ya se dio no se impide.
 SELECT probar('111','reserva PASADA en una sala desactivada','ANDA',
- $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
-    SELECT sala2,u_clase,'2020-06-01','10:00','11:00' FROM v$q$);
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala2,u_clase,'2020-06-01','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
 
 -- Y una reserva legitima que ya estaba cargada no queda congelada.
 SELECT probar('112','editar una reserva ya cargada en la sala desactivada','ANDA',
@@ -757,6 +805,95 @@ SELECT probar('119','DESCANCELAR la de las 15 dejaria 2 sobre 1','FALLA',
  $q$UPDATE reserva SET estado='CONFIRMADA',
         id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE fecha='2027-03-01' AND hora_inicio='15:00'$q$);
+
+
+-- =============================================================================
+-- LA SEÑA — P8 / DB-04a  (V10)
+--
+-- La última regla que vivía en un documento y no en el código. "Todo se seña
+-- antes, todo" no significa un pago por reserva: significa que **ninguna reserva
+-- existe sin dinero detrás**, y ese dinero llega por dos caminos que cuentan
+-- igual — un `pago` apuntando a la reserva, o la inscripción que cubre la clase.
+--
+-- CÓMO SE PRUEBA UN CHEQUEO DIFERIDO, que es lo no obvio de esta sección: el
+-- trigger corre al COMMIT, o sea afuera de `probar()`. `SET CONSTRAINTS
+-- reserva_con_sena IMMEDIATE` ejecuta en el momento lo que está pendiente, y así
+-- el rechazo cae adentro del EXCEPTION y el caso se puede contar.
+--
+-- Los casos 'ANDA' terminan con un `SELECT` sobre `reserva` a propósito: sin él
+-- el ROW_COUNT que ve `probar()` saldría del `SET CONSTRAINTS` (cero filas) y el
+-- caso fallaría sin motivo. Y de paso el SELECT afirma lo que importa — que la
+-- fila siguió ahí después de que el chequeo corriera.
+-- =============================================================================
+
+-- Un alumno propio: las inscripciones de Juan y Ana ya consumieron clases más
+-- arriba, y una que se queda sin cupo haría fallar estos casos por `V9` §5 en vez
+-- de por la seña.
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol)
+VALUES ('Sena','Prueba','sena@test.local','x','USUARIO');
+INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='sena@test.local';
+INSERT INTO inscripcion (id_alumno,id_profesor,disciplina,clases_contratadas,precio_total)
+SELECT a.id_alumno,(SELECT id_profesor FROM profesor LIMIT 1),'DJ',8,400000
+FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='sena@test.local';
+
+CREATE VIEW s AS SELECT
+ (SELECT id_usuario FROM usuario WHERE email='sena@test.local') AS u_sena,
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN alumno a USING(id_alumno)
+    JOIN usuario u USING(id_usuario) WHERE u.email='sena@test.local') AS ins_sena,
+ (SELECT id_tipo_uso FROM tipo_uso WHERE codigo='MIX_MASTERING') AS u_mix;
+
+
+SELECT probar('120','reservar sin NADA de plata detras','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,'2029-04-02','10:00','11:30' FROM v;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
+
+-- Camino 1: el pago apunta a la reserva. Es el alquiler de cabina y la grabación.
+SELECT probar('121','reservar con un pago apuntando a la reserva','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-04-03','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE;
+    SELECT 1 FROM reserva WHERE fecha='2029-04-03'$q$);
+
+-- Camino 2: la inscripción cubre la clase. **El alumno que ya pagó su curso no
+-- paga una seña por cada clase**: sería cobrarle dos veces.
+SELECT probar('122','clase cubierta por la inscripcion del que asiste','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,'2029-04-04','10:00','11:30' FROM v;
+    INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva,s.u_sena,s.ins_sena FROM s, reserva r WHERE r.fecha='2029-04-04';
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE;
+    SELECT 1 FROM reserva WHERE fecha='2029-04-04'$q$);
+
+-- Y el que no alcanza: participar no es pagar. Sin inscripción detrás, esa clase
+-- no tiene plata -- es justo el alumno al que habría que cobrarle.
+SELECT probar('123','clase con participante pero SIN inscripcion','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_clase,'2029-04-05','10:00','11:30' FROM v;
+    INSERT INTO reserva_participante (id_reserva,id_usuario)
+    SELECT r.id_reserva,s.u_sena FROM s, reserva r WHERE r.fecha='2029-04-05';
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
+
+-- La única excepción, y va por catálogo y no por estado: lo decide Ghezz caso por
+-- caso, y el relevamiento ya lo mostraba fiado.
+SELECT probar('124','MIX_MASTERING sin sena (la excepcion de Ghezz)','ANDA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT v.sala1,s.u_mix,'2029-04-06','10:00','11:00' FROM v, s;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE;
+    SELECT 1 FROM reserva WHERE fecha='2029-04-06'$q$);
+
+-- Un pago anulado no es plata. Si contara, anular la seña dejaría la reserva sin
+-- nada detrás y el chequeo diría que sí la tiene.
+SELECT probar('125','la reserva cuyo unico pago esta ANULADO','FALLA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-04-07','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva;
+    UPDATE pago SET estado_pago='ANULADO',
+                    id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                    motivo_anulacion='Nunca entro la transferencia'
+     WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-04-07');
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
 
 
 -- =============================================================================

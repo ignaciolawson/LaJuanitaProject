@@ -12,17 +12,22 @@ import {
   listarProfesores,
   listarSalas,
   listarTiposUso,
+  listarUsuarios,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   HORA_APERTURA,
+  NOMBRE_DE_MEDIO,
   type AlumnoResumen,
   type EstadoAsistencia,
   type InscripcionResumen,
+  type MedioPago,
+  type Moneda,
   type ProfesorResumen,
   type ReservaResumen,
   type SalaResumen,
   type TipoUsoResumen,
+  type UsuarioResumen,
 } from '../api/tiposAdmin'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
@@ -43,6 +48,15 @@ import {
 import { puedeOperar } from '../layout/menu'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+/** Los mismos que ofrece `/admin/pagos`. Espejan el CHECK `pago_medio_valido`. */
+const MEDIOS_DE_PAGO: MedioPago[] = [
+  'EFECTIVO',
+  'TRANSFERENCIA',
+  'PAYPAL',
+  'CUENTA_EEUU',
+  'OTRO',
+]
 
 const ASISTENCIAS: EstadoAsistencia[] = [
   'PENDIENTE',
@@ -535,40 +549,31 @@ function Detalle({
 }
 
 /**
- * Anotar a alguien en la clase.
+ * Elegir a quién anotar y contra qué curso: el alumno, sus inscripciones
+ * vigentes, y la que se descuenta.
  *
- * <p><b>Es la pieza que le faltaba al Módulo 2</b>, y sin ella el resto del
- * módulo no servía de nada: el backend expone el endpoint desde el 2026-08-16,
- * pero ninguna pantalla lo usaba — no se podía tomar lista, las clases restantes
- * nunca bajaban, y el historial del alumno quedaba vacío para siempre.
+ * **Está acá afuera porque ahora lo usan dos formularios**: el alta de la clase,
+ * que los manda en el mismo pedido que la reserva (paso 2 de la seña), y el
+ * "anotar a alguien" del detalle, para quien se suma después. Duplicarlo serían
+ * dos lugares donde arreglar la carga de cursos.
  *
- * <p><b>La inscripción es lo que hace que la clase descuente del curso.</b> Va
- * vacía cuando la persona viene sin cursar —un alquiler de cabina— y por eso se
- * elige aparte del alumno en vez de deducirse: alguien con dos cursos activos
- * tiene dos, y adivinar cuál descontar es adivinar mal la mitad de las veces.
- * Cuando tiene una sola, viene puesta.
+ * `activo` es lo que dispara la carga del listado de alumnos, y por eso es un
+ * parámetro y no un `useEffect` suelto: son ~80 alumnos que no hacen falta hasta
+ * que el formulario esté abierto, ni nunca si lo que se carga es un alquiler.
  */
-function FormularioParticipante({
-  reserva,
-  onAnotado,
-}: {
-  reserva: ReservaResumen
-  onAnotado: () => void
-}) {
-  const [abierto, setAbierto] = useState(false)
+function useParticipante(activo: boolean) {
   const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
   const [cursos, setCursos] = useState<InscripcionResumen[]>([])
   const [idAlumno, setIdAlumno] = useState('')
   const [idInscripcion, setIdInscripcion] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [enviando, setEnviando] = useState(false)
+  const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!abierto) return
+    if (!activo) return
     listarAlumnos({ pagina: 0 })
       .then((r) => setAlumnos(r.contenido))
-      .catch(() => setError('No se pudo cargar el listado de alumnos.'))
-  }, [abierto])
+      .catch(() => setErrorDeCarga('No se pudo cargar el listado de alumnos.'))
+  }, [activo])
 
   // Solo las vigentes: anotar una clase contra un curso terminado no descuenta
   // nada real, y ofrecerlo es ofrecer un error de carga.
@@ -584,14 +589,111 @@ function FormularioParticipante({
         // Con un solo curso no hay nada que elegir.
         setIdInscripcion(r.contenido.length === 1 ? String(r.contenido[0].idInscripcion) : '')
       })
-      .catch(() => setError('No se pudieron cargar las inscripciones.'))
+      .catch(() => setErrorDeCarga('No se pudieron cargar las inscripciones.'))
   }, [idAlumno])
 
   const alumno = alumnos.find((a) => String(a.idAlumno) === idAlumno)
 
+  return {
+    alumnos,
+    cursos,
+    idAlumno,
+    setIdAlumno,
+    idInscripcion,
+    setIdInscripcion,
+    errorDeCarga,
+    limpiar() {
+      setIdAlumno('')
+      setIdInscripcion('')
+    },
+    /** Listo para el cuerpo del pedido, o null si todavía no eligió a nadie. */
+    elegido: alumno
+      ? {
+          idUsuario: alumno.idUsuario,
+          idInscripcion: idInscripcion ? Number(idInscripcion) : null,
+        }
+      : null,
+  }
+}
+
+/**
+ * Los dos selects, sueltos: los dos formularios que los usan tienen su propia
+ * grilla de dos columnas, así que esto es un fragmento y no un bloque.
+ */
+function CamposDeParticipante({
+  selector,
+  error,
+}: {
+  selector: ReturnType<typeof useParticipante>
+  error?: string
+}) {
+  return (
+    <>
+      <CampoSelect
+        etiqueta="Quién"
+        value={selector.idAlumno}
+        onChange={(e) => selector.setIdAlumno(e.target.value)}
+        error={error}
+      >
+        <option value="">Elegí un alumno</option>
+        {selector.alumnos.map((a) => (
+          <option key={a.idAlumno} value={a.idAlumno}>
+            {a.apellido}, {a.nombre}
+          </option>
+        ))}
+      </CampoSelect>
+
+      <CampoSelect
+        etiqueta="Descuenta de"
+        value={selector.idInscripcion}
+        onChange={(e) => selector.setIdInscripcion(e.target.value)}
+      >
+        {/* El vacío es una opción válida y no un "elegí algo": una clase que
+            no descuenta de ningún curso es el alquiler de cabina. */}
+        <option value="">No descuenta clases</option>
+        {selector.cursos.map((i) => (
+          <option key={i.idInscripcion} value={i.idInscripcion}>
+            {NOMBRE_DE_DISCIPLINA[i.disciplina]} — le quedan {i.clasesRestantes}
+          </option>
+        ))}
+      </CampoSelect>
+    </>
+  )
+}
+
+/**
+ * Anotar a alguien en una clase **que ya existe**.
+ *
+ * <p><b>Es la pieza que le faltaba al Módulo 2</b>, y sin ella el resto del
+ * módulo no servía de nada: el backend expone el endpoint desde el 2026-08-16,
+ * pero ninguna pantalla lo usaba — no se podía tomar lista, las clases restantes
+ * nunca bajaban, y el historial del alumno quedaba vacío para siempre.
+ *
+ * <p><b>Sigue existiendo aunque el alta ahora cargue su alumno</b> (2026-08-17):
+ * un alumno que se suma a una clase grupal la semana siguiente, o una
+ * recuperación, entran por acá.
+ *
+ * <p><b>La inscripción es lo que hace que la clase descuente del curso.</b> Va
+ * vacía cuando la persona viene sin cursar —un alquiler de cabina— y por eso se
+ * elige aparte del alumno en vez de deducirse: alguien con dos cursos activos
+ * tiene dos, y adivinar cuál descontar es adivinar mal la mitad de las veces.
+ * Cuando tiene una sola, viene puesta.
+ */
+function FormularioParticipante({
+  reserva,
+  onAnotado,
+}: {
+  reserva: ReservaResumen
+  onAnotado: () => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const selector = useParticipante(abierto)
+
   async function anotar(evento: React.FormEvent) {
     evento.preventDefault()
-    if (!alumno) {
+    if (!selector.elegido) {
       setError('Elegí a quién anotar.')
       return
     }
@@ -599,12 +701,8 @@ function FormularioParticipante({
     setError(null)
     setEnviando(true)
     try {
-      await agregarParticipante(reserva.idReserva, {
-        idUsuario: alumno.idUsuario,
-        idInscripcion: idInscripcion ? Number(idInscripcion) : null,
-      })
-      setIdAlumno('')
-      setIdInscripcion('')
+      await agregarParticipante(reserva.idReserva, selector.elegido)
+      selector.limpiar()
       setAbierto(false)
       onAnotado()
     } catch (e) {
@@ -631,38 +729,12 @@ function FormularioParticipante({
   return (
     <form onSubmit={anotar} noValidate className="mt-4 rounded-md border border-linea p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <CampoSelect
-          etiqueta="Quién"
-          value={idAlumno}
-          onChange={(e) => setIdAlumno(e.target.value)}
-        >
-          <option value="">Elegí un alumno</option>
-          {alumnos.map((a) => (
-            <option key={a.idAlumno} value={a.idAlumno}>
-              {a.apellido}, {a.nombre}
-            </option>
-          ))}
-        </CampoSelect>
-
-        <CampoSelect
-          etiqueta="Descuenta de"
-          value={idInscripcion}
-          onChange={(e) => setIdInscripcion(e.target.value)}
-        >
-          {/* El vacío es una opción válida y no un "elegí algo": una clase que
-              no descuenta de ningún curso es el alquiler de cabina. */}
-          <option value="">No descuenta clases</option>
-          {cursos.map((i) => (
-            <option key={i.idInscripcion} value={i.idInscripcion}>
-              {NOMBRE_DE_DISCIPLINA[i.disciplina]} — le quedan {i.clasesRestantes}
-            </option>
-          ))}
-        </CampoSelect>
+        <CamposDeParticipante selector={selector} />
       </div>
 
-      {error && (
+      {(error ?? selector.errorDeCarga) && (
         <div className="mt-3">
-          <Aviso>{error}</Aviso>
+          <Aviso>{error ?? selector.errorDeCarga}</Aviso>
         </div>
       )}
 
@@ -716,6 +788,53 @@ function FormularioReserva({
   const [enviando, setEnviando] = useState(false)
 
   const sala = salas.find((s) => String(s.idSala) === datos.idSala)
+  const tipo = tipos.find((t) => String(t.idTipoUso) === datos.idTipoUso)
+
+  /**
+   * Una clase se carga con quién la toma, en el mismo pedido (paso 2 de la seña).
+   *
+   * Las dos condiciones son deliberadas. **Solo en el alta**, porque mover una
+   * reserva no toca a los participantes y `EdicionReservaRequest` no los tiene.
+   * **Solo si es clase**, porque una grabación de set no tiene a quién anotar y su
+   * plata llega por `pago.id_reserva`.
+   */
+  const pideParticipante = !reserva && (tipo?.esClase ?? false)
+  const participante = useParticipante(pideParticipante)
+
+  /**
+   * El otro camino del dinero de `V10`, y el espejo exacto del de arriba.
+   *
+   * Una clase la cubre la inscripción del alumno. Un **alquiler de cabina o una
+   * grabación de set no tienen inscripción ninguna**, así que su plata es un pago
+   * apuntando a la reserva, y tiene que entrar en el mismo pedido — un pago no
+   * puede apuntar a una reserva que todavía no existe.
+   *
+   * `MIX_MASTERING` es la única excepción de la regla (lo decide Ghezz caso por
+   * caso), así que es el único uso que no la pide.
+   */
+  const pideSena = !reserva && tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+  const [sena, setSena] = useState({
+    idUsuario: '',
+    monto: '',
+    moneda: 'ARS' as Moneda,
+    cotizacionDolar: '',
+    medioPago: 'EFECTIVO' as MedioPago,
+  })
+  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
+
+  // Quien alquila puede no ser alumno de nada -- es la decisión de `usuario` como
+  // raíz-- así que acá se listan usuarios y no alumnos.
+  useEffect(() => {
+    if (!pideSena) return
+    listarUsuarios({ pagina: 0 })
+      .then((r) => setPersonas(r.contenido))
+      .catch(() => setErrorGeneral('No se pudo cargar el listado de personas.'))
+  }, [pideSena])
+
+  function cambiarSena(campo: keyof typeof sena) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setSena((previo) => ({ ...previo, [campo]: e.target.value }))
+  }
 
   // Solo los usos habilitados para esa sala: la matriz de §2.6. La FK compuesta
   // los rechaza igual; esto evita ofrecerlos y después explicar un error.
@@ -744,6 +863,24 @@ function FormularioReserva({
     if (datos.horaFin <= datos.horaInicio) {
       locales.horarioValido = 'La hora de fin tiene que ser posterior a la de inicio.'
     }
+    // Esta es la mitad de la seña que impone la pantalla (§13): una clase sin
+    // nadie anotado es una reserva sin plata detrás, y `V10` la va a rechazar al
+    // COMMIT. Se pide acá y no en el DTO porque el backend la acepta vacía a
+    // propósito -- un alquiler de cabina no tiene participantes.
+    if (pideParticipante && !participante.elegido) {
+      locales.idUsuario = 'Elegí al alumno: una clase se carga junto con quién la toma.'
+    }
+    // La misma regla por el otro camino: sin inscripción que lo cubra, lo que
+    // sostiene la reserva es el pago, y `V10` lo exige al COMMIT.
+    if (pideSena) {
+      if (!sena.idUsuario) locales.senaIdUsuario = 'Decí quién paga la seña.'
+      if (!sena.monto || Number(sena.monto) <= 0) {
+        locales.senaMonto = 'Poné el monto de la seña.'
+      }
+      if (sena.moneda === 'USD' && !sena.cotizacionDolar) {
+        locales.senaCotizacion = 'Un pago en dólares necesita la cotización del día.'
+      }
+    }
     if (Object.keys(locales).length > 0) {
       setErrores(locales)
       return
@@ -765,7 +902,24 @@ function FormularioReserva({
 
     try {
       if (reserva) await editarReserva(reserva.idReserva, cuerpo)
-      else await altaReserva(cuerpo)
+      else {
+        // Un solo participante. Una clase grupal se completa desde el detalle con
+        // "Anotar a alguien" -- lo que la seña necesita es que la reserva no nazca
+        // vacía, no que entre entera de una.
+        await altaReserva({
+          ...cuerpo,
+          participantes: participante.elegido ? [participante.elegido] : undefined,
+          sena: pideSena
+            ? {
+                idUsuario: Number(sena.idUsuario),
+                monto: Number(sena.monto),
+                moneda: sena.moneda,
+                cotizacionDolar: sena.cotizacionDolar ? Number(sena.cotizacionDolar) : null,
+                medioPago: sena.medioPago,
+              }
+            : undefined,
+        })
+      }
       onGuardada()
     } catch (e) {
       if (e instanceof ApiError) {
@@ -830,15 +984,96 @@ function FormularioReserva({
         />
 
         <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} className="sm:col-span-2" />
+
+        {/* Aparecen recién al elegir un tipo de uso que es clase, y por eso el
+            título va adentro del condicional: sin él son dos selects que salen de
+            la nada en medio del formulario. */}
+        {pideParticipante && (
+          <>
+            <p className="mt-2 text-xs font-semibold text-tenue sm:col-span-2">
+              Quién toma la clase
+            </p>
+            <CamposDeParticipante selector={participante} error={errores.idUsuario} />
+          </>
+        )}
+
+        {/* El otro camino del dinero. La leyenda dice el porqué en una línea:
+            sin esto la reserva no tiene con qué existir, y el rechazo llegaría
+            recién al guardar, escrito por un trigger. */}
+        {pideSena && (
+          <>
+            <p className="mt-2 sm:col-span-2">
+              <span className="text-xs font-semibold text-tenue">La seña</span>
+              <span className="ml-2 text-xs text-tenue">
+                Sin seña no se aparta el horario. Es el 50% del total.
+              </span>
+            </p>
+
+            <CampoSelect
+              etiqueta="Quién paga"
+              value={sena.idUsuario}
+              onChange={cambiarSena('idUsuario')}
+              error={errores.senaIdUsuario}
+            >
+              <option value="">Elegí a la persona</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.apellido}, {p.nombre}
+                </option>
+              ))}
+            </CampoSelect>
+
+            <Campo
+              etiqueta="Monto"
+              type="number"
+              step="0.01"
+              value={sena.monto}
+              onChange={cambiarSena('monto')}
+              error={errores.senaMonto}
+            />
+
+            <CampoSelect etiqueta="Moneda" value={sena.moneda} onChange={cambiarSena('moneda')}>
+              <option value="ARS">Pesos</option>
+              <option value="USD">Dólares</option>
+            </CampoSelect>
+
+            <CampoSelect
+              etiqueta="Cómo pagó"
+              value={sena.medioPago}
+              onChange={cambiarSena('medioPago')}
+            >
+              {MEDIOS_DE_PAGO.map((m) => (
+                <option key={m} value={m}>
+                  {NOMBRE_DE_MEDIO[m]}
+                </option>
+              ))}
+            </CampoSelect>
+
+            {sena.moneda === 'USD' && (
+              <Campo
+                etiqueta="Cotización del dólar"
+                type="number"
+                step="0.01"
+                value={sena.cotizacionDolar}
+                onChange={cambiarSena('cotizacionDolar')}
+                ayuda="Sin esto el importe no se puede reconstruir después."
+                error={errores.senaCotizacion}
+                className="sm:col-span-2"
+              />
+            )}
+          </>
+        )}
       </div>
 
       {/* El caso "se puede, pero ojo" de la matriz: una clase de DJ en la cabina
           de grabación es válida solo si es una práctica. */}
       {advertencia && <p className="mt-3 text-xs text-red">{advertencia}</p>}
 
-      {errorGeneral && (
+      {/* El de carga también: sin esto, un fallo al traer los alumnos deja el
+          select vacío sin decir por qué, que se lee como "no hay alumnos". */}
+      {(errorGeneral ?? participante.errorDeCarga) && (
         <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+          <Aviso>{errorGeneral ?? participante.errorDeCarga}</Aviso>
         </div>
       )}
 
