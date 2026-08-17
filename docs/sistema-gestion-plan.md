@@ -523,20 +523,84 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-16, fin del día
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-17, fin del día
 
-**Módulos 1 y 2 cerrados. El 3 está a dos cosas de cerrar**, y las dos están
-decididas y escritas. Nada está bloqueado esperando una respuesta tuya.
-
-## ✅ MÓDULO 3 CERRADO — 2026-08-17
-
-**Sus seis pantallas existen, y la seña ya no vive en un documento sino en la
-base.** Con esto quedan cerrados los módulos 1, 2 y 3. **Lo próximo es el
-Módulo 4 (Portal del alumno)**, según el orden de fases de §5.
+## ✅ MÓDULOS 1, 2 Y 3 CERRADOS. LO PRÓXIMO ES EL MÓDULO 4 — Portal del alumno.
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Las cuatro suites: **319 backend · 241 front · 138 + 50
-SQL**.
+`npm run dev:platform`. Entrás con `admin@lajuanita.local` / `lajuanita2026`.
+Las cuatro suites: **319 backend · 241 front · 138 + 50 SQL**.
+
+> **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**
+> (verificado el 2026-08-17): 10 usuarios, 6 alumnos, 6 inscripciones y
+> **9 reservas, todas entre el 1 y el 15 de agosto**. O sea: **el calendario abre
+> en la semana actual y se ve vacío — hay que retroceder una o dos semanas.**
+>
+> Y **`pago`, `egreso` y `venta_equipo` están en CERO**, así que Caja, Deudores,
+> Estado de cuenta, Egresos y Venta de equipos arrancan todas en cero. No es un
+> error: ninguna pantalla las llenó nunca. Para verlas con algo adentro hay que
+> cargar a mano — y **ojo con las reservas viejas**: se cargaron antes de `V10`,
+> así que no tienen seña detrás. La regla no las toca (el trigger corre al INSERT),
+> pero **si cancelás una no vas a poder descancelarla**, porque `V11` le va a pedir
+> la plata que nunca tuvo. Es correcto, y es la primera vez que se va a ver en la
+> práctica.
+
+### 🚦 LAS DOS DECISIONES QUE HAY QUE TOMAR ANTES DE ESCRIBIR CÓDIGO DEL M4
+
+**No arranques por una pantalla.** Las dos piezas más caras del módulo están al
+principio y las dos son de diseño, no de tipeo. Ninguna está bloqueada esperando
+al cliente — P17 y P19 se contestaron el 2026-08-17 y están en
+[`platform.md` §7](requirements/platform.md).
+
+**1. ¿Dónde vive una solicitud de reserva?** El portal no puede crear una
+`reserva`: no existe sin plata detrás en estado `SENADO`/`PAGADO` (P8, `V10`–`V12`)
+y **un `USUARIO` no tiene cómo poner plata en el sistema** — registrar un pago es
+`@PuedeOperar`, los cinco medios son de carga manual y no hay pasarela en ningún
+lado del alcance. Entonces el portal genera una **solicitud**, y la reserva nace
+cuando administración confirma y carga la seña.
+
+  La única tabla de solicitudes que existe es `solicitud_reprogramacion`. Hay que
+  decidir entre **crear una `solicitud_reserva`** o **generalizar la que hay** (que
+  hoy tiene `id_reserva NOT NULL`, así que generalizarla es aflojar esa columna y
+  agregarle los datos del pedido: sala, tipo de uso, fecha y horas). **Sea cual
+  sea, el M4 empieza con una migración.**
+
+**2. El eje de permisos "solo lo mío", que hoy no existe en ninguna forma.** Todo
+endpoint administrativo se autoriza por **rol** (`@PuedeLeerAdministracion` /
+`@PuedeOperar`). El portal necesita algo distinto: alcance por **identidad**. Es un
+patrón nuevo y transversal —lo van a usar los módulos 4, 5 y 6— así que conviene
+diseñarlo una vez y bien. Las dos preguntas concretas: dónde se aplica el filtro
+(¿en el service, con el id del token? ¿un `@PuedeVerLoSuyo`?) y qué pasa cuando un
+STAFF mira la ficha de otro, que es el mismo endpoint con otro alcance.
+
+> **Y lo que ya está decidido, para no volver a abrirlo (2026-08-17, Ignacio):**
+>
+> - **La cursada la decide administración.** El alumno no elige clase, horario ni
+>   profesor. **Lo que no depende de un profe sí lo elige el usuario**: alquiler de
+>   cabina y grabación. La línea no la marca el rol, la marca si hay un profesor
+>   del otro lado (P17).
+> - **Nadie pierde nunca su cuenta** (P19). Dar de baja al alumno no da de baja a
+>   la persona: `alumno.estado_alumno = INACTIVO` es "terminó de cursar",
+>   `usuario.activo = FALSE` es una baja real. El portal se le sigue mostrando —
+>   sus materiales, su historial, y poder alquilar una cabina.
+
+### 📌 Lo único que el Módulo 3 dejó abierto a propósito
+
+**Una venta cargada sin cobro no tiene después por dónde cobrarse.** El cobro entra
+junto con la venta; `/admin/pagos` solo salda inscripciones y aceptar el otro
+destino es rehacer ese formulario (hoy es alumno → sus inscripciones). Se decidió
+no hacerlo: con la anulación andando, se anula y se vuelve a cargar con el cobro, y
+P33 ya dejó dicho que el negocio cobra por adelantado y no en cuotas. **Si aparece
+una venta en cuotas real, ahí se rediseña con el caso a la vista.**
+
+### 🧨 Y una regla dura de §6 que NO está entera
+
+*"Alerta automática si alguien lleva más de 7 días en estado 'debe'"*. Lo que **sí**
+está: `DIAS_PARA_VENCER = 7` y `/admin/deudores` marcando quién pasó el umbral. Lo
+que **no**: el aviso que salta solo. No hay maquinaria de notificaciones en ningún
+lado — la tabla `notificacion` existe desde `V1` y nadie la escribe. Aparece con el
+portal (M4 lista "Mis notificaciones" entre sus pantallas), así que **es del M4 o
+del que construya notificaciones, no una deuda del M3.**
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
 > una reserva vacía. Una **clase** entra con su alumno y su inscripción; un
