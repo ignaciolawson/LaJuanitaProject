@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
+import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
 import { puedeOperar } from '../layout/menu'
@@ -18,10 +19,10 @@ import { puedeOperar } from '../layout/menu'
  * sin esto, *"¿cuánto quedó?"* se sigue contestando cruzando el Excel con el
  * Notion a mano.
  *
- * <p><b>Se carga y se lista, y nada más.</b> No hay edición ni borrado — `V9`
- * prohíbe el DELETE sobre {@code egreso} desde que le dio estado de anulación, y
- * la anulación llega cuando alguien la pida: una operación irreversible sin caso
- * de uso es peor que no tenerla.
+ * <p><b>Se carga, se lista y se anula.</b> No hay edición ni borrado: `V9`
+ * prohíbe el DELETE sobre {@code egreso}, así que **corregir uno mal cargado es
+ * anularlo y volver a cargarlo**, con el primero quedando firmado por quien lo dio
+ * de baja. Por eso el botón dice "Anular" y no "Eliminar", igual que en Pagos.
  */
 export function EgresosPagina() {
   const puedeEscribir = puedeOperar(useUsuario())
@@ -34,6 +35,7 @@ export function EgresosPagina() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
+  const [anulando, setAnulando] = useState<EgresoResumen | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -54,6 +56,21 @@ export function EgresosPagina() {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  async function confirmarAnulacion(motivo: string) {
+    if (!anulando) return
+    try {
+      await anularEgreso(anulando.idEgreso, motivo)
+      setAnulando(null)
+      await cargar()
+    } catch (e) {
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo anular el egreso.'
+      setAnulando(null)
+      // Recargar antes de mostrar: `cargar` arranca limpiando el error.
+      await cargar()
+      setError(mensaje)
+    }
+  }
 
   return (
     <div>
@@ -96,6 +113,16 @@ export function EgresosPagina() {
         />
       )}
 
+      {anulando && (
+        <PedirMotivo
+          key={anulando.idEgreso}
+          titulo="Anular el egreso"
+          ayuda="El egreso no se borra: queda registrado como anulado, con tu nombre y la fecha. Deja de contar en la caja."
+          onCerrar={() => setAnulando(null)}
+          onConfirmar={confirmarAnulacion}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-linea bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -104,12 +131,20 @@ export function EgresosPagina() {
               <th className="px-4 py-3 font-semibold">A quién</th>
               <th className="px-4 py-3 font-semibold">Monto</th>
               <th className="px-4 py-3 font-semibold">Fecha</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-linea">
             {egresos.map((e) => (
-              <tr key={e.idEgreso}>
-                <td className="px-4 py-3 font-medium">{e.concepto}</td>
+              <tr key={e.idEgreso} className={e.anulado ? 'text-apagado' : undefined}>
+                <td className="px-4 py-3 font-medium">
+                  {/* Tachado y con el motivo: la fila anulada es la que explica
+                      por qué el total de la caja cambió, así que se queda. */}
+                  <span className={e.anulado ? 'line-through' : undefined}>{e.concepto}</span>
+                  {e.anulado && (
+                    <div className="text-xs text-red">Anulado · {e.motivoAnulacion}</div>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-tenue">
                   {e.destinatario ?? <span className="text-apagado">—</span>}
                   {/* Vale distinguirlo: un egreso a alguien con cuenta se puede
@@ -123,6 +158,17 @@ export function EgresosPagina() {
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-tenue">
                   {e.fechaEgreso.split('-').reverse().join('/')}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {puedeEscribir && !e.anulado && (
+                    <button
+                      type="button"
+                      onClick={() => setAnulando(e)}
+                      className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                    >
+                      Anular
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -515,6 +515,118 @@ class ReservaTest {
                 .isEqualTo(id);
     }
 
+    // == La devolución de la seña (V11) =======================================
+    //
+    // `V10` cerraba solo el nacimiento de la reserva. `V11` cierra la otra punta,
+    // con la política decidida el 2026-08-17: **si se cancela una reserva, la seña
+    // se devuelve.** La regla completa queda "toda reserva que OCUPA SU FRANJA
+    // tiene plata detrás", con la definición canónica de `V1`.
+    //
+    // A diferencia de los dos casos de arriba, estos NO necesitan
+    // `SET CONSTRAINTS`: los triggers de `V11` son inmediatos a propósito — al
+    // anular o al reactivar ya existe todo lo que hay que mirar, y diferirlos
+    // convertiría el 409 con el texto del trigger en un 500 al cerrar.
+
+    @Test
+    void no_se_puede_devolver_la_sena_de_una_reserva_que_sigue_vigente() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        mvc.perform(altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated());
+        em.flush();
+
+        anularElPagoDe(quienPaga)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
+                        "primero hay que cancelar la reserva")));
+    }
+
+    /** El orden que la política habilita: primero se cancela, después se devuelve. */
+    @Test
+    void cancelada_la_reserva_la_sena_se_devuelve() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        long id = idDe(mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CANCELADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+        em.flush();
+
+        anularElPagoDe(quienPaga).andExpect(status().isOk());
+    }
+
+    /**
+     * <b>El esquive: cancelo, me devuelven la seña, y descancelo.</b> Dos pasos
+     * legales que juntos rompen la regla — la misma familia de ataques que las
+     * pruebas adversariales persiguen en los bloqueos y en el solapamiento.
+     */
+    @Test
+    void una_reserva_cuya_sena_se_devolvio_no_se_puede_reactivar() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        long id = idDe(mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CANCELADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+        em.flush();
+        anularElPagoDe(quienPaga).andExpect(status().isOk());
+
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CONFIRMADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
+                        "su sena fue devuelta")));
+    }
+
+    /**
+     * Y que la regla no se vuelva contra sí misma: una reserva cuya seña sigue
+     * viva se cancela y se descancela sin problema. Sin este caso, un trigger que
+     * rechazara toda reactivación pasaría los tres de arriba igual.
+     */
+    @Test
+    void una_reserva_con_su_sena_intacta_se_puede_descancelar() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        long id = idDe(mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CANCELADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CONFIRMADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+    }
+
+    /** Cancelar una clase no toca ningún pago: su plata es la inscripción. */
+    @Test
+    void cancelar_una_clase_no_choca_con_la_regla_de_la_sena() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno, 8);
+        long id = idDe(mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
+                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CANCELADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+    }
+
+    private ResultActions anularElPagoDe(Usuario quienPaga) throws Exception {
+        Long idPago = jdbc.queryForObject(
+                "SELECT id_pago FROM pago WHERE id_usuario = ?", Long.class, quienPaga.getId());
+
+        return mvc.perform(patch("/api/pagos/" + idPago + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"Se cancelo la reserva y se devolvio la sena"}
+                        """));
+    }
+
     // == Auditoría (V7) =======================================================
 
     @Test

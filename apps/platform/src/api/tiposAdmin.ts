@@ -402,6 +402,10 @@ export type EgresoResumen = {
   comprobantePath: string | null
   fechaEgreso: string
   fechaRegistro: string
+  /** Anulado deja de contar en la caja, pero sigue en el listado: es historial. */
+  anulado: boolean
+  motivoAnulacion: string | null
+  fechaAnulacion: string | null
 }
 
 /**
@@ -429,6 +433,10 @@ export type VentaResumen = {
   fechaRegistro: string
   /** Si ya entró la plata. La venta y su cobro son dos hechos. */
   cobrada: boolean
+  /** Anulada sale del total del período pero no del listado: es historial. */
+  anulada: boolean
+  motivoAnulacion: string | null
+  fechaAnulacion: string | null
 }
 
 /** A partir de acá una deuda está vencida (§6). Espeja `DIAS_PARA_VENCER`. */

@@ -6,6 +6,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,7 @@ import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.AltaEgresoRequest;
 import com.lajuanita.backend.pago.dto.EgresoResumen;
+import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.usuario.dto.Pagina;
 
 import jakarta.validation.Valid;
@@ -58,5 +61,21 @@ public class EgresoController {
     public EgresoResumen registrar(@Valid @RequestBody AltaEgresoRequest solicitud,
             Authentication quienPide) {
         return egresos.registrar(solicitud, Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Anular un egreso mal cargado. <b>No se edita y no se borra</b>: `V9` prohíbe
+     * el DELETE, así que corregir es anular y volver a cargar.
+     *
+     * <p>Mismo verbo y misma forma que {@code PATCH /api/pagos/{id}/anulacion}, y
+     * el mismo {@link MotivoRequest}: el motivo lo aporta quien pide, el autor sale
+     * del token y la fecha del reloj.
+     */
+    @PatchMapping("/{id}/anulacion")
+    @PuedeOperar
+    public EgresoResumen anular(@PathVariable Long id,
+            @Valid @RequestBody MotivoRequest solicitud,
+            Authentication quienPide) {
+        return egresos.anular(id, solicitud.motivo(), Autoridades.idDe(quienPide));
     }
 }

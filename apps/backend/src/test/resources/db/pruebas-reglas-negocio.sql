@@ -896,6 +896,64 @@ SELECT probar('125','la reserva cuyo unico pago esta ANULADO','FALLA',
     SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
 
 
+-- -----------------------------------------------------------------------------
+-- LA SEÑA SE DEVUELVE  (V11)
+--
+-- `V10` cerraba solo el nacimiento de la reserva: la invariante se establecía al
+-- crear y se rompía después anulando el pago. `V11` la termina, con la política
+-- que decidió Ignacio el 2026-08-17: **si se cancela una reserva, la seña se
+-- devuelve**. La regla completa queda "toda reserva que OCUPA SU FRANJA tiene
+-- plata detrás", con la definición canónica de `V1`.
+--
+-- Los tres casos son las tres puntas: no se puede sacar la plata de abajo de una
+-- reserva viva; sí se puede devolver una vez cancelada; y no se puede después
+-- descancelar para entrar por la ventana.
+-- -----------------------------------------------------------------------------
+
+SELECT probar('126','anular la sena de una reserva que sigue vigente','FALLA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-05-02','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva;
+    UPDATE pago SET estado_pago='ANULADO',
+                    id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                    motivo_anulacion='Devolucion'
+     WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-05-02')$q$);
+
+-- El orden que la política habilita: primero se cancela, después se devuelve.
+SELECT probar('127','cancelar la reserva y RECIEN AHI devolver la sena','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-05-03','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
+
+SELECT probar('128','la devolucion, con la reserva ya cancelada','ANDA',
+ $q$UPDATE reserva SET estado='CANCELADA', id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2029-05-03';
+    UPDATE pago SET estado_pago='ANULADO',
+                    id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                    motivo_anulacion='Se cancelo la reserva y se devolvio la sena'
+     WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-05-03')$q$);
+
+-- El esquive: dos pasos legales que juntos rompen la regla.
+SELECT probar('129','ESQUIVE: descancelar la reserva cuya sena ya se devolvio','FALLA',
+ $q$UPDATE reserva SET estado='CONFIRMADA', id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2029-05-03'$q$);
+
+-- Y que no se vuelva contra sí misma: cancelar nunca puede quedar bloqueado, y
+-- una reserva pagada se reactiva sin problema.
+SELECT probar('130','cancelar una reserva con su sena puesta','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-05-04','10:00','11:00' FROM v RETURNING id_reserva)
+    SELECT sena(id_reserva) FROM nueva$q$);
+
+SELECT probar('131','esa cancelacion no la bloquea nada','ANDA',
+ $q$UPDATE reserva SET estado='CANCELADA', id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2029-05-04'$q$);
+
+SELECT probar('132','y se puede descancelar porque la sena sigue viva','ANDA',
+ $q$UPDATE reserva SET estado='CONFIRMADA', id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2029-05-04'$q$);
+
+
 -- =============================================================================
 -- RESUMEN
 -- =============================================================================

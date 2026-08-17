@@ -120,4 +120,33 @@ public class VentaEquipo {
     @Generated(event = EventType.INSERT)
     @Column(name = "fecha_registro", nullable = false, updatable = false)
     private OffsetDateTime fechaRegistro;
+
+    // == La anulación (V9, expuesta el 2026-08-17) ============================
+
+    /** {@code anulada} y no {@code anulado}: la columna de `V9` va en femenino. */
+    @Column(name = "anulada", nullable = false)
+    private boolean anulada = false;
+
+    @Column(name = "id_usuario_anula")
+    private Long idUsuarioAnula;
+
+    @Column(name = "fecha_anulacion")
+    private OffsetDateTime fechaAnulacion;
+
+    @Column(name = "motivo_anulacion", columnDefinition = "text")
+    private String motivoAnulacion;
+
+    /**
+     * Da de baja la venta.
+     *
+     * <p>Las tres se escriben juntas o `V9` rechaza el UPDATE
+     * ({@code venta_anulacion_justificada}). Mismo molde que
+     * {@code Pago.anular}: el autor sale del token y la fecha del reloj.
+     */
+    public void anular(Long idAutor, String motivo) {
+        this.anulada = true;
+        this.idUsuarioAnula = idAutor;
+        this.fechaAnulacion = OffsetDateTime.now();
+        this.motivoAnulacion = motivo;
+    }
 }

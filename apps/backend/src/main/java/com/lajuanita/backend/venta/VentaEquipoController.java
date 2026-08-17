@@ -6,6 +6,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
+import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.usuario.dto.Pagina;
 import com.lajuanita.backend.venta.dto.AltaVentaRequest;
 import com.lajuanita.backend.venta.dto.VentaResumen;
@@ -56,8 +59,8 @@ public class VentaEquipoController {
     /**
      * Carga una venta, y su cobro si ya entró.
      *
-     * <p><b>No hay PUT ni DELETE</b>, y no es un olvido: `V9` prohíbe borrar y
-     * nadie pidió todavía la anulación. Ver {@link VentaEquipoService}.
+     * <p><b>No hay PUT ni DELETE</b>, y no es un olvido: `V9` prohíbe borrar, y
+     * corregir una venta mal cargada es anularla y volver a cargarla.
      */
     @PostMapping
     @PuedeOperar
@@ -65,5 +68,19 @@ public class VentaEquipoController {
     public VentaResumen registrar(@Valid @RequestBody AltaVentaRequest solicitud,
             Authentication quienPide) {
         return ventas.registrar(solicitud, Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Anular una venta mal cargada.
+     *
+     * <p>Si tenía cobro, primero hay que anular el pago — ver
+     * {@link VentaEquipoService#anular}.
+     */
+    @PatchMapping("/{id}/anulacion")
+    @PuedeOperar
+    public VentaResumen anular(@PathVariable Long id,
+            @Valid @RequestBody MotivoRequest solicitud,
+            Authentication quienPide) {
+        return ventas.anular(id, solicitud.motivo(), Autoridades.idDe(quienPide));
     }
 }

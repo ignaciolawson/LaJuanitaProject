@@ -24,6 +24,7 @@ import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { PedirMotivo } from '../componentes/PedirMotivo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy } from '../componentes/semana'
 import { puedeOperar } from '../layout/menu'
@@ -317,54 +318,6 @@ function fechaCorta(iso: string): string {
  * para siempre, así que merece un campo con su explicación al lado y no una
  * ventanita del navegador que se cierra con Escape sin avisar.
  */
-function PedirMotivo({
-  titulo,
-  ayuda,
-  onCerrar,
-  onConfirmar,
-}: {
-  titulo: string
-  ayuda: string
-  onCerrar: () => void
-  onConfirmar: (motivo: string) => void
-}) {
-  const [motivo, setMotivo] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
-  return (
-    <form
-      noValidate
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (!motivo.trim()) {
-          setError('Escribí el motivo.')
-          return
-        }
-        onConfirmar(motivo.trim())
-      }}
-      className="mb-6 rounded-lg border border-linea bg-white p-5"
-    >
-      <h3 className="mb-1 font-semibold">{titulo}</h3>
-      <p className="mb-4 text-sm text-tenue">{ayuda}</p>
-
-      <Campo
-        etiqueta="Motivo"
-        value={motivo}
-        onChange={(e) => setMotivo(e.target.value)}
-        placeholder="Se cargó dos veces, el monto era otro…"
-        error={error ?? undefined}
-      />
-
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit">Confirmar</Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
-  )
-}
-
 /**
  * Registrar un pago.
  *

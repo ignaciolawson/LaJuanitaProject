@@ -12,10 +12,12 @@ import { EgresosPagina } from './EgresosPagina'
 vi.mock('../api/administracion', () => ({
   listarEgresos: vi.fn(),
   registrarEgreso: vi.fn(),
+  anularEgreso: vi.fn(),
   listarProfesores: vi.fn(),
 }))
 
-const { listarEgresos, listarProfesores, registrarEgreso } = await import('../api/administracion')
+const { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } =
+  await import('../api/administracion')
 
 const PROFESORES: ProfesorResumen[] = [
   { idProfesor: 2, idUsuario: 20, nombreCompleto: 'Tomás Ghezzi', activo: true },
@@ -33,6 +35,9 @@ function egreso(cambios: Partial<EgresoResumen> = {}): EgresoResumen {
     comprobantePath: null,
     fechaEgreso: '2026-08-16',
     fechaRegistro: '2026-08-16T14:00:00Z',
+    anulado: false,
+    motivoAnulacion: null,
+    fechaAnulacion: null,
     ...cambios,
   }
 }
@@ -75,6 +80,61 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(listarEgresos).mockResolvedValue(pagina([egreso()]))
   vi.mocked(listarProfesores).mockResolvedValue(PROFESORES)
+  vi.mocked(anularEgreso).mockResolvedValue({} as never)
+})
+
+/**
+ * **El único camino para corregir un egreso mal cargado** (2026-08-17): `V9`
+ * prohíbe el DELETE, así que se anula, queda firmado, y se vuelve a cargar.
+ *
+ * Lo que este bloque no puede probar —y es lo que más importa— es que anular lo
+ * saque de la caja: eso vive en la consulta del backend y lo pinea
+ * `CajaTest.un_egreso_anulado_deja_de_estar_en_la_caja`.
+ */
+describe('anular un egreso', () => {
+  it('pide el motivo y avisa que deja de contar en la caja', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+
+    expect(screen.getByRole('heading', { name: 'Anular el egreso' })).toBeDefined()
+    expect(screen.getByText(/Deja de contar en la caja/)).toBeDefined()
+    expect(anularEgreso).not.toHaveBeenCalled()
+  })
+
+  it('anula con el motivo escrito', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+    await user.type(screen.getByLabelText(/^Motivo/), 'Se cargó dos veces')
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => expect(anularEgreso).toHaveBeenCalledWith(1, 'Se cargó dos veces'))
+  })
+
+  it('sin motivo no anula', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText('Escribí el motivo.')).toBeDefined()
+    expect(anularEgreso).not.toHaveBeenCalled()
+  })
+
+  /** Anulado se queda en el listado: es la fila que explica por qué cambió el total. */
+  it('un egreso anulado se muestra tachado y sin botón', async () => {
+    vi.mocked(listarEgresos).mockResolvedValue(
+      pagina([egreso({ anulado: true, motivoAnulacion: 'Se cargó dos veces' })]),
+    )
+    montar()
+
+    expect(await screen.findByText(/Anulado · Se cargó dos veces/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Anular' })).toBeNull()
+  })
 })
 
 describe('el listado', () => {

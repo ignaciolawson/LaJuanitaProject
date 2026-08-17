@@ -535,7 +535,7 @@ base.** Con esto quedan cerrados los módulos 1, 2 y 3. **Lo próximo es el
 Módulo 4 (Portal del alumno)**, según el orden de fases de §5.
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Las cuatro suites: **303 backend · 231 front · 127 + 50
+`npm run dev:platform`. Las cuatro suites: **319 backend · 241 front · 134 + 50
 SQL**.
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
@@ -544,19 +544,71 @@ SQL**.
 > el DTO y ninguno lo es en la práctica — el que corresponde según el tipo de uso
 > lo exige la pantalla, y el que falte lo rechaza `V10` al COMMIT.
 
-> **Lo único que el Módulo 3 deja abierto a propósito**, y las tres cosas son la
-> misma decisión —*no construir una operación irreversible que nadie pidió*—:
+> **De las tres cosas que el Módulo 3 dejaba abiertas, dos se cerraron el
+> 2026-08-17** y queda una sola, a propósito:
 >
-> - **`egreso` y `venta_equipo` no se pueden anular ni corregir.** `V9` les dio las
->   columnas de anulación, pero eso fue para poder prohibirles el DELETE; la
->   pantalla de anulación llega cuando alguien la pida. **La consecuencia es real:
->   un egreso o una venta mal cargados hoy quedan así.**
-> - **Una venta cargada sin cobro no tiene después por dónde cobrarse.** El cobro
+> - ✅ **`egreso` y `venta_equipo` ya se anulan** (`PATCH /{id}/anulacion`, mismo
+>   patrón y mismo `MotivoRequest` que `pago`). Corregir uno mal cargado es
+>   anularlo y volver a cargarlo. **Lo caro no fue la anulación sino la caja:** ver
+>   abajo.
+> - ✅ **La seña ya no se puede romper anulando el pago** (`V11`). Ver abajo.
+> - ⏳ **Una venta cargada sin cobro no tiene después por dónde cobrarse.** El cobro
 >   entra junto con la venta; `/admin/pagos` sigue saldando solo inscripciones y
->   aceptar el otro destino es rehacer ese formulario. Nadie pidió venta en cuotas.
-> - **La seña se puede romper después de creada**, anulando el pago: el trigger de
->   `V10` corre solo al INSERT de `reserva`. Cerrarlo es una decisión sobre
->   devoluciones.
+>   aceptar el otro destino es rehacer ese formulario (hoy es alumno → sus
+>   inscripciones). **Se decidió no hacerlo**: con la anulación andando, una venta
+>   sin cobro se anula y se vuelve a cargar con el cobro, y P33 ya dejó dicho que
+>   el negocio cobra por adelantado y no en cuotas. Si algún día aparece una venta
+>   en cuotas real, ahí se rediseña ese formulario con el caso a la vista.
+
+### 🧾 La anulación de egresos y ventas · 2026-08-17
+
+El patrón ya existía entero en `pago` y se copió: entidad + `anular()` con las
+tres firmas juntas, service con el pre-chequeo de "ya está anulado" (sin él la
+segunda anulación pisa al autor de la primera), endpoint, y `PedirMotivo` que salió
+de `PagosPagina` a `componentes/` para que las tres anulaciones se expliquen igual.
+
+**Lo que casi sale mal, y es lo único no obvio de toda la tanda:**
+`EgresoRepository.porMoneda` sumaba **todos** los egresos del período sin mirar
+`anulado` — y estaba bien, porque no se podían anular. En cuanto se pudo, sin
+agregarle la condición **anular deja de sacar el monto del balance y la caja miente
+sin ningún error a la vista**. Lo que lo hacía fácil de pasar por alto es que la
+mitad de los ingresos ya lo hacía bien (`EstadoPago.ENTRARON`), así que la caja
+*parecía* contemplar anulaciones. Lo pinea
+`CajaTest.un_egreso_anulado_deja_de_estar_en_la_caja`.
+
+**Una decisión más:** no se anula una venta que todavía tiene su cobro vivo —
+primero se anula el pago. Cascadear habría hecho que una acción firmada por una
+persona diera de baja una fila firmada por otra. Es el criterio con el que `V6`
+protege, del otro lado, el pago que respalda un premaster liberado.
+
+### 💸 La seña se devuelve · `V11`, 2026-08-17
+
+**Decidido por Ignacio: si se cancela una reserva, la seña se devuelve.** Era lo
+único que faltaba para poder terminar de escribir la regla, y `V10` lo había
+anotado como *"una decisión del Módulo 3 sobre devoluciones"*.
+
+**La regla completa queda: toda reserva que OCUPA SU FRANJA tiene dinero detrás.**
+Parece la excepción por estado que §13 rechazó y no lo es: §13 rechazó *"salvo que
+esté vacía"* y *"salvo que sea una clase"* —dos categorías inventadas para esta
+regla sola—, mientras que `NOT IN ('CANCELADA','REPROGRAMADA')` es la **definición
+canónica de `V1`** que ya usan el EXCLUDE de solapamiento, los triggers de bloqueo,
+el de "nadie en dos salas a la vez" y el informe de uso. Es la sexta vez que se
+aplica. Y la prueba de que es la lectura correcta: **con la otra, cancelar sería
+imposible** — la base te obligaría a no devolver nunca, decidiendo por su cuenta
+una política comercial que el cliente decidió al revés.
+
+**Tres triggers, tres momentos, y el momento es lo que se pensó:**
+
+| Cuándo | Momento | Por qué |
+|---|---|---|
+| INSERT de `reserva` (`V10`) | **Diferido** | Al insertar, su participante todavía no existe |
+| UPDATE de `pago` (`V11`) | **Inmediato** | Ya existe todo lo que hay que mirar; diferirlo convertiría el 409 con el texto del trigger en un 500 al cerrar |
+| UPDATE de `reserva` (`V11`) | **Inmediato** | Ídem. Es el esquive: cancelo, me devuelven la seña, y descancelo |
+
+El orden natural queda **cancelar primero, devolver después**; al revés el trigger
+lo rechaza y el mensaje dice qué hacer. Y `ReservaService.cambiarEstado` llevó un
+`flush()` explícito, para que el trigger inmediato hable en el request y no
+depender del flush incidental de una consulta ajena.
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
 > una reserva vacía. Una **clase** entra con su alumno y su inscripción; un

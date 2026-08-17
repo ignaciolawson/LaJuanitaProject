@@ -85,4 +85,34 @@ public class Egreso {
 
     @Column(name = "fecha_registro", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime fechaRegistro;
+
+    // == La anulación (V9, expuesta el 2026-08-17) ============================
+
+    @Column(name = "anulado", nullable = false)
+    private boolean anulado = false;
+
+    @Column(name = "id_usuario_anula")
+    private Long idUsuarioAnula;
+
+    @Column(name = "fecha_anulacion")
+    private OffsetDateTime fechaAnulacion;
+
+    @Column(name = "motivo_anulacion", columnDefinition = "text")
+    private String motivoAnulacion;
+
+    /**
+     * Da de baja el egreso.
+     *
+     * <p><b>Las tres se escriben juntas o `V9` rechaza el UPDATE</b>
+     * ({@code egreso_anulacion_justificada}), y por eso esto es un método y no
+     * tres setters sueltos: el mismo molde que {@link Pago#anular}. El autor sale
+     * del token y la fecha del reloj — nunca del cuerpo del pedido, porque
+     * entonces cualquiera firma con el nombre de otro.
+     */
+    public void anular(Long idAutor, String motivo) {
+        this.anulado = true;
+        this.idUsuarioAnula = idAutor;
+        this.fechaAnulacion = OffsetDateTime.now();
+        this.motivoAnulacion = motivo;
+    }
 }

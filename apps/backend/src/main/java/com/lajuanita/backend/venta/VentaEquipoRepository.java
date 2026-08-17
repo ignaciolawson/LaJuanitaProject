@@ -68,6 +68,7 @@ public interface VentaEquipoRepository extends JpaRepository<VentaEquipo, Long> 
             SELECT v.moneda, SUM(v.precio), COUNT(v)
             FROM VentaEquipo v
             WHERE v.fechaVenta BETWEEN :desde AND :hasta
+              AND NOT v.anulada
             GROUP BY v.moneda
             """)
     List<Object[]> porMoneda(@Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);

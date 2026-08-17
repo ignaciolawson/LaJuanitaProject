@@ -16,6 +16,7 @@ import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
 import com.lajuanita.backend.usuario.dto.Pagina;
@@ -25,11 +26,10 @@ import com.lajuanita.backend.venta.dto.VentaResumen;
 /**
  * Venta de equipamiento (§6, pantalla 6) — la última pieza del Módulo 3.
  *
- * <p><b>Se carga y se lista, y nada más</b>, igual que {@code EgresoService} y por
- * la misma razón: `V9` prohíbe el DELETE desde que le dio estado de anulación, y la
- * anulación en sí llega cuando exista la pantalla que la pida. Una operación
- * irreversible sin caso de uso es peor que no tenerla. <b>La consecuencia hay que
- * saberla</b>: una venta mal cargada hoy no se puede corregir ni sacar.
+ * <p><b>Se carga, se lista y se anula</b>, igual que {@code EgresoService}. Lo que
+ * no hay es edición ni borrado: `V9` prohíbe el DELETE desde que le dio estado de
+ * anulación, y ese es el camino — <b>una venta mal cargada se anula y se vuelve a
+ * cargar</b>, con la primera quedando firmada por quien la dio de baja.
  *
  * <p><b>Esto no es un inventario.</b> No hay stock propio —se vende contra el de
  * Pioneer (§1)— así que no hay unidades que descontar ni catálogo que mantener: es
@@ -132,6 +132,39 @@ public class VentaEquipoService {
                 venta.getFechaVenta(),
                 null),
                 idAutor);
+    }
+
+    /**
+     * Anula una venta mal cargada.
+     *
+     * <p><b>Primero hay que anular el cobro, si lo hay</b>, y eso es una decisión y
+     * no una molestia. Una venta anulada con su pago vivo deja la plata contada en
+     * la caja contra una operación que se declara inexistente — que es exactamente
+     * la incoherencia que la anulación viene a evitar. Se podría cascadear, pero
+     * entonces una acción firmada por una persona daría de baja una fila firmada
+     * por otra, sin que la segunda firma diga nada. Es el mismo criterio con el que
+     * `V6` protege el pago que respalda un premaster liberado, del otro lado.
+     */
+    @Transactional
+    public VentaResumen anular(Long id, String motivo, Long idAutor) {
+        VentaEquipo venta = ventas.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la venta " + id + "."));
+
+        // La segunda anulación pisaría el autor y el motivo de la primera.
+        if (venta.isAnulada()) {
+            throw new SolicitudInvalidaException("Esa venta ya está anulada.");
+        }
+        if (!cobradasEntre(List.of(venta)).isEmpty()) {
+            throw new SolicitudInvalidaException(
+                    "Esa venta tiene un cobro registrado. Anulá primero el pago, desde Pagos.");
+        }
+
+        venta.anular(idAutor, motivo.trim());
+
+        // `venta_anulacion_justificada` tiene que hablar acá y no al final de la
+        // transacción, donde el error ya no se puede atribuir a esta operación.
+        ventas.flush();
+        return VentaResumen.de(venta, false);
     }
 
     private Set<Long> cobradasEntre(List<VentaEquipo> filas) {

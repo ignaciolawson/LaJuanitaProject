@@ -325,6 +325,15 @@ public class ReservaService {
         Reserva reserva = buscar(id);
         reserva.setEstado(estado);
         reserva.setIdUsuarioModifico(idAutor);
+
+        // Reactivar una reserva cuya seña fue devuelta lo rechaza `V11`, y ese
+        // trigger es INMEDIATO: corre cuando el UPDATE llega a la base. Sin este
+        // flush el UPDATE viaja recién en el commit y el 409 se convertiría en un
+        // 500 -- y peor, hasta entonces la respuesta describiría un estado que la
+        // base todavía no aceptó. Es la misma razón por la que `PagoService.anular`
+        // flushea, y el mismo cuidado de no depender del flush incidental de una
+        // consulta ajena.
+        reservas.flush();
         return conParticipantes(reserva);
     }
 

@@ -340,7 +340,7 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 | Regla | Estado |
 |---|---|
 | **El orden de las horas (DB-11)** | ✅ **HECHO (2026-08-16).** Es un `@AssertTrue` en `AltaReservaRequest` y `EdicionReservaRequest`. `reserva.periodo` es una columna generada que se computa **antes que los CHECK**, así que 20:00→19:00 explota en `tsrange()` con un error sin nombre de constraint y el mensaje bueno (`reserva_horas_validas`) no se alcanza nunca. No se arregla en la base: la columna viene de `V1` y una migración aplicada no se edita. El CHECK queda como defensa en profundidad |
-| **La seña (DB-04 / P8)** | ✅ **CERRADA el 2026-08-17, `V10__sena_obligatoria.sql`.** Las tres advertencias que decía esta fila se cumplieron todas y se resolvieron: el alquiler de cabina quedaba incargable (lo arregla `AltaSenaRequest`, que entra en la misma transacción) y las suites SQL se rompieron (21 sentencias adaptadas). Ver `sistema-gestion-plan.md` §6d |
+| **La seña (DB-04 / P8)** | ✅ **CERRADA el 2026-08-17, `V10` + `V11`.** `V11` agrega la devolución: *si se cancela una reserva, la seña se devuelve* (Ignacio, 2026-08-17), y con eso la regla queda "toda reserva que ocupa su franja tiene plata detrás". Las tres advertencias que decía esta fila se cumplieron todas y se resolvieron: el alquiler de cabina quedaba incargable (lo arregla `AltaSenaRequest`, que entra en la misma transacción) y las suites SQL se rompieron (21 sentencias adaptadas). Ver `sistema-gestion-plan.md` §6d |
 
 **Ya no queda ninguna regla del sistema viviendo en un documento y no en el código
 (2026-08-17).** La seña era la última.
@@ -368,10 +368,10 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 
 *Unifica el Excel financiero con el Notion operativo.*
 
-> **✅ CERRADO el 2026-08-17.** Las seis pantallas existen, más la seña (`V10`).
-> Lo que queda abierto a propósito está listado en `sistema-gestion-plan.md` §6d —
-> son tres cosas y las tres son la misma decisión: no construir una operación
-> irreversible que nadie pidió.
+> **✅ CERRADO el 2026-08-17.** Las seis pantallas, la seña entera (`V10` + `V11`)
+> y la anulación de egresos y ventas. **Queda una sola cosa abierta a propósito**:
+> una venta cargada sin cobro no tiene después por dónde cobrarse — se anula y se
+> vuelve a cargar. Está explicado en `sistema-gestion-plan.md` §6d.
 
 ### Pantallas
 1. **Registrar pago** — a qué corresponde, monto, moneda, cotización, medio, descuento + justificación, comprobante.
@@ -704,6 +704,26 @@ DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V
 > `SET CONSTRAINTS reserva_con_sena IMMEDIATE` tras un `flush()`. Las suites SQL
 > tenían el problema espejo y hubo que darle plata a 21 sentencias. Todo el detalle
 > está en `docs/sistema-gestion-plan.md` §6d.
+
+> ### ✅ Y LA OTRA MITAD, decidida el 2026-08-17: **la seña SE DEVUELVE**
+>
+> `V10` cerraba solo el nacimiento de la reserva y dejaba anotado como hueco
+> deliberado que la invariante se podía romper después, anulando el pago —
+> *"cerrarlo es una decisión del Módulo 3 sobre devoluciones"*. Ignacio la tomó:
+> **si se cancela una reserva, la seña se devuelve.**
+>
+> Con eso la regla se termina de escribir (`V11`): **toda reserva que OCUPA SU
+> FRANJA tiene dinero detrás.** Y no es la excepción por estado que esta misma
+> ficha rechazó doce líneas más arriba: `NOT IN ('CANCELADA','REPROGRAMADA')` no es
+> una categoría inventada para esta regla, es la **definición canónica de `V1`** que
+> ya usan el EXCLUDE de solapamiento, los triggers de bloqueo y el informe de uso.
+> La prueba de que es la lectura correcta: con la otra, **cancelar sería imposible**
+> — la base obligaría a no devolver nunca, decidiendo por su cuenta una política
+> comercial que el cliente decidió al revés.
+>
+> El orden queda **cancelar primero, devolver después**; al revés el trigger lo
+> rechaza y el mensaje dice qué hacer. `V11` agrega además el esquive: cancelar,
+> cobrar la devolución y descancelar.
 >
 > **Ojo con el orden de escritura de Hibernate**, que en este módulo ya mordió cuatro
 > veces: el trigger es `DEFERRABLE INITIALLY DEFERRED` justamente para que corra al

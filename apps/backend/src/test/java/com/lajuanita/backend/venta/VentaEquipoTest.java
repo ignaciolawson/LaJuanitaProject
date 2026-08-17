@@ -3,6 +3,7 @@ package com.lajuanita.backend.venta;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -283,6 +284,120 @@ class VentaEquipoTest {
                 .andExpect(jsonPath("$.fechaRegistro").isNotEmpty());
     }
 
+    // == La anulación =========================================================
+
+    /**
+     * <b>El camino para corregir una venta mal cargada</b>, y el único: no se edita
+     * y no se borra. Queda firmada por quien la dio de baja.
+     */
+    @Test
+    void anular_una_venta_mal_cargada() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        anular(id, "Se cargó dos veces")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.anulada").value(true))
+                .andExpect(jsonPath("$.motivoAnulacion").value("Se cargó dos veces"))
+                .andExpect(jsonPath("$.fechaAnulacion").isNotEmpty());
+    }
+
+    /** La segunda anulación pisaría el autor y el motivo de la primera. */
+    @Test
+    void una_venta_no_se_anula_dos_veces() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        anular(id, "Se cargó dos veces").andExpect(status().isOk());
+        anular(id, "Otra vez")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Esa venta ya está anulada."));
+    }
+
+    /**
+     * <b>Primero se anula el cobro.</b> Una venta anulada con su pago vivo deja la
+     * plata contada en la caja contra una operación que se declara inexistente.
+     */
+    @Test
+    void no_se_anula_una_venta_que_todavia_tiene_su_cobro() throws Exception {
+        Usuario comprador = crear(Rol.USUARIO);
+        Usuario vendedor = crear(Rol.STAFF);
+
+        long id = idDe(mvc.perform(vender("""
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"modeloEquipo":"DDJ-FLX4",
+                 "precio":450000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(comprador.getId(), vendedor.getId())))
+                .andExpect(status().isCreated()));
+
+        anular(id, "Se cargó dos veces")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("Anulá primero el pago")));
+    }
+
+    /** Y anulado el pago, la venta sí se puede anular. Es el orden, no una prohibición. */
+    @Test
+    void anulado_el_cobro_la_venta_ya_se_puede_anular() throws Exception {
+        Usuario comprador = crear(Rol.USUARIO);
+        Usuario vendedor = crear(Rol.STAFF);
+
+        long id = idDe(mvc.perform(vender("""
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"modeloEquipo":"DDJ-FLX4",
+                 "precio":450000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(comprador.getId(), vendedor.getId())))
+                .andExpect(status().isCreated()));
+
+        Long idPago = jdbc.queryForObject(
+                "SELECT id_pago FROM pago WHERE id_venta_equipo = ?", Long.class, id);
+        mvc.perform(patch("/api/pagos/" + idPago + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"La venta no se concretó"}
+                        """))
+                .andExpect(status().isOk());
+
+        anular(id, "La venta no se concretó").andExpect(status().isOk());
+    }
+
+    /** `V9` exige las tres firmas juntas; el motivo es la única que aporta el cliente. */
+    @Test
+    void anular_sin_motivo_se_rechaza() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        anular(id, "   ")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.motivo").isNotEmpty());
+    }
+
+    /** Anulada sale del total del período pero no del listado: es historial. */
+    @Test
+    void una_venta_anulada_sigue_en_el_listado() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Roland", "SP-404", "Externo");
+        anular(id, "Se cargó dos veces").andExpect(status().isOk());
+
+        mvc.perform(get("/api/ventas?buscar=SP-404").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].anulada").value(true));
+    }
+
+    @Test
+    void un_directivo_no_puede_anular() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        mvc.perform(patch("/api/ventas/" + id + "/anulacion")
+                .header("Authorization", credencialPara(crear(Rol.DIRECTIVO)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"No debería poder"}
+                        """))
+                .andExpect(status().isForbidden());
+    }
+
     // == Permisos y borrado ===================================================
 
     @Test
@@ -332,6 +447,13 @@ class VentaEquipoTest {
                  "modeloEquipo":"%s","precio":450000,"moneda":"ARS","fechaVenta":"2030-06-10"}
                 """.formatted(comprador, vendedor.getId(), marca, modelo)))
                 .andExpect(status().isCreated()));
+    }
+
+    private ResultActions anular(long id, String motivo) throws Exception {
+        return mvc.perform(patch("/api/ventas/" + id + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"motivo\":\"" + motivo + "\"}"));
     }
 
     private MockHttpServletRequestBuilder vender(String cuerpo) {

@@ -560,6 +560,20 @@ export function registrarEgreso(datos: AltaEgreso) {
   return pedir<EgresoResumen>('/api/egresos', { metodo: 'POST', cuerpo: datos })
 }
 
+/**
+ * Anular un egreso mal cargado.
+ *
+ * **No se edita y no se borra** (`V9`): corregir es anular y volver a cargar. El
+ * motivo lo aporta quien pide; el autor sale del token y la fecha del reloj del
+ * servidor. Anulado deja de contar en la caja.
+ */
+export function anularEgreso(id: number, motivo: string) {
+  return pedir<EgresoResumen>(`/api/egresos/${id}/anulacion`, {
+    metodo: 'PATCH',
+    cuerpo: { motivo },
+  })
+}
+
 // -- Venta de equipos (§6, pantalla 6) ---------------------------------------
 
 /** Espeja `AltaVentaRequest`. */
@@ -601,6 +615,20 @@ export function listarVentas(opciones: {
 
 export function registrarVenta(datos: AltaVenta) {
   return pedir<VentaResumen>('/api/ventas', { metodo: 'POST', cuerpo: datos })
+}
+
+/**
+ * Anular una venta mal cargada.
+ *
+ * **Si tenía cobro hay que anular primero el pago**, desde Pagos: una venta
+ * anulada con su pago vivo deja la plata contada contra una operación que se
+ * declara inexistente. El backend lo rechaza con ese mensaje.
+ */
+export function anularVenta(id: number, motivo: string) {
+  return pedir<VentaResumen>(`/api/ventas/${id}/anulacion`, {
+    metodo: 'PATCH',
+    cuerpo: { motivo },
+  })
 }
 
 // -- Propio -----------------------------------------------------------------

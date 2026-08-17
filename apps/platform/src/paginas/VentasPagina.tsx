@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { listarUsuarios, listarVentas, registrarVenta } from '../api/administracion'
+import { anularVenta, listarUsuarios, listarVentas, registrarVenta } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   NOMBRE_DE_MEDIO,
@@ -13,6 +13,7 @@ import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
 import { puedeOperar } from '../layout/menu'
@@ -33,10 +34,11 @@ const MEDIOS_DE_PAGO: MedioPago[] = [
  * descontar ni artículos que dar de alta antes de venderlos. Es el registro de una
  * operación que ya pasó. Es la línea más chica del negocio y el proceso es ad hoc.
  *
- * **Se carga y se lista, y nada más**, igual que los egresos y por la misma razón:
- * `V9` prohíbe el DELETE desde que le dio estado de anulación, y la anulación
- * llega cuando alguien la pida. La consecuencia hay que saberla: una venta mal
- * cargada hoy no se corrige.
+ * **Se carga, se lista y se anula**, igual que los egresos. No hay edición ni
+ * borrado: `V9` prohíbe el DELETE, así que **corregir una venta mal cargada es
+ * anularla y volver a cargarla**. Si tenía cobro hay que anular primero el pago —
+ * una venta anulada con su pago vivo dejaría la plata contada contra una operación
+ * que se declara inexistente, y el backend lo rechaza con ese mensaje.
  */
 export function VentasPagina() {
   const puedeEscribir = puedeOperar(useUsuario())
@@ -49,6 +51,7 @@ export function VentasPagina() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
+  const [anulando, setAnulando] = useState<VentaResumen | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -69,6 +72,22 @@ export function VentasPagina() {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  async function confirmarAnulacion(motivo: string) {
+    if (!anulando) return
+    try {
+      await anularVenta(anulando.idVenta, motivo)
+      setAnulando(null)
+      await cargar()
+    } catch (e) {
+      // Acá cae "anulá primero el pago", que es el rechazo esperable y el que
+      // dice qué hacer. Llega tal cual lo escribió el backend.
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo anular la venta.'
+      setAnulando(null)
+      await cargar()
+      setError(mensaje)
+    }
+  }
 
   return (
     <div>
@@ -111,6 +130,16 @@ export function VentasPagina() {
         />
       )}
 
+      {anulando && (
+        <PedirMotivo
+          key={anulando.idVenta}
+          titulo="Anular la venta"
+          ayuda="La venta no se borra: queda registrada como anulada, con tu nombre y la fecha. Si ya tenía un cobro, primero hay que anular el pago."
+          onCerrar={() => setAnulando(null)}
+          onConfirmar={confirmarAnulacion}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-linea bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -120,17 +149,25 @@ export function VentasPagina() {
               <th className="px-4 py-3 font-semibold">Vendió</th>
               <th className="px-4 py-3 font-semibold">Precio</th>
               <th className="px-4 py-3 font-semibold">Fecha</th>
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-linea">
             {ventas.map((v) => (
-              <tr key={v.idVenta}>
+              <tr key={v.idVenta} className={v.anulada ? 'text-apagado' : undefined}>
                 <td className="px-4 py-3">
-                  <span className="font-medium">{v.modeloEquipo}</span>
+                  <span className={`font-medium ${v.anulada ? 'line-through' : ''}`}>
+                    {v.modeloEquipo}
+                  </span>
                   {(v.marca ?? v.categoria) && (
                     <div className="text-xs text-apagado">
                       {[v.marca, v.categoria].filter(Boolean).join(' · ')}
                     </div>
+                  )}
+                  {/* La fila anulada se queda: es la que explica por qué el total
+                      del período cambió. */}
+                  {v.anulada && (
+                    <div className="text-xs text-red">Anulada · {v.motivoAnulacion}</div>
                   )}
                 </td>
                 <td className="px-4 py-3 text-tenue">
@@ -150,12 +187,23 @@ export function VentasPagina() {
                   {/* Una venta sin cobrar que no se ve es una venta que nadie
                       reclama. Se marca solo lo que falta: lo cobrado es lo normal
                       y no necesita etiqueta. */}
-                  {!v.cobrada && (
+                  {!v.cobrada && !v.anulada && (
                     <div className="text-xs font-normal text-red">sin cobrar</div>
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-tenue">
                   {v.fechaVenta.split('-').reverse().join('/')}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {puedeEscribir && !v.anulada && (
+                    <button
+                      type="button"
+                      onClick={() => setAnulando(v)}
+                      className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                    >
+                      Anular
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

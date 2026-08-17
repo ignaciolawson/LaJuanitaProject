@@ -35,7 +35,11 @@ public record VentaResumen(
          * ({@code pago.id_venta_equipo}). Va en el listado porque una venta sin
          * cobrar que no se ve es una venta que nadie reclama.
          */
-        boolean cobrada) {
+        boolean cobrada,
+        /** Anulada sale del total del período pero no del listado: es historial. */
+        boolean anulada,
+        String motivoAnulacion,
+        OffsetDateTime fechaAnulacion) {
 
     public static VentaResumen de(VentaEquipo venta, boolean cobrada) {
         Usuario comprador = venta.getComprador();
@@ -64,6 +68,9 @@ public record VentaResumen(
                 venta.getFechaVenta(),
                 venta.getNotas(),
                 venta.getFechaRegistro(),
-                cobrada);
+                cobrada,
+                venta.isAnulada(),
+                venta.getMotivoAnulacion(),
+                venta.getFechaAnulacion());
     }
 }

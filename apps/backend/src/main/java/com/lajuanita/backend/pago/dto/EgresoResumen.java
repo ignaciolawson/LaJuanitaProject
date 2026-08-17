@@ -21,7 +21,14 @@ public record EgresoResumen(
         Long idUsuarioDestino,
         String comprobantePath,
         LocalDate fechaEgreso,
-        OffsetDateTime fechaRegistro) {
+        OffsetDateTime fechaRegistro,
+        /**
+         * Anulado deja de contar en la caja, pero <b>sigue en el listado</b>: es
+         * historial y la fila anulada es la que explica por qué el total cambió.
+         */
+        boolean anulado,
+        String motivoAnulacion,
+        OffsetDateTime fechaAnulacion) {
 
     public static EgresoResumen de(Egreso egreso) {
         Usuario destino = egreso.getUsuarioDestino();
@@ -41,6 +48,9 @@ public record EgresoResumen(
                 destino == null ? null : destino.getId(),
                 egreso.getComprobantePath(),
                 egreso.getFechaEgreso(),
-                egreso.getFechaRegistro());
+                egreso.getFechaRegistro(),
+                egreso.isAnulado(),
+                egreso.getMotivoAnulacion(),
+                egreso.getFechaAnulacion());
     }
 }

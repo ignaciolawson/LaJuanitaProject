@@ -159,9 +159,9 @@ SELECT probar('A06','reserva de duracion CERO','FALLA',
 
 -- El esquive más obvio: cancelo (libera la franja), otro la ocupa, resucito.
 --
--- La CANCELADA también lleva seña: `V10` no exime por estado -- una regla cuyas
--- excepciones dependen del estado es la que después nadie sabe si se cumple, y
--- además el trigger solo corre al INSERT, donde la reserva todavía no se cancela.
+-- La CANCELADA también lleva seña, aunque desde `V11` ya no le haga falta: una
+-- cancelada no ocupa su franja y por lo tanto no debe seña (la seña se devuelve).
+-- Se le deja igual porque estos casos la resucitan, y una resucitada SÍ la debe.
 WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
 SELECT sala2,u_clase,'2027-03-02','10:00','12:00','CANCELADA' FROM v RETURNING id_reserva)
 SELECT sena(id_reserva) FROM nueva;

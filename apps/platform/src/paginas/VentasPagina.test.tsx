@@ -20,10 +20,12 @@ import { VentasPagina } from './VentasPagina'
 vi.mock('../api/administracion', () => ({
   listarVentas: vi.fn(),
   registrarVenta: vi.fn(),
+  anularVenta: vi.fn(),
   listarUsuarios: vi.fn(),
 }))
 
-const { listarUsuarios, listarVentas, registrarVenta } = await import('../api/administracion')
+const { anularVenta, listarUsuarios, listarVentas, registrarVenta } =
+  await import('../api/administracion')
 
 const PERSONAS: UsuarioResumen[] = [
   {
@@ -54,6 +56,9 @@ function venta(cambios: Partial<VentaResumen> = {}): VentaResumen {
     notas: null,
     fechaRegistro: '2026-08-17T14:00:00Z',
     cobrada: true,
+    anulada: false,
+    motivoAnulacion: null,
+    fechaAnulacion: null,
     ...cambios,
   }
 }
@@ -97,6 +102,7 @@ beforeEach(() => {
   vi.mocked(listarVentas).mockResolvedValue(pagina([venta()]) as never)
   vi.mocked(listarUsuarios).mockResolvedValue(pagina(PERSONAS) as never)
   vi.mocked(registrarVenta).mockResolvedValue({} as never)
+  vi.mocked(anularVenta).mockResolvedValue({} as never)
 })
 
 describe('el listado', () => {
@@ -278,11 +284,95 @@ describe('registrar una venta', () => {
   })
 })
 
+/**
+ * **El único camino para corregir una venta mal cargada** (2026-08-17): no se edita
+ * y no se borra, porque `V9` prohíbe el DELETE. Se anula, queda firmada, y se
+ * vuelve a cargar.
+ */
+describe('anular una venta', () => {
+  it('pide el motivo antes de anular y avisa que no se borra', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+
+    expect(screen.getByRole('heading', { name: 'Anular la venta' })).toBeDefined()
+    expect(screen.getByText(/no se borra/)).toBeDefined()
+    // Todavía no se anuló nada: el motivo es obligatorio.
+    expect(anularVenta).not.toHaveBeenCalled()
+  })
+
+  it('anula con el motivo escrito', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+    await user.type(screen.getByLabelText(/^Motivo/), 'Se cargó dos veces')
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => expect(anularVenta).toHaveBeenCalledWith(1, 'Se cargó dos veces'))
+  })
+
+  it('sin motivo no anula', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText('Escribí el motivo.')).toBeDefined()
+    expect(anularVenta).not.toHaveBeenCalled()
+  })
+
+  /**
+   * **El rechazo que importa**: una venta anulada con su pago vivo dejaría la
+   * plata contada contra una operación que se declara inexistente. El mensaje
+   * nombra la salida y tiene que llegar tal cual.
+   */
+  it('muestra el rechazo del backend tal como viene', async () => {
+    const { ApiError } = await import('../api/cliente')
+    const user = userEvent.setup()
+    vi.mocked(anularVenta).mockRejectedValue(
+      new ApiError(400, 'Esa venta tiene un cobro registrado. Anulá primero el pago, desde Pagos.'),
+    )
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Anular' }))
+    await user.type(screen.getByLabelText(/^Motivo/), 'Se cargó dos veces')
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText(/Anulá primero el pago/)).toBeDefined()
+  })
+
+  /** Una anulada se queda en el listado —es historial— pero no se vuelve a anular. */
+  it('una venta anulada se muestra tachada y sin botón', async () => {
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([venta({ anulada: true, motivoAnulacion: 'Se cargó dos veces' })]) as never,
+    )
+    montar()
+
+    expect(await screen.findByText(/Anulada · Se cargó dos veces/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Anular' })).toBeNull()
+  })
+
+  /** Anulada no hay nada que cobrar: la etiqueta "sin cobrar" sobra y confunde. */
+  it('una venta anulada no dice además que está sin cobrar', async () => {
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([venta({ anulada: true, cobrada: false, motivoAnulacion: 'Error' })]) as never,
+    )
+    montar()
+
+    await screen.findByText(/Anulada · Error/)
+    expect(screen.queryByText('sin cobrar')).toBeNull()
+  })
+})
+
 describe('eje de escritura (SEC-05)', () => {
   it('un DIRECTIVO ve las ventas y ningún botón de escritura', async () => {
     montar('DIRECTIVO')
 
     expect(await screen.findByText('DDJ-FLX4')).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Registrar venta' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Anular' })).toBeNull()
   })
 })

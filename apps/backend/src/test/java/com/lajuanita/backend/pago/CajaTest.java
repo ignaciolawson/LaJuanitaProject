@@ -151,6 +151,118 @@ class CajaTest {
         caja().andExpect(jsonPath("$[?(@.moneda == 'ARS')].ingresos").value(0.00));
     }
 
+    /**
+     * <b>El espejo del caso de arriba, y el que casi no existe.</b>
+     *
+     * <p>Cuando se abrió la anulación de egresos (2026-08-17),
+     * {@code EgresoRepository.porMoneda} sumaba <b>todos</b> los del período sin
+     * mirar {@code anulado} — y estaba bien mientras no se pudieran anular. Sin
+     * agregarle la condición, anular un egreso no lo saca del balance: "salió" y
+     * "quedó" quedan mal <b>sin ningún error a la vista</b>.
+     *
+     * <p>Lo que lo hacía fácil de pasar por alto es que la mitad de los ingresos ya
+     * lo hacía bien ({@code EstadoPago.ENTRARON}), así que la caja <i>parecía</i>
+     * contemplar anulaciones.
+     */
+    @Test
+    void un_egreso_anulado_deja_de_estar_en_la_caja() throws Exception {
+        long idEgreso = idDeEgreso(mvc.perform(post("/api/egresos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"monto":40000,"moneda":"ARS","concepto":"Cargado por error",
+                         "fechaEgreso":"%s"}
+                        """.formatted(DIA)))
+                .andExpect(status().isCreated()));
+
+        caja().andExpect(jsonPath("$[?(@.moneda == 'ARS')].egresos").value(40000.00));
+
+        mvc.perform(patch("/api/egresos/" + idEgreso + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"Se cargó dos veces"}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.anulado").value(true))
+                .andExpect(jsonPath("$.motivoAnulacion").value("Se cargó dos veces"));
+
+        caja().andExpect(jsonPath("$[?(@.moneda == 'ARS')].egresos").value(0.00));
+    }
+
+    /** La segunda anulación pisaría el autor y el motivo de la primera. */
+    @Test
+    void un_egreso_no_se_anula_dos_veces() throws Exception {
+        long idEgreso = idDeEgreso(mvc.perform(post("/api/egresos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"monto":40000,"moneda":"ARS","concepto":"Uno","fechaEgreso":"%s"}
+                        """.formatted(DIA)))
+                .andExpect(status().isCreated()));
+
+        anularEgreso(idEgreso).andExpect(status().isOk());
+        anularEgreso(idEgreso)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Ese egreso ya está anulado."));
+    }
+
+    /** `V9` exige las tres firmas juntas; el motivo es la única que aporta el cliente. */
+    @Test
+    void anular_un_egreso_sin_motivo_se_rechaza() throws Exception {
+        long idEgreso = idDeEgreso(mvc.perform(post("/api/egresos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"monto":40000,"moneda":"ARS","concepto":"Uno","fechaEgreso":"%s"}
+                        """.formatted(DIA)))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(patch("/api/egresos/" + idEgreso + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"   "}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.motivo").isNotEmpty());
+    }
+
+    /** Un egreso anulado sale del total pero no del listado: es historial. */
+    @Test
+    void un_egreso_anulado_sigue_en_el_listado() throws Exception {
+        long idEgreso = idDeEgreso(mvc.perform(post("/api/egresos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"monto":40000,"moneda":"ARS","concepto":"Queda a la vista",
+                         "fechaEgreso":"%s"}
+                        """.formatted(DIA)))
+                .andExpect(status().isCreated()));
+        anularEgreso(idEgreso).andExpect(status().isOk());
+
+        mvc.perform(get("/api/egresos?buscar=Queda a la vista")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElementos").value(1))
+                .andExpect(jsonPath("$.contenido[0].anulado").value(true));
+    }
+
+    private ResultActions anularEgreso(long id) throws Exception {
+        return mvc.perform(patch("/api/egresos/" + id + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"Se cargó dos veces"}
+                        """));
+    }
+
+    private long idDeEgreso(ResultActions resultado) throws Exception {
+        String cuerpo = resultado.andReturn().getResponse().getContentAsString();
+        int desde = cuerpo.indexOf("\"idEgreso\":") + "\"idEgreso\":".length();
+        return Long.parseLong(cuerpo.substring(desde, cuerpo.indexOf(',', desde)).trim());
+    }
+
     /** El desglose por vía es la conciliación contra el banco y la caja chica. */
     @Test
     void la_caja_desglosa_por_medio_de_pago() throws Exception {
