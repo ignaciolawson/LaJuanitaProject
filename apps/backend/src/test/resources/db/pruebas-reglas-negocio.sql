@@ -954,6 +954,47 @@ SELECT probar('132','y se puede descancelar porque la sena sigue viva','ANDA',
      WHERE fecha='2029-05-04'$q$);
 
 
+-- -----------------------------------------------------------------------------
+-- UNA DEUDA ANOTADA NO ES UNA SEÑA  (V12)
+--
+-- El agujero que `V10` dejó y `V12` cerró: la condición decía "un pago distinto
+-- de ANULADO", y `DEBE` es distinto de ANULADO. **Se conseguía el horario
+-- anotando una deuda**, que es justo lo que la regla existe para impedir.
+--
+-- Los tres casos cubren la lista entera de `EstadoPago`: lo que entró alcanza, lo
+-- que se debe no.
+-- -----------------------------------------------------------------------------
+
+SELECT probar('133','reservar con un pago en DEBE (deuda anotada, no sena)','FALLA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-06-01','10:00','11:00' FROM v RETURNING id_reserva)
+    INSERT INTO pago (id_usuario,id_reserva,monto,medio_pago,estado_pago,concepto)
+    SELECT (SELECT u_mica FROM v),id_reserva,1,'EFECTIVO','DEBE','deuda' FROM nueva;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
+
+SELECT probar('134','reservar con un pago VENCIDO tampoco','FALLA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-06-02','10:00','11:00' FROM v RETURNING id_reserva)
+    INSERT INTO pago (id_usuario,id_reserva,monto,medio_pago,estado_pago,concepto)
+    SELECT (SELECT u_mica FROM v),id_reserva,1,'EFECTIVO','VENCIDO','vencida' FROM nueva;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
+
+-- Y el estado que la regla nombra: SENADO es exactamente una seña.
+SELECT probar('135','reservar con la sena en estado SENADO','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-06-03','10:00','11:00' FROM v RETURNING id_reserva)
+    INSERT INTO pago (id_usuario,id_reserva,monto,medio_pago,estado_pago,concepto)
+    SELECT (SELECT u_mica FROM v),id_reserva,1,'EFECTIVO','SENADO','sena' FROM nueva;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE;
+    SELECT 1 FROM reserva WHERE fecha='2029-06-03'$q$);
+
+-- Y el espejo del lado de la devolucion: pasar la sena a DEBE la vacia igual que
+-- anularla, asi que tampoco puede dejar viva una reserva sin plata.
+SELECT probar('136','degradar la sena a DEBE con la reserva vigente','FALLA',
+ $q$UPDATE pago SET estado_pago='DEBE'
+     WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-06-03')$q$);
+
+
 -- =============================================================================
 -- RESUMEN
 -- =============================================================================

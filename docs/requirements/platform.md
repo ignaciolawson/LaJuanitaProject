@@ -450,13 +450,23 @@ restantes) · Mis notificaciones · Mi perfil.
 - El alumno **no ve las notas internas** de los profesores.
 
 ### Pendientes
-- **❓P17 — ¿Hasta dónde llega la autogestión, realmente?** Hay una tensión entre lo que Mica dijo querer en la entrevista (*"que los alumnos puedan anotarse solos, elegir horarios, profesores, cancelar clases"*) y lo que la propuesta promete (solicitar y que Micaela apruebe). Mica además dudó en voz alta: *"puede que los alumnos prefieran el trato personalizado"*. **La propuesta es lo contractual, así que por defecto vamos con solicitud + aprobación** — pero conviene confirmárselo, porque puede estar esperando otra cosa.
+- **✅P17 — RESUELTO (Ignacio, 2026-08-17). La línea no la marca el rol: la marca si hay un profesor del otro lado.**
+  - **Cursada (clases, horarios, profesores): la decide administración.** El alumno no elige nada. Esto zanja la tensión con la entrevista —lo que Mica describió era sobre clases— y coincide con lo contractual.
+  - **Lo que no depende de un profe SÍ lo elige el usuario:** alquiler de cabina, grabación. Y ojo que es *usuario*, no *alumno*: quien alquila una cabina puede no cursar nada.
+
+  > **⚠️ Consecuencia que hay que resolver antes de construir el portal, y sale de una regla del propio cliente.** Una reserva no existe sin plata detrás, verificada al COMMIT (P8, `V10`–`V12`), y esa plata tiene que estar en estado `SENADO` o `PAGADO`. **Un `USUARIO` no tiene cómo poner plata en el sistema**: registrar un pago es `@PuedeOperar` (ADMIN·STAFF), los cinco medios de pago son todos de carga manual y no hay pasarela de pago en ningún lado del alcance. Entonces, tal como está, **un alumno no puede crear su reserva de cabina** — la crearía sin seña y el trigger la rechaza.
+  >
+  > La salida natural, y la única que no toca la regla: **el portal genera una SOLICITUD, y la reserva nace cuando administración confirma y carga la seña.** El alumno igual "elige" —fecha, sala, horario— y no depende de que alguien le arme la agenda; lo que no puede es saltear el cobro.
+  >
+  > **Eso implica que el Módulo 4 empieza con una migración, no con una pantalla:** la única tabla de solicitudes que existe es `solicitud_reprogramacion`; no hay ninguna para pedir una reserva. **Queda por decidir** si se crea una `solicitud_reserva` o se generaliza la que hay.
 - **✅P18 — RESUELTO (2026-08-12). Cada uno se crea su cuenta, y Micaela puede crearla con contraseña temporal.** Son dos caminos, y los dos hacen falta:
   1. **Registro propio** (`POST /api/auth/registro`, público): nombre, apellido, email, teléfono y contraseña. **Lo puede usar cualquiera, sea alumno o no** — para ver tus reservas necesitás cuenta, y quien alquila una cabina una vez nunca va a cursar nada. Esto confirma la decisión de `usuario` como raíz del modelo: *crear una cuenta* y *ser alumno* son cosas distintas, y la segunda la agrega administración al inscribirte.
   2. **Alta por administración**: para los ~80 alumnos que hoy viven en el Notion y para quien se anota por WhatsApp. El sistema genera una contraseña temporal, Micaela se la pasa por WhatsApp (como ya trabaja hoy) y `usuario.debe_cambiar_password` obliga a cambiarla en el primer ingreso.
 
   **Por qué no un mail de activación:** no hay infraestructura de correo ni la va a haber pronto (`sistema-gestion-plan.md` §7 descarta el relay de mails). WhatsApp es el canal que el estudio ya usa para todo.
-- **❓P19 — ¿Un alumno inactivo pierde el acceso al portal?** La propuesta dice que el acceso requiere estar activo. Pero alguien que terminó el curso quizá quiera seguir viendo sus materiales.
+- **✅P19 — RESUELTO (Ignacio, 2026-08-17). NO: nadie pierde nunca su cuenta.** *"Quizás en un futuro quiere retomar, reservar cabina, etc."*
+
+  Es la confirmación más directa que tuvo el modelo de `usuario` como raíz: **dar de baja al alumno no da de baja a la persona.** Son dos cosas distintas y el esquema ya las tiene separadas — `alumno.estado_alumno = INACTIVO` (terminó de cursar) contra `usuario.activo = FALSE` (la cuenta no entra más). La segunda queda reservada para bajas reales, no para el fin de un curso, y el portal se le sigue mostrando: sus materiales, su historial y la posibilidad de alquilar una cabina.
 
 ---
 

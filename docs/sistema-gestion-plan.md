@@ -535,7 +535,7 @@ base.** Con esto quedan cerrados los módulos 1, 2 y 3. **Lo próximo es el
 Módulo 4 (Portal del alumno)**, según el orden de fases de §5.
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Las cuatro suites: **319 backend · 241 front · 134 + 50
+`npm run dev:platform`. Las cuatro suites: **319 backend · 241 front · 138 + 50
 SQL**.
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
@@ -609,6 +609,26 @@ El orden natural queda **cancelar primero, devolver después**; al revés el tri
 lo rechaza y el mensaje dice qué hacer. Y `ReservaService.cambiarEstado` llevó un
 `flush()` explícito, para que el trigger inmediato hable en el request y no
 depender del flush incidental de una consulta ajena.
+
+### 🕳️ Y un agujero de `V10` que se encontró el mismo día · `V12`
+
+**Se conseguía el horario anotando una deuda.** `V10` escribió la condición del
+dinero como `estado_pago <> 'ANULADO'`, que se lee como "el pago sigue vigente" y
+no lo es: `DEBE` y `VENCIDO` también son distintos de ANULADO, y son **plata que se
+esperaba y no llegó**. `V11` heredó la condición al extraer la función compartida.
+Se comprobó sobre el esquema andando: una reserva de alquiler con un único `pago`
+en `DEBE` pasaba el chequeo.
+
+La definición correcta ya existía y tiene nombre: **`EstadoPago.ENTRARON` =
+(SENADO, PAGADO)**, la misma que usan `cajaPorMoneda`, `cobradoPorInscripcion` y
+`ventasConPago`. Era la cuarta consulta que necesitaba esa lista y la única que la
+escribió de otra forma — y el comentario de `ventasConPago` advertía textualmente
+contra hacer justo eso.
+
+**La lección, que es la que conviene llevarse:** una lista de estados escrita "por
+lo que queda afuera" (`<> 'ANULADO'`) parece la misma que la escrita por lo que
+entra, y no lo es. Cuando exista un nombre para el conjunto —acá lo había— hay que
+usarlo. Lo pinean los casos 133-136 de la suite de reglas.
 
 > **Lo que la seña le cambió al calendario, por si lo tocás:** el alta ya no crea
 > una reserva vacía. Una **clase** entra con su alumno y su inscripción; un
