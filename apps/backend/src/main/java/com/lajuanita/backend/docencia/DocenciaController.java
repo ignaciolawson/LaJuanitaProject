@@ -22,6 +22,7 @@ import com.lajuanita.backend.docencia.dto.AltaMaterialRequest;
 import com.lajuanita.backend.docencia.dto.AltaNotaRequest;
 import com.lajuanita.backend.docencia.dto.AlumnoDelProfesor;
 import com.lajuanita.backend.docencia.dto.ClasesDictadas;
+import com.lajuanita.backend.docencia.dto.CorreccionNotaRequest;
 import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.docencia.dto.NotaResumen;
 import com.lajuanita.backend.docencia.dto.SeguimientoRequest;
@@ -131,9 +132,16 @@ public class DocenciaController {
         return docencia.anotar(Autoridades.idDe(quienPide), solicitud);
     }
 
+    /**
+     * Corregir el texto de una nota propia.
+     *
+     * <p>Toma {@link CorreccionNotaRequest} y no {@code AltaNotaRequest}: sobre
+     * qué alumno es la nota ya lo sabe el servidor, y pedirlo de nuevo sería un
+     * dato que puede venir contradictorio. Ver ese record.
+     */
     @PutMapping("/notas/{idNota}")
     public NotaResumen corregir(@PathVariable Long idNota,
-            @Valid @RequestBody AltaNotaRequest solicitud,
+            @Valid @RequestBody CorreccionNotaRequest solicitud,
             Authentication quienPide) {
 
         return docencia.corregirNota(Autoridades.idDe(quienPide), idNota, solicitud.contenido());

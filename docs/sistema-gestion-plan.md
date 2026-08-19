@@ -655,6 +655,43 @@ hay dos mitades. **El Módulo 5 NO está cerrado.**
 
 **Suites al cierre: 367 backend · 279 front · 162 + 50 SQL.**
 
+### 🟢 Para arrancar en verde
+
+```
+docker compose start                     # Postgres. Si Docker Desktop no está
+                                         # abierto, esto falla con un error de
+                                         # named pipe: hay que lanzarlo primero.
+cd apps/backend  && mvn spring-boot:run  # :8080 — aplica Flyway al arrancar
+cd apps/platform && npm run dev:platform # :5173 — el proxy manda /api al 8080
+```
+
+Se entra con **`admin@lajuanita.local` / `lajuanita2026`**. Las cuatro suites:
+`mvn test` (367), `npm test` en `apps/platform` (279) y `./scripts/pruebas-sql.sh`
+(162 + 50, y esas dos NO las corre `mvn test`).
+
+> **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**
+> (verificado el 2026-08-19):
+>
+> - 10 usuarios, 6 alumnos, 6 inscripciones y **9 reservas viejas, todas entre el
+>   1 y el 15 de agosto**: el calendario abre en la semana actual y **se ve
+>   vacío**, hay que retroceder.
+> - **Datos de demo del Módulo 4, cargados a mano el 19/08 probando el circuito**:
+>   tres `solicitud_reserva` (una aprobada, una pendiente, una rechazada), la
+>   **reserva 1556** que nació de la aprobada, su **seña de $18.000 en `SENADO`** y
+>   dos notificaciones. Sirven para ver las pantallas con algo adentro.
+> - `egreso`, `venta_equipo`, `nota_profesor`, `material` y `seguimiento_alumno`
+>   **siguen en cero**: ninguna pantalla las llenó nunca.
+>
+> ⚠️ **Esos datos de demo ya rompieron un test una vez** —
+> `ReservaTest.una_grabacion_con_su_sena_tiene_plata_detras` asumía que había un
+> solo pago con reserva en toda la base. Ya está arreglado, pero **si aparece un
+> test que falla sin que el código haya cambiado, mirá si no está asumiendo una
+> base vacía.**
+>
+> Y **ojo con las reservas viejas**: se cargaron antes de `V10`, así que no tienen
+> seña detrás. Si cancelás una no vas a poder descancelarla, porque `V11` le va a
+> pedir la plata que nunca tuvo. Es correcto.
+
 ### 🔧 LO QUE FALTA DEL MÓDULO 5, CONCRETO
 
 Todo es front. El backend no necesita nada más.
@@ -678,6 +715,80 @@ Además, en el front:
   del M4 — son pantallas sobre lo propio y el backend las acota por identidad.
 - **`api/tiposPortal.ts` y `api/portal.ts`**: faltan los tipos y las llamadas.
   Espejar `…backend.docencia.dto`.
+
+### 🧩 EL PUENTE YA ESTÁ CONSTRUIDO: `api/tiposDocencia.ts` y `api/docencia.ts`
+
+**No hay que leer los DTO de Java para escribir estas pantallas.** Los dos
+archivos ya existen, tipados y verificados por `tsc -b`, con un comentario por
+campo donde el campo tiene una trampa. Falta solo lo visual.
+
+`portal.ts` también ganó `misMateriales()` — lo que uno recibe **como alumno**.
+
+### 🖥️ LAS PANTALLAS, UNA POR UNA
+
+**1 · Mi agenda del profesor** — `/mi-agenda`, `miAgenda(desde, hasta)`
+Devuelve `ReservaResumen[]`, el mismo tipo del calendario de administración,
+**con `participantes` adentro** (acá corresponde: son sus alumnos). El patrón más
+parecido que ya existe es `MisReservasPagina`: lista, no grilla.
+⚠️ **`rangoLegible()` de `semana.ts` asume una semana de 7 días** (indexa `[6]`);
+si el rango es otro, armar el texto con `diaYMes(desde)` / `diaYMes(hasta)`. Ya
+pasó una vez.
+
+**2 · Mis alumnos** — `/mis-alumnos`, `misAlumnos()`
+Lista con el semáforo y `clasesRestantes`. ⚠️ **`estadoSeguimiento: null` es "sin
+marcar" y NO es `VA_BIEN`**: pintarlo gris o vacío, nunca verde. Cada fila lleva a
+la ficha.
+
+**3 · Ficha de un alumno mío** — `/mis-alumnos/:idAlumno`
+Tres bloques sobre la misma persona: **notas** (`misNotas`, `anotar`,
+`corregirNota`), **semáforo** (`fijarSeguimiento`, un `<select>` de tres valores
+más observaciones — es un PUT, así que la pantalla no distingue crear de editar) y
+**su material** (`misMaterialesSubidos(idAlumno)`).
+Para atar una nota a una clase, el `idParticipacion` sale de
+`ReservaResumen.participantes[].idParticipacion` de la agenda — es el id de la
+**participación**, no el de la reserva. Con el de otro alumno vuelve 409.
+
+**4 · Subir material** — `/material`, `subirMaterial`, `cambiarVisibilidad`
+⚠️ **Un solo control de destinatario**: "¿para quién? → todos / un alumno". Sin
+`idAlumno` queda grupal, y mandar los dos campos por separado permite un pedido
+contradictorio que la base rechaza. El link debe empezar con `http`. El toggle de
+visibilidad es la regla dura "solo si el profesor lo habilitó".
+
+**5 · Mi historial de clases dictadas** — puede ser una sección de Mi agenda.
+⚠️ **No inventar un total ni una tarifa: P20 está abierta.** El DTO no los trae.
+
+**6 · Mis materiales (del ALUMNO)** — `/mis-materiales`, `portal.misMateriales()`
+Y con esto, **sacar el bloque "todavía no disponible" de `MisCursosPagina`** y
+dejarlo apuntando a esta pantalla. Es la deuda que el M4 dejó anotada.
+
+### 🧷 EL DIFF DE MENÚ Y RUTAS
+
+En `layout/menu.ts`, grupo *Mi formación*:
+- `Mis alumnos` y `Subir material` → `disponible: true` (ya tienen
+  `visible: (u) => u.esProfesor`).
+- Agregar `Mi agenda` (`/mi-agenda`, `esProfesor`) y `Mis materiales`
+  (`/mis-materiales`, `esAlumno`).
+
+En `App.tsx`: las seis rutas van **fuera de `SoloAdministracion`**, junto a las del
+M4 — son pantallas sobre lo propio y el backend las acota por identidad.
+
+### 🧪 CÓMO PROBARLAS
+
+Los tests del front mockean el módulo de API (`vi.mock('../api/docencia', …)`) —
+copiar el patrón de `MisReservasPagina.test.tsx`. Dos trampas ya conocidas:
+
+- ⚠️ **Nombres de botón repetidos rompen `getByRole`.** `PedirMotivo` usa
+  "Confirmar"; si la pantalla tiene otro botón con ese texto, el test falla por
+  ambigüedad. Ya pasó en la bandeja de solicitudes: se resolvió renombrando a
+  "Confirmar y cobrar", que además dice mejor lo que hace.
+- ⚠️ **Agregar un campo a un DTO rompe las fixtures de otros tests**, y lo caza
+  `npx tsc -b` —no `tsc --noEmit`, que acá no chequea nada—. Es la forma esperada
+  de enterarse.
+
+**Para ver las pantallas con datos**: no hay ninguna fila en `nota_profesor`,
+`material` ni `seguimiento_alumno`. La base sí tiene profesores, alumnos e
+inscripciones, así que *Mis alumnos* se llena solo; el resto se carga desde las
+propias pantallas nuevas.
 
 ### 🧠 LO QUE EL BACKEND DEL M5 DECIDIÓ (leer antes de escribir el front)
 

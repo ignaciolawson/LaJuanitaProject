@@ -1,6 +1,7 @@
 import { pedir } from './cliente'
 import type { UsuarioActual } from './tipos'
 import type { EstadoDeCuenta } from './tiposAdmin'
+import type { MaterialResumen } from './tiposDocencia'
 import type {
   AltaSolicitud,
   Aprobacion,
@@ -38,6 +39,20 @@ export function misCursos(): Promise<ProgresoDelCurso[]> {
 
 export function miEstadoDeCuenta(): Promise<EstadoDeCuenta> {
   return pedir('/api/me/estado-de-cuenta')
+}
+
+/**
+ * Mis materiales de clase, COMO ALUMNO — lo que me dieron.
+ *
+ * Llena el bloque que `MisCursosPagina` dibuja hoy como "todavía no disponible".
+ * Trae lo mío y lo grupal, y **solo lo que el profesor publicó**: esa condición
+ * vive en la consulta del backend, así que no hay forma de pedir esto sin ella.
+ *
+ * Lo que YO subo, si además doy clases, está en `docencia.ts` — el tramo
+ * `/profesor` de la ruta dice desde qué relación se mira.
+ */
+export function misMateriales(): Promise<MaterialResumen[]> {
+  return pedir('/api/me/materiales')
 }
 
 // == Pedir una sala =========================================================
