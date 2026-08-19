@@ -11,6 +11,9 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.alumno.AlumnoRepository;
+import com.lajuanita.backend.docencia.MaterialRepository;
+import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.inscripcion.InscripcionService;
@@ -68,6 +71,8 @@ public class PortalService {
     private final PagoService pagos;
     private final BloqueoSalaRepository bloqueos;
     private final SalaService catalogo;
+    private final AlumnoRepository alumnos;
+    private final MaterialRepository materiales;
 
     public PortalService(ReservaRepository reservas,
             ReservaParticipanteRepository participantes,
@@ -75,7 +80,9 @@ public class PortalService {
             InscripcionService cursos,
             PagoService pagos,
             BloqueoSalaRepository bloqueos,
-            SalaService catalogo) {
+            SalaService catalogo,
+            AlumnoRepository alumnos,
+            MaterialRepository materiales) {
         this.reservas = reservas;
         this.participantes = participantes;
         this.inscripciones = inscripciones;
@@ -83,6 +90,28 @@ public class PortalService {
         this.pagos = pagos;
         this.bloqueos = bloqueos;
         this.catalogo = catalogo;
+        this.alumnos = alumnos;
+        this.materiales = materiales;
+    }
+
+    /**
+     * Mis materiales de clase — <b>el bloque que el Módulo 4 dejó dibujado con
+     * nombre y sin contenido</b>, hasta que el Módulo 5 le diera quién lo escriba.
+     *
+     * <p>Trae lo mío y lo grupal, y <b>solo lo que el profesor publicó</b>: esa
+     * condición vive en la consulta y no acá, así que no hay forma de pedir esto
+     * sin ella.
+     *
+     * <p>Quien no es alumno recibe lista vacía y no un error: alguien que alquila
+     * cabina no tiene materiales, no le faltan.
+     */
+    @Transactional(readOnly = true)
+    public List<MaterialResumen> misMateriales(Long idUsuario) {
+        return alumnos.findByUsuarioId(idUsuario)
+                .map(alumno -> materiales.paraElAlumno(alumno.getId()).stream()
+                        .map(MaterialResumen::de)
+                        .toList())
+                .orElseGet(List::of);
     }
 
     /**

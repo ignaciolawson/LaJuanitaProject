@@ -122,4 +122,26 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
             ORDER BY i.id
             """)
     List<Inscripcion> deLaPersona(@Param("idUsuario") Long idUsuario);
+
+    /**
+     * Las inscripciones vigentes de un conjunto de alumnos, en una consulta.
+     *
+     * <p>Para "Mis alumnos" del portal del profesor, que muestra cuántas clases le
+     * quedan a cada uno: pedirlo de a un alumno son treinta consultas para pintar
+     * treinta números.
+     *
+     * <p><b>Solo las vigentes</b> —{@code ACTIVA} + {@code PAUSADA}—, la misma
+     * definición que usa el listado de alumnos: lo que interesa es lo que la
+     * persona está cursando, no lo que terminó el año pasado. La pausada cuenta
+     * porque sigue teniendo clases debidas, que es justo al alumno que hay que ir
+     * a buscar.
+     *
+     * @param ids no puede venir vacía — un {@code IN ()} es un error de sintaxis
+     */
+    @Query("""
+            SELECT i FROM Inscripcion i
+            WHERE i.alumno.id IN :ids AND i.estado IN :vigentes
+            """)
+    List<Inscripcion> vigentesDeLosAlumnos(@Param("ids") Collection<Long> ids,
+            @Param("vigentes") Collection<EstadoInscripcion> vigentes);
 }

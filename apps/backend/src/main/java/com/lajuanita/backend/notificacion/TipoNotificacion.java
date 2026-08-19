@@ -10,9 +10,9 @@ package com.lajuanita.backend.notificacion;
  * duele: que un tipo se escriba mal en un lado y la pantalla que filtra por él
  * deje de encontrarlo, sin error a la vista.
  *
- * <p>Hoy son dos, y las dos las escribe el Módulo 4 al resolver una solicitud del
- * portal. <b>Es la primera vez que alguien escribe en esta tabla</b>: existe
- * desde `V1` y ninguna pantalla la había tocado.
+ * <p>Las dos primeras las escribe el Módulo 4 al resolver una solicitud del portal
+ * —fue la primera vez que alguien escribió en esta tabla, que existe desde `V1`— y
+ * la tercera la escribe el Módulo 5 al mover una reserva.
  *
  * <p>Lo que deliberadamente <b>no</b> está: el aviso automático de la deuda a los
  * 7 días. No es un tipo que falte, es otra máquina — corre sin que nadie pida
@@ -25,5 +25,15 @@ public enum TipoNotificacion {
     SOLICITUD_APROBADA,
 
     /** Tu pedido de sala fue rechazado, y la notificación dice por qué. */
-    SOLICITUD_RECHAZADA
+    SOLICITUD_RECHAZADA,
+
+    /**
+     * Te movieron una clase de sala o de horario (M5).
+     *
+     * <p>Es la regla dura *"las notificaciones de cambio de sala llegan solas"* de
+     * §8, y la escribe {@code ReservaService.editar} — el segundo escritor que
+     * tiene esta tabla. Le llega al profesor <b>y</b> a los alumnos: el que se
+     * presenta en la sala equivocada es cualquiera de los dos.
+     */
+    RESERVA_MOVIDA
 }

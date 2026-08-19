@@ -1124,6 +1124,61 @@ SELECT probar('155','y despues ya no se vuelve a tocar','FALLA',
 
 
 -- =============================================================================
+-- EL SEGUIMIENTO DEL ALUMNO SELLA SU PROPIO CAMBIO  (V14)
+--
+-- El alcance pide los tres estados **"con fecha de cambio"**, y el DEFAULT de la
+-- columna solo corre en el INSERT: sin el trigger, la fila diría para siempre
+-- cuándo se creó el seguimiento y no cuándo se movió. Es un dato que se lee como
+-- "desde cuándo este alumno requiere atención".
+-- =============================================================================
+
+SELECT probar('156','crear el seguimiento de un alumno','ANDA',
+ $q$INSERT INTO seguimiento_alumno (id_profesor,id_alumno,estado)
+    SELECT prof,al_juan,'VA_BIEN' FROM v$q$);
+
+SELECT probar('157','un seguimiento repetido para el mismo par','FALLA',
+ $q$INSERT INTO seguimiento_alumno (id_profesor,id_alumno,estado)
+    SELECT prof,al_juan,'EN_PAUSA' FROM v$q$);
+
+-- Se ensucia la fecha a mano en vez de actualizar dos veces: `now()` es la hora
+-- de la TRANSACCION, asi que dos updates seguidos darian el mismo valor y el caso
+-- pasaria sin haber probado nada.
+SELECT probar('158','cambiar el estado mueve la fecha','ANDA',
+ $q$UPDATE seguimiento_alumno SET fecha_actualizacion='2020-01-01'
+     WHERE id_alumno=(SELECT al_juan FROM v);
+    UPDATE seguimiento_alumno SET estado='REQUIERE_ATENCION'
+     WHERE id_alumno=(SELECT al_juan FROM v);
+    SELECT 1 FROM seguimiento_alumno
+     WHERE id_alumno=(SELECT al_juan FROM v)
+       AND fecha_actualizacion > '2021-01-01'$q$);
+
+-- Y el otro lado: un UPDATE que no cambia nada no mueve el sello. Si el trigger
+-- empezara a sellar cualquier UPDATE, "desde cuando esta asi" pasaria a decir
+-- "desde la ultima vez que alguien guardo la pantalla", que no es lo mismo.
+--
+-- El UPDATE es `estado = estado` a proposito: escrito con el valor literal, este
+-- caso pasaria solo porque el 158 lo dejo en ese mismo estado, y estaria probando
+-- el orden de los casos en vez de la regla.
+SELECT probar('159','un UPDATE que no cambia nada no mueve la fecha','ANDA',
+ $q$UPDATE seguimiento_alumno SET fecha_actualizacion='2020-01-01'
+     WHERE id_alumno=(SELECT al_juan FROM v);
+    UPDATE seguimiento_alumno SET estado=estado
+     WHERE id_alumno=(SELECT al_juan FROM v);
+    SELECT 1 FROM seguimiento_alumno
+     WHERE id_alumno=(SELECT al_juan FROM v)
+       AND fecha_actualizacion < '2021-01-01'$q$);
+
+-- Y la regla que YA estaba desde V1 (seccion 8.3), que el Modulo 5 casi duplica:
+-- una nota no se cuelga de la clase de otro alumno.
+SELECT probar('160','una nota sobre la clase de otro alumno','FALLA',
+ $q$INSERT INTO nota_profesor (id_profesor,id_alumno,id_participacion,contenido)
+    SELECT prof, al_ana,
+           (SELECT rp.id_participacion FROM reserva_participante rp
+            WHERE rp.id_usuario=(SELECT u_juan FROM v) LIMIT 1),
+           'nota mal colgada' FROM v$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

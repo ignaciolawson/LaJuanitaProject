@@ -477,17 +477,35 @@ class ReservaTest {
     void una_grabacion_con_su_sena_tiene_plata_detras() throws Exception {
         Usuario quienPaga = crear(Rol.USUARIO);
 
-        mvc.perform(altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
-                .andExpect(status().isCreated());
+        String creada = mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "10:00", "11:30", quienPaga.getId()))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
         em.flush();
         jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE");
 
         // Y la seña quedó como SENADO, no como PAGADO: es plata que entró contra un
         // total que todavía no se completó.
+        //
+        // ⚠️ La consulta pregunta por ESTA reserva y no por "el pago que tenga
+        // id_reserva". Decía lo segundo, y funcionó hasta que la base de desarrollo
+        // tuvo su primera reserva con seña cargada de verdad: ahí devolvió tres
+        // filas y el caso reventó sin que nada del código hubiera cambiado. Es la
+        // misma trampa que la cabecera de las suites SQL describe para las fechas
+        // -- un caso no puede depender de que la base esté vacía.
+        long idReserva = Long.parseLong(entreComas(creada, "\"idReserva\":"));
+
         assertThat(jdbc.queryForObject(
-                "SELECT estado_pago FROM pago WHERE id_reserva IS NOT NULL", String.class))
+                "SELECT estado_pago FROM pago WHERE id_reserva = ?", String.class, idReserva))
                 .isEqualTo("SENADO");
+    }
+
+    /** Saca un número del JSON sin traer un parser para un solo campo. */
+    private String entreComas(String cuerpo, String clave) {
+        int desde = cuerpo.indexOf(clave) + clave.length();
+        int hasta = cuerpo.indexOf(',', desde);
+        return cuerpo.substring(desde, hasta).trim();
     }
 
     @Test

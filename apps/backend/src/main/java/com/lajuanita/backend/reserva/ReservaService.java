@@ -3,6 +3,8 @@ package com.lajuanita.backend.reserva;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.notificacion.NotificacionService;
+import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.PagoService;
@@ -100,6 +104,11 @@ public class ReservaService {
      */
     private final PagoService pagos;
 
+    /** Para el aviso de "te movimos la clase". Ver {@code avisarSiSeMovio}. */
+    private final NotificacionService avisos;
+
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
+
     public ReservaService(ReservaRepository reservas,
             ReservaParticipanteRepository participantes,
             SalaRepository salas,
@@ -107,7 +116,8 @@ public class ReservaService {
             ProfesorRepository profesores,
             UsuarioRepository usuarios,
             InscripcionRepository inscripciones,
-            PagoService pagos) {
+            PagoService pagos,
+            NotificacionService avisos) {
         this.reservas = reservas;
         this.participantes = participantes;
         this.salas = salas;
@@ -116,6 +126,7 @@ public class ReservaService {
         this.usuarios = usuarios;
         this.inscripciones = inscripciones;
         this.pagos = pagos;
+        this.avisos = avisos;
     }
 
     // == El calendario ========================================================
@@ -302,6 +313,14 @@ public class ReservaService {
     @Transactional
     public ReservaResumen editar(Long id, EdicionReservaRequest solicitud, Long idAutor) {
         Reserva reserva = buscar(id);
+
+        // Se lee ANTES de tocar nada: después del set, "lo que había" ya no existe
+        // en ningún lado, y sin eso no se puede saber si el cambio es de los que
+        // hay que avisar.
+        String salaAnterior = reserva.getSala().getNombreSala();
+        LocalDate fechaAnterior = reserva.getFecha();
+        LocalTime horaAnterior = reserva.getHoraInicio();
+
         reserva.setSala(buscarSala(solicitud.idSala()));
         reserva.setTipoUso(buscarTipoUso(solicitud.idTipoUso()));
         reserva.setProfesor(buscarProfesor(solicitud.idProfesor()));
@@ -313,7 +332,75 @@ public class ReservaService {
         // cambiado nada de lo auditado: es más barato que adivinar qué cambió.
         reserva.setIdUsuarioModifico(idAutor);
 
+        avisarSiSeMovio(reserva, salaAnterior, fechaAnterior, horaAnterior);
+
         return conParticipantes(reserva);
+    }
+
+    /**
+     * <b>*"Las notificaciones de cambio de sala llegan solas"*</b> — regla dura de
+     * §8, y el segundo escritor que tiene la tabla {@code notificacion}.
+     *
+     * <p>Tres decisiones adentro:
+     *
+     * <ul>
+     *   <li><b>Solo si de verdad se movió.</b> Corregir una nota o asignar el profe
+     *       que faltaba no le cambia el día a nadie, y un aviso por cada edición
+     *       entrena a la gente a ignorar los avisos — que es peor que no tenerlos.
+     *   <li><b>Le llega al profesor y a los alumnos</b>, no solo al profesor: el
+     *       alcance nombra al profesor porque la regla se levantó en su entrevista,
+     *       pero el que se presenta en la sala equivocada es cualquiera de los dos.
+     *   <li><b>Dice de dónde a dónde.</b> "Cambió tu clase" obliga a ir a buscar
+     *       qué cambió; con el antes y el después, el aviso se basta solo — que es
+     *       la misma razón por la que el rechazo de una solicitud lleva el motivo
+     *       adentro. Acá no hay mail ni WhatsApp: esto se lee cuando la persona
+     *       entra.
+     * </ul>
+     */
+    private void avisarSiSeMovio(Reserva reserva,
+            String salaAnterior,
+            LocalDate fechaAnterior,
+            LocalTime horaAnterior) {
+
+        boolean cambioDeSala = !reserva.getSala().getNombreSala().equals(salaAnterior);
+        boolean cambioDeHorario = !reserva.getFecha().equals(fechaAnterior)
+                || !reserva.getHoraInicio().equals(horaAnterior);
+
+        if (!cambioDeSala && !cambioDeHorario) {
+            return;
+        }
+
+        String texto = "Tu " + reserva.getTipoUso().getNombre().toLowerCase()
+                + " pasó de " + salaAnterior + ", " + fechaAnterior.format(DIA)
+                + " a las " + horaAnterior
+                + " a " + reserva.getSala().getNombreSala() + ", "
+                + reserva.getFecha().format(DIA) + " a las " + reserva.getHoraInicio() + ".";
+
+        for (Usuario destino : aQuienesLesCambia(reserva)) {
+            avisos.avisar(destino, TipoNotificacion.RESERVA_MOVIDA,
+                    "Te movimos una clase", texto, "/mis-reservas");
+        }
+    }
+
+    /**
+     * Quiénes tienen que enterarse: los anotados y el profesor.
+     *
+     * <p>La participación cancelada no cuenta —esa persona ya no va— y el profesor
+     * puede no existir (P37: una clase se carga antes de saber quién la toma).
+     */
+    private List<Usuario> aQuienesLesCambia(Reserva reserva) {
+        List<Usuario> destinos = new ArrayList<>();
+
+        for (ReservaParticipante p : participantes.deLasReservas(List.of(reserva.getId()))) {
+            if (p.getEstadoAsistencia() != EstadoAsistencia.CANCELADA) {
+                destinos.add(p.getUsuario());
+            }
+        }
+
+        if (reserva.getProfesor() != null) {
+            destinos.add(reserva.getProfesor().getUsuario());
+        }
+        return destinos;
     }
 
     /**

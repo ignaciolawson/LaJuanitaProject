@@ -623,7 +623,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-19
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (segunda tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -641,25 +641,94 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, fin del día
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre del día
 
-## ✅ MÓDULOS 1, 2, 3 Y 4 CERRADOS. LO PRÓXIMO ES EL MÓDULO 5 — Portal del profesor.
+## ⚠️ MÓDULO 5: EL BACKEND ESTÁ ENTERO Y PROBADO. **FALTA TODO EL FRONT.**
 
-**Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
-`npm run dev:platform`. Entrás con `admin@lajuanita.local` / `lajuanita2026`.
-Las cuatro suites: **347 backend · 279 front · 157 + 50 SQL**.
+**Este es el primer módulo que queda partido al medio, y hay que saberlo antes de
+tocar nada.** El backend del portal del profesor está terminado, con `V14`, sus 20
+casos de test y las cuatro suites en verde. **Ninguna pantalla lo llama todavía.**
 
-> **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**:
-> 10 usuarios, 6 alumnos, 6 inscripciones y **9 reservas, todas entre el 1 y el 15
-> de agosto**, o sea que **el calendario abre en la semana actual y se ve vacío**.
-> `pago`, `egreso` y `venta_equipo` siguen en cero salvo lo que cargues a mano, y
-> ahora se suman `solicitud_reserva` y `notificacion`, que arrancan vacías: la
-> forma más rápida de ver el Módulo 4 andando es entrar con un usuario cualquiera,
-> pedir una cabina desde `/reservar` y aprobarla desde `/admin/solicitudes`.
->
-> **Ojo con las reservas viejas**: se cargaron antes de `V10`, así que no tienen
-> seña detrás. Si cancelás una no vas a poder descancelarla, porque `V11` le va a
-> pedir la plata que nunca tuvo. Es correcto.
+Y eso es exactamente lo que el cierre del Módulo 2 enseñó a no dar por cerrado:
+*"un módulo no está cerrado porque las dos mitades tengan tests"* — acá ni siquiera
+hay dos mitades. **El Módulo 5 NO está cerrado.**
+
+**Suites al cierre: 367 backend · 279 front · 162 + 50 SQL.**
+
+### 🔧 LO QUE FALTA DEL MÓDULO 5, CONCRETO
+
+Todo es front. El backend no necesita nada más.
+
+| Pantalla | Endpoint que ya existe |
+|---|---|
+| **Mi agenda** (profesor) | `GET /api/me/profesor/agenda?desde&hasta` |
+| **Mis alumnos** | `GET /api/me/profesor/alumnos` |
+| **Ficha de un alumno mío** — notas + semáforo + su material | `GET /api/me/profesor/alumnos/{id}/notas`, `POST /api/me/profesor/notas`, `PUT /api/me/profesor/notas/{id}`, `PUT /api/me/profesor/alumnos/{id}/seguimiento`, `GET /api/me/profesor/materiales?idAlumno=` |
+| **Subir material** | `POST /api/me/profesor/materiales`, `PATCH /api/me/profesor/materiales/{id}/visibilidad?visible=` |
+| **Mi historial de clases dictadas** | `GET /api/me/profesor/clases?desde&hasta` |
+| **Mis materiales** (del ALUMNO — llena el bloque que el M4 dejó nombrado) | `GET /api/me/materiales` |
+
+Además, en el front:
+
+- **`menu.ts`**: *Mis alumnos* y *Subir material* están en `disponible: false` — pasan
+  a `true`. Hay que agregar *Mi agenda* y *Mis materiales*. Los dos primeros ya
+  tienen el predicado correcto (`u.esProfesor`); *Mis materiales* va con
+  `u.esAlumno`.
+- **`App.tsx`**: las rutas nuevas van **fuera** de `SoloAdministracion`, como las
+  del M4 — son pantallas sobre lo propio y el backend las acota por identidad.
+- **`api/tiposPortal.ts` y `api/portal.ts`**: faltan los tipos y las llamadas.
+  Espejar `…backend.docencia.dto`.
+
+### 🧠 LO QUE EL BACKEND DEL M5 DECIDIÓ (leer antes de escribir el front)
+
+- **`/api/me/profesor/**` — el tramo `/profesor` es la decisión de diseño.** Una
+  misma persona puede ser alumna y profesora (Ghezz da clases y alquila cabina),
+  así que `/api/me/materiales` sería ambiguo: ¿los que subí o los que me dieron? El
+  tramo dice **desde qué relación estoy mirando**. El del alumno no lo lleva.
+- **"Mi alumno" son dos caminos**, y es la misma forma que "mi reserva" del M4:
+  tener una inscripción asignada a mí, **o** haber estado en una clase que yo di.
+  El segundo es **el suplente** — quien toma una clase ajena necesita poder dejar
+  la nota de esa sesión, que es cuando más falta hace.
+- **Esa regla vive en Java y no en la base, a propósito** (la razón está en la
+  cabecera de `V14`): son dos caminos, y escribir ese JOIN doble en SQL sería la
+  segunda copia de una definición. La consecuencia a tener presente: **si un
+  endpoint nuevo se olvida del chequeo, nada falla** — la pantalla anda y muestra
+  de más. Por eso `DocenciaTest` está escrito en pares.
+- **Ser profesor es una relación y no un rol**: no hay `@PreAuthorize` que lo
+  decida, `DocenciaService` va a buscar la fila. Un ADMIN sin fila en `profesor` no
+  entra, y está bien.
+- **El profesor no modifica reservas** (regla dura de §8): no hay ni un endpoint
+  que escriba sobre `reserva` en todo el módulo.
+- **El material va por link, no por archivo subido.** `material.archivo_path`
+  existe y espera al `StorageService` de §2.4; el CHECK de `V1` acepta link o
+  archivo, así que **el módulo entra entero sin arrastrar la infraestructura de
+  archivos**. Cuando esa pieza se construya —la necesita el M6 para retener el
+  premaster— se agrega el campo y nada más cambia.
+- **`RESERVA_MOVIDA`**: el aviso de cambio de sala u horario ya sale solo
+  (`ReservaService.editar`), **al profesor y a los alumnos**, y solo si de verdad
+  se movió — un aviso por cada edición entrena a la gente a ignorarlos.
+
+### 🕳️ DOS COSAS QUE ESTA TANDA ENCONTRÓ Y CONVIENE NO REPETIR
+
+**1. `V14` casi duplica una regla que `V1` ya tenía.** Iba a traer un trigger para
+que una nota no se cuelgue de la clase de otro alumno; **eso ya estaba en `V1`
+§8.3** y se descubrió porque un test esperaba el mensaje del trigger nuevo y
+recibió el del viejo. Se sacó. **Antes de escribir una regla en la base, buscarla
+en `V1`** — su §8 es justamente "reglas cruzadas entre tablas", que es la clase de
+regla que un módulo nuevo siente la tentación de agregar.
+
+> `V14` se editó **después** de haberse aplicado a la base de desarrollo, que es lo
+> que el proyecto prohíbe. Se hizo a conciencia porque el archivo se escribió ese
+> mismo día y no había salido de esta máquina; hubo que borrar su fila de
+> `flyway_schema_history` y sus objetos a mano. **Si `V14` ya está commiteada
+> cuando leas esto, la regla vuelve a valer: no se toca.**
+
+**2. Un test asumía que la base estaba vacía.**
+`ReservaTest.una_grabacion_con_su_sena_tiene_plata_detras` preguntaba por *"el pago
+que tenga `id_reserva`"* y funcionó hasta que la base de desarrollo tuvo su primera
+reserva con seña cargada de verdad (los datos de demo del M4): devolvió tres filas
+y reventó **sin que el código hubiera cambiado**. Ya está atado a su propia reserva.
+Es la misma trampa que las suites SQL describen para las fechas.
 
 ### 🚪 LO QUE EL MÓDULO 4 DEJÓ CONSTRUIDO, Y LAS DOS PIEZAS QUE HEREDA EL M5
 

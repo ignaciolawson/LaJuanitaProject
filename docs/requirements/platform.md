@@ -507,7 +507,7 @@ aprobado es siempre algo que alguien eligió, y no algo que nadie eligió.
 
 ---
 
-## 8. Módulo 5 — Portal del Profesor
+## 8. Módulo 5 — Portal del Profesor · ⚠️ *backend construido el 2026-08-19; **falta el front***
 
 *Necesidad levantada por Ghezz. Hoy lleva un Excel paralelo porque el Notion no le alcanza.*
 
@@ -524,8 +524,25 @@ notificaciones · Mi historial de clases dictadas · Mi perfil.
 - Las notificaciones de cambio de sala **llegan solas**.
 - Estados de seguimiento: **va bien / requiere atención / en pausa**, con fecha de cambio.
 
+### Estado
+
+**El backend está entero y probado** (`docencia`, `V14`, 20 casos): mi agenda, mis
+alumnos por los dos caminos —asignación o haber dado la clase, que es el caso del
+suplente—, notas privadas, semáforo de seguimiento, material por link, historial de
+clases dictadas, y el aviso automático de cambio de sala. **Ninguna pantalla lo
+llama todavía**, así que el módulo NO está cerrado. `sistema-gestion-plan.md` §6d
+lista pantalla por pantalla lo que falta con su endpoint.
+
+Dos reglas duras quedaron sostenidas por el service y no por la base, con la razón
+escrita en la cabecera de `V14`: *"solo mis alumnos"* y *"las notas privadas no las
+ve otro profesor"*. Lo que sí sostiene la base: que una nota no se cuelgue de la
+clase de otro alumno (`V1` §8.3, que ya existía) y que el seguimiento selle su
+fecha de cambio (`V14`).
+
+**El material va por link**: `archivo_path` espera al `StorageService` de §2.4.
+
 ### Pendientes
-- **❓P20 — "Registrar automáticamente cuántas clases doy"** — Ghezz lo pidió textual, y se conecta con el pago a profesores del Módulo 3. ¿La liquidación al profesor se calcula sola a partir de las clases dictadas, o se carga a mano?
+- **❓P20 — "Registrar automáticamente cuántas clases doy"** — Ghezz lo pidió textual, y se conecta con el pago a profesores del Módulo 3. ¿La liquidación al profesor se calcula sola a partir de las clases dictadas, o se carga a mano? **El M5 entregó el insumo y no la respuesta**: `GET /api/me/profesor/clases` cuenta las clases dictadas del período y no calcula ningún total — poner ahí una tarifa sería decidir por el cliente algo que le cuesta plata.
 - **❓P21 — Mentorías:** son el servicio con más necesidad de seguimiento y sin estructura fija. ¿La nota por sesión alcanza, o hace falta algo distinto (un hilo por alumno, objetivos)?
 
 ---

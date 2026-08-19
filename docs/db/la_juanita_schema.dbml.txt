@@ -1,7 +1,8 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real, migraciones V1..V13.
+// Generado a partir del esquema real, migraciones V1..V14.
+// (V14 no agrega tablas ni columnas: es un trigger sobre `seguimiento_alumno`.)
 //
 // Al 2026-08-19 el diagrama está AL DÍA: comparado tabla por tabla y columna
 // por columna contra el catálogo de una base con las migraciones aplicadas,

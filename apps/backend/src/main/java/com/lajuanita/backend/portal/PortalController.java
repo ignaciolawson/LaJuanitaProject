@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.dto.NotificacionResumen;
+import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.portal.dto.CatalogoParaPedir;
 import com.lajuanita.backend.portal.dto.FranjaOcupada;
@@ -93,6 +94,18 @@ public class PortalController {
     @GetMapping("/estado-de-cuenta")
     public EstadoDeCuenta miEstadoDeCuenta(Authentication quienPide) {
         return portal.miEstadoDeCuenta(Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Mis materiales de clase.
+     *
+     * <p>Sin tramo {@code /profesor}: acá miro como alumno, lo que me dieron. Lo
+     * que yo subo, si además doy clases, está en
+     * {@code /api/me/profesor/materiales} — ver {@code DocenciaController}.
+     */
+    @GetMapping("/materiales")
+    public List<MaterialResumen> misMateriales(Authentication quienPide) {
+        return portal.misMateriales(Autoridades.idDe(quienPide));
     }
 
     // == Pedir una sala ======================================================

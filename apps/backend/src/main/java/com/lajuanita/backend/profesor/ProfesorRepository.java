@@ -38,4 +38,11 @@ public interface ProfesorRepository extends JpaRepository<Profesor, Long> {
      * asignen alumnos nuevos.
      */
     boolean existsByUsuarioId(Long idUsuario);
+
+    /**
+     * La fila de profesor de una persona. Es la puerta del portal del profesor:
+     * ser profesor es una relación y no un rol, así que no lo puede decidir una
+     * anotación de seguridad — hay que ir a buscar la fila.
+     */
+    java.util.Optional<Profesor> findByUsuarioId(Long idUsuario);
 }
