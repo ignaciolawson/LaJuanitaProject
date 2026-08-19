@@ -509,11 +509,129 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 ---
 
+## 6f. PENDIENTES TÉCNICOS ACUMULADOS · abierta el 2026-08-19
+
+> **Esta lista crece; no se reescribe.** Está deliberadamente **antes** de §6d y no
+> adentro, porque §6d se reescribe entera al cerrar cada módulo —pasó hoy mismo— y
+> una lista que sobrevive varios módulos no puede vivir en la sección que se pisa.
+>
+> **Qué entra acá:** lo que Ignacio decidió el 2026-08-19 posponer a propósito.
+> El criterio de trabajo que acompaña a esta lista es **"MVP del módulo primero,
+> retoques después"**, y se sostiene por una razón concreta del proyecto: **las
+> reglas de negocio viven en la base, no en las pantallas.** Un rediseño del front
+> no puede romper que una reserva necesite seña ni que nadie esté en dos salas a la
+> vez. Lo caro ya está donde no se toca al maquetar.
+>
+> **El triage que sí hay que respetar:** si un pendiente **toca el esquema o una
+> regla**, se hace en su módulo y no se pospone — las migraciones son inmutables y
+> se acumulan, así que cambiar el modelo después de tres módulos que ya dependen de
+> él cuesta un orden de magnitud más. Si es pantalla, texto, menú o flujo, va a esta
+> lista. **De los cinco primeros, ninguno necesita migración**, y por eso posponerlos
+> no acumula deuda estructural.
+
+### 📋 Los cinco de la primera tanda (Ignacio, 2026-08-19)
+
+**1 · El admin no debería poder cambiarse el nombre ni el mail** → *ya medio hecho,
+y la otra mitad quizás no haga falta.*
+
+El **mail ya no lo cambia nadie** (`EdicionPerfilRequest`, M4): es la credencial de
+acceso y no hay forma de verificar una dirección nueva, así que un tipeo mal deja a
+la persona afuera de su cuenta. Sobre el nombre queda una pregunta antes de
+codificar: **¿la regla es sobre el rol o sobre esa cuenta?** Un ADMIN real es una
+persona que puede cambiarse el apellido; lo que no es una persona es la cuenta
+sembrada por `V3`, que **ya está agendada para desactivarse antes del deploy real**.
+Si el problema es esa cuenta, el arreglo ya existe y no hace falta una regla nueva.
+
+**2 · Que el rol ADMIN no pueda usar los servicios** → *hacerlo como MENÚ, no como
+permiso. Esta es la recomendación más importante de la lista.*
+
+Como permiso **rompe una decisión de arquitectura**: los dos ejes —permisos (`rol`)
+y relaciones de negocio— están separados a propósito, y el caso testigo del propio
+proyecto es *"Ghezz es STAFF **y** profesor **y** puede alquilarse una cabina, sin
+contradicción"*. Si el rol empieza a decidir qué servicios se pueden contratar, los
+dos ejes se vuelven uno solo.
+
+Pero la necesidad es real y se vio al probar el M4: **es raro que el admin se pida
+una cabina a sí mismo y se la apruebe**. La causa no es que no pueda usar el
+servicio, es que **administración no necesita pedir** — carga la reserva directo en
+el calendario, que para eso tiene permiso. Entonces: ocultar *Reservar cabina* y
+*Mis pedidos* a quien `puedeOperar`, y dejarle *Mis reservas* y *Mis pagos*, que sí
+le corresponden si participó o pagó algo. **Es un cambio en `menu.ts` y en ningún
+otro lado.** Misma necesidad, un décimo del costo, y los dos ejes quedan en pie.
+
+**3 · Que el usuario pueda modificar una reserva** → *es una pantalla que el M4 se
+debe, no una idea nueva.*
+
+*"Solicitar reprogramación"* está en la lista de pantallas del Módulo 4 en
+[`platform.md` §7](requirements/platform.md) **y no se construyó**. La tabla
+`solicitud_reprogramacion` existe desde `V1` y el M4 hasta le agregó el trigger de
+"resuelta es final", así que **falta el endpoint y la pantalla, no el modelo**.
+
+Y la forma es la misma que el pedido de sala: **el usuario pide, administración
+resuelve.** No puede ser una edición directa — mover una franja vuelve a chequear el
+solapamiento y arrastra la seña.
+
+**4 · Cotización del dólar automática por API** → *sí, pero solo como prellenado.*
+
+La cotización se guarda **por pago** y es la del momento del cobro (§2.3),
+justamente porque cada cobro se tomó a un valor distinto. Entonces la API **solo
+puede prellenar el campo**: nunca ser la fuente de verdad, nunca tocar filas
+viejas. Y como es una dependencia externa que se puede caer, el campo tiene que
+seguir siendo editable y el guardado no puede depender de que la consulta responda.
+
+**Una pregunta que es del negocio y no técnica: ¿qué cotización?** Oficial, blue o
+MEP. Para un estudio que cobra en dólares en efectivo, eso lo decide el cliente.
+
+**5 · Que no se pueda pedir un horario ya tomado** → *la más barata de las cinco: la
+maquinaria ya está.*
+
+`GET /api/me/disponibilidad` ya devuelve las franjas ocupadas y `ReservarPagina` ya
+las dibuja. Falta el chequeo al mandar el pedido. Dos cuidados:
+
+- **Es un pre-chequeo, nunca la autoridad.** Dos personas pueden pedir la misma
+  franja en el mismo segundo y un pedido no reserva nada: quien decide sigue siendo
+  el EXCLUDE al aprobar. Esto baja el ruido de la bandeja, no previene conflictos.
+- **Avisar, no bloquear.** Una franja tomada hoy puede liberarse mañana si esa clase
+  se cancela; bloquear duro pierde ese pedido. *"Esa franja ya está pedida"* alcanza.
+
+### 🎨 Y el rediseño del front, que va al final de todo
+
+**Decidido el 2026-08-19: la plataforma se rediseña entera cuando estén los ocho
+módulos, no de a un módulo por vez.** Un sistema de diseño aplicado a todas las
+pantallas de una vez sale coherente; aplicado de a poco, deriva. (La **landing no se
+toca**: quedó cerrada.)
+
+Tres cosas para ese momento:
+
+- **No arranca de cero.** `index.css` ya tiene los tokens y una decisión tomada: la
+  landing es oscura y teatral porque vende, la plataforma es clara y densa porque se
+  mira ocho horas por día.
+- **El grueso está en `componentes/`**, no en las páginas — `Boton`, `Campo`,
+  `CampoSelect`, `PedirMotivo`, `Paginado`, `DetalleDeCuenta`. Casi todas las
+  pantallas se componen de ahí.
+- **Va a romper tests del front, y está bien.** Los casos preguntan por texto visible
+  —"Confirmar y cobrar", "Esperando respuesta", "Faltaste"— porque prueban
+  *decisiones*, no píxeles: renombrar un botón obliga a decidir el nombre nuevo a
+  conciencia. **No lo esquives escribiendo tests por `data-testid`.**
+
+> ⚠️ **Lo único que el rediseño no puede borrar:** en varias pantallas hay texto que
+> no es decoración sino **la explicación de una regla** — *"Todavía no reserva la
+> sala: primero lo confirmamos"*, *"no se aparta un horario sin pago por
+> adelantado"*, los bloques *"todavía no disponible"* con el módulo que los trae. Se
+> puede cambiar cada color y cada tipografía; esas frases se reescriben, no se
+> eliminan, o el sistema pasa a hacer cosas que el usuario no entiende.
+
+---
+
 ## 6d. DÓNDE RETOMAR · última actualización 2026-08-19
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
 > esta y hay que corregir la otra.
+>
+> **Y mirá también [§6f](#6f-pendientes-técnicos-acumulados--abierta-el-2026-08-19),
+> que es la lista de retoques técnicos pospuestos a propósito.** Está justo arriba y
+> fuera de esta sección porque esto se reescribe entero cada vez y esa lista no.
 >
 > **Y para todo lo que sea una DECISIÓN, mirá antes
 > [`docs/requirements/platform.md` §13](requirements/platform.md) — "Decisiones
