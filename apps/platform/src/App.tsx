@@ -16,6 +16,14 @@ import { EstadoDeCuentaPagina } from './paginas/EstadoDeCuentaPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
+import { MiCuentaPagina } from './paginas/MiCuentaPagina'
+import { MiPerfilPagina } from './paginas/MiPerfilPagina'
+import { MisCursosPagina } from './paginas/MisCursosPagina'
+import { MisReservasPagina } from './paginas/MisReservasPagina'
+import { MisSolicitudesPagina } from './paginas/MisSolicitudesPagina'
+import { NotificacionesPagina } from './paginas/NotificacionesPagina'
+import { ReservarPagina } from './paginas/ReservarPagina'
+import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
@@ -43,6 +51,18 @@ function Rutas() {
       <Route element={<RutaProtegida />}>
         <Route index element={<InicioPagina />} />
 
+        {/* El portal (Módulo 4). No llevan guarda de rol y es correcto: son
+            pantallas sobre lo propio, y el backend las acota por identidad —el
+            id sale del token, no de la URL. Un USUARIO sin nada ve listas
+            vacías, que es lo que tiene. */}
+        <Route path="/mis-reservas" element={<MisReservasPagina />} />
+        <Route path="/reservar" element={<ReservarPagina />} />
+        <Route path="/mis-solicitudes" element={<MisSolicitudesPagina />} />
+        <Route path="/mis-cursos" element={<MisCursosPagina />} />
+        <Route path="/mis-pagos" element={<MiCuentaPagina />} />
+        <Route path="/notificaciones" element={<NotificacionesPagina />} />
+        <Route path="/mi-perfil" element={<MiPerfilPagina />} />
+
         {/* Las de administración exigen además un rol. Sin esto, alguien que
             escribe /admin/usuarios en la barra de direcciones veía el marco de
             la pantalla y una tabla que nunca cargaba: parecía un sistema roto,
@@ -52,6 +72,7 @@ function Rutas() {
           <Route path="/admin/alumnos/:id" element={<AlumnoPerfilPagina />} />
           <Route path="/admin/inscripciones" element={<InscripcionesPagina />} />
           <Route path="/admin/reservas" element={<CalendarioPagina />} />
+          <Route path="/admin/solicitudes" element={<SolicitudesPagina />} />
           <Route path="/admin/bloqueos" element={<BloqueosPagina />} />
           <Route path="/admin/uso-salas" element={<UsoDeSalasPagina />} />
           <Route path="/admin/pagos" element={<PagosPagina />} />

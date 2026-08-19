@@ -108,6 +108,14 @@ export type TipoUsoResumen = {
   esClase: boolean
   color: string | null
   activo: boolean
+  /**
+   * Si un usuario puede pedir este uso desde el portal (P17, `V13`).
+   *
+   * No es el negado de `esClase`: Mix & Mastering tampoco es una clase y tampoco
+   * se pide por acá. La marca vive en el catálogo, no en una lista escrita en el
+   * código.
+   */
+  solicitablePorUsuario: boolean
 }
 
 export type ParticipanteResumen = {

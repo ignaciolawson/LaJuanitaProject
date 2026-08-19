@@ -202,6 +202,40 @@ public class SesionService {
     }
 
     /**
+     * Cambiar los propios datos.
+     *
+     * <p>Solo sobre uno mismo: el id sale del token, así que no hay forma de
+     * editar a otro por esta puerta. Para eso está {@code UsuarioService}, que
+     * además chequea a quién se puede tocar.
+     *
+     * <p>Lo que no se puede cambiar acá —email y rol— no es un olvido: ver
+     * {@link EdicionPerfilRequest}.
+     */
+    @Transactional
+    public UsuarioActual editarPerfil(String subject, EdicionPerfilRequest solicitud) {
+        Usuario usuario = usuarioDelToken(subject);
+
+        usuario.setNombre(solicitud.nombre().trim());
+        usuario.setApellido(solicitud.apellido().trim());
+        usuario.setTelefono(normalizar(solicitud.telefono()));
+
+        // El teléfono es único en la base. Sin este flush el 409 llegaría al
+        // cerrar la transacción, fuera del alcance de ManejadorDeErrores, y la
+        // respuesta describiría un cambio que la base no aceptó.
+        usuarios.flush();
+
+        return describir(usuario);
+    }
+
+    private String normalizar(String texto) {
+        if (texto == null) {
+            return null;
+        }
+        String limpio = texto.trim();
+        return limpio.isEmpty() ? null : limpio;
+    }
+
+    /**
      * Arma la respuesta de {@code GET /api/me} a partir del {@code sub} que
      * viene en el token.
      *

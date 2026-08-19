@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.lajuanita.backend.pago.EstadoPago;
+
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     /**
@@ -95,4 +97,54 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             WHERE r.id = :id
             """)
     Optional<Reserva> porIdConDetalle(@Param("id") Long id);
+
+    /**
+     * Las reservas de una persona — <b>la definición de "mía"</b>, y está escrita
+     * una sola vez a propósito.
+     *
+     * <p>`reserva` no tiene titular: quiénes participan viven en
+     * {@code reserva_participante} y un alquiler puede no tener a nadie anotado.
+     * Así que una reserva es de alguien por dos caminos, y son <b>los mismos dos
+     * que `V12` usa para encontrar la plata detrás de una reserva</b>: estar
+     * anotado en ella, o haberla pagado. Que sean los mismos dos no es
+     * casualidad — es la misma pregunta, "quién está detrás de esto".
+     *
+     * <p>Dos detalles que deciden el resultado:
+     *
+     * <ul>
+     *   <li><b>La participación cancelada no cuenta.</b> Al alumno que se dio de
+     *       baja de esa clase no le corresponde seguir viéndola entre las suyas, y
+     *       es la misma exclusión que hace que esa clase no le consuma el curso.
+     *   <li><b>El pago tiene que ser plata que entró</b> ({@code SENADO}/
+     *       {@code PAGADO}, {@code EstadoPago.ENTRARON}). Una deuda anotada no
+     *       hace tuya una reserva, exactamente como no la sostiene: es la lección
+     *       de `V12`, que se escribió por haber usado {@code <> 'ANULADO'} donde
+     *       iba esta lista.
+     * </ul>
+     *
+     * <p>Trae todos los estados, canceladas incluidas: que se cayó la clase del
+     * martes es lo que el alumno necesita ver.
+     */
+    @Query("""
+            SELECT r FROM Reserva r
+            JOIN FETCH r.sala
+            JOIN FETCH r.tipoUso
+            LEFT JOIN FETCH r.profesor p
+            LEFT JOIN FETCH p.usuario
+            WHERE r.fecha BETWEEN :desde AND :hasta
+              AND (EXISTS (SELECT 1 FROM ReservaParticipante rp
+                           WHERE rp.reserva = r
+                             AND rp.usuario.id = :idUsuario
+                             AND rp.estadoAsistencia <> :cancelada)
+                OR EXISTS (SELECT 1 FROM Pago g
+                           WHERE g.reserva = r
+                             AND g.usuario.id = :idUsuario
+                             AND g.estadoPago IN :entraron))
+            ORDER BY r.fecha, r.horaInicio
+            """)
+    List<Reserva> deLaPersona(@Param("idUsuario") Long idUsuario,
+            @Param("desde") LocalDate desde,
+            @Param("hasta") LocalDate hasta,
+            @Param("cancelada") EstadoAsistencia cancelada,
+            @Param("entraron") Iterable<EstadoPago> entraron);
 }

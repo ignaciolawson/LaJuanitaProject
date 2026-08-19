@@ -46,4 +46,22 @@ public class TipoUso {
 
     @Column(name = "activo", nullable = false)
     private boolean activo = true;
+
+    /**
+     * Si el portal puede pedir este uso sin que administración se lo arme (P17,
+     * `V13`).
+     *
+     * <p><b>Es dato de catálogo y no una lista escrita en el código</b>, por lo
+     * mismo que la matriz sala×uso: la alternativa era
+     * {@code codigo IN ("ALQUILER_CABINA","GRABACION_SET")} en un trigger y otra
+     * vez acá, dos copias de una regla que el negocio va a mover cuando Mix &
+     * Mastering se pida desde el portal (Módulo 6).
+     *
+     * <p>No es el negado de {@link #esClase}: M&M tampoco es una clase y tampoco
+     * se pide por acá. La línea que marca P17 es <i>si hay un profesor del otro
+     * lado</i>, y M&M queda afuera por otra razón — tiene su propio circuito y es
+     * el único servicio que puede quedar en debe.
+     */
+    @Column(name = "solicitable_por_usuario", nullable = false)
+    private boolean solicitablePorUsuario = false;
 }

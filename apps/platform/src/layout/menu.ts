@@ -50,16 +50,20 @@ const MENU: GrupoMenu[] = [
     items: [
       { etiqueta: 'Inicio', ruta: '/', disponible: true },
       // Regla 1: sin predicado. Van siempre, para todo el mundo.
-      { etiqueta: 'Reservar cabina', ruta: '/reservar', disponible: false },
+      { etiqueta: 'Mis reservas', ruta: '/mis-reservas', disponible: true },
+      { etiqueta: 'Reservar cabina', ruta: '/reservar', disponible: true },
+      { etiqueta: 'Mis pedidos', ruta: '/mis-solicitudes', disponible: true },
       { etiqueta: 'Mix & Mastering', ruta: '/mix-mastering', disponible: false },
-      { etiqueta: 'Mis pagos', ruta: '/mis-pagos', disponible: false },
+      { etiqueta: 'Mis pagos', ruta: '/mis-pagos', disponible: true },
+      { etiqueta: 'Notificaciones', ruta: '/notificaciones', disponible: true },
+      { etiqueta: 'Mi perfil', ruta: '/mi-perfil', disponible: true },
     ],
   },
   {
     titulo: 'Mi formación',
     items: [
       // Regla 2: dependen de la relación, no del rol.
-      { etiqueta: 'Mis cursos', ruta: '/mis-cursos', visible: (u) => u.esAlumno, disponible: false },
+      { etiqueta: 'Mis cursos', ruta: '/mis-cursos', visible: (u) => u.esAlumno, disponible: true },
       { etiqueta: 'Mis alumnos', ruta: '/mis-alumnos', visible: (u) => u.esProfesor, disponible: false },
       { etiqueta: 'Subir material', ruta: '/material', visible: (u) => u.esProfesor, disponible: false },
     ],
@@ -79,6 +83,14 @@ const MENU: GrupoMenu[] = [
       },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Calendario', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: true },
+      {
+        // La otra mitad del portal: sin esta pantalla, lo que el alumno pide no
+        // lo lee nadie.
+        etiqueta: 'Pedidos de sala',
+        ruta: '/admin/solicitudes',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
       {
         etiqueta: 'Salas bloqueadas',
         ruta: '/admin/bloqueos',

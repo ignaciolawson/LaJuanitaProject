@@ -10,7 +10,7 @@
 -- con todas las migraciones aplicadas, y **sale con código distinto de cero si
 -- algún caso falla**. Corre también en CI (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-14, 121/121 sobre el esquema V1..V9.
+-- Última corrida: 2026-08-19, 157/157 sobre el esquema V1..V13.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES, y es a propósito. Antes
 -- estaban acá los nueve comandos con las ocho migraciones nombradas una por
@@ -993,6 +993,134 @@ SELECT probar('135','reservar con la sena en estado SENADO','ANDA',
 SELECT probar('136','degradar la sena a DEBE con la reserva vigente','FALLA',
  $q$UPDATE pago SET estado_pago='DEBE'
      WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-06-03')$q$);
+
+
+
+-- =============================================================================
+-- LAS SOLICITUDES DEL PORTAL  (V13)
+--
+-- La tabla que el Módulo 4 necesitó antes que cualquier pantalla: un USUARIO no
+-- puede insertar una `reserva` —no tiene cómo poner la plata que `V10`–`V12` le
+-- exigen—, así que pide, y administración aprueba cargando la seña.
+--
+-- Ojo con el orden: los casos de acá abajo se apoyan unos en otros (la solicitud
+-- que 137 crea es la que 147 aprueba). Cada uno usa su propia fecha para poder
+-- encontrarse sin hardcodear ids, que es la regla 1 de la cabecera.
+-- =============================================================================
+
+SELECT probar('137','pedir un alquiler de cabina desde el portal','ANDA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,comentario)
+    SELECT u_juan,sala1,u_alquiler,'2029-07-10','15:00','17:00','quiero practicar' FROM v$q$);
+
+-- Lo que P17 dejó del lado de administración: si hay un profesor del otro lado,
+-- no se pide, se arma. La marca vive en el catálogo (`tipo_uso`), no en una lista
+-- escrita en un trigger.
+SELECT probar('138','pedir una clase de DJ desde el portal','FALLA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,sala1,u_clase,'2029-07-20','15:00','17:00' FROM v$q$);
+
+-- Y el caso que muestra por qué no alcanzaba con `es_clase = FALSE`: M&M tampoco
+-- es una clase, y tampoco se pide por acá.
+SELECT probar('139','pedir mix & mastering desde el portal','FALLA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,sala1,(SELECT id_tipo_uso FROM tipo_uso WHERE codigo='MIX_MASTERING'),
+           '2029-07-21','15:00','17:00' FROM v$q$);
+
+-- La matriz sala×uso vale igual en el pedido que en la reserva. Sin esto se pide
+-- una grabación en la Sala 1, administración la aprueba, y el rechazo llega en la
+-- transacción que ya marcó la solicitud como aprobada.
+SELECT probar('140','pedir una grabacion de set en la Sala 1','FALLA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,sala1,u_grabacion,'2029-07-22','15:00','17:00' FROM v$q$);
+
+SELECT probar('141','pedir una franja que termina antes de empezar','FALLA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,sala1,u_alquiler,'2029-07-23','17:00','15:00' FROM v$q$);
+
+SELECT probar('142','pedir una grabacion en la cabina de grabacion','ANDA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,cabina,u_grabacion,'2029-07-11','15:00','17:00' FROM v$q$);
+
+-- -----------------------------------------------------------------------------
+-- La resolución: quién, cuándo, y qué salió de ahí
+-- -----------------------------------------------------------------------------
+
+SELECT probar('143','aprobar sin decir quien resolvio','FALLA',
+ $q$UPDATE solicitud_reserva SET estado='APROBADA' WHERE fecha='2029-07-10'$q$);
+
+-- Una aprobación sin reserva dice que se aprobó y no hay franja tomada.
+SELECT probar('144','aprobar sin la reserva que nacio del pedido','FALLA',
+ $q$UPDATE solicitud_reserva SET estado='APROBADA',
+     id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+     WHERE fecha='2029-07-10'$q$);
+
+-- Un rechazo sin motivo no le sirve a quien lo recibe.
+SELECT probar('145','rechazar sin decir por que','FALLA',
+ $q$UPDATE solicitud_reserva SET estado='RECHAZADA',
+     id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+     WHERE fecha='2029-07-11'$q$);
+
+SELECT probar('146','rechazar explicando','ANDA',
+ $q$UPDATE solicitud_reserva SET estado='RECHAZADA', respuesta='esa tarde hay mantenimiento',
+     id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+     WHERE fecha='2029-07-11'$q$);
+
+-- El esquive que cierra el trigger de §4: volver la solicitud a pendiente para
+-- resolverla otra vez. En la aprobada serían dos reservas y dos señas, con la
+-- solicitud apuntando a una sola.
+SELECT probar('147','devolver a PENDIENTE una solicitud ya resuelta','FALLA',
+ $q$UPDATE solicitud_reserva SET estado='PENDIENTE' WHERE fecha='2029-07-11'$q$);
+
+-- La aprobación de verdad: la reserva nace con su seña y la solicitud la apunta,
+-- todo en la misma transacción. Es exactamente lo que hace `SolicitudService`.
+SELECT probar('148','aprobar: nace la reserva con su sena y la solicitud la apunta','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-07-10','15:00','17:00' FROM v RETURNING id_reserva),
+    pagada AS (SELECT sena(id_reserva) AS id_reserva FROM nueva)
+    UPDATE solicitud_reserva SET estado='APROBADA',
+        id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now(),
+        id_reserva=(SELECT id_reserva FROM pagada)
+    WHERE fecha='2029-07-10' AND estado='PENDIENTE'$q$);
+
+-- Y una vez resuelta no se edita ningún campo, no solo el estado: cambiarle la
+-- fecha haría que la solicitud diga una cosa y su reserva otra.
+SELECT probar('149','mover la fecha de una solicitud ya aprobada','FALLA',
+ $q$UPDATE solicitud_reserva SET fecha='2029-07-19' WHERE fecha='2029-07-10'$q$);
+
+-- -----------------------------------------------------------------------------
+-- Cancelar es un estado; borrar no es nada
+-- -----------------------------------------------------------------------------
+
+SELECT probar('150','pedir otra franja para poder cancelarla','ANDA',
+ $q$INSERT INTO solicitud_reserva (id_usuario,id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT u_juan,sala1,u_alquiler,'2029-07-12','15:00','17:00' FROM v$q$);
+
+-- El que se arrepiente cancela, y ahí el que resuelve es el que pidió.
+SELECT probar('151','el que pidio cancela su propia solicitud','ANDA',
+ $q$UPDATE solicitud_reserva SET estado='CANCELADA',
+     id_usuario_resuelve=(SELECT u_juan FROM v), fecha_resolucion=now()
+     WHERE fecha='2029-07-12'$q$);
+
+SELECT probar('152','borrar una solicitud','FALLA',
+ $q$DELETE FROM solicitud_reserva WHERE fecha='2029-07-12'$q$);
+
+-- -----------------------------------------------------------------------------
+-- La misma puerta estaba abierta en la tabla de reprogramaciones desde `V1`
+-- -----------------------------------------------------------------------------
+
+SELECT probar('153','pedir la reprogramacion de una reserva','ANDA',
+ $q$INSERT INTO solicitud_reprogramacion (id_usuario,id_reserva,motivo,fecha_alternativa_solicitada)
+    SELECT (SELECT u_juan FROM v),
+           (SELECT id_reserva FROM reserva WHERE fecha='2029-07-10'),
+           'me sale un viaje','2029-07-17'$q$);
+
+SELECT probar('154','administracion la resuelve','ANDA',
+ $q$UPDATE solicitud_reprogramacion SET estado='APROBADA', respuesta='te movemos al 17',
+     id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+     WHERE motivo='me sale un viaje'$q$);
+
+SELECT probar('155','y despues ya no se vuelve a tocar','FALLA',
+ $q$UPDATE solicitud_reprogramacion SET estado='PENDIENTE' WHERE motivo='me sale un viaje'$q$);
 
 
 -- =============================================================================

@@ -5,6 +5,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,6 +46,19 @@ public class MeController {
      * <p>Es además la única salida del estado {@code debeCambiarPassword}, en el
      * que quedan las cuentas que creó administración.
      */
+    /**
+     * Cambiar los propios datos: nombre, apellido y teléfono.
+     *
+     * <p>Como {@link #cambiarPassword}, no exige rol y no puede tocar a otro —
+     * el id sale del token. Devuelve el {@link UsuarioActual} completo para que
+     * el front actualice el encabezado sin volver a pedir {@code /api/me}.
+     */
+    @PutMapping("/api/me/perfil")
+    public UsuarioActual editarPerfil(@AuthenticationPrincipal Jwt token,
+            @Valid @RequestBody EdicionPerfilRequest solicitud) {
+        return sesiones.editarPerfil(token.getSubject(), solicitud);
+    }
+
     @PostMapping("/api/me/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cambiarPassword(@AuthenticationPrincipal Jwt token,

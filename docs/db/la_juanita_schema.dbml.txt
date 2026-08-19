@@ -1,11 +1,15 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
 //
-// Generado a partir del esquema real, migraciones V1..V9.
+// Generado a partir del esquema real, migraciones V1..V13.
 //
-// Al 2026-08-14 el diagrama está AL DÍA: comparado tabla por tabla y columna
+// Al 2026-08-19 el diagrama está AL DÍA: comparado tabla por tabla y columna
 // por columna contra el catálogo de una base con las migraciones aplicadas,
-// coinciden las 22 tablas y todas sus columnas. Incluye lo que agregaron V4
+// coinciden las 23 tablas y todas sus columnas. La número 23 es
+// `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal
+// puede crear, porque una reserva necesita plata detrás y un USUARIO no tiene
+// cómo ponerla. V13 también le agregó a `tipo_uso` la marca
+// `solicitable_por_usuario`. Incluye además lo que agregaron V4
 // (`nombre` + `apellido` en vez de `nombre_completo`), V5
 // (`usuario.debe_cambiar_password`), V7 (la auditoría de la anulación de un
 // pago, la del historial de clases, el sello de carga de `venta_equipo` y las
@@ -164,6 +168,7 @@ Table tipo_uso {
   es_clase     boolean      [not null, default: false]
   color        varchar(20)  [note: 'Color en el calendario']
   activo       boolean      [not null, default: true]
+  solicitable_por_usuario boolean [not null, default: false, note: 'V13/P17: si el portal lo puede pedir sin que administración lo arme. TRUE en ALQUILER_CABINA y GRABACION_SET.']
 
   Note: 'CLASE_DJ, PRODUCCION_MUSICAL, MENTORIA, MIX_MASTERING, ALQUILER_CABINA, GRABACION_SET.'
 }
@@ -363,7 +368,33 @@ Table solicitud_reprogramacion {
   fecha_solicitud              timestamptz [not null]
   fecha_resolucion             timestamptz
 
-  Note: 'El alumno solicita; administración aprueba. Una solicitud resuelta obliga a decir quién la resolvió y cuándo.'
+  Note: 'El alumno solicita; administración aprueba. Una solicitud resuelta obliga a decir quién la resolvió y cuándo, y desde V13 ya no se vuelve a tocar.'
+}
+
+// El portal no puede crear una `reserva`: no existe sin plata en SENADO/PAGADO
+// detrás (V10-V12) y un USUARIO no tiene cómo poner plata en el sistema. Entonces
+// pide, y la reserva nace cuando administración aprueba cargando la seña.
+//
+// Es una tabla nueva y no una generalización de `solicitud_reprogramacion`: esa
+// pide MOVER algo que ya existe y termina en un cambio de estado; ésta pide CREAR
+// algo que todavía no existe y termina pariendo una fila con su plata.
+Table solicitud_reserva {
+  id_solicitud_reserva bigint      [pk, increment]
+  id_usuario           bigint      [ref: > usuario.id_usuario, not null, note: 'Quien pide. Es usuario y no alumno: quien alquila una cabina puede no cursar nada.']
+  id_sala              bigint      [ref: > sala.id_sala, not null]
+  id_tipo_uso          bigint      [ref: > tipo_uso.id_tipo_uso, not null, note: 'Solo los marcados solicitable_por_usuario: lo verifica un trigger.']
+  fecha                date        [not null]
+  hora_inicio          time        [not null]
+  hora_fin             time        [not null]
+  comentario           text
+  estado               varchar(20) [not null, default: 'PENDIENTE', note: 'PENDIENTE / APROBADA / RECHAZADA / CANCELADA']
+  id_usuario_resuelve  bigint      [ref: > usuario.id_usuario]
+  respuesta            text        [note: 'Obligatoria al rechazar: sin motivo, quien lo recibe no sabe qué hacer.']
+  id_reserva           bigint      [ref: > reserva.id_reserva, note: 'La reserva que nació de este pedido. Existe si y solo si está APROBADA.']
+  fecha_resolucion     timestamptz
+  fecha_creacion       timestamptz [not null, default: `now()`]
+
+  Note: 'V13. (id_sala, id_tipo_uso) tiene FK compuesta contra sala_tipo_uso, igual que reserva. Una solicitud resuelta es final -no vuelve a PENDIENTE- y no se borra: se cancela.'
 }
 
 

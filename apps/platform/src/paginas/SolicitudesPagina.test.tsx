@@ -1,0 +1,206 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { UsuarioActual as Actual } from '../api/tipos'
+import type { SolicitudResumen } from '../api/tiposPortal'
+import { AuthContext, type ContextoAuth } from '../auth/contexto'
+import { SolicitudesPagina } from './SolicitudesPagina'
+
+/**
+ * Módulo 4 — la bandeja de pedidos de sala.
+ *
+ * Lo que estos casos cuidan es lo que hace que el circuito cierre: que
+ * **aprobar sea cobrar** —la reserva no existe sin seña, así que el "sí" es un
+ * formulario de pago y no un botón—, que **rechazar obligue a decir por qué**
+ * —del otro lado hay alguien que necesita saber qué hacer— y que un DIRECTIVO
+ * vea la bandeja sin poder tocarla.
+ */
+
+vi.mock('../api/portal', () => ({
+  listarSolicitudes: vi.fn(),
+  aprobarSolicitud: vi.fn(),
+  rechazarSolicitud: vi.fn(),
+}))
+
+const { listarSolicitudes, aprobarSolicitud, rechazarSolicitud } = await import('../api/portal')
+
+function solicitud(cambios: Partial<SolicitudResumen> = {}): SolicitudResumen {
+  return {
+    idSolicitud: 7,
+    idUsuario: 30,
+    nombre: 'Camila',
+    apellido: 'Ríos',
+    email: 'camila@ejemplo.com',
+    idSala: 1,
+    sala: 'Sala 1',
+    idTipoUso: 5,
+    tipoUso: 'Alquiler de cabina',
+    fecha: '2026-09-10',
+    horaInicio: '16:00:00',
+    horaFin: '18:00:00',
+    comentario: 'quiero practicar',
+    estado: 'PENDIENTE',
+    respuesta: null,
+    resueltaPor: null,
+    idReserva: null,
+    fechaResolucion: null,
+    fechaCreacion: '2026-08-19T10:00:00-03:00',
+    ...cambios,
+  }
+}
+
+function montar(rol: Actual['rol'] = 'STAFF') {
+  const contexto: ContextoAuth = {
+    sesion: {
+      estado: 'autenticado',
+      usuario: {
+        id: 1,
+        nombre: 'Prueba',
+        apellido: 'Prueba',
+        email: 'prueba@lajuanita.local',
+        telefono: null,
+        rol,
+        fotoPerfil: null,
+        esAlumno: false,
+        esProfesor: false,
+        debeCambiarPassword: false,
+      },
+    },
+    iniciarSesion: async () => {},
+    registrarse: async () => {},
+    cerrarSesion: () => {},
+    refrescarUsuario: async () => {},
+  }
+
+  return render(
+    <AuthContext value={contexto}>
+      <SolicitudesPagina />
+    </AuthContext>,
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  vi.mocked(listarSolicitudes).mockResolvedValue({
+    contenido: [solicitud()],
+    pagina: 0,
+    tamanio: 20,
+    totalElementos: 1,
+    totalPaginas: 1,
+  })
+})
+
+describe('la bandeja', () => {
+  it('abre en lo que está esperando respuesta', async () => {
+    montar()
+
+    expect(await screen.findByText('Ríos, Camila')).toBeDefined()
+    expect(vi.mocked(listarSolicitudes).mock.calls[0][0]).toBe('PENDIENTE')
+  })
+
+  it('muestra qué pidió, cuándo y con qué comentario', async () => {
+    montar()
+
+    expect(await screen.findByText(/Alquiler de cabina en Sala 1/)).toBeDefined()
+    expect(screen.getByText(/16:00 a 18:00/)).toBeDefined()
+    expect(screen.getByText(/quiero practicar/)).toBeDefined()
+  })
+})
+
+describe('aprobar es cobrar', () => {
+  /**
+   * La reserva no puede existir sin plata detrás (`V10`) y el usuario no tiene
+   * cómo ponerla. Si esto alguna vez se convierte en un botón suelto, el alta
+   * de la reserva se cae al cerrar la transacción.
+   */
+  it('confirmar pide la seña antes de crear la reserva', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+
+    expect(screen.getByText(/no se aparta un horario sin pago por adelantado/i)).toBeDefined()
+    expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
+  })
+
+  it('no deja confirmar sin monto', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('Poné el monto de la seña')
+    expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
+  })
+
+  /** Espeja `pago_usd_con_cotizacion`: sin ella el importe no se reconstruye. */
+  it('un pago en dólares exige la cotización', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '100')
+    await userEvent.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('cotización')
+    expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
+  })
+
+  /**
+   * <b>Quién paga no viaja en el pedido.</b> Es el que pidió, y lo pone el
+   * servidor: aceptarlo acá sería poder acreditar la seña de uno contra la
+   * cuenta de otro.
+   */
+  it('manda la seña sin decir quién paga', async () => {
+    vi.mocked(aprobarSolicitud).mockResolvedValue(solicitud({ estado: 'APROBADA', idReserva: 99 }))
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '15000')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    const [id, sena] = vi.mocked(aprobarSolicitud).mock.calls[0]
+    expect(id).toBe(7)
+    expect(sena).toEqual({
+      monto: 15000,
+      moneda: 'ARS',
+      cotizacionDolar: undefined,
+      medioPago: 'TRANSFERENCIA',
+      respuesta: undefined,
+    })
+    expect(sena).not.toHaveProperty('idUsuario')
+  })
+})
+
+describe('rechazar', () => {
+  it('no manda el rechazo sin motivo', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Rechazar' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(vi.mocked(rechazarSolicitud)).not.toHaveBeenCalled()
+  })
+
+  it('manda el motivo, que es lo que le llega a la persona', async () => {
+    vi.mocked(rechazarSolicitud).mockResolvedValue(solicitud({ estado: 'RECHAZADA' }))
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Rechazar' }))
+    await userEvent.type(screen.getByLabelText('Motivo'), 'esa tarde hay mantenimiento')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(vi.mocked(rechazarSolicitud)).toHaveBeenCalledWith(7, 'esa tarde hay mantenimiento')
+  })
+})
+
+/**
+ * La razón de ser del cuarto rol: los socios leen todo el sistema y no escriben
+ * nada. Ocultarles la bandeja sería mentir sobre lo que pueden ver; ofrecerles
+ * los botones sería ofrecerles un 403.
+ */
+describe('permisos', () => {
+  it('un DIRECTIVO ve los pedidos y no los puede resolver', async () => {
+    montar('DIRECTIVO')
+
+    expect(await screen.findByText('Ríos, Camila')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rechazar' })).toBeNull()
+  })
+})

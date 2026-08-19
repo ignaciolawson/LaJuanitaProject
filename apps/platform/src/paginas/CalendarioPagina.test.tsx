@@ -93,7 +93,16 @@ function sala(idSala: number, nombre: string, cambios: Partial<SalaResumen> = {}
 const SALAS: SalaResumen[] = [sala(1, 'Sala 1'), sala(2, 'Sala 2')]
 
 const TIPOS: TipoUsoResumen[] = [
-  { idTipoUso: 1, codigo: 'CLASE_DJ', nombre: 'Clase de DJ', esClase: true, color: '#e63946', activo: true },
+  {
+    idTipoUso: 1,
+    codigo: 'CLASE_DJ',
+    nombre: 'Clase de DJ',
+    esClase: true,
+    color: '#e63946',
+    activo: true,
+    // Una clase la arma administración, nunca el portal (P17).
+    solicitablePorUsuario: false,
+  },
 ]
 
 function usuario(rol: Actual['rol']): Actual {
@@ -466,6 +475,7 @@ describe('el alta carga la clase junto con su alumno', () => {
     esClase: false,
     color: '#457b9d',
     activo: true,
+    solicitablePorUsuario: true,
   }
   /** La única excepción de la seña (§13), y por eso está en las fixtures. */
   const MIX: TipoUsoResumen = {
@@ -473,6 +483,9 @@ describe('el alta carga la clase junto con su alumno', () => {
     codigo: 'MIX_MASTERING',
     nombre: 'Mix & Mastering',
     esClase: false,
+    // No es clase y aun así no se pide desde el portal: tiene su propio
+    // circuito. Es la razón por la que la marca no es el negado de `esClase`.
+    solicitablePorUsuario: false,
     color: '#8d5a97',
     activo: true,
   }

@@ -435,12 +435,49 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 
 ---
 
-## 7. Módulo 4 — Portal del Alumno
+## 7. Módulo 4 — Portal del Alumno ✅ *construido el 2026-08-19*
 
 ### Pantallas
 Mis próximas clases · Mi estado de cuenta (con descarga de comprobantes) · Solicitar
 reprogramación · Mis materiales · Mi progreso (nivel actual, clases tomadas, clases
 restantes) · Mis notificaciones · Mi perfil.
+
+### Lo que se construyó, y lo que quedó afuera a propósito
+
+**Siete pantallas del portal** —`/mis-reservas`, `/reservar`, `/mis-solicitudes`,
+`/mis-cursos`, `/mis-pagos`, `/notificaciones`, `/mi-perfil`— **y una octava de
+administración, `/admin/solicitudes`**, que es la que hace que el portal exista:
+sin alguien que lea los pedidos, el portal escribiría en una tabla que nadie mira.
+
+**El módulo empezó con una migración (`V13`) y no con una pantalla**, y la razón
+es la consecuencia de P17 que está anotada más abajo: el portal no puede crear una
+`reserva`. Se creó `solicitud_reserva` en vez de generalizar
+`solicitud_reprogramacion` — son dos ciclos de vida distintos, una pide mover algo
+que existe y la otra pide crear algo que no.
+
+**El eje de permisos "solo lo mío"** quedó como un `WHERE` y no como una
+anotación: no es un permiso que se concede sino un filtro que no se puede omitir.
+Todo el portal cuelga de `/api/me/**`, ningún endpoint de ahí recibe una
+identidad, y el id sale del `sub` del token. `PortalService` no tiene una sola
+consulta capaz de devolver lo de otro.
+
+**Tres cosas quedaron afuera, y las tres se dicen en pantalla en vez de omitirse:**
+
+- **Los materiales de clase.** Los sube el profesor y esa pantalla es del Módulo
+  5; hoy `material` no tiene quién le escriba una fila. Aparece como bloque
+  nombrado en Mis cursos.
+- **La descarga de comprobantes.** Necesita el `StorageService` de §2.4, que
+  todavía no existe. El estado de cuenta muestra los pagos.
+- **El aviso automático a los 7 días de deuda.** La bandeja de notificaciones sí
+  está, y su primer escritor es la resolución de un pedido de sala. Lo que falta
+  es la máquina que dispara sola: corre sin que nadie pida nada, necesita un
+  scheduler y necesita decidir qué pasa si corre dos veces el mismo día. **Es del
+  módulo que construya notificaciones automáticas, no una deuda de éste.**
+
+**Y una decisión de alcance que conviene no reabrir sin pensarla:** una solicitud
+se aprueba **tal como se pidió**. No se puede aprobar "pero a las 18". Si la franja
+no sirve, se rechaza diciendo por qué y la persona pide de nuevo — así lo que quedó
+aprobado es siempre algo que alguien eligió, y no algo que nadie eligió.
 
 ### Reglas duras ✅
 - El alumno **solo ve lo suyo**.

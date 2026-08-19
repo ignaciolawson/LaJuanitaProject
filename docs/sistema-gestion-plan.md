@@ -509,7 +509,7 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-16
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-19
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -523,32 +523,97 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-17, fin del día
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, fin del día
 
-## ✅ MÓDULOS 1, 2 Y 3 CERRADOS. LO PRÓXIMO ES EL MÓDULO 4 — Portal del alumno.
+## ✅ MÓDULOS 1, 2, 3 Y 4 CERRADOS. LO PRÓXIMO ES EL MÓDULO 5 — Portal del profesor.
 
 **Para arrancar en verde:** `docker compose start`, `mvn spring-boot:run`,
 `npm run dev:platform`. Entrás con `admin@lajuanita.local` / `lajuanita2026`.
-Las cuatro suites: **319 backend · 241 front · 138 + 50 SQL**.
+Las cuatro suites: **347 backend · 279 front · 157 + 50 SQL**.
 
-> **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**
-> (verificado el 2026-08-17): 10 usuarios, 6 alumnos, 6 inscripciones y
-> **9 reservas, todas entre el 1 y el 15 de agosto**. O sea: **el calendario abre
-> en la semana actual y se ve vacío — hay que retroceder una o dos semanas.**
+> **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**:
+> 10 usuarios, 6 alumnos, 6 inscripciones y **9 reservas, todas entre el 1 y el 15
+> de agosto**, o sea que **el calendario abre en la semana actual y se ve vacío**.
+> `pago`, `egreso` y `venta_equipo` siguen en cero salvo lo que cargues a mano, y
+> ahora se suman `solicitud_reserva` y `notificacion`, que arrancan vacías: la
+> forma más rápida de ver el Módulo 4 andando es entrar con un usuario cualquiera,
+> pedir una cabina desde `/reservar` y aprobarla desde `/admin/solicitudes`.
 >
-> Y **`pago`, `egreso` y `venta_equipo` están en CERO**, así que Caja, Deudores,
-> Estado de cuenta, Egresos y Venta de equipos arrancan todas en cero. No es un
-> error: ninguna pantalla las llenó nunca. Para verlas con algo adentro hay que
-> cargar a mano — y **ojo con las reservas viejas**: se cargaron antes de `V10`,
-> así que no tienen seña detrás. La regla no las toca (el trigger corre al INSERT),
-> pero **si cancelás una no vas a poder descancelarla**, porque `V11` le va a pedir
-> la plata que nunca tuvo. Es correcto, y es la primera vez que se va a ver en la
-> práctica.
+> **Ojo con las reservas viejas**: se cargaron antes de `V10`, así que no tienen
+> seña detrás. Si cancelás una no vas a poder descancelarla, porque `V11` le va a
+> pedir la plata que nunca tuvo. Es correcto.
 
-### 🚦 LAS DOS DECISIONES QUE HAY QUE TOMAR ANTES DE ESCRIBIR CÓDIGO DEL M4
+### 🚪 LO QUE EL MÓDULO 4 DEJÓ CONSTRUIDO, Y LAS DOS PIEZAS QUE HEREDA EL M5
 
-**No arranques por una pantalla.** Las dos piezas más caras del módulo están al
-principio y las dos son de diseño, no de tipeo. Ninguna está bloqueada esperando
+**El módulo empezó con una migración, `V13`, y no con una pantalla.** La razón es
+la consecuencia de P17 que el propio documento anotó: el portal **no puede crear
+una `reserva`** —no existe sin plata en SENADO/PAGADO detrás y un `USUARIO` no
+tiene cómo poner plata en el sistema—, así que crea una **solicitud** y la reserva
+nace cuando administración la aprueba cargando la seña, en la misma transacción.
+
+De las dos decisiones que estaban abiertas:
+
+1. **Tabla nueva, `solicitud_reserva`**, no una generalización de
+   `solicitud_reprogramacion`. Esa tiene `id_reserva NOT NULL` y un CHECK que
+   cuelga de eso; aflojarla convertía cada regla suya en condicional, que es la
+   forma de excepción por estado que §13 rechazó. Y son dos ciclos de vida: una
+   pide **mover** algo que existe, la otra pide **crear** algo que no.
+2. **El alcance "solo lo mío" es un `WHERE`, no una anotación**, y esa es la
+   pieza que el M5 y el M6 heredan. Un permiso por rol se concede; un alcance por
+   identidad es un filtro que no se puede omitir, así que no hay
+   `@PuedeVerLoSuyo` —sugeriría que autoriza algo— sino: todo el portal cuelga de
+   `/api/me/**`, **ningún endpoint de ahí recibe una identidad**, el id sale del
+   `sub` del token, y `PortalService` no tiene una sola consulta capaz de
+   devolver lo de otro. El STAFF que mira la ficha ajena usa el endpoint
+   administrativo de siempre: **ningún endpoint cambia de significado según quién
+   llama**. `PortalTest` está escrito casi todo en pares —uno mira lo suyo, el
+   otro mira lo del vecino con el mismo endpoint— porque un filtro que falta no se
+   ve nunca: la pantalla anda igual, y de más.
+
+**Ocho pantallas**: siete del portal (`/mis-reservas`, `/reservar`,
+`/mis-solicitudes`, `/mis-cursos`, `/mis-pagos`, `/notificaciones`, `/mi-perfil`)
+y **una de administración, `/admin/solicitudes`**, que es la que cierra el
+circuito. Esa octava no es un extra: sin alguien que lea los pedidos, el portal
+escribe en una tabla que nadie mira, que es la lección del cierre del Módulo 2 —
+*preguntá de dónde sale el primer dato de cada tabla que toca, y quién lo lee*.
+
+**Cuatro cosas que conviene no deshacer:**
+
+- **Aprobar es cobrar.** El "sí" es un formulario de seña, no un botón: la reserva
+  no puede existir sin plata detrás. Y **se aprueba tal como se pidió** — no se
+  puede aprobar "pero a las 18". Si la franja no sirve se rechaza diciendo por
+  qué; así lo aprobado es siempre algo que alguien eligió.
+- **Al que pide se lo anota como participante de la reserva**, aunque un alquiler
+  no sea una clase. Es cierto —está ocupando la sala— y hace que "mis reservas"
+  tenga una sola definición. De regalo entra en la regla de `V9`: nadie en dos
+  salas a la vez.
+- **"Mía" es participar o haber pagado**, escrito una sola vez
+  (`ReservaRepository.deLaPersona`). Son los mismos dos caminos con los que `V12`
+  busca la plata detrás de una reserva, y con la misma lista de estados:
+  `EstadoPago.ENTRARON`. Una deuda anotada no hace tuya una reserva.
+- **Lo que falta se dibuja con nombre.** Materiales (Módulo 5), comprobantes
+  descargables (necesitan el `StorageService` de §2.4) y el aviso automático de los
+  7 días. Ese último **no es un tipo de notificación que falte**: es otra máquina
+  —corre sin request, necesita scheduler e idempotencia— y va con el módulo que
+  construya notificaciones automáticas.
+
+### 🧨 Y una regla dura de §6 que sigue sin estar entera
+
+*"Alerta automática si alguien lleva más de 7 días en estado 'debe'"*. Lo que **sí**
+está: `DIAS_PARA_VENCER = 7`, `/admin/deudores` marcando quién pasó el umbral, y
+desde el M4 **la tabla `notificacion` con su bandeja y su primer escritor**. Lo que
+falta es solo el disparador automático, con las tres preguntas que trae: cada
+cuánto corre, a quién le avisa (¿al alumno, a administración, a los dos?) y qué
+pasa cuando corre dos veces el mismo día.
+
+### 🚦 LAS DOS DECISIONES DEL M4 · tomadas el 2026-08-19 · se dejan por el razonamiento
+
+> **Las dos están resueltas** —tabla nueva y alcance por `WHERE`, ver arriba—. Se
+> deja el planteo porque el razonamiento vale para el M5 y el M6, que heredan el
+> mismo eje de permisos.
+
+**No arranques por una pantalla.** Las dos piezas más caras del módulo estaban al
+principio y las dos eran de diseño, no de tipeo. Ninguna estaba bloqueada esperando
 al cliente — P17 y P19 se contestaron el 2026-08-17 y están en
 [`platform.md` §7](requirements/platform.md).
 

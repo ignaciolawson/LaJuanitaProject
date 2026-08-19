@@ -192,8 +192,13 @@ public class InscripcionService {
     /**
      * Cuántas clases lleva dictadas cada inscripción de la lista, en una sola
      * consulta para toda la página.
+     *
+     * <p><b>Es público desde el Módulo 4</b>, para que "Mi progreso" del portal
+     * cuente igual que esta pantalla. La alternativa era que el portal armara su
+     * propia cuenta, y ahí serían tres definiciones de "clase consumida" —esta, la
+     * del portal y la de `V9` §5— en vez de dos que ya se cuidan juntas.
      */
-    private Map<Long, Integer> clasesConsumidas(Collection<Inscripcion> filas) {
+    public Map<Long, Integer> clasesConsumidas(Collection<Inscripcion> filas) {
         List<Long> ids = filas.stream().map(Inscripcion::getId).toList();
         if (ids.isEmpty()) {
             // `IN ()` no es SQL válido: sin esto, una página vacía revienta.
