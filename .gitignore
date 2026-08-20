@@ -31,3 +31,14 @@ backups/
 # `npm ci` instalaba un arbol distinto del que usa el build real, y cualquier
 # diferencia de comportamiento a partir de ahi parece un misterio.
 apps/*/package-lock.json
+
+# Archivos subidos al sistema (lajuanita.archivos.raiz). Contratos del sello,
+# portadas, comprobantes. Nunca se commitean, por lo mismo que los backups: son
+# documentos legales de terceros y datos reales del negocio.
+#
+# Y ojo con la otra mitad: que no se commiteen NO significa que no haya que
+# respaldarlos. backup.sh hace pg_dump y nada mas -- si esta carpeta no entra al
+# respaldo, la base queda restaurada apuntando a contratos que no existen. Ver
+# docs/operacion.md.
+archivos/
+apps/backend/archivos/

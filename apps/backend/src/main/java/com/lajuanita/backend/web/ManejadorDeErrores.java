@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -32,6 +33,7 @@ import com.lajuanita.backend.auth.SesionInvalidaException;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.OperacionNoPermitidaException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.archivo.ArchivoInvalidoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 
 /**
@@ -189,6 +191,37 @@ public class ManejadorDeErrores {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
         problema.setTitle("Dato ya registrado");
         problema.setProperty("errores", Map.of(e.getCampo(), e.getMessage()));
+        return problema;
+    }
+
+    /**
+     * El archivo que llegó no sirve, o el que se pide no está.
+     *
+     * <p>Va con su propio handler y no colgado de {@code SolicitudInvalidaException}
+     * aunque los dos den 400: {@code Almacenamiento} existe para ser reemplazable y
+     * no debería importar el paquete del dominio para tirar un error.
+     */
+    @ExceptionHandler(ArchivoInvalidoException.class)
+    public ProblemDetail archivoInvalido(ArchivoInvalidoException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problema.setTitle("Archivo inválido");
+        return problema;
+    }
+
+    /**
+     * El multipart entero pasó el techo de Spring.
+     *
+     * <p><b>Es un límite distinto del de {@code Almacenamiento} y llega antes.</b>
+     * Spring corta la subida mientras la recibe, así que el chequeo por archivo
+     * nunca llega a correr y sin este handler el error sale como 500 — un tamaño de
+     * más se vería como un sistema roto. Los dos números se configuran juntos en
+     * {@code application.properties} por esta razón.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail archivoDemasiadoGrande(MaxUploadSizeExceededException e) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "El archivo es demasiado grande.");
+        problema.setTitle("Archivo inválido");
         return problema;
     }
 

@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+
+import com.lajuanita.backend.archivo.PropiedadesDeArchivos;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -56,7 +58,7 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 // Se habilita ahora, antes de que exista el primer endpoint de administración,
 // para que nadie lo descubra tarde.
 @EnableMethodSecurity
-@EnableConfigurationProperties(PropiedadesJwt.class)
+@EnableConfigurationProperties({ PropiedadesJwt.class, PropiedadesDeArchivos.class })
 public class SeguridadConfig {
 
     private static final Logger log = LoggerFactory.getLogger(SeguridadConfig.class);
