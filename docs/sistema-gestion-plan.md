@@ -752,22 +752,64 @@ es entregarlo**: cargarlo es edición, liberarlo es un acto.
   link escondido con un `if` en el front viaja igual en la respuesta HTTP y se lee
   con las herramientas del navegador.
 
-### ⏭️ LO PRÓXIMO
+### ⏭️ MAÑANA, EN ORDEN
 
-Quedan **dos módulos**: el **7 (Sello discográfico)** y el **8 (Dashboard de
-dirección)**, los dos a trazo grueso en `platform.md` §10 y §11. El 7 tiene dos
-preguntas abiertas (P24, login de artistas; P25, seguimiento post-lanzamiento) y el
-8 una (P26, la tasa de retención) — **conviene contestarlas antes de arrancar, como
-se hizo con las tres del 6**, que fue lo que hizo que este módulo no se trabara
-nunca.
+**1 · El Módulo 6 ya está commiteado** (`35fe3d0 Modulo 6`). Lo único suelto al
+cortar es la documentación de esa misma sesión —`CLAUDE.md`, este archivo,
+`platform.md` y el archivo de preguntas nuevo—, que se commitea y listo.
 
-Y sigue pendiente, ahora pedido por dos módulos, **el disparador automático de
-avisos** (deuda a 7 días del M4, entrega impaga a 7 días del M6). Es una pieza de
-infraestructura —un scheduler y qué hacer si corre dos veces el mismo día— y no una
-notificación que falte.
+> ⚠️ **`V15` y `V16` están aplicadas Y commiteadas: no se editan nunca más.**
+> Flyway les guarda el checksum y la app no arranca si cambian. Cualquier cosa que
+> haya que corregir de esas dos va en una `V17`. Es la regla que este proyecto ya
+> aprendió rompiéndola una vez, con un comentario agregado a `V3`.
 
-Antes de cualquiera de las dos cosas, **§6f**: los cinco retoques técnicos
-pospuestos a propósito, ninguno de los cuales necesita migración.
+**2 · Verificar que arrancás en verde**, que con dos migraciones nuevas conviene
+hacerlo de entrada:
+
+```
+docker compose up -d
+cd apps/backend  && mvn test              # 390
+cd apps/platform && npm test              # 330
+./scripts/pruebas-sql.sh                  # 162 + 51, sobre 16 migraciones
+```
+
+**3 · Mandarle las preguntas a Ghezz antes de escribir una línea del Módulo 7.**
+
+Están redactadas y listas en
+**[`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`](relevamiento/preguntas-abiertas-modulos-7-y-8.md)**,
+con lo que cambia cada respuesta. **Son cuatro que traban y cuatro ratificaciones.**
+
+Esto es lo que hizo que el Módulo 6 no se frenara nunca, y hay una que no estaba en
+ningún índice de pendientes y es la más cara de todas:
+
+> 🔴 **El contrato del sello: ¿archivo o link?** `contrato_sello.archivo_path` es
+> `VARCHAR(500) NOT NULL` y la regla dura del módulo es *"no se publica un release
+> sin contrato adjunto"*. Si es un archivo, **el Módulo 7 es el que finalmente
+> obliga a construir el `StorageService` de §2.4**, y eso hay que saberlo antes de
+> planificar el módulo, no a mitad de camino. Y a diferencia de M&M, acá el
+> argumento para esquivarlo es flojo: un contrato es el respaldo legal de un
+> lanzamiento, y un link al Drive de otro se cae sin avisar.
+
+Las otras tres que traban: **P24** (¿los artistas tienen login? — se espera que no,
+y con confirmarlo alcanza), **P25** (¿el seguimiento post-lanzamiento entra?) y
+**P26** (¿cómo se define la tasa de retención? — es el único indicador del Módulo 8
+que no se puede construir sin una definición del negocio).
+
+**4 · Mientras esperás las respuestas**, hay dos cosas que no dependen de nadie:
+
+- **§6f**, los cinco retoques técnicos pospuestos. Ninguno necesita migración y el
+  segundo —ocultarle *Reservar cabina* y *Mis pedidos* a quien administra— es un
+  cambio en `menu.ts` y en ningún otro lado.
+- **El disparador automático de avisos**, que **ya lo piden tres módulos**: la deuda
+  a 7 días (M4), la entrega impaga a 7 días (M6) y el aviso 7 días antes de un
+  lanzamiento (M7). Es una pieza de infraestructura —un scheduler, y decidir qué
+  pasa si corre dos veces el mismo día— y conviene construirla una sola vez para
+  los tres. `PagoService.DIAS_PARA_VENCER` ya guarda el número que dos de ellos
+  miran. **Es el trabajo mejor amortizado que queda pendiente.**
+
+**5 · Y el orden del final**, para no perderlo de vista: quedan los módulos **7 y 8**
+y después **el rediseño del front entero, en una sola pasada** (§6f). La landing no
+se toca.
 
 ## 📚 EL MÓDULO 5, PARA CONSULTA (cerrado el 2026-08-19, tanda anterior)
 

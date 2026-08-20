@@ -656,6 +656,13 @@ sistema de promoción internacional, alertas 7 días antes de la fecha de lanzam
 - Acceso: Ghezz y administración total; dirección solo consulta; **profesores y alumnos sin acceso**.
 
 ### Pendientes
+
+> **Las cuatro preguntas de los módulos 7 y 8 están redactadas y listas para
+> mandar en [`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`](../relevamiento/preguntas-abiertas-modulos-7-y-8.md)**,
+> con lo que cambia cada respuesta. Contestarlas antes de empezar es lo que hizo
+> que el Módulo 6 no se trabara nunca.
+
+- **⚠️❓P38 — ¿El contrato es un archivo o un link?** No estaba en ningún índice hasta el 2026-08-19. `contrato_sello.archivo_path` es `VARCHAR(500) NOT NULL` y la regla dura es *"no se publica un release sin contrato adjunto"*: si el PDF se sube, **este es el módulo que obliga a construir el `StorageService` de §2.4**, que el 5 y el 6 esquivaron mandando links. Y acá el argumento para esquivarlo otra vez es flojo — un contrato es el respaldo legal de un lanzamiento y un link ajeno se cae sin avisar.
 - **❓P24 — ¿Los artistas tienen login?** El DBML lo deja preparado pero anulado. Confirmar que en esta versión **no**.
 - **❓P25 — ¿El seguimiento post-lanzamiento entra?** Ghezz busca a mano si algún DJ tocó los temas, revisa sets y radios. ¿El sistema registra eso o queda afuera?
 
@@ -674,6 +681,12 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 - Acceso completo solo `DIRECTIVO` y `ADMIN`; `STAFF` ve el resumen financiero básico.
 
 ### Pendientes
+
+> Redactada para mandar, junto con las del Módulo 7, en
+> [`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`](../relevamiento/preguntas-abiertas-modulos-7-y-8.md).
+> Ahí también queda anotada una decisión que **no es del cliente sino de alcance**:
+> si la exportación a PDF y Excel entra antes de diciembre o después.
+
 - **❓P26 — "Tasa de retención": ¿cómo se define exactamente?** ¿Alumnos que empezaron un segundo curso? ¿En qué ventana de tiempo? Es el único indicador que no se calcula solo sin una definición del negocio.
 
 ---
@@ -705,6 +718,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P21 | Seguimiento de mentorías | Módulo 5 |
 | ~~P22~~ | ✅ Se entrega el master, se retiene el premaster (§14) | — |
 | ~~P23~~ | ✅ No: siguen por WeTransfer/Drive, el sistema guarda el link (§14) | — |
+| **P38** | ⚠️ **El contrato del sello, ¿archivo o link?** Decide si el Módulo 7 obliga a construir el `StorageService` | Módulo 7 |
 | P24 | Login de artistas | Módulo 7 |
 | P25 | Seguimiento post-lanzamiento | Módulo 7 |
 | P26 | Definición de tasa de retención | Módulo 8 |
