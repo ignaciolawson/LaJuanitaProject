@@ -773,6 +773,24 @@ cd apps/platform && npm test              # 342
 ./scripts/pruebas-sql.sh                  # 179 + 51, sobre 18 migraciones
 ```
 
+> **La base de desarrollo, para no confundir "vacío" con "roto".** Sigue lo de
+> siempre —10 usuarios, 6 alumnos, 6 inscripciones, 9 reservas de principios de
+> agosto (**el calendario abre en la semana actual y se ve vacío: hay que
+> retroceder**), y los datos de demo del M4— y el 2026-08-20 se le sumó, cargado a
+> mano al probar el módulo nuevo: **1 artista (*Nacho Scoppa*), 1 release, 1
+> contrato general y 1 aparición.** `egreso`, `venta_equipo`, `nota_profesor`,
+> `material`, `seguimiento_alumno` y `trabajo_mastering` siguen en cero.
+>
+> ⚠️ **Y algo que antes no existía: hay un archivo real en disco.** El PDF de ese
+> contrato vive en `apps/backend/archivos/` (ignorado por git, como corresponde) y
+> `contrato_sello.archivo_path` apunta a él. **Borrar esa carpeta deja la fila
+> apuntando a un archivo que no está** — que es exactamente el modo de falla que
+> `backup.sh` pasó a cubrir. Si hace falta empezar de cero, se borran las dos cosas
+> juntas o ninguna.
+>
+> El volumen de Postgres (`juanitastudioproyect_postgres_data`) **sobrevive a
+> `docker compose down`**; lo que se lo lleva es `down -v`.
+
 **2 · Rehacer el ensayo de restore**, con los archivos. Es media hora y es lo único
 que queda entre "hay backup" y "hay respaldo".
 
