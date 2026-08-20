@@ -27,6 +27,14 @@ type Opciones = {
   cuerpo?: unknown
   /** El login es el único pedido que no lleva credencial (todavía no hay). */
   sinCredencial?: boolean
+  /**
+   * Un archivo, que viaja como `multipart/form-data` en vez de JSON.
+   *
+   * Lo estrenó el Módulo 7: el contrato del sello es el primer archivo que entra
+   * al sistema. **No se combina con `cuerpo`** — un multipart no lleva además un
+   * JSON, y los datos que acompañan al archivo van por query string.
+   */
+  archivo?: File
 }
 
 type ManejadorDeSesionVencida = () => void
@@ -54,7 +62,7 @@ export function registrarManejadorDeSesionVencida(manejador: ManejadorDeSesionVe
  * siempre ve un solo origen y no hay CORS en el medio.
  */
 export async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
-  const { metodo = 'GET', cuerpo, sinCredencial = false } = opciones
+  const { metodo = 'GET', cuerpo, sinCredencial = false, archivo } = opciones
 
   const cabeceras: Record<string, string> = {}
   if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json'
@@ -64,10 +72,23 @@ export async function pedir<T>(ruta: string, opciones: Opciones = {}): Promise<T
     if (credencial) cabeceras['Authorization'] = `Bearer ${credencial.token}`
   }
 
+  // Con un archivo, el `Content-Type` NO se pone a mano: el navegador tiene que
+  // escribirlo él para agregarle el `boundary` que separa las partes. Ponerlo
+  // acá produce un multipart sin boundary y el backend contesta 400 sin poder
+  // explicar qué pasó. Es el error clásico de la primera subida.
+  let contenido: BodyInit | undefined
+  if (archivo !== undefined) {
+    const formulario = new FormData()
+    formulario.append('archivo', archivo)
+    contenido = formulario
+  } else if (cuerpo !== undefined) {
+    contenido = JSON.stringify(cuerpo)
+  }
+
   const respuesta = await fetch(ruta, {
     method: metodo,
     headers: cabeceras,
-    body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    body: contenido,
   })
 
   if (!respuesta.ok) {

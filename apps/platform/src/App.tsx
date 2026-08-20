@@ -27,8 +27,10 @@ import { MisTrabajosPagina } from './paginas/MisTrabajosPagina'
 import { MisMaterialesPagina } from './paginas/MisMaterialesPagina'
 import { MisReservasPagina } from './paginas/MisReservasPagina'
 import { MisSolicitudesPagina } from './paginas/MisSolicitudesPagina'
+import { ArtistasPagina } from './paginas/ArtistasPagina'
 import { NotificacionesPagina } from './paginas/NotificacionesPagina'
 import { ReservarPagina } from './paginas/ReservarPagina'
+import { SelloPagina } from './paginas/SelloPagina'
 import { SubirMaterialPagina } from './paginas/SubirMaterialPagina'
 import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
@@ -100,6 +102,8 @@ function Rutas() {
           <Route path="/admin/egresos" element={<EgresosPagina />} />
           <Route path="/admin/ventas" element={<VentasPagina />} />
           <Route path="/admin/mix-mastering" element={<MixMasteringPagina />} />
+          <Route path="/admin/sello" element={<SelloPagina />} />
+          <Route path="/admin/artistas" element={<ArtistasPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>

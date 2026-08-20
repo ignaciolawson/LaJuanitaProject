@@ -59,9 +59,57 @@ están aplicadas. Trae también el `CREATE EXTENSION btree_gist` —la extensió
 hacen falta para los dos `EXCLUDE`—, aunque no los objetos internos de la
 extensión, que Postgres recrea solo.
 
-**No trae** los archivos que se suben (material de clase, comprobantes). Cuando
-el módulo de archivos exista, el backup son dos cosas y esta sección se parte en
-dos.
+**No trae los archivos que se suben.** Y desde el 2026-08-20 eso dejó de ser
+hipotético: el Módulo 7 guarda **los contratos del sello** en disco, fuera de la
+base. Esta sección avisaba que *"cuando el módulo de archivos exista, el backup
+son dos cosas"* — ese día llegó, y `scripts/backup.sh` ahora hace las dos:
+
+| Qué | Archivo | Cómo |
+|---|---|---|
+| La base | `lajuanita-AAAA-MM-DD.dump` | `pg_dump -Fc` |
+| Los archivos subidos | `lajuanita-archivos-AAAA-MM-DD.tar.gz` | `tar -czf` sobre `lajuanita.archivos.raiz` |
+
+> ⚠️ **El modo de falla que esto evita es de los peores que hay, y por eso vale
+> leerlo aunque el script ya lo haga.** Sin el tar, el backup corre en verde todos
+> los días, la base restaura perfecta, y **cada `contrato_sello` apunta a un PDF
+> que no existe**. La regla dura del Módulo 7 —*no se publica un release sin
+> contrato adjunto*— se seguiría dando por cumplida sobre un respaldo que no está.
+> No falla nada: se descubre el día que alguien abre un contrato.
+
+**La ruta hay que mantenerla en dos lados**, y es la única configuración del
+sistema con esa propiedad: `lajuanita.archivos.raiz` en el backend y
+`LAJUANITA_ARCHIVOS_DIR` en el script. Si no coinciden, el script respalda una
+carpeta vacía sin quejarse. Por eso avisa cuando la carpeta no existe, en vez de
+seguir en silencio — el aviso es la única señal de que están desalineadas.
+
+**Los dos archivos comparten la retención** (7 diarios + 4 semanales) y la poda
+barre los dos patrones. Antes de que hubiera tar, la poda tenía el patrón del
+dump escrito a mano; con dos tipos de archivo eso habría dejado los tar
+acumulándose para siempre, que es la forma de llenar un disco sin que nadie mire.
+
+### ⚠️ El ensayo de restore quedó incompleto y hay que rehacerlo
+
+El de §2 se hizo el 2026-08-14, cuando el backup era una sola cosa. **Probó que la
+base restaurada conserva sus reglas y que la aplicación arranca contra ella — y
+eso sigue valiendo.** Lo que no pudo probar, porque no existía, es que los
+archivos vuelvan y que los `archivo_path` de la base los encuentren.
+
+**Es lo que queda por hacer de esta sección**, y no es opcional: un backup que
+nunca se restauró es una intención, y ahora hay dos piezas que tienen que volver
+juntas. El procedimiento nuevo agrega un paso al de §2:
+
+```bash
+# después de restaurar la base, y en el mismo destino que apunte
+# lajuanita.archivos.raiz:
+tar -xzf backups/diarios/lajuanita-archivos-AAAA-MM-DD.tar.gz -C /ruta/al/padre
+
+# y la verificación que hace que el ensayo sirva: que la base y el disco
+# coincidan. Ninguna fila puede quedar apuntando a un archivo que no está.
+psql -c "SELECT id_contrato, archivo_path FROM contrato_sello" \
+  | while read -r id ruta; do
+      [ -f "/ruta/archivos/$ruta" ] || echo "FALTA el archivo del contrato $id"
+    done
+```
 
 ### Frecuencia, retención, destino
 

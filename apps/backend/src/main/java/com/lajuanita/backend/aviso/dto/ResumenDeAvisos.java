@@ -19,6 +19,7 @@ import java.time.LocalDate;
  * @param deudoresAvisados sobre cuántas deudas se avisó (no cuántos avisos: un
  *                         mismo hecho le llega a cada persona de administración)
  * @param entregasAvisadas sobre cuántos trabajos de M&amp;M entregados e impagos
+ * @param lanzamientosAvisados sobre cuántos releases que salen dentro de la semana
  * @param avisosEscritos   filas nuevas en {@code notificacion}
  * @param avisosOmitidos   avisos que ya estaban de una corrida anterior
  */
@@ -27,6 +28,7 @@ public record ResumenDeAvisos(
         int pagosVencidos,
         int deudoresAvisados,
         int entregasAvisadas,
+        int lanzamientosAvisados,
         int avisosEscritos,
         int avisosOmitidos) {
 }

@@ -338,6 +338,100 @@ class AvisosTest {
                 + LocalDate.now().minusDays(2), staff)).isZero();
     }
 
+    // == El sello: falta una semana para un lanzamiento =======================
+
+    /**
+     * <b>El tercer aviso, y el que estrenó la máquina en vez de esperarla.</b> Los
+     * otros dos venían pedidos por escrito desde los Módulos 4 y 6 y no existían;
+     * este llegó con el Módulo 7, cuando el disparador ya estaba, y costó una
+     * consulta y quince líneas. Ese era exactamente el argumento para construir la
+     * pieza antes del módulo y no adentro.
+     */
+    @Test
+    void un_lanzamiento_a_menos_de_una_semana_avisa() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(5);
+        long release = releaseQueSale(cuando, "CONFIRMADO");
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff))
+                .isEqualTo(1);
+    }
+
+    /** El de dentro de dos meses todavía no: el aviso es a los siete días. */
+    @Test
+    void un_lanzamiento_lejano_no_avisa() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(60);
+        long release = releaseQueSale(cuando, "CONFIRMADO");
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff)).isZero();
+    }
+
+    /** Uno ya publicado tampoco: avisar de algo que ya salió no sirve para nada. */
+    @Test
+    void un_release_ya_publicado_no_avisa() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(3);
+        long release = releaseQueSale(cuando, "PUBLICADO");
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff)).isZero();
+    }
+
+    /** Ni uno cancelado, que no va a salir. */
+    @Test
+    void un_release_cancelado_no_avisa() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(3);
+        long release = releaseQueSale(cuando, "CANCELADO");
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff)).isZero();
+    }
+
+    /**
+     * Y uno todavía en {@code A_CONFIRMAR} a tres días <b>sí</b> avisa, que es el
+     * caso que más conviene mirar: el aviso sirve para preguntarse si llega, no para
+     * celebrar uno que ya está listo.
+     */
+    @Test
+    void un_lanzamiento_proximo_sin_confirmar_avisa_igual() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(3);
+        long release = releaseQueSale(cuando, "A_CONFIRMAR");
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff))
+                .isEqualTo(1);
+    }
+
+    /** Y la misma propiedad que los otros dos: correr de nuevo no repite la bandeja. */
+    @Test
+    void el_aviso_de_lanzamiento_tampoco_se_duplica() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(2);
+        long release = releaseQueSale(cuando, "CONFIRMADO");
+
+        avisos.generar();
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff))
+                .isEqualTo(1);
+    }
+
     // == La corrida a mano ====================================================
 
     /**
@@ -391,6 +485,28 @@ class AvisosTest {
                 VALUES (?, ?, 50000, 'ARS', 'TRANSFERENCIA', 'DEBE', ?)
                 RETURNING id_pago
                 """, Long.class, deudor.getId(), trabajo, LocalDate.now().minusDays(dias));
+    }
+
+    /** Un release con su artista, listo para salir en esa fecha. */
+    private long releaseQueSale(LocalDate cuando, String estado) {
+        String sufijo = UUID.randomUUID().toString().substring(0, 8);
+        Long artista = jdbc.queryForObject("""
+                INSERT INTO artista (nombre_artistico) VALUES (?) RETURNING id_artista
+                """, Long.class, "Artista " + sufijo);
+
+        return jdbc.queryForObject("""
+                INSERT INTO release (codigo_release, id_artista, nombre_release,
+                                     fecha_estimada, estado, publicado_sin_contrato,
+                                     motivo_publicacion, id_usuario_publica)
+                VALUES (?, ?, 'Horizonte', ?, ?, ?, ?, ?)
+                RETURNING id_release
+                """, Long.class, "AV" + sufijo, artista, cuando, estado,
+                // Un release PUBLICADO necesita respaldo o la excepción firmada
+                // (`V18` §2). Acá se usa la excepción porque este caso no es sobre
+                // contratos: pedirle uno sería armar medio Módulo 7 para probar un
+                // aviso.
+                "PUBLICADO".equals(estado), "PUBLICADO".equals(estado) ? "fixture del test" : null,
+                "PUBLICADO".equals(estado) ? crear(Rol.STAFF).getId() : null);
     }
 
     private long trabajoEntregado(String estado, int diasDesdeLaEntrega) {

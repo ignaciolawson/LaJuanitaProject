@@ -61,5 +61,19 @@ public enum TipoNotificacion {
      * una notificación necesita un {@code usuario} destino. El aviso existe para
      * que Ghezz deje de fiar sin darse cuenta.
      */
-    ENTREGA_IMPAGA
+    ENTREGA_IMPAGA,
+
+    /**
+     * Falta una semana para un lanzamiento del sello (§10).
+     *
+     * <p><b>El tercero de los tres avisos, y el único que estrenó la máquina en vez
+     * de esperarla.</b> Los otros dos venían pedidos por escrito desde los Módulos 4
+     * y 6 y no existían; este llegó cuando el disparador ya estaba, y por eso costó
+     * una consulta y un bloque — que era exactamente el argumento para construir esa
+     * pieza antes del Módulo 7 y no adentro.
+     *
+     * <p>Va a administración, como los otros dos: los artistas no entran al sistema
+     * (P24), así que del otro lado no hay a quién avisarle.
+     */
+    RELEASE_PROXIMO
 }

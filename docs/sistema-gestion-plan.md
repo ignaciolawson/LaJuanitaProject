@@ -637,7 +637,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-20 (quinta tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-20 (sexta tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -656,7 +656,131 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20, cierre del Módulo 7
+
+## ✅ MÓDULO 7 CERRADO: SIETE DE OCHO, Y QUEDA SOLO EL TABLERO
+
+**Suites: 448 backend · 342 front · 179 + 51 SQL, sobre 18 migraciones.**
+
+El módulo entero en una jornada, y en este orden: se contestaron las ocho preguntas
+abiertas, se construyó el disparador de avisos, después el `StorageService`, después
+`V18`, y recién al final el backend y las pantallas. **Ese orden es el resultado del
+módulo**, más que el módulo: cada pieza de infraestructura llegó antes de que un
+módulo la descubriera a mitad de camino.
+
+### 🕳️ LO QUE ENCONTRÓ, QUE ES LO MÁS IMPORTANTE
+
+**1 · La regla dura del módulo no existía en ninguna capa.**
+
+*"No se publica un release sin contrato adjunto"* está en el alcance como **regla
+confirmada con el cliente**, y no estaba ni en la base, ni en el backend, ni en una
+pantalla. Como nadie la implementaba, **no tenía nada que fallar**: ninguna suite
+podía avisar. Apareció releyendo el alcance contra lo construido — exactamente igual
+que la mitad de §8 que encontró el Módulo 5, y que `V16`.
+
+**2 · `CANCELADO` se podía deshacer, y no era solo del sello.**
+
+Lo encontró un caso escrito esperando que un release cancelado no volviera a
+`A_CONFIRMAR`. Volvía. La causa: al dejar `CANCELADO` **fuera** de la escalera cae en
+el `ELSE 0`, así que cualquier estado tiene orden mayor y salir de él nunca se veía
+como un retroceso. `V1` §8.5 escribió *"se puede cancelar desde cualquier estado"* y
+nadie escribió la otra mitad — desde adentro de esa frase no se ve que falte.
+
+**Es el retroceso en dos pasos que `V6` ya había cerrado en las demás tablas**, y
+**Mix & Mastering tenía el mismo bug por la misma línea**: un trabajo cancelado podía
+volver a `EN_PROCESO` y caminar hasta `PAGADO`. Se cerró para las dos en `V18` §1b.
+
+**3 · Ningún request DTO del proyecto usaba un `boolean` primitivo, y ahora se sabe
+por qué.** Jackson no puede llenar el constructor canónico de un record si la
+propiedad no viene en el JSON, así que un formulario que omite un checkbox —lo normal
+cuando está en false— se come un 400 que no explica nada. Este fue el primer DTO que
+lo intentó. Todos los booleanos opcionales van boxed.
+
+**4 · Dos tests viejos me corrigieron a mí.** Generalicé el mensaje de
+`prohibir_borrado_historico` creyendo que su enumeración estaba vieja; no lo estaba,
+`V7`, `V9` y `V13` la venían extendiendo. Y tenían razón de fondo: **la enumeración es
+la parte útil del mensaje**, porque quien recibe el error necesita saber cómo se da de
+baja *esa* tabla.
+
+> ⚠️ **Y un rastrillo del propio proyecto, pisado:** edité `V18` después de que ya se
+> hubiera aplicado a la base de desarrollo, y Flyway quedó con el checksum viejo. Se
+> reparó sin perder los datos de demo —verificando el algoritmo contra `V16` y `V17`,
+> que no se tocaron, antes de tocar la fila— pero fue suerte de que todavía no
+> estuviera commiteada. **`V18` ahora es inmutable: cualquier corrección va en `V19`.**
+
+### 🖥️ LO QUE SE CONSTRUYÓ
+
+| Qué | Dónde |
+|---|---|
+| Catálogo de releases, con búsqueda y filtro | `/admin/sello` |
+| Contratos, apariciones, estado y publicación | la misma pantalla, al abrir un release |
+| Fichas de artistas y contratos generales | `/admin/artistas` |
+| El `StorageService` que §2.4 debía desde el principio | `com.lajuanita.backend.archivo` |
+| Backend del sello | `com.lajuanita.backend.sello` |
+| Reglas de la base | `V18__el_sello.sql` |
+
+### 🧩 LAS DECISIONES DEL MÓDULO
+
+- **La regla dura tiene una sola forma en pantalla, y el orden es la decisión.** Se
+  aprieta *Publicar*; si no hay contrato el backend rechaza y la pantalla muestra
+  **sus palabras**; recién debajo aparece *"Publicarlo igual, con motivo"*. Es la
+  misma forma exacta que el premaster del Módulo 6.
+- **Un release está respaldado por su contrato o por uno general de su artista.** No
+  es una excepción inventada: `contrato_sello.id_release` es nullable desde `V1` con
+  su propio comentario. Misma forma que la seña de `V10`.
+- **Publicar no es un valor del desplegable de estados.** Metido ahí, la regla dura se
+  cruzaría eligiendo una opción de una lista.
+- **El nombre del archivo lo elige el sistema y la extensión sale del contenido.** El
+  nombre del cliente se descarta entero, no se limpia. Estos archivos se vuelven a
+  servir: un contrato se abre en el navegador de otra persona.
+- **Archivo primero, fila después.** Un huérfano ocupa lugar; una fila apuntando a un
+  archivo que no existe hace que el sistema dé por cumplida su propia regla dura.
+- **Cancelar pide confirmación y NO pide motivo**, a diferencia de publicar sin
+  contrato: `release` no tiene columna donde guardarlo, y pedir una frase que se tira
+  es peor que no pedirla.
+
+### 🔔 Y EL TERCER AVISO, QUE COSTÓ QUINCE LÍNEAS
+
+El aviso de *"falta una semana para el lanzamiento"* (§10) fue **una consulta y un
+bloque** en `AvisoService`, porque la máquina ya estaba. Los otros dos —la deuda del
+M4 y la entrega impaga del M6— habían pasado meses anotados como *"es del módulo que
+construya notificaciones automáticas"*. **Ese es el resultado de haber construido el
+disparador antes del módulo y no adentro**, que es lo que al `StorageService` no le
+pasó dos módulos seguidos.
+
+### ⚠️ LO QUE QUEDA ABIERTO Y NO ES EL MÓDULO 8
+
+**El ensayo de restore quedó incompleto.** `scripts/backup.sh` ya respalda las dos
+cosas —la base y los archivos subidos— y eso se probó corriéndolo. Lo que **no** se
+rehizo es el ensayo de restore de `operacion.md` §2: el del 2026-08-14 probó que la
+base restaurada conserva sus reglas, pero no que los archivos vuelvan y que los
+`archivo_path` los encuentren. **El procedimiento nuevo ya está escrito ahí**; falta
+correrlo.
+
+### ⏭️ MAÑANA, EN ORDEN
+
+**1 · Verificar que arrancás en verde**, que hay una migración nueva:
+
+```
+docker compose up -d
+cd apps/backend  && mvn test              # 448
+cd apps/platform && npm test              # 342
+./scripts/pruebas-sql.sh                  # 179 + 51, sobre 18 migraciones
+```
+
+**2 · Rehacer el ensayo de restore**, con los archivos. Es media hora y es lo único
+que queda entre "hay backup" y "hay respaldo".
+
+**3 · El Módulo 8, el último.** Todas sus preguntas están contestadas: la tasa de
+retención tiene definición (§15) y la exportación a PDF y Excel entra con vara alta —
+filtros de la pantalla y cabecera de trazabilidad. Lo único abierto ahí es el
+**denominador** de la retención, que se ratifica al construirlo y tiene una trampa
+anotada: quien contrató hace tres meses no puede contar como perdido.
+
+**4 · Y después el rediseño del front entero, en una sola pasada** (§6f), más los
+cinco retoques pospuestos. La landing no se toca.
+
+## 📚 EL DISPARADOR DE AVISOS, PARA CONSULTA (mismo día, tanda anterior)
 
 ## ✅ EL DISPARADOR DE AVISOS ESTÁ CONSTRUIDO, Y EL MÓDULO 7 YA NO ESTÁ BLOQUEADO
 

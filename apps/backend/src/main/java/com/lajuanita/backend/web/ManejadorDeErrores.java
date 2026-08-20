@@ -115,6 +115,15 @@ public class ManejadorDeErrores {
             Map.entry("solicitud_reserva_rechazo_explicado",
                     "Para rechazar una solicitud hay que decir por qué."),
             Map.entry("solicitud_reserva_estado_valido", "Ese estado de solicitud no existe."),
+            // El sello (V18). `release_codigo_release_key` es el índice único que `V1`
+            // creó implícitamente con el UNIQUE de la columna: el nombre lo pone
+            // Postgres, no nosotros, y por eso no se parece a los demás.
+            Map.entry("release_codigo_release_key", "Ya hay un release con ese código."),
+            Map.entry("release_estado_valido", "Ese estado de release no existe."),
+            Map.entry("release_tipo_valido", "Ese tipo de release no existe."),
+            Map.entry("release_publicacion_justificada",
+                    "Para publicar un release sin contrato hacen falta el motivo escrito y el autor."),
+            Map.entry("aparicion_tipo_valido", "Ese tipo de aparición no existe."),
             Map.entry("trabajo_cliente_identificado",
                     "Decí de quién es el trabajo: una cuenta del sistema o el nombre del cliente."),
             Map.entry("trabajo_liberacion_justificada",

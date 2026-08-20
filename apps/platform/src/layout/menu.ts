@@ -129,6 +129,22 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       {
+        etiqueta: 'Sello',
+        ruta: '/admin/sello',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
+        // Va separada del catálogo y no adentro: un artista se carga una vez y
+        // después se lo elige veinte veces desde el alta de un release. Meter su
+        // ABM dentro de la pantalla de releases obligaría a abrir un release para
+        // llegar a algo que no es de ningún release.
+        etiqueta: 'Artistas',
+        ruta: '/admin/artistas',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
         etiqueta: 'Dashboard',
         ruta: '/admin/dashboard',
         // El dashboard ejecutivo completo (facturación) es solo de dirección.

@@ -155,8 +155,16 @@ eliminan: se marcan como inválidos.**
 > modela los tres entregables de `trabajo_mastering` como `VARCHAR(500)`, desde el
 > primer día y sin que nadie lo marcara.
 >
-> **El `StorageService` sigue debiéndose**, pero por los comprobantes (§7, Módulo 3),
-> no por estos dos.
+> **El `StorageService` existe desde el 2026-08-20** (`com.lajuanita.backend.archivo`),
+> construido por el Módulo 7: el contrato del sello es el primer archivo que entra al
+> sistema, y `contrato_sello.archivo_path` es `NOT NULL` desde `V1`. Lo único que le
+> queda debiendo a esta sección es **la descarga de comprobantes** del Módulo 3, que
+> ahora es trabajo de pantalla y no de infraestructura.
+>
+> **Y una consecuencia que no es de §2.4 pero se decide acá:** con archivos en disco,
+> `scripts/backup.sh` dejó de alcanzar solo. Respalda las dos cosas desde el mismo
+> día — ver `docs/operacion.md` §1, y el ensayo de restore que quedó pendiente de
+> rehacer.
 
 ### 2.5 Auditoría
 
@@ -648,7 +656,7 @@ registrar una revisión.
 
 ---
 
-## 10. Módulo 7 — Sello Discográfico · *trazo grueso*
+## 10. Módulo 7 — Sello Discográfico · ✅ *cerrado el 2026-08-20*
 
 Catálogo de releases con ID correlativo (LJ020…), artistas, contratos, estados
 (`a confirmar → confirmado → en distribución → publicado`), registro del envío al
@@ -660,16 +668,39 @@ sistema de promoción internacional, alertas 7 días antes de la fecha de lanzam
 - Los estados solo avanzan.
 - Acceso: Ghezz y administración total; dirección solo consulta; **profesores y alumnos sin acceso**.
 
+### Lo construido
+
+| Qué | Dónde |
+|---|---|
+| Catálogo de releases, con búsqueda y filtro por estado | `/admin/sello` |
+| Contratos, apariciones, estado y publicación | la misma pantalla, al abrir un release |
+| Fichas de artistas y contratos generales | `/admin/artistas` |
+| Backend | `com.lajuanita.backend.sello` (tres controllers) + `com.lajuanita.backend.archivo` |
+| Reglas de la base | `V18__el_sello.sql` |
+
+**Y el `StorageService` de §2.4 existe** (`com.lajuanita.backend.archivo`), después de
+que tres módulos lo esquivaran. Sigue debiéndose **solo** para la descarga de
+comprobantes del Módulo 3, que ahora es trabajo de pantalla y no de infraestructura.
+
 ### Pendientes
 
-> **Las cuatro preguntas de los módulos 7 y 8 están redactadas y listas para
-> mandar en [`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`](../relevamiento/preguntas-abiertas-modulos-7-y-8.md)**,
-> con lo que cambia cada respuesta. Contestarlas antes de empezar es lo que hizo
-> que el Módulo 6 no se trabara nunca.
+**Ninguno pendiente de decisión. Las cuatro se cerraron el 2026-08-20 — ver §15.**
 
-- **⚠️❓P38 — ¿El contrato es un archivo o un link?** No estaba en ningún índice hasta el 2026-08-19. `contrato_sello.archivo_path` es `VARCHAR(500) NOT NULL` y la regla dura es *"no se publica un release sin contrato adjunto"*: si el PDF se sube, **este es el módulo que obliga a construir el `StorageService` de §2.4**, que el 5 y el 6 esquivaron mandando links. Y acá el argumento para esquivarlo otra vez es flojo — un contrato es el respaldo legal de un lanzamiento y un link ajeno se cae sin avisar.
-- **❓P24 — ¿Los artistas tienen login?** El DBML lo deja preparado pero anulado. Confirmar que en esta versión **no**.
-- **❓P25 — ¿El seguimiento post-lanzamiento entra?** Ghezz busca a mano si algún DJ tocó los temas, revisa sets y radios. ¿El sistema registra eso o queda afuera?
+- ~~**P38**~~ ✅ El contrato es un **archivo que se sube**. Este módulo construyó el
+  `StorageService`, y el respaldo dejó de ser solo `pg_dump`: los archivos entran al
+  backup (`docs/operacion.md` §1).
+- ~~**P24**~~ ✅ Los artistas **no entran al sistema**. `artista.id_usuario` queda
+  nullable y sin usar; sin portal propio, el módulo es la mitad de grande.
+- ~~**P25**~~ ✅ El seguimiento post-lanzamiento **entra, cargado a mano**, y sin
+  ninguna integración con plataformas. Es `aparicion_release`.
+- ~~**Ratificación 6**~~ ✅ Un release **sí puede caerse**: `CANCELADO` fuera de la
+  escalera (`V18` §1), y de cancelado no se vuelve (`V18` §1b).
+
+**Lo que este módulo encontró y no era suyo:** `CANCELADO` se podía deshacer, en el
+sello **y en Mix & Mastering**, por la misma línea de `V1` §8.5 — al quedar fuera de
+la escalera cae en el `ELSE 0` y salir de él nunca se veía como un retroceso. Es el
+retroceso en dos pasos que `V6` ya había cerrado en las demás tablas. Se arregló para
+las dos en `V18` §1b.
 
 ---
 

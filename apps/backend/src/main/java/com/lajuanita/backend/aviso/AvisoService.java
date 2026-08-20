@@ -20,6 +20,8 @@ import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.pago.PagoRepository;
 import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.sello.Release;
+import com.lajuanita.backend.sello.ReleaseRepository;
 import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -31,9 +33,12 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  * cada uno anotando lo mismo: <i>"corre sin que nadie pida nada, necesita un
  * scheduler y necesita decidir qué pasa si corre dos veces el mismo día; es del
  * módulo que construya notificaciones automáticas"</i>. El Módulo 4 la dejó
- * anotada para la deuda a los 7 días (§6), el Módulo 6 para la entrega impaga a
- * los 7 días (§9), y el Módulo 7 la va a pedir para el aviso previo al
- * lanzamiento (§10). Se construye una vez, para los tres.
+ * anotada para la deuda a los 7 días (§6) y el Módulo 6 para la entrega impaga a
+ * los 7 días (§9). Se construyó una vez, para los tres — <b>y el tercero, el aviso
+ * previo al lanzamiento (§10), llegó después y costó una consulta y un bloque de
+ * quince líneas.</b> Ese es el resultado de haberla hecho antes del Módulo 7 y no
+ * adentro: el aviso terminó siendo una regla más y no infraestructura descubierta a
+ * mitad de camino, que es lo que le pasó al `StorageService` dos módulos seguidos.
  *
  * <h2>Lo que decide, que es más que "mandar avisos"</h2>
  *
@@ -56,9 +61,9 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  * si la deuda se salda y vuelve, la clave cambia y el aviso vuelve a salir — está
  * explicado en el encabezado de `V17`.
  *
- * <p><b>4 · Correrlo de más no hace nada.</b> Las tres operaciones son
- * idempotentes por construcción y no por cuidado: el UPDATE solo toca
- * {@code DEBE}, y los dos avisos van contra un índice único. Eso es lo que hace
+ * <p><b>4 · Correrlo de más no hace nada.</b> Todo lo que hace es idempotente por
+ * construcción y no por cuidado: el UPDATE solo toca {@code DEBE}, y los avisos van
+ * contra un índice único. Eso es lo que hace
  * que la corrida manual sea segura de ofrecer.
  *
  * <h2>Lo que deliberadamente NO hace</h2>
@@ -72,20 +77,33 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
 @Service
 public class AvisoService {
 
+    /**
+     * Cuántos días antes avisa un lanzamiento (§10).
+     *
+     * <p>Coincide con {@code PagoService.DIAS_PARA_VENCER} y aun así es su propia
+     * constante: que los tres avisos usen siete días hoy es una coincidencia del
+     * negocio, no una regla compartida. Atarlos haría que cambiar el vencimiento de
+     * una deuda moviera, sin que nadie lo pida, cuándo se avisa un lanzamiento.
+     */
+    public static final int DIAS_ANTES_DEL_LANZAMIENTO = 7;
+
     private final PagoRepository pagos;
     private final PagoService pagoService;
     private final TrabajoMasteringRepository trabajos;
+    private final ReleaseRepository releases;
     private final UsuarioRepository usuarios;
     private final NotificacionService notificaciones;
 
     public AvisoService(PagoRepository pagos,
             PagoService pagoService,
             TrabajoMasteringRepository trabajos,
+            ReleaseRepository releases,
             UsuarioRepository usuarios,
             NotificacionService notificaciones) {
         this.pagos = pagos;
         this.pagoService = pagoService;
         this.trabajos = trabajos;
+        this.releases = releases;
         this.usuarios = usuarios;
         this.notificaciones = notificaciones;
     }
@@ -109,13 +127,15 @@ public class AvisoService {
         List<Aviso> pendientes = new ArrayList<>();
         int deudas = agregarDeudasVencidas(pendientes, hoy);
         int entregas = agregarEntregasImpagas(pendientes, limite, hoy);
+        int lanzamientos = agregarLanzamientosProximos(pendientes, hoy);
 
         int[] escritos = escribir(pendientes);
 
-        return new ResumenDeAvisos(hoy, vencidos, deudas, entregas, escritos[0], escritos[1]);
+        return new ResumenDeAvisos(hoy, vencidos, deudas, entregas, lanzamientos,
+                escritos[0], escritos[1]);
     }
 
-    // == Las dos reglas ======================================================
+    // == Las tres reglas =====================================================
 
     /**
      * §6 — <i>"alerta automática si alguien lleva más de 7 días en estado 'debe'"</i>.
@@ -178,6 +198,43 @@ public class AvisoService {
                     "/admin/mix-mastering"));
         }
         return impagos.size();
+    }
+
+    /**
+     * §10 — <i>"alertas 7 días antes de la fecha de lanzamiento"</i>.
+     *
+     * <p><b>Es el aviso que estrenó esta máquina en vez de pedirla.</b> Los otros dos
+     * venían anotados por escrito desde los Módulos 4 y 6 con la misma frase —<i>"es
+     * del módulo que construya notificaciones automáticas"</i>— y ninguno existía.
+     * Este llegó cuando el disparador ya estaba: costó una consulta y este bloque.
+     * Ese era el argumento para construirla antes del Módulo 7 y no adentro.
+     *
+     * <p>Mira {@code fechaEstimada} y no {@code fechaReal}: el aviso existe para
+     * llegar <b>antes</b>, y la fecha real recién existe cuando ya salió. Un release
+     * todavía en {@code A_CONFIRMAR} a siete días entra, y es justamente el que más
+     * conviene mirar — el aviso sirve para preguntarse si llega, no para celebrar
+     * uno que ya está listo.
+     */
+    private int agregarLanzamientosProximos(List<Aviso> pendientes, LocalDate hoy) {
+        List<Release> proximos = releases.queSalenEntre(hoy, hoy.plusDays(DIAS_ANTES_DEL_LANZAMIENTO));
+
+        for (Release release : proximos) {
+            long dias = ChronoUnit.DAYS.between(hoy, release.getFechaEstimada());
+
+            pendientes.add(new Aviso(
+                    TipoNotificacion.RELEASE_PROXIMO,
+                    "RELEASE_PROXIMO:r=%d:fecha=%s".formatted(
+                            release.getId(), release.getFechaEstimada()),
+                    "Sale en %s: %s".formatted(
+                            dias == 0 ? "el dia" : dias == 1 ? "1 dia" : dias + " dias",
+                            release.getCodigoRelease()),
+                    "%s — \"%s\" de %s sale el %s y esta en %s."
+                            .formatted(release.getCodigoRelease(), release.getNombreRelease(),
+                                    release.getArtista().getNombreArtistico(),
+                                    release.getFechaEstimada(), release.getEstado()),
+                    "/admin/sello"));
+        }
+        return proximos.size();
     }
 
     // == La escritura ========================================================
