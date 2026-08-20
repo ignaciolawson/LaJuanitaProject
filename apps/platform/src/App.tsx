@@ -18,10 +18,12 @@ import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
 import { MiAgendaPagina } from './paginas/MiAgendaPagina'
 import { MiCuentaPagina } from './paginas/MiCuentaPagina'
+import { MixMasteringPagina } from './paginas/MixMasteringPagina'
 import { MiPerfilPagina } from './paginas/MiPerfilPagina'
 import { FichaDeAlumnoPagina } from './paginas/FichaDeAlumnoPagina'
 import { MisAlumnosPagina } from './paginas/MisAlumnosPagina'
 import { MisCursosPagina } from './paginas/MisCursosPagina'
+import { MisTrabajosPagina } from './paginas/MisTrabajosPagina'
 import { MisMaterialesPagina } from './paginas/MisMaterialesPagina'
 import { MisReservasPagina } from './paginas/MisReservasPagina'
 import { MisSolicitudesPagina } from './paginas/MisSolicitudesPagina'
@@ -65,6 +67,7 @@ function Rutas() {
         <Route path="/mis-solicitudes" element={<MisSolicitudesPagina />} />
         <Route path="/mis-cursos" element={<MisCursosPagina />} />
         <Route path="/mis-materiales" element={<MisMaterialesPagina />} />
+        <Route path="/mix-mastering" element={<MisTrabajosPagina />} />
 
         {/* El portal del profesor (Módulo 5). Van acá afuera por lo mismo: no
             hay guarda de rol porque ser profesor no es un rol sino una
@@ -96,6 +99,7 @@ function Rutas() {
           <Route path="/admin/deudores" element={<DeudoresPagina />} />
           <Route path="/admin/egresos" element={<EgresosPagina />} />
           <Route path="/admin/ventas" element={<VentasPagina />} />
+          <Route path="/admin/mix-mastering" element={<MixMasteringPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>

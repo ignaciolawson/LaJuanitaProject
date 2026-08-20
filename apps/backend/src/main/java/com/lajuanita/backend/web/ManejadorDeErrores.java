@@ -112,7 +112,18 @@ public class ManejadorDeErrores {
                     "Una solicitud aprobada tiene que tener su reserva, y solo una aprobada puede tenerla."),
             Map.entry("solicitud_reserva_rechazo_explicado",
                     "Para rechazar una solicitud hay que decir por qué."),
-            Map.entry("solicitud_reserva_estado_valido", "Ese estado de solicitud no existe."));
+            Map.entry("solicitud_reserva_estado_valido", "Ese estado de solicitud no existe."),
+            Map.entry("trabajo_cliente_identificado",
+                    "Decí de quién es el trabajo: una cuenta del sistema o el nombre del cliente."),
+            Map.entry("trabajo_liberacion_justificada",
+                    "Para liberar el premaster sin pago hay que escribir el motivo."),
+            Map.entry("trabajo_tipo_valido", "Ese tipo de trabajo no existe."),
+            Map.entry("trabajo_estado_valido", "Ese estado de trabajo no existe."),
+            Map.entry("trabajo_moneda_valida", "Esa moneda no existe: solo se manejan pesos y dólares."),
+            Map.entry("trabajo_precio_no_negativo", "El precio no puede ser negativo."),
+            Map.entry("trabajo_cotizacion_positiva", "La cotización tiene que ser mayor a cero."),
+            Map.entry("trabajo_revisiones_no_negativas",
+                    "Las revisiones no pueden ser un número negativo."));
 
     /**
      * Postgres pone el nombre de la constraint entre comillas en el texto del

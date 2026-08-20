@@ -38,11 +38,15 @@ describe('regla 1 — los servicios que cualquiera contrata van siempre', () => 
    * quien ya reservó, quien nunca reservó no vería nunca el botón y no podría
    * hacer su primera reserva jamás.
    */
-  it.each(ROLES)('un %s ve reservar, mix & mastering y sus pagos', (rol) => {
+  it.each(ROLES)('un %s ve reservar, sus trabajos de M&M y sus pagos', (rol) => {
     const visibles = etiquetas(usuario({ rol }))
 
     expect(visibles).toContain('Reservar cabina')
-    expect(visibles).toContain('Mix & Mastering')
+    // Se llamaba "Mix & Mastering" hasta que el Módulo 6 le dio a administración
+    // una sección con ese nombre. La entrada del portal pasó a "Mis trabajos"
+    // para no tener la misma etiqueta en dos grupos; la regla que este caso
+    // protege —va siempre, sin importar el rol ni si ya contrató algo— no cambió.
+    expect(visibles).toContain('Mis trabajos')
     expect(visibles).toContain('Mis pagos')
   })
 

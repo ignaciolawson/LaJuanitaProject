@@ -623,7 +623,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (tercera tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (cuarta tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -642,7 +642,135 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre de la tercera tanda
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre de la cuarta tanda
+
+## ✅ MÓDULO 6 CERRADO: seis de ocho módulos, y el esquema volvió a hablar
+
+Mix & Mastering está entero —tablero de administración, portal del cliente, dos
+migraciones y 33 casos nuevos— y **cerrarlo destapó dos problemas que llevaban
+meses en la base sin que ninguna suite pudiera verlos.** Esa es la parte que
+conviene leer antes que el resto.
+
+**Suites al cierre: 390 backend · 330 front · 162 + 51 SQL.**
+
+### 🟢 Para arrancar en verde
+
+```
+docker compose up -d                     # Postgres. Si Docker Desktop no está
+                                         # abierto, esto falla con un error de
+                                         # named pipe: hay que lanzarlo primero.
+cd apps/backend  && mvn spring-boot:run  # :8080 — aplica Flyway al arrancar
+cd apps/platform && npm run dev:platform # :5173 — el proxy manda /api al 8080
+```
+
+Se entra con **`admin@lajuanita.local` / `lajuanita2026`**. Las cuatro suites:
+`mvn test` (390 casos), `npm test` en `apps/platform` (330) y
+`./scripts/pruebas-sql.sh` (162 + 51, y esas dos NO las corre `mvn test`).
+
+> **La base de desarrollo, para no confundir "vacío" con "roto"**: 10 usuarios,
+> 6 alumnos, 6 inscripciones, 9 reservas viejas de principios de agosto (el
+> calendario abre en la semana actual y **se ve vacío**, hay que retroceder), los
+> datos de demo del M4 —tres solicitudes, la reserva 1556 con su seña— y **cero
+> filas en `trabajo_mastering`**: la pantalla nueva arranca vacía y se llena desde
+> ahí. `egreso`, `venta_equipo`, `nota_profesor`, `material` y `seguimiento_alumno`
+> también siguen en cero.
+
+### 🕳️ LO QUE ENCONTRÓ ESTE MÓDULO, QUE ES LO MÁS IMPORTANTE DE LA TANDA
+
+**1 · El candado del premaster estaba roto desde `V6` y las suites no podían
+avisar.**
+
+`proteger_pago_de_premaster()` declaraba una variable `id_pago` y la comparaba
+contra la columna homónima. Postgres aborta con *"column reference id_pago is
+ambiguous"* **antes** de llegar al `RAISE` que explica el problema. Consecuencias
+medidas:
+
+- El mensaje redactado para una persona **nunca se emitió**.
+- Como 42702 no es P0001, la API contestaba **500** en vez del 409 con la
+  explicación: desde la pantalla, la regla más importante del módulo se veía como
+  un sistema roto.
+- Y la rama que **debía dejar pasar** —que quede otro pago sosteniendo la
+  liberación— reventaba también. O sea que además de no explicar, **rechazaba de
+  más**.
+
+`V16` lo arregla renombrando la variable. Lo arreglado no es "el agujero": el
+agujero nunca estuvo abierto, porque fallar por un error también rechaza.
+
+**Y por qué nadie lo vio: `probar(...,'FALLA',...)` verifica que la sentencia
+falle, no por qué falla.** Los casos D02 y D03 —"anular/borrar el pago que
+respalda un premaster liberado"— estuvieron en verde todo este tiempo. **Un caso
+'FALLA' que no mira el mensaje no distingue una regla que funciona de un bug que
+revienta antes**, y es la contracara exacta de la lección que la suite ya tenía
+escrita para el otro lado: *un 'ANDA' tiene que verificar que afectó filas*.
+
+La suite adversarial gana `probar_mensaje(nro, caso, fragmento, sentencia)` y D02
+pasa a exigir el texto del trigger. **Cuando escribas un caso 'FALLA' sobre un
+trigger, usá ese.**
+
+**2 · Dos reglas del proyecto se contradecían: `V15`.**
+
+§9 pide *"alerta al superar las revisiones incluidas"* y `V6` §3 lo hacía imposible
+con un CHECK. Gana §9 —regla confirmada con el cliente— sobre la inferencia de la
+auditoría, igual que P22 ganó sobre la propuesta comercial. El detalle y el
+razonamiento están en `platform.md` §14.
+
+### 🖥️ LO QUE SE CONSTRUYÓ
+
+| Qué | Dónde |
+|---|---|
+| Tablero de trabajos, con filtro por estado y búsqueda | `/admin/mix-mastering` |
+| Alta, edición del expediente, estado, revisiones, premaster y cobro | la misma pantalla, al abrir un trabajo |
+| Mis trabajos (cliente) | `/mix-mastering` |
+| Backend | `com.lajuanita.backend.mastering` (dos controllers) |
+
+**Cinco operaciones de escritura y ninguna es un PUT genérico**: editar el
+expediente, mover el estado, sumar una revisión, liberar el premaster y cobrar son
+cinco hechos distintos. Metidos en un solo guardado, **liberar un premaster sería
+un checkbox más del formulario** — sin motivo, sin autor, y sin nada que distinga
+"lo entregué" de "guardé la ficha". Por lo mismo **cargar el link del premaster no
+es entregarlo**: cargarlo es edición, liberarlo es un acto.
+
+### 🧩 LAS DECISIONES DEL MÓDULO
+
+- **La regla dura tiene una sola forma en pantalla, y el orden es la decisión.** Se
+  aprieta *Entregar premaster*; si no hay pago el backend rechaza y la pantalla
+  muestra **sus palabras**; recién debajo aparece *"Liberarlo igual, con motivo"*.
+  Primero se ve la regla, después la salida — y la salida cuesta escribir una frase
+  que queda firmada. Al revés sería una sugerencia.
+- **El cobro sale de la propia pantalla** (`POST /api/mastering/{id}/cobro`,
+  delegado a `PagoService`), como la seña de una reserva y el cobro de una venta.
+  `/admin/pagos` sigue saldando solo inscripciones y no hubo que rehacerlo.
+- **Cobrar mueve el estado a PAGADO con tres condiciones**: que ya esté entregado,
+  que haya precio, y que lo cobrado **en la moneda del trabajo** lo alcance. Un pago
+  en pesos contra un trabajo en dólares no se convierte —no hay cotización que el
+  sistema pueda inventar— y sumarlos daría un número que no es plata de ninguna de
+  las dos.
+- **El pago necesita cuenta y el trabajo no.** `pago.id_usuario` es NOT NULL y la
+  mitad de los clientes de M&M son externos; el formulario de cobro lo dice y pide
+  a nombre de quién queda, en vez de mandar un pedido que la base rechaza.
+- **`TrabajoDelPortal` esconde el premaster en el mapeo, no en la pantalla.** Un
+  link escondido con un `if` en el front viaja igual en la respuesta HTTP y se lee
+  con las herramientas del navegador.
+
+### ⏭️ LO PRÓXIMO
+
+Quedan **dos módulos**: el **7 (Sello discográfico)** y el **8 (Dashboard de
+dirección)**, los dos a trazo grueso en `platform.md` §10 y §11. El 7 tiene dos
+preguntas abiertas (P24, login de artistas; P25, seguimiento post-lanzamiento) y el
+8 una (P26, la tasa de retención) — **conviene contestarlas antes de arrancar, como
+se hizo con las tres del 6**, que fue lo que hizo que este módulo no se trabara
+nunca.
+
+Y sigue pendiente, ahora pedido por dos módulos, **el disparador automático de
+avisos** (deuda a 7 días del M4, entrega impaga a 7 días del M6). Es una pieza de
+infraestructura —un scheduler y qué hacer si corre dos veces el mismo día— y no una
+notificación que falte.
+
+Antes de cualquiera de las dos cosas, **§6f**: los cinco retoques técnicos
+pospuestos a propósito, ninguno de los cuales necesita migración.
+
+## 📚 EL MÓDULO 5, PARA CONSULTA (cerrado el 2026-08-19, tanda anterior)
+
 
 ## ✅ MÓDULO 5 CERRADO: backend, front y el bloque que le debía a la ficha del alumno
 

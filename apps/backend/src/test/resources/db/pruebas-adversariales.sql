@@ -69,6 +69,39 @@ BEGIN
     END IF;
 END; $fn$ LANGUAGE plpgsql;
 
+/*
+ * Como `probar(...,'FALLA',...)` pero además exige QUÉ dijo el rechazo.
+ *
+ * Existe por lo que encontró el Módulo 6: los casos D02 y D03 estuvieron en
+ * verde mientras el trigger que atacan estaba roto. Fallaban, sí — pero con
+ * `column reference "id_pago" is ambiguous`, no con su regla. **Un caso 'FALLA'
+ * que no mira el mensaje no distingue una regla que funciona de un bug que
+ * revienta antes**, y es la contracara exacta de la lección que ya estaba
+ * escrita para el otro lado: un 'ANDA' tiene que verificar que afectó filas.
+ *
+ * `fragmento` se busca dentro de SQLERRM. Corto y estable: un pedazo del texto
+ * que el trigger redactó, no la oración entera.
+ */
+CREATE OR REPLACE FUNCTION probar_mensaje(nro text, caso text, fragmento text, sentencia text)
+RETURNS void AS $fn$
+DECLARE
+    hubo_error boolean := false;
+    msg        text    := '';
+BEGIN
+    BEGIN
+        EXECUTE sentencia;
+    EXCEPTION WHEN others THEN hubo_error := true; msg := SQLERRM;
+    END;
+
+    INSERT INTO _resultado VALUES (nro, caso, 'FALLA(msg)',
+        (hubo_error AND position(fragmento in msg) > 0),
+        CASE WHEN NOT hubo_error THEN '*** PASO: EL AGUJERO VOLVIO ***'
+             WHEN position(fragmento in msg) = 0
+                 THEN '*** fallo por otra cosa: '||msg||' ***'
+             ELSE 'rechazado ok, con su mensaje' END);
+END; $fn$ LANGUAGE plpgsql;
+
+
 
 -- =============================================================================
 -- SEMILLA
@@ -277,10 +310,19 @@ SELECT probar('C08','curso becado al 100% (precio 0) sigue siendo valido','ANDA'
 -- =============================================================================
 -- D. MIX & MASTERING  (V6 §3, §6, §8)
 -- =============================================================================
-SELECT probar('D01','revisiones_realizadas por encima de las incluidas','FALLA',
+-- D01 pedía lo contrario hasta `V15`, cuando el CHECK de `V6` §3 se sacó: §9
+-- exige "alerta al superar las revisiones incluidas", y no se puede avisar de
+-- algo que la base rechaza. La revisión de más ahora ENTRA y la pantalla la
+-- pinta en rojo. Lo que sigue siendo imposible es un número negativo (`V1`).
+SELECT probar('D01','una revision de mas se registra (V15: la alerta la da la pantalla)','ANDA',
  $q$INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,
         revisiones_incluidas,revisiones_realizadas)
-    VALUES ('X','MIX','Revisiones',3,99)$q$);
+    VALUES ('X','MIX','Revisiones',3,4)$q$);
+
+SELECT probar('D01b','revisiones_realizadas negativas','FALLA',
+ $q$INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,
+        revisiones_incluidas,revisiones_realizadas)
+    VALUES ('X','MIX','Revisiones negativas',3,-1)$q$);
 
 -- El candado del premaster, atacado por atrás: pago → libero → anulo el pago.
 INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado)
@@ -293,7 +335,11 @@ UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Candado
 -- Desde V7 §1 toda anulación lleva autor, fecha y motivo. Van acá para que el
 -- caso siga fallando por el trigger del premaster, que es lo que ataca, y no
 -- por la constraint nueva.
-SELECT probar('D02','ANULAR el pago que respalda un premaster ya liberado','FALLA',
+-- Con `probar_mensaje` y no con `probar`: este caso estuvo en verde mientras el
+-- trigger reventaba por un choque de nombres (`V16`). Fallaba por la razón
+-- equivocada y no había forma de notarlo desde acá.
+SELECT probar_mensaje('D02','ANULAR el pago que respalda un premaster ya liberado',
+ 'unico respaldo',
  $q$UPDATE pago SET estado_pago='ANULADO',
                   id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
                   motivo_anulacion='Intento de esquive'

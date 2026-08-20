@@ -570,7 +570,7 @@ fecha de cambio (`V14`).
 
 ---
 
-## 9. Módulo 6 — Mix & Mastering · *sin decisiones pendientes desde el 2026-08-19 (§14)*
+## 9. Módulo 6 — Mix & Mastering · ✅ *cerrado el 2026-08-19*
 
 **Lo esencial:** registrar cada trabajo, contar las revisiones, y **retener el archivo
 final hasta que el pago esté registrado**. Es el único servicio que puede quedar en debe.
@@ -582,6 +582,43 @@ Estados: `a confirmar → en proceso → entregado → pagado`, más `debe`.
 - Alerta al superar las revisiones incluidas.
 - Alerta si pasan más de 7 días desde la entrega sin pago.
 - Los clientes externos se registran **con nombre y contacto, sin cuenta**.
+
+### Estado ✅ *cerrado*
+
+**Backend, front y las dos migraciones** (`mastering`, `V15`, `V16`, 18 casos de
+backend y 15 de front). El tablero de administración está en `/admin/mix-mastering`
+y el del cliente en `/mix-mastering`.
+
+**Casi todo el esquema estaba desde `V1`**: la tabla, el candado del premaster
+(§8.4), la escalera de estados (§8.5), y de `V6` la protección del pago que
+respalda una liberación (§6) y la prohibición de borrar (§7). El módulo puso la
+forma —cinco operaciones, no un PUT genérico— y encontró dos cosas:
+
+- **`V15`** saca el techo de revisiones que `V6` §3 había puesto, porque hacía
+  imposible la alerta que este mismo documento pide. Ver §14.
+- **`V16`** arregla el trigger de `V6` §6, que **estaba roto y no podía saberse**:
+  reventaba con `column reference "id_pago" is ambiguous` antes de llegar a su
+  propio mensaje. Bloqueaba igual —por eso el agujero nunca estuvo abierto— pero
+  contestaba 500 en vez de 409, y **también rechazaba el caso que debía permitir**
+  (que exista otro pago que sostenga la liberación). Los casos D02 y D03 de la
+  suite adversarial estuvieron en verde todo ese tiempo: `probar(...,'FALLA',...)`
+  verifica que falle, no por qué. La suite ganó un `probar_mensaje(...)` y D02 pasa
+  a exigir el texto.
+
+**Lo que la pantalla decide, y no es visual:** la regla dura tiene **una sola forma
+en pantalla** — se intenta entregar el premaster, el backend explica por qué no, y
+recién ahí aparece la salida, que cuesta escribir un motivo que queda firmado. Al
+revés (un checkbox "liberar sin pago" siempre a mano) la regla sería una sugerencia.
+
+**Los tres entregables van como link** (P23): el `StorageService` de §2.4 no hizo
+falta y sigue debiéndose solo para los comprobantes del Módulo 3.
+
+**Lo único que este módulo pide y no existe** es el disparador automático de la
+alerta a los 7 días de entregado sin pago: corre sin que nadie pida nada, necesita
+un scheduler y decidir qué pasa si corre dos veces el mismo día. **Es la segunda
+vez que un módulo la pide** —el 4 la dejó anotada para el aviso de deuda— y la
+constante ya vive en un solo lugar (`PagoService.DIAS_PARA_VENCER`). La otra
+alerta, la de revisiones excedidas, no la necesita: se ve en el tablero.
 
 ### Pendientes
 **Ninguno pendiente de decisión. Las tres se cerraron el 2026-08-19 — ver §14.**
@@ -997,6 +1034,48 @@ diseño de la anulación de pagos (`V7`) y de la baja de nivel (`V9`).
 Ghezz la usa como STAFF y Micaela también. No se restringe a ADMIN: quien puede
 cobrar puede decidir no cobrar todavía, y lo que hace auditable la decisión no es el
 rol sino la firma.
+
+### ✅ La revisión de más se registra — decidido al construir el módulo
+
+**Dos reglas del propio proyecto se contradecían y había que elegir una.** §9
+tiene, entre las reglas duras confirmadas: *"alerta al superar las revisiones
+incluidas"*. `V6` §3 había puesto un CHECK que lo hace imposible:
+`revisiones_realizadas <= revisiones_incluidas`. **No se puede avisar de algo que
+la base rechaza.**
+
+Gana §9, por la misma razón por la que P22 se resolvió a favor de la entrevista:
+**`V6` §3 es una inferencia de la auditoría y §9 es una regla que el cliente
+confirmó.** La auditoría leyó el campo como un contador que no puede dar un número
+imposible; el negocio lo usa para contestar otra cosa —*"¿este trabajo se pasó de
+lo que se vendió?"*— y esa pregunta no se puede contestar si el hecho no se puede
+registrar.
+
+Y encaja con lo que el módulo ya decide dos veces: **Ghezz trabaja con
+flexibilidad deliberada según el cliente**. Una cuarta revisión a un cliente
+cercano es el mismo caso que liberar sin pago — pasa, y lo que el sistema tiene
+que hacer es dejarlo escrito, no negar que pasó.
+
+`V15__la_revision_de_mas_se_registra.sql` saca el techo. Queda en pie
+`trabajo_revisiones_no_negativas` (`V1`): un número negativo sigue siendo un dato
+imposible. La alerta la da la pantalla, que pinta *"4 de 3 revisiones"* en rojo.
+
+### ✅ El portal de M&M es de solo lectura
+
+La sección *Mix & Mastering* del portal existe en el menú desde el día uno, en
+`disponible: false`. Con el módulo construido pasa a `true` y muestra **mis
+trabajos**: estado, revisiones usadas, el master, y **el premaster cuando está
+liberado**.
+
+**No pide trabajos, y es una decisión, no una etapa.** El canal real es WhatsApp y
+**la mayoría de los clientes de M&M son externos sin cuenta** (§9: se registran con
+nombre y contacto). Un formulario de pedido serviría a una minoría y agregaría un
+segundo ciclo de vida —como el de `solicitud_reserva`— para sostenerlo. Si algún
+día se construye, el estado `A_CONFIRMAR` ya existe para eso.
+
+**La entrada del menú se llama ahora "Mis trabajos"**, no "Mix & Mastering":
+administración ganó una sección con ese nombre y dos etiquetas iguales en grupos
+distintos se leen como la misma pantalla. El título adentro sigue diciendo Mix &
+Mastering, que es como el cliente conoce el servicio.
 
 ### ✅ Las tres ratificaciones
 

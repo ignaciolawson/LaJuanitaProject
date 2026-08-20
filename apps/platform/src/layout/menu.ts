@@ -54,7 +54,13 @@ const MENU: GrupoMenu[] = [
       { etiqueta: 'Mis reservas', ruta: '/mis-reservas', disponible: true },
       { etiqueta: 'Reservar cabina', ruta: '/reservar', disponible: true },
       { etiqueta: 'Mis pedidos', ruta: '/mis-solicitudes', disponible: true },
-      { etiqueta: 'Mix & Mastering', ruta: '/mix-mastering', disponible: false },
+      // Se llamaba "Mix & Mastering" y pasa a "Mis trabajos" al construirse el
+      // módulo, por dos razones: el resto del portal dice "Mis…" —reservas,
+      // pedidos, pagos, cursos, materiales— y administración tiene su propia
+      // sección con el nombre del servicio. Dos entradas con la misma etiqueta en
+      // grupos distintos se leen como la misma pantalla. El título adentro sigue
+      // diciendo Mix & Mastering, que es como el cliente conoce el servicio.
+      { etiqueta: 'Mis trabajos', ruta: '/mix-mastering', disponible: true },
       { etiqueta: 'Mis pagos', ruta: '/mis-pagos', disponible: true },
       { etiqueta: 'Notificaciones', ruta: '/notificaciones', disponible: true },
       { etiqueta: 'Mi perfil', ruta: '/mi-perfil', disponible: true },
@@ -110,6 +116,12 @@ const MENU: GrupoMenu[] = [
       { etiqueta: 'Caja', ruta: '/admin/caja', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Deudores', ruta: '/admin/deudores', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Egresos', ruta: '/admin/egresos', visible: puedeAdministrar, disponible: true },
+      {
+        etiqueta: 'Mix & Mastering',
+        ruta: '/admin/mix-mastering',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
       {
         etiqueta: 'Venta de equipos',
         ruta: '/admin/ventas',

@@ -118,6 +118,30 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             @Param("entraron") Iterable<EstadoPago> entraron);
 
     /**
+     * Cuánto entró contra cada uno de estos trabajos de M&M, por moneda.
+     *
+     * <p>Una sola consulta para la página entera, como {@link #ventasConPago}, y
+     * con la misma lista de estados: {@link EstadoPago#ENTRARON}. Una deuda anotada
+     * no es plata cobrada — es la trampa que `V12` encontró del otro lado, cuando
+     * un `DEBE` alcanzaba para respaldar una reserva.
+     *
+     * <p><b>Agrupa por moneda y no suma todo junto</b>, porque un trabajo cotizado
+     * en dólares puede recibir un pago en pesos y sumarlos daría un número que no
+     * es plata de ninguna de las dos. Quien lea esto decide qué hacer con cada
+     * moneda; acá no se convierte nada.
+     *
+     * @return filas {@code [idTrabajo, moneda, total]}
+     */
+    @Query("""
+            SELECT p.idTrabajoMastering, p.moneda, SUM(p.monto)
+            FROM Pago p
+            WHERE p.idTrabajoMastering IN :ids AND p.estadoPago IN :entraron
+            GROUP BY p.idTrabajoMastering, p.moneda
+            """)
+    List<Object[]> cobradoPorTrabajo(@Param("ids") List<Long> ids,
+            @Param("entraron") Iterable<EstadoPago> entraron);
+
+    /**
      * La caja del período: cuánto entró y cuánto se anotó como deuda, por moneda.
      *
      * @return filas {@code [moneda, ingresos, cantidad, adeudado]}
