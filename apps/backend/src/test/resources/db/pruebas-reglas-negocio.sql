@@ -81,6 +81,39 @@ BEGIN
 END; $fn$ LANGUAGE plpgsql;
 
 
+/*
+ * Como `probar(...,'FALLA',...)` pero además exige QUÉ dijo el rechazo.
+ *
+ * Existe por lo que encontró el Módulo 6: los casos D02 y D03 estuvieron en
+ * verde mientras el trigger que atacan estaba roto. Fallaban, sí — pero con
+ * `column reference "id_pago" is ambiguous`, no con su regla. **Un caso 'FALLA'
+ * que no mira el mensaje no distingue una regla que funciona de un bug que
+ * revienta antes**, y es la contracara exacta de la lección que ya estaba
+ * escrita para el otro lado: un 'ANDA' tiene que verificar que afectó filas.
+ *
+ * `fragmento` se busca dentro de SQLERRM. Corto y estable: un pedazo del texto
+ * que el trigger redactó, no la oración entera.
+ */
+CREATE OR REPLACE FUNCTION probar_mensaje(nro text, caso text, fragmento text, sentencia text)
+RETURNS void AS $fn$
+DECLARE
+    hubo_error boolean := false;
+    msg        text    := '';
+BEGIN
+    BEGIN
+        EXECUTE sentencia;
+    EXCEPTION WHEN others THEN hubo_error := true; msg := SQLERRM;
+    END;
+
+    INSERT INTO _resultado VALUES (nro, caso, 'FALLA(msg)',
+        (hubo_error AND position(fragmento in msg) > 0),
+        CASE WHEN NOT hubo_error THEN '*** PASO: EL AGUJERO VOLVIO ***'
+             WHEN position(fragmento in msg) = 0
+                 THEN '*** fallo por otra cosa: '||msg||' ***'
+             ELSE 'rechazado ok, con su mensaje' END);
+END; $fn$ LANGUAGE plpgsql;
+
+
 -- =============================================================================
 -- SEMILLA
 -- =============================================================================
@@ -427,11 +460,142 @@ SELECT probar('51','codigo de release duplicado','FALLA',
 SELECT probar('52','el estado del release retrocede','FALLA',
  $q$UPDATE release SET estado='A_CONFIRMAR' WHERE codigo_release='LJ020'$q$);
 
-SELECT probar('53','el estado del release avanza','ANDA',
- $q$UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ020'$q$);
+-- --- LO QUE CAMBIO CON `V18` -------------------------------------------------
+--
+-- Los dos casos que seguian aca abajo afirmaban el mundo anterior y los dos se
+-- pusieron en rojo al aplicar la migracion, que es exactamente lo que tenian que
+-- hacer:
+--
+--   · el 53 publicaba LJ020 sin contrato, y ahora eso es la regla dura del
+--     modulo: no se publica un release sin contrato adjunto.
+--   · el 54 daba 'CANCELADO' por invalido, y ahora es un estado real -- un
+--     release se puede caer (ratificacion 6 del 2026-08-20).
+--
+-- Un caso que se pone en rojo cuando cambia una regla es un caso que servia.
+-- ----------------------------------------------------------------------------
 
-SELECT probar('54','estado de release invalido','FALLA',
- $q$UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ020'$q$);
+SELECT probar('53','publicar un release CON su contrato','ANDA',
+ $q$INSERT INTO contrato_sello (id_artista,id_release,archivo_path)
+    SELECT r.id_artista,r.id_release,'contratos/2026/08/lj020.pdf'
+      FROM release r WHERE r.codigo_release='LJ020';
+    UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ020'$q$);
+
+-- La regla dura del modulo, y va con `probar_mensaje` porque la rechaza un
+-- trigger: sin mirar el mensaje, este caso no distinguiria la regla funcionando
+-- de un trigger reventando antes de llegar a su RAISE, que es justo lo que a
+-- `V6` §6 le paso durante meses.
+SELECT probar_mensaje('54','publicar un release SIN contrato',
+ 'sin un contrato adjunto',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release,estado)
+    SELECT 'LJ021',id_artista,'Sin papeles','PUBLICADO'
+      FROM artista WHERE nombre_artistico='Ghezz'$q$);
+
+-- La salida registrada, que el alcance pide entre parentesis: "(o con
+-- justificacion explicita)". Sin ella el bloqueo se esquiva por afuera del
+-- sistema y el sistema pasa a mentir.
+SELECT probar('55','publicar sin contrato, con motivo y autor','ANDA',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release,estado,
+                         publicado_sin_contrato,motivo_publicacion,id_usuario_publica)
+    SELECT 'LJ022',a.id_artista,'Excepcion','PUBLICADO',
+           TRUE,'Contrato firmado en papel, lo escanea Ghezz la semana que viene',
+           (SELECT u_mica FROM v)
+      FROM artista a WHERE a.nombre_artistico='Ghezz'
+    RETURNING id_release$q$);
+
+-- Y que la salida cueste de verdad. Con un motivo en blanco el CHECK tiene que
+-- rechazar: es el caso que `V7` enseño a escribir -- un CHECK que evalua a NULL
+-- no rechaza nada, y `btrim(x) <> ''` sobre un NULL da NULL.
+SELECT probar('56','la excepcion sin motivo escrito','FALLA',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release,estado,
+                         publicado_sin_contrato,id_usuario_publica)
+    SELECT 'LJ023',a.id_artista,'Sin motivo','PUBLICADO',TRUE,(SELECT u_mica FROM v)
+      FROM artista a WHERE a.nombre_artistico='Ghezz'$q$);
+
+SELECT probar('57','la excepcion con un motivo de un solo espacio','FALLA',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release,estado,
+                         publicado_sin_contrato,motivo_publicacion,id_usuario_publica)
+    SELECT 'LJ024',a.id_artista,'Motivo vacio','PUBLICADO',TRUE,'   ',(SELECT u_mica FROM v)
+      FROM artista a WHERE a.nombre_artistico='Ghezz'$q$);
+
+-- --- El contrato que respalda lo ya publicado --------------------------------
+--
+-- La contracara de la regla: sin esto dura lo que tarda un DELETE. Y el caso
+-- tiene una trampa que casi se cuela al escribir el trigger: en un BEFORE DELETE
+-- la fila TODAVIA esta, asi que un chequeo escrito como "¿sigue teniendo
+-- contrato?" se encuentra a si mismo y contesta que si.
+
+SELECT probar_mensaje('58','borrar el contrato que respalda un release publicado',
+ 'unico respaldo del release',
+ $q$DELETE FROM contrato_sello WHERE id_release=(
+      SELECT id_release FROM release WHERE codigo_release='LJ020')$q$);
+
+-- Y la variante silenciosa, que es peor porque no parece un borrado: en vez de
+-- sacarlo, colgarlo de otro release.
+SELECT probar_mensaje('59','mover a otro release el contrato que respalda uno publicado',
+ 'unico respaldo del release',
+ $q$UPDATE contrato_sello SET id_release=NULL WHERE id_release=(
+      SELECT id_release FROM release WHERE codigo_release='LJ020')$q$);
+
+-- La rama que tiene que DEJAR PASAR, que es la mitad que `V16` enseño a no
+-- olvidar: una regla que ademas rechaza de mas es un bug, no una regla estricta.
+-- Cargar el contrato correcto y sacar el equivocado es como se corrige un PDF.
+SELECT probar('60','sacar un contrato cuando queda otro sosteniendo el release','ANDA',
+ $q$INSERT INTO contrato_sello (id_artista,id_release,archivo_path)
+    SELECT r.id_artista,r.id_release,'contratos/2026/08/lj020-corregido.pdf'
+      FROM release r WHERE r.codigo_release='LJ020';
+    DELETE FROM contrato_sello
+     WHERE archivo_path='contratos/2026/08/lj020.pdf'$q$);
+
+-- --- Cancelar, que ahora existe ----------------------------------------------
+
+SELECT probar('61','un release se puede cancelar','ANDA',
+ $q$UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ022'$q$);
+
+-- Fuera de la escalera: se cancela desde donde sea, tambien desde el principio.
+SELECT probar('62','se cancela desde A_CONFIRMAR, sin pasar por el medio','ANDA',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release)
+    SELECT 'LJ025',id_artista,'Se cayo' FROM artista WHERE nombre_artistico='Ghezz';
+    UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ025'$q$);
+
+-- Pero cancelar no es una puerta trasera para retroceder.
+SELECT probar('63','un release cancelado no vuelve a A_CONFIRMAR','FALLA',
+ $q$UPDATE release SET estado='A_CONFIRMAR' WHERE codigo_release='LJ025'$q$);
+
+SELECT probar('64','un release no se borra','FALLA',
+ $q$DELETE FROM release WHERE codigo_release='LJ025'$q$);
+
+-- El mismo agujero estaba en Mix & Mastering, por la misma linea de `V1` §8.5:
+-- CANCELADO no tiene numero de orden, cae en el ELSE 0, y entonces salir de el
+-- nunca se veia como un retroceso. Lo encontro el caso 63 de aca arriba y se
+-- cierra en la misma migracion. Este caso es el que evita que vuelva.
+SELECT probar('64b','un trabajo de M&M cancelado tampoco vuelve atras','FALLA',
+ $q$INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado)
+    VALUES ('Externo','MIX','Se cayo','CANCELADO');
+    UPDATE trabajo_mastering SET estado='EN_PROCESO' WHERE nombre_track='Se cayo'$q$);
+
+-- --- Donde sono (P25) --------------------------------------------------------
+
+SELECT probar('65','cargar una aparicion','ANDA',
+ $q$INSERT INTO aparicion_release (id_release,tipo_aparicion,donde,quien)
+    SELECT id_release,'RADIO','Radio Metro','Fulano'
+      FROM release WHERE codigo_release='LJ020'
+    RETURNING id_aparicion$q$);
+
+SELECT probar('66','un tipo de aparicion inventado','FALLA',
+ $q$INSERT INTO aparicion_release (id_release,tipo_aparicion,donde)
+    SELECT id_release,'TIKTOK','Un video' FROM release WHERE codigo_release='LJ020'$q$);
+
+-- La jerarquia de "popularidad" vive en una columna generada y no en la
+-- consulta, para que el tablero del Modulo 8 no escriba un segundo CASE que
+-- pueda quedar distinto. Este caso es el que fija ese orden.
+SELECT probar('67','la radio ordena antes que la playlist','ANDA',
+ $q$INSERT INTO aparicion_release (id_release,tipo_aparicion,donde)
+    SELECT id_release,'PLAYLIST','Techno Bunker'
+      FROM release WHERE codigo_release='LJ020';
+    SELECT 1 FROM aparicion_release a1
+      JOIN aparicion_release a2 ON a2.tipo_aparicion='PLAYLIST'
+     WHERE a1.tipo_aparicion='RADIO'
+       AND a1.orden_relevancia < a2.orden_relevancia$q$);
 
 
 -- =============================================================================
