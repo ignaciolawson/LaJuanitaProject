@@ -42,11 +42,31 @@ mirando el esquema al preparar esto.
 > | **P25 — post-lanzamiento** | **Entra, cargado a mano** ("dónde sonó", ordenable por popularidad). **Cero integraciones** |
 > | **P26 — retención** | Segundo servicio dentro de **10 meses**; venta de equipos no cuenta; pausar y volver no es retención |
 >
-> **Lo que sigue abierto son las ratificaciones amarillas de más abajo**, y dos de
-> ellas (la 5 y la 6) pueden obligar a una migración, así que se contestan antes de
-> arrancar el módulo y no a mitad. La 7 ya no cambia nada estructural: **el
-> disparador automático se construyó el 2026-08-20** (`V17`), así que lo único que
-> queda por confirmar ahí es si con verlo adentro del sistema alcanza.
+> **Y las cuatro ratificaciones también se contestaron el mismo día.** Las dos que
+> podían obligar a una migración quedaron resueltas antes de arrancar, que era el
+> punto:
+>
+> | | Respuesta |
+> |---|---|
+> | **5 — código de release** | Lo genera el sistema (`LJ01`, `LJ02`…) **y se cargan los viejos** → el correlativo arranca por encima del más alto, y el código se puede escribir a mano |
+> | **6 — ¿un release se puede caer?** | **Sí.** Es una migración del Módulo 7: `CANCELADO` fuera de la escalera, igual que en M&M |
+> | **7 — el aviso previo** | ⏳ **Sin cerrar: la pregunta estaba mal hecha.** Ver abajo |
+> | **8 — exportar** | **PDF y Excel, con vara alta**: filtros de la pantalla + cabecera de trazabilidad |
+>
+> ### ⏳ La única que queda, y hay que repreguntarla mejor
+>
+> La 7 se preguntó en abstracto —*"¿te sirve verlo cuando entrás?"*— y la respuesta
+> *"esperá a que le llegue, cuando sale ahí va en el sistema"* se puede leer de las
+> dos formas que la pregunta quería separar. **Con un ejemplo concreto en vez de en
+> abstracto:**
+>
+> > *"El lunes a la mañana falta una semana para un lanzamiento. Dos formas de que te
+> > enteres: (a) entrás al sistema y ahí está el aviso esperándote, o (b) te llega
+> > algo al celular sin que entres — un mail o un WhatsApp. La (a) ya está hecha. La
+> > (b) es construir un envío que hoy el sistema no tiene. ¿Con la (a) te alcanza?"*
+>
+> **No traba el Módulo 7**: el aviso adentro del sistema ya se escribe solo, y es el
+> sustrato de las dos respuestas.
 >
 > El texto original de las cuatro queda abajo sin tocar: sirve para ver qué se
 > preguntó y por qué, que es lo que hace falta la próxima vez.

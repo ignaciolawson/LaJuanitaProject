@@ -752,13 +752,25 @@ cd apps/platform && npm test              # 330
 > ⚠️ **`V17` está aplicada: no se edita nunca más.** Cualquier corrección va en una
 > `V18`.
 
-**2 · Mandarle a Ghezz las cuatro ratificaciones que quedan.** Están en
-[`preguntas-abiertas-modulos-7-y-8.md`](relevamiento/preguntas-abiertas-modulos-7-y-8.md),
-con la cabecera actualizada. **Dos pueden obligar a una migración y por eso se
-contestan antes de empezar el módulo, no a mitad**: si se cargan los lanzamientos
-viejos, el correlativo del código de release arranca más abajo; y si un release puede
-caerse después de confirmado, hace falta un estado `CANCELADO` que hoy no existe (M&M
-sí lo tiene).
+**2 · Las cuatro ratificaciones también están contestadas** (mismo día, §15). Las dos
+que podían obligar a una migración quedaron resueltas antes de arrancar, que era todo
+el punto de preguntarlas primero:
+
+- **El código de release lo genera el sistema y los viejos se cargan** → el correlativo
+  arranca **por encima del más alto que exista, no contando filas**, y el código tiene
+  que poder escribirse a mano para un release de 2023.
+- **Un release SÍ se puede caer después de confirmado** → **migración del Módulo 7**:
+  `CANCELADO` fuera de la escalera, alcanzable desde cualquier estado y sin volver,
+  exactamente la forma que ya tiene M&M. Que sea raro es un argumento a favor: lo que
+  pasa una vez por año es lo que nadie va a poder anotar el día que pase.
+- **Exportar a PDF y Excel entra, con vara alta**: la exportación hereda los filtros de
+  la pantalla y cada archivo lleva **cabecera de trazabilidad** —qué filtros, cuándo,
+  quién—, porque ese archivo termina en una reunión de socios. Es la respuesta que más
+  agranda el Módulo 8 y hay que planificar la dependencia al empezarlo.
+- **⏳ Queda una sola sin cerrar y la pregunta estaba mal hecha**: si el aviso previo
+  al lanzamiento tiene que *llegar* por fuera del sistema (mail/WhatsApp) o alcanza con
+  verlo adentro. **No traba nada** — el aviso adentro ya se escribe solo. La
+  repregunta, con ejemplo concreto, está en el archivo de preguntas.
 
 **3 · El Módulo 7, que arranca por el `StorageService`.** No es una pantalla: es
 subida, almacenamiento y **descarga autenticada** —un contrato tiene datos de un

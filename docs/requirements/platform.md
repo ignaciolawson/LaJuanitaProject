@@ -713,6 +713,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
 | ~~P12~~ | ✅ Pago parcial contra la inscripción; el estado sale de la suma (§13) | — |
 | P13 | ¿Lista de precios en el sistema? | Módulo 3 |
+| P39 | ⏳ El aviso previo al lanzamiento, ¿tiene que LLEGAR por fuera del sistema? Mal preguntado el 2026-08-20; se repregunta. **No traba el Módulo 7** (§15) | Módulo 7 |
 | ~~P14~~ | ✅ Caso por caso, con justificación escrita obligatoria | — |
 | ~~P15~~ | ✅ Se anula con autor, fecha y motivo (`V7`). No se edita ni se borra | — |
 | ~~P16~~ | ✅ Registra la venta, no el pedido: no hay stock propio (`V1`) | — |
@@ -1176,12 +1177,18 @@ justamente para que la respuesta no significara dos cosas distintas.
 
 Es una tabla chica y una pantalla chica, y se construye dentro del Módulo 7.
 
-> **⚠️ Lo que queda por definir, y es del negocio: qué mide "popularidad".** Si la
-> lista se carga a mano, el orden tiene que salir de un dato que alguien escribe. Las
-> dos formas razonables son **un tipo de aparición** (radio / set / playlist / reseña,
-> con un orden fijo entre ellos) o **un número de alcance** cargado a ojo. No se
-> decide unilateralmente al escribir la tabla: es una columna, y la columna la fija
-> una migración que después no se toca.
+**Ratificado el 2026-08-20**, con una condición de alcance que conviene tener escrita:
+*"si en el futuro no lo usan, que no lo usen y fue"*. O sea que **es una sección que
+puede quedar vacía sin que eso sea una falla del sistema** — la pantalla tiene que
+leerse bien con cero filas, como el informe de uso de salas con una sala sin uso.
+
+**Y la sub-pregunta de qué mide "popularidad" queda cerrada acá, por decisión
+técnica y no del negocio** (Ignacio: *"no te hagas mucho la cabeza con eso"*): el
+orden sale de un **tipo de aparición con jerarquía fija** —radio > set > playlist >
+otro— y después por fecha. Es data, no una métrica inventada, y no obliga a nadie a
+estimar un número de alcance a ojo que después nadie va a poder defender. Si algún día
+hace falta un número, se agrega; ordenar por un campo que existe es más barato que
+mantener uno que se llena mal.
 
 ### ✅ P26 — La tasa de retención
 
@@ -1195,17 +1202,22 @@ haber contratado el primero.**
   una regla aparte: retomar una inscripción pausada es *la misma* inscripción, no un
   segundo contrato. La definición ya lo deja afuera sola.
 
-> **⚠️ Lo que falta antes de escribir la consulta, y es para cuando se haga el Módulo
-> 8, no ahora:** los 10 meses se cuentan **desde la fecha del primer contrato** —es la
-> lectura literal de la respuesta— pero conviene ratificarlo, porque para un curso de
-> producción de 16 clases que dura cuatro meses eso deja seis meses de ventana
-> efectiva. Y falta el **denominador**: sobre quiénes se calcula el porcentaje. La
-> lectura por defecto es *"los que terminaron su primer contrato en el período"*, que
-> es la que deja afuera sola a quien todavía está cursando.
+**Los 10 meses se cuentan desde la FECHA DEL PRIMER SERVICIO CONTRATADO**
+(ratificado el 2026-08-20), no desde que terminó. Para un curso de producción de 16
+clases que dura cuatro meses, eso deja unos seis meses de ventana efectiva después de
+terminar — es la lectura literal y es la que queda.
+
+> **Lo único que falta y es del Módulo 8, no de ahora: el denominador.** Un porcentaje
+> necesita saber sobre quiénes se calcula, y hay una trampa concreta que conviene no
+> pisar: **quien contrató hace tres meses todavía no puede contar como perdido**, su
+> ventana de 10 meses sigue abierta. Si entra al denominador, la tasa de retención
+> baja sola cada vez que el estudio suma alumnos nuevos — o sea que **crecer se vería
+> como empeorar**, que es exactamente lo contrario de lo que ese número tiene que
+> decirle a la dirección.
 >
-> Ninguna de las dos traba nada hoy. **Lo que sí estaba trabado y ya no lo está** es
-> que el indicador es construible: era el único del Módulo 8 que no se podía escribir
-> sin una definición del negocio.
+> La lectura por defecto, entonces: **el denominador son los que contrataron su primer
+> servicio hace más de 10 meses**, o sea aquellos cuya ventana ya cerró y sobre los que
+> la respuesta ya es definitiva. Se ratifica al construir el Módulo 8.
 
 ### 📌 Y dos cosas más que se decidieron el mismo día
 
@@ -1225,15 +1237,66 @@ separado. Se hizo **antes** del Módulo 7 y no adentro, para que el aviso de los
 previos al lanzamiento sea una regla más y no infraestructura a mitad de camino — que
 es exactamente lo que pasó dos módulos seguidos con el `StorageService`.
 
-### ⏳ Lo que sigue abierto del Módulo 7, y son ratificaciones baratas
+### ✅ Las ratificaciones, contestadas el mismo día
 
-Ninguna traba el arranque; las cuatro están redactadas en
-`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`. **Dos pueden obligar a una
-migración y por eso se contestan antes de empezar, no a mitad:**
+**Las cuatro se contestaron el 2026-08-20**, y dos de ellas cambian el trabajo de
+verdad. Quedan en este orden porque así se preguntaron.
 
-| | Qué | Por qué no puede esperar |
-|---|---|---|
-| **5** | El código de release: ¿lo genera el sistema? ¿desde qué número? ¿se cargan los anteriores? | Si se cargan los viejos, **el correlativo arranca más abajo** y hay que poder escribir el código a mano |
-| **6** | ¿Un release puede caerse después de confirmado? | Hoy no existe un estado `CANCELADO` para releases (M&M sí lo tiene). Si puede caerse, **es una migración** |
-| **7** | El aviso previo al lanzamiento, ¿alcanza con verlo adentro del sistema? | Si tiene que *llegar* por fuera, es mail o WhatsApp API y está fuera del alcance |
-| **8** | Exportar a PDF/Excel el tablero del Módulo 8 | No es para el cliente: es de alcance. Una dependencia nueva por un tablero que se mira en pantalla |
+**5 · El código de release lo genera el sistema, y los releases viejos se cargan.**
+Correlativo, formato `LJ` + número (`LJ01`, `LJ02`, `LJ03`…). Las dos consecuencias
+son de implementación y no de negocio, pero hay que respetarlas:
+
+- **El correlativo no puede arrancar en 1.** Si se cargan los lanzamientos anteriores,
+  el próximo generado tiene que salir por encima del más alto que exista, no por
+  encima de cuántas filas hay. Contar filas rompe el día que se borre o falte una.
+- **El código tiene que poder escribirse a mano para los viejos.** Un release de 2023
+  tiene el número que tuvo, no el que le tocaría hoy. O sea: la columna es libre y la
+  generación es una ayuda del alta, no una restricción de la tabla.
+
+> Detalle cosmético sin cerrar, y no traba nada: **cuántos dígitos**. El alcance
+> escribe `LJ020` (tres) y la ratificación `LJ01` (dos). Como los viejos se cargan a
+> mano, la columna acepta cualquiera de los dos igual; lo único que decide el relleno
+> es cómo se ve el próximo que genere el sistema.
+
+**6 · Un release SÍ puede caerse después de confirmado.** *"Podría, no es lo usual,
+pero sí."*
+
+**Esto es una migración y se hace dentro del Módulo 7**, no después: hoy el estado de
+un release solo avanza (trigger de `V1`) y no existe un `CANCELADO`. La forma correcta
+es **la misma que ya tiene M&M**: `CANCELADO` **fuera de la escalera**, alcanzable
+desde cualquier estado, y sin volver — no es un paso atrás en el ciclo de vida, es
+salirse de él. Y como en M&M, **cancelar es la única forma de dar de baja un release**,
+porque borrar no es una opción en este esquema.
+
+Que sea raro es un argumento a favor de tenerlo, no en contra: lo que pasa una vez por
+año es justamente lo que nadie va a poder anotar en ningún lado el día que pase.
+
+**7 · ⏳ Sin cerrar: la pregunta estaba mal hecha.** La respuesta —*"esperá a que le
+llegue, cuando sale ahí va en el sistema"*— se puede leer de las dos formas, que son
+las dos que la pregunta quería separar. **No traba nada**: el disparador automático ya
+escribe el aviso adentro del sistema, y eso es el sustrato de las dos respuestas. Lo
+que decide es si además hay que construir un envío hacia afuera —mail o WhatsApp API—
+que hoy está fuera del alcance y no tiene infraestructura. Se vuelve a preguntar con
+un ejemplo concreto en vez de en abstracto.
+
+**8 · Exportar a PDF y Excel: entra, y con una vara alta.** Ignacio: *"exportar a
+ambos, intentemos que esa parte sea buena, tipo poder exportar datos específicos, que
+sea bien trazable"*.
+
+Es la respuesta que más agranda el Módulo 8, así que conviene escribir qué significa
+antes de construirlo:
+
+- **Se exporta lo que estás mirando, no "todo".** *"Datos específicos"* quiere decir
+  que la exportación hereda los filtros de la pantalla —período, sala, disciplina, lo
+  que sea— y no un volcado fijo que después hay que recortar a mano en Excel.
+- **"Trazable" es una cabecera, y es la parte que casi siempre se olvida.** Cada
+  archivo exportado dice **qué filtros lo generaron, cuándo y quién lo pidió**. Sin
+  eso, dos exportaciones del mismo tablero con un mes de diferencia son dos planillas
+  que no se pueden comparar ni explicar — y ese archivo va a terminar en una reunión
+  de socios, que es el único lugar donde importa poder decir de dónde salió cada
+  número.
+- **Es una dependencia nueva y hay que elegirla al planificar el módulo**, no a mitad:
+  Excel y PDF no se generan con la misma librería.
+- **Excel de verdad, no un CSV con otro nombre.** Si va a haber una sola exportación
+  buena, tiene que abrirse con los tipos bien (fechas como fechas, importes como
+  números) o el primer `SUM` que alguien haga da cualquier cosa.
