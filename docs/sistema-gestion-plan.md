@@ -643,6 +643,11 @@ Tres cosas para ese momento:
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
 > esta y hay que corregir la otra.
 >
+> **Y si lo que buscás es "qué falta", está todo junto en
+> [`docs/pendientes.md`](pendientes.md)** — abierto el 2026-08-20. Esta sección
+> cuenta la tanda que acaba de cerrar; ese archivo tiene el inventario completo y
+> se mantiene al día tachando.
+>
 > **Y mirá también [§6f](#6f-pendientes-técnicos-acumulados--abierta-el-2026-08-19),
 > que es la lista de retoques técnicos pospuestos a propósito.** Está justo arriba y
 > fuera de esta sección porque esto se reescribe entero cada vez y esa lista no.

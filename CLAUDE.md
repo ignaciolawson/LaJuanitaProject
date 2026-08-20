@@ -17,6 +17,8 @@ Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electro
 >
 > **Extended on 2026-08-20: the entire §6f list waits for the full MVP** — all eight modules first, then the retouches one at a time. Until then §6f is not "what you do while waiting for a client answer"; it is not done at all. The postponement stays cheap only because none of the five needs a migration, which is the condition, not a detail.
 
+> **`docs/pendientes.md` is the single inventory of everything still open** (opened 2026-08-20): what blocks delivery, the landing's pre-publication list, known technical debt, the decisions still unanswered, and what is deliberately out of scope. It indexes rather than replaces — each item says where the detail lives. **Read it before asking "what's left".** It exists because the open work was spread across five documents, and that already cost a day once: the audit report spent it listing ten findings as *"blocked on a decision"* whose decision was already written down, only because nothing linked to the section that answered them.
+>
 > **Read `docs/sistema-gestion-plan.md` before doing anything on platform/backend.** It is the source of truth for scope, deadline, build order, and the technical decisions already settled (Flyway, the corrected role model, JWT, file storage, hosting shape). Written in Spanish, for the developer as much as for Claude. If a decision there changes, edit that file — don't leave the old decision alongside the new one.
 >
 > **Start at §6d "DÓNDE RETOMAR"** — it carries the current state, what's next, and open questions, and it wins over anything else in that file that contradicts it. For two days it also warned that Ignacio had unstated objections to the first Módulo 1 batch; **he confirmed on 2026-08-14 that he has none. That batch is settled — build on it.**
@@ -37,6 +39,7 @@ docs/
 ├── branding/      brand assets + identity guide
 ├── db/            data model (DBML) + the adversarial audit of the schema
 ├── auditoria/     the 2026-08 technical audit and its remediation log
+├── pendientes.md  EVERYTHING still open, in one place — start here for "what's left"
 ├── operacion.md   backup, tested restore, deploy, migration failures
 └── sistema-gestion-plan.md   plan + settled decisions for platform/backend
 scripts/

@@ -729,6 +729,10 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 
 ## 12. Índice de decisiones pendientes
 
+> Esta sección es **solo las decisiones** (las "P"). El inventario completo de lo
+> que queda abierto —módulos, deuda técnica, la landing, operación— está en
+> [`docs/pendientes.md`](../pendientes.md).
+
 | # | Tema | Bloquea |
 |---|---|---|
 | ~~P1~~ | ✅ Curso cerrado de 8 clases | — |
