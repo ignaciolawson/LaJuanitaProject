@@ -767,10 +767,11 @@ el punto de preguntarlas primero:
   la pantalla y cada archivo lleva **cabecera de trazabilidad** —qué filtros, cuándo,
   quién—, porque ese archivo termina en una reunión de socios. Es la respuesta que más
   agranda el Módulo 8 y hay que planificar la dependencia al empezarlo.
-- **⏳ Queda una sola sin cerrar y la pregunta estaba mal hecha**: si el aviso previo
-  al lanzamiento tiene que *llegar* por fuera del sistema (mail/WhatsApp) o alcanza con
-  verlo adentro. **No traba nada** — el aviso adentro ya se escribe solo. La
-  repregunta, con ejemplo concreto, está en el archivo de preguntas.
+- **El aviso previo al lanzamiento se ve adentro del sistema**, sin envío hacia afuera.
+  Hubo que repreguntarlo: en abstracto se contestó en abstracto, y **una pregunta que
+  admite dos lecturas se contesta con una respuesta que también las admite**. Se
+  arregló poniendo las dos opciones como escenas concretas y diciendo cuál ya estaba
+  construida. **Con esto no queda ninguna pregunta abierta de los Módulos 7 y 8.**
 
 **3 · El Módulo 7, que arranca por el `StorageService`.** No es una pantalla: es
 subida, almacenamiento y **descarga autenticada** —un contrato tiene datos de un

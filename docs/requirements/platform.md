@@ -713,7 +713,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
 | ~~P12~~ | ✅ Pago parcial contra la inscripción; el estado sale de la suma (§13) | — |
 | P13 | ¿Lista de precios en el sistema? | Módulo 3 |
-| P39 | ⏳ El aviso previo al lanzamiento, ¿tiene que LLEGAR por fuera del sistema? Mal preguntado el 2026-08-20; se repregunta. **No traba el Módulo 7** (§15) | Módulo 7 |
+| ~~P39~~ | ✅ **No.** El aviso se ve adentro del sistema; no se construye ningún envío hacia afuera (§15) | — |
 | ~~P14~~ | ✅ Caso por caso, con justificación escrita obligatoria | — |
 | ~~P15~~ | ✅ Se anula con autor, fecha y motivo (`V7`). No se edita ni se borra | — |
 | ~~P16~~ | ✅ Registra la venta, no el pedido: no hay stock propio (`V1`) | — |
@@ -1271,13 +1271,22 @@ porque borrar no es una opción en este esquema.
 Que sea raro es un argumento a favor de tenerlo, no en contra: lo que pasa una vez por
 año es justamente lo que nadie va a poder anotar en ningún lado el día que pase.
 
-**7 · ⏳ Sin cerrar: la pregunta estaba mal hecha.** La respuesta —*"esperá a que le
-llegue, cuando sale ahí va en el sistema"*— se puede leer de las dos formas, que son
-las dos que la pregunta quería separar. **No traba nada**: el disparador automático ya
-escribe el aviso adentro del sistema, y eso es el sustrato de las dos respuestas. Lo
-que decide es si además hay que construir un envío hacia afuera —mail o WhatsApp API—
-que hoy está fuera del alcance y no tiene infraestructura. Se vuelve a preguntar con
-un ejemplo concreto en vez de en abstracto.
+**7 · ✅ El aviso se ve adentro del sistema. No se construye ningún envío hacia
+afuera.** (Repreguntado con un ejemplo concreto el 2026-08-20 y confirmado: la
+pregunta original estaba mal hecha y su respuesta admitía las dos lecturas.)
+
+**Con esto los tres avisos automáticos quedan definidos igual y la bandeja es el único
+canal**, que es lo que el Módulo 4 ya había decidido para las notificaciones y ahora
+vale también para lo que dispara la máquina. La consecuencia de diseño es una y hay
+que sostenerla: **el texto del aviso tiene que bastarse solo**. Nadie lo va a recibir
+en el celular con un "entrá a ver", así que dice el hecho completo — *"Juan debe
+$50.000 desde hace 12 días"*, no *"tenés una deuda para revisar"*.
+
+**Lo que esta respuesta NO cierra para siempre**: el canal real del estudio sigue
+siendo WhatsApp, y la integración con WhatsApp Business API sigue siendo el
+fast-follow de mayor valor después de la entrega. El día que exista, estos tres avisos
+son exactamente lo que tiene para mandar — el disparador ya decide *qué hecho, a
+quién y una sola vez*, que es la parte que haría falta igual.
 
 **8 · Exportar a PDF y Excel: entra, y con una vara alta.** Ignacio: *"exportar a
 ambos, intentemos que esa parte sea buena, tipo poder exportar datos específicos, que

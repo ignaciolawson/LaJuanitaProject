@@ -50,10 +50,17 @@ mirando el esquema al preparar esto.
 > |---|---|
 > | **5 — código de release** | Lo genera el sistema (`LJ01`, `LJ02`…) **y se cargan los viejos** → el correlativo arranca por encima del más alto, y el código se puede escribir a mano |
 > | **6 — ¿un release se puede caer?** | **Sí.** Es una migración del Módulo 7: `CANCELADO` fuera de la escalera, igual que en M&M |
-> | **7 — el aviso previo** | ⏳ **Sin cerrar: la pregunta estaba mal hecha.** Ver abajo |
+> | **7 — el aviso previo** | ✅ **Alcanza con verlo adentro del sistema.** Sin envío hacia afuera |
 > | **8 — exportar** | **PDF y Excel, con vara alta**: filtros de la pantalla + cabecera de trazabilidad |
 >
-> ### ⏳ La única que queda, y hay que repreguntarla mejor
+> ### ✅ La 7, que hubo que repreguntar — y cerrada el mismo día
+>
+> **Respuesta: alcanza con verlo adentro del sistema.** No se construye envío por mail
+> ni por WhatsApp. Queda abajo cómo se preguntó mal y cómo se arregló, porque el error
+> vale más que la respuesta: **una pregunta en abstracto se contesta en abstracto**, y
+> la respuesta *"esperá a que le llegue, cuando sale ahí va en el sistema"* admitía
+> exactamente las dos lecturas que la pregunta quería separar. Se arregló poniendo las
+> dos opciones como escenas concretas y diciendo cuál ya estaba hecha.
 >
 > La 7 se preguntó en abstracto —*"¿te sirve verlo cuando entrás?"*— y la respuesta
 > *"esperá a que le llegue, cuando sale ahí va en el sistema"* se puede leer de las
