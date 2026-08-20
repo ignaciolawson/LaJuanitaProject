@@ -511,6 +511,99 @@ class DocenciaTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    // == Lo que ve administración ============================================
+
+    /**
+     * <b>La otra mitad de la regla de §8</b>, y la que faltaba en el sistema:
+     * <i>"sus notas privadas no las ven ni el alumno ni otros profesores.
+     * Administración sí"</i>.
+     *
+     * <p>El par completo son este caso y
+     * {@link #las_notas_de_un_profesor_no_las_ve_el_otro}: el mismo alumno, las
+     * mismas dos notas, y dos respuestas distintas según quién pregunta. Si un día
+     * alguien "unifica" las dos consultas, uno de los dos casos cae.
+     */
+    @Test
+    void administracion_ve_las_notas_de_todos_los_profesores() throws Exception {
+        Profesor uno = profesorNuevo();
+        Profesor dos = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, uno);
+        inscripcionDe(alumno, dos, Disciplina.PRODUCCION);
+
+        anotar(uno, alumno, "le cuesta la mezcla");
+        anotar(dos, alumno, "viene muy bien con Ableton");
+
+        mvc.perform(get("/api/alumnos/" + alumno.getId() + "/notas")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                // Firmadas: tres notas de tres profesores sin autor no se leen.
+                .andExpect(jsonPath("$[0].profesor").isNotEmpty())
+                .andExpect(jsonPath("$[1].profesor").isNotEmpty());
+    }
+
+    /** La primera mitad de la misma regla: el alumno no ve lo que se anotó de él. */
+    @Test
+    void el_alumno_no_ve_sus_propias_notas() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Profesor profe = profesorNuevo();
+        inscripcionDe(alumno, profe);
+        anotar(profe, alumno, "le cuesta la mezcla");
+
+        mvc.perform(get("/api/alumnos/" + alumno.getId() + "/notas")
+                .header("Authorization", credencialPara(alumno.getUsuario())))
+                .andExpect(status().isForbidden());
+    }
+
+    /** Y tampoco las ve un profesor entrando por la puerta de administración. */
+    @Test
+    void un_profesor_no_entra_por_la_puerta_de_administracion() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Profesor profe = profesorNuevo();
+        inscripcionDe(alumno, profe);
+
+        mvc.perform(get("/api/alumnos/" + alumno.getId() + "/notas")
+                .header("Authorization", credencialPara(profe)))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * Administración ve también lo que el profesor dejó preparado sin publicar.
+     * Que el alumno no lo vea es una decisión sobre cuándo entregarlo, no un
+     * secreto contra el estudio — y la ficha lo muestra diciendo en qué estado
+     * está.
+     */
+    @Test
+    void administracion_ve_el_material_todavia_no_publicado() throws Exception {
+        Profesor profe = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, profe);
+
+        mvc.perform(subir(profe, """
+                {"idAlumno":%d,"titulo":"Proyecto para la clase 4",
+                 "urlExterna":"https://drive.google.com/x","visibleAlumno":false}
+                """.formatted(alumno.getId())))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/alumnos/" + alumno.getId() + "/materiales")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].visibleAlumno").value(false));
+    }
+
+    /**
+     * Un id que no existe contesta 404 y no una lista vacía: acá no hay nada que
+     * ocultarle a quien pregunta —ya puede ver la ficha de cualquier alumno— y una
+     * lista vacía se leería como "este alumno no tiene notas", que es falso.
+     */
+    @Test
+    void las_notas_de_un_alumno_que_no_existe_son_404() throws Exception {
+        mvc.perform(get("/api/alumnos/999999/notas").header("Authorization", comoStaff()))
+                .andExpect(status().isNotFound());
+    }
+
     // =========================================================================
 
     private ResultActions cargarClase(Profesor profesor, Alumno alumno, Inscripcion inscripcion,

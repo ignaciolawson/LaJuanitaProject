@@ -16,13 +16,18 @@ import { EstadoDeCuentaPagina } from './paginas/EstadoDeCuentaPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
+import { MiAgendaPagina } from './paginas/MiAgendaPagina'
 import { MiCuentaPagina } from './paginas/MiCuentaPagina'
 import { MiPerfilPagina } from './paginas/MiPerfilPagina'
+import { FichaDeAlumnoPagina } from './paginas/FichaDeAlumnoPagina'
+import { MisAlumnosPagina } from './paginas/MisAlumnosPagina'
 import { MisCursosPagina } from './paginas/MisCursosPagina'
+import { MisMaterialesPagina } from './paginas/MisMaterialesPagina'
 import { MisReservasPagina } from './paginas/MisReservasPagina'
 import { MisSolicitudesPagina } from './paginas/MisSolicitudesPagina'
 import { NotificacionesPagina } from './paginas/NotificacionesPagina'
 import { ReservarPagina } from './paginas/ReservarPagina'
+import { SubirMaterialPagina } from './paginas/SubirMaterialPagina'
 import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
@@ -59,6 +64,16 @@ function Rutas() {
         <Route path="/reservar" element={<ReservarPagina />} />
         <Route path="/mis-solicitudes" element={<MisSolicitudesPagina />} />
         <Route path="/mis-cursos" element={<MisCursosPagina />} />
+        <Route path="/mis-materiales" element={<MisMaterialesPagina />} />
+
+        {/* El portal del profesor (Módulo 5). Van acá afuera por lo mismo: no
+            hay guarda de rol porque ser profesor no es un rol sino una
+            relación, y ningún `@PreAuthorize` puede decidirla. El backend va y
+            busca la fila; quien no la tiene no entra aunque sea ADMIN. */}
+        <Route path="/mi-agenda" element={<MiAgendaPagina />} />
+        <Route path="/mis-alumnos" element={<MisAlumnosPagina />} />
+        <Route path="/mis-alumnos/:idAlumno" element={<FichaDeAlumnoPagina />} />
+        <Route path="/material" element={<SubirMaterialPagina />} />
         <Route path="/mis-pagos" element={<MiCuentaPagina />} />
         <Route path="/notificaciones" element={<NotificacionesPagina />} />
         <Route path="/mi-perfil" element={<MiPerfilPagina />} />

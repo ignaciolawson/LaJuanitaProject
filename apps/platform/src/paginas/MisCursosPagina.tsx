@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
 import { misCursos } from '../api/portal'
@@ -98,14 +99,18 @@ export function MisCursosPagina() {
         ))}
       </div>
 
-      {/* Módulo 5. Se nombra en vez de omitirse: un bloque que falta se lee como
-          "el sistema perdió los datos", uno etiquetado se lee como "todavía no
-          está". Es el mismo criterio de la ficha del alumno. */}
-      <section className="mt-8 rounded-lg border border-dashed border-linea px-5 py-6">
+      {/* Esto era el bloque "todavía no disponible" que el Módulo 4 dejó
+          nombrado. Llegó el Módulo 5 y ahora apunta a la pantalla real: el
+          cartel se reemplaza por el camino, no se borra —el alumno que lo leyó
+          alguna vez sigue buscando sus materiales acá. */}
+      <section className="mt-8 rounded-lg border border-linea bg-white px-5 py-6">
         <h3 className="text-sm font-semibold">Materiales de clase</h3>
         <p className="mt-1 text-sm text-tenue">
-          Todavía no disponible. Los sube tu profesor y llega con el portal del
-          profesor (Módulo 5).
+          Los que subieron tus profesores están en{' '}
+          <Link to="/mis-materiales" className="underline underline-offset-2 hover:text-red">
+            Mis materiales
+          </Link>
+          .
         </p>
       </section>
     </div>

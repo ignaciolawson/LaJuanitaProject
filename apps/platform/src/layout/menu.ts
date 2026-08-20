@@ -15,7 +15,8 @@ import type { Rol, UsuarioActual } from '../api/tipos'
  *    primera reserva jamás.
  *
  * 2. Ligadas a QUIÉN SOS (relación de negocio) → solo si la relación existe.
- *    Mis cursos exige `esAlumno`; Mis alumnos y Subir material, `esProfesor`.
+ *    Mis cursos y Mis materiales exigen `esAlumno`; Mi agenda, Mis alumnos y
+ *    Subir material, `esProfesor`.
  *
  * 3. Ligadas a QUÉ PODÉS ADMINISTRAR (rol) → solo para quien tiene permiso.
  *
@@ -64,8 +65,10 @@ const MENU: GrupoMenu[] = [
     items: [
       // Regla 2: dependen de la relación, no del rol.
       { etiqueta: 'Mis cursos', ruta: '/mis-cursos', visible: (u) => u.esAlumno, disponible: true },
-      { etiqueta: 'Mis alumnos', ruta: '/mis-alumnos', visible: (u) => u.esProfesor, disponible: false },
-      { etiqueta: 'Subir material', ruta: '/material', visible: (u) => u.esProfesor, disponible: false },
+      { etiqueta: 'Mis materiales', ruta: '/mis-materiales', visible: (u) => u.esAlumno, disponible: true },
+      { etiqueta: 'Mi agenda', ruta: '/mi-agenda', visible: (u) => u.esProfesor, disponible: true },
+      { etiqueta: 'Mis alumnos', ruta: '/mis-alumnos', visible: (u) => u.esProfesor, disponible: true },
+      { etiqueta: 'Subir material', ruta: '/material', visible: (u) => u.esProfesor, disponible: true },
     ],
   },
   {

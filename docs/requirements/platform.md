@@ -507,7 +507,7 @@ aprobado es siempre algo que alguien eligió, y no algo que nadie eligió.
 
 ---
 
-## 8. Módulo 5 — Portal del Profesor · ⚠️ *backend construido el 2026-08-19; **falta el front***
+## 8. Módulo 5 — Portal del Profesor · ✅ *cerrado el 2026-08-19*
 
 *Necesidad levantada por Ghezz. Hoy lleva un Excel paralelo porque el Notion no le alcanza.*
 
@@ -524,16 +524,28 @@ notificaciones · Mi historial de clases dictadas · Mi perfil.
 - Las notificaciones de cambio de sala **llegan solas**.
 - Estados de seguimiento: **va bien / requiere atención / en pausa**, con fecha de cambio.
 
-### Estado
+### Estado ✅ *cerrado*
 
-**El backend está entero y probado** (`docencia`, `V14`, 20 casos): mi agenda, mis
-alumnos por los dos caminos —asignación o haber dado la clase, que es el caso del
-suplente—, notas privadas, semáforo de seguimiento, material por link, historial de
-clases dictadas, y el aviso automático de cambio de sala. **Ninguna pantalla lo
-llama todavía**, así que el módulo NO está cerrado. `sistema-gestion-plan.md` §6d
-lista pantalla por pantalla lo que falta con su endpoint.
+**Backend y front, los dos** (`docencia`, `V14`, 25 casos de backend y 36 de front).
+El backend se construyó el 2026-08-19 por la mañana y las pantallas esa misma tarde;
+en el medio el módulo pasó medio día partido al medio, que es el único de los cinco
+al que le pasó.
 
-Dos reglas duras quedaron sostenidas por el service y no por la base, con la razón
+Están las seis pantallas: **mi agenda con el historial de clases dictadas**
+(`/mi-agenda`), **mis alumnos** con el semáforo (`/mis-alumnos`), **la ficha de un
+alumno mío** con notas, semáforo y su material (`/mis-alumnos/:idAlumno`), **subir
+material** (`/material`), **mis materiales** del lado del alumno (`/mis-materiales`,
+que llena el bloque que el M4 dejó nombrado) y **el bloque de notas y materiales en
+la ficha de administración**.
+
+**Ese último cerró una regla dura que estaba escrita a medias**: *"administración
+sí"* ve las notas privadas no existía en ninguna capa —ni endpoint ni pantalla—
+hasta el cierre del módulo. Ahora son `GET /api/alumnos/{id}/notas` y
+`/materiales`, los dos de solo lectura: corregir una nota es del autor (la firma
+*es* el dato) y publicar un material es del profesor que lo subió. **Con eso la
+ficha del alumno construye los seis bloques de §4.**
+
+Dos reglas duras quedan sostenidas por el service y no por la base, con la razón
 escrita en la cabecera de `V14`: *"solo mis alumnos"* y *"las notas privadas no las
 ve otro profesor"*. Lo que sí sostiene la base: que una nota no se cuelgue de la
 clase de otro alumno (`V1` §8.3, que ya existía) y que el seguimiento selle su

@@ -623,7 +623,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (segunda tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (tercera tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -641,24 +641,23 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre del día
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre de la tercera tanda
 
-## ⚠️ MÓDULO 5: EL BACKEND ESTÁ ENTERO Y PROBADO. **FALTA TODO EL FRONT.**
+## ✅ MÓDULO 5 CERRADO: backend, front y el bloque que le debía a la ficha del alumno
 
-**Este es el primer módulo que queda partido al medio, y hay que saberlo antes de
-tocar nada.** El backend del portal del profesor está terminado, con `V14`, sus 20
-casos de test y las cuatro suites en verde. **Ninguna pantalla lo llama todavía.**
+El módulo estuvo **medio día partido al medio** —backend entero, cero pantallas— y
+esa mitad ya no existe: están **las seis pantallas**, el menú, las rutas y los
+casos. Y de paso se cerró algo que ninguna de las dos mitades tenía: **la regla de
+§8 que dice que administración sí ve las notas privadas.**
 
-Y eso es exactamente lo que el cierre del Módulo 2 enseñó a no dar por cerrado:
-*"un módulo no está cerrado porque las dos mitades tengan tests"* — acá ni siquiera
-hay dos mitades. **El Módulo 5 NO está cerrado.**
-
-**Suites al cierre: 367 backend · 279 front · 162 + 50 SQL.**
+**Suites al cierre: 372 backend · 315 front · 162 + 50 SQL.**
+(El front sumó 36 casos; el backend, 5. Ninguna migración: este módulo ya tenía la
+suya, `V14`, y nada de lo que faltaba era una regla de la base.)
 
 ### 🟢 Para arrancar en verde
 
 ```
-docker compose start                     # Postgres. Si Docker Desktop no está
+docker compose up -d                     # Postgres. Si Docker Desktop no está
                                          # abierto, esto falla con un error de
                                          # named pipe: hay que lanzarlo primero.
 cd apps/backend  && mvn spring-boot:run  # :8080 — aplica Flyway al arrancar
@@ -666,7 +665,7 @@ cd apps/platform && npm run dev:platform # :5173 — el proxy manda /api al 8080
 ```
 
 Se entra con **`admin@lajuanita.local` / `lajuanita2026`**. Las cuatro suites:
-`mvn test` (367), `npm test` en `apps/platform` (279) y `./scripts/pruebas-sql.sh`
+`mvn test` (372 casos; surefire reporta 374 corridas), `npm test` en `apps/platform` (315) y `./scripts/pruebas-sql.sh`
 (162 + 50, y esas dos NO las corre `mvn test`).
 
 > **Qué tiene la base de desarrollo, para no confundir "vacío" con "roto"**
@@ -674,13 +673,13 @@ Se entra con **`admin@lajuanita.local` / `lajuanita2026`**. Las cuatro suites:
 >
 > - 10 usuarios, 6 alumnos, 6 inscripciones y **9 reservas viejas, todas entre el
 >   1 y el 15 de agosto**: el calendario abre en la semana actual y **se ve
->   vacío**, hay que retroceder.
-> - **Datos de demo del Módulo 4, cargados a mano el 19/08 probando el circuito**:
->   tres `solicitud_reserva` (una aprobada, una pendiente, una rechazada), la
->   **reserva 1556** que nació de la aprobada, su **seña de $18.000 en `SENADO`** y
->   dos notificaciones. Sirven para ver las pantallas con algo adentro.
+>   vacío**, hay que retroceder. Lo mismo *Mi agenda* del profesor.
+> - **Datos de demo del Módulo 4**: tres `solicitud_reserva`, la **reserva 1556**
+>   que nació de la aprobada, su **seña de $18.000 en `SENADO`** y dos
+>   notificaciones.
 > - `egreso`, `venta_equipo`, `nota_profesor`, `material` y `seguimiento_alumno`
->   **siguen en cero**: ninguna pantalla las llenó nunca.
+>   **siguen en cero**: ninguna pantalla las había llenado nunca. Las tres últimas
+>   ya tienen quién las llene — se cargan desde las pantallas nuevas del M5.
 >
 > ⚠️ **Esos datos de demo ya rompieron un test una vez** —
 > `ReservaTest.una_grabacion_con_su_sena_tiene_plata_detras` asumía que había un
@@ -692,105 +691,98 @@ Se entra con **`admin@lajuanita.local` / `lajuanita2026`**. Las cuatro suites:
 > seña detrás. Si cancelás una no vas a poder descancelarla, porque `V11` le va a
 > pedir la plata que nunca tuvo. Es correcto.
 
-### 🔧 LO QUE FALTA DEL MÓDULO 5, CONCRETO
+### 🖥️ LAS SEIS PANTALLAS, Y DÓNDE QUEDÓ CADA UNA
 
-Todo es front. El backend no necesita nada más.
+| Pantalla | Ruta | Archivo |
+|---|---|---|
+| Mi agenda + **historial de clases dictadas** | `/mi-agenda` | `MiAgendaPagina.tsx` |
+| Mis alumnos (con semáforo) | `/mis-alumnos` | `MisAlumnosPagina.tsx` |
+| Ficha de un alumno mío — notas, semáforo y su material | `/mis-alumnos/:idAlumno` | `FichaDeAlumnoPagina.tsx` |
+| Subir material | `/material` | `SubirMaterialPagina.tsx` |
+| Mis materiales (del **alumno**) | `/mis-materiales` | `MisMaterialesPagina.tsx` |
+| Notas y materiales en la ficha de administración | `/admin/alumnos/:id` | dentro de `AlumnoPerfilPagina.tsx` |
 
-| Pantalla | Endpoint que ya existe |
-|---|---|
-| **Mi agenda** (profesor) | `GET /api/me/profesor/agenda?desde&hasta` |
-| **Mis alumnos** | `GET /api/me/profesor/alumnos` |
-| **Ficha de un alumno mío** — notas + semáforo + su material | `GET /api/me/profesor/alumnos/{id}/notas`, `POST /api/me/profesor/notas`, `PUT /api/me/profesor/notas/{id}`, `PUT /api/me/profesor/alumnos/{id}/seguimiento`, `GET /api/me/profesor/materiales?idAlumno=` |
-| **Subir material** | `POST /api/me/profesor/materiales`, `PATCH /api/me/profesor/materiales/{id}/visibilidad?visible=` |
-| **Mi historial de clases dictadas** | `GET /api/me/profesor/clases?desde&hasta` |
-| **Mis materiales** (del ALUMNO — llena el bloque que el M4 dejó nombrado) | `GET /api/me/materiales` |
+**El historial de clases dictadas quedó como sección de Mi agenda y no como
+pantalla propia**, que era una de las dos opciones que este documento dejaba
+abiertas: son la misma pregunta mirada desde los dos lados del día de hoy —qué
+tengo esta semana, cuántas di— y separarlas obligaba a elegir dos veces el mismo
+período. El resumen pide **el mismo rango que la lista**, así que no pueden
+discrepar; hay un caso que lo sostiene.
 
-Además, en el front:
+### 🧩 LO QUE EL FRONT DECIDIÓ, Y NO ES VISUAL
 
-- **`menu.ts`**: *Mis alumnos* y *Subir material* están en `disponible: false` — pasan
-  a `true`. Hay que agregar *Mi agenda* y *Mis materiales*. Los dos primeros ya
-  tienen el predicado correcto (`u.esProfesor`); *Mis materiales* va con
-  `u.esAlumno`.
-- **`App.tsx`**: las rutas nuevas van **fuera** de `SoloAdministracion`, como las
-  del M4 — son pantallas sobre lo propio y el backend las acota por identidad.
-- **`api/tiposPortal.ts` y `api/portal.ts`**: faltan los tipos y las llamadas.
-  Espejar `…backend.docencia.dto`.
+- **El semáforo sin marcar es gris y dice "Sin marcar".** `null` no es `VA_BIEN`:
+  un verde que nadie puso miente sobre un alumno que nadie miró, y encontrar a los
+  que nadie miró es para lo que se abre el listado. Vive en
+  `componentes/Semaforo.tsx` —lo dibujan dos pantallas— y hay casos en las dos.
+- **La nota viaja con el id de la PARTICIPACIÓN, y el desplegable lo esconde.** El
+  profesor elige *"12/08 10:00 · Clase de DJ"*, no un número. Las clases salen de
+  la agenda de los últimos 60 días **cruzadas por `idUsuario`, no por `idAlumno`**:
+  la participación cuelga del usuario, y `AlumnoDelProfesor` trae los dos ids
+  justamente para poder hacer ese cruce. Una clase cancelada no se ofrece — no se
+  dictó, así que no hay nada que anotar sobre ella.
+- **La ficha saca al alumno de la lista de Mis alumnos y no de un endpoint
+  propio.** No falta ninguno: la lista ya trae todo lo del encabezado, y buscar
+  ahí adentro tiene la propiedad de que **un id que no es mío no aparece** — la
+  misma respuesta que da el backend por su lado.
+- **Un solo control de destinatario en Subir material.** "¿Para quién? → todos / un
+  alumno". Dos controles permiten un pedido contradictorio que la base rechaza y
+  que el formulario no debería haber dejado escribir.
+- **Los alumnos de la agenda se nombran y no se enlazan.** La participación trae
+  `idUsuario` y la ficha se abre por `idAlumno`: son dos cosas distintas. Se entra
+  desde Mis alumnos.
+- **`rangoLegible()` no se usó**: indexa `[6]` y da por hecho una semana de siete.
+  El encabezado se arma con `diaYMes(desde)` / `diaYMes(hasta)`, como avisaba la
+  tanda anterior.
 
-### 🧩 EL PUENTE YA ESTÁ CONSTRUIDO: `api/tiposDocencia.ts` y `api/docencia.ts`
+### 🕳️ EL AGUJERO QUE ENCONTRÓ ESTA TANDA: media regla de §8
 
-**No hay que leer los DTO de Java para escribir estas pantallas.** Los dos
-archivos ya existen, tipados y verificados por `tsc -b`, con un comentario por
-campo donde el campo tiene una trampa. Falta solo lo visual.
+**§8 dice, textual: *"sus notas privadas no las ven ni el alumno ni otros
+profesores. Administración sí"*. La primera mitad estaba; la segunda no existía en
+ninguna capa** — no había endpoint, y la ficha del alumno seguía dibujando
+*"Todavía no disponible — Módulo 5"*. Cerrar el módulo así habría dejado una regla
+escrita a medias con todos los tests en verde.
 
-`portal.ts` también ganó `misMateriales()` — lo que uno recibe **como alumno**.
+Se cerró con lo mínimo: `GET /api/alumnos/{id}/notas` y `/materiales`, los dos
+`@PuedeLeerAdministracion`, y el bloque 6 de la ficha. Cuatro cosas que decidió:
 
-### 🖥️ LAS PANTALLAS, UNA POR UNA
+- **Clase aparte, `DocenciaDelAlumnoService`, y no dos métodos más en
+  `DocenciaService`.** Aquella tiene una propiedad escrita en su cabecera y
+  sostenida por veinte casos: *todo* pasa por `miDocencia` y
+  `verificarQueEsMiAlumno`. Estos dos métodos tienen que saltearlos
+  —administración no es profesor de nadie— y meterlos ahí convertía esa frase en
+  una casi-verdad, que es la clase de comentario que después nadie relee.
+- **Consulta nueva y explícita, no la vieja con el profesor en `null`.** Lo pedía
+  el propio comentario de `NotaProfesorRepository`, escrito el día anterior: una
+  consulta que se saltea el filtro cuando le pasan null **se puede llamar sin
+  querer desde el portal del profesor y nadie se entera**. `todasSobreElAlumno` no
+  acepta un profesor, así que no tiene forma de usarse por accidente.
+- **`NotaDeAlumno` es un DTO nuevo y no `NotaResumen` con un campo más.** Son dos
+  lecturas del mismo registro: el autor ya sabe que la nota es suya; en la ficha,
+  donde conviven las notas de tres profesores, **el autor es el dato**. Mismo
+  precedente que `ReservaDelPortal`.
+- **Es de solo lectura y va a seguir siéndolo.** Corregir una nota es del autor —la
+  firma *es* el dato— y publicar un material es del profesor que lo subió. Un PUT
+  ahí le saca el sentido a las dos reglas.
 
-**1 · Mi agenda del profesor** — `/mi-agenda`, `miAgenda(desde, hasta)`
-Devuelve `ReservaResumen[]`, el mismo tipo del calendario de administración,
-**con `participantes` adentro** (acá corresponde: son sus alumnos). El patrón más
-parecido que ya existe es `MisReservasPagina`: lista, no grilla.
-⚠️ **`rangoLegible()` de `semana.ts` asume una semana de 7 días** (indexa `[6]`);
-si el rango es otro, armar el texto con `diaYMes(desde)` / `diaYMes(hasta)`. Ya
-pasó una vez.
+**Con esto la ficha del alumno construye los seis bloques de §4 y no queda ninguno
+dicho como pendiente.** El caso que exigía el cartel —*"nombra la única sección que
+falta y el módulo que la trae"*— fue justamente lo que avisó, al construirse el
+módulo, que había que reemplazarlo; se cambió por casos del bloque real.
 
-**2 · Mis alumnos** — `/mis-alumnos`, `misAlumnos()`
-Lista con el semáforo y `clasesRestantes`. ⚠️ **`estadoSeguimiento: null` es "sin
-marcar" y NO es `VA_BIEN`**: pintarlo gris o vacío, nunca verde. Cada fila lleva a
-la ficha.
+### ⏭️ LO PRÓXIMO
 
-**3 · Ficha de un alumno mío** — `/mis-alumnos/:idAlumno`
-Tres bloques sobre la misma persona: **notas** (`misNotas`, `anotar`,
-`corregirNota`), **semáforo** (`fijarSeguimiento`, un `<select>` de tres valores
-más observaciones — es un PUT, así que la pantalla no distingue crear de editar) y
-**su material** (`misMaterialesSubidos(idAlumno)`).
-Para atar una nota a una clase, el `idParticipacion` sale de
-`ReservaResumen.participantes[].idParticipacion` de la agenda — es el id de la
-**participación**, no el de la reserva. Con el de otro alumno vuelve 409.
+**Módulo 6 — Mix & Mastering.** El documento lo tiene a trazo grueso y **se detalla
+en octubre**, así que antes de empezarlo hay que mirar `platform.md` §9: tiene tres
+preguntas abiertas y una de ellas decide qué archivo bloquea el sistema (**❓P22**:
+master contra premaster, los documentos se contradicen y gana la entrevista). Es
+también el módulo que **obliga a construir el `StorageService` de §2.4**, la pieza
+que el M5 esquivó mandando el material por link.
 
-**4 · Subir material** — `/material`, `subirMaterial`, `cambiarVisibilidad`
-⚠️ **Un solo control de destinatario**: "¿para quién? → todos / un alumno". Sin
-`idAlumno` queda grupal, y mandar los dos campos por separado permite un pedido
-contradictorio que la base rechaza. El link debe empezar con `http`. El toggle de
-visibilidad es la regla dura "solo si el profesor lo habilitó".
+Y antes de eso, **§6f**: cinco retoques técnicos pospuestos a propósito, ninguno de
+los cuales necesita migración.
 
-**5 · Mi historial de clases dictadas** — puede ser una sección de Mi agenda.
-⚠️ **No inventar un total ni una tarifa: P20 está abierta.** El DTO no los trae.
-
-**6 · Mis materiales (del ALUMNO)** — `/mis-materiales`, `portal.misMateriales()`
-Y con esto, **sacar el bloque "todavía no disponible" de `MisCursosPagina`** y
-dejarlo apuntando a esta pantalla. Es la deuda que el M4 dejó anotada.
-
-### 🧷 EL DIFF DE MENÚ Y RUTAS
-
-En `layout/menu.ts`, grupo *Mi formación*:
-- `Mis alumnos` y `Subir material` → `disponible: true` (ya tienen
-  `visible: (u) => u.esProfesor`).
-- Agregar `Mi agenda` (`/mi-agenda`, `esProfesor`) y `Mis materiales`
-  (`/mis-materiales`, `esAlumno`).
-
-En `App.tsx`: las seis rutas van **fuera de `SoloAdministracion`**, junto a las del
-M4 — son pantallas sobre lo propio y el backend las acota por identidad.
-
-### 🧪 CÓMO PROBARLAS
-
-Los tests del front mockean el módulo de API (`vi.mock('../api/docencia', …)`) —
-copiar el patrón de `MisReservasPagina.test.tsx`. Dos trampas ya conocidas:
-
-- ⚠️ **Nombres de botón repetidos rompen `getByRole`.** `PedirMotivo` usa
-  "Confirmar"; si la pantalla tiene otro botón con ese texto, el test falla por
-  ambigüedad. Ya pasó en la bandeja de solicitudes: se resolvió renombrando a
-  "Confirmar y cobrar", que además dice mejor lo que hace.
-- ⚠️ **Agregar un campo a un DTO rompe las fixtures de otros tests**, y lo caza
-  `npx tsc -b` —no `tsc --noEmit`, que acá no chequea nada—. Es la forma esperada
-  de enterarse.
-
-**Para ver las pantallas con datos**: no hay ninguna fila en `nota_profesor`,
-`material` ni `seguimiento_alumno`. La base sí tiene profesores, alumnos e
-inscripciones, así que *Mis alumnos* se llena solo; el resto se carga desde las
-propias pantallas nuevas.
-
-### 🧠 LO QUE EL BACKEND DEL M5 DECIDIÓ (leer antes de escribir el front)
+### 🧠 LO QUE EL BACKEND DEL M5 DECIDIÓ, y que el front respetó
 
 - **`/api/me/profesor/**` — el tramo `/profesor` es la decisión de diseño.** Una
   misma persona puede ser alumna y profesora (Ghezz da clases y alquila cabina),

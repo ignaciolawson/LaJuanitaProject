@@ -11,10 +11,13 @@ import { AlumnoPerfilPagina } from './AlumnoPerfilPagina'
  * Lo que estos casos sostienen es sobre todo **qué muestra y qué no**: el perfil
  * lista TODAS las inscripciones (ahí vive el "recorrido formativo, niveles
  * completados" del alcance) mientras que el listado de alumnos filtra por
- * vigentes, y **nombra la sección que todavía no existe** en vez de omitirla.
+ * vigentes.
  *
- * Eran tres las que faltaban; el 2026-08-16 quedó una sola, porque historial de
- * clases y estado de cuenta se llenaron al llegar los módulos 2 y 3.
+ * **Los seis bloques de §4 están, desde el 2026-08-19.** Eran dos cuando se
+ * escribió esta suite y los otros llegaron con sus módulos: historial de clases
+ * y estado de cuenta con el 2 y el 3, notas y materiales con el 5. Cada uno tuvo
+ * su caso de "todavía no disponible" hasta el día que se construyó, que es
+ * exactamente para lo que servían esos casos.
  */
 
 vi.mock('../api/administracion', () => ({
@@ -22,11 +25,18 @@ vi.mock('../api/administracion', () => ({
   listarInscripciones: vi.fn(),
   agenda: vi.fn(),
   estadoDeCuenta: vi.fn(),
+  notasDelAlumno: vi.fn(),
+  materialesDelAlumno: vi.fn(),
 }))
 
-const { agenda, estadoDeCuenta, listarInscripciones, obtenerAlumno } = await import(
-  '../api/administracion'
-)
+const {
+  agenda,
+  estadoDeCuenta,
+  listarInscripciones,
+  materialesDelAlumno,
+  notasDelAlumno,
+  obtenerAlumno,
+} = await import('../api/administracion')
 
 /** El de hoy, para que el historial —que pide los últimos 45 días— lo alcance. */
 function hoyIso(): string {
@@ -147,6 +157,8 @@ beforeEach(() => {
   vi.mocked(estadoDeCuenta).mockResolvedValue(CUENTA_VACIA as never)
   vi.mocked(obtenerAlumno).mockResolvedValue(alumno())
   vi.mocked(listarInscripciones).mockResolvedValue(paginaDe([inscripcion()]))
+  vi.mocked(notasDelAlumno).mockResolvedValue([])
+  vi.mocked(materialesDelAlumno).mockResolvedValue([])
 })
 
 describe('los datos del alumno', () => {
@@ -251,26 +263,76 @@ describe('las inscripciones', () => {
   })
 })
 
-describe('lo que todavía no existe', () => {
+/**
+ * <b>Bloque 6, el último que faltaba.</b> Hasta el Módulo 5 esta sección era un
+ * cartel de "todavía no disponible" con el módulo que la traía; el caso que lo
+ * exigía es el que avisó, al construirse el módulo, que había que reemplazarlo.
+ * Con esto la ficha construye los seis bloques de §4 y no queda ninguno dicho.
+ */
+describe('las notas y los materiales', () => {
   /**
-   * El alcance pide seis bloques y esta pantalla puede construir dos. Los otros
-   * tres se dibujan **dichos**: quien abre el perfil buscando el historial de
-   * clases y no lo encuentra no puede distinguir "no está todavía" de "el
-   * sistema perdió el dato".
+   * <b>La regla de §8 vista desde el otro lado</b>: las notas privadas no las ve
+   * el alumno ni otro profesor, y administración sí. Firmadas, porque acá
+   * conviven las de todos sus profesores y sin autor no se pueden leer.
    */
-  /**
-   * Ya solo falta uno. Los otros dos se llenaron con los módulos 2 y 3, y este
-   * caso es lo que avisa el día que alguien construya el 5 y se olvide de borrar
-   * el cartel.
-   */
-  it('nombra la única sección que falta y el módulo que la trae', async () => {
+  it('muestra las notas de todos sus profesores, con quién las escribió', async () => {
+    vi.mocked(notasDelAlumno).mockResolvedValue([
+      {
+        idNota: 1,
+        idProfesor: 3,
+        profesor: 'Ghezz Pérez',
+        fechaDeLaClase: '2026-08-12',
+        contenido: 'Le cuesta la mezcla.',
+        fechaCreacion: '2026-08-12T14:00:00Z',
+        fechaModificacion: null,
+      },
+    ])
     montar()
 
-    expect(await screen.findByText('Todavía no disponible')).toBeDefined()
-    expect(screen.getByText(/Notas de profesores y materiales/)).toBeDefined()
-    expect(screen.getByText(/Módulo 5/)).toBeDefined()
-    // Y los dos que ya existen no se siguen anunciando como pendientes.
-    expect(screen.queryByText(/Módulo 2 — Horarios y salas/)).toBeNull()
+    expect(await screen.findByText('Le cuesta la mezcla.')).toBeDefined()
+    expect(screen.getByText('Ghezz Pérez')).toBeDefined()
+  })
+
+  /**
+   * Un material sin publicar todavía no lo tiene el alumno. Listarlo sin decirlo
+   * hace creer que ya se lo entregaron, que es la única lectura equivocada que
+   * este bloque puede provocar.
+   */
+  it('marca el material que el profesor todavía no publicó', async () => {
+    vi.mocked(materialesDelAlumno).mockResolvedValue([
+      {
+        idMaterial: 1,
+        idProfesor: 3,
+        profesor: 'Ghezz Pérez',
+        idAlumno: 7,
+        alumno: 'Juan Pérez',
+        esGrupal: false,
+        titulo: 'Proyecto de la clase 4',
+        tipo: null,
+        urlExterna: 'https://drive.example/x',
+        visibleAlumno: false,
+        fechaSubida: '2026-08-19T14:00:00Z',
+      },
+    ])
+    montar()
+
+    expect(await screen.findByText('Proyecto de la clase 4')).toBeDefined()
+    expect(screen.getByText(/sin publicar/)).toBeDefined()
+  })
+
+  it('sin nada anotado lo dice, en vez de dejar el bloque vacío', async () => {
+    montar()
+
+    expect(await screen.findByText('Nadie anotó nada todavía.')).toBeDefined()
+    expect(screen.getByText('Todavía no le entregaron material.')).toBeDefined()
+  })
+
+  /** Y ninguno de los seis bloques se sigue anunciando como pendiente. */
+  it('ya no queda ninguna sección dicha como pendiente', async () => {
+    montar()
+
+    await screen.findByText('Notas de profesores y materiales')
+    expect(screen.queryByText('Todavía no disponible')).toBeNull()
   })
 })
 

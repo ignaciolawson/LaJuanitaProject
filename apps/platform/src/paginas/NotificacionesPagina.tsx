@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import { marcarLeida, marcarTodasLeidas, misNotificaciones } from '../api/portal'
 import type { NotificacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { cuando } from '../componentes/presentacion'
 
 /**
  * Módulo 4 — mis notificaciones.
@@ -122,11 +123,4 @@ export function NotificacionesPagina() {
       </ul>
     </div>
   )
-}
-
-/** `2026-08-19T14:20:11-03:00` → `19/08 14:20`. */
-function cuando(iso: string): string {
-  const [fecha, resto] = iso.split('T')
-  const [, mes, dia] = fecha.split('-')
-  return `${dia}/${mes} ${resto?.slice(0, 5) ?? ''}`.trim()
 }

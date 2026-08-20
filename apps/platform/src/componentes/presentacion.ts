@@ -24,3 +24,17 @@ export const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
 export function capitalizar(texto: string): string {
   return texto.charAt(0) + texto.slice(1).toLowerCase()
 }
+
+/**
+ * `2026-08-19T14:33:12Z` → `19/08 14:33`.
+ *
+ * Sin año, porque se usa para cosas recientes —una notificación, una nota de
+ * clase— y el año ahí es ruido. Vive acá por lo mismo que
+ * `NOMBRE_DE_DISCIPLINA`: estaba escrito dentro de `NotificacionesPagina` y la
+ * ficha del alumno era la segunda pantalla que lo necesitaba.
+ */
+export function cuando(iso: string): string {
+  const [fecha, resto] = iso.split('T')
+  const [, mes, dia] = fecha.split('-')
+  return `${dia}/${mes} ${resto?.slice(0, 5) ?? ''}`.trim()
+}

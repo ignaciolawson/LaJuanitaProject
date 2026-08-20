@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
-import { agenda, estadoDeCuenta, listarInscripciones, obtenerAlumno } from '../api/administracion'
+import {
+  agenda,
+  estadoDeCuenta,
+  listarInscripciones,
+  materialesDelAlumno,
+  notasDelAlumno,
+  obtenerAlumno,
+} from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type {
   AlumnoResumen,
@@ -10,6 +17,7 @@ import type {
   InscripcionResumen,
   ReservaResumen,
 } from '../api/tiposAdmin'
+import type { MaterialResumen, NotaDeAlumno } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
 import { Paginado } from '../componentes/Paginado'
 import { importe } from '../componentes/dinero'
@@ -206,7 +214,7 @@ export function AlumnoPerfilPagina() {
       {alumno && <HistorialDeClases idUsuario={alumno.idUsuario} />}
       {alumno && <EstadoDeCuenta idUsuario={alumno.idUsuario} />}
 
-      <Pendientes />
+      <NotasYMateriales idAlumno={idAlumno} />
     </div>
   )
 }
@@ -267,14 +275,100 @@ function EtiquetaEstado({ estado }: { estado: EstadoInscripcion }) {
  * cuenta se llenaron cuando llegaron los módulos 2 y 3. Cuando llegue el 5, este
  * bloque se borra entero.
  */
-function Pendientes() {
+/**
+ * <b>Bloque 6 del perfil — el último que faltaba, disponible desde el Módulo 5.</b>
+ *
+ * <p>Era un cartel de "todavía no disponible" hasta que existieron
+ * {@code nota_profesor} y {@code material}. Con esto la ficha construye los seis
+ * bloques que pide §4.
+ *
+ * <p><b>Que administración lea las notas privadas es una regla explícita de §8</b>
+ * —<i>"no las ven ni el alumno ni otros profesores. Administración sí"</i>— y no
+ * una filtración: es quien atiende al alumno cuando el profesor no está. Por eso
+ * cada nota viene firmada: sin el autor, tres notas de tres profesores no se
+ * pueden leer.
+ *
+ * <p><b>Es de solo lectura.</b> Corregir una nota es del autor y publicar un
+ * material es del profesor que lo subió; los botones de eso viven en el portal
+ * del profesor, no acá.
+ */
+function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
+  const [notas, setNotas] = useState<NotaDeAlumno[]>([])
+  const [materiales, setMateriales] = useState<MaterialResumen[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    Promise.all([notasDelAlumno(idAlumno), materialesDelAlumno(idAlumno)])
+      .then(([sus, susMateriales]) => {
+        setNotas(sus)
+        setMateriales(susMateriales)
+      })
+      .catch((e: unknown) =>
+        setError(
+          e instanceof ApiError ? e.message : 'No se pudieron cargar las notas y materiales.',
+        ),
+      )
+      .finally(() => setCargando(false))
+  }, [idAlumno])
+
   return (
-    <section className="mt-8 rounded-lg border border-dashed border-linea p-5">
-      <h3 className="mb-1 text-sm font-semibold text-tenue">Todavía no disponible</h3>
-      <p className="text-sm text-tenue">
-        Notas de profesores y materiales{' '}
-        <span className="text-xs text-apagado">— Módulo 5, Portal del profesor</span>
-      </p>
+    <section className="mt-8">
+      <h3 className="mb-3 font-semibold">Notas de profesores y materiales</h3>
+
+      {error && <Aviso>{error}</Aviso>}
+      {!error && cargando && <p className="text-sm text-tenue">Cargando…</p>}
+
+      {!error && !cargando && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Bloque titulo="Notas de sus profesores">
+            {notas.length === 0 ? (
+              <p className="text-sm text-apagado">Nadie anotó nada todavía.</p>
+            ) : (
+              <ul className="space-y-3">
+                {notas.map((n) => (
+                  <li key={n.idNota} className="border-b border-linea pb-3 last:border-0 last:pb-0">
+                    <div className="flex flex-wrap justify-between gap-2 text-xs text-tenue">
+                      <span>{n.profesor}</span>
+                      <span className="text-apagado">
+                        {n.fechaDeLaClase ? `clase del ${fecha(n.fechaDeLaClase)}` : 'general'}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">{n.contenido}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Bloque>
+
+          <Bloque titulo="Materiales entregados">
+            {materiales.length === 0 ? (
+              <p className="text-sm text-apagado">Todavía no le entregaron material.</p>
+            ) : (
+              <ul className="space-y-3">
+                {materiales.map((m) => (
+                  <li
+                    key={m.idMaterial}
+                    className="border-b border-linea pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="text-sm font-medium">{m.titulo}</div>
+                    <div className="text-xs text-tenue">
+                      {m.profesor}
+                      {m.esGrupal && ' · para todo el curso'}
+                      {/* Lo no publicado se muestra dicho: el alumno todavía no
+                          lo tiene, y una ficha que lo liste sin aclararlo hace
+                          creer que ya se lo entregaron. */}
+                      {!m.visibleAlumno && (
+                        <span className="text-apagado"> · sin publicar</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Bloque>
+        </div>
+      )}
     </section>
   )
 }

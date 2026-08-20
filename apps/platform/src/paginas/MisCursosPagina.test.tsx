@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ProgresoDelCurso } from '../api/tiposPortal'
@@ -32,6 +33,15 @@ function curso(cambios: Partial<ProgresoDelCurso> = {}): ProgresoDelCurso {
   }
 }
 
+/** La pantalla enlaza a Mis materiales, así que necesita un router alrededor. */
+function montar() {
+  return render(
+    <MemoryRouter>
+      <MisCursosPagina />
+    </MemoryRouter>,
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(misCursos).mockResolvedValue([curso()])
@@ -39,7 +49,7 @@ beforeEach(() => {
 
 describe('el progreso', () => {
   it('muestra cuántas clases quedan y cuántas se tomaron', async () => {
-    render(<MisCursosPagina />)
+    montar()
 
     expect(await screen.findByText('5')).toBeDefined()
     expect(screen.getByText(/tomaste 3 de 8/)).toBeDefined()
@@ -53,7 +63,7 @@ describe('el progreso', () => {
    */
   it('una inscripción pausada se muestra, con su estado', async () => {
     vi.mocked(misCursos).mockResolvedValue([curso({ estado: 'PAUSADA' })])
-    render(<MisCursosPagina />)
+    montar()
 
     expect(await screen.findByText('Pausada')).toBeDefined()
   })
@@ -61,22 +71,24 @@ describe('el progreso', () => {
   /** Tener cuenta y ser alumno son cosas distintas (P18). */
   it('el que no cursa nada ve un mensaje y no un error', async () => {
     vi.mocked(misCursos).mockResolvedValue([])
-    render(<MisCursosPagina />)
+    montar()
 
     expect(await screen.findByText(/Todavía no estás inscripto/)).toBeDefined()
   })
 })
 
 /**
- * El bloque de materiales se dibuja apagado y con nombre, igual que las secciones
- * del menú que todavía no existen: un bloque ausente se lee como "el sistema
- * perdió los datos", uno etiquetado se lee como "todavía no está".
+ * Este bloque decía "todavía no disponible — Módulo 5" y ahora lleva a la
+ * pantalla real. **Sigue existiendo**: el cartel se reemplazó por el camino, no
+ * se borró, porque quien lo leyó alguna vez sigue buscando sus materiales acá.
  */
-describe('lo que falta', () => {
-  it('nombra los materiales como pendientes del Módulo 5', async () => {
-    render(<MisCursosPagina />)
+describe('los materiales', () => {
+  it('el bloque de materiales lleva a Mis materiales', async () => {
+    montar()
 
     expect(await screen.findByText('Materiales de clase')).toBeDefined()
-    expect(screen.getByText(/Módulo 5/)).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Mis materiales' }).getAttribute('href')).toBe(
+      '/mis-materiales',
+    )
   })
 })

@@ -84,6 +84,28 @@ export type AltaNota = {
 }
 
 /**
+ * Una nota **como la ve administración**: firmada.
+ *
+ * Espeja `NotaDeAlumno`, que es un record aparte de `NotaResumen` y no el mismo
+ * con un campo más. Son dos lecturas del mismo registro: el autor ya sabe que la
+ * nota es suya, y en la ficha de administración —donde conviven las notas de
+ * todos sus profesores— **el autor es el dato**.
+ *
+ * Que administración las vea es la segunda mitad de la regla de §8: *"sus notas
+ * privadas no las ven ni el alumno ni otros profesores. Administración sí"*.
+ */
+export type NotaDeAlumno = {
+  idNota: number
+  idProfesor: number
+  profesor: string
+  /** La fecha de la CLASE. Null si es una observación general. */
+  fechaDeLaClase: string | null
+  contenido: string
+  fechaCreacion: string
+  fechaModificacion: string | null
+}
+
+/**
  * Un material.
  *
  * **Es el mismo tipo para la pantalla del profesor y la del alumno.** Lo que lo

@@ -1,5 +1,6 @@
 import { pedir } from './cliente'
 import type { CambioPasswordRequest, Rol } from './tipos'
+import type { MaterialResumen, NotaDeAlumno } from './tiposDocencia'
 import type {
   AltaAlumnoResultado,
   AlumnoResumen,
@@ -629,6 +630,24 @@ export function anularVenta(id: number, motivo: string) {
     metodo: 'PATCH',
     cuerpo: { motivo },
   })
+}
+
+// -- Seguimiento de un alumno (Módulo 5, lado administración) ---------------
+
+/**
+ * Las notas de TODOS los profesores sobre ese alumno.
+ *
+ * Es el sexto bloque de la ficha, y la mitad administrativa de la regla de §8.
+ * Lo que el profesor ve de lo suyo está en `docencia.ts`; son dos endpoints
+ * distintos a propósito, no el mismo con un filtro opcional.
+ */
+export function notasDelAlumno(idAlumno: number) {
+  return pedir<NotaDeAlumno[]>(`/api/alumnos/${idAlumno}/notas`)
+}
+
+/** Lo que le entregaron, incluido lo que el profesor todavía no publicó. */
+export function materialesDelAlumno(idAlumno: number) {
+  return pedir<MaterialResumen[]>(`/api/alumnos/${idAlumno}/materiales`)
 }
 
 // -- Propio -----------------------------------------------------------------

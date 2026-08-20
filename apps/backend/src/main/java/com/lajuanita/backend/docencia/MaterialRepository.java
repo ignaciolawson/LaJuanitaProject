@@ -43,6 +43,29 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
             """)
     List<Material> paraElAlumno(@Param("idAlumno") Long idAlumno);
 
+    /**
+     * <b>Todo lo que le llegó a un alumno, para administración.</b>
+     *
+     * <p>Es {@link #paraElAlumno} sin el filtro de visibilidad: la ficha de
+     * administración muestra también lo que el profesor todavía no publicó, y lo
+     * dice. Que el alumno no lo vea es una decisión del profesor sobre cuándo
+     * entregarlo, no un secreto contra el estudio.
+     *
+     * <p>Incluye lo grupal por la misma razón que aquella: un material sin
+     * destinatario le llega igual, y una ficha que no lo muestre dice que el
+     * alumno recibió menos de lo que recibió.
+     */
+    @Query("""
+            SELECT m FROM Material m
+            JOIN FETCH m.profesor p
+            JOIN FETCH p.usuario
+            LEFT JOIN FETCH m.alumno a
+            LEFT JOIN FETCH a.usuario
+            WHERE m.esGrupal = TRUE OR m.alumno.id = :idAlumno
+            ORDER BY m.fechaSubida DESC, m.id DESC
+            """)
+    List<Material> todoLoDelAlumno(@Param("idAlumno") Long idAlumno);
+
     /** Uno, solo si lo subió quien lo pide. */
     @Query("""
             SELECT m FROM Material m
