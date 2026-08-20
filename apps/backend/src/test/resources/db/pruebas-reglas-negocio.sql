@@ -1178,6 +1178,47 @@ SELECT probar('160','una nota sobre la clase de otro alumno','FALLA',
            'nota mal colgada' FROM v$q$);
 
 
+
+-- -----------------------------------------------------------------------------
+-- LOS AVISOS AUTOMATICOS  (V17)
+--
+-- La regla que agrega V17 es una sola y es la que los modulos 4, 6 y 7 dejaron
+-- planteada por escrito sin resolver: que el disparador pueda correr dos veces
+-- el mismo dia sin duplicar la bandeja. Vive en un indice unico PARCIAL, y por
+-- eso hacen falta los tres casos y no uno: el indice tiene que rechazar lo
+-- repetido, dejar pasar lo que solo se le parece, y no tocar las filas que
+-- quedan fuera de su WHERE.
+-- -----------------------------------------------------------------------------
+
+SELECT probar('161','el mismo aviso automatico dos veces a la misma persona','FALLA',
+ $q$INSERT INTO notificacion (id_usuario_destino,tipo,contenido,clave_evento)
+    SELECT u_mica,'DEUDA_VENCIDA','Juan debe hace 12 dias','DEUDA:u=1:ARS:desde=2026-08-01' FROM v;
+    INSERT INTO notificacion (id_usuario_destino,tipo,contenido,clave_evento)
+    SELECT u_mica,'DEUDA_VENCIDA','Juan debe hace 12 dias','DEUDA:u=1:ARS:desde=2026-08-01' FROM v$q$);
+
+-- El mismo hecho le llega a CADA persona de administracion, y son filas
+-- distintas de la misma cosa. Si el indice fuera solo sobre la clave, el aviso
+-- le llegaria a una sola y el resto no se enteraria nunca -- un agujero que no
+-- se ve, porque la pantalla de quien lo recibio anda bien.
+SELECT probar('162','el mismo hecho avisado a DOS personas distintas','ANDA',
+ $q$INSERT INTO notificacion (id_usuario_destino,tipo,contenido,clave_evento)
+    SELECT u_juan,'DEUDA_VENCIDA','x','DEUDA:u=9:ARS:desde=2026-08-02' FROM v;
+    INSERT INTO notificacion (id_usuario_destino,tipo,contenido,clave_evento)
+    SELECT u_ana,'DEUDA_VENCIDA','x','DEUDA:u=9:ARS:desde=2026-08-02' FROM v
+    RETURNING id_notificacion$q$);
+
+-- Y la contracara, que es lo que justifica el WHERE del indice: los avisos que
+-- escribe una PERSONA al resolver algo no llevan clave, y dos parecidos son dos
+-- hechos distintos. Aprobar dos pedidos de la misma persona tiene que producir
+-- dos avisos.
+SELECT probar('163','dos avisos sin clave a la misma persona','ANDA',
+ $q$INSERT INTO notificacion (id_usuario_destino,tipo,contenido)
+    SELECT u_juan,'SOLICITUD_APROBADA','Tu pedido del lunes fue aprobado' FROM v;
+    INSERT INTO notificacion (id_usuario_destino,tipo,contenido)
+    SELECT u_juan,'SOLICITUD_APROBADA','Tu pedido del martes fue aprobado' FROM v
+    RETURNING id_notificacion$q$);
+
+
 -- =============================================================================
 -- RESUMEN
 -- =============================================================================

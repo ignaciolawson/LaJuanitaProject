@@ -1,5 +1,7 @@
 package com.lajuanita.backend.usuario;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -47,4 +49,23 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             ORDER BY LOWER(u.apellido), LOWER(u.nombre)
             """)
     Page<Usuario> buscar(@Param("patron") String patron, Pageable paginado);
+
+    /**
+     * Las cuentas activas con alguno de estos roles.
+     *
+     * <p>La usa el disparador automático para saber a quién le llega un aviso de
+     * administración. <b>Activas</b>, porque mandarle avisos a una cuenta dada de
+     * baja llena una bandeja que nadie va a abrir — y porque es la misma línea que
+     * el resto del sistema traza: {@code usuario.activo = FALSE} saca a alguien en
+     * el acto, no lo deja a medias.
+     *
+     * <p>Los roles los elige quien llama y no están fijos acá a propósito: el
+     * criterio de a quién le importa un aviso es del aviso, no de esta consulta.
+     */
+    @Query("""
+            SELECT u FROM Usuario u
+            WHERE u.activo = TRUE AND u.rol IN :roles
+            ORDER BY u.id
+            """)
+    List<Usuario> activosConRol(@Param("roles") Collection<Rol> roles);
 }

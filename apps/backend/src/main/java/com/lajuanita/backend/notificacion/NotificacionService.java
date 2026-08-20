@@ -1,6 +1,9 @@
 package com.lajuanita.backend.notificacion;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,17 @@ import com.lajuanita.backend.usuario.Usuario;
 @Service
 public class NotificacionService {
 
+    /**
+     * Une destinatario y clave en una sola cadena comparable.
+     *
+     * <p>Vive acá y no en quien llama porque las dos puntas —la que arma el
+     * conjunto y la que pregunta si algo está adentro— tienen que usar el mismo
+     * separador, y si se escribe en dos lados alcanza con que uno cambie para que
+     * el conjunto no encuentre nunca nada y todos los avisos se dupliquen en
+     * silencio.
+     */
+    public static final String SEPARADOR = "|";
+
     private final NotificacionRepository notificaciones;
 
     public NotificacionService(NotificacionRepository notificaciones) {
@@ -45,14 +59,57 @@ public class NotificacionService {
             String contenido,
             String urlDestino) {
 
+        return avisar(destino, tipo, titulo, contenido, urlDestino, null);
+    }
+
+    /**
+     * Lo mismo, pero dejando anotado <b>qué hecho</b> se avisó.
+     *
+     * <p>Solo lo usa el disparador automático ({@code com.lajuanita.backend.aviso}).
+     * Un aviso que escribe una persona al resolver algo <b>no lleva clave y no debe
+     * llevarla</b>: si administración aprueba dos pedidos parecidos son dos avisos
+     * y los dos tienen que llegar. La deduplicación es una propiedad de lo que se
+     * dispara solo.
+     *
+     * <p>El método no chequea si la clave ya está. <b>Si está, la base lo rechaza</b>
+     * — el índice único parcial de `V17`— y eso es a propósito: un chequeo acá
+     * adentro haría creer que este método es seguro contra concurrencia y no lo
+     * sería, que es la forma exacta en que el chequeo de email duplicado dejó pasar
+     * cuatro registros iguales. Quien filtra por adelantado es
+     * {@code AvisoService}, y lo hace para no intentar de más, no para garantizar.
+     */
+    @Transactional
+    public Notificacion avisar(Usuario destino,
+            TipoNotificacion tipo,
+            String titulo,
+            String contenido,
+            String urlDestino,
+            String claveEvento) {
+
         Notificacion aviso = new Notificacion();
         aviso.setDestino(destino);
         aviso.setTipo(tipo);
         aviso.setTitulo(titulo);
         aviso.setContenido(contenido);
         aviso.setUrlDestino(urlDestino);
+        aviso.setClaveEvento(claveEvento);
 
         return notificaciones.save(aviso);
+    }
+
+    /**
+     * De estas claves, cuáles ya le llegaron a cada persona.
+     *
+     * @return el conjunto de claves {@code idUsuario|clave} ya avisadas
+     */
+    @Transactional(readOnly = true)
+    public Set<String> yaAvisados(Collection<String> claves) {
+        if (claves.isEmpty()) {
+            return Set.of();
+        }
+        return notificaciones.yaAvisados(claves).stream()
+                .map(fila -> ((Number) fila[0]).longValue() + SEPARADOR + fila[1])
+                .collect(Collectors.toSet());
     }
 
     @Transactional(readOnly = true)

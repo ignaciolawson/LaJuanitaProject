@@ -529,6 +529,20 @@ decisión antes de codificarse**, y ninguna se implementó unilateralmente.
 > lista. **De los cinco primeros, ninguno necesita migración**, y por eso posponerlos
 > no acumula deuda estructural.
 
+> ## ⏸️ TODA ESTA LISTA VA DESPUÉS DEL MVP — decidido el 2026-08-20
+>
+> **Ignacio: primero los ocho módulos, después se retoca de a uno.** Esto extiende
+> la decisión del 2026-08-19 —que ya mandaba el rediseño del front al final— y ahora
+> cubre también los cinco de abajo, que hasta hoy figuraban como *"lo que se puede
+> hacer mientras se espera una respuesta del cliente"*. **No se hacen mientras se
+> espera nada.**
+>
+> Lo que sigue en pie y esta decisión no toca: **si un pendiente toca el esquema o
+> una regla, se hace en su módulo y no se pospone.** Las migraciones son inmutables
+> y se acumulan. Ninguno de los cinco de abajo necesita una, y por eso posponerlos
+> no acumula deuda estructural — es la condición que hace que esta decisión sea
+> barata, no un detalle.
+
 ### 📋 Los cinco de la primera tanda (Ignacio, 2026-08-19)
 
 **1 · El admin no debería poder cambiarse el nombre ni el mail** → *ya medio hecho,
@@ -623,7 +637,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-19 (cuarta tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-20 (quinta tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -642,7 +656,124 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-19, cierre de la cuarta tanda
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20
+
+## ✅ EL DISPARADOR DE AVISOS ESTÁ CONSTRUIDO, Y EL MÓDULO 7 YA NO ESTÁ BLOQUEADO
+
+Media jornada, dos cosas: **se contestaron las cuatro preguntas rojas de los Módulos
+7 y 8**, y **se construyó la pieza que tres módulos venían pidiendo por separado**.
+
+**Suites: 407 backend · 330 front · 165 + 51 SQL.** (El backend sumó 17 casos y las
+reglas de negocio 3; el front no sumó ninguno, y más abajo está por qué.)
+
+### 📌 LAS CUATRO RESPUESTAS, EN UNA LÍNEA CADA UNA
+
+El detalle, con el razonamiento y las consecuencias, está en
+**[`platform.md` §15](requirements/platform.md)** — que ahora es la sección que gana,
+por encima de §13 y §14.
+
+| | Respuesta | Lo que cambia |
+|---|---|---|
+| **Contrato del sello (P38)** | **Archivo, se sube** | El M7 **construye el `StorageService` de §2.4 primero**, y ⚠️ **el backup deja de alcanzar solo** |
+| **P24 — artistas** | **No entran al sistema** | Sin portal propio: el módulo es la mitad de grande |
+| **P25 — post-lanzamiento** | **Entra, cargado a mano** | Tabla y pantalla chicas. **Cero integraciones con plataformas** |
+| **P26 — retención** | Segundo servicio en **10 meses** | El único indicador del M8 que no se podía construir, ya se puede |
+
+> ⚠️ **La consecuencia más fácil de olvidar de que el contrato sea un archivo:**
+> `scripts/backup.sh` hace `pg_dump` y nada más. Con archivos en disco, la base queda
+> respaldada y los contratos no — y eso se descubre el día que hay que restaurar. Hay
+> que **sumarle los archivos al script y volver a ensayar el restore**
+> (`operacion.md` §2). Y el hosting de octubre pasa a necesitar **disco persistente**.
+
+### 🔔 LO QUE SE CONSTRUYÓ: EL DISPARADOR AUTOMÁTICO
+
+`V17` + el paquete `com.lajuanita.backend.aviso`. Lo pedían **el Módulo 4** (deuda a
+7 días), **el 6** (entrega de M&M impaga a 7 días) y lo iba a pedir **el 7** (aviso
+previo al lanzamiento), cada uno anotando la misma frase: *"es del módulo que
+construya notificaciones automáticas"*. Se hizo **antes** del M7 y no adentro, para
+que el tercer aviso sea una regla más y no infraestructura a mitad de camino — que es
+exactamente lo que pasó dos módulos seguidos con el `StorageService`.
+
+**Lo que encontró, que es lo más interesante de la tanda:**
+
+> 🕳️ **`estado_pago = 'VENCIDO'` existía desde `V1` y NINGUNA línea del sistema lo
+> escribía nunca.** Está en el CHECK, tiene su índice (`pago_deudores`), el enum lo
+> documenta como *"deuda que además pasó los 7 días (§6, alerta automática)"* y
+> `ADEUDADOS` lo cuenta. La única forma de que una fila llegara ahí era que alguien
+> lo eligiera a mano en el desplegable de `/admin/pagos`.
+>
+> **Nadie lo notó porque la pantalla de deudores recalcula los días al vuelo**: se
+> veía bien, y el dato guardado no lo estaba. Una deuda de 40 días y una de uno eran
+> la misma fila para cualquier consulta que no rehiciera la cuenta. Es el mismo
+> patrón que `V16`: no había un agujero abierto, había una regla que no existía en
+> ninguna capa y que por eso nada podía hacer fallar.
+
+**Las cuatro decisiones del módulo:**
+
+- **Los avisos van a administración, no a la persona involucrada**, y a quien puede
+  actuar: **ADMIN·STAFF**, los de `@PuedeOperar`. `DIRECTIVO` lee todo y no escribe
+  nada, así que un *"cobrale a este"* le llegaría para no poder hacerlo. En M&M
+  además **no podría ser de otra forma**: la mitad de los clientes son externos sin
+  cuenta y una notificación necesita un `usuario` destino.
+- **La clave del aviso es del HECHO, no de la corrida** (`DEUDA:u=42:ARS:desde=2026-08-01`).
+  Eso da las dos propiedades a la vez: correr diez veces hoy escribe un aviso, y si
+  la deuda se salda y vuelve en tres meses el `desde` es otro y el aviso vuelve a
+  salir. Con una clave por corrida avisaría todos los días; con una sin fecha, nunca
+  más.
+- **Quien garantiza que no se duplique es un índice único parcial, no el chequeo del
+  servicio.** El servicio igual pregunta antes —para no intentar cien inserts que ya
+  están— pero entre la pregunta y el insert se mete otra corrida: es el agujero exacto
+  del chequeo de email duplicado en `UsuarioService`. Y el índice es **parcial** porque
+  los avisos que escribe una *persona* no llevan clave y no deben llevarla: dos
+  pedidos aprobados parecidos son dos avisos y los dos tienen que llegar.
+- **Un aviso por hecho, no uno por día.** El estado permanente es lo que muestran
+  `/admin/deudores` y el tablero de M&M. Un recordatorio diario de la misma deuda
+  convierte la bandeja en ruido, y ahí el aviso que sí importa pasa desapercibido.
+
+**Y el front no sumó un solo caso, a propósito**: la pantalla de notificaciones **no
+decide nada por el tipo de aviso**, muestra título y contenido. Por eso el aviso
+automático tiene que bastarse solo —*"Juan debe $50.000 desde hace 12 días"*, no
+*"tenés una deuda para revisar"*— y por eso administración lo ve sin tocar el menú:
+`Notificaciones` no tiene predicado en `menu.ts`. Lo único que cambió en el front es
+el tipo TypeScript, **al que además le faltaba `RESERVA_MOVIDA` desde el Módulo 5** —
+no rompía nada justamente porque nadie mira el tipo.
+
+### ⏭️ MAÑANA, EN ORDEN
+
+**1 · Verificar que arrancás en verde**, que hay una migración nueva:
+
+```
+docker compose up -d
+cd apps/backend  && mvn test              # 407
+cd apps/platform && npm test              # 330
+./scripts/pruebas-sql.sh                  # 165 + 51, sobre 17 migraciones
+```
+
+> ⚠️ **`V17` está aplicada: no se edita nunca más.** Cualquier corrección va en una
+> `V18`.
+
+**2 · Mandarle a Ghezz las cuatro ratificaciones que quedan.** Están en
+[`preguntas-abiertas-modulos-7-y-8.md`](relevamiento/preguntas-abiertas-modulos-7-y-8.md),
+con la cabecera actualizada. **Dos pueden obligar a una migración y por eso se
+contestan antes de empezar el módulo, no a mitad**: si se cargan los lanzamientos
+viejos, el correlativo del código de release arranca más abajo; y si un release puede
+caerse después de confirmado, hace falta un estado `CANCELADO` que hoy no existe (M&M
+sí lo tiene).
+
+**3 · El Módulo 7, que arranca por el `StorageService`.** No es una pantalla: es
+subida, almacenamiento y **descarga autenticada** —un contrato tiene datos de un
+tercero y no puede quedar en una URL adivinable— más el backup y el restore
+rehechos. **Se amortiza en dos módulos**: le paga también la deuda del Módulo 3, la
+descarga de comprobantes, abierta desde agosto por esta misma pieza.
+
+**4 · Lo que ya NO es una opción mientras se espera:** los retoques de §6f. Se
+decidió el 2026-08-20 que van **después de los ocho módulos**, de a uno. La lista
+sigue ahí y no se toca hasta entonces.
+
+**5 · El orden del final**, sin cambios: quedan los módulos **7 y 8**, y después el
+**rediseño del front entero en una sola pasada**. La landing no se toca.
+
+## 📚 EL MÓDULO 6, PARA CONSULTA (cerrado el 2026-08-19, tanda anterior)
 
 ## ✅ MÓDULO 6 CERRADO: seis de ocho módulos, y el esquema volvió a hablar
 

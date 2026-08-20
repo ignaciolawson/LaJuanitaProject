@@ -1,5 +1,6 @@
 package com.lajuanita.backend.mastering;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -63,4 +64,35 @@ public interface TrabajoMasteringRepository extends JpaRepository<TrabajoMasteri
             ORDER BY t.fechaCreacion DESC, t.id DESC
             """)
     List<TrabajoMastering> deLaPersona(@Param("idUsuario") Long idUsuario);
+
+    /**
+     * Entregado hace rato y todavía sin cobrar (§9, la alerta a los 7 días).
+     *
+     * <p><b>"Sin cobrar" es "el estado no es {@code PAGADO}", y eso no es un atajo:
+     * es la definición que el propio módulo ya tiene.</b> {@code MasteringService}
+     * mueve el trabajo a {@code PAGADO} exactamente cuando lo cobrado en la moneda
+     * del trabajo alcanza el precio acordado — con la comparación entre monedas
+     * prohibida y todo. Rehacer acá la suma de pagos sería una segunda definición
+     * de lo mismo, y este proyecto ya paga una de esas ({@code contarClasesConsumidas}
+     * contra `V9` §5): el día que se separan, la pantalla dice una cosa y el aviso
+     * otra, sin que nada falle.
+     *
+     * <p>Quedan afuera solos los tres estados que corresponden: {@code PAGADO} está
+     * cobrado, {@code CANCELADO} no se entregó, y {@code A_CONFIRMAR}/{@code EN_PROCESO}
+     * no llegaron a la entrega. Sobreviven {@code ENTREGADO} y {@code DEBE}, que son
+     * el mismo escalón visto desde la plata.
+     *
+     * <p>Exige {@code fechaEntregaReal}: el aviso cuenta desde la entrega, y un
+     * trabajo marcado como entregado sin fecha no tiene desde cuándo contar.
+     */
+    @Query("""
+            SELECT t FROM TrabajoMastering t
+            LEFT JOIN FETCH t.cliente
+            WHERE t.estado IN (com.lajuanita.backend.mastering.EstadoTrabajo.ENTREGADO,
+                               com.lajuanita.backend.mastering.EstadoTrabajo.DEBE)
+              AND t.fechaEntregaReal IS NOT NULL
+              AND t.fechaEntregaReal < :limite
+            ORDER BY t.fechaEntregaReal
+            """)
+    List<TrabajoMastering> entregadosSinCobrarAntesDe(@Param("limite") LocalDate limite);
 }

@@ -28,6 +28,31 @@ mirando el esquema al preparar esto.
 
 ---
 
+> ## ✅ LAS CUATRO ROJAS ESTÁN CONTESTADAS — 2026-08-20
+>
+> Ignacio las contestó las cuatro de una sola vez, antes de escribir una línea del
+> Módulo 7. **Las respuestas, con su razonamiento y sus consecuencias, están en
+> [`docs/requirements/platform.md` §15](../requirements/platform.md)**, que es la
+> sección que gana. En resumen:
+>
+> | | Respuesta |
+> |---|---|
+> | **Contrato del sello (P38)** | **Archivo, se sube.** El M7 construye el `StorageService` — y hay que sumarle los archivos al backup |
+> | **P24 — login de artistas** | **No entran.** Todo administrativo; el módulo es la mitad de grande |
+> | **P25 — post-lanzamiento** | **Entra, cargado a mano** ("dónde sonó", ordenable por popularidad). **Cero integraciones** |
+> | **P26 — retención** | Segundo servicio dentro de **10 meses**; venta de equipos no cuenta; pausar y volver no es retención |
+>
+> **Lo que sigue abierto son las ratificaciones amarillas de más abajo**, y dos de
+> ellas (la 5 y la 6) pueden obligar a una migración, así que se contestan antes de
+> arrancar el módulo y no a mitad. La 7 ya no cambia nada estructural: **el
+> disparador automático se construyó el 2026-08-20** (`V17`), así que lo único que
+> queda por confirmar ahí es si con verlo adentro del sistema alcanza.
+>
+> El texto original de las cuatro queda abajo sin tocar: sirve para ver qué se
+> preguntó y por qué, que es lo que hace falta la próxima vez.
+
+---
+
 ## 🔴 1 · El contrato del sello, ¿es un archivo o un link? *(no tiene número: es nueva)*
 
 **Por qué traba:** la regla dura del Módulo 7 es *"no se publica un release sin

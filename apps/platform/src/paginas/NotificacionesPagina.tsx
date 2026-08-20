@@ -17,10 +17,20 @@ import { cuando } from '../componentes/presentacion'
  * viaja adentro del texto y no como un "entrá a ver".
  *
  * **La tabla existe desde `V1` y hasta este módulo nadie la escribía.** Su primer
- * escritor es la resolución de un pedido de sala. Lo que todavía no existe es el
- * aviso automático de la deuda a los 7 días: eso corre sin que nadie pida nada
- * —necesita un scheduler y decidir qué pasa si corre dos veces el mismo día— y
- * es otra máquina, no un tipo de notificación que falte.
+ * escritor fue la resolución de un pedido de sala; desde el 2026-08-20 tiene un
+ * segundo escritor que no es una persona sino el disparador automático, que corre
+ * todos los días y deja acá la deuda vencida y la entrega de M&M sin cobrar.
+ *
+ * **Esta pantalla no cambió al llegar esa máquina, y eso es parte del diseño.** No
+ * decide nada por el tipo de aviso: muestra título y contenido, y quien escribió la
+ * fila es problema del que la escribió. Por eso el aviso automático tiene que
+ * bastarse solo igual que el otro — *"Juan debe $50.000 desde hace 12 días"*, no
+ * *"tenés una deuda para revisar"*.
+ *
+ * **Y por eso también la ve administración**: `Notificaciones` no tiene predicado
+ * en `menu.ts`, va para todo el mundo. Los dos avisos automáticos son de cobranza
+ * y le llegan a quien puede actuar (ADMIN·STAFF); sin esta entrada visible para
+ * ellos, la máquina escribiría en una bandeja que nadie abre.
  */
 export function NotificacionesPagina() {
   const [avisos, setAvisos] = useState<NotificacionResumen[]>([])

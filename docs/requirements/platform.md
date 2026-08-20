@@ -479,11 +479,13 @@ consulta capaz de devolver lo de otro.
   nombrado en Mis cursos.
 - **La descarga de comprobantes.** Necesita el `StorageService` de §2.4, que
   todavía no existe. El estado de cuenta muestra los pagos.
-- **El aviso automático a los 7 días de deuda.** La bandeja de notificaciones sí
-  está, y su primer escritor es la resolución de un pedido de sala. Lo que falta
-  es la máquina que dispara sola: corre sin que nadie pida nada, necesita un
-  scheduler y necesita decidir qué pasa si corre dos veces el mismo día. **Es del
-  módulo que construya notificaciones automáticas, no una deuda de éste.**
+- ~~**El aviso automático a los 7 días de deuda.**~~ ✅ **Construido el 2026-08-20**
+  (`V17`, paquete `com.lajuanita.backend.aviso`), junto con el de M&M y la
+  infraestructura que va a usar el Módulo 7. Le llega a administración —no al
+  deudor: la deuda la persigue el estudio— y **de paso arregla algo que nadie había
+  notado: `estado_pago = 'VENCIDO'` existía desde `V1` y ninguna línea del sistema
+  lo escribía nunca.** La pantalla de deudores recalcula los días al vuelo, así que
+  se veía bien y el dato guardado no lo estaba. Ver §15.
 
 **Y una decisión de alcance que conviene no reabrir sin pensarla:** una solicitud
 se aprueba **tal como se pidió**. No se puede aprobar "pero a las 18". Si la franja
@@ -634,12 +636,15 @@ alerta, la de revisiones excedidas, no la necesita: se ve en el tablero.
 - ~~**P28**~~ ✅ La excepción existe: se libera sin pago **escribiendo el motivo**, y
   queda el autor. La puede usar administración (`@PuedeOperar`), no solo un ADMIN.
 
-**Lo que sí queda por construir y no es una decisión:** la alerta de los 7 días desde
-la entrega sin pago necesita **el disparador automático que todavía no existe** — corre
-sin que nadie pida nada, necesita un scheduler y decidir qué pasa si corre dos veces el
-mismo día. Es la misma pieza que el Módulo 4 dejó anotada para el aviso de deuda, y es
-de quien la construya, no una deuda de este módulo. La otra alerta, la de revisiones
-excedidas, **no la necesita**: se dispara al registrar una revisión.
+~~**Lo que sí queda por construir y no es una decisión:**~~ ✅ **La alerta de los 7 días
+desde la entrega sin pago está construida** (2026-08-20, `V17`). Era la misma pieza que
+el Módulo 4 había dejado anotada para el aviso de deuda y que el 7 iba a pedir para el
+aviso previo al lanzamiento: se hizo una vez, para los tres. Le llega a administración,
+que acá **no podría ser de otra forma** — la mitad de los clientes de M&M son externos
+sin cuenta y una notificación necesita un `usuario` destino. Ver §15.
+
+La otra alerta, la de revisiones excedidas, **nunca la necesitó**: se dispara al
+registrar una revisión.
 
 ---
 
@@ -718,10 +723,10 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P21 | Seguimiento de mentorías | Módulo 5 |
 | ~~P22~~ | ✅ Se entrega el master, se retiene el premaster (§14) | — |
 | ~~P23~~ | ✅ No: siguen por WeTransfer/Drive, el sistema guarda el link (§14) | — |
-| **P38** | ⚠️ **El contrato del sello, ¿archivo o link?** Decide si el Módulo 7 obliga a construir el `StorageService` | Módulo 7 |
-| P24 | Login de artistas | Módulo 7 |
-| P25 | Seguimiento post-lanzamiento | Módulo 7 |
-| P26 | Definición de tasa de retención | Módulo 8 |
+| ~~P38~~ | ✅ **Archivo, se sube.** El Módulo 7 construye el `StorageService` de §2.4 — y el backup deja de alcanzar solo (§15) | — |
+| ~~P24~~ | ✅ No entran: `artista` es una ficha administrativa. Sin portal propio (§15) | — |
+| ~~P25~~ | ✅ Entra, **cargado a mano**. Ninguna conexión a plataformas (§15) | — |
+| ~~P26~~ | ✅ Segundo servicio dentro de 10 meses; venta de equipos no cuenta; pausar y volver no es retención (§15) | — |
 | ~~P27~~ | ✅ "Grabación" se suma, solo en la Cabina | — |
 | ~~P28~~ | ✅ Sí, con motivo escrito y autor registrado (§14) | — |
 | ~~P29~~ | ✅ Alquiler de cabina: Sala 1 y 2, servicio propio | — |
@@ -1101,3 +1106,134 @@ Mastering, que es como el cliente conoce el servicio.
 
 **Ninguna de las seis decisiones necesita una migración**: el esquema de `V1` había
 apostado por todas y acertó. Lo que queda del Módulo 6 es construcción.
+
+---
+
+## 15. Decisiones cerradas el 2026-08-20 — Módulos 7 y 8
+
+**Las cuatro preguntas que trababan el Módulo 7 y el Módulo 8, contestadas por
+Ignacio antes de arrancar el 7.** Se leen junto con §13 y §14: las tres secciones
+ganan sobre lo que digan §10 y §11 más arriba, y esta gana sobre las otras dos
+donde se contradigan.
+
+Es la tercera vez que se hace lo mismo —contestar antes de escribir código— y es lo
+que hizo que el Módulo 6 no se frenara nunca.
+
+### ✅ P38 — El contrato del sello es un ARCHIVO que se sube
+
+**Es la respuesta cara y es la correcta**, y el esquema la venía asumiendo desde
+`V1`: `contrato_sello.archivo_path` es `VARCHAR(500) NOT NULL` y la columna se llama
+*path*, no *url*.
+
+La regla dura del módulo es *"no se publica un release sin contrato adjunto"*. Con un
+link, esa regla se degrada a *"hay un link cargado"* — y un contrato es el respaldo
+legal de un lanzamiento: un link al Drive de otro se cae, se mueve o se revoca sin
+que el estudio se entere, y el sistema seguiría diciendo que está todo bien. Es
+justamente la diferencia que P23 pudo ignorar (un audio que ya viajó por WeTransfer
+no necesita quedar guardado) y que acá no se puede.
+
+**El peso no es el problema y conviene decirlo, porque fue la duda al preguntarlo:**
+un contrato firmado escaneado pesa entre 100 KB y 2 MB; doscientos contratos no
+llegan a 500 MB. El costo está en otras tres cosas, y las tres hay que saberlas
+**antes** de planificar el módulo:
+
+1. **El `StorageService` de §2.4 se construye ANTES del resto del Módulo 7.** Subida,
+   almacenamiento y —lo que de verdad importa— **descarga autenticada**: un contrato
+   tiene datos de un tercero y no puede quedar colgado de una URL adivinable.
+2. **⚠️ El backup deja de alcanzar solo, y esto es lo más fácil de olvidar.**
+   `scripts/backup.sh` hace `pg_dump` y nada más. Con archivos en disco, la base queda
+   respaldada y los contratos no — y eso se descubre el día que hay que restaurar. Hay
+   que sumarle los archivos al script **y volver a ensayar el restore**
+   (`docs/operacion.md` §2), porque un backup que nunca se restauró es una intención.
+3. **Entra en la decisión de hosting de octubre**: hace falta disco persistente, no un
+   contenedor efímero que se reinicia y se lleva los PDF.
+
+**Y se amortiza en dos módulos, no en uno:** el `StorageService` le paga además la
+deuda abierta del Módulo 3 —la descarga de comprobantes— que sigue pendiente desde
+agosto por esta misma pieza.
+
+### ✅ P24 — Los artistas NO entran al sistema
+
+**Todo administrativo.** `artista` es una ficha que administra el estudio; lo que pasa
+con un release se lo cuenta Ghezz al artista como hasta ahora.
+
+`artista.id_usuario` existe y es nullable desde `V1` —*"queda preparado a futuro"*— y
+**se queda así**: no hay migración que hacer y no hay portal que construir. El Módulo
+7 es, por esta respuesta sola, **la mitad de grande** de lo que podía haber sido: sin
+portal propio, sin decidir qué ve un artista de su release, y sin un tercer eje de
+autorización por identidad.
+
+### ✅ P25 — El seguimiento post-lanzamiento SÍ entra, cargado a mano
+
+Entra una sección de **"dónde sonó"**: una lista por release de apariciones —sets,
+radios, playlists— **cargadas a mano**, ordenables por popularidad.
+
+**Y la mitad que la respuesta descarta explícitamente, que es la que importa que esté
+escrita: nada de conexión a otras plataformas.** No hay integración con Spotify, ni
+con SoundCloud, ni con nada que busque solo. Eso son integraciones que no están en el
+alcance ni en la propuesta, y la pregunta se hizo con las dos mitades juntas
+justamente para que la respuesta no significara dos cosas distintas.
+
+Es una tabla chica y una pantalla chica, y se construye dentro del Módulo 7.
+
+> **⚠️ Lo que queda por definir, y es del negocio: qué mide "popularidad".** Si la
+> lista se carga a mano, el orden tiene que salir de un dato que alguien escribe. Las
+> dos formas razonables son **un tipo de aparición** (radio / set / playlist / reseña,
+> con un orden fijo entre ellos) o **un número de alcance** cargado a ojo. No se
+> decide unilateralmente al escribir la tabla: es una columna, y la columna la fija
+> una migración que después no se toca.
+
+### ✅ P26 — La tasa de retención
+
+**Retenido es quien contrata un segundo servicio o programa dentro de los 10 meses de
+haber contratado el primero.**
+
+- **Cuenta cualquier cosa contratada** —curso, mentoría, alquiler de cabina, Mix &
+  Mastering— **menos la venta de equipos**, que es una operación de mostrador y no una
+  relación con el estudio.
+- **Pausar y volver NO es retención.** Y es coherente con lo anterior sin necesidad de
+  una regla aparte: retomar una inscripción pausada es *la misma* inscripción, no un
+  segundo contrato. La definición ya lo deja afuera sola.
+
+> **⚠️ Lo que falta antes de escribir la consulta, y es para cuando se haga el Módulo
+> 8, no ahora:** los 10 meses se cuentan **desde la fecha del primer contrato** —es la
+> lectura literal de la respuesta— pero conviene ratificarlo, porque para un curso de
+> producción de 16 clases que dura cuatro meses eso deja seis meses de ventana
+> efectiva. Y falta el **denominador**: sobre quiénes se calcula el porcentaje. La
+> lectura por defecto es *"los que terminaron su primer contrato en el período"*, que
+> es la que deja afuera sola a quien todavía está cursando.
+>
+> Ninguna de las dos traba nada hoy. **Lo que sí estaba trabado y ya no lo está** es
+> que el indicador es construible: era el único del Módulo 8 que no se podía escribir
+> sin una definición del negocio.
+
+### 📌 Y dos cosas más que se decidieron el mismo día
+
+**1 · Los retoques técnicos de §6f van después del MVP completo, no de a uno por
+módulo.** Decidido por Ignacio: primero los ocho módulos, después se retoca de a uno.
+Esto **extiende** la decisión del 2026-08-19 —que ya mandaba el rediseño del front al
+final— y ahora cubre también los cinco pendientes de esa lista, que hasta hoy podían
+hacerse "mientras se espera algo". No se hacen mientras se espera nada.
+
+Sigue en pie el triage que sí importa y que esta decisión **no** toca: **lo que toca el
+esquema o una regla se hace en su módulo y no se pospone**, porque las migraciones son
+inmutables y se acumulan.
+
+**2 · El disparador automático de avisos se construyó** (2026-08-20, `V17`, paquete
+`com.lajuanita.backend.aviso`). Era la pieza que pedían el Módulo 4, el 6 y el 7 por
+separado. Se hizo **antes** del Módulo 7 y no adentro, para que el aviso de los 7 días
+previos al lanzamiento sea una regla más y no infraestructura a mitad de camino — que
+es exactamente lo que pasó dos módulos seguidos con el `StorageService`.
+
+### ⏳ Lo que sigue abierto del Módulo 7, y son ratificaciones baratas
+
+Ninguna traba el arranque; las cuatro están redactadas en
+`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`. **Dos pueden obligar a una
+migración y por eso se contestan antes de empezar, no a mitad:**
+
+| | Qué | Por qué no puede esperar |
+|---|---|---|
+| **5** | El código de release: ¿lo genera el sistema? ¿desde qué número? ¿se cargan los anteriores? | Si se cargan los viejos, **el correlativo arranca más abajo** y hay que poder escribir el código a mano |
+| **6** | ¿Un release puede caerse después de confirmado? | Hoy no existe un estado `CANCELADO` para releases (M&M sí lo tiene). Si puede caerse, **es una migración** |
+| **7** | El aviso previo al lanzamiento, ¿alcanza con verlo adentro del sistema? | Si tiene que *llegar* por fuera, es mail o WhatsApp API y está fuera del alcance |
+| **8** | Exportar a PDF/Excel el tablero del Módulo 8 | No es para el cliente: es de alcance. Una dependencia nueva por un tablero que se mira en pantalla |

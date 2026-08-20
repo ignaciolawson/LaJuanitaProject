@@ -1,5 +1,6 @@
 package com.lajuanita.backend.notificacion;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -42,4 +43,26 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
             WHERE n.destino.id = :idUsuario AND n.leida = FALSE
             """)
     int marcarTodasLeidas(@Param("idUsuario") Long idUsuario);
+
+    /**
+     * Cuáles de estas claves ya fueron avisadas, y a quién.
+     *
+     * <p>La usa el disparador automático antes de escribir, para no intentar cien
+     * inserts que la base va a rechazar de a uno. <b>No es lo que garantiza que no
+     * se dupliquen</b> —eso es el índice único parcial de `V17`— y la diferencia
+     * importa: entre esta consulta y el insert se puede meter otra corrida, que es
+     * exactamente el agujero que el chequeo de email duplicado tenía en
+     * {@code UsuarioService} y que solo cerró el índice de la base.
+     *
+     * <p>Se pregunta por el par completo porque un mismo hecho le llega a varias
+     * personas de administración: la clave sola no alcanza para saber si a ESTA le
+     * falta.
+     *
+     * @return filas {@code [id_usuario_destino, clave_evento]}
+     */
+    @Query("""
+            SELECT n.destino.id, n.claveEvento FROM Notificacion n
+            WHERE n.claveEvento IN :claves
+            """)
+    List<Object[]> yaAvisados(@Param("claves") Collection<String> claves);
 }

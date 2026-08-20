@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -189,4 +190,39 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             ORDER BY MIN(p.fechaPago)
             """)
     List<Object[]> deudores(@Param("adeudados") Iterable<EstadoPago> adeudados);
+
+    /**
+     * Pasar a {@code VENCIDO} la deuda que ya cruzó los 7 días.
+     *
+     * <p><b>Hasta el 2026-08-20 nadie escribía nunca ese estado.</b> Existe en el
+     * CHECK de `V1` desde el primer día, tiene su índice
+     * ({@code pago_deudores}), {@link EstadoPago#VENCIDO} lo documenta como
+     * <i>"deuda que además pasó los 7 días (§6, alerta automática)"</i> y
+     * {@link EstadoPago#ADEUDADOS} lo cuenta — pero la única forma de que una fila
+     * llegara ahí era que alguien lo eligiera a mano en el desplegable de
+     * `/admin/pagos`. Nadie lo notó porque la pantalla de deudores calcula los días
+     * al vuelo, así que <b>se veía bien y el dato guardado no lo estaba</b>: una
+     * deuda de 40 días y una de uno eran la misma fila para cualquier consulta que
+     * no rehiciera la cuenta.
+     *
+     * <p><b>No mueve plata</b>: {@code DEBE} y {@code VENCIDO} están los dos en
+     * {@link EstadoPago#ADEUDADOS}, así que la caja, el estado de cuenta y la
+     * pantalla de deudores dan exactamente lo mismo antes y después. Lo único que
+     * cambia es que el dato queda escrito.
+     *
+     * <p>Solo toca {@code DEBE}. Un {@code ANULADO} o un {@code PAGADO} no vuelven
+     * a la deuda por más viejos que sean, y un {@code VENCIDO} ya está donde va —
+     * lo que además hace que correr esto diez veces seguidas tenga el mismo efecto
+     * que correrlo una.
+     *
+     * @param limite la fecha a partir de la cual una deuda cuenta como vencida
+     * @return cuántas filas cambiaron
+     */
+    @Modifying
+    @Query("""
+            UPDATE Pago p SET p.estadoPago = com.lajuanita.backend.pago.EstadoPago.VENCIDO
+            WHERE p.estadoPago = com.lajuanita.backend.pago.EstadoPago.DEBE
+              AND p.fechaPago < :limite
+            """)
+    int marcarVencidos(@Param("limite") LocalDate limite);
 }

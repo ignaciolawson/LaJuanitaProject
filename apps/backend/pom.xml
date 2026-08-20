@@ -151,6 +151,18 @@
 					-->
 					<systemPropertyVariables>
 						<lajuanita.limite.intentos-por-ip>1000000</lajuanita.limite.intentos-por-ip>
+						<!--
+							Y el disparador automatico de avisos, por lo mismo:
+							la suite levanta el contexto decenas de veces y cada
+							arranque programaria una tarea que puede caer en
+							medio de un caso y escribirle notificaciones a una
+							base que ese caso esta contando.
+
+							Se apaga el RELOJ, no la logica: AvisosTest llama a
+							AvisoService.generar() a mano, que es lo que hay que
+							probar. El cron de Spring no es nuestro.
+						-->
+						<lajuanita.avisos.habilitado>false</lajuanita.avisos.habilitado>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

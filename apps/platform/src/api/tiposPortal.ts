@@ -132,7 +132,27 @@ export type Aprobacion = {
   respuesta?: string
 }
 
-export type TipoNotificacion = 'SOLICITUD_APROBADA' | 'SOLICITUD_RECHAZADA'
+/**
+ * Espeja el enum `TipoNotificacion` de Java.
+ *
+ * **La division que importa es quien las escribe.** Las tres primeras las escribe
+ * una PERSONA al resolver algo —aprobar un pedido, mover una clase— y ocurren una
+ * vez porque la accion ocurrio una vez. Las dos ultimas las escribe el disparador
+ * automatico (`com.lajuanita.backend.aviso`), que corre solo todos los dias y
+ * puede mirar el mismo hecho muchas veces: por eso llevan `clave_evento` y la
+ * base es la que impide que se dupliquen (`V17`).
+ *
+ * `RESERVA_MOVIDA` faltaba en esta lista desde el Modulo 5 y no rompia nada,
+ * porque la pantalla no decide nada por el tipo: muestra titulo y contenido. Vale
+ * mantenerla completa igual —el dia que alguien filtre o pinte por tipo, el que
+ * falta desaparece de la pantalla sin ningun error a la vista.
+ */
+export type TipoNotificacion =
+  | 'SOLICITUD_APROBADA'
+  | 'SOLICITUD_RECHAZADA'
+  | 'RESERVA_MOVIDA'
+  | 'DEUDA_VENCIDA'
+  | 'ENTREGA_IMPAGA'
 
 export type NotificacionResumen = {
   idNotificacion: number

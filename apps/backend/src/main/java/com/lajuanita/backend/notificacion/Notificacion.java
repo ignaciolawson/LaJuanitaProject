@@ -73,6 +73,26 @@ public class Notificacion {
     private boolean leida = false;
 
     /**
+     * Qué HECHO se avisó, para los avisos que dispara la máquina sola.
+     *
+     * <p><b>Null en todo lo que escribe una persona</b> —te aprobaron la sala, te
+     * movieron la clase— y con un valor solo en lo automático. La diferencia no es
+     * de forma: cuando alguien resuelve dos pedidos parecidos son dos avisos y los
+     * dos tienen que llegar, mientras que el cron que corre dos veces el mismo día
+     * está mirando <i>el mismo hecho</i> y tiene que escribir una sola fila.
+     *
+     * <p>El valor se arma con los datos del hecho y <b>nunca con la fecha de la
+     * corrida</b> ({@code DEUDA:u=42:ARS:desde=2026-08-01}), que es lo que hace
+     * que la misma situación dé siempre la misma clave y una situación nueva dé
+     * una distinta. El detalle está en el encabezado de `V17`.
+     *
+     * <p>Quien garantiza que no se duplique es el índice único parcial de la base,
+     * no este campo ni el chequeo del servicio.
+     */
+    @Column(name = "clave_evento", length = 200, updatable = false)
+    private String claveEvento;
+
+    /**
      * Lo pone el DEFAULT de la base.
      *
      * <p>{@code @Generated} porque la fecha se muestra en la bandeja: es la sexta

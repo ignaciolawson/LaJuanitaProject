@@ -14,10 +14,15 @@ package com.lajuanita.backend.notificacion;
  * —fue la primera vez que alguien escribió en esta tabla, que existe desde `V1`— y
  * la tercera la escribe el Módulo 5 al mover una reserva.
  *
- * <p>Lo que deliberadamente <b>no</b> está: el aviso automático de la deuda a los
- * 7 días. No es un tipo que falte, es otra máquina — corre sin que nadie pida
- * nada, necesita un scheduler y necesita decidir qué pasa cuando corre dos veces
- * el mismo día. Va con el módulo que construya notificaciones automáticas.
+ * <p><b>Las dos últimas las escribe una máquina y no una persona</b>, y esa es la
+ * única división que importa acá. Un aviso que alguien dispara al resolver algo
+ * ocurre una vez porque la acción ocurrió una vez; uno automático lo escribe un
+ * cron que puede correr dos veces el mismo día sobre el mismo hecho, así que
+ * lleva {@code clave_evento} y la base se encarga de que no se duplique (`V17`).
+ *
+ * <p>Este comentario decía hasta el 2026-08-20 que el aviso de deuda <i>"no es un
+ * tipo que falte, es otra máquina"</i>. Tenía razón, y la máquina ya existe:
+ * {@code com.lajuanita.backend.aviso}.
  */
 public enum TipoNotificacion {
 
@@ -35,5 +40,26 @@ public enum TipoNotificacion {
      * tiene esta tabla. Le llega al profesor <b>y</b> a los alumnos: el que se
      * presenta en la sala equivocada es cualquiera de los dos.
      */
-    RESERVA_MOVIDA
+    RESERVA_MOVIDA,
+
+    /**
+     * Alguien lleva más de {@code PagoService.DIAS_PARA_VENCER} días debiendo.
+     *
+     * <p>Es la regla dura de §6, y <b>le llega a administración, no a quien
+     * debe</b>. La deuda la persigue el estudio: la pantalla de deudores es
+     * administrativa y el aviso es su versión que va a buscar a la persona en vez
+     * de esperar a que abra la pantalla.
+     */
+    DEUDA_VENCIDA,
+
+    /**
+     * Un trabajo de M&M entregado hace más de 7 días y todavía sin cobrar (§9).
+     *
+     * <p>También va a administración, y acá <b>no podría ir a otro lado aunque se
+     * quisiera</b>: la mitad de los clientes de Mix &amp; Mastering son externos
+     * sin cuenta ({@code trabajo_mastering} los guarda con nombre y contacto), y
+     * una notificación necesita un {@code usuario} destino. El aviso existe para
+     * que Ghezz deje de fiar sin darse cuenta.
+     */
+    ENTREGA_IMPAGA
 }
