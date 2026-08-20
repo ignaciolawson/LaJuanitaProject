@@ -143,9 +143,20 @@ Nada hardcodeado.
 
 ### 2.4 Archivos
 
-Comprobantes, contratos, material de clase, entregas de M&M, fotos de perfil.
-Todos pasan por la misma pieza intercambiable (`StorageService`), en disco local
-durante el desarrollo. **Los comprobantes no se eliminan: se marcan como inválidos.**
+Comprobantes, contratos y fotos de perfil pasan por la misma pieza intercambiable
+(`StorageService`), en disco local durante el desarrollo. **Los comprobantes no se
+eliminan: se marcan como inválidos.**
+
+> ⚠️ **Corrección del 2026-08-19 (§14).** Esta lista incluía *"material de clase"* y
+> *"entregas de M&M"*, y ninguna de las dos pasa por acá: **las dos viajan como link.**
+> El material de clase quedó así al construirse el Módulo 5 (`material.archivo_path`
+> espera a esta pieza, el CHECK de `V1` acepta las dos formas) y las entregas de M&M
+> por decisión del cliente — P23. La frase original **se contradecía con `V1`**, que
+> modela los tres entregables de `trabajo_mastering` como `VARCHAR(500)`, desde el
+> primer día y sin que nadie lo marcara.
+>
+> **El `StorageService` sigue debiéndose**, pero por los comprobantes (§7, Módulo 3),
+> no por estos dos.
 
 ### 2.5 Auditoría
 
@@ -559,7 +570,7 @@ fecha de cambio (`V14`).
 
 ---
 
-## 9. Módulo 6 — Mix & Mastering · *trazo grueso, se detalla en octubre*
+## 9. Módulo 6 — Mix & Mastering · *sin decisiones pendientes desde el 2026-08-19 (§14)*
 
 **Lo esencial:** registrar cada trabajo, contar las revisiones, y **retener el archivo
 final hasta que el pago esté registrado**. Es el único servicio que puede quedar en debe.
@@ -567,15 +578,31 @@ final hasta que el pago esté registrado**. Es el único servicio que puede qued
 Estados: `a confirmar → en proceso → entregado → pagado`, más `debe`.
 
 ### Reglas duras ✅
-- **El archivo final no se libera sin el pago registrado.** Es la regla que le resuelve a Ghezz el "estar fiando el servicio".
+- **El archivo final no se libera sin el pago registrado.** Es la regla que le resuelve a Ghezz el "estar fiando el servicio". **Lo que se retiene es el link del premaster** (P23, §14): el sistema no lo muestra hasta que el pago esté cargado. Bloquea mientras el sistema sea donde se publica el link, y para el resto está la excepción registrada de P28 — que existe porque el cliente avisó que la iba a necesitar.
 - Alerta al superar las revisiones incluidas.
 - Alerta si pasan más de 7 días desde la entrega sin pago.
 - Los clientes externos se registran **con nombre y contacto, sin cuenta**.
 
 ### Pendientes
-- **⚠️❓P22 — ¿Qué se entrega antes de cobrar y qué se retiene?** Los documentos se contradicen. La transcripción completa dice, dos veces y textual: *"Yo entrego el **master**. Cuando me pagan, recién ahí les doy el **premaster**, que es lo que necesitan para discográficas."* El Módulo 6 de la propuesta dice en cambio: *"Ghezz entrega el **premix** al cliente para revisión."* Son tres nombres para dos archivos. **Gana la entrevista** (es la palabra de Ghezz, la propuesta la reinterpretó), pero conviene confirmárselo antes de codificarlo, porque el sistema va a bloquear un archivo concreto.
-- **❓P23 — ¿Los archivos de audio pasan por el sistema?** ¿El cliente sube el track y descarga el resultado desde la plataforma, o se sigue mandando por WeTransfer y el sistema solo lleva el registro? Cambia el costo de almacenamiento y el alcance del módulo.
-- **❓P28 — El cobro de M&M es deliberadamente flexible.** Ghezz: *"Con gente cercana soy más flexible, pero con clientes externos pongo límites"* y *"clientes con mucha exposición no les podés exigir el pago de la misma forma, ahí tenés que tener cintura."* Si el sistema bloquea el archivo sin excepción posible, Ghezz lo va a esquivar y volvemos al WhatsApp. **¿Hace falta una excepción registrada** ("liberar sin pago, con motivo"), igual que la autorización del ❓P8?
+**Ninguno pendiente de decisión. Las tres se cerraron el 2026-08-19 — ver §14.**
+
+- ~~**P22**~~ ✅ Se entrega el **master**, se retiene el **premaster**. Gana la
+  entrevista sobre la propuesta comercial, que hablaba de un *"premix"*: eran tres
+  nombres para dos archivos.
+- ~~**P23**~~ ✅ Los audios **no pasan por el sistema**: van por WeTransfer/Drive y el
+  sistema guarda el link. **La retención es del link**, que es lo que `V1` modela desde
+  el primer día. Con esto **el `StorageService` de §2.4 deja de trabar este módulo** —
+  sigue debiéndose para los comprobantes del Módulo 3— y **§2.4 queda corregida**: las
+  entregas de M&M no pasan por esa pieza.
+- ~~**P28**~~ ✅ La excepción existe: se libera sin pago **escribiendo el motivo**, y
+  queda el autor. La puede usar administración (`@PuedeOperar`), no solo un ADMIN.
+
+**Lo que sí queda por construir y no es una decisión:** la alerta de los 7 días desde
+la entrega sin pago necesita **el disparador automático que todavía no existe** — corre
+sin que nadie pida nada, necesita un scheduler y decidir qué pasa si corre dos veces el
+mismo día. Es la misma pieza que el Módulo 4 dejó anotada para el aviso de deuda, y es
+de quien la construya, no una deuda de este módulo. La otra alerta, la de revisiones
+excedidas, **no la necesita**: se dispara al registrar una revisión.
 
 ---
 
@@ -639,13 +666,13 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | P19 | Acceso del alumno inactivo | Módulo 4 |
 | P20 | Liquidación automática a profesores | Módulo 5 |
 | P21 | Seguimiento de mentorías | Módulo 5 |
-| P22 | ⚠️ Premix / master / premaster | Módulo 6 |
-| P23 | ¿Los audios pasan por el sistema? | Módulo 6 |
+| ~~P22~~ | ✅ Se entrega el master, se retiene el premaster (§14) | — |
+| ~~P23~~ | ✅ No: siguen por WeTransfer/Drive, el sistema guarda el link (§14) | — |
 | P24 | Login de artistas | Módulo 7 |
 | P25 | Seguimiento post-lanzamiento | Módulo 7 |
 | P26 | Definición de tasa de retención | Módulo 8 |
 | ~~P27~~ | ✅ "Grabación" se suma, solo en la Cabina | — |
-| P28 | Excepción para liberar M&M sin pago | Módulo 6 |
+| ~~P28~~ | ✅ Sí, con motivo escrito y autor registrado (§14) | — |
 | ~~P29~~ | ✅ Alquiler de cabina: Sala 1 y 2, servicio propio | — |
 | ~~P30~~ | ✅ Sí, hay clases grupales → `reserva_participante` | — |
 | ~~P31~~ | ✅ M&M es servicio, no curso | — |
@@ -683,6 +710,13 @@ correspondiente. El más urgente es **P34**, porque son números que un cliente 
 `inscripcion`, contestadas de una sola vez por Ignacio (las del cliente, ya validadas con
 él).** Esta sección gana sobre cualquier cosa que la contradiga más arriba en este
 documento.
+
+> **Hay una segunda tanda: [§14](#14-decisiones-cerradas-el-2026-08-19--mix--mastering),
+> del 2026-08-19, con las tres del Módulo 6.** El enlace está acá porque el error que
+> costó un día fue justamente que §13 no estuviera enlazada desde ningún lado, y el
+> informe de auditoría pasó una jornada listando como *"bloqueado por una decisión"*
+> diez hallazgos que ya estaban decididos. **Las dos secciones se leen juntas y ganan
+> sobre el resto del documento.**
 
 > ### ✅ Estado de implementación — 2026-08-14
 >
@@ -896,3 +930,81 @@ DEFERRED` sobre `reserva`, la herramienta que ya dejó anotada la cabecera de `V
   duplica.** Son ~40 líneas; un `packages/` compartido a esta escala cuesta más de lo que
   ahorra.
 - **Los dos `prompt-*.md` de la raíz. RESUELTO: movidos a `docs/auditoria/`.**
+
+---
+
+## 14. Decisiones cerradas el 2026-08-19 — Mix & Mastering
+
+**Las tres preguntas que trababan el Módulo 6, contestadas por Ignacio antes de
+arrancarlo, más tres ratificaciones de cosas que el esquema ya había asumido.** Esta
+sección gana sobre lo que diga §9 más arriba, igual que §13 gana sobre el resto.
+
+### ✅ P23 — Los audios NO pasan por el sistema
+
+**Siguen yendo por WeTransfer / Drive / lo que Ghezz use. El sistema guarda el link.**
+
+Es la respuesta que el esquema ya había asumido: `trabajo_mastering` modela los tres
+entregables como `VARCHAR(500)` —`url_material_cliente`, `url_master`,
+`url_premaster`— desde `V1`. **No hay migración que hacer.**
+
+**Lo que esta respuesta cambia de verdad, y hay que tenerlo escrito:**
+
+- **La retención es del link, no del archivo.** El sistema no muestra `url_premaster`
+  hasta que el pago esté registrado. Eso es un bloqueo real **mientras el sistema sea
+  donde se publica el link**; lo que no puede es impedir que el archivo salga por otro
+  canal. Para eso está la salida registrada de P28, que existe justamente porque el
+  cliente dijo que la iba a necesitar.
+- **El `StorageService` de §2.4 deja de trabar este módulo.** Sigue debiéndose —lo
+  necesitan la descarga de comprobantes (Módulo 3) y el material de clase (Módulo 5,
+  que hoy también va por link)— pero **ya no es un prerrequisito del M6**, que era la
+  única razón por la que este módulo parecía caro.
+- **Corrige a §2.4**, que decía que las entregas de M&M pasan por el `StorageService`.
+  No pasan. Esa frase y `V1` se contradecían desde el primer día y nadie lo había
+  marcado; gana `V1`, que es donde la decisión está implementada.
+- **Y saca al M6 de la decisión de hosting de octubre.** El presupuesto de ~US$10/mes
+  contaba con almacenamiento en capa gratuita, que no aguanta audio; sin audio
+  adentro, el módulo no depende de esa decisión.
+
+### ✅ P22 — Se entrega el master, se retiene el premaster
+
+**Confirmado lo que decía la entrevista, textual:** *"Yo entrego el master. Cuando me
+pagan, recién ahí les doy el premaster, que es lo que necesitan para discográficas."*
+
+**Gana sobre la propuesta comercial**, que hablaba de entregar un *"premix"* para
+revisión. Eran tres nombres para dos archivos, y quedan dos: **master** (se entrega) y
+**premaster** (se retiene). El archivo de revisión durante el proceso es el master.
+
+Esto ratifica lo que `V1:531-537` ya había escrito y lo que `V6 §6` construyó encima
+—el trigger `pago_sostiene_premaster`, que impide anular el único pago que respalda un
+premaster ya liberado—. **Era la respuesta más cara si salía al revés**: las columnas
+tienen un trigger encima y las migraciones no se editan.
+
+### ✅ P28 — La excepción existe, y deja rastro
+
+**Se puede liberar el premaster sin el pago cargado, escribiendo el motivo, y queda
+registrado quién lo hizo.** Es lo que `V1` ya modela con `liberado_sin_pago`,
+`motivo_liberacion` e `id_usuario_libera`, más el CHECK `trabajo_liberacion_justificada`
+que exige el motivo.
+
+El razonamiento, que conviene no perder: **un bloqueo sin salida se esquiva por
+afuera.** Ghezz dijo *"con gente cercana soy más flexible"* y *"a clientes con mucha
+exposición no les podés exigir el pago de la misma forma"*. Si el sistema no tuviera
+salida, la salida sería volver al WhatsApp y el módulo entero dejaría de reflejar la
+realidad. La salida existe **y cuesta una frase escrita**, que es exactamente el
+diseño de la anulación de pagos (`V7`) y de la baja de nivel (`V9`).
+
+**Quién puede usarla: administración** — el mismo `@PuedeOperar` que registra un pago.
+Ghezz la usa como STAFF y Micaela también. No se restringe a ADMIN: quien puede
+cobrar puede decidir no cobrar todavía, y lo que hace auditable la decisión no es el
+rol sino la firma.
+
+### ✅ Las tres ratificaciones
+
+| | Lo confirmado | Dónde ya estaba |
+|---|---|---|
+| **Revisiones incluidas** | **3**, iguales para los tres tipos de trabajo | `trabajo_mastering.revisiones_incluidas DEFAULT 3` |
+| **Moneda** | Se cotiza en **USD**; se puede cobrar en pesos, y la cotización que vale es la del día del cobro | `moneda DEFAULT 'USD'`, sin exigir cotización al presupuestar |
+| **Tipos de trabajo** | **mix / master / mix+master**, no falta ninguno | `CHECK (tipo_trabajo IN ('MIX','MASTER','MIX_MASTER'))` |
+
+**Ninguna de las seis decisiones necesita una migración**: el esquema de `V1` había
+apostado por todas y acertó. Lo que queda del Módulo 6 es construcción.

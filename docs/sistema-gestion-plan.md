@@ -9,7 +9,7 @@
 > Lo que NO está acá: el detalle funcional de los 8 módulos (pantallas, permisos,
 > reglas de negocio). Eso vive en
 > [`docs/requirements/platform.md`](requirements/platform.md) —fue la primera tarea de
-> la Fase 0 y está hecho—. **Y su §13 gana sobre este documento en todo lo que sea una
+> la Fase 0 y está hecho—. **Y sus §13 y §14 ganan sobre este documento en todo lo que sea una
 > decisión**, porque es posterior.
 
 ---
@@ -634,8 +634,9 @@ Tres cosas para ese momento:
 > fuera de esta sección porque esto se reescribe entero cada vez y esa lista no.
 >
 > **Y para todo lo que sea una DECISIÓN, mirá antes
-> [`docs/requirements/platform.md` §13](requirements/platform.md) — "Decisiones
-> cerradas el 2026-08-14".** Veinte preguntas contestadas de una sola vez, las
+> [`docs/requirements/platform.md` §13 y §14](requirements/platform.md) — "Decisiones
+> cerradas el 2026-08-14" y su segunda tanda del 2026-08-19, que cierra las tres del
+> Módulo 6.** Veinte preguntas contestadas de una sola vez, las
 > cinco del cliente incluidas, y es posterior a este documento y al informe de
 > auditoría. **Gana sobre los dos.** No estaba enlazada desde ningún lado, y por
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
@@ -772,12 +773,32 @@ módulo, que había que reemplazarlo; se cambió por casos del bloque real.
 
 ### ⏭️ LO PRÓXIMO
 
-**Módulo 6 — Mix & Mastering.** El documento lo tiene a trazo grueso y **se detalla
-en octubre**, así que antes de empezarlo hay que mirar `platform.md` §9: tiene tres
-preguntas abiertas y una de ellas decide qué archivo bloquea el sistema (**❓P22**:
-master contra premaster, los documentos se contradicen y gana la entrevista). Es
-también el módulo que **obliga a construir el `StorageService` de §2.4**, la pieza
-que el M5 esquivó mandando el material por link.
+**Módulo 6 — Mix & Mastering, y ya no lo traba ninguna decisión.** Sus tres preguntas
+abiertas se cerraron el 2026-08-19 y están en **`platform.md` §14**: se entrega el
+master y se retiene el premaster (**P22**, gana la entrevista sobre la propuesta), los
+**audios no pasan por el sistema** (**P23**: siguen por WeTransfer/Drive y se guarda el
+link) y **la excepción para liberar sin pago existe**, con motivo escrito y autor
+registrado (**P28**), disponible para administración y no solo para un ADMIN. Se
+ratificaron además las tres apuestas del esquema: 3 revisiones incluidas, cotización en
+USD y los tres tipos de trabajo.
+
+**Ninguna necesita migración: `V1` había apostado por todas y acertó.** Lo que queda es
+construcción.
+
+**Y P23 le sacó de encima al módulo lo que lo hacía caro:** el `StorageService` de §2.4
+**deja de ser un prerrequisito**. Sigue debiéndose —lo necesitan la descarga de
+comprobantes del M3 y, algún día, el material de clase del M5— pero el M6 entero se
+puede construir sin él, y tampoco depende ya de la decisión de hosting de octubre,
+porque no hay audio que almacenar. De paso, esa respuesta **corrigió una contradicción
+que nadie había marcado**: §2.4 decía que las entregas de M&M pasan por el
+`StorageService` y `V1` las modela como `VARCHAR(500)` desde el primer día.
+
+**Lo único que el M6 pide y todavía no existe** es el disparador automático de la alerta
+a los 7 días de la entrega sin pago: corre sin que nadie pida nada, necesita un
+scheduler y decidir qué pasa si corre dos veces el mismo día. **Es la misma pieza que el
+M4 dejó anotada** para el aviso de deuda — la segunda vez que un módulo la pide, así que
+conviene que este la construya. La otra alerta, la de revisiones excedidas, no la
+necesita: se dispara al registrar una revisión.
 
 Y antes de eso, **§6f**: cinco retoques técnicos pospuestos a propósito, ninguno de
 los cuales necesita migración.
