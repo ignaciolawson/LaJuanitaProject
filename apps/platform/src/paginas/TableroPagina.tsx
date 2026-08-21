@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 
 import { listarSalas } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import { resumenFinanciero, tableroCompleto } from '../api/tablero'
+import { descargarTablero, resumenFinanciero, tableroCompleto } from '../api/tablero'
 import type { CajaDelPeriodo, SalaResumen } from '../api/tiposAdmin'
 import type {
   CobrosPendientes,
@@ -56,6 +56,7 @@ export function TableroPagina() {
   const [salas, setSalas] = useState<SalaResumen[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [bajando, setBajando] = useState<'xlsx' | 'pdf' | null>(null)
 
   useEffect(() => {
     if (!completo) return
@@ -100,6 +101,26 @@ export function TableroPagina() {
   }, [cargar])
 
   const rango = `desde=${desde}&hasta=${hasta}`
+
+  // La exportación hereda EXACTAMENTE los filtros de la pantalla, incluida la
+  // sala: se exporta lo que estás mirando (§15). Y el archivo lo dice adentro,
+  // en su cabecera de trazabilidad, que es lo que lo hace defendible tres meses
+  // después en una reunión.
+  async function bajar(formato: 'xlsx' | 'pdf') {
+    setBajando(formato)
+    setError(null)
+    try {
+      await descargarTablero(formato, {
+        desde,
+        hasta,
+        idSala: idSala === '' ? undefined : idSala,
+      })
+    } catch {
+      setError('No se pudo generar el archivo.')
+    } finally {
+      setBajando(null)
+    }
+  }
 
   return (
     <div>
@@ -157,6 +178,20 @@ export function TableroPagina() {
             90 días
           </Boton>
         </div>
+
+        {/* Solo para quien ve el tablero entero: se exporta lo que se puede ver,
+            y el backend rechaza el pedido de quien no. Ofrecer el botón igual
+            sería prometer una descarga que vuelve 403. */}
+        {completo && (
+          <div className="flex gap-2">
+            <Boton variante="secundario" onClick={() => void bajar('xlsx')} disabled={bajando !== null}>
+              {bajando === 'xlsx' ? 'Generando…' : 'Excel'}
+            </Boton>
+            <Boton variante="secundario" onClick={() => void bajar('pdf')} disabled={bajando !== null}>
+              {bajando === 'pdf' ? 'Generando…' : 'PDF'}
+            </Boton>
+          </div>
+        )}
       </div>
 
       {error && (

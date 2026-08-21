@@ -17,36 +17,35 @@
 
 ## 🔴 1. Lo que bloquea la entrega
 
-Son cuatro, y en este orden. **Al 2026-08-20 queda una menos**: el ensayo de
-restore (1.2) se cerró ese día.
+Eran cuatro. **Al 2026-08-20 quedan dos**: ese día se cerraron el Módulo 8 —el MVP
+está completo, ocho de ocho— y el ensayo de restore. Lo que sigue abierto no es
+construcción: es **el deploy (1.3), que espera la decisión de hosting de octubre, y
+desactivar el admin sembrado (1.4)**, que se hace junto con él.
 
-### 1.1 · El Módulo 8 — Dashboard de dirección
+### 1.1 · ~~El Módulo 8 — Dashboard de dirección~~ — **CERRADO el 2026-08-20**
 
-**Es el único módulo que falta.** Siete de ocho cerrados.
+**El MVP está completo: ocho de ocho módulos.**
 
-Todas sus preguntas están contestadas (`platform.md` §11 y §15). Lo que sabe:
-solo lectura, drill-down a cada módulo, sin datos en el período muestra **cero y
-no vacío**, acceso completo `ADMIN`·`DIRECTIVO` y `STAFF` ve el resumen básico.
+`/admin/tablero`, paquete `com.lajuanita.backend.tablero`, sin migración —el tablero
+solo lee—. Los ocho indicadores, el drill-down a cada módulo con el período puesto, y
+la exportación a Excel y PDF con su cabecera de trazabilidad. El detalle está en
+`platform.md` §11.
 
-**Lo único abierto adentro, y no traba empezar:**
+Las dos cosas que quedaban abiertas adentro se cerraron al construirlo:
 
-- **El denominador de la tasa de retención.** La definición está cerrada —segundo
-  servicio dentro de los 10 meses del primero, contados desde el primero, sin
-  contar venta de equipos— pero falta sobre *quiénes* se calcula el porcentaje.
-  ⚠️ **La trampa está anotada**: quien contrató hace tres meses **no puede contar
-  como perdido**, su ventana sigue abierta. Si entra al denominador, la tasa baja
-  sola cada vez que el estudio suma alumnos — **crecer se vería como empeorar**.
-  Lectura por defecto: los que contrataron hace más de 10 meses.
-- **La exportación a PDF y Excel**, que entra con vara alta (§15, ratificación 8):
-  hereda los filtros de la pantalla, y cada archivo lleva **cabecera de
-  trazabilidad** —qué filtros, cuándo, quién—, porque ese archivo termina en una
-  reunión de socios. Excel de verdad, con fechas como fechas e importes como
-  números. Son **dos librerías nuevas**, y hay que elegirlas al planificar el
-  módulo, no a mitad.
+- **El denominador de la retención** quedó como la lectura por defecto que §15
+  anticipaba: los que contrataron hace más de 10 meses. ⚠️ **Y construirlo encontró una
+  segunda trampa que no estaba anotada y es peor**: las clases de un curso no son
+  servicios contratados. Una inscripción de DJ son ocho reservas; contarlas daría que
+  todo alumno queda retenido a la semana de empezar y la tasa daría casi 100% — un
+  número que nadie discutiría porque suena bien.
+- **La exportación entró completa**, con las dos librerías elegidas al planificar como
+  §15 pedía: **Apache POI** y **OpenPDF**. OpenPDF y no iText porque iText 7 es AGPL, que
+  para una entrega comercial obliga a publicar el sistema entero o a comprar licencia.
 
-> **Si en octubre el calendario aprieta, la exportación es lo único de todo el
-> proyecto que se puede diferir sin que un módulo deje de servir**: el tablero se
-> mira en pantalla. Queda dicho ahora y no en noviembre.
+> **Ya no hace falta el plan B de octubre.** Este documento decía que la exportación era
+> lo único diferible de todo el proyecto si el calendario apretaba. Entró, así que esa
+> carta queda sin usar.
 
 ### 1.2 · ~~El ensayo de restore quedó incompleto~~ — **CERRADO el 2026-08-20**
 
@@ -130,6 +129,10 @@ Lo que hay que hacer antes de publicar, y **ninguno depende de código**:
 
 **`sistema-gestion-plan.md` §6f. Decidido el 2026-08-20: van DESPUÉS de los ocho
 módulos, de a uno.** No se hacen mientras se espera nada.
+
+> ⚠️ **Y los ocho módulos están, desde el 2026-08-20.** O sea que esta lista dejó de
+> estar esperando y **pasó a ser lo próximo que se hace**, junto con el rediseño de 3.2.
+> Ninguno de los cinco necesita migración, que era la condición para poder postergarlos.
 
 1. **El admin no debería cambiarse el nombre ni el mail** → el mail ya no lo cambia
    nadie; sobre el nombre, la pregunta es si la regla es del rol o de la cuenta de

@@ -704,7 +704,7 @@ las dos en `V18` §1b.
 
 ---
 
-## 11. Módulo 8 — Dashboard de Dirección · *trazo grueso*
+## 11. Módulo 8 — Dashboard de Dirección · ✅ *cerrado el 2026-08-20*
 
 Solo lectura. Indicadores: alumnos activos por servicio · ingresos del período en ARS y
 USD por línea de negocio · ocupación de salas por día y franja · cobros pendientes ·
@@ -716,14 +716,72 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 - Sin datos en el período ⇒ muestra cero, no vacío.
 - Acceso completo solo `DIRECTIVO` y `ADMIN`; `STAFF` ve el resumen financiero básico.
 
-### Pendientes
+### Lo construido
 
-> Redactada para mandar, junto con las del Módulo 7, en
-> [`docs/relevamiento/preguntas-abiertas-modulos-7-y-8.md`](../relevamiento/preguntas-abiertas-modulos-7-y-8.md).
-> Ahí también queda anotada una decisión que **no es del cliente sino de alcance**:
-> si la exportación a PDF y Excel entra antes de diciembre o después.
+`GET /api/tablero` (ADMIN·DIRECTIVO) y `GET /api/tablero/resumen` (además STAFF), más
+`exportacion.xlsx` y `exportacion.pdf`. Pantalla en `/admin/tablero`, paquete
+`com.lajuanita.backend.tablero`. **Sin migración**: el tablero solo lee.
 
-- **❓P26 — "Tasa de retención": ¿cómo se define exactamente?** ¿Alumnos que empezaron un segundo curso? ¿En qué ventana de tiempo? Es el único indicador que no se calcula solo sin una definición del negocio.
+**Las cuatro reglas duras se implementaron así, y cada una tiene su porqué:**
+
+- **`STAFF` ve menos porque llama a OTRO endpoint**, no porque el mismo devuelva menos.
+  Un endpoint que contesta distinto según el rol rompe la propiedad que el Módulo 4 se
+  impuso —ningún endpoint cambia de significado según quién lo llame— y hace que un
+  indicador nuevo pueda filtrarse a STAFF por olvido. Con dos DTOs hay que agregarlo a
+  mano al segundo.
+- **Cero y no vacío lo sostiene el backend**, no la pantalla: la grilla de ocupación
+  viaja completa y cubre siempre el horario del estudio. Puesto en el front, sería un
+  detalle de dibujo que se pierde en el rediseño que viene al final.
+- **El drill-down lleva el período puesto**, para que el detalle no conteste sobre otro
+  mes que el que estabas mirando.
+- **Aparece el tercer eje de rol del sistema**, `@PuedeVerElTableroCompleto`: el único
+  lugar donde la línea no separa leer de escribir sino a dos clases de administrador —
+  o sea, la razón concreta por la que los roles son cuatro y no tres.
+
+**Y una distinción que el módulo tuvo que hacer explícita: no todos los indicadores son
+del período.** Alumnos activos, deuda viva y retención son fotos de hoy; ingresos,
+ocupación, entregas y publicaciones son del período elegido. Filtrar una foto por el
+período contesta otra pregunta con el mismo título — mirar agosto haría desaparecer la
+deuda de marzo, que es justo la plata que hay que ir a buscar. La pantalla lo aclara al
+lado de cada bloque y el archivo exportado, adentro de cada hoja.
+
+### ✅ P26 — el denominador, ratificado al construirlo
+
+§15 dejó cerrada la definición —segundo servicio dentro de los 10 meses del primero— y
+anotó que faltaba el denominador. **Queda como la lectura por defecto que §15
+anticipaba: los que contrataron su primer servicio hace más de 10 meses**, o sea
+aquellos cuya ventana ya cerró y sobre los que la respuesta es definitiva.
+
+**Y construirlo encontró una segunda trampa, que no estaba anotada y es peor que la
+del denominador: las clases de un curso no son servicios contratados.** Una inscripción
+de DJ son ocho reservas. Contarlas daría que todo alumno queda retenido a la semana de
+empezar y la tasa daría casi 100% — un número que nadie discutiría porque *suena bien*.
+La consulta excluye las participaciones que cuelgan de una inscripción: ya las
+representa la inscripción.
+
+**Con denominador cero la tasa es `null` y no cero**, en el JSON, en la pantalla y en la
+planilla. Un 0% se lee como que se fueron todos; lo que pasa es que nadie cerró todavía
+su ventana. Es exactamente lo que da hoy la base de desarrollo.
+
+### La exportación (§15, ratificación 8)
+
+Entró completa y con la vara que pedía. **Apache POI** para el xlsx y **OpenPDF** para el
+PDF — OpenPDF y no iText porque iText 7 es AGPL y obligaría a publicar el sistema entero
+o a comprar licencia; es la razón principal de la elección y está escrita en el `pom`.
+
+- **Se exporta lo que estás mirando**: hereda los tres filtros de la pantalla.
+- **Cabecera de trazabilidad** —qué filtros, cuándo, quién— y va **en cada hoja del
+  Excel y en el pie de cada página del PDF**, no una sola vez. El escenario que lo
+  justifica: alguien copia una hoja a otro libro y la manda por mail, o imprime una
+  página suelta. Sin la cabecera adentro, ese pedazo perdió de dónde salió.
+- **El "quién" se lee de la base por el id del token**, nunca de algo que mande el
+  cliente: una cabecera que se puede escribir desde afuera no traza nada.
+- **Excel de verdad**: cada celda se escribe con su tipo, y los importes llevan formato
+  de moneda de Excel en vez de venir como texto ya formateado. Un `"$ 180.000,00"` se ve
+  idéntico a un número y rompe el primer `SUM` que alguien haga.
+- **Se exporta lo que se puede ver**: la exportación es ADMIN·DIRECTIVO, igual que el
+  tablero completo. Un endpoint de exportación más flojo que su pantalla es la forma más
+  silenciosa de filtrar datos, porque nadie revisa dos veces un `.xlsx`.
 
 ---
 
@@ -762,7 +820,7 @@ tasa de retención · ingresos por M&M · actividad del sello. Exportable a PDF 
 | ~~P38~~ | ✅ **Archivo, se sube.** El Módulo 7 construye el `StorageService` de §2.4 — y el backup deja de alcanzar solo (§15) | — |
 | ~~P24~~ | ✅ No entran: `artista` es una ficha administrativa. Sin portal propio (§15) | — |
 | ~~P25~~ | ✅ Entra, **cargado a mano**. Ninguna conexión a plataformas (§15) | — |
-| ~~P26~~ | ✅ Segundo servicio dentro de 10 meses; venta de equipos no cuenta; pausar y volver no es retención (§15) | — |
+| ~~P26~~ | ✅ Segundo servicio dentro de 10 meses; venta de equipos no cuenta; pausar y volver no es retención (§15). **El denominador quedó ratificado al construir el Módulo 8** (§11): los que contrataron hace más de 10 meses | — |
 | ~~P27~~ | ✅ "Grabación" se suma, solo en la Cabina | — |
 | ~~P28~~ | ✅ Sí, con motivo escrito y autor registrado (§14) | — |
 | ~~P29~~ | ✅ Alquiler de cabina: Sala 1 y 2, servicio propio | — |
@@ -1252,7 +1310,10 @@ terminar — es la lectura literal y es la que queda.
 >
 > La lectura por defecto, entonces: **el denominador son los que contrataron su primer
 > servicio hace más de 10 meses**, o sea aquellos cuya ventana ya cerró y sobre los que
-> la respuesta ya es definitiva. Se ratifica al construir el Módulo 8.
+> la respuesta ya es definitiva. ~~Se ratifica al construir el Módulo 8.~~ **Ratificado
+> el 2026-08-20 al construirlo, tal cual estaba anticipado — y construirlo encontró una
+> segunda trampa que acá no estaba: las clases de un curso no son servicios contratados,
+> o la tasa daría casi 100%. Ver §11.**
 
 ### 📌 Y dos cosas más que se decidieron el mismo día
 

@@ -1,5 +1,4 @@
-import { leerCredencial } from '../auth/credencial'
-import { pedir } from './cliente'
+import { cabeceraDeCredencial, pedir } from './cliente'
 import type { Pagina } from './tiposAdmin'
 import type {
   AltaAparicion,
@@ -174,16 +173,6 @@ export async function abrirContrato(id: number): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
-/**
- * Sale de `leerCredencial` y no de `localStorage` directo: ese módulo además
- * chequea el vencimiento y limpia lo que ya no vale. Leer la clave a mano acá
- * sería una segunda copia de dónde vive la credencial, y la que se olvida de que
- * venció.
- */
-function cabeceraDeCredencial(): Record<string, string> {
-  const credencial = leerCredencial()
-  return credencial ? { Authorization: `Bearer ${credencial.token}` } : {}
-}
 
 export function borrarContrato(id: number) {
   return pedir<void>(`/api/contratos/${id}`, { metodo: 'DELETE' })

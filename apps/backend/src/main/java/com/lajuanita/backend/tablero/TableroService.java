@@ -3,6 +3,7 @@ package com.lajuanita.backend.tablero;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,7 +34,14 @@ import com.lajuanita.backend.tablero.dto.Tablero.Ocupacion;
 import com.lajuanita.backend.tablero.dto.Tablero.Periodo;
 import com.lajuanita.backend.tablero.dto.Tablero.Retencion;
 import com.lajuanita.backend.tablero.dto.Tablero.Sello;
+import com.lajuanita.backend.sala.Sala;
+import com.lajuanita.backend.sala.SalaRepository;
+import com.lajuanita.backend.tablero.informe.TableroEnExcel;
+import com.lajuanita.backend.tablero.informe.TableroEnPdf;
+import com.lajuanita.backend.tablero.informe.Trazabilidad;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
+import com.lajuanita.backend.usuario.Usuario;
+import com.lajuanita.backend.usuario.UsuarioRepository;
 
 /**
  * El tablero de dirección (§11). <b>Solo lectura, de punta a punta.</b>
@@ -98,10 +106,15 @@ public class TableroService {
 
     private final TableroRepository tablero;
     private final PagoService pagos;
+    private final SalaRepository salas;
+    private final UsuarioRepository usuarios;
 
-    public TableroService(TableroRepository tablero, PagoService pagos) {
+    public TableroService(TableroRepository tablero, PagoService pagos,
+            SalaRepository salas, UsuarioRepository usuarios) {
         this.tablero = tablero;
         this.pagos = pagos;
+        this.salas = salas;
+        this.usuarios = usuarios;
     }
 
     /**
@@ -143,6 +156,63 @@ public class TableroService {
                 new Periodo(desde, hasta, null),
                 pagos.caja(desde, hasta),
                 cobrosPendientes());
+    }
+
+    // == La exportación =======================================================
+
+    /**
+     * El tablero como planilla de cálculo.
+     *
+     * <p><b>Exporta lo que estás mirando, no "todo"</b> (§15, ratificación 8):
+     * los mismos tres filtros que la pantalla, y la cabecera de trazabilidad dice
+     * cuáles fueron. Un volcado fijo obligaría a recortar a mano en Excel lo que
+     * la pantalla ya había filtrado.
+     *
+     * <p>Se genera pidiendo {@link #completo} y no consultando aparte, así que
+     * <b>el archivo no puede diferir de la pantalla</b>: si difiriera, alguien
+     * defendería en una reunión un número que su propio sistema no muestra.
+     */
+    @Transactional(readOnly = true)
+    public byte[] enExcel(LocalDate desde, LocalDate hasta, Long idSala, Long idQuienPide) {
+        return TableroEnExcel.generar(
+                completo(desde, hasta, idSala),
+                trazabilidad(desde, hasta, idSala, idQuienPide));
+    }
+
+    /** El mismo informe, para imprimir. Ver {@code TableroEnPdf}. */
+    @Transactional(readOnly = true)
+    public byte[] enPdf(LocalDate desde, LocalDate hasta, Long idSala, Long idQuienPide) {
+        return TableroEnPdf.generar(
+                completo(desde, hasta, idSala),
+                trazabilidad(desde, hasta, idSala, idQuienPide));
+    }
+
+    /**
+     * De dónde salió el archivo: qué filtros, cuándo y quién.
+     *
+     * <p><b>El "quién" se lee de la base por el id del token, nunca de nada que
+     * mande el cliente.</b> Una cabecera de trazabilidad que se puede escribir
+     * desde afuera no traza nada — es la misma razón por la que la firma de una
+     * baja de nivel o de una publicación sin contrato la escribe el servidor.
+     *
+     * <p>La sala se resuelve a su nombre acá: en el archivo tiene que decir
+     * "Sala 1", no "idSala=3". Un número no le dice nada a quien abre la planilla
+     * tres meses después, que es exactamente el lector para el que existe esta
+     * cabecera.
+     */
+    private Trazabilidad trazabilidad(LocalDate desde, LocalDate hasta, Long idSala, Long idQuienPide) {
+        String nombreDeSala = idSala == null ? null
+                : salas.findById(idSala).map(Sala::getNombreSala).orElse("sala " + idSala);
+
+        String quien = usuarios.findById(idQuienPide)
+                .map(TableroService::nombreCompleto)
+                .orElse("usuario " + idQuienPide);
+
+        return new Trazabilidad(desde, hasta, nombreDeSala, LocalDateTime.now(), quien);
+    }
+
+    private static String nombreCompleto(Usuario usuario) {
+        return "%s %s (%s)".formatted(usuario.getNombre(), usuario.getApellido(), usuario.getEmail());
     }
 
     // == Los indicadores ======================================================

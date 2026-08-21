@@ -661,7 +661,132 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20, cierre del Módulo 7
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20, cierre del MÓDULO 8
+
+## ✅ OCHO DE OCHO: EL MVP ESTÁ COMPLETO
+
+**Suites: 486 backend · 358 front · 179 + 51 SQL, sobre 18 migraciones.**
+
+El mismo día se cerraron **el ensayo de restore** (lo que quedaba abierto del Módulo 7)
+y **el Módulo 8**, que era el último. Con eso **no queda módulo por construir**: lo que
+sigue en el proyecto es despliegue y retoques, no funcionalidad.
+
+### 🧾 PRIMERO, LO QUE SE DEBÍA DEL MÓDULO 7: EL ENSAYO DE RESTORE
+
+Se rehizo entero, ahora con los archivos, y pasó. Está escrito en `operacion.md` §2,
+que pasó a ser el ensayo vigente. Lo que agregó sobre el del 2026-08-14: el PDF volvió
+**byte a byte** —mismo `sha256`—, cada fila encontró su archivo y cada archivo su fila,
+**las cinco reglas ejercitadas rechazaron con su propio mensaje** —incluidas las dos del
+sello— y el cierre fue levantar la aplicación real contra la base restaurada **y los
+archivos restaurados**, bajando el contrato por la API.
+
+> **Y se probó el modo de falla al revés, que es lo que lo hacía urgente.** Con la fila
+> intacta y el archivo sacado de su lugar, la API contesta *"No está el archivo
+> pedido."*: **el sistema se entera recién cuando alguien lo pide.** Una base restaurada
+> sin sus archivos arranca perfecta y no se queja hasta el día que alguien abre un
+> contrato.
+
+### 🕳️ LO QUE ENCONTRÓ EL MÓDULO 8
+
+**1 · La trampa de la retención que NO estaba anotada, y es peor que la que sí.**
+
+§15 dejó anotada la del denominador —quien contrató hace tres meses no puede contar como
+perdido, o crecer se leería como empeorar— y esa se respetó. La que no estaba escrita en
+ningún lado: **las clases de un curso no son servicios contratados.** Una inscripción de
+DJ son ocho reservas; contarlas daría que **todo alumno queda retenido a la semana de
+empezar** y la tasa daría casi 100%.
+
+Y ese es el punto: **nadie habría discutido ese número.** Una retención del 95% se
+festeja, no se audita. Un indicador equivocado no falla — convence.
+
+**2 · Un test viejo me corrigió, y esta vez había que revertirlo igual.**
+
+`menu.test.ts` afirmaba que STAFF no entraba a esta pantalla y que su resumen financiero
+vivía dentro de Pagos. No estaba mal escrito: estaba escrito sobre otra lectura del
+alcance, de cuando el Módulo 8 era "trazo grueso". Pero §11 lista *"STAFF ve el resumen
+financiero básico"* entre las **reglas duras del Módulo 8** — si ese resumen viviera en
+Pagos, sería una regla del Módulo 3. Se revirtió dejando escrito por qué.
+
+**Es la segunda vez que un test viejo discute un cambio mío** (la primera fue
+`prohibir_borrado_historico` en el Módulo 7) y la primera en que la respuesta correcta
+fue cambiarlo. La diferencia: aquel test defendía un hecho —qué tablas enumera un
+mensaje—, este defendía una interpretación.
+
+**3 · Una trampa de Spring Data que vale anotar.** Una consulta de una sola fila
+declarada como `Object[]` devuelve la lista igual y la castea: llega un `Object[]` cuyo
+único elemento es *otro* `Object[]`, y el `ClassCastException` aparece recién al leer la
+primera columna. Se declara `List<Object[]>` y se toma el primero.
+
+### 🖥️ LO QUE SE CONSTRUYÓ
+
+| Qué | Dónde |
+|---|---|
+| El tablero, ocho indicadores con drill-down | `/admin/tablero` |
+| El resumen financiero básico, lo que ve STAFF | la misma pantalla, otro endpoint |
+| Exportación a Excel y PDF con cabecera de trazabilidad | `.../exportacion.xlsx` y `.pdf` |
+| Backend | `com.lajuanita.backend.tablero` |
+| El armado del informe, uno solo para los dos formatos | `com.lajuanita.backend.tablero.informe` |
+
+**Sin migración.** Es el único módulo del proyecto que no agregó ni una regla a la base,
+y tiene sentido: el tablero solo lee.
+
+### 🧩 LAS DECISIONES DEL MÓDULO
+
+- **STAFF ve menos porque llama a OTRO endpoint**, no porque el mismo devuelva menos.
+  Un endpoint que contesta distinto según el rol rompe la propiedad que el Módulo 4 se
+  impuso, es imposible de leer en un test —hay que montar dos usuarios para saber qué
+  contesta— y el día que se agregue un indicador, el filtro por rol es lo que se olvida.
+- **No todos los indicadores son del período, y la pantalla lo dice en voz alta.**
+  Alumnos activos, deuda viva y retención son fotos de hoy. Filtrar una foto por el
+  período contesta otra pregunta con el mismo título: mirar agosto haría desaparecer la
+  deuda de marzo.
+- **La línea de negocio de un pago sale de a qué apunta**, y en el caso de una reserva,
+  del **tipo de uso** de esa reserva. Sin ese cruce, todas las señas caen en la misma
+  bolsa y el tablero dice que el estudio factura por alquilar lo que cobró por enseñar.
+- **La caja no se recalcula**: sale de `PagoService.caja`, del Módulo 3. Habría sido la
+  tercera copia de una definición y la peor — dos pantallas con totales distintos del
+  mismo mes. Hay un caso que compara las dos respuestas para que la copia no se pueda
+  introducir después.
+- **Cero y no vacío lo sostiene el backend**, no la pantalla: la grilla de ocupación
+  viaja completa y cubre siempre el horario del estudio. En el front sería un detalle de
+  dibujo que se pierde en el rediseño que viene ahora.
+- **Con denominador cero la tasa es `null`, no cero.** Un 0% se lee como que se fueron
+  todos. Y es exactamente lo que devuelve la base de desarrollo hoy.
+- **Un solo armado del informe, dos formatos.** Excel y PDF leen las mismas hojas y
+  celdas tipadas; ninguno decide qué mostrar. Escritos por separado, en algún momento un
+  indicador nuevo entraría en uno solo y nadie se enteraría hasta que dos personas
+  comparen sus archivos en una reunión.
+- **La cabecera de trazabilidad se repite en cada hoja del Excel y en el pie de cada
+  página del PDF.** El escenario: alguien copia una hoja a otro libro y la manda por
+  mail, o imprime una página suelta. Ese pedazo tiene que poder decir de dónde salió.
+- **OpenPDF y no iText**: iText 7 es AGPL y obligaría a publicar el sistema entero o a
+  comprar licencia. Es la razón principal de la elección y está escrita en el `pom`.
+
+### ⏭️ LO PRÓXIMO — y por primera vez no es un módulo
+
+**1 · Verificar que arrancás en verde.** No hay migración nueva: la 18 sigue siendo la
+última.
+
+```
+docker compose up -d
+cd apps/backend  && mvn test              # 486
+cd apps/platform && npm test              # 358
+./scripts/pruebas-sql.sh                  # 179 + 51, sobre 18 migraciones
+```
+
+**2 · Los retoques de §6f y el rediseño del front.** Eran "después de los ocho módulos",
+y los ocho módulos están. Son cinco retoques y ninguno necesita migración, que era la
+condición para haberlos podido postergar. El rediseño va en una sola pasada; la landing
+no se toca.
+
+**3 · Lo que no depende de código y bloquea la entrega**, con `docs/pendientes.md` como
+inventario: el deploy espera la decisión de hosting de **octubre** (y ahora también
+necesita **disco persistente**, por los contratos), desactivar el admin sembrado por
+`V3` va en una `V19`, y la landing espera sus datos del cliente.
+
+## 📚 EL MÓDULO 7, PARA CONSULTA (mismo día, tanda anterior)
+
+### ⏭️ Cierre del Módulo 7
 
 ## ✅ MÓDULO 7 CERRADO: SIETE DE OCHO, Y QUEDA SOLO EL TABLERO
 

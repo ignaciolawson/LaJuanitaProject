@@ -141,3 +141,20 @@ async function interpretarError(respuesta: Response): Promise<ApiError> {
 
   return new ApiError(respuesta.status, detalle ?? mensajePorEstado(respuesta.status), errores)
 }
+
+/**
+ * La cabecera `Authorization`, para los pedidos que NO pasan por `pedir`.
+ *
+ * Son los que bajan un archivo: `pedir` interpreta JSON y un `.xlsx` no lo es,
+ * así que esos usan `fetch` directo. Lo que no pueden hacer es leer la
+ * credencial por su cuenta — `leerCredencial` además chequea el vencimiento y
+ * limpia lo que ya no vale, y una copia a mano sería la que se olvida de eso.
+ *
+ * Vivía privada en `sello.ts`, que fue el primero en bajar un archivo. Se mudó
+ * acá el 2026-08-20, cuando la exportación del tablero la necesitó también
+ * (ARQ-06: se extrae cuando aparece el segundo usuario, no antes).
+ */
+export function cabeceraDeCredencial(): Record<string, string> {
+  const credencial = leerCredencial()
+  return credencial ? { Authorization: `Bearer ${credencial.token}` } : {}
+}

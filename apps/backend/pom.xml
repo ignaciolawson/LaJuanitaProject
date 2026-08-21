@@ -95,6 +95,31 @@
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!--
+			Las dos librerias de la exportacion del Modulo 8. Elegidas al planificar
+			el modulo y no a mitad, que es lo que §15 (ratificacion 8) pide
+			explicitamente: Excel y PDF no se generan con la misma.
+
+			POI porque el requisito es "Excel de verdad, no un CSV con otro nombre":
+			fechas como fechas e importes como numeros, o el primer SUM que alguien
+			haga en la reunion de socios da cualquier cosa.
+
+			OpenPDF y NO iText: iText 7 es AGPL, que para una entrega comercial
+			obliga a publicar el sistema entero o a comprar licencia. OpenPDF es su
+			fork LGPL/MPL y trae tablas hechas, que es todo lo que este documento
+			necesita. La licencia es la razon principal de la eleccion y por eso
+			esta escrita aca y no en un commit.
+		-->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.4.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.librepdf</groupId>
+			<artifactId>openpdf</artifactId>
+			<version>2.0.3</version>
+		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

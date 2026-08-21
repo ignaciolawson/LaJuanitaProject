@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -28,13 +29,14 @@ import { TableroPagina } from './TableroPagina'
 vi.mock('../api/tablero', () => ({
   tableroCompleto: vi.fn(),
   resumenFinanciero: vi.fn(),
+  descargarTablero: vi.fn(),
 }))
 
 vi.mock('../api/administracion', () => ({
   listarSalas: vi.fn(),
 }))
 
-const { resumenFinanciero, tableroCompleto } = await import('../api/tablero')
+const { descargarTablero, resumenFinanciero, tableroCompleto } = await import('../api/tablero')
 const { listarSalas } = await import('../api/administracion')
 
 const SALAS: SalaResumen[] = [
@@ -174,6 +176,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(listarSalas).mockResolvedValue(SALAS)
   vi.mocked(tableroCompleto).mockResolvedValue(tablero())
+  vi.mocked(descargarTablero).mockResolvedValue()
   vi.mocked(resumenFinanciero).mockResolvedValue({
     periodo: { desde: '2026-08-01', hasta: '2026-08-20', idSala: null },
     caja: caja(),
@@ -304,5 +307,59 @@ describe('cuando algo falla', () => {
     montar('ADMIN')
 
     await waitFor(() => expect(screen.getByText('No se pudo cargar el tablero.')).toBeDefined())
+  })
+})
+
+describe('la exportación', () => {
+  /**
+   * **Hereda los filtros de la pantalla, incluida la sala.** Es el requisito
+   * textual de §15: se exporta lo que estás mirando y no un volcado fijo que
+   * después hay que recortar a mano en Excel. Si esto se rompe, el archivo se
+   * genera igual y trae otros números que los de la pantalla — que es la peor
+   * forma de romperlo, porque se descubre en la reunión.
+   */
+  it('exporta con el mismo período que está en pantalla', async () => {
+    montar('ADMIN')
+    await screen.findByText('Retención')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excel' }))
+
+    expect(descargarTablero).toHaveBeenCalledWith(
+      'xlsx',
+      expect.objectContaining({ desde: expect.any(String), hasta: expect.any(String) }),
+    )
+  })
+
+  it('el PDF sale por el mismo camino', async () => {
+    montar('ADMIN')
+    await screen.findByText('Retención')
+
+    await userEvent.click(screen.getByRole('button', { name: 'PDF' }))
+
+    expect(descargarTablero).toHaveBeenCalledWith('pdf', expect.anything())
+  })
+
+  /**
+   * **A STAFF no se le ofrece.** Se exporta lo que se puede ver, y el backend
+   * rechaza el pedido de quien no; ofrecer el botón igual sería prometer una
+   * descarga que vuelve 403 — el mismo defecto que `puedeOperar` vino a arreglar
+   * cuando un socio completaba "Nuevo alumno" y recibía un permiso denegado.
+   */
+  it('el STAFF no ve los botones de exportar', async () => {
+    montar('STAFF')
+    await screen.findByText('La caja del período')
+
+    expect(screen.queryByRole('button', { name: 'Excel' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'PDF' })).toBeNull()
+  })
+
+  it('si el archivo no se puede generar lo dice', async () => {
+    vi.mocked(descargarTablero).mockRejectedValue(new Error('se cayó'))
+    montar('ADMIN')
+    await screen.findByText('Retención')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excel' }))
+
+    expect(await screen.findByText('No se pudo generar el archivo.')).toBeDefined()
   })
 })
