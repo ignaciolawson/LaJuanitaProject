@@ -42,3 +42,14 @@ apps/*/package-lock.json
 # docs/operacion.md.
 archivos/
 apps/backend/archivos/
+
+# El grafo de conocimiento de graphify (instalado el 2026-08-20).
+#
+# Son 22 MB de artefactos generados -- graph.json, graph.html y la cache-- que
+# ademas cambian con cada commit de codigo. Se reconstruyen local y gratis:
+# `graphify update .` re-extrae solo lo que cambio, sin LLM ni API key.
+#
+# Ojo al reconstruir desde cero: hace falta `pip install "graphifyy[sql]"` o las
+# 18 migraciones no entran al grafo, y en este proyecto las reglas de negocio
+# viven ahi.
+graphify-out/
