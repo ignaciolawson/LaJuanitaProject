@@ -145,13 +145,21 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       {
-        etiqueta: 'Dashboard',
-        ruta: '/admin/dashboard',
-        // El dashboard ejecutivo completo (facturación) es solo de dirección.
-        // Micaela, que es STAFF, ve el resumen financiero básico dentro de
-        // Pagos -- no esta pantalla.
-        visible: (u) => u.rol === 'ADMIN' || u.rol === 'DIRECTIVO',
-        disponible: false,
+        // Era el placeholder apagado del Módulo 8 y quedó construido el
+        // 2026-08-20. La ruta pasó de `/admin/dashboard` a `/admin/tablero`
+        // porque todas las rutas de este sistema están en castellano y nadie
+        // había podido navegar a la vieja: el ítem estaba apagado.
+        etiqueta: 'Tablero',
+        ruta: '/admin/tablero',
+        // **La ve todo el que administra, y muestra cosas distintas.** §11:
+        // acceso completo ADMIN·DIRECTIVO, y STAFF ve el resumen financiero
+        // básico. La nota vieja de acá decía que STAFF no entraba a esta
+        // pantalla; el alcance dice lo contrario y gana el alcance.
+        //
+        // Lo que decide qué se muestra NO es este predicado sino el backend,
+        // que tiene dos endpoints distintos. Acá solo se elige cuál pedir.
+        visible: puedeAdministrar,
+        disponible: true,
       },
     ],
   },
@@ -171,6 +179,29 @@ export function puedeAdministrar(usuario: UsuarioActual): boolean {
 }
 
 const ADMINISTRAN: Rol[] = ['ADMIN', 'DIRECTIVO', 'STAFF']
+
+/**
+ * El tercer eje, y el único que separa a DOS CLASES DE ADMINISTRADOR.
+ *
+ * `puedeAdministrar` dice quién ve las pantallas de administración y
+ * `puedeOperar` quién escribe. Este dice quién ve **el tablero entero**: §11
+ * da acceso completo a ADMIN y DIRECTIVO, y a STAFF el resumen financiero
+ * básico. Espeja `@PuedeVerElTableroCompleto` del backend.
+ *
+ * **Es la razón concreta por la que este proyecto tiene cuatro roles y no
+ * tres**, y hasta hoy vivía escrita como un `u.rol === 'ADMIN' || ...` suelto
+ * adentro del ítem apagado del menú. Tipada como `Rol[]`, un rol nuevo queda
+ * afuera hasta que alguien lo decida.
+ *
+ * **Esto no autoriza nada**, igual que los otros dos: el backend resuelve el rol
+ * contra la base en cada pedido y tiene dos endpoints separados. Acá solo se
+ * elige cuál pedir, para no mandar uno que va a volver 403.
+ */
+export function puedeVerElTableroCompleto(usuario: UsuarioActual): boolean {
+  return VEN_EL_TABLERO.includes(usuario.rol)
+}
+
+const VEN_EL_TABLERO: Rol[] = ['ADMIN', 'DIRECTIVO']
 
 /**
  * El segundo eje del rol: quién puede ESCRIBIR.

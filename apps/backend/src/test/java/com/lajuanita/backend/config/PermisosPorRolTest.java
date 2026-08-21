@@ -91,6 +91,53 @@ class PermisosPorRolTest {
                 .andExpect(status().isForbidden());
     }
 
+    // -- EL TERCER EJE: dos clases de administrador ---------------------------
+
+    /**
+     * <b>El único lugar del sistema donde la línea no separa leer de escribir,
+     * sino a dos clases de administrador</b> — y por lo tanto la razón concreta
+     * por la que los roles son cuatro y no tres (§11).
+     *
+     * <p>Vive acá además de en {@code TableroTest} porque este archivo es la
+     * matriz: quien venga a preguntar "quién puede qué" lee este, y un tercer
+     * conjunto de permisos que no figurara sería justamente el que se olvida.
+     */
+    @Test
+    void solo_admin_y_directivo_ven_el_tablero_completo() throws Exception {
+        String periodo = "?desde=2026-08-01&hasta=2026-08-31";
+
+        for (Rol rol : new Rol[] { Rol.ADMIN, Rol.DIRECTIVO }) {
+            mvc.perform(get("/api/tablero" + periodo).header("Authorization", comoUsuarioCon(rol)))
+                    .andExpect(status().isOk());
+        }
+
+        mvc.perform(get("/api/tablero" + periodo).header("Authorization", comoUsuarioCon(Rol.STAFF)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/tablero" + periodo).header("Authorization", comoUsuarioCon(Rol.USUARIO)))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * Y el resumen financiero básico sí lo lee {@code STAFF}: es la plata que
+     * maneja todos los días. <b>Son dos endpoints y no uno que contesta distinto
+     * según quién pregunte</b>, que es la propiedad que el Módulo 4 se impuso al
+     * construir el portal.
+     */
+    @Test
+    void el_resumen_financiero_lo_ve_todo_el_que_administra() throws Exception {
+        String periodo = "?desde=2026-08-01&hasta=2026-08-31";
+
+        for (Rol rol : new Rol[] { Rol.ADMIN, Rol.DIRECTIVO, Rol.STAFF }) {
+            mvc.perform(get("/api/tablero/resumen" + periodo)
+                    .header("Authorization", comoUsuarioCon(rol)))
+                    .andExpect(status().isOk());
+        }
+
+        mvc.perform(get("/api/tablero/resumen" + periodo)
+                .header("Authorization", comoUsuarioCon(Rol.USUARIO)))
+                .andExpect(status().isForbidden());
+    }
+
     // -- ESCRITURA: DIRECTIVO queda afuera ------------------------------------
 
     /**

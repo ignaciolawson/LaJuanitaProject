@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Rol, UsuarioActual } from '../api/tipos'
-import { menuPara, puedeAdministrar, puedeOperar } from './menu'
+import { menuPara, puedeAdministrar, puedeOperar, puedeVerElTableroCompleto } from './menu'
 
 /**
  * Las tres reglas del menú, que son fáciles de confundir en una sola.
@@ -120,19 +120,45 @@ describe('regla 3 — el rol', () => {
 
     expect(visibles).not.toContain('Alumnos')
     expect(visibles).not.toContain('Personas')
-    expect(visibles).not.toContain('Dashboard')
+    expect(visibles).not.toContain('Tablero')
   })
 
   /**
-   * El dashboard ejecutivo es de dirección. Micaela es STAFF y ve el resumen
-   * financiero básico dentro de Pagos, no esta pantalla: es una de las dos
-   * líneas que hacen que los roles sean cuatro y no tres.
+   * **Esto revierte lo que este mismo archivo afirmaba hasta el 2026-08-20**, y
+   * conviene dejar escrito por qué, porque el test viejo no estaba mal escrito:
+   * estaba escrito sobre otra lectura del alcance.
+   *
+   * Decía que STAFF no veía esta pantalla y que su resumen financiero vivía
+   * dentro de Pagos. Pero §11 lista *"STAFF ve el resumen financiero básico"*
+   * entre las **reglas duras del Módulo 8**: si ese resumen viviera en Pagos,
+   * sería una regla del Módulo 3 y no de este. La lectura correcta es que el
+   * tablero sirve a los dos y muestra menos.
+   *
+   * Lo que NO cambia es la línea que hace que los roles sean cuatro y no tres:
+   * ADMIN y DIRECTIVO ven el tablero entero y STAFF no. Lo que cambió es que
+   * "no verlo entero" dejó de significar "no entrar".
    */
-  it('el dashboard es solo de ADMIN y DIRECTIVO', () => {
-    expect(etiquetas(usuario({ rol: 'ADMIN' }))).toContain('Dashboard')
-    expect(etiquetas(usuario({ rol: 'DIRECTIVO' }))).toContain('Dashboard')
-    expect(etiquetas(usuario({ rol: 'STAFF' }))).not.toContain('Dashboard')
-    expect(etiquetas(usuario({ rol: 'USUARIO' }))).not.toContain('Dashboard')
+  it('el tablero lo ve todo el que administra', () => {
+    expect(etiquetas(usuario({ rol: 'ADMIN' }))).toContain('Tablero')
+    expect(etiquetas(usuario({ rol: 'DIRECTIVO' }))).toContain('Tablero')
+    expect(etiquetas(usuario({ rol: 'STAFF' }))).toContain('Tablero')
+    expect(etiquetas(usuario({ rol: 'USUARIO' }))).not.toContain('Tablero')
+  })
+
+  /**
+   * Y el predicado que decide **qué** ve cada uno, que es el tercer eje de rol
+   * del sistema: `puedeAdministrar` dice quién ve las pantallas de
+   * administración, `puedeOperar` quién escribe, y este quién ve el tablero
+   * entero. Espeja `@PuedeVerElTableroCompleto` del backend.
+   *
+   * Antes vivía como un `u.rol === 'ADMIN' || ...` suelto adentro del ítem
+   * apagado del menú, que es exactamente lo que este archivo se prohíbe.
+   */
+  it('solo ADMIN y DIRECTIVO ven el tablero completo', () => {
+    expect(puedeVerElTableroCompleto(usuario({ rol: 'ADMIN' }))).toBe(true)
+    expect(puedeVerElTableroCompleto(usuario({ rol: 'DIRECTIVO' }))).toBe(true)
+    expect(puedeVerElTableroCompleto(usuario({ rol: 'STAFF' }))).toBe(false)
+    expect(puedeVerElTableroCompleto(usuario({ rol: 'USUARIO' }))).toBe(false)
   })
 
   it('un grupo que queda sin items no se dibuja', () => {

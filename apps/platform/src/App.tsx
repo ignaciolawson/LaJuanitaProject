@@ -36,6 +36,7 @@ import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
+import { TableroPagina } from './paginas/TableroPagina'
 import { UsuariosPagina } from './paginas/UsuariosPagina'
 
 export default function App() {
@@ -104,6 +105,7 @@ function Rutas() {
           <Route path="/admin/mix-mastering" element={<MixMasteringPagina />} />
           <Route path="/admin/sello" element={<SelloPagina />} />
           <Route path="/admin/artistas" element={<ArtistasPagina />} />
+          <Route path="/admin/tablero" element={<TableroPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina />} />
         </Route>
       </Route>
