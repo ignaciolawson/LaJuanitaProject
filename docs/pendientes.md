@@ -9,6 +9,12 @@
 > **Este archivo no reemplaza a los otros: los indexa.** Cada punto dice dónde vive
 > el detalle. Si algo se cierra, se tacha acá **y** se corrige donde vive.
 >
+> **⚠️ Al 2026-08-20 el MVP está completo y se abrió una etapa nueva.** Lo que viene
+> no es construir módulos sino mejorar por uso: Ignacio testea y vuelve con una lista.
+> Eso vive en [`mejoras.md`](mejoras.md), que además fija **el triage con el que esa
+> lista se va a ordenar** — acordado antes de tenerla, a propósito. Los puntos 3.1 y
+> 3.2 de acá son los primeros que entran ahí.
+>
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `platform.md` §13 → §14 → §15 (gana el último) · después
 > `sistema-gestion-plan.md` §6d · después el resto.
@@ -131,8 +137,14 @@ Lo que hay que hacer antes de publicar, y **ninguno depende de código**:
 módulos, de a uno.** No se hacen mientras se espera nada.
 
 > ⚠️ **Y los ocho módulos están, desde el 2026-08-20.** O sea que esta lista dejó de
-> estar esperando y **pasó a ser lo próximo que se hace**, junto con el rediseño de 3.2.
-> Ninguno de los cinco necesita migración, que era la condición para poder postergarlos.
+> estar esperando. **Pero no se hace sola: entra en la lista del testeo**
+> ([`mejoras.md`](mejoras.md)), porque hacer estos cinco antes de saber el resto es
+> arreglar pantallas que después se rehacen.
+>
+> **Y una corrección que `mejoras.md` §5 detalla: dos de las cinco NO son retoques.**
+> *Solicitar reprogramación* es una pantalla y un endpoint que el Módulo 4 se debe, y
+> *cotización del dólar* es una integración nueva con una pregunta de negocio adentro
+> (¿oficial, blue o MEP?). Anotadas como "retoques" parecen más baratas de lo que son.
 
 1. **El admin no debería cambiarse el nombre ni el mail** → el mail ya no lo cambia
    nadie; sobre el nombre, la pregunta es si la regla es del rol o de la cuenta de
@@ -153,6 +165,15 @@ módulos, de a uno.** No se hacen mientras se espera nada.
 **En una sola pasada, al final, con los ocho módulos cerrados.** Es afordable
 **solo porque las reglas de negocio viven en la base y no en las pantallas**: un
 rediseño no puede romper que una reserva necesite seña. La landing no se toca.
+
+> ⚠️ **No arranca con media lista** (2026-08-20). Un rediseño hecho dos veces es el
+> caro. Espera a que el testeo cierre — con fecha de corte, porque una lista sin corte
+> crece para siempre. Ver [`mejoras.md`](mejoras.md) §6.
+>
+> **Y hay una distinción que sostener mientras se junta la lista: "aburrido" y "poco
+> intuitivo" no son el mismo problema.** Lo primero es una pasada de diseño; lo segundo
+> puede destapar funcionalidad faltante, y mezclados hacen que la pasada de diseño se
+> coma meses sin resolver el segundo.
 
 ### 3.3 · La descarga de comprobantes (Módulo 3)
 

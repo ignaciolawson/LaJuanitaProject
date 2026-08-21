@@ -17,6 +17,10 @@ Monorepo for **La Juanita Studio / La Juanita Music** (record label + DJ/electro
 >
 > **Extended on 2026-08-20: the entire §6f list waits for the full MVP** — all eight modules first, then the retouches one at a time. Until then §6f is not "what you do while waiting for a client answer"; it is not done at all. The postponement stays cheap only because none of the five needs a migration, which is the condition, not a detail. **⚠️ The eight modules closed later that same day, so §6f stopped waiting: together with the front redesign, it is now what comes next.**
 
+> **⚠️ As of 2026-08-20 the MVP is complete and a new phase is open, and it is the one that governs what happens next: `docs/mejoras.md`.** Ignacio is using the system as a tester and will come back with a list — design, new functionality, changed functionality. His verdict on seeing it whole is what opened it: *"lo veo muy aburrido, poco intuitivo y demás"*. **That is the plan working, not a discovery**: the front was built function-first and the redesign was deliberately deferred to a single pass at the end, which is affordable only because the business rules live in the database.
+>
+> That document fixes **the triage the list will be sorted with, agreed before having the list** — three groups, and group C (anything touching a rule or the schema) is the one that cannot be rushed, because migrations are immutable and accumulate. Two things to carry from it: **"aburrido" and "poco intuitivo" are different problems** (the second can uncover missing functionality, and mixing them makes the design pass eat months without solving it), and **the redesign does not start on half a list** — a redesign done twice is the expensive one. §6f's five retouches join that list, and **two of the five are not retouches but features**.
+>
 > **`docs/pendientes.md` is the single inventory of everything still open** (opened 2026-08-20): what blocks delivery, the landing's pre-publication list, known technical debt, the decisions still unanswered, and what is deliberately out of scope. It indexes rather than replaces — each item says where the detail lives. **Read it before asking "what's left".** It exists because the open work was spread across five documents, and that already cost a day once: the audit report spent it listing ten findings as *"blocked on a decision"* whose decision was already written down, only because nothing linked to the section that answered them.
 >
 > **Read `docs/sistema-gestion-plan.md` before doing anything on platform/backend.** It is the source of truth for scope, deadline, build order, and the technical decisions already settled (Flyway, the corrected role model, JWT, file storage, hosting shape). Written in Spanish, for the developer as much as for Claude. If a decision there changes, edit that file — don't leave the old decision alongside the new one.
@@ -39,6 +43,7 @@ docs/
 ├── branding/      brand assets + identity guide
 ├── db/            data model (DBML) + the adversarial audit of the schema
 ├── auditoria/     the 2026-08 technical audit and its remediation log
+├── mejoras.md     the post-MVP improvement phase: how findings get triaged
 ├── pendientes.md  EVERYTHING still open, in one place — start here for "what's left"
 ├── operacion.md   backup, tested restore, deploy, migration failures
 └── sistema-gestion-plan.md   plan + settled decisions for platform/backend

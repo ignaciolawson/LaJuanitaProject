@@ -774,10 +774,43 @@ cd apps/platform && npm test              # 358
 ./scripts/pruebas-sql.sh                  # 179 + 51, sobre 18 migraciones
 ```
 
-**2 · Los retoques de §6f y el rediseño del front.** Eran "después de los ocho módulos",
-y los ocho módulos están. Son cinco retoques y ninguno necesita migración, que era la
-condición para haberlos podido postergar. El rediseño va en una sola pasada; la landing
-no se toca.
+**2 · ⚠️ ESPERAR LA LISTA DEL TESTEO — no arrancar el rediseño todavía.**
+
+**El 2026-08-20 Ignacio pasó a testear el sistema como usuario** y va a volver con una
+lista de modificaciones: diseño, funcionalidad nueva y funcionalidad a cambiar. Su
+veredicto al verlo entero, que es el que abre la etapa: *"lo veo muy aburrido, poco
+intuitivo y demás"*.
+
+**Todo eso vive en [`docs/mejoras.md`](mejoras.md)**, abierto ese día: el método para
+anotar un hallazgo, el triage en tres grupos, y la lista cuando llegue. **Leerlo antes de
+tocar el front.**
+
+Lo importante para quien retome: **el rediseño NO arranca con media lista.** Un rediseño
+hecho dos veces es el caro. Y las cinco de §6f entran en esa misma lista — con una
+corrección que `mejoras.md` §5 detalla: **dos de las cinco no son retoques sino
+funcionalidad** (solicitar reprogramación, que el Módulo 4 se debe, y la cotización del
+dólar, que es una integración con una pregunta de negocio abierta adentro).
+
+### 🔑 Usuarios de demostración, creados el 2026-08-20
+
+Todos con la contraseña de desarrollo (`lajuanita2026`) y sin cambio pendiente. Se
+crearon **por la API real** y no por SQL: el alta genera contraseña temporal y obliga a
+cambiarla, así que el script hizo lo mismo que haría una persona.
+
+| Email | Rol | Para qué sirve |
+|---|---|---|
+| `admin@lajuanita.local` | ADMIN | Todo. El único que otorga roles |
+| `directivo@lajuanita.local` | DIRECTIVO | **Ve todo y no escribe nada.** En Alumnos no hay botón de alta |
+| `staff@lajuanita.local` | STAFF | El día a día. En Tablero ve **solo** el resumen financiero |
+| `usuario@lajuanita.local` | USUARIO | Portal sin relaciones |
+| `demo-sofia@lajuanita.local` | USUARIO + alumna | 2 inscripciones, 2 pagos, 1 clase |
+| `demo-lucas@lajuanita.local` | USUARIO + profesor | Dicta 6 clases |
+
+**La comparación que vale la pena hacer es el Tablero con `directivo@` y con `staff@`**:
+es el único lugar del sistema donde la línea no separa leer de escribir sino a dos clases
+de administrador — o sea, la razón concreta por la que los roles son cuatro y no tres.
+Verificado contra la API: `directivo` recibe 200 en `/tablero` y `/exportacion.xlsx`,
+`staff` recibe 403 en los dos y 200 en `/tablero/resumen`.
 
 **3 · Lo que no depende de código y bloquea la entrega**, con `docs/pendientes.md` como
 inventario: el deploy espera la decisión de hosting de **octubre** (y ahora también
