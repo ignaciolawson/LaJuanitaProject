@@ -17,6 +17,9 @@ package com.lajuanita.backend.usuario;
  */
 public class SolicitudInvalidaException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public SolicitudInvalidaException(String mensaje) {
         super(mensaje);
     }

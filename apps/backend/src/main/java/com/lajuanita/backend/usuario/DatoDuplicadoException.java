@@ -20,6 +20,9 @@ import lombok.Getter;
 @Getter
 public class DatoDuplicadoException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     /** `email` o `telefono`: el nombre del campo tal cual lo manda el formulario. */
     private final String campo;
 

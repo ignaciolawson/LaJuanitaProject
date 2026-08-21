@@ -10,6 +10,9 @@ package com.lajuanita.backend.auth;
  */
 public class CredencialesInvalidasException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public CredencialesInvalidasException() {
         super("Email o contraseña incorrectos.");
     }

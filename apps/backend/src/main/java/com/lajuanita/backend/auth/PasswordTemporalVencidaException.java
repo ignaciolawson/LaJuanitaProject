@@ -11,6 +11,9 @@ package com.lajuanita.backend.auth;
  */
 public class PasswordTemporalVencidaException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public PasswordTemporalVencidaException() {
         super("Esa contraseña temporal venció. Pedile a administración que te genere una nueva.");
     }

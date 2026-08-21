@@ -12,6 +12,9 @@ package com.lajuanita.backend.usuario;
  */
 public class OperacionNoPermitidaException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public OperacionNoPermitidaException(String mensaje) {
         super(mensaje);
     }

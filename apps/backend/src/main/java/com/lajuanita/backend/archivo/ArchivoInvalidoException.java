@@ -14,6 +14,9 @@ package com.lajuanita.backend.archivo;
  */
 public class ArchivoInvalidoException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public ArchivoInvalidoException(String mensaje) {
         super(mensaje);
     }

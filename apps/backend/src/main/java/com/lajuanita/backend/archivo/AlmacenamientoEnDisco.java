@@ -11,7 +11,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.io.PathResource;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -126,7 +126,10 @@ public class AlmacenamientoEnDisco implements Almacenamiento {
             // no significa nada. Las dos son "no está".
             throw new ArchivoInvalidoException("No está el archivo pedido.");
         }
-        return new PathResource(archivo);
+        // `FileSystemResource` y no `PathResource`: Spring 7 deprecó la segunda y
+        // la marcó para eliminación. Son equivalentes para lo que se usa acá --
+        // servir el archivo por la API-- y esta es la que queda.
+        return new FileSystemResource(archivo);
     }
 
     @Override

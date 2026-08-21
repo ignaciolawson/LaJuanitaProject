@@ -11,6 +11,9 @@ package com.lajuanita.backend.auth;
  */
 public class SesionInvalidaException extends RuntimeException {
 
+    /** Lo pide {@code Serializable}; estas excepciones no viajan serializadas. */
+    private static final long serialVersionUID = 1L;
+
     public SesionInvalidaException() {
         super("Tu sesión ya no es válida. Volvé a entrar.");
     }
