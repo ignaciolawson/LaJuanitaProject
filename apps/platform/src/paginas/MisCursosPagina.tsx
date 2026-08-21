@@ -107,7 +107,7 @@ export function MisCursosPagina() {
         <h3 className="text-sm font-semibold">Materiales de clase</h3>
         <p className="mt-1 text-sm text-tenue">
           Los que subieron tus profesores están en{' '}
-          <Link to="/mis-materiales" className="underline underline-offset-2 hover:text-red">
+          <Link to="/mis-materiales" className="underline underline-offset-2 hover:text-acento">
             Mis materiales
           </Link>
           .

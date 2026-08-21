@@ -21,7 +21,7 @@ export function Layout() {
     <div className="flex min-h-full">
       <aside className="flex w-60 shrink-0 flex-col border-r border-linea bg-white">
         <div className="border-b border-linea px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
             La Juanita
           </p>
           <p className="mt-0.5 text-xs text-apagado">Gestión</p>
@@ -79,7 +79,7 @@ export function Layout() {
           <button
             type="button"
             onClick={cerrarSesion}
-            className="mt-3 text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+            className="mt-3 text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
           >
             Cerrar sesión
           </button>

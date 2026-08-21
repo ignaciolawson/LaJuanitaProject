@@ -82,7 +82,7 @@ export function MisMaterialesPagina() {
                 href={m.urlExterna}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm underline underline-offset-2 hover:text-red"
+                className="text-sm underline underline-offset-2 hover:text-acento"
               >
                 Abrir
               </a>

@@ -11,7 +11,7 @@
  * en el de una deuda vencida, y ese es justo el significado que no se puede
  * diluir. Así que las series usan una rampa de opacidad sobre `--ink`, y el
  * rojo queda libre para cuando un número necesite señalar un problema — como
- * ya hacen `text-red` en "vencidos" y "sin contrato" en esta misma pantalla.
+ * ya hacen `text-acento` en "vencidos" y "sin contrato" en esta misma pantalla.
  */
 
 /** La rampa de grises sobre `--ink` (`#0a0a0b`), de más oscuro a más claro. */

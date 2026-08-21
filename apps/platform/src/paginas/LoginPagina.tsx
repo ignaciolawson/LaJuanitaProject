@@ -35,7 +35,7 @@ export function LoginPagina() {
     <main className="grid min-h-full place-items-center px-6 py-12">
       <div className="w-full max-w-sm">
         <header className="mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
             La Juanita
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">
@@ -83,7 +83,7 @@ export function LoginPagina() {
           {error && (
             <p
               role="alert"
-              className="mt-5 rounded-md border border-red/30 bg-red/5 px-3 py-2.5 text-sm text-red"
+              className="mt-5 rounded-md border border-red/30 bg-red/5 px-3 py-2.5 text-sm text-acento"
             >
               {error}
             </p>
@@ -100,7 +100,7 @@ export function LoginPagina() {
 
         <p className="mt-8 text-sm text-tenue">
           ¿No tenés cuenta?{' '}
-          <Link to="/registro" className="text-ink underline underline-offset-2 hover:text-red">
+          <Link to="/registro" className="text-ink underline underline-offset-2 hover:text-acento">
             Creá una
           </Link>
         </p>

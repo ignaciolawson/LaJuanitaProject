@@ -127,7 +127,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
         <>
           <p
             className={`mt-1 text-3xl font-semibold tracking-tight ${
-              caja.neto < 0 ? 'text-red' : ''
+              caja.neto < 0 ? 'text-acento' : ''
             }`}
           >
             {importe(caja.neto, caja.moneda)}

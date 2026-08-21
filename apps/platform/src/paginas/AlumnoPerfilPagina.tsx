@@ -112,7 +112,7 @@ export function AlumnoPerfilPagina() {
           {/* Dos ejes distintos: el alumno puede estar activo y la cuenta dada
               de baja. Si no se dice, "activo" parece significar que entra. */}
           {!alumno.usuarioActivo && (
-            <span className="rounded-full border border-red/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-red">
+            <span className="rounded-full border border-red/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-acento">
               Cuenta desactivada
             </span>
           )}
@@ -223,7 +223,7 @@ function Volver() {
   return (
     <Link
       to="/admin/alumnos"
-      className="mb-4 inline-block text-sm text-tenue underline underline-offset-2 transition-colors hover:text-red"
+      className="mb-4 inline-block text-sm text-tenue underline underline-offset-2 transition-colors hover:text-acento"
     >
       ← Volver a Alumnos
     </Link>
@@ -253,7 +253,7 @@ function EtiquetaEstado({ estado }: { estado: EstadoInscripcion }) {
     ACTIVA: 'border-ink/20 text-ink',
     COMPLETADA: 'border-linea text-apagado',
     PAUSADA: 'border-linea text-apagado',
-    CANCELADA: 'border-red/40 text-red',
+    CANCELADA: 'border-red/40 text-acento',
   }[estado]
 
   return (
@@ -491,7 +491,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
         <h3 className="font-semibold">Estado de cuenta</h3>
         <Link
           to={`/admin/estado-de-cuenta/${idUsuario}`}
-          className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+          className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
         >
           Ver completo
         </Link>
@@ -515,7 +515,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
               .map((s) => (
                 <div
                   key={`debe-${s.moneda}`}
-                  className="flex items-baseline justify-between gap-3 text-red"
+                  className="flex items-baseline justify-between gap-3 text-acento"
                 >
                   <dt>Debe</dt>
                   <dd className="tabular-nums">{importe(s.adeudado, s.moneda)}</dd>
@@ -531,7 +531,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
                     {NOMBRE_DE_DISCIPLINA[c.disciplina]}
                     {/* §13: con el 50% cubierto ya se puede reservar. Es el dato
                         previo a darle un horario. */}
-                    {!c.senado && <span className="ml-2 text-red">sin seña</span>}
+                    {!c.senado && <span className="ml-2 text-acento">sin seña</span>}
                   </span>
                   <span className="tabular-nums">resta {importe(c.saldo, c.moneda)}</span>
                 </li>

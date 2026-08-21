@@ -45,7 +45,7 @@ export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
               </p>
               <p className="text-xs text-tenue">pagado</p>
               {s.adeudado > 0 && (
-                <p className="mt-3 text-sm text-red">
+                <p className="mt-3 text-sm text-acento">
                   Debe {importe(s.adeudado, s.moneda)}
                 </p>
               )}
@@ -91,7 +91,7 @@ export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
                     {importe(c.pagado, c.moneda)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap tabular-nums">
-                    <span className={c.saldo > 0 ? 'font-medium text-red' : 'text-tenue'}>
+                    <span className={c.saldo > 0 ? 'font-medium text-acento' : 'text-tenue'}>
                       {importe(c.saldo, c.moneda)}
                     </span>
                   </td>
@@ -103,7 +103,7 @@ export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
                       // dato que Micaela necesita antes de dar un horario.
                       <span className="text-xs text-tenue">Seña cubierta</span>
                     ) : (
-                      <span className="text-xs text-red">Sin seña</span>
+                      <span className="text-xs text-acento">Sin seña</span>
                     )}
                   </td>
                 </tr>

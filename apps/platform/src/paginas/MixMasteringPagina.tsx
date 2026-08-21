@@ -204,7 +204,7 @@ export function MixMasteringPagina() {
                     {/* Se marca lo que falta, no lo normal: un trabajo cobrado no
                         necesita etiqueta. */}
                     {(t.cobrado ?? 0) < t.precioAcordado && (
-                      <div className="text-xs text-red">
+                      <div className="text-xs text-acento">
                         {t.cobrado ? `cobrado ${importe(t.cobrado, t.moneda)}` : 'sin cobrar'}
                       </div>
                     )}
@@ -242,7 +242,7 @@ export function MixMasteringPagina() {
 function EtiquetaEstado({ estado }: { estado: EstadoTrabajo }) {
   const estilo =
     estado === 'DEBE'
-      ? 'border-red/40 text-red'
+      ? 'border-red/40 text-acento'
       : estado === 'PAGADO'
         ? 'border-ink/20 text-ink'
         : estado === 'CANCELADO'
@@ -267,7 +267,7 @@ function Revisiones({ trabajo }: { trabajo: TrabajoResumen }) {
   const excedido = trabajo.revisionesRealizadas > trabajo.revisionesIncluidas
 
   return (
-    <span className={excedido ? 'font-medium text-red' : 'text-tenue'}>
+    <span className={excedido ? 'font-medium text-acento' : 'text-tenue'}>
       {trabajo.revisionesRealizadas} de {trabajo.revisionesIncluidas} revisiones
     </span>
   )
@@ -281,7 +281,7 @@ function Premaster({ trabajo }: { trabajo: TrabajoResumen }) {
   // Que se haya liberado sin pago se dice siempre: es la excepción, y una
   // excepción que no se ve deja de ser excepcional.
   return trabajo.liberadoSinPago ? (
-    <span className="text-red">Liberado sin pago</span>
+    <span className="text-acento">Liberado sin pago</span>
   ) : (
     <span className="text-tenue">Premaster entregado</span>
   )
@@ -796,7 +796,7 @@ function Detalle({
           )}
 
           {trabajo.liberadoSinPago && trabajo.motivoLiberacion && (
-            <p className="mt-4 text-xs text-red">
+            <p className="mt-4 text-xs text-acento">
               Liberado sin pago · {trabajo.motivoLiberacion}
             </p>
           )}

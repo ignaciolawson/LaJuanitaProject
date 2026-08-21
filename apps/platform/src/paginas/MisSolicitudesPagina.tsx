@@ -110,7 +110,7 @@ export function MisSolicitudesPagina() {
 
             {s.estado === 'APROBADA' && (
               <p className="mt-3 border-t border-linea pt-3 text-sm">
-                <Link to="/mis-reservas" className="underline underline-offset-2 hover:text-red">
+                <Link to="/mis-reservas" className="underline underline-offset-2 hover:text-acento">
                   Ver la reserva en mis reservas
                 </Link>
               </p>
@@ -127,7 +127,7 @@ function Estado({ estado }: { estado: SolicitudResumen['estado'] }) {
     estado === 'APROBADA'
       ? 'border-linea text-ink'
       : estado === 'RECHAZADA'
-        ? 'border-red/30 text-red'
+        ? 'border-red/30 text-acento'
         : 'border-linea text-tenue'
 
   return (

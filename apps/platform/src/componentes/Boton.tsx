@@ -8,7 +8,7 @@ export function Boton({ variante = 'principal', className, children, ...boton }:
   const estilo =
     variante === 'principal'
       ? 'bg-ink text-bone hover:bg-red'
-      : 'border border-linea bg-white text-ink hover:border-red hover:text-red'
+      : 'border border-linea bg-white text-ink hover:border-red hover:text-acento'
 
   return (
     <button
@@ -25,7 +25,7 @@ export function Aviso({ children }: { children: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-red/30 bg-red/5 px-3 py-2.5 text-sm text-red"
+      className="rounded-md border border-red/30 bg-red/5 px-3 py-2.5 text-sm text-acento"
     >
       {children}
     </p>

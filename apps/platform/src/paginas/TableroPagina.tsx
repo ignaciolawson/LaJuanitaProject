@@ -249,7 +249,7 @@ export function TableroPagina() {
                 {importe(p.monto, p.moneda)}
               </p>
               {p.cantidadVencida > 0 ? (
-                <p className="text-xs text-red">
+                <p className="text-xs text-acento">
                   {importe(p.vencido, p.moneda)} vencidos ({p.cantidadVencida})
                 </p>
               ) : (
@@ -358,7 +358,7 @@ export function TableroPagina() {
                   {tablero.mixMastering.entregadosEnElPeriodo} entregados en el período
                 </p>
                 {tablero.mixMastering.conRevisionesDeMas > 0 && (
-                  <p className="text-xs text-red">
+                  <p className="text-xs text-acento">
                     {tablero.mixMastering.conRevisionesDeMas} pasaron las revisiones incluidas
                   </p>
                 )}
@@ -382,7 +382,7 @@ export function TableroPagina() {
                 {/* Una excepción firmada a una regla dura es exactamente lo que
                     la dirección tiene que poder ver. No se esconde. */}
                 {tablero.sello.publicadosSinContrato > 0 && (
-                  <p className="text-xs text-red">
+                  <p className="text-xs text-acento">
                     {tablero.sello.publicadosSinContrato} publicados sin contrato
                   </p>
                 )}
@@ -431,7 +431,7 @@ function Seccion({
           {aclaracion && <p className="text-xs text-tenue">{aclaracion}</p>}
         </div>
         {detalle && (
-          <Link to={detalle} className="whitespace-nowrap text-sm text-red hover:underline">
+          <Link to={detalle} className="whitespace-nowrap text-sm text-acento hover:underline">
             Ver detalle
           </Link>
         )}

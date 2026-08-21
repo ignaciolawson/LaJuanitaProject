@@ -251,7 +251,7 @@ function Fila({
                   href={material.urlExterna}
                   target="_blank"
                   rel="noreferrer"
-                  className="underline underline-offset-2 hover:text-red"
+                  className="underline underline-offset-2 hover:text-acento"
                 >
                   Abrir
                 </a>

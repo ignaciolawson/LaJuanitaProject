@@ -6,6 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Sistema interno: no se indexa nunca. -->
     <meta name="robots" content="noindex, nofollow" />
+
+    <!--
+      Las tres familias de la marca, las mismas que la landing.
+
+      ⚠️ `wdth,wght@62..125,400..800` — el eje de ANCHO es la razón de elegir
+      Archivo, y hay que pedirlo explícitamente: sin `wdth` en la URL, Google
+      sirve sólo el eje de peso y `font-stretch` no hace absolutamente nada.
+      No falla ni avisa: la página compila, carga la fuente, y el contraste
+      tipográfico simplemente no está. Es la misma trampa que la landing
+      documenta para `axes: ["wdth"]` de next/font.
+
+      Los ejes van en orden alfabético en la URL o Google devuelve 400.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Instrument+Serif:ital@0;1&family=Space+Mono:wght@400;700&display=swap"
+    />
+
     <title>La Juanita — Gestión</title>
   </head>
   <body>

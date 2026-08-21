@@ -21,10 +21,34 @@
   --red: #e52328;
   --red-hover: #ff3a30;
 
+  /* ⚠️ EL ROJO ESTÁ PARTIDO EN DOS Y HAY QUE ELEGIR CUÁL USAR.
+
+     `--red` (#e52328) da 3,51:1 sobre papel: como SUPERFICIE pasa (un borde
+     o un fondo piden 3:1), como TEXTO no llega a AA. Y no se arregla con un
+     solo valor: `--red-hover` rinde mejor sobre tinta y peor sobre papel.
+
+     Es exactamente el hallazgo QA-06 de la landing, que allá obligó a
+     renombrar 56 usos. Acá eran 81.
+
+       --red     → fondo, borde, foco, ::selection   (bg-red, border-red)
+       --acento  → cuando el rojo es TEXTO           (text-acento)
+
+     Si escribís rojo sobre texto va `text-acento`. `text-red` ya no existe
+     en este repo. */
+  --acento: #b81a1f;
+
   --papel: #f4f1ea;
   --linea: rgba(10, 10, 11, 0.12);
   --tenue: rgba(10, 10, 11, 0.56);
   --apagado: rgba(10, 10, 11, 0.3);
+
+  /* Las tres familias de la marca. Se cargan en index.html.
+     Los nombres van por ROL y no por familia, al revés que la landing —
+     allá el nombre por familia evita un ciclo con las clases de next/font,
+     que acá no existen porque las fuentes entran por <link>. */
+  --fuente-titulo: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --fuente-serif: "Instrument Serif", Georgia, serif;
+  --fuente-mono: "Space Mono", ui-monospace, monospace;
 }
 
 @theme inline {
@@ -34,10 +58,15 @@
   --color-bone-2: var(--bone-2);
   --color-red: var(--red);
   --color-red-hover: var(--red-hover);
+  --color-acento: var(--acento);
   --color-papel: var(--papel);
   --color-linea: var(--linea);
   --color-tenue: var(--tenue);
   --color-apagado: var(--apagado);
+
+  --font-titulo: var(--fuente-titulo);
+  --font-serif: var(--fuente-serif);
+  --font-mono: var(--fuente-mono);
 }
 
 html,
@@ -49,8 +78,74 @@ body,
 body {
   background: var(--papel);
   color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--fuente-titulo);
+  font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ESCALA TIPOGRÁFICA
+
+   Hereda de la landing el contraste por EJE DE ANCHO y la mono para
+   metadatos, que es lo que le da carácter a la marca. Lo que NO hereda
+   son dos cosas, y es deliberado:
+
+   1. La escala. `.h-xl` de la landing es clamp(48px, 11.5vw, 168px):
+      correcto para un titular que vende, absurdo en una pantalla donde
+      hay que leer una tabla de treinta filas.
+
+   2. Las mayúsculas en los títulos. La landing pone `.t-display` en
+      mayúscula; acá los títulos son nombres largos en castellano
+      ("Estado de cuenta", "Tablero de dirección") y la mayúscula los
+      vuelve más lentos de barrer. La mayúscula se queda donde se gana
+      el lugar: las etiquetas mono, que ya se usaban así.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Título de pantalla. El ancho expandido es el gesto de marca. */
+.t-titulo {
+  font-family: var(--fuente-titulo);
+  font-weight: 700;
+  font-stretch: 112%;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+/* Título de sección dentro de una pantalla. */
+.t-seccion {
+  font-family: var(--fuente-titulo);
+  font-weight: 700;
+  font-stretch: 105%;
+  font-size: 1rem;
+  line-height: 1.25;
+  letter-spacing: -0.008em;
+}
+
+/* Metadatos, encabezados de columna y etiquetas de formulario. */
+.t-mono {
+  font-family: var(--fuente-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* El único acento humano, y va con cuentagotas: login y estados vacíos.
+   En una pantalla de carga de datos no tiene nada que hacer. */
+.t-serif {
+  font-family: var(--fuente-serif);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+/* Plata y cantidades. `tabular-nums` alinea las columnas de importes:
+   sin esto los números bailan y una columna de pesos deja de poder
+   compararse de un vistazo, que es para lo único que se la mira. */
+.t-cifra {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* El foco visible no se saca nunca: esto lo van a usar personas que cargan

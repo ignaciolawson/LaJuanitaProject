@@ -244,7 +244,7 @@ function Accion({ onClick, children }: { onClick: () => void; children: React.Re
     <button
       type="button"
       onClick={onClick}
-      className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+      className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
     >
       {children}
     </button>

@@ -19,7 +19,7 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
     <label className={`block ${className ?? ''}`}>
       <span className="text-xs font-medium uppercase tracking-wider text-tenue">
         {etiqueta}
-        {input.required && <span className="ml-0.5 text-red">*</span>}
+        {input.required && <span className="ml-0.5 text-acento">*</span>}
       </span>
 
       <input
@@ -31,7 +31,7 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
       />
 
       {error && (
-        <span role="alert" className="mt-1 block text-xs text-red">
+        <span role="alert" className="mt-1 block text-xs text-acento">
           {error}
         </span>
       )}
@@ -63,7 +63,7 @@ export function CampoSelect({
         {children}
       </select>
       {error && (
-        <span role="alert" className="mt-1 block text-xs text-red">
+        <span role="alert" className="mt-1 block text-xs text-acento">
           {error}
         </span>
       )}

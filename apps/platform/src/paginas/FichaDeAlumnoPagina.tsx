@@ -179,7 +179,7 @@ function Volver() {
   return (
     <Link
       to="/mis-alumnos"
-      className="mb-4 inline-block text-sm text-tenue underline underline-offset-2 hover:text-red"
+      className="mb-4 inline-block text-sm text-tenue underline underline-offset-2 hover:text-acento"
     >
       ← Mis alumnos
     </Link>
@@ -470,7 +470,7 @@ function Notas({
                       setEditando(n.idNota)
                       setTextoEditado(n.contenido)
                     }}
-                    className="shrink-0 text-xs text-tenue underline underline-offset-2 hover:text-red"
+                    className="shrink-0 text-xs text-tenue underline underline-offset-2 hover:text-acento"
                   >
                     Corregir
                   </button>
@@ -523,7 +523,7 @@ function Materiales({
         <h3 className="font-semibold">Material para {nombre}</h3>
         <Link
           to="/material"
-          className="text-sm text-tenue underline underline-offset-2 hover:text-red"
+          className="text-sm text-tenue underline underline-offset-2 hover:text-acento"
         >
           Subir material
         </Link>
@@ -557,7 +557,7 @@ function Materiales({
                         href={m.urlExterna}
                         target="_blank"
                         rel="noreferrer"
-                        className="underline underline-offset-2 hover:text-red"
+                        className="underline underline-offset-2 hover:text-acento"
                       >
                         Abrir
                       </a>

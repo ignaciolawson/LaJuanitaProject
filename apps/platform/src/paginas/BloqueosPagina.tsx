@@ -169,7 +169,7 @@ export function BloqueosPagina() {
                     <button
                       type="button"
                       onClick={() => void desbloquear(b)}
-                      className="whitespace-nowrap text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+                      className="whitespace-nowrap text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
                     >
                       Desbloquear
                     </button>

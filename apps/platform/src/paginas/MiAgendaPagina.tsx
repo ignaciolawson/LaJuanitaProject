@@ -141,7 +141,7 @@ export function MiAgendaPagina() {
               </div>
 
               {caida && (
-                <span className="text-xs font-medium text-red">
+                <span className="text-xs font-medium text-acento">
                   {c.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}
                 </span>
               )}

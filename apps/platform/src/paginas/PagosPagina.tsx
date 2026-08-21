@@ -211,7 +211,7 @@ export function PagosPagina() {
                 <td className="px-4 py-3">
                   <Link
                     to={`/admin/estado-de-cuenta/${p.idUsuario}`}
-                    className="font-medium underline underline-offset-2 hover:text-red"
+                    className="font-medium underline underline-offset-2 hover:text-acento"
                   >
                     {p.apellido}, {p.nombre}
                   </Link>
@@ -243,7 +243,7 @@ export function PagosPagina() {
                         <button
                           type="button"
                           onClick={() => setPidiendoMotivo({ pago: p, que: 'comprobante' })}
-                          className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                          className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
                         >
                           Invalidar comprobante
                         </button>
@@ -251,7 +251,7 @@ export function PagosPagina() {
                       <button
                         type="button"
                         onClick={() => setPidiendoMotivo({ pago: p, que: 'anular' })}
-                        className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                        className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
                       >
                         Anular
                       </button>
@@ -287,7 +287,7 @@ export function PagosPagina() {
 function EtiquetaDeEstado({ pago }: { pago: PagoResumen }) {
   const color =
     pago.estadoPago === 'VENCIDO' || pago.estadoPago === 'DEBE'
-      ? 'border-red/30 bg-red/5 text-red'
+      ? 'border-red/30 bg-red/5 text-acento'
       : pago.estadoPago === 'ANULADO'
         ? 'border-linea bg-papel text-apagado'
         : 'border-linea bg-papel text-tenue'
@@ -301,7 +301,7 @@ function EtiquetaDeEstado({ pago }: { pago: PagoResumen }) {
         <div className="mt-1 max-w-40 text-xs text-apagado">{pago.motivoAnulacion}</div>
       )}
       {pago.comprobanteInvalido && (
-        <div className="mt-1 text-xs text-red">Comprobante inválido</div>
+        <div className="mt-1 text-xs text-acento">Comprobante inválido</div>
       )}
     </div>
   )

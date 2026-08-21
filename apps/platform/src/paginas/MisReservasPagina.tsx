@@ -116,7 +116,7 @@ export function MisReservasPagina() {
 
               <div className="text-right text-xs">
                 {caida ? (
-                  <span className="font-medium text-red">
+                  <span className="font-medium text-acento">
                     {r.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}
                   </span>
                 ) : (
@@ -142,7 +142,7 @@ function Asistencia({ estado }: { estado: ReservaDelPortal['miAsistencia'] }) {
   if (estado === null || estado === 'PENDIENTE') return null
 
   if (estado === 'PRESENTE') return <span className="text-tenue">Asististe</span>
-  if (estado === 'AUSENTE') return <span className="text-red">Faltaste</span>
+  if (estado === 'AUSENTE') return <span className="text-acento">Faltaste</span>
   if (estado === 'AUSENTE_JUSTIFICADO')
     return <span className="text-tenue">Falta justificada</span>
 

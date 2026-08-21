@@ -31,7 +31,7 @@ export function Semaforo({ estado }: { estado: EstadoSeguimiento | null }) {
         ? 'bg-apagado'
         : 'bg-ink'
 
-  const texto = estado === 'REQUIERE_ATENCION' ? 'text-red' : 'text-tenue'
+  const texto = estado === 'REQUIERE_ATENCION' ? 'text-acento' : 'text-tenue'
 
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs ${texto}`}>

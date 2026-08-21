@@ -84,7 +84,7 @@ export function DeudoresPagina() {
                 <td className="px-4 py-3">
                   <Link
                     to={`/admin/estado-de-cuenta/${d.idUsuario}`}
-                    className="font-medium underline underline-offset-2 hover:text-red"
+                    className="font-medium underline underline-offset-2 hover:text-acento"
                   >
                     {d.apellido}, {d.nombre}
                   </Link>
@@ -104,7 +104,7 @@ export function DeudoresPagina() {
                   {importe(d.adeudado, d.moneda)}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className={d.vencido ? 'font-medium text-red' : 'text-tenue'}>
+                  <span className={d.vencido ? 'font-medium text-acento' : 'text-tenue'}>
                     {antiguedad(d.diasDeAtraso)}
                   </span>
                   <div className="text-xs text-tenue">{fechaCorta(d.desde)}</div>

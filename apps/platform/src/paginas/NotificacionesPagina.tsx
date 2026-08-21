@@ -106,7 +106,7 @@ export function NotificacionesPagina() {
                 {a.urlDestino && (
                   <Link
                     to={a.urlDestino}
-                    className="mt-2 inline-block text-sm underline underline-offset-2 hover:text-red"
+                    className="mt-2 inline-block text-sm underline underline-offset-2 hover:text-acento"
                   >
                     Ver
                   </Link>
@@ -121,7 +121,7 @@ export function NotificacionesPagina() {
                     onClick={() => {
                       void marcarLeida(a.idNotificacion).then(cargar)
                     }}
-                    className="mt-2 text-xs text-tenue underline underline-offset-2 hover:text-red"
+                    className="mt-2 text-xs text-tenue underline underline-offset-2 hover:text-acento"
                   >
                     Marcar leída
                   </button>

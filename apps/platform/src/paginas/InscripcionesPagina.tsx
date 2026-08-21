@@ -235,7 +235,7 @@ export function InscripcionesPagina() {
                       <button
                         type="button"
                         onClick={() => setEditando(i)}
-                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
                       >
                         Editar
                       </button>
@@ -287,7 +287,7 @@ function Etiqueta({ estado }: { estado: EstadoInscripcion }) {
     ACTIVA: 'border-ink/20 text-ink',
     COMPLETADA: 'border-linea text-apagado',
     PAUSADA: 'border-linea text-apagado',
-    CANCELADA: 'border-red/40 text-red',
+    CANCELADA: 'border-red/40 text-acento',
   }[estado]
 
   return (
@@ -348,7 +348,7 @@ function SelectorDeAlumno({
     return (
       <div>
         <span className="text-xs font-medium uppercase tracking-wider text-tenue">
-          Alumno<span className="ml-0.5 text-red">*</span>
+          Alumno<span className="ml-0.5 text-acento">*</span>
         </span>
         <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-papel px-3 py-2.5 text-sm">
           <span>
@@ -360,7 +360,7 @@ function SelectorDeAlumno({
           <button
             type="button"
             onClick={() => onElegir(null)}
-            className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+            className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
           >
             Cambiar
           </button>
@@ -813,7 +813,7 @@ function FormularioEdicion({
           servidor, así que acá solo se pide el motivo. */}
       {baja && (
         <div className="mt-4 rounded-md border border-red/30 bg-red/5 p-4">
-          <p className="mb-3 text-sm text-red">
+          <p className="mb-3 text-sm text-acento">
             Estás bajando el nivel de {capitalizar(inscripcion.nivel!)} a{' '}
             {capitalizar(datos.nivel as string)}. Queda registrado con tu nombre y la
             fecha.

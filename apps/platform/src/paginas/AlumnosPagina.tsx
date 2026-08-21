@@ -219,7 +219,7 @@ export function AlumnosPagina() {
                       clic sin que se lo digan. */}
                   <Link
                     to={`/admin/alumnos/${a.idAlumno}`}
-                    className="font-medium underline-offset-2 transition-colors hover:text-red hover:underline"
+                    className="font-medium underline-offset-2 transition-colors hover:text-acento hover:underline"
                   >
                     {a.apellido}, {a.nombre}
                   </Link>
@@ -249,7 +249,7 @@ export function AlumnosPagina() {
                       <button
                         type="button"
                         onClick={() => setEditando(a)}
-                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
                       >
                         Editar
                       </button>
@@ -298,7 +298,7 @@ function Etiqueta({ estado }: { estado: EstadoAlumno }) {
   const estilo = {
     ACTIVO: 'border-ink/20 text-ink',
     INACTIVO: 'border-linea text-apagado',
-    SUSPENDIDO: 'border-red/40 text-red',
+    SUSPENDIDO: 'border-red/40 text-acento',
   }[estado]
 
   return (

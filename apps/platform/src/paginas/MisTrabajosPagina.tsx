@@ -119,7 +119,7 @@ export function MisTrabajosPagina() {
                     href={t.urlMaster}
                     target="_blank"
                     rel="noreferrer"
-                    className="underline underline-offset-2 hover:text-red"
+                    className="underline underline-offset-2 hover:text-acento"
                   >
                     Bajar el master
                   </a>
@@ -130,7 +130,7 @@ export function MisTrabajosPagina() {
                     href={t.urlPremaster}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-medium underline underline-offset-2 hover:text-red"
+                    className="font-medium underline underline-offset-2 hover:text-acento"
                   >
                     Bajar el premaster
                   </a>

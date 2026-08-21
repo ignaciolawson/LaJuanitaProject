@@ -167,7 +167,7 @@ export function VentasPagina() {
                   {/* La fila anulada se queda: es la que explica por qué el total
                       del período cambió. */}
                   {v.anulada && (
-                    <div className="text-xs text-red">Anulada · {v.motivoAnulacion}</div>
+                    <div className="text-xs text-acento">Anulada · {v.motivoAnulacion}</div>
                   )}
                 </td>
                 <td className="px-4 py-3 text-tenue">
@@ -188,7 +188,7 @@ export function VentasPagina() {
                       reclama. Se marca solo lo que falta: lo cobrado es lo normal
                       y no necesita etiqueta. */}
                   {!v.cobrada && !v.anulada && (
-                    <div className="text-xs font-normal text-red">sin cobrar</div>
+                    <div className="text-xs font-normal text-acento">sin cobrar</div>
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-tenue">
@@ -199,7 +199,7 @@ export function VentasPagina() {
                     <button
                       type="button"
                       onClick={() => setAnulando(v)}
-                      className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                      className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
                     >
                       Anular
                     </button>

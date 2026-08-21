@@ -60,7 +60,7 @@ export function CambioPasswordObligatorio() {
     <main className="grid min-h-full place-items-center px-6 py-12">
       <div className="w-full max-w-sm">
         <header className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
             Un paso más
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
@@ -122,7 +122,7 @@ export function CambioPasswordObligatorio() {
         <button
           type="button"
           onClick={cerrarSesion}
-          className="mt-6 text-xs text-tenue underline underline-offset-2 transition-colors hover:text-red"
+          className="mt-6 text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
         >
           Cerrar sesión
         </button>

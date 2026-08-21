@@ -316,7 +316,7 @@ export function CalendarioPagina() {
               <div
                 key={dia}
                 className={`px-2 py-2 text-center text-xs uppercase tracking-wider ${
-                  dia === hoy() ? 'font-semibold text-red' : 'text-tenue'
+                  dia === hoy() ? 'font-semibold text-acento' : 'text-tenue'
                 }`}
               >
                 <div>{DIAS[i]}</div>
@@ -488,7 +488,7 @@ function Detalle({
         <button
           type="button"
           onClick={onCerrar}
-          className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+          className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
         >
           Cerrar
         </button>
@@ -719,7 +719,7 @@ function FormularioParticipante({
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="mt-3 text-xs text-tenue underline underline-offset-2 hover:text-red"
+        className="mt-3 text-xs text-tenue underline underline-offset-2 hover:text-acento"
       >
         + Anotar a alguien
       </button>
@@ -1067,7 +1067,7 @@ function FormularioReserva({
 
       {/* El caso "se puede, pero ojo" de la matriz: una clase de DJ en la cabina
           de grabación es válida solo si es una práctica. */}
-      {advertencia && <p className="mt-3 text-xs text-red">{advertencia}</p>}
+      {advertencia && <p className="mt-3 text-xs text-acento">{advertencia}</p>}
 
       {/* El de carga también: sin esto, un fallo al traer los alumnos deja el
           select vacío sin decir por qué, que se lee como "no hay alumnos". */}

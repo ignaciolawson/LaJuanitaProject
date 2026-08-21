@@ -264,7 +264,7 @@ export function SelloPagina() {
  */
 function EstadoDelContrato({ release }: { release: ReleaseResumen }) {
   if (release.publicadoSinContrato) {
-    return <span className="font-medium text-red">Publicado sin contrato</span>
+    return <span className="font-medium text-acento">Publicado sin contrato</span>
   }
   if (release.contratos > 0) {
     return (
@@ -273,7 +273,7 @@ function EstadoDelContrato({ release }: { release: ReleaseResumen }) {
       </span>
     )
   }
-  return <span className="text-red">Sin contrato</span>
+  return <span className="text-acento">Sin contrato</span>
 }
 
 function EtiquetaEstado({ estado }: { estado: EstadoRelease }) {
@@ -399,7 +399,7 @@ function BloquePublicacion({
       <section className="rounded-md bg-neutral-50 px-4 py-3 text-sm">
         <div className="font-medium">Publicado{release.fechaReal && ` el ${release.fechaReal}`}</div>
         {release.publicadoSinContrato && (
-          <p className="mt-1.5 text-xs text-red">
+          <p className="mt-1.5 text-xs text-acento">
             Se publicó <strong>sin contrato adjunto</strong>
             {release.publicadoPor && `, por ${release.publicadoPor}`}: “
             {release.motivoPublicacion}”
@@ -536,7 +536,7 @@ function BloqueContratos({
       </div>
 
       {contratos.length === 0 ? (
-        <p className="mt-1.5 text-sm text-red">
+        <p className="mt-1.5 text-sm text-acento">
           Sin contrato adjunto. <span className="text-tenue">No se va a poder publicar.</span>
         </p>
       ) : (

@@ -142,7 +142,7 @@ export function EgresosPagina() {
                       por qué el total de la caja cambió, así que se queda. */}
                   <span className={e.anulado ? 'line-through' : undefined}>{e.concepto}</span>
                   {e.anulado && (
-                    <div className="text-xs text-red">Anulado · {e.motivoAnulacion}</div>
+                    <div className="text-xs text-acento">Anulado · {e.motivoAnulacion}</div>
                   )}
                 </td>
                 <td className="px-4 py-3 text-tenue">
@@ -164,7 +164,7 @@ export function EgresosPagina() {
                     <button
                       type="button"
                       onClick={() => setAnulando(e)}
-                      className="text-xs text-tenue underline underline-offset-2 hover:text-red"
+                      className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
                     >
                       Anular
                     </button>

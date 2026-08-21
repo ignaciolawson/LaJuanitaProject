@@ -64,7 +64,7 @@ export function RegistroPagina() {
     <main className="grid min-h-full place-items-center px-6 py-12">
       <div className="w-full max-w-sm">
         <header className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
             La Juanita
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Crear cuenta</h1>
@@ -142,7 +142,7 @@ export function RegistroPagina() {
 
         <p className="mt-8 text-sm text-tenue">
           ¿Ya tenés cuenta?{' '}
-          <Link to="/login" className="text-ink underline underline-offset-2 hover:text-red">
+          <Link to="/login" className="text-ink underline underline-offset-2 hover:text-acento">
             Iniciá sesión
           </Link>
         </p>
