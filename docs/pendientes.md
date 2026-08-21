@@ -17,7 +17,8 @@
 
 ## 🔴 1. Lo que bloquea la entrega
 
-Son cuatro, y en este orden.
+Son cuatro, y en este orden. **Al 2026-08-20 queda una menos**: el ensayo de
+restore (1.2) se cerró ese día.
 
 ### 1.1 · El Módulo 8 — Dashboard de dirección
 
@@ -47,23 +48,29 @@ no vacío**, acceso completo `ADMIN`·`DIRECTIVO` y `STAFF` ve el resumen básic
 > proyecto que se puede diferir sin que un módulo deje de servir**: el tablero se
 > mira en pantalla. Queda dicho ahora y no en noviembre.
 
-### 1.2 · ⚠️ El ensayo de restore quedó incompleto
+### 1.2 · ~~El ensayo de restore quedó incompleto~~ — **CERRADO el 2026-08-20**
 
-**`docs/operacion.md` §1 y §2.**
+**`docs/operacion.md` §1 y §2.** Se rehizo entero, con las dos piezas, y pasó.
 
-`scripts/backup.sh` ya produce las dos piezas —el dump y el tar de los archivos
-subidos— y eso se verificó corriéndolo. **Lo que no se rehizo es el ensayo de
-restore.** El del 2026-08-14 probó que la base restaurada conserva sus *reglas* y
-que la aplicación arranca contra ella; eso sigue valiendo. No pudo probar, porque
-no existía, que **los archivos vuelvan y que los `archivo_path` los encuentren**.
+Lo que probó, que es más de lo que probaba el del 2026-08-14: el catálogo vuelve
+igual (25 tablas, 163 constraints, 33 triggers, 65 índices, 18 migraciones), **el
+PDF del contrato volvió byte a byte** —mismo `sha256`—, cada fila encontró su
+archivo y cada archivo su fila, y **cinco reglas rechazaron con su propio
+mensaje** sobre la base restaurada, incluidas las dos que el Módulo 7 agregó: no
+se publica un release sin contrato, y no se saca el contrato que respalda uno
+publicado. El cierre fue levantar la aplicación real contra la base restaurada
+**y los archivos restaurados** y bajar el contrato por la API: 200, 1.621.643
+bytes, idéntico.
 
-El modo de falla es de los peores que hay: el backup corre en verde todos los
-días, la base restaura perfecta, y cada `contrato_sello` apunta a un PDF que no
-existe — con la regla dura del Módulo 7 dándose por cumplida sobre un respaldo que
-no está. **No falla nada. Se descubre el día que alguien abre un contrato.**
+> **Y quedó probado el modo de falla al revés**, que es el que justificaba la
+> urgencia: con la fila intacta y el archivo ausente la API contesta *"No está el
+> archivo pedido."* — o sea que **el sistema solo se entera cuando alguien lo
+> pide**. Una base restaurada sin los archivos arranca perfecta y no se queja de
+> nada hasta el día que alguien abre un contrato.
 
-El procedimiento nuevo ya está escrito en §1. **Falta correrlo.** Media hora, y es
-lo único que separa *"hay backup"* de *"hay respaldo"*.
+**Lo que queda de esto no es trabajo, es cadencia**: reensayar cuando haya datos
+reales (después de migrar el Notion) y después una vez por cuatrimestre. Un tar
+de 120 KB y uno de varios GB no fallan por las mismas razones.
 
 ### 1.3 · El deploy
 

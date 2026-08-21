@@ -753,14 +753,29 @@ construya notificaciones automáticas"*. **Ese es el resultado de haber construi
 disparador antes del módulo y no adentro**, que es lo que al `StorageService` no le
 pasó dos módulos seguidos.
 
-### ⚠️ LO QUE QUEDA ABIERTO Y NO ES EL MÓDULO 8
+### ✅ LO QUE QUEDABA ABIERTO Y NO ERA EL MÓDULO 8 — cerrado el 2026-08-20
 
-**El ensayo de restore quedó incompleto.** `scripts/backup.sh` ya respalda las dos
-cosas —la base y los archivos subidos— y eso se probó corriéndolo. Lo que **no** se
-rehizo es el ensayo de restore de `operacion.md` §2: el del 2026-08-14 probó que la
-base restaurada conserva sus reglas, pero no que los archivos vuelvan y que los
-`archivo_path` los encuentren. **El procedimiento nuevo ya está escrito ahí**; falta
-correrlo.
+**El ensayo de restore se rehizo, ahora con los archivos, y pasó.** El del
+2026-08-14 había probado que la base restaurada conserva sus reglas; lo que no
+podía probar, porque no existía, es que los archivos vuelvan y que los
+`archivo_path` los encuentren. **Está escrito entero en `operacion.md` §2**, que
+pasó a ser el ensayo vigente.
+
+Lo que agregó, además de repetir lo de agosto sobre un esquema diez migraciones
+más grande (25 tablas, 163 constraints, 33 triggers, 65 índices, 18 migraciones,
+todo igual): el PDF volvió **byte a byte** —mismo `sha256`—, cada fila encontró su
+archivo y cada archivo su fila, **las cinco reglas ejercitadas rechazaron con su
+propio mensaje** —incluidas las dos del Módulo 7: no se publica sin contrato, y no
+se saca el contrato que respalda algo publicado—, y el cierre fue **levantar la
+aplicación real contra la base restaurada y los archivos restaurados** y bajar el
+contrato por la API. Flyway no reaplicó nada.
+
+> **Y se probó el modo de falla al revés, que es lo que hacía urgente esto.** Con
+> la fila intacta y el archivo sacado de su lugar, la API contesta *"No está el
+> archivo pedido."*: o sea que **el sistema se entera recién cuando alguien lo
+> pide**. Una base restaurada sin sus archivos arranca perfecta, lista los
+> releases, los muestra publicados con contrato, y no se queja de nada hasta el
+> día que alguien abre uno. Eso es lo que se acaba de dejar de deber.
 
 ### ⏭️ MAÑANA, EN ORDEN
 
@@ -791,8 +806,9 @@ cd apps/platform && npm test              # 342
 > El volumen de Postgres (`juanitastudioproyect_postgres_data`) **sobrevive a
 > `docker compose down`**; lo que se lo lleva es `down -v`.
 
-**2 · Rehacer el ensayo de restore**, con los archivos. Es media hora y es lo único
-que queda entre "hay backup" y "hay respaldo".
+**2 · ~~Rehacer el ensayo de restore~~ — hecho el 2026-08-20**, arriba. Lo único
+que queda de eso es cadencia: reensayar cuando haya datos reales, después del
+Notion, y luego una vez por cuatrimestre.
 
 **3 · El Módulo 8, el último.** Todas sus preguntas están contestadas: la tasa de
 retención tiene definición (§15) y la exportación a PDF y Excel entra con vara alta —

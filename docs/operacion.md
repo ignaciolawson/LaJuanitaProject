@@ -9,8 +9,11 @@ con esas palabras. Un procedimiento de restore que nadie corrió no es un
 procedimiento: es una intención, y se descubre que estaba mal el día que hace
 falta.
 
-> **Estado al 2026-08-14.** Las secciones 1 (backup), 2 (restore) y 4 (fallas de
-> migración) están probadas y son de uso inmediato. La sección 3 (deploy) tiene
+> **Estado al 2026-08-20.** Las secciones 1 (backup), 2 (restore) y 4 (fallas de
+> migración) están probadas y son de uso inmediato. **El restore se reensayó ese
+> día, ahora con los archivos subidos**: hasta entonces el ensayo cubría la base y
+> el backup ya eran dos cosas, que es la peor combinación posible — verde todos
+> los días sobre una mitad sin probar. La sección 3 (deploy) tiene
 > lo que ya está decidido y **no** el procedimiento cerrado: falta elegir el
 > hosting, que es una decisión de octubre. Está marcado adentro.
 
@@ -87,16 +90,15 @@ barre los dos patrones. Antes de que hubiera tar, la poda tenía el patrón del
 dump escrito a mano; con dos tipos de archivo eso habría dejado los tar
 acumulándose para siempre, que es la forma de llenar un disco sin que nadie mire.
 
-### ⚠️ El ensayo de restore quedó incompleto y hay que rehacerlo
+### El ensayo con archivos — hecho el 2026-08-20
 
-El de §2 se hizo el 2026-08-14, cuando el backup era una sola cosa. **Probó que la
-base restaurada conserva sus reglas y que la aplicación arranca contra ella — y
-eso sigue valiendo.** Lo que no pudo probar, porque no existía, es que los
-archivos vuelvan y que los `archivo_path` de la base los encuentren.
+El de §2 se había hecho el 2026-08-14, cuando el backup era una sola cosa: probó
+que la base restaurada conserva sus reglas y que la aplicación arranca contra
+ella, y eso seguía valiendo. Lo que no había podido probar, porque no existía, es
+que **los archivos vuelvan y que los `archivo_path` de la base los encuentren**.
 
-**Es lo que queda por hacer de esta sección**, y no es opcional: un backup que
-nunca se restauró es una intención, y ahora hay dos piezas que tienen que volver
-juntas. El procedimiento nuevo agrega un paso al de §2:
+**Se rehizo entero el 2026-08-20 y pasó.** El detalle está en §2; lo que agrega a
+esta sección son dos pasos que antes no tenía:
 
 ```bash
 # después de restaurar la base, y en el mismo destino que apunte
@@ -105,11 +107,16 @@ tar -xzf backups/diarios/lajuanita-archivos-AAAA-MM-DD.tar.gz -C /ruta/al/padre
 
 # y la verificación que hace que el ensayo sirva: que la base y el disco
 # coincidan. Ninguna fila puede quedar apuntando a un archivo que no está.
-psql -c "SELECT id_contrato, archivo_path FROM contrato_sello" \
-  | while read -r id ruta; do
+psql -d ensayo_restore -t -A -F'|' -c "SELECT id_contrato, archivo_path FROM contrato_sello" \
+  | while IFS='|' read -r id ruta; do
       [ -f "/ruta/archivos/$ruta" ] || echo "FALTA el archivo del contrato $id"
     done
 ```
+
+⚠️ **La verificación va en las dos direcciones, y la segunda es la barata de
+olvidar.** Que cada fila encuentre su archivo es la que importa; que cada archivo
+tenga una fila que lo nombre detecta lo otro —un huérfano de una transacción que
+se cayó—, que no rompe nada pero ocupa disco para siempre y nadie lo mira.
 
 ### Frecuencia, retención, destino
 
@@ -140,7 +147,91 @@ que el cron pueda avisar.
 
 ## 2. Restore
 
-### Ensayo del 2026-08-14 — hecho, y qué probó
+### Ensayo del 2026-08-20 — el que incluye los archivos
+
+**Es el ensayo vigente.** El del 2026-08-14 (más abajo, se deja porque lo que
+probó sigue valiendo) corrió cuando el backup era una sola cosa. Este corrió
+sobre las dos, que es lo que el Módulo 7 cambió: desde que hay contratos en
+disco, *"la base restaura bien"* dejó de significar *"el respaldo sirve"*.
+
+Se corrió `scripts/backup.sh` —dump de 158.402 bytes y tar de los archivos—, se
+restauró en una base descartable (`ensayo_restore`) y se extrajo el tar en una
+carpeta aparte. **La base de desarrollo no se tocó en ningún paso**, que es una
+condición del ensayo y no una precaución: restaurar encima de la base viva
+destruye la evidencia de lo que se está probando.
+
+**Primero el catálogo, que es lo mismo que se verificó en agosto y ahora da otros
+números porque el esquema creció diez migraciones:**
+
+| Verificación | Origen | Restaurada |
+|---|---|---|
+| Tablas | 25 | **25** |
+| Constraints | 163 | **163** |
+| Triggers | 33 | **33** |
+| Índices | 65 | **65** |
+| Migraciones en `flyway_schema_history` | 18 | **18** |
+| Filas (`usuario` / `alumno` / `reserva` / `inscripcion` / `pago`) | 11 / 6 / 12 / 6 / 5 | **iguales** |
+| Filas del sello (`artista` / `release` / `contrato_sello` / `aparicion_release`) | 1 / 1 / 1 / 1 | **iguales** |
+| Extensión `btree_gist` | presente | **presente** |
+
+**Después los archivos, que es lo que este ensayo vino a probar.** El tar guardó
+rutas relativas (`archivos/contratos/2026/08/…`), así que se extrae donde sea sin
+arrastrar la ruta de la máquina que hizo el backup:
+
+- El PDF volvió **byte a byte**: 1.621.643 bytes y el mismo `sha256`
+  (`d1bdb67e…`). No alcanza con que exista un archivo con ese nombre.
+- **Cada fila encontró su archivo** y **cada archivo tuvo su fila**. Con un solo
+  contrato la verificación es corta; el script que la hace está en §1 y no cambia
+  con el volumen.
+
+**Después las reglas, porque el modo de falla que importa es que el esquema vuelva
+sin ellas.** Se ejercitaron cinco sobre la base restaurada —las tres del ensayo
+anterior más las dos que el Módulo 7 agregó— y **las cinco rechazaron con su
+propio mensaje**, que es la otra mitad: un rechazo por el motivo equivocado
+también rechaza, y fue exactamente el bug de `V16`.
+
+| # | Regla | Qué contestó |
+|---|---|---|
+| 1 | `EXCLUDE` — reserva solapada en la misma sala | `conflicting key value violates exclusion constraint "reserva_sin_solapamiento"` |
+| 2 | FK compuesta — producción musical en una sala que no la admite | `violates foreign key constraint "reserva_uso_permitido_en_sala"` |
+| 3 | Trigger de `V7` — borrar historial de clases | *"No se borran filas de reserva. Es historial de un negocio real…"* |
+| 4 | **`V18` §2 — publicar un release sin contrato** | *"El release LJ-ENSAYO no se puede publicar sin un contrato adjunto…"* |
+| 5 | **`V18` §3 — sacar el contrato que respalda un release publicado** | *"El contrato 46 es el unico respaldo del release LJ01, que ya esta publicado…"* |
+
+Las dos últimas son las que este ensayo tenía que agregar: **la regla dura del
+Módulo 7 se apoya en un archivo, y hasta hoy nadie había probado que ese archivo
+sobreviva a un restore.**
+
+**Y el cierre, que es el único paso que prueba el conjunto.** Se levantó la
+aplicación real apuntada a la base restaurada **y a los archivos restaurados**
+(`DB_URL` + `ARCHIVOS_RAIZ`, en el puerto 8081 para no pisar nada), y se bajó el
+contrato por la API:
+
+```
+GET /api/contratos/46/archivo   ->  HTTP 200
+Content-Disposition: inline; filename="contrato-Nacho_Scoppa.pdf"
+1.621.643 bytes, sha256 d1bdb67e…  (idéntico al original)
+```
+
+Flyway **no reaplicó nada**: `flyway_schema_history` quedó en 18 filas con la
+fecha de instalación original, que es la prueba de que la historia de migraciones
+viajó entera y no se reconstruyó.
+
+**Por último se probó el modo de falla al revés**, que es el que justifica todo lo
+anterior: con el PDF sacado de su lugar y la fila intacta, la API contesta
+`400 · "No está el archivo pedido."` — un ProblemDetail con texto, no un 500. Y
+ahí está el punto que hay que entender del respaldo: **el sistema solo se entera
+de que el archivo no está cuando alguien lo pide.** Una base restaurada sin los
+archivos arranca perfecta, lista los releases, muestra que están publicados con
+contrato, y no se queja de nada hasta el día que alguien abre uno.
+
+> **Próximo ensayo: cuando haya datos reales** (después de migrar el Notion), y
+> después una vez por cuatrimestre. Un restore probado sobre 11 usuarios de
+> desarrollo y **un** contrato prueba el procedimiento, no el volumen — y para los
+> archivos esa diferencia pesa más que para la base: un tar de 120 KB y uno de
+> varios GB no fallan por las mismas razones.
+
+### Ensayo del 2026-08-14 — el primero, sin archivos
 
 Se volcó la base de desarrollo, se restauró en una base descartable
 (`ensayo_restore`) y se verificó **contra el catálogo, no a ojo**:
@@ -172,9 +263,11 @@ real apuntada a la base restaurada** y arrancó —
 quiso re-aplicar nada, que es la prueba de que la historia de migraciones viajó
 entera.
 
-**Próximo ensayo: cuando haya datos reales** (después de migrar el Notion), y
-después una vez por cuatrimestre. Un restore probado sobre 2 usuarios de
-desarrollo prueba el procedimiento, no el volumen.
+**Lo que sigue valiendo de este ensayo** es el método —verificar contra el
+catálogo y ejercitar reglas, no mirar filas— y el hecho de que la aplicación
+arranque contra lo restaurado. Lo que quedó viejo son los números: 8 migraciones
+y 23 tablas eran el esquema de agosto. **La cadencia y el próximo ensayo los fija
+el del 2026-08-20**, arriba.
 
 ### El procedimiento
 
@@ -193,6 +286,15 @@ docker exec la_juanita_postgres psql -U la_juanita -d la_juanita_restore -c \
   "select count(*) from information_schema.tables where table_schema='public';"
 docker exec la_juanita_postgres psql -U la_juanita -d la_juanita_restore -c \
   "select version, success from flyway_schema_history order by installed_rank;"
+
+# 4. LOS ARCHIVOS. La base es la mitad del respaldo desde el Módulo 7. Se
+#    extraen donde vaya a apuntar `lajuanita.archivos.raiz`.
+tar -xzf backups/diarios/lajuanita-archivos-AAAA-MM-DD.tar.gz -C /ruta/al/padre
+
+# 5. Que la base y el disco coincidan. El script está en §1: ninguna fila puede
+#    quedar apuntando a un archivo que no está, y conviene mirar también al
+#    revés. Este paso es el que convierte "restauré" en "puedo abrir un
+#    contrato".
 ```
 
 **`--exit-on-error` es lo que separa un restore de una ilusión.** Por defecto
