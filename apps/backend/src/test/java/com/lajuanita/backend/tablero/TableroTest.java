@@ -379,6 +379,82 @@ class TableroTest {
         }
     }
 
+    // == Conversión ===========================================================
+
+    /**
+     * <b>El caso base del indicador.</b> Alguien que paga un alquiler sin haber
+     * sido nunca alumno entra al denominador — "llegó por un servicio
+     * suelto" — y no cuenta todavía como convertido.
+     */
+    @Test
+    void quien_alquila_sin_ser_alumno_cuenta_como_llegado_pero_no_como_convertido() throws Exception {
+        long[] antes = conversion();
+
+        Usuario quien = crear(Rol.USUARIO);
+        long cabina = idDeReserva(reservar(sala1, alquiler, LUNES, "14:00", "18:00"));
+        pagarReserva(quien, cabina, "9000", LocalDate.now().minusDays(30));
+
+        long[] despues = conversion();
+        assertThat(despues[0]).isEqualTo(antes[0] + 1);   // entra al denominador
+        assertThat(despues[1]).isEqualTo(antes[1]);       // todavía no es alumno
+    }
+
+    /** Si esa misma persona se inscribe después, pasa a convertida. */
+    @Test
+    void si_despues_se_inscribe_pasa_a_convertido() throws Exception {
+        long[] antes = conversion();
+
+        Usuario quien = crear(Rol.USUARIO);
+        long cabina = idDeReserva(reservar(sala1, alquiler, LUNES, "14:00", "18:00"));
+        pagarReserva(quien, cabina, "9000", LocalDate.now().minusDays(30));
+
+        Alumno alumno = new Alumno();
+        alumno.setUsuario(quien);
+        alumnos.save(alumno);
+        inscripcionConFecha(alumno, Disciplina.DJ, LocalDate.now());
+
+        long[] despues = conversion();
+        assertThat(despues[0]).isEqualTo(antes[0] + 1);
+        assertThat(despues[1]).isEqualTo(antes[1] + 1);
+    }
+
+    /**
+     * <b>El caso que sostiene el indicador entero, espejo del de retención.</b>
+     * Quien YA era alumno y alquila la cabina después no puede contarse como si
+     * hubiera "llegado" por ese alquiler: sin el {@code NOT EXISTS}, cualquier
+     * alumno que alguna vez pagó una cabina inflaría el denominador con gente
+     * que ya estaba convertida, y la tasa mediría lo que ya sabía de antemano.
+     */
+    @Test
+    void quien_ya_era_alumno_no_cuenta_como_llegado_al_alquilar_despues() throws Exception {
+        long[] antes = conversion();
+
+        Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno);
+
+        long cabina = idDeReserva(reservar(sala1, alquiler, LUNES, "14:00", "18:00"));
+        pagarReserva(alumno.getUsuario(), cabina, "9000", LUNES);
+
+        long[] despues = conversion();
+        assertThat(despues[0]).isEqualTo(antes[0]);
+    }
+
+    /**
+     * La tasa es un porcentaje sobre el denominador, y con denominador cero es
+     * {@code null} y no cero, mismo criterio que la retención.
+     */
+    @Test
+    void la_tasa_de_conversion_es_el_porcentaje_de_convertidos_sobre_el_denominador() throws Exception {
+        String cuerpo = tablero().andReturn().getResponse().getContentAsString();
+        long[] numeros = conversion();
+
+        if (numeros[0] > 0) {
+            BigDecimal esperada = BigDecimal.valueOf(numeros[1] * 1000 / numeros[0])
+                    .divide(BigDecimal.TEN);
+            assertThat(cuerpo).contains("\"tasa\":" + esperada.stripTrailingZeros().toPlainString());
+        }
+    }
+
     // == El rango =============================================================
 
     @Test
@@ -445,6 +521,7 @@ class TableroTest {
 
         assertThat(cuerpo)
                 .doesNotContain("retencion")
+                .doesNotContain("conversion")
                 .doesNotContain("ocupacion")
                 .doesNotContain("sello")
                 .doesNotContain("mixMastering");
@@ -475,6 +552,14 @@ class TableroTest {
         return new long[] {
                 numeroEn(cuerpo, "\"conVentanaCerrada\":"),
                 numeroEn(cuerpo, "\"retenidos\":") };
+    }
+
+    /** {@code [llegaronPorServicioSuelto, convertidos]}, leídos del tablero. */
+    private long[] conversion() throws Exception {
+        String cuerpo = tablero().andReturn().getResponse().getContentAsString();
+        return new long[] {
+                numeroEn(cuerpo, "\"llegaronPorServicioSuelto\":"),
+                numeroEn(cuerpo, "\"convertidos\":") };
     }
 
     private BigDecimal pendienteEnPesos() throws Exception {
@@ -508,10 +593,20 @@ class TableroTest {
     }
 
     private void pagarReserva(Usuario quien, long idReserva, String monto) throws Exception {
+        pagarReserva(quien, idReserva, monto, LUNES);
+    }
+
+    /**
+     * La conversión no filtra por período, así que sus casos necesitan poder
+     * fechar el pago aparte del {@code LUNES} de aislamiento que usan los
+     * indicadores del período — ver el comentario de la clase sobre por qué
+     * la retención (y ahora la conversión) fechan distinto.
+     */
+    private void pagarReserva(Usuario quien, long idReserva, String monto, LocalDate fechaPago) throws Exception {
         mvc.perform(pagar("""
                 {"idUsuario":%d,"idReserva":%d,"monto":%s,"moneda":"ARS",
                  "medioPago":"EFECTIVO","estadoPago":"PAGADO","fechaPago":"%s"}
-                """.formatted(quien.getId(), idReserva, monto, LUNES)))
+                """.formatted(quien.getId(), idReserva, monto, fechaPago)))
                 .andExpect(status().isCreated());
     }
 

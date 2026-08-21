@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
 import type { CajaDelPeriodo, SalaResumen } from '../api/tiposAdmin'
-import type { CobrosPendientes, Retencion, Tablero } from '../api/tiposTablero'
+import type { CobrosPendientes, Conversion, Retencion, Tablero } from '../api/tiposTablero'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { TableroPagina } from './TableroPagina'
 
@@ -134,6 +134,7 @@ function tablero(cambios: Partial<Tablero> = {}): Tablero {
       ],
     },
     retencion: { conVentanaCerrada: 10, retenidos: 6, tasa: 60 },
+    conversion: { llegaronPorServicioSuelto: 8, convertidos: 3, tasa: 37.5 },
     mixMastering: {
       porEstado: [
         { estado: 'EN_PROCESO', cantidad: 2 },
@@ -216,6 +217,7 @@ describe('quién ve qué', () => {
 
     expect(await screen.findByText(/El tablero completo/)).toBeDefined()
     expect(screen.queryByText('Retención')).toBeNull()
+    expect(screen.queryByText('Conversión')).toBeNull()
     expect(screen.queryByText('Cuándo se llena el estudio')).toBeNull()
     expect(screen.queryByText('El sello')).toBeNull()
   })
@@ -245,6 +247,29 @@ describe('la retención', () => {
   it('con denominador cero no dice 0% sino que todavía no hay a quién medir', async () => {
     const sinVentanas: Retencion = { conVentanaCerrada: 0, retenidos: 0, tasa: null }
     vi.mocked(tableroCompleto).mockResolvedValue(tablero({ retencion: sinVentanas }))
+
+    montar('ADMIN')
+
+    expect(await screen.findByText('Sin datos todavía')).toBeDefined()
+    expect(screen.queryByText('0%')).toBeNull()
+  })
+})
+
+describe('la conversión', () => {
+  it('muestra el porcentaje y sobre cuántos se calculó', async () => {
+    montar('ADMIN')
+
+    expect(await screen.findByText('37.5%')).toBeDefined()
+    expect(screen.getByText(/3 de 8 llegaron por un servicio suelto y hoy son alumnos/)).toBeDefined()
+  })
+
+  /**
+   * Misma distinción que la retención: sin nadie que haya llegado por un
+   * servicio suelto, no hay a quién medir — no es que "nadie convierte".
+   */
+  it('con denominador cero no dice 0% sino que todavía no hay a quién medir', async () => {
+    const sinLlegados: Conversion = { llegaronPorServicioSuelto: 0, convertidos: 0, tasa: null }
+    vi.mocked(tableroCompleto).mockResolvedValue(tablero({ conversion: sinLlegados }))
 
     montar('ADMIN')
 

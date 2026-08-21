@@ -51,6 +51,7 @@ public final class InformeDelTablero {
         hojas.add(ocupacion(tablero));
         hojas.add(pendientes(tablero));
         hojas.add(retencion(tablero));
+        hojas.add(conversion(tablero));
         hojas.add(mixMastering(tablero));
         hojas.add(sello(tablero));
 
@@ -155,6 +156,24 @@ public final class InformeDelTablero {
                 List.of(List.of(tasa,
                         new Celda.Cantidad(r.retenidos()),
                         new Celda.Cantidad(r.conVentanaCerrada()))));
+    }
+
+    /**
+     * La conversión, con su denominador al lado — mismo criterio que
+     * {@link #retencion}: un porcentaje solo no se defiende en una reunión.
+     */
+    private static Hoja conversion(Tablero tablero) {
+        Tablero.Conversion c = tablero.conversion();
+
+        Celda tasa = c.tasa() == null
+                ? new Celda.SinDato("nadie llegó todavía por un servicio suelto")
+                : new Celda.Numero(c.tasa(), "%");
+
+        return new Hoja("Conversión", AL_DIA_DE_HOY,
+                List.of("Tasa", "Se convirtieron en alumnos", "Llegaron por un servicio suelto"),
+                List.of(List.of(tasa,
+                        new Celda.Cantidad(c.convertidos()),
+                        new Celda.Cantidad(c.llegaronPorServicioSuelto()))));
     }
 
     private static Hoja mixMastering(Tablero tablero) {

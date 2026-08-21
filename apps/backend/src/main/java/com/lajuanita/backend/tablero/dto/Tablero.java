@@ -23,11 +23,11 @@ import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
  * que vino.
  *
  * <p><b>Y una distinción que hay que sostener al agregar indicadores: no todos
- * son del período.</b> Los alumnos activos, los cobros pendientes y la retención
- * son <i>fotos de hoy</i>; los ingresos, la ocupación, las entregas y las
- * publicaciones son <i>del período</i>. Cada record dice cuál es. Mezclarlos bajo
- * un mismo filtro es la forma más barata que tiene un tablero de mentir sin que
- * nada falle: una deuda de marzo desaparecería al mirar agosto.
+ * son del período.</b> Los alumnos activos, los cobros pendientes, la retención
+ * y la conversión son <i>fotos de hoy</i>; los ingresos, la ocupación, las
+ * entregas y las publicaciones son <i>del período</i>. Cada record dice cuál es.
+ * Mezclarlos bajo un mismo filtro es la forma más barata que tiene un tablero de
+ * mentir sin que nada falle: una deuda de marzo desaparecería al mirar agosto.
  */
 public record Tablero(
 
@@ -59,6 +59,9 @@ public record Tablero(
 
         /** Foto de hoy, sobre ventanas ya cerradas. */
         Retencion retencion,
+
+        /** Foto de hoy: de quienes llegaron por un servicio suelto, cuántos son alumnos. */
+        Conversion conversion,
 
         /** Estados de hoy, entregas del período. */
         MixMastering mixMastering,
@@ -159,6 +162,33 @@ public record Tablero(
      *                          medir
      */
     public record Retencion(long conVentanaCerrada, long retenidos, BigDecimal tasa) {
+    }
+
+    /**
+     * De quienes llegaron al estudio por un servicio suelto —alquiler de
+     * cabina, grabación de set, mix &amp; mastering o venta de equipos, sin
+     * tener todavía ninguna inscripción—, cuántos se convirtieron después en
+     * alumnos.
+     *
+     * <p><b>{@code tasa} es {@code null} cuando el denominador es cero</b>, con
+     * el mismo razonamiento que {@link Retencion}: si nadie llegó todavía por
+     * un servicio suelto, un 0% se leería como <i>ninguno convierte</i> cuando
+     * lo cierto es que no hay a quién medir.
+     *
+     * <p><b>A diferencia de la retención, no hay ventana de tiempo.</b> Esa
+     * ventana existe en la retención para que crecer el estudio no se leyera
+     * como empeorar la tasa (§15); acá no aplica, porque no convertirse todavía
+     * no es un "no" — es sencillamente parte del denominador.
+     *
+     * @param llegaronPorServicioSuelto el denominador: usuarios cuyo primer
+     *                                  contacto pagado con el estudio fue uno de
+     *                                  esos cuatro servicios
+     * @param convertidos               de esos, los que después tienen alguna
+     *                                  inscripción, sea cual sea su estado hoy
+     * @param tasa                      porcentaje 0–100, o {@code null} si el
+     *                                  denominador es cero
+     */
+    public record Conversion(long llegaronPorServicioSuelto, long convertidos, BigDecimal tasa) {
     }
 
     /**

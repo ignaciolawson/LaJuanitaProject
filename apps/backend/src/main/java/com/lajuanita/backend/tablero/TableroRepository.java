@@ -261,7 +261,79 @@ public interface TableroRepository extends Repository<Pago, Long> {
             """, nativeQuery = true)
     List<Object[]> retencion(@Param("ocupan") Iterable<String> ocupan);
 
-    // == 6. Mix & Mastering ====================================================
+    // == 6. Conversión: de servicio suelto a alumno ============================
+
+    /**
+     * De quienes llegaron por un servicio suelto, cuántos se convirtieron
+     * después en alumnos.
+     *
+     * <p><b>"Llegó por un servicio suelto"</b> es tener un primer pago
+     * {@code ENTRARON} que NO apunta a una inscripción y sí apunta a uno de los
+     * cuatro destinos que no son cursar: alquiler de cabina, grabación de set,
+     * mix &amp; mastering o venta de equipos — la misma lectura de
+     * {@link LineaDeNegocio} que usa {@code ingresosPorLinea}, filtrada al
+     * revés. Es exactamente la razón de ser de que {@code usuario} sea la raíz
+     * del sistema y no {@code alumno}: esta persona pudo alquilar la cabina sin
+     * anotarse nunca a un curso, y este indicador mide si ese camino de entrada
+     * de verdad trae alumnos.
+     *
+     * <p><b>El {@code NOT EXISTS} es lo que separa "llegó por acá" de "ya era
+     * alumno y además alquiló".</b> Sin él, cualquier alumno que alguna vez
+     * pagó una cabina contaría como si su primer contacto hubiera sido ese
+     * alquiler, y la tasa de conversión mediría lo que ya estaba convertido —
+     * la misma clase de trampa que las clases de un curso le habrían hecho a la
+     * retención.
+     *
+     * <p><b>No hay ventana de tiempo, a diferencia de la retención.</b> Ahí la
+     * ventana existe porque sin ella "creció el estudio" se leía como "empeoró
+     * la retención" (§15). Acá no hace falta: alguien que alquiló la cabina la
+     * semana pasada todavía puede convertirse mañana, y no convertirse todavía
+     * no es un "no" — es sencillamente parte del denominador, que es
+     * exactamente lo que la pregunta necesita contestar.
+     *
+     * <p>Devuelve {@code List<Object[]>} de una sola fila por la misma razón que
+     * {@link #retencion}: declararla {@code Object[]} hace que Spring Data
+     * entregue una lista igual y la castee, y el {@code ClassCastException}
+     * aparece recién al leer la primera columna.
+     *
+     * @return una única fila {@code [llegaron, convertidos]}
+     */
+    @Query(value = """
+            WITH primer_servicio_suelto AS (
+                SELECT p.id_usuario      AS id_usuario,
+                       min(p.fecha_pago) AS fecha
+                FROM pago p
+                LEFT JOIN reserva  r  ON r.id_reserva   = p.id_reserva
+                LEFT JOIN tipo_uso tu ON tu.id_tipo_uso = r.id_tipo_uso
+                WHERE p.estado_pago IN (:entraron)
+                  AND p.id_inscripcion IS NULL
+                  AND (p.id_trabajo_mastering IS NOT NULL
+                       OR p.id_venta_equipo IS NOT NULL
+                       OR tu.codigo IN ('ALQUILER_CABINA', 'GRABACION_SET', 'MIX_MASTERING'))
+                GROUP BY p.id_usuario
+            ),
+            llegaron_sueltos AS (
+                SELECT ps.id_usuario
+                FROM primer_servicio_suelto ps
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM inscripcion i
+                    JOIN alumno a ON a.id_alumno = i.id_alumno
+                    WHERE a.id_usuario = ps.id_usuario
+                      AND i.fecha_creacion::date <= ps.fecha
+                )
+            )
+            SELECT count(*) AS llegaron,
+                   count(*) FILTER (WHERE EXISTS (
+                       SELECT 1 FROM inscripcion i
+                       JOIN alumno a ON a.id_alumno = i.id_alumno
+                       WHERE a.id_usuario = l.id_usuario
+                   ))         AS convertidos
+            FROM llegaron_sueltos l
+            """, nativeQuery = true)
+    List<Object[]> conversion(@Param("entraron") Iterable<String> entraron);
+
+    // == 7. Mix & Mastering ====================================================
 
     /**
      * Los trabajos de mastering por estado, y cuántos se entregaron en el período.
@@ -289,7 +361,7 @@ public interface TableroRepository extends Repository<Pago, Long> {
             """, nativeQuery = true)
     List<Object[]> mixMastering(@Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);
 
-    // == 7. Actividad del sello ================================================
+    // == 8. Actividad del sello ================================================
 
     /**
      * Los releases por estado, y cuántos se publicaron en el período.

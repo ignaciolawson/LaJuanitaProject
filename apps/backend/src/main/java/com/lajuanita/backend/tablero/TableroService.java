@@ -28,6 +28,7 @@ import com.lajuanita.backend.tablero.dto.ResumenFinanciero;
 import com.lajuanita.backend.tablero.dto.Tablero;
 import com.lajuanita.backend.tablero.dto.Tablero.AlumnosPorServicio;
 import com.lajuanita.backend.tablero.dto.Tablero.CobrosPendientes;
+import com.lajuanita.backend.tablero.dto.Tablero.Conversion;
 import com.lajuanita.backend.tablero.dto.Tablero.IngresosDeLinea;
 import com.lajuanita.backend.tablero.dto.Tablero.MixMastering;
 import com.lajuanita.backend.tablero.dto.Tablero.Ocupacion;
@@ -137,6 +138,7 @@ public class TableroService {
                 ocupacion(desde, hasta, idSala),
                 cobrosPendientes(),
                 retencion(),
+                conversion(),
                 mixMastering(desde, hasta),
                 sello(desde, hasta));
     }
@@ -360,6 +362,29 @@ public class TableroService {
                         .divide(BigDecimal.valueOf(denominador), 1, RoundingMode.HALF_UP);
 
         return new Retencion(denominador, retenidos, tasa);
+    }
+
+    /**
+     * De quienes llegaron por un servicio suelto, cuántos son alumnos hoy
+     * (indicador nuevo del 2026-08-21).
+     *
+     * <p>Mismo tratamiento del {@code null} que {@link #retencion()}: con
+     * denominador cero la tasa es {@code null}, no cero — acá "nadie llegó
+     * todavía por un servicio suelto" y no "nadie convierte".
+     */
+    private Conversion conversion() {
+        List<String> entraron = EstadoPago.ENTRARON.stream().map(Enum::name).toList();
+
+        Object[] fila = tablero.conversion(entraron).get(0);
+        long llegaron = ((Number) fila[0]).longValue();
+        long convertidos = ((Number) fila[1]).longValue();
+
+        BigDecimal tasa = llegaron == 0 ? null
+                : BigDecimal.valueOf(convertidos)
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(llegaron), 1, RoundingMode.HALF_UP);
+
+        return new Conversion(llegaron, convertidos, tasa);
     }
 
     /** Mix &amp; Mastering: los estados de hoy, las entregas del período. */

@@ -7,6 +7,7 @@ import { descargarTablero, resumenFinanciero, tableroCompleto } from '../api/tab
 import type { CajaDelPeriodo, SalaResumen } from '../api/tiposAdmin'
 import type {
   CobrosPendientes,
+  Conversion,
   Franja,
   Ocupacion,
   Retencion,
@@ -17,6 +18,14 @@ import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
+import {
+  type Barra,
+  BarrasHorizontales,
+  colorDeSerie,
+  Dona,
+  Medidor,
+  type Segmento,
+} from '../componentes/graficos'
 import { capitalizar, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
 import { puedeVerElTableroCompleto } from '../layout/menu'
@@ -256,30 +265,23 @@ export function TableroPagina() {
         <>
           <Seccion titulo="De dónde salió la plata" aclaracion="Del período elegido">
             <div className="grid gap-4 sm:grid-cols-2">
-              {['ARS', 'USD'].map((moneda) => {
+              {(['ARS', 'USD'] as const).map((moneda) => {
                 const lineas = tablero.ingresos.filter((i) => i.moneda === moneda)
                 const total = lineas.reduce((suma, l) => suma + l.monto, 0)
+                const segmentos: Segmento[] = lineas.map((l) => ({
+                  etiqueta: NOMBRE_DE_LINEA[l.linea],
+                  valor: l.monto,
+                  textoValor: importe(l.monto, l.moneda),
+                }))
                 return (
                   <div key={moneda} className="rounded-lg border border-linea bg-white p-5">
-                    <h4 className="font-semibold">{moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
-                    <ul className="mt-3 space-y-2">
-                      {lineas.map((l) => (
-                        <li key={l.linea} className="text-sm">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="truncate">{NOMBRE_DE_LINEA[l.linea]}</span>
-                            <span className="whitespace-nowrap text-tenue">
-                              {importe(l.monto, l.moneda)}
-                            </span>
-                          </div>
-                          <div className="mt-1 h-1 rounded bg-papel">
-                            <div
-                              style={{ width: `${total > 0 ? (l.monto / total) * 100 : 0}%` }}
-                              className="h-1 rounded bg-red"
-                            />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="flex items-baseline justify-between">
+                      <h4 className="font-semibold">{moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
+                      <span className="text-xs text-tenue">Total {importe(total, moneda)}</span>
+                    </div>
+                    <div className="mt-3">
+                      <Dona segmentos={segmentos} />
+                    </div>
                   </div>
                 )
               })}
@@ -292,21 +294,33 @@ export function TableroPagina() {
             detalle="/admin/alumnos"
           >
             <div className="grid gap-4 sm:grid-cols-3">
-              {tablero.alumnos.map((a) => (
-                <div
-                  key={`${a.disciplina}-${a.nivel ?? 'sin'}`}
-                  className="rounded-lg border border-linea bg-white p-5"
-                >
-                  <h4 className="font-semibold">{NOMBRE_DE_DISCIPLINA[a.disciplina]}</h4>
-                  {a.nivel && a.nivel !== 'SIN_NIVEL' && (
-                    <p className="text-xs text-tenue">{capitalizar(a.nivel)}</p>
-                  )}
-                  <p className="mt-1 text-2xl font-semibold tracking-tight">{a.alumnos}</p>
-                  <p className="text-xs text-tenue">
-                    {a.inscripciones} {a.inscripciones === 1 ? 'inscripción' : 'inscripciones'}
-                  </p>
-                </div>
-              ))}
+              {tablero.alumnos.map((a, indice) => {
+                const maximo = Math.max(1, ...tablero.alumnos.map((x) => x.alumnos))
+                return (
+                  <div
+                    key={`${a.disciplina}-${a.nivel ?? 'sin'}`}
+                    className="rounded-lg border border-linea bg-white p-5"
+                  >
+                    <h4 className="font-semibold">{NOMBRE_DE_DISCIPLINA[a.disciplina]}</h4>
+                    {a.nivel && a.nivel !== 'SIN_NIVEL' && (
+                      <p className="text-xs text-tenue">{capitalizar(a.nivel)}</p>
+                    )}
+                    <p className="mt-1 text-2xl font-semibold tracking-tight">{a.alumnos}</p>
+                    <div className="mt-2 h-1.5 rounded bg-papel">
+                      <div
+                        className="h-1.5 rounded"
+                        style={{
+                          width: `${(a.alumnos / maximo) * 100}%`,
+                          backgroundColor: colorDeSerie(indice),
+                        }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-tenue">
+                      {a.inscripciones} {a.inscripciones === 1 ? 'inscripción' : 'inscripciones'}
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           </Seccion>
 
@@ -318,21 +332,28 @@ export function TableroPagina() {
             <Grilla ocupacion={tablero.ocupacion} />
           </Seccion>
 
-          <Seccion titulo="Retención" aclaracion="Al día de hoy, sobre ventanas ya cerradas">
-            <TarjetaDeRetencion retencion={tablero.retencion} />
-          </Seccion>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Seccion titulo="Retención" aclaracion="Al día de hoy, sobre ventanas ya cerradas">
+              <TarjetaDeRetencion retencion={tablero.retencion} />
+            </Seccion>
+
+            <Seccion titulo="Conversión" aclaracion="Al día de hoy, de servicio suelto a alumno">
+              <TarjetaDeConversion conversion={tablero.conversion} />
+            </Seccion>
+          </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Seccion titulo="Mix & Mastering" detalle="/admin/mix-mastering">
               <div className="rounded-lg border border-linea bg-white p-5">
-                <ul className="space-y-1 text-sm">
-                  {tablero.mixMastering.porEstado.map((e) => (
-                    <li key={e.estado} className="flex justify-between gap-3">
-                      <span>{capitalizar(e.estado.replace('_', ' '))}</span>
-                      <span className="text-tenue">{e.cantidad}</span>
-                    </li>
-                  ))}
-                </ul>
+                <BarrasHorizontales
+                  barras={tablero.mixMastering.porEstado.map(
+                    (e): Barra => ({
+                      etiqueta: capitalizar(e.estado.replace('_', ' ')),
+                      valor: e.cantidad,
+                      textoValor: String(e.cantidad),
+                    }),
+                  )}
+                />
                 <p className="mt-3 border-t border-linea pt-3 text-xs text-tenue">
                   {tablero.mixMastering.entregadosEnElPeriodo} entregados en el período
                 </p>
@@ -346,14 +367,15 @@ export function TableroPagina() {
 
             <Seccion titulo="El sello" detalle="/admin/sello">
               <div className="rounded-lg border border-linea bg-white p-5">
-                <ul className="space-y-1 text-sm">
-                  {tablero.sello.porEstado.map((e) => (
-                    <li key={e.estado} className="flex justify-between gap-3">
-                      <span>{capitalizar(e.estado.replace('_', ' '))}</span>
-                      <span className="text-tenue">{e.cantidad}</span>
-                    </li>
-                  ))}
-                </ul>
+                <BarrasHorizontales
+                  barras={tablero.sello.porEstado.map(
+                    (e): Barra => ({
+                      etiqueta: capitalizar(e.estado.replace('_', ' ')),
+                      valor: e.cantidad,
+                      textoValor: String(e.cantidad),
+                    }),
+                  )}
+                />
                 <p className="mt-3 border-t border-linea pt-3 text-xs text-tenue">
                   {tablero.sello.publicadosEnElPeriodo} publicados en el período
                 </p>
@@ -508,26 +530,70 @@ function Casilla({
 function TarjetaDeRetencion({ retencion }: { retencion: Retencion }) {
   return (
     <div className="rounded-lg border border-linea bg-white p-5">
-      {retencion.tasa === null ? (
-        <>
-          <p className="text-2xl font-semibold tracking-tight text-apagado">Sin datos todavía</p>
-          <p className="mt-1 text-sm text-tenue">
-            Nadie cumplió aún los 10 meses desde su primer servicio, así que todavía no hay a quién
-            medir.
-          </p>
-        </>
-      ) : (
-        <>
-          <p className="text-2xl font-semibold tracking-tight">{retencion.tasa}%</p>
-          <p className="mt-1 text-sm text-tenue">
-            {retencion.retenidos} de {retencion.conVentanaCerrada} contrataron un segundo servicio
-            dentro de los 10 meses del primero.
-          </p>
-        </>
-      )}
+      <div className="flex items-center gap-4">
+        <Medidor porcentaje={retencion.tasa} />
+        <div className="min-w-0">
+          {retencion.tasa === null ? (
+            <>
+              <p className="text-2xl font-semibold tracking-tight text-apagado">Sin datos todavía</p>
+              <p className="mt-1 text-sm text-tenue">
+                Nadie cumplió aún los 10 meses desde su primer servicio, así que todavía no hay a
+                quién medir.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-semibold tracking-tight">{retencion.tasa}%</p>
+              <p className="mt-1 text-sm text-tenue">
+                {retencion.retenidos} de {retencion.conVentanaCerrada} contrataron un segundo
+                servicio dentro de los 10 meses del primero.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
       <p className="mt-3 border-t border-linea pt-3 text-xs text-apagado">
         Se calcula solo sobre quienes ya cumplieron los 10 meses: quien contrató hace poco todavía
         puede volver.
+      </p>
+    </div>
+  )
+}
+
+/**
+ * La conversión: de quienes llegaron por un servicio suelto, cuántos son
+ * alumnos hoy. Misma forma que `TarjetaDeRetencion` y misma distinción del
+ * `null` — acá "sin datos" es que nadie llegó todavía por esa puerta, no que
+ * nadie convierte.
+ */
+function TarjetaDeConversion({ conversion }: { conversion: Conversion }) {
+  return (
+    <div className="rounded-lg border border-linea bg-white p-5">
+      <div className="flex items-center gap-4">
+        <Medidor porcentaje={conversion.tasa} />
+        <div className="min-w-0">
+          {conversion.tasa === null ? (
+            <>
+              <p className="text-2xl font-semibold tracking-tight text-apagado">Sin datos todavía</p>
+              <p className="mt-1 text-sm text-tenue">
+                Todavía nadie llegó al estudio por un alquiler, una grabación, un mastering o una
+                venta suelta.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-semibold tracking-tight">{conversion.tasa}%</p>
+              <p className="mt-1 text-sm text-tenue">
+                {conversion.convertidos} de {conversion.llegaronPorServicioSuelto} llegaron por un
+                servicio suelto y hoy son alumnos.
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+      <p className="mt-3 border-t border-linea pt-3 text-xs text-apagado">
+        Solo cuenta a quien todavía no era alumno cuando llegó: quien ya cursaba y además alquiló la
+        cabina no "convirtió" nada.
       </p>
     </div>
   )

@@ -86,6 +86,21 @@ export type Retencion = {
   tasa: number | null
 }
 
+/**
+ * De quienes llegaron al estudio por un servicio suelto —alquiler, grabación,
+ * M&M o venta de equipos, sin ser todavía alumnos—, cuántos se convirtieron
+ * después en alumnos.
+ *
+ * **`tasa` es `null` cuando nadie llegó todavía por un servicio suelto**,
+ * misma distinción que `Retencion.tasa`: un 0% se leería como "nadie
+ * convierte" cuando lo que pasa es que no hay a quién medir.
+ */
+export type Conversion = {
+  llegaronPorServicioSuelto: number
+  convertidos: number
+  tasa: number | null
+}
+
 export type MixMasteringDelTablero = {
   porEstado: { estado: string; cantidad: number }[]
   entregadosEnElPeriodo: number
@@ -109,6 +124,7 @@ export type Tablero = {
   ocupacion: Ocupacion
   pendientes: CobrosPendientes[]
   retencion: Retencion
+  conversion: Conversion
   mixMastering: MixMasteringDelTablero
   sello: SelloDelTablero
 }
