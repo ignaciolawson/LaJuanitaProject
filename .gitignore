@@ -53,3 +53,6 @@ apps/backend/archivos/
 # 18 migraciones no entran al grafo, y en este proyecto las reglas de negocio
 # viven ahi.
 graphify-out/
+
+# salida de noodles (call graph + diagramas). Generada, como graphify-out/.
+noodles-out/
