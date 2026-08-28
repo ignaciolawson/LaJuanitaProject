@@ -137,9 +137,49 @@ contraseña de desarrollo.
 
 ## 8. La lista
 
-> **Todavía vacía: se llena cuando Ignacio vuelva del testeo.** Cada hallazgo con
-> las cuatro cosas de §3; el grupo lo asigna el triage, no quien lo anota.
+> Se llena a medida que Ignacio testea. Cada hallazgo con las cuatro cosas de §3;
+> el grupo lo asigna el triage, no quien lo anota.
 
 | # | Pantalla | Qué querías hacer | Qué esperabas | Qué pasó | Grupo |
 |---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| 1 | `/admin/ventas` | Marcar como cobrada una venta a un comprador **sin cuenta** | Un botón o una edición que registre el cobro | No existe — y no es un botón que falta: tampoco había forma de cargarla cobrada | **C** |
+
+### 1 · Una venta a comprador externo no se puede cobrar nunca (2026-08-27)
+
+**El detalle, porque el título suena a menos de lo que es.** `pago.id_usuario` es
+`NOT NULL`: un pago necesita colgarse de una cuenta, y el comprador externo no
+tiene. Las tres capas son coherentes y las tres dicen que no —el formulario
+(`VentasPagina.tsx`, *"Para registrar el cobro el comprador tiene que tener
+cuenta"*), el `@AssertTrue isCobroConCompradorConCuenta` del DTO, y el `NOT NULL`
+de la base—, así que **esa venta no quedó sin cobro por un error de carga: no
+había forma de cargarla cobrada.**
+
+**La salida prevista no cubre este caso.** El Módulo 3 dejó anotado que una venta
+sin cobro se anula y se recarga con su pago. Eso funciona **solo si el comprador
+tiene cuenta**; el comprador externo —que no es un caso raro, porque las ventas
+van contra el stock de Pioneer y el que compra un CDJ no se registra— queda
+afuera.
+
+**Tampoco hay atajo por API, y conviene saberlo antes de buscarlo:**
+`POST /api/pagos` **sí** acepta `idVentaEquipo` como destino —es uno de los
+cuatro—, así que la limitación de que `/admin/pagos` solo salde inscripciones es
+secundaria. El que ata es `idUsuario`, `@NotNull` en el mismo record. La pantalla
+no es el problema. Y el controller de ventas tiene tres endpoints —listar,
+registrar, anular—: no hay ninguno que le agregue el cobro a una venta existente.
+
+**Por qué es grupo C.** El arreglo de fondo es que un `pago` pueda apuntar a un
+comprador externo, y eso es esquema: o `pago.id_usuario` se vuelve nullable con un
+CHECK que exija identificación por alguno de los dos lados —la misma forma que
+`venta_comprador_identificado` y que los dos caminos de la seña—, o el cobro de
+una venta deja de ser un `pago`. **La primera opción toca la tabla más protegida
+del sistema** (`V6` y `V7` prohíben borrar plata y exigen autor para anularla),
+así que la pregunta de negocio va antes que el código, como en los Módulos 6, 7 y
+8.
+
+**El workaround mientras tanto, y su costo.** Darle cuenta al comprador exige
+email válido y único; inventarlo mete basura en la tabla con la que después se
+busca gente. Para un comprador de una sola vez conviene **dejar la venta sin cobro
+y anotarlo en `notas`**: "no cobrada" es información verdadera —el sistema no sabe
+de quién fue el pago— y es mejor que un pago colgado de una cuenta falsa. Lo que
+no hay que hacer es ponerlo a nombre de otra cuenta real: le ensucia el estado de
+cuenta a alguien que no compró nada.
