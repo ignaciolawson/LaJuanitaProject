@@ -241,6 +241,37 @@ class SolicitudReservaTest {
         jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE");
     }
 
+    /**
+     * <b>El comprobante de la seña queda guardado al aprobar</b> (hallazgo #5 de
+     * `docs/mejoras.md`), y este es el circuito donde más importa.
+     *
+     * <p>La persona pidió por el portal, transfirió, y quien aprueba está mirando
+     * esa transferencia — pero {@code AprobacionRequest} no tenía dónde anotarla,
+     * así que <b>el respaldo del cobro se perdía en el momento mismo en que
+     * existía</b>. La columna estaba desde `V1`; lo que faltaba era el campo.
+     */
+    @Test
+    void aprobar_guarda_el_comprobante_de_la_sena() throws Exception {
+        Usuario quienPide = crear(Rol.USUARIO);
+        long id = idDe(mvc.perform(pedir(quienPide, cabina, grabacion, "20:00", "21:00")));
+
+        String cuerpo = mvc.perform(patch("/api/solicitudes-reserva/" + id + "/aprobacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
+                         "comprobantePath":"/comprobantes/portal-7.pdf"}
+                        """))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        long idReserva = Long.parseLong(entre(cuerpo, "\"idReserva\":"));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT comprobante_path FROM pago WHERE id_reserva = ?", String.class, idReserva))
+                .isEqualTo("/comprobantes/portal-7.pdf");
+    }
+
     @Test
     void aprobar_le_avisa_al_que_pidio() throws Exception {
         Usuario quienPide = crear(Rol.USUARIO);

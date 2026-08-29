@@ -209,6 +209,7 @@ function FormularioDeSena({
     moneda: Moneda
     cotizacionDolar?: number
     medioPago: MedioPago
+    comprobantePath?: string
     respuesta?: string
   }) => void
 }) {
@@ -216,6 +217,7 @@ function FormularioDeSena({
   const [moneda, setMoneda] = useState<Moneda>('ARS')
   const [cotizacion, setCotizacion] = useState('')
   const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
+  const [comprobante, setComprobante] = useState('')
   const [respuesta, setRespuesta] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -270,6 +272,19 @@ function FormularioDeSena({
         </CampoSelect>
       </div>
 
+      {/* El comprobante de la seña. **Este es el circuito donde más se necesita**:
+          la persona pidió por el portal, transfirió, y quien aprueba está mirando
+          esa transferencia. Hasta ahora no había dónde anotarla, así que el
+          respaldo se perdía en el momento mismo en que existía (hallazgo #5).
+          Opcional a propósito: en efectivo no hay ninguno. */}
+      <Campo
+        etiqueta="Comprobante (opcional)"
+        className="mt-4"
+        value={comprobante}
+        onChange={(e) => setComprobante(e.target.value)}
+        ayuda="Si te transfirieron, dejá acá el comprobante. En efectivo no hace falta."
+      />
+
       <Campo
         etiqueta="Mensaje (opcional)"
         className="mt-4"
@@ -301,6 +316,7 @@ function FormularioDeSena({
               moneda,
               cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
               medioPago,
+              comprobantePath: comprobante.trim() || undefined,
               respuesta: respuesta.trim() || undefined,
             })
           }}

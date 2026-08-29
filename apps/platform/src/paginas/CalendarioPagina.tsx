@@ -819,6 +819,7 @@ function FormularioReserva({
     moneda: 'ARS' as Moneda,
     cotizacionDolar: '',
     medioPago: 'EFECTIVO' as MedioPago,
+    comprobantePath: '',
   })
   const [personas, setPersonas] = useState<UsuarioResumen[]>([])
 
@@ -916,6 +917,9 @@ function FormularioReserva({
                 moneda: sena.moneda,
                 cotizacionDolar: sena.cotizacionDolar ? Number(sena.cotizacionDolar) : null,
                 medioPago: sena.medioPago,
+                // El comprobante de la seña (hallazgo #5): la columna existía desde
+                // `V1` y este camino la dejaba siempre en NULL.
+                comprobantePath: sena.comprobantePath.trim() || undefined,
               }
             : undefined,
         })
@@ -1048,6 +1052,14 @@ function FormularioReserva({
                 </option>
               ))}
             </CampoSelect>
+
+            {/* Opcional a propósito: una seña en efectivo no tiene comprobante, y
+                exigirlo dejaría media caja sin poder cargarse. */}
+            <Campo
+              etiqueta="Comprobante (opcional)"
+              value={sena.comprobantePath}
+              onChange={cambiarSena('comprobantePath')}
+            />
 
             {sena.moneda === 'USD' && (
               <Campo

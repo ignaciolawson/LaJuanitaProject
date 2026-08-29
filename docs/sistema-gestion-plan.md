@@ -637,11 +637,176 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-20 (sexta tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (séptima tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
 > esta y hay que corregir la otra.
+>
+> **⚠️ Y desde el 2026-08-20 el que manda sobre qué se hace es
+> [`docs/mejoras.md`](mejoras.md).** El MVP está completo: ya no se construyen
+> módulos, se corrigen y se rediseñan hallazgos de uso real. Ese archivo tiene la
+> lista, el triage y —desde el 2026-08-28— **§9 con las decisiones cerradas y §10
+> con el plan de fases**. Si buscás "qué hago ahora", es §10.
+>
+> **Y si lo que buscás es "qué falta", está todo junto en
+> [`docs/pendientes.md`](pendientes.md)** — abierto el 2026-08-20. Esta sección
+> cuenta la tanda que acaba de cerrar; ese archivo tiene el inventario completo y
+> se mantiene al día tachando.
+>
+> **Y mirá también [§6f](#6f-pendientes-técnicos-acumulados--abierta-el-2026-08-19),
+> que es la lista de retoques técnicos pospuestos a propósito.** Está justo arriba y
+> fuera de esta sección porque esto se reescribe entero cada vez y esa lista no.
+> **Ojo: `mejoras.md` §5 la corrige** — de las cinco quedan tres vivas y una sola
+> para construir.
+>
+> **Y para todo lo que sea una DECISIÓN, mirá antes
+> [`docs/requirements/platform.md` §13, §14 y §15](requirements/platform.md).**
+> Veinte preguntas contestadas de una sola vez, las cinco del cliente incluidas, y
+> es posterior a este documento y al informe de auditoría. **Gana sobre los dos.**
+> No estaba enlazada desde ningún lado, y por eso el informe pasó un día listando
+> como *"bloqueado por una decisión"* diez hallazgos que ya estaban decididos.
+
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-29
+
+## ✅ FASE 1 CERRADA Y FASE 2 A LA MITAD
+
+**Suites: 503 backend · 384 front · 189 + 51 SQL, sobre 19 migraciones.**
+
+Ya no se construyen módulos: **estamos en la etapa de mejoras**, y el plan de fases
+vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
+
+| Fase | Estado |
+|---|---|
+| **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. Quedan dos cosas que **no dependen de nadie sentado a programar**: reproducir el bug #8 y esperar que el test flaky caiga en CI |
+| **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
+| **2 · Backend sin esquema** | **2 de 4 hechos.** Faltan el buzón de solicitantes y solicitar reprogramación |
+| **3 · Diseño** | Bloqueada hasta que se congele la lista. El contenido del Inicio ya está decidido en `mejoras.md` §11 |
+
+### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA
+
+**1 · `V19`, la primera migración que no es de un módulo sino de la etapa de mejoras.**
+Dos reglas en **una sola** migración porque tocan la misma tabla: `pago.id_usuario`
+pasa a ser opcional detrás de `pago_pagador_identificado` (cuenta **o** nombre escrito,
+la misma forma de dos caminos que `venta_comprador_identificado` y que la seña de
+`V10`), y **un pago se puede editar si queda firmado quién lo hizo** — reusando
+`exigir_autor_de_la_edicion()` de `V7` sin tocarla.
+
+**2 · El front de `V19` y el hallazgo #4, que resultaron ser la misma pantalla.**
+`/admin/pagos` acepta ahora **los cuatro destinos** —curso, reserva, M&M, venta— y un
+pagador sin cuenta, más el botón *Corregir*. Se hicieron juntos a propósito: separarlos
+habría significado rehacer el mismo formulario dos veces.
+
+**3 · El hallazgo #5, el comprobante de la seña.** Sin migración: la columna existía
+desde `V1` y el alta manual ya la usaba; faltaba el campo en `AltaSenaRequest` y en
+`AprobacionRequest`. **Toca los dos lugares donde nace una seña**, no solo el que el
+hallazgo nombraba.
+
+### 🕳️ LO QUE ENCONTRÓ ESTA TANDA — que vale más que lo que construyó
+
+**1 · Volver nullable una columna NOT NULL no es la columna: son sus `JOIN` y sus
+`GROUP BY`.** La lista de los cinco lugares a revisar se escribió **antes** de tocar
+código (`mejoras.md` §9.1) y los cinco eran reales. Tres fallaban **en silencio**:
+
+- `listar` y `porIdConDetalle` usaban `JOIN FETCH` —un INNER—, así que un pago sin
+  cuenta **desaparecía del listado sin ningún error** y contestaba 404 por id.
+- `deudores` y la conversión del tablero agrupaban por el dueño, y **un NULL junta a
+  todos los sin-cuenta en un solo grupo**: dos deudores externos distintos mostrados
+  como uno, con un total que no es de nadie.
+- La clave de deduplicación de avisos tenía la misma forma (`DEUDA:u=null:…` es igual
+  para todos), así que el índice parcial de `V17` habría dejado pasar **un solo aviso
+  para todos los deudores externos**.
+
+**2 · Un test que se rompió solo por el calendario, y habría vuelto a pasar.**
+`InscripcionTest.darClase` insertaba en Sala 1 a las 10:00 con
+`LocalDate.now().minusDays(7)`: **la franja se movía un día por día**, y el día que ese
+"hace una semana" cayó sobre una reserva real de la base de desarrollo, el `EXCLUDE`
+rechazó el INSERT y cuatro casos empezaron a fallar sin que nadie hubiera tocado nada.
+Ahora usa una fecha fija de 2020 —la cuenta de clases consumidas no mira ninguna fecha—.
+Es la familia de *"nunca hardcodear IDs"* de las suites SQL, del otro lado: **lo que no
+se puede fijar es la franja**, porque hay una constraint que la hace única de verdad.
+
+**3 · `mvn test` no estaba verde en `main` y nadie se había enterado.**
+`ExportacionTest.el_libro_trae_una_hoja_por_indicador` afirmaba ocho hojas con
+`containsExactly`; el commit `88f1548` agregó la de Conversión al exportador **sin tocar
+el test**. Estaba en rojo desde entonces. Se corrigió la expectativa y **no se aflojó el
+caso**: sigue siendo `containsExactly`, que es lo único que lo hace servir para avisar el
+día que una hoja se caiga del informe.
+
+**4 · Tres tests defendían decisiones viejas, y darlos vuelta fue lo correcto.** Uno en
+el backend y dos en el front afirmaban que **no se le podía cobrar a un comprador sin
+cuenta** — cierto para el esquema anterior, pero era una *consecuencia técnica de una
+columna*, no una regla del negocio. Mismo caso que el `menu.test.ts` del Módulo 8:
+**defendían una interpretación, no un hecho.** Cada uno quedó con el porqué escrito
+adentro.
+
+### ⏭️ LO PRÓXIMO, EN ORDEN
+
+1. **El buzón de solicitantes** (`mejoras.md` §9.4) — tabla nueva + bandeja, y el resto
+   es reutilizar pantallas que ya existen. **Ojo con dos cosas que ya están decididas**:
+   es una **tabla**, no una notificación (un solicitante tiene ciclo de vida; una
+   notificación se lee y se va), y **la contraseña se comunica por WhatsApp, no por
+   mail** — no hay infraestructura de correo y está decidido que no la habrá.
+2. **Solicitar reprogramación** (`mejoras.md` §8 #2 y §5 #3) — **el más grande de lo que
+   queda**: endpoint + pantalla del portal + pantalla de admin. La tabla
+   `solicitud_reprogramacion` y su trigger existen desde `V1`.
+3. **El rediseño**, cuando se congele la lista (~11/09). El contenido del Inicio por
+   perfil ya está decidido en `mejoras.md` §11 y **no falta ningún endpoint**: es
+   armado, no desarrollo.
+
+### 🔑 Usuarios de demostración, creados el 2026-08-20
+
+
+Todos con la contraseña de desarrollo (`lajuanita2026`) y sin cambio pendiente. Se
+crearon **por la API real** y no por SQL: el alta genera contraseña temporal y obliga a
+cambiarla, así que el script hizo lo mismo que haría una persona.
+
+| Email | Rol | Para qué sirve |
+|---|---|---|
+| `admin@lajuanita.local` | ADMIN | Todo. El único que otorga roles |
+| `directivo@lajuanita.local` | DIRECTIVO | **Ve todo y no escribe nada.** En Alumnos no hay botón de alta |
+| `staff@lajuanita.local` | STAFF | El día a día. En Tablero ve **solo** el resumen financiero |
+| `usuario@lajuanita.local` | USUARIO | Portal sin relaciones |
+| `demo-sofia@lajuanita.local` | USUARIO + alumna | 2 inscripciones, 2 pagos, 1 clase |
+| `demo-lucas@lajuanita.local` | USUARIO + profesor | Dicta 6 clases |
+
+> **Estos seis son los que tienen contraseña conocida. En la base hay 18** —los
+> otros doce se fueron creando probando, y su contraseña no está documentada en
+> ningún lado. Auditado el 2026-08-28.
+>
+> ⚠️ **Y cinco de ellos NO PUEDEN ENTRAR, aunque supieras la contraseña**:
+> `demo-paula`, `demo-martin`, `demo-nicolas`, `demo-julieta` y `demo-acento`
+> tienen `debe_cambiar_password = true` con la temporal emitida el **2026-08-16**,
+> y `V8` les da **7 días de vigencia**. Están vencidas. La salida es
+> `POST /api/usuarios/{id}/password-temporal` desde `admin@`, que emite una nueva.
+>
+> **No es un bug: es `V8` funcionando.** Pero explica por qué un usuario de prueba
+> "no anda" sin que nada parezca roto — el login devuelve el mismo 401 genérico
+> que para cualquier otra causa, a propósito (§ el perímetro de autenticación).
+>
+> Los otros siete sin cambio pendiente son `ghezz@` (STAFF + profesor),
+> `alumno@` (1 inscripción, 4 clases, 4 pagos — **el que más datos tiene**),
+> `profesor@`, `usuario-demo2@`, `demo-camila@` (alumna), y las dos cuentas
+> personales de Ignacio.
+
+**La comparación que vale la pena hacer es el Tablero con `directivo@` y con `staff@`**:
+es el único lugar del sistema donde la línea no separa leer de escribir sino a dos clases
+de administrador — o sea, la razón concreta por la que los roles son cuatro y no tres.
+Verificado contra la API: `directivo` recibe 200 en `/tablero` y `/exportacion.xlsx`,
+`staff` recibe 403 en los dos y 200 en `/tablero/resumen`.
+
+**3 · Lo que no depende de código y bloquea la entrega**, con `docs/pendientes.md` como
+inventario: el deploy espera la decisión de hosting de **octubre** (y ahora también
+necesita **disco persistente**, por los contratos), desactivar el admin sembrado por
+`V3` va en **la próxima migración libre — `V20`, porque `V19` ya se usó** para
+los pagos sin cuenta, y la landing espera sus datos del cliente.
+
+
+## 📚 EL CIERRE DEL MVP, PARA CONSULTA (2026-08-20, tanda anterior)
+
+> **⚠️ Por acá YA NO se retoma** — se retoma por §6d, arriba. Esto queda como
+> registro de la tanda que cerró el MVP: sus cifras y su "lo próximo" son de aquel
+> día y no del estado actual.
 >
 > **Y si lo que buscás es "qué falta", está todo junto en
 > [`docs/pendientes.md`](pendientes.md)** — abierto el 2026-08-20. Esta sección
@@ -661,7 +826,7 @@ Tres cosas para ese momento:
 > eso el informe pasó un día listando como *"bloqueado por una decisión"* diez
 > hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-20, cierre del MÓDULO 8
+### Cierre del Módulo 8 — ya NO es por acá que se retoma
 
 ## ✅ OCHO DE OCHO: EL MVP ESTÁ COMPLETO
 
@@ -791,50 +956,6 @@ corrección que `mejoras.md` §5 detalla: **dos de las cinco no son retoques sin
 funcionalidad** (solicitar reprogramación, que el Módulo 4 se debe, y la cotización del
 dólar, que es una integración con una pregunta de negocio abierta adentro).
 
-### 🔑 Usuarios de demostración, creados el 2026-08-20
-
-Todos con la contraseña de desarrollo (`lajuanita2026`) y sin cambio pendiente. Se
-crearon **por la API real** y no por SQL: el alta genera contraseña temporal y obliga a
-cambiarla, así que el script hizo lo mismo que haría una persona.
-
-| Email | Rol | Para qué sirve |
-|---|---|---|
-| `admin@lajuanita.local` | ADMIN | Todo. El único que otorga roles |
-| `directivo@lajuanita.local` | DIRECTIVO | **Ve todo y no escribe nada.** En Alumnos no hay botón de alta |
-| `staff@lajuanita.local` | STAFF | El día a día. En Tablero ve **solo** el resumen financiero |
-| `usuario@lajuanita.local` | USUARIO | Portal sin relaciones |
-| `demo-sofia@lajuanita.local` | USUARIO + alumna | 2 inscripciones, 2 pagos, 1 clase |
-| `demo-lucas@lajuanita.local` | USUARIO + profesor | Dicta 6 clases |
-
-> **Estos seis son los que tienen contraseña conocida. En la base hay 18** —los
-> otros doce se fueron creando probando, y su contraseña no está documentada en
-> ningún lado. Auditado el 2026-08-28.
->
-> ⚠️ **Y cinco de ellos NO PUEDEN ENTRAR, aunque supieras la contraseña**:
-> `demo-paula`, `demo-martin`, `demo-nicolas`, `demo-julieta` y `demo-acento`
-> tienen `debe_cambiar_password = true` con la temporal emitida el **2026-08-16**,
-> y `V8` les da **7 días de vigencia**. Están vencidas. La salida es
-> `POST /api/usuarios/{id}/password-temporal` desde `admin@`, que emite una nueva.
->
-> **No es un bug: es `V8` funcionando.** Pero explica por qué un usuario de prueba
-> "no anda" sin que nada parezca roto — el login devuelve el mismo 401 genérico
-> que para cualquier otra causa, a propósito (§ el perímetro de autenticación).
->
-> Los otros siete sin cambio pendiente son `ghezz@` (STAFF + profesor),
-> `alumno@` (1 inscripción, 4 clases, 4 pagos — **el que más datos tiene**),
-> `profesor@`, `usuario-demo2@`, `demo-camila@` (alumna), y las dos cuentas
-> personales de Ignacio.
-
-**La comparación que vale la pena hacer es el Tablero con `directivo@` y con `staff@`**:
-es el único lugar del sistema donde la línea no separa leer de escribir sino a dos clases
-de administrador — o sea, la razón concreta por la que los roles son cuatro y no tres.
-Verificado contra la API: `directivo` recibe 200 en `/tablero` y `/exportacion.xlsx`,
-`staff` recibe 403 en los dos y 200 en `/tablero/resumen`.
-
-**3 · Lo que no depende de código y bloquea la entrega**, con `docs/pendientes.md` como
-inventario: el deploy espera la decisión de hosting de **octubre** (y ahora también
-necesita **disco persistente**, por los contratos), desactivar el admin sembrado por
-`V3` va en una `V19`, y la landing espera sus datos del cliente.
 
 ## 📚 EL MÓDULO 7, PARA CONSULTA (mismo día, tanda anterior)
 

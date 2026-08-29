@@ -311,7 +311,11 @@ public class ReservaService {
                 sena.medioPago(),
                 null, null,
                 EstadoPago.SENADO,
-                null, null),
+                null,
+                // El comprobante de la seña (hallazgo #5). La columna existía desde
+                // `V1` y este camino la dejaba siempre en NULL: una seña por
+                // transferencia entraba sin su respaldo.
+                sena.comprobantePath()),
                 idAutor);
     }
 

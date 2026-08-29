@@ -352,6 +352,13 @@ export type AltaSena = {
   moneda: Moneda
   cotizacionDolar?: number | null
   medioPago: MedioPago
+  /**
+   * El comprobante de la seña. Opcional — en efectivo no hay ninguno.
+   *
+   * Faltaba (hallazgo #5): `pago.comprobante_path` existe desde `V1` y el alta
+   * manual de pagos ya lo usaba, pero este camino la dejaba siempre en NULL.
+   */
+  comprobantePath?: string
 }
 
 /** Espeja `EdicionReservaRequest`. Sin autor: lo pone el servidor con el token. */

@@ -8,6 +8,7 @@ import com.lajuanita.backend.pago.MedioPago;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 /**
  * Aprobar una solicitud del portal: la reserva nace acá, y nace con su seña.
@@ -48,6 +49,18 @@ public record AprobacionRequest(
 
         @NotNull(message = "Decí cómo se pagó.")
         MedioPago medioPago,
+
+        /**
+         * El comprobante de la seña. <b>Opcional</b> — en efectivo no hay ninguno.
+         *
+         * <p>Faltaba, y era el hallazgo #5 de `docs/mejoras.md`: <b>este es
+         * justamente el circuito donde más se necesita</b>. El usuario pidió por el
+         * portal, transfirió, y quien aprueba está mirando esa transferencia — pero
+         * no tenía dónde dejarla anotada, así que el respaldo del cobro se perdía en
+         * el mismo momento en que existía.
+         */
+        @Size(max = 500, message = "La ruta del comprobante no puede pasar de 500 caracteres.")
+        String comprobantePath,
 
         /** Opcional: la respuesta de una aprobación es la reserva misma. */
         String respuesta) {

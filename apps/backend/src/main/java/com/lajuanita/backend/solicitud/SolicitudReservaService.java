@@ -195,7 +195,8 @@ public class SolicitudReservaService {
                         aprobacion.monto(),
                         aprobacion.moneda(),
                         aprobacion.cotizacionDolar(),
-                        aprobacion.medioPago())),
+                        aprobacion.medioPago(),
+                        aprobacion.comprobantePath())),
                 idAutor);
 
         Reserva reserva = reservas.getReferenceById(creada.idReserva());

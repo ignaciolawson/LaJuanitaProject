@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -120,6 +120,36 @@ describe('aprobar es cobrar', () => {
 
     expect(screen.getByText(/no se aparta un horario sin pago por adelantado/i)).toBeDefined()
     expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
+  })
+
+  /**
+   * **El comprobante de la seña viaja con la aprobación** (hallazgo #5 de
+   * `docs/mejoras.md`). Este es el circuito donde más importa: la persona pidió
+   * por el portal, transfirió, y quien aprueba está mirando esa transferencia —
+   * hasta ahora no había dónde anotarla y el respaldo se perdía.
+   */
+  it('el comprobante de la seña viaja con la aprobación', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
+    await userEvent.type(screen.getByLabelText(/Comprobante/), '/comprobantes/portal-7.pdf')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
+    expect(vi.mocked(aprobarSolicitud).mock.calls[0][1].comprobantePath).toBe(
+      '/comprobantes/portal-7.pdf',
+    )
+  })
+
+  /** Y es opcional: una seña en efectivo no tiene comprobante. */
+  it('sin comprobante la aprobación sale igual', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
+    expect(vi.mocked(aprobarSolicitud).mock.calls[0][1].comprobantePath).toBeUndefined()
   })
 
   it('no deja confirmar sin monto', async () => {

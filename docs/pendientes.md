@@ -15,8 +15,15 @@
 > lista se va a ordenar** — acordado antes de tenerla, a propósito. Los puntos 3.1 y
 > 3.2 de acá son los primeros que entran ahí.
 >
+> **⚠️ Al 2026-08-29 la etapa de mejoras ya está en marcha y produjo su primera
+> migración.** `mejoras.md` §9 tiene **las decisiones cerradas** y §10 **el plan de
+> fases**, que es lo que gobierna qué se hace ahora. Estado: **Fase 1 cerrada
+> (`V19`), Fase 2 con 2 de 4 hechos.** Los hallazgos 1, 4, 5 y 6 de su §8 están
+> construidos.
+>
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
-> `platform.md` §13 → §14 → §15 (gana el último) · después
+> `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
+> después `platform.md` §13 → §14 → §15 (gana el último) · después
 > `sistema-gestion-plan.md` §6d · después el resto.
 
 ---
@@ -103,7 +110,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una `V19`+.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V20`+, porque `V19` ya se usó** para los pagos sin cuenta.
 
 ---
 
@@ -140,6 +147,13 @@ módulos, de a uno.** No se hacen mientras se espera nada.
 > estar esperando. **Pero no se hace sola: entra en la lista del testeo**
 > ([`mejoras.md`](mejoras.md)), porque hacer estos cinco antes de saber el resto es
 > arreglar pantallas que después se rehacen.
+>
+> **⚠️ Al 2026-08-29 quedan TRES vivas de las cinco, y solo UNA para construir**
+> (`mejoras.md` §5): la #2 fue descartada por Ignacio, la #4 (cotización del dólar)
+> quedó pospuesta hasta que se decida qué cotización, y la #5 se dio de baja entera
+> —ni filtrar ni avisar— con el argumento de que **quien pide no puede saber si está
+> ocupado** y el EXCLUDE al aprobar ya es la autoridad. La #1 se convirtió en trabajo
+> de diseño. **Queda solo la #3, solicitar reprogramación.**
 >
 > **Y una corrección que `mejoras.md` §5 detalla: dos de las cinco NO son retoques.**
 > *Solicitar reprogramación* es una pantalla y un endpoint que el Módulo 4 se debe, y

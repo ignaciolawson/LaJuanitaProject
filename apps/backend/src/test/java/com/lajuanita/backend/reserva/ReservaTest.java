@@ -533,6 +533,47 @@ class ReservaTest {
                 .isEqualTo(id);
     }
 
+    /**
+     * <b>El comprobante de la seña llega al pago</b> (hallazgo #5 de
+     * `docs/mejoras.md`).
+     *
+     * <p>{@code pago.comprobante_path} existe desde `V1` y el alta manual de
+     * `/admin/pagos` ya lo usaba, pero <b>este camino la dejaba siempre en
+     * NULL</b>: {@code AltaSenaRequest} no tenía el campo. O sea que la seña de
+     * una transferencia entraba sin su respaldo — justo el caso donde el
+     * comprobante importa.
+     */
+    @Test
+    void la_sena_guarda_su_comprobante() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        mvc.perform(post("/api/reservas")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"12:00","horaFin":"13:30",
+                         "sena":{"idUsuario":%d,"monto":45000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
+                                 "comprobantePath":"/comprobantes/transferencia-9.pdf"}}
+                        """.formatted(cabina, grabacion, LUNES, quienPaga.getId())))
+                .andExpect(status().isCreated());
+
+        em.flush();
+        assertThat(jdbc.queryForObject(
+                "SELECT comprobante_path FROM pago WHERE id_usuario = ?", String.class,
+                quienPaga.getId()))
+                .isEqualTo("/comprobantes/transferencia-9.pdf");
+    }
+
+    /**
+     * Y sigue siendo <b>opcional</b>: una seña en efectivo no tiene comprobante, y
+     * exigirlo dejaría media caja sin poder cargarse.
+     */
+    @Test
+    void la_sena_sin_comprobante_entra_igual() throws Exception {
+        Usuario quienPaga = crear(Rol.USUARIO);
+        mvc.perform(altaConSena(cabina, grabacion, LUNES, "14:00", "15:30", quienPaga.getId()))
+                .andExpect(status().isCreated());
+    }
+
     // == La devolución de la seña (V11) =======================================
     //
     // `V10` cerraba solo el nacimiento de la reserva. `V11` cierra la otra punta,

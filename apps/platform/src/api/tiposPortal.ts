@@ -129,6 +129,15 @@ export type Aprobacion = {
   moneda: Moneda
   cotizacionDolar?: number
   medioPago: MedioPago
+  /**
+   * El comprobante de la seña. Opcional — en efectivo no hay ninguno.
+   *
+   * Faltaba, y era el hallazgo #5 de `docs/mejoras.md`: **este es el circuito
+   * donde más se necesita.** El usuario pidió por el portal, transfirió, y quien
+   * aprueba está mirando esa transferencia — pero no tenía dónde anotarla, así
+   * que el respaldo se perdía en el momento mismo en que existía.
+   */
+  comprobantePath?: string
   respuesta?: string
 }
 

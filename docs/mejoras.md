@@ -68,7 +68,7 @@ No hace falta que sea prolijo ni que esté ordenado: eso lo hace el triage.
 |---|---|---|
 | **A · Front puro** | Estilos, textos, orden de una pantalla, qué se ve primero | Entra en la pasada de rediseño, todo junto |
 | **B · Backend sin tocar el esquema** | Un endpoint nuevo que solo lee, un filtro, un cálculo | Ordenado y con tests, de a uno |
-| **C · ⚠️ Backend que toca una regla o el esquema** | Una columna nueva, un CHECK, un trigger, cambiar qué es válido | **Migración `V19`+, y la disciplina completa** |
+| **C · ⚠️ Backend que toca una regla o el esquema** | Una columna nueva, un CHECK, un trigger, cambiar qué es válido | **Migración nueva (`V20`+ — `V19` ya se usó), y la disciplina completa** |
 
 **El grupo C es el que no se puede hacer a las apuradas, y la razón es la misma
 que rigió todo el proyecto: las migraciones son inmutables y se acumulan.** Una
@@ -180,7 +180,7 @@ contraseña de desarrollo.
 | 2 | `/admin/reservas` o portal | Que el alumno pueda modificar/reprogramar su reserva | No existe — confirma §5 #3, el Módulo 4 se la debe | **B** | Pendiente de construir |
 | 3 | `ReservarPagina` (portal) | Que un pedido para un horario ocupado no llegue a la bandeja | No hay chequeo de disponibilidad al pedir | ~~B~~ | ❌ **Se cae** · §9.2 |
 | 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | ✅ **HECHO** · §9.8 |
-| 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | Pendiente de construir |
+| 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | ✅ **HECHO** · §9.9 |
 | 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
 | 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ Decidido · §9.4 |
 | 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
@@ -339,6 +339,25 @@ porque la agenda del backend corta en 62. No es una limitación de esta pantalla
 es la del endpoint, y conviene saberlo antes de que alguien busque una reserva de
 hace tres meses y no la encuentre.
 
+### 9.9 · El comprobante de la seña (hallazgo #5) — HECHO
+
+**Construido el 2026-08-29.** Sin migración: `pago.comprobante_path` existe desde
+`V1` y el alta manual de `/admin/pagos` ya lo usaba. Lo que faltaba era el campo
+en `AltaSenaRequest` y en `AprobacionRequest`, así que **este camino dejaba la
+columna siempre en NULL**.
+
+**Toca los dos lugares donde nace una seña**, no uno:
+
+| Dónde | Por qué importa |
+|---|---|
+| `/admin/reservas` — alta con seña | Un alquiler que se paga por transferencia entraba sin respaldo |
+| `/admin/solicitudes` — aprobar un pedido | **Es el que más importa**: la persona pidió por el portal, transfirió, y quien aprueba está mirando esa transferencia. El respaldo se perdía en el momento mismo en que existía |
+
+**Es opcional a propósito.** Una seña en efectivo no tiene comprobante, y
+exigirlo dejaría media caja sin poder cargarse. Hay un caso por cada lado —que
+llega cuando se manda, y que la carga entra igual cuando no—, porque un campo
+opcional mal escrito rompe el camino común y no el nuevo.
+
 ### 9.5 · El admin puede cambiarse el nombre (§5 #1) — CERRADO
 
 **Sí puede.** Micaela es una persona y puede cambiarse el apellido. Lo que falta
@@ -433,7 +452,7 @@ De más barato a más caro:
 | Orden | Qué | Tamaño |
 |---|---|---|
 | ~~2.3~~ | ~~**#4** pago de un no-alumno~~ | ✅ **HECHO el 2026-08-29** — se hizo junto con el front de `V19`, porque son la misma pantalla (§9.8) |
-| 2.1 | **#5** comprobante al aprobar seña | Chico — un campo que le falta a `AltaSenaRequest`; la columna existe desde `V1` |
+| ~~2.1~~ | ~~**#5** comprobante al aprobar seña~~ | ✅ **HECHO el 2026-08-29** (§9.9) |
 | 2.2 | **9.4** buzón de solicitantes + formularios de la landing | Medio — tabla nueva, bandeja, y el resto es reutilizar pantallas |
 | 2.4 | **#2 + §5 #3** solicitar reprogramación | **El más grande** — endpoint + pantalla del portal + pantalla de admin. La tabla y el trigger están desde `V1` |
 
