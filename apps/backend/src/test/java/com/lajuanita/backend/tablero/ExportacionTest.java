@@ -102,7 +102,20 @@ class ExportacionTest {
         }
     }
 
-    /** Una hoja por indicador, y las ocho. */
+    /**
+     * Una hoja por indicador, y las <b>nueve</b>.
+     *
+     * <p><b>Decía ocho y estaba en rojo desde el commit `88f1548`</b>, que agregó la
+     * hoja de Conversión al exportador sin tocar este caso — se descubrió el
+     * 2026-08-28 corriendo la suite entera por `V19`, o sea que `mvn test` no estaba
+     * verde en `main` desde entonces y nadie se había enterado.
+     *
+     * <p>Se corrige la expectativa y <b>no se afloja el caso</b>: sigue siendo
+     * {@code containsExactly}, que es lo que le da valor. Con un
+     * {@code containsAnyOf} o un {@code hasSize} este test no habría fallado — y
+     * tampoco habría avisado el día que una hoja se cae del informe, que es
+     * exactamente para lo que está.
+     */
     @Test
     void el_libro_trae_una_hoja_por_indicador() throws Exception {
         try (Workbook libro = abrirExcel()) {
@@ -110,7 +123,8 @@ class ExportacionTest {
             libro.sheetIterator().forEachRemaining(h -> hojas.add(h.getSheetName()));
 
             assertThat(hojas).containsExactly("Caja", "Ingresos por línea", "Alumnos cursando",
-                    "Ocupación", "Cobros pendientes", "Retención", "Mix & Mastering", "Sello");
+                    "Ocupación", "Cobros pendientes", "Retención", "Conversión",
+                    "Mix & Mastering", "Sello");
         }
     }
 

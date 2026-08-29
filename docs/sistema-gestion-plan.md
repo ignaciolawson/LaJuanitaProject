@@ -806,6 +806,25 @@ cambiarla, así que el script hizo lo mismo que haría una persona.
 | `demo-sofia@lajuanita.local` | USUARIO + alumna | 2 inscripciones, 2 pagos, 1 clase |
 | `demo-lucas@lajuanita.local` | USUARIO + profesor | Dicta 6 clases |
 
+> **Estos seis son los que tienen contraseña conocida. En la base hay 18** —los
+> otros doce se fueron creando probando, y su contraseña no está documentada en
+> ningún lado. Auditado el 2026-08-28.
+>
+> ⚠️ **Y cinco de ellos NO PUEDEN ENTRAR, aunque supieras la contraseña**:
+> `demo-paula`, `demo-martin`, `demo-nicolas`, `demo-julieta` y `demo-acento`
+> tienen `debe_cambiar_password = true` con la temporal emitida el **2026-08-16**,
+> y `V8` les da **7 días de vigencia**. Están vencidas. La salida es
+> `POST /api/usuarios/{id}/password-temporal` desde `admin@`, que emite una nueva.
+>
+> **No es un bug: es `V8` funcionando.** Pero explica por qué un usuario de prueba
+> "no anda" sin que nada parezca roto — el login devuelve el mismo 401 genérico
+> que para cualquier otra causa, a propósito (§ el perímetro de autenticación).
+>
+> Los otros siete sin cambio pendiente son `ghezz@` (STAFF + profesor),
+> `alumno@` (1 inscripción, 4 clases, 4 pagos — **el que más datos tiene**),
+> `profesor@`, `usuario-demo2@`, `demo-camila@` (alumna), y las dos cuentas
+> personales de Ignacio.
+
 **La comparación que vale la pena hacer es el Tablero con `directivo@` y con `staff@`**:
 es el único lugar del sistema donde la línea no separa leer de escribir sino a dos clases
 de administrador — o sea, la razón concreta por la que los roles son cuatro y no tres.

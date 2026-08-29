@@ -83,10 +83,16 @@ public record AltaVentaRequest(
          * transacción — que es el caso normal de un proceso ad hoc: se vendió y se
          * cobró.
          *
-         * <p>Ojo con lo que esto <b>no</b> resuelve: hoy es el único camino para
-         * cobrar una venta, porque {@code /admin/pagos} todavía solo salda
-         * inscripciones. Una venta cargada sin cobro queda sin forma de cobrarse
-         * hasta que esa pantalla acepte los otros destinos.
+         * <p><b>Y desde `V19` el comprador puede no tener cuenta.</b> Hasta entonces
+         * había acá un {@code @AssertTrue} —<i>"para registrar el cobro, el
+         * comprador tiene que tener cuenta"</i>— porque {@code pago.id_usuario} era
+         * NOT NULL: una venta a alguien que compra por el acuerdo con Pioneer y no
+         * se registra en un estudio de música <b>no se podía cobrar nunca</b>. Era
+         * el hallazgo #1 de `docs/mejoras.md`. El cobro ahora viaja con el nombre
+         * del comprador externo, el mismo que la venta ya guardaba.
+         *
+         * <p>Lo que sigue en pie: hoy este es el único camino para cobrar una venta.
+         * Una cargada sin cobro se corrige anulándola y volviéndola a cargar.
          */
         MedioPago medioPago) {
 
@@ -107,14 +113,4 @@ public record AltaVentaRequest(
         return moneda != Moneda.USD || cotizacionDolar != null;
     }
 
-    /**
-     * <b>Un cobro necesita un comprador con cuenta.</b> {@code pago.id_usuario} es
-     * NOT NULL, así que no hay dónde colgar el pago de alguien que no está en el
-     * sistema. Sin este chequeo el alta moría con un 409 de la base en vez de decir
-     * qué hacer, que es cargar la venta sin cobro o darle cuenta al comprador.
-     */
-    @AssertTrue(message = "Para registrar el cobro, el comprador tiene que tener cuenta.")
-    public boolean isCobroConCompradorConCuenta() {
-        return medioPago == null || idUsuarioComprador != null;
-    }
 }

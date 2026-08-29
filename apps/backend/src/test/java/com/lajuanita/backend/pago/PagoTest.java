@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -343,6 +344,217 @@ class PagoTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
                         org.hamcrest.Matchers.containsString("no tiene comprobante")));
+    }
+
+    // == `V19` · el pagador sin cuenta y la edición ============================
+
+    /**
+     * El caso que motivó `V19` §1 (`mejoras.md` §8 #1): antes de esa migración
+     * {@code pago.id_usuario} era NOT NULL y <b>a un comprador sin cuenta no se le
+     * podía cobrar nunca</b>.
+     */
+    @Test
+    void registrar_un_pago_de_alguien_sin_cuenta() throws Exception {
+        mvc.perform(pagar("""
+                {"nombrePagadorExterno":"Comprador de Paso","contactoPagadorExterno":"11-5555-5555",
+                 "idVentaEquipo":%d,"monto":900000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(ventaNueva())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idUsuario").doesNotExist())
+                .andExpect(jsonPath("$.pagador").value("Comprador de Paso"))
+                .andExpect(jsonPath("$.pagadorSinCuenta").value(true));
+    }
+
+    /**
+     * La otra mitad del CHECK, y sin este caso la primera no prueba nada: un CHECK
+     * escrito al revés dejaría pasar la de arriba y rompería todos los pagos
+     * normales del sistema.
+     */
+    @Test
+    void el_pago_con_cuenta_sigue_diciendo_de_quien_es() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+
+        mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+                .andExpect(jsonPath("$.pagadorSinCuenta").value(false))
+                .andExpect(jsonPath("$.idUsuario").value(alumno.getUsuario().getId()));
+    }
+
+    /** Ni cuenta ni nombre: el pago no dice de quién es y no entra. */
+    @Test
+    void un_pago_sin_cuenta_y_sin_nombre_no_entra() throws Exception {
+        mvc.perform(pagar("""
+                {"idVentaEquipo":%d,"monto":1000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(ventaNueva())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.pagadorIdentificado").isNotEmpty());
+    }
+
+    /**
+     * <b>Saldar un curso sí exige cuenta</b>, y no es una regla nueva: una
+     * {@code inscripcion} cuelga de un {@code alumno}, que cuelga de un
+     * {@code usuario}. El pago se acreditaría en una cuenta que no es de nadie.
+     */
+    @Test
+    void un_curso_no_se_salda_a_nombre_de_alguien_sin_cuenta() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+
+        mvc.perform(pagar("""
+                {"nombrePagadorExterno":"El tío","idInscripcion":%d,"monto":90000,
+                 "moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(curso.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("cuenta del alumno")));
+    }
+
+    /**
+     * ⚠️ <b>El caso que cuida el modo de falla que `mejoras.md` §9.1 llama el
+     * verdadero riesgo de `V19`</b>: que un pago sin dueño se caiga en silencio de
+     * un listado. Antes de la migración el repositorio hacía {@code JOIN FETCH}
+     * —un INNER—, así que la fila desaparecía sin ningún error: la pantalla
+     * andaba y el total mentía.
+     */
+    @Test
+    void el_pago_sin_cuenta_aparece_en_el_listado() throws Exception {
+        mvc.perform(pagar("""
+                {"nombrePagadorExterno":"Aparezco Igual","idVentaEquipo":%d,
+                 "monto":123456,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(ventaNueva())))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/pagos").param("buscar", "Aparezco")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido.length()").value(1))
+                .andExpect(jsonPath("$.contenido[0].pagador").value("Aparezco Igual"));
+    }
+
+    // -- La edición (`V19` §2) ------------------------------------------------
+
+    /** Corregir un pago mal cargado, que hasta `V19` solo se podía anular. */
+    @Test
+    void editar_un_pago_mal_cargado() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long id = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
+
+        editar(id, """
+                {"monto":95000,"moneda":"ARS","medioPago":"EFECTIVO","fechaPago":"2030-06-10",
+                 "concepto":"Corregido"}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.monto").value(95000.00))
+                .andExpect(jsonPath("$.concepto").value("Corregido"));
+    }
+
+    /**
+     * <b>La firma la escribe el servidor, y la fecha la escribe la base.</b> El
+     * autor sale del token; la fecha la pone el trigger de `V19` §2, porque un
+     * sello que el cliente elige se puede antedatar (DB-07).
+     */
+    @Test
+    void la_edicion_queda_firmada() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long id = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
+
+        editar(id, """
+                {"monto":95000,"moneda":"ARS","medioPago":"EFECTIVO","fechaPago":"2030-06-10"}
+                """)
+                .andExpect(status().isOk());
+
+        assertThat(jdbc.queryForObject(
+                "SELECT id_usuario_modifico FROM pago WHERE id_pago = ?", Long.class, id))
+                .isNotNull();
+        assertThat(jdbc.queryForObject(
+                "SELECT fecha_modificacion FROM pago WHERE id_pago = ?", java.sql.Timestamp.class, id))
+                .isNotNull();
+    }
+
+    /**
+     * <b>El trigger es el que manda, no el servicio.</b> Un UPDATE crudo que se
+     * saltee la aplicación —o un endpoint futuro que se olvide de firmar— no entra.
+     * Es el mismo molde con que `InscripcionTest` prueba la baja de nivel.
+     */
+    @Test
+    void un_update_sin_autor_lo_rechaza_la_base() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long id = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
+
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE pago SET monto = 1 WHERE id_pago = ?", id))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("exige decir quien lo hizo");
+    }
+
+    /**
+     * Tocar algo que no es la plata no despierta al trigger, igual que en
+     * {@code reserva}: corregir un concepto no es "editar la plata". Si el
+     * {@code WHEN} del trigger estuviera de más, este caso lo detecta.
+     */
+    @Test
+    void corregir_solo_el_concepto_no_exige_autor() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long id = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
+
+        jdbc.update("UPDATE pago SET concepto = 'a mano' WHERE id_pago = ?", id);
+
+        assertThat(jdbc.queryForObject(
+                "SELECT concepto FROM pago WHERE id_pago = ?", String.class, id))
+                .isEqualTo("a mano");
+    }
+
+    /**
+     * Un pago anulado es historia: editarlo volvería a moverlo en la caja, que es
+     * justo lo que la anulación vino a deshacer, y su motivo escrito quedaría
+     * explicando una fila que ya no es la que se anuló.
+     */
+    @Test
+    void un_pago_anulado_no_se_edita() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long id = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
+
+        mvc.perform(patch("/api/pagos/" + id + "/anulacion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"motivo":"Cargado dos veces"}
+                        """))
+                .andExpect(status().isOk());
+
+        editar(id, """
+                {"monto":95000,"moneda":"ARS","medioPago":"EFECTIVO","fechaPago":"2030-06-10"}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("anulado")));
+    }
+
+    /**
+     * Una venta de equipo real, porque {@code pago.id_venta_equipo} tiene FK desde
+     * `V1`: un id inventado no da 400 sino una violación de integridad, y el caso
+     * fallaría por el motivo equivocado.
+     */
+    private long ventaNueva() {
+        Usuario vendedor = crear(Rol.STAFF);
+        return jdbc.queryForObject("""
+                INSERT INTO venta_equipo (nombre_comprador_externo, id_usuario_vendedor,
+                                          modelo_equipo, precio, moneda)
+                VALUES ('Comprador de Paso', ?, 'CDJ-3000', 900000, 'ARS')
+                RETURNING id_venta
+                """, Long.class, vendedor.getId());
+    }
+
+    private ResultActions editar(long id, String cuerpo) throws Exception {
+        return mvc.perform(put("/api/pagos/" + id)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo));
     }
 
     // == Estado de cuenta =====================================================

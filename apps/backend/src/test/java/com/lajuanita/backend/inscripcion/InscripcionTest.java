@@ -654,7 +654,29 @@ class InscripcionTest {
 
     // =========================================================================
 
-    /** Carga una clase real por SQL y anota al alumno con cargo a su inscripción. */
+    /**
+     * Carga una clase real por SQL y anota al alumno con cargo a su inscripción.
+     *
+     * <p><b>La fecha es fija y muy vieja, y eso es el arreglo de un caso que se
+     * rompió solo el 2026-08-29.</b> Decía {@code LocalDate.now().minusDays(7)} con
+     * la Sala 1 a las 10:00 clavadas, así que la franja que ocupaba <b>se movía un
+     * día por día</b>: el día que ese "hace una semana" cayó sobre una reserva real
+     * de la base de desarrollo, el {@code EXCLUDE reserva_sin_solapamiento} rechazó
+     * el INSERT y cuatro casos empezaron a fallar sin que nadie hubiera tocado nada.
+     * Volvía a pasar solo, en otra fecha impredecible, cada vez que el calendario
+     * pisara otra reserva.
+     *
+     * <p>Es la misma familia de fragilidad que las suites SQL ya tienen escrita
+     * —<i>nunca hardcodear IDs</i>—, del otro lado: acá lo que no se puede fijar es
+     * <b>la franja</b>, porque hay una constraint que la hace única de verdad.
+     *
+     * <p><b>La fecha no cambia lo que estos casos prueban</b>: la cuenta de clases
+     * consumidas ({@code contarClasesConsumidas} y `V9` §5) mira el estado de la
+     * reserva y el de la asistencia, y <b>no mira ninguna fecha</b>. 2020 es
+     * simplemente un año en el que este estudio no tenía sistema.
+     */
+    private static final LocalDate CLASE_VIEJA = LocalDate.of(2020, 1, 6);
+
     private void darClase(Alumno alumno, long idInscripcion,
             String estadoReserva, String estadoAsistencia) {
 
@@ -664,7 +686,7 @@ class InscripcionTest {
                         (SELECT id_tipo_uso FROM tipo_uso WHERE codigo = 'CLASE_DJ'),
                         ?, '10:00', '11:30', ?)
                 RETURNING id_reserva
-                """, Long.class, LocalDate.now().minusDays(7), estadoReserva);
+                """, Long.class, CLASE_VIEJA, estadoReserva);
 
         jdbc.update("""
                 INSERT INTO reserva_participante

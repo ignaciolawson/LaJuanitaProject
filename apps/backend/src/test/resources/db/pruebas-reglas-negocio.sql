@@ -1384,6 +1384,102 @@ SELECT probar('163','dos avisos sin clave a la misma persona','ANDA',
 
 
 -- =============================================================================
+-- V19 · UN PAGO PUEDE NO TENER CUENTA, Y EDITARLO EXIGE AUTOR
+--
+-- Las dos reglas de `mejoras.md` §9.1 y §9.3. La primera abre algo que estaba
+-- cerrado (cobrarle a alguien sin cuenta); la segunda le pone la condición a algo
+-- que la base nunca prohibió (editar un pago) y que hasta ahora no tenía pantalla.
+-- =============================================================================
+
+-- La venta a un comprador externo sobre la que se apoyan los casos de abajo. Es
+-- el caso real que motivó la regla: alguien compra un CDJ por el acuerdo con
+-- Pioneer y no se registra en el sistema por eso.
+INSERT INTO venta_equipo (nombre_comprador_externo, id_usuario_vendedor, modelo_equipo, precio, moneda)
+SELECT 'Comprador de Paso', u_mica, 'CDJ-3000', 900000, 'ARS' FROM v;
+
+SELECT probar('164','cobrar una venta a alguien SIN cuenta','ANDA',
+ $q$INSERT INTO pago (nombre_pagador_externo, contacto_pagador_externo, id_venta_equipo,
+                     monto, moneda, medio_pago, estado_pago)
+    SELECT 'Comprador de Paso','11-5555-5555',
+           (SELECT id_venta FROM venta_equipo WHERE nombre_comprador_externo='Comprador de Paso'),
+           900000,'ARS','EFECTIVO','PAGADO'
+    RETURNING id_pago$q$);
+
+-- La otra mitad del CHECK: el camino de siempre sigue andando. Sin este caso, un
+-- CHECK escrito al reves (que exigiera el nombre) pasaria el de arriba y romperia
+-- todos los pagos normales del sistema sin que ninguna prueba lo dijera.
+SELECT probar('165','cobrar a alguien CON cuenta sigue andando','ANDA',
+ $q$INSERT INTO pago (id_usuario, id_inscripcion, monto, moneda, medio_pago, estado_pago)
+    SELECT u_juan, ins_juan, 50000,'ARS','TRANSFERENCIA','PAGADO' FROM v
+    RETURNING id_pago$q$);
+
+SELECT probar('166','un pago SIN cuenta y SIN nombre no entra','FALLA',
+ $q$INSERT INTO pago (id_venta_equipo, monto, moneda, medio_pago, estado_pago)
+    SELECT (SELECT id_venta FROM venta_equipo WHERE nombre_comprador_externo='Comprador de Paso'),
+           1,'ARS','EFECTIVO','PAGADO'$q$);
+
+-- El `coalesce` de V19: un nombre que son tres espacios NO identifica a nadie.
+-- `venta_equipo` acepta esto porque su CHECK usa `IS NOT NULL` a secas (V1); acá
+-- se escribio bien desde el principio en vez de heredar el agujero, y este caso
+-- es el que lo sostiene.
+SELECT probar('167','un pagador externo en BLANCO no identifica a nadie','FALLA',
+ $q$INSERT INTO pago (nombre_pagador_externo, id_venta_equipo, monto, moneda, medio_pago, estado_pago)
+    SELECT '   ',
+           (SELECT id_venta FROM venta_equipo WHERE nombre_comprador_externo='Comprador de Paso'),
+           1,'ARS','EFECTIVO','PAGADO'$q$);
+
+-- -----------------------------------------------------------------------------
+-- Editar un pago exige autor (V19 seccion 2), con el mismo argumento que V7 §2:
+-- si cambiar un PRESENTE por un AUSENTE decide cuantas clases le quedan a un
+-- alumno, cambiar un monto decide la caja.
+--
+-- Con `probar_mensaje` y no con `probar`: el rechazo viene de un TRIGGER, y un
+-- caso 'FALLA' que no mira el mensaje no distingue una regla que anda de un
+-- trigger que revienta antes de llegar a su propio RAISE. Es la leccion de `V16`,
+-- donde dos casos estuvieron en verde una semana sobre un trigger roto.
+-- -----------------------------------------------------------------------------
+
+SELECT probar_mensaje('168','cambiar el monto de un pago SIN decir quien fue',
+ 'exige decir quien lo hizo',
+ $q$UPDATE pago SET monto = 999999
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
+
+SELECT probar('169','cambiar el monto DICIENDO quien fue','ANDA',
+ $q$UPDATE pago SET monto = 60000, id_usuario_modifico = (SELECT u_mica FROM v)
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
+
+-- La fecha la pone la base, no quien edita: un sello que el cliente elige se
+-- puede antedatar (DB-07). El trigger la pisa aunque venga una en la sentencia.
+SELECT probar('170','la fecha de modificacion la escribe la base','ANDA',
+ $q$UPDATE pago SET monto = 61000,
+                  id_usuario_modifico = (SELECT u_mica FROM v),
+                  fecha_modificacion = '2001-01-01'
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)
+      AND (SELECT fecha_modificacion FROM pago p2
+           WHERE p2.id_pago = pago.id_pago) IS NOT NULL$q$);
+
+SELECT probar('171','la fecha antedatada NO quedo escrita','ANDA',
+ $q$UPDATE pago SET concepto = 'verificado'
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)
+      AND fecha_modificacion > '2020-01-01'$q$);
+
+-- Tocar algo que NO es la plata no dispara el trigger, igual que en `reserva`:
+-- corregir un concepto o adjuntar el comprobante no es "editar la plata". Si el
+-- WHEN del trigger estuviera de mas, este caso lo detecta.
+SELECT probar('172','corregir solo el concepto no exige autor','ANDA',
+ $q$UPDATE pago SET concepto = 'Cuota agosto (corregido)'
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
+
+-- Y la frontera con la anulacion, que tiene su PROPIA regla y mas exigente
+-- (`pago_anulacion_justificada`, V7 §1: autor, fecha Y motivo escrito). `estado_
+-- pago` quedo fuera del WHEN de V19 a proposito para no darle dos condiciones a
+-- la misma transicion. Este caso prueba que la de V7 sigue mandando ahi.
+SELECT probar('173','anular sigue exigiendo motivo, no alcanza con el autor','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO', id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

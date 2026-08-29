@@ -55,6 +55,18 @@ scripts/
 
 `apps/landing` and `apps/platform` are npm workspaces declared in the root `package.json`. `apps/backend` is a separate Maven project, not part of the npm workspace.
 
+**`noodles` is installed as a call-graph viewer (2026-08-28), and there are two traps.**
+It lives in its own venv at `C:\Users\Ignacio\.venvs\noodles`; output goes to
+`noodles-out/`, gitignored next to `graphify-out/`. **Point it at one app at a time,
+never at the repo root**: it reads `.gitignore` but **only the root one**, and `.next/`
+is ignored in `apps/landing/.gitignore`, so a root run swallows the Next build — measured,
+14.261 of 14.823 nodes were minified Next internals. And **it parses only `.py/.js/.jsx/
+.ts/.tsx`** (`EXTENSION_TO_LANG`, five entries): no Java, no SQL, so it sees neither the
+backend nor the migrations — i.e. neither the domain nor the business rules. It is a map
+of the SPA, not of the system; `graphify` is the one that covers all of it. Useful numbers:
+`apps/platform` gives 452 functions / 605 edges, `apps/landing` gives 110 / **14** — almost
+nothing connected, because Next pages are rendered by the framework rather than called.
+
 ## Commands
 
 Run from repo root unless noted.

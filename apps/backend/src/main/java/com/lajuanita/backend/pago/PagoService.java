@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +23,7 @@ import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
 import com.lajuanita.backend.pago.dto.CajaDelPeriodo.PorMedioDePago;
 import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.pago.dto.EdicionPagoRequest;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta.ContratoDelAlumno;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta.SaldoPorMoneda;
@@ -111,12 +113,32 @@ public class PagoService {
     @Transactional
     public PagoResumen registrar(AltaPagoRequest solicitud, Long idAutor) {
         Pago pago = new Pago();
-        pago.setUsuario(usuarios.findById(solicitud.idUsuario())
-                .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + solicitud.idUsuario() + ".")));
+
+        // Los dos caminos de `V19` §1: cuenta, o nombre escrito. El DTO ya
+        // garantiza que hay uno (`isPagadorIdentificado`) y el CHECK lo vuelve a
+        // exigir en la base; acá solo se elige por cuál entrar.
+        if (solicitud.idUsuario() != null) {
+            pago.setUsuario(usuarios.findById(solicitud.idUsuario())
+                    .orElseThrow(() -> new RecursoNoEncontradoException(
+                            "No existe el usuario " + solicitud.idUsuario() + ".")));
+        } else {
+            pago.setNombrePagadorExterno(normalizar(solicitud.nombrePagadorExterno()));
+            pago.setContactoPagadorExterno(normalizar(solicitud.contactoPagadorExterno()));
+        }
         pago.setIdUsuarioRegistra(idAutor);
 
         if (solicitud.idInscripcion() != null) {
+            // **Saldar una inscripción sí exige cuenta**, y no es una regla nueva:
+            // es la de `buscarInscripcion` —"esa inscripción es de otra persona"—
+            // aplicada al caso en que no hay persona. Una `inscripcion` cuelga de
+            // un `alumno`, que cuelga de un `usuario`; quien no tiene cuenta no
+            // puede tener inscripción, así que el pago se acreditaría en una cuenta
+            // que no es de nadie. Se dice acá para que el error explique qué hacer
+            // en vez de morir con un NPE.
+            if (pago.getUsuario() == null) {
+                throw new SolicitudInvalidaException(
+                        "Para saldar un curso el pago tiene que ir a nombre de la cuenta del alumno.");
+            }
             pago.setInscripcion(buscarInscripcion(solicitud.idInscripcion(), pago.getUsuario()));
         }
         if (solicitud.idReserva() != null) {
@@ -142,6 +164,48 @@ public class PagoService {
             pago.setFechaPago(solicitud.fechaPago());
         }
         pago.setComprobantePath(normalizar(solicitud.comprobantePath()));
+
+        return PagoResumen.de(pagos.saveAndFlush(pago));
+    }
+
+    /**
+     * Corrige un pago mal cargado (`V19` §2, `mejoras.md` §9.3).
+     *
+     * <p><b>La firma se escribe siempre, aunque el valor no cambie</b>, y eso no es
+     * redundante: `V19` hereda de `V7` el límite de que el trigger exige que la
+     * columna <i>no esté en null</i>, no que esta edición haya declarado su autor.
+     * Sin llamar a {@code firmarEdicion} en cada pasada, la segunda corrección
+     * pasaría con el autor de la primera.
+     *
+     * <p>El {@code flush} tiene el mismo motivo que en {@link #anular}: sin él el
+     * UPDATE viaja recién en el commit y el 409 del trigger llegaría como un error
+     * del final de la transacción, sin poder atribuirlo a esta operación.
+     */
+    @Transactional
+    public PagoResumen editar(Long id, EdicionPagoRequest solicitud, Long idAutor) {
+        Pago pago = buscar(id);
+
+        // Un pago anulado es historia: corregirlo volvería a moverlo en la caja,
+        // que es justo lo que la anulación vino a deshacer. Y su motivo escrito
+        // quedaría explicando una fila que ya no es la que se anuló.
+        if (pago.getEstadoPago() == EstadoPago.ANULADO) {
+            throw new SolicitudInvalidaException(
+                    "Ese pago está anulado: no se edita. Si hace falta, cargá uno nuevo.");
+        }
+
+        pago.setConcepto(normalizar(solicitud.concepto()));
+        pago.setMonto(solicitud.monto());
+        pago.setMoneda(solicitud.moneda());
+        pago.setCotizacionDolar(solicitud.cotizacionDolar());
+        pago.setMedioPago(solicitud.medioPago());
+        pago.setDescuentoPorcentaje(solicitud.descuentoPorcentaje() == null
+                ? BigDecimal.ZERO
+                : solicitud.descuentoPorcentaje());
+        pago.setMotivoDescuento(normalizar(solicitud.motivoDescuento()));
+        pago.setFechaPago(solicitud.fechaPago());
+        pago.setComprobantePath(normalizar(solicitud.comprobantePath()));
+
+        pago.firmarEdicion(idAutor);
 
         return PagoResumen.de(pagos.saveAndFlush(pago));
     }
@@ -340,19 +404,37 @@ public class PagoService {
             return List.of();
         }
 
+        // Desde `V19` una fila puede no tener cuenta detrás, así que solo se piden
+        // las que sí la tienen. Sin el filtro, el `findAllById` recibe un null y
+        // revienta antes de llegar a armar la respuesta.
         Map<Long, Usuario> personas = new HashMap<>();
-        usuarios.findAllById(filas.stream().map(f -> ((Number) f[0]).longValue()).toList())
+        usuarios.findAllById(filas.stream()
+                        .map(f -> f[0])
+                        .filter(Objects::nonNull)
+                        .map(id -> ((Number) id).longValue())
+                        .toList())
                 .forEach(u -> personas.put(u.getId(), u));
 
         return filas.stream().map(fila -> {
-            Usuario persona = personas.get(((Number) fila[0]).longValue());
-            LocalDate desde = (LocalDate) fila[4];
+            LocalDate desde = (LocalDate) fila[6];
             int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
+            Moneda moneda = (Moneda) fila[3];
+            BigDecimal adeudado = Importe.normalizar((BigDecimal) fila[4]);
+            long cuantos = ((Number) fila[5]).longValue();
 
+            // El deudor sin cuenta entra con lo único que se sabe de él: su nombre
+            // y su contacto. **No se lo omite** — una deuda que no aparece en esta
+            // pantalla es una deuda que nadie va a ir a cobrar, y es exactamente el
+            // modo de falla que `mejoras.md` §9.1 anota como el riesgo de `V19`.
+            if (fila[0] == null) {
+                return new Deudor(null, (String) fila[1], null, null, (String) fila[2],
+                        moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER);
+            }
+
+            Usuario persona = personas.get(((Number) fila[0]).longValue());
             return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
                     persona.getEmail(), persona.getTelefono(),
-                    ((Moneda) fila[1]).name(), Importe.normalizar((BigDecimal) fila[2]),
-                    ((Number) fila[3]).longValue(), desde, dias, dias > DIAS_PARA_VENCER);
+                    moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER);
         }).toList();
     }
 

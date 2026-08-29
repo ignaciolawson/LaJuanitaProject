@@ -273,6 +273,10 @@ public class MasteringService {
 
         pagos.registrar(new AltaPagoRequest(
                 solicitud.idUsuario(),
+                // El cobro de M&M sigue pidiendo cuenta: `AltaCobroRequest.idUsuario`
+                // es `@NotNull` porque la pantalla ya obliga a elegir a nombre de
+                // quién va. Los dos huecos son los del pagador externo de `V19`.
+                null, null,
                 null, null, trabajo.getId(), null,
                 "Mix & Mastering: " + trabajo.getNombreTrack(),
                 solicitud.monto(),

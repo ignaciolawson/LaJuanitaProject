@@ -121,6 +121,14 @@ public class VentaEquipoService {
     private void registrarElCobro(AltaVentaRequest solicitud, VentaEquipo venta, Long idAutor) {
         pagos.registrar(new AltaPagoRequest(
                 solicitud.idUsuarioComprador(),
+                // **Acá está el caso que motivó `V19`.** Hasta esa migración,
+                // `pago.id_usuario` era NOT NULL, así que una venta a un comprador
+                // sin cuenta NO SE PODÍA COBRAR NUNCA — y no era un botón que
+                // faltaba: el alta directamente rechazaba el pedido. Ahora el cobro
+                // viaja con el nombre del comprador, que es el mismo que la venta
+                // ya guardaba en su propia fila.
+                solicitud.nombreCompradorExterno(),
+                solicitud.contactoCompradorExterno(),
                 null, null, null, venta.getId(),
                 "Venta de " + venta.getModeloEquipo(),
                 venta.getPrecio(),

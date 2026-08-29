@@ -196,21 +196,51 @@ class VentaEquipoTest {
     }
 
     /**
-     * <b>{@code pago.id_usuario} es NOT NULL</b>, así que el cobro de alguien sin
-     * cuenta no tiene dónde colgarse. Sin este chequeo el alta moría con un 409 de
-     * la base; con él dice qué hacer.
+     * <b>Este caso decía lo contrario hasta `V19`, y la vuelta vale la pena
+     * contarla.</b>
+     *
+     * <p>Se llamaba {@code no_se_puede_cobrar_a_un_comprador_sin_cuenta} y defendía
+     * un {@code @AssertTrue} de {@code AltaVentaRequest}: {@code pago.id_usuario}
+     * era NOT NULL, así que la plata de alguien sin cuenta no tenía dónde colgarse
+     * y el alta lo rechazaba con un 400 que explicaba qué hacer. El test estaba
+     * bien escrito y era correcto <i>para esa versión del esquema</i>.
+     *
+     * <p>Lo que no era, es una regla del negocio. Era una <b>consecuencia técnica</b>
+     * de una columna, y en el uso real resultó ser el hallazgo #1 de
+     * `docs/mejoras.md`: <b>una venta a un comprador sin cuenta no se podía cobrar
+     * nunca</b> — y las ventas van contra el stock de Pioneer, así que el que compra
+     * un CDJ no se registra en un estudio de música por eso.
+     *
+     * <p>`V19` §1 hizo la columna nullable con
+     * {@code pago_pagador_identificado} (cuenta <i>o</i> nombre escrito), y este
+     * caso se dio vuelta. Es el mismo tipo de test que el Módulo 8 encontró en
+     * {@code menu.test.ts}: <b>defendía una interpretación, no un hecho.</b>
      */
     @Test
-    void no_se_puede_cobrar_a_un_comprador_sin_cuenta() throws Exception {
+    void se_le_puede_cobrar_a_un_comprador_sin_cuenta() throws Exception {
         Usuario vendedor = crear(Rol.STAFF);
 
-        mvc.perform(vender("""
-                {"nombreCompradorExterno":"Externo","idUsuarioVendedor":%d,
+        String cuerpo = mvc.perform(vender("""
+                {"nombreCompradorExterno":"Externo","contactoCompradorExterno":"11-5555-5555",
+                 "idUsuarioVendedor":%d,
                  "modeloEquipo":"DDJ-FLX4","precio":450000,"moneda":"ARS",
                  "medioPago":"EFECTIVO"}
                 """.formatted(vendedor.getId())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errores.cobroConCompradorConCuenta").isNotEmpty());
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long id = com.jayway.jsonpath.JsonPath.parse(cuerpo).read("$.idVenta", Integer.class)
+                .longValue();
+
+        // Y la plata quedó realmente colgada de la venta, con el nombre del
+        // comprador y sin cuenta. Sin esta parte el caso probaría solo que el alta
+        // devuelve 201, que es la mitad de lo que importa.
+        assertThat(jdbc.queryForObject(
+                "SELECT nombre_pagador_externo FROM pago WHERE id_venta_equipo = ?", String.class, id))
+                .isEqualTo("Externo");
+        assertThat(jdbc.queryForObject(
+                "SELECT id_usuario FROM pago WHERE id_venta_equipo = ?", Long.class, id))
+                .isNull();
     }
 
     // NO HAY CASO DE "si el cobro falla, la venta no queda a medias", y vale la

@@ -307,6 +307,15 @@ public interface TableroRepository extends Repository<Pago, Long> {
                 LEFT JOIN tipo_uso tu ON tu.id_tipo_uso = r.id_tipo_uso
                 WHERE p.estado_pago IN (:entraron)
                   AND p.id_inscripcion IS NULL
+                  -- Desde `V19` un pago puede no tener cuenta, y acá eso importa
+                  -- de dos maneras. La grave: sin este filtro, TODOS los pagos sin
+                  -- cuenta caen en el mismo grupo (el del NULL) y se cuentan como
+                  -- **una sola persona** que llegó por un servicio suelto.
+                  -- Y la de fondo: convertirse es inscribirse, e inscribirse pide
+                  -- cuenta, así que quien no la tiene no puede convertir nunca --
+                  -- dejarlo en el denominador hunde la tasa para siempre, que es
+                  -- la misma trampa que el denominador de la retención (P26).
+                  AND p.id_usuario IS NOT NULL
                   AND (p.id_trabajo_mastering IS NOT NULL
                        OR p.id_venta_equipo IS NOT NULL
                        OR tu.codigo IN ('ALQUILER_CABINA', 'GRABACION_SET', 'MIX_MASTERING'))

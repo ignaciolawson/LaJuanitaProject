@@ -24,9 +24,22 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
      * y el de la reserva van {@code LEFT} porque un pago salda <b>una</b> de las
      * cuatro cosas: exigirlos dejaría afuera justamente a los otros dos destinos.
      */
+    /**
+     * ⚠️ <b>El JOIN a `usuario` es LEFT desde `V19`, y ese cambio es la mitad del
+     * trabajo de esa migración.</b> Era `JOIN FETCH`, o sea un INNER: con la
+     * columna nullable, <b>todo pago sin cuenta desaparecía del listado sin ningún
+     * error</b> — el modo de falla que `mejoras.md` §9.1 anota como el verdadero
+     * riesgo de esta migración. La pantalla anda, el total miente.
+     *
+     * <p>Y la búsqueda mira también el nombre del pagador externo: sin eso, buscar
+     * a quien compró un CDJ no lo encuentra nunca. El {@code COALESCE} deja la
+     * expresión definida cuando el pago sí tiene cuenta — un NULL en una cadena de
+     * OR no es FALSE, y ese es un pozo en el que este proyecto ya se cayó con los
+     * CHECK de `V7`.
+     */
     @Query(value = """
             SELECT p FROM Pago p
-            JOIN FETCH p.usuario u
+            LEFT JOIN FETCH p.usuario u
             LEFT JOIN FETCH p.inscripcion i
             LEFT JOIN FETCH p.reserva r
             LEFT JOIN FETCH r.sala
@@ -35,21 +48,23 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
               AND (:moneda    IS NULL OR p.moneda = :moneda)
               AND (:desde     IS NULL OR p.fechaPago >= :desde)
               AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
-              AND (LOWER(u.nombre)   LIKE :patron
-                OR LOWER(u.apellido) LIKE :patron
-                OR LOWER(u.email)    LIKE :patron)
+              AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
+                OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
+                OR LOWER(COALESCE(u.email, ''))    LIKE :patron
+                OR LOWER(COALESCE(p.nombrePagadorExterno, '')) LIKE :patron)
             """,
             countQuery = """
             SELECT count(p) FROM Pago p
-            JOIN p.usuario u
+            LEFT JOIN p.usuario u
             WHERE (:idUsuario IS NULL OR u.id = :idUsuario)
               AND (:estado    IS NULL OR p.estadoPago = :estado)
               AND (:moneda    IS NULL OR p.moneda = :moneda)
               AND (:desde     IS NULL OR p.fechaPago >= :desde)
               AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
-              AND (LOWER(u.nombre)   LIKE :patron
-                OR LOWER(u.apellido) LIKE :patron
-                OR LOWER(u.email)    LIKE :patron)
+              AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
+                OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
+                OR LOWER(COALESCE(u.email, ''))    LIKE :patron
+                OR LOWER(COALESCE(p.nombrePagadorExterno, '')) LIKE :patron)
             """)
     Page<Pago> listar(@Param("idUsuario") Long idUsuario,
             @Param("estado") EstadoPago estado,
@@ -71,9 +86,15 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             """)
     List<Pago> deLaPersona(@Param("idUsuario") Long idUsuario);
 
+    /**
+     * ⚠️ <b>LEFT desde `V19`</b>, por lo mismo que {@link #listar}: con un INNER,
+     * un pago sin cuenta <b>no se encontraba por id</b> y todo lo que entra por
+     * acá —ver el detalle, anularlo, editarlo— contestaba 404 sobre una fila que
+     * existe.
+     */
     @Query("""
             SELECT p FROM Pago p
-            JOIN FETCH p.usuario
+            LEFT JOIN FETCH p.usuario
             LEFT JOIN FETCH p.inscripcion
             LEFT JOIN FETCH p.reserva r
             LEFT JOIN FETCH r.sala
@@ -180,13 +201,28 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
      * cuenta desde el renglón más viejo. Con {@code MAX}, anotarle otra cuota a
      * alguien que debe hace dos meses le rejuvenecería la deuda a cero días.
      *
-     * @return filas {@code [id_usuario, moneda, adeudado, cantidad, desde]}
+     * <p>⚠️ <b>LEFT y agrupado también por el pagador externo, desde `V19`.</b> Dos
+     * cosas se arreglaron acá, y la segunda es peor que la primera:
+     *
+     * <ol>
+     *   <li>Con {@code JOIN} a secas, <b>una deuda de alguien sin cuenta no
+     *       aparecía en la pantalla de deudores</b> — la pantalla que existe
+     *       justamente para que ninguna deuda se olvide.</li>
+     *   <li>Con {@code GROUP BY u.id} solo, <b>todos los pagadores externos caen en
+     *       el mismo grupo</b> (el de {@code NULL}) y sus deudas se suman en una
+     *       fila sola: dos personas distintas mostradas como una, con un total que
+     *       no es de nadie. Agrupar también por el nombre las separa, y para los
+     *       pagos con cuenta ese campo es {@code NULL} y no cambia nada.</li>
+     * </ol>
+     *
+     * @return filas {@code [id_usuario, nombre_externo, contacto_externo, moneda, adeudado, cantidad, desde]}
      */
     @Query("""
-            SELECT u.id, p.moneda, SUM(p.monto), COUNT(p), MIN(p.fechaPago)
-            FROM Pago p JOIN p.usuario u
+            SELECT u.id, p.nombrePagadorExterno, MIN(p.contactoPagadorExterno),
+                   p.moneda, SUM(p.monto), COUNT(p), MIN(p.fechaPago)
+            FROM Pago p LEFT JOIN p.usuario u
             WHERE p.estadoPago IN :adeudados
-            GROUP BY u.id, p.moneda
+            GROUP BY u.id, p.nombrePagadorExterno, p.moneda
             ORDER BY MIN(p.fechaPago)
             """)
     List<Object[]> deudores(@Param("adeudados") Iterable<EstadoPago> adeudados);

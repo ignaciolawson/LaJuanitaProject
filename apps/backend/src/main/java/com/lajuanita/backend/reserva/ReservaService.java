@@ -298,6 +298,11 @@ public class ReservaService {
     private void registrarLaSena(AltaSenaRequest sena, Long idReserva, Long idAutor) {
         pagos.registrar(new AltaPagoRequest(
                 sena.idUsuario(),
+                // La seña sigue pidiendo cuenta: `AltaSenaRequest.idUsuario` es
+                // `@NotNull`, y quien ocupa una sala entra como participante de la
+                // reserva, o sea que está en el sistema. Los dos huecos son los del
+                // pagador externo de `V19`.
+                null, null,
                 null, idReserva, null, null,
                 "Seña de la reserva",
                 sena.monto(),

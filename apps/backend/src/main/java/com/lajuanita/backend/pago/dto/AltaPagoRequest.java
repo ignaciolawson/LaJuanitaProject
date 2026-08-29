@@ -24,8 +24,18 @@ import jakarta.validation.constraints.Size;
  */
 public record AltaPagoRequest(
 
-        @NotNull(message = "Decí de quién es el pago.")
+        /**
+         * De quién es el pago, <b>cuando tiene cuenta</b>. Opcional desde `V19`:
+         * la otra mitad es {@link #nombrePagadorExterno}, y
+         * {@link #isPagadorIdentificado} exige uno de los dos.
+         */
         Long idUsuario,
+
+        @Size(max = 150, message = "El nombre no puede pasar de 150 caracteres.")
+        String nombrePagadorExterno,
+
+        @Size(max = 150, message = "El contacto no puede pasar de 150 caracteres.")
+        String contactoPagadorExterno,
 
         // -- Qué salda: exactamente uno de los cuatro ------------------------
         Long idInscripcion,
@@ -75,6 +85,21 @@ public record AltaPagoRequest(
     @AssertTrue(message = "Un pago tiene que saldar una cosa, y solo una.")
     public boolean isDestinoUnico() {
         return cuantosDestinos() == 1;
+    }
+
+    /**
+     * <b>Un pago dice de quién es: cuenta o nombre escrito.</b> Espeja
+     * {@code pago_pagador_identificado} (`V19` §1).
+     *
+     * <p>El {@code isBlank} no es de más y la lección ya está pagada en el CHECK:
+     * un nombre que son tres espacios no identifica a nadie. Acá se valida igual
+     * que en la base a propósito — el CHECK rechaza con un 409 que no nombra
+     * ningún campo, y el formulario necesita pintar de rojo el input que está mal.
+     */
+    @AssertTrue(message = "Decí de quién es el pago: elegí una cuenta o escribí el nombre.")
+    public boolean isPagadorIdentificado() {
+        return idUsuario != null
+                || (nombrePagadorExterno != null && !nombrePagadorExterno.isBlank());
     }
 
     /** Espeja {@code pago_usd_con_cotizacion}: sin ella el importe no se reconstruye. */

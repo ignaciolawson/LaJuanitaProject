@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +24,7 @@ import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
 import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.pago.dto.EdicionPagoRequest;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.pago.dto.PagoResumen;
@@ -112,7 +114,27 @@ public class PagoController {
         return pagos.registrar(solicitud, Autoridades.idDe(quienPide));
     }
 
-    /** Anular un pago mal cargado. No se edita y no se borra (P15). */
+    /**
+     * Corregir un pago mal cargado (`V19` §2).
+     *
+     * <p><b>`PUT` y no `PATCH`</b>: llega el pago entero y se guarda entero, que es
+     * lo que hace el formulario. Los `PATCH` de esta clase son otra cosa — cada uno
+     * es <i>una transición con su propia regla</i> (anular, invalidar el
+     * comprobante), no una edición de campos.
+     *
+     * <p>Queda firmado quién editó: lo exige {@code pago_edicion_con_autor}, y el
+     * autor sale del token. No se editan ni el pagador ni el destino — ver
+     * {@link EdicionPagoRequest}.
+     */
+    @PutMapping("/{id}")
+    @PuedeOperar
+    public PagoResumen editar(@PathVariable Long id,
+            @Valid @RequestBody EdicionPagoRequest solicitud,
+            Authentication quienPide) {
+        return pagos.editar(id, solicitud, Autoridades.idDe(quienPide));
+    }
+
+    /** Anular un pago ya cargado. No se borra nunca (P15). */
     @PatchMapping("/{id}/anulacion")
     @PuedeOperar
     public PagoResumen anular(@PathVariable Long id,

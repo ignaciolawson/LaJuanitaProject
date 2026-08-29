@@ -4,6 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
+
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.reserva.Reserva;
@@ -67,9 +70,30 @@ public class Pago {
     private Long id;
 
     /** De quién es la plata. Nunca de un `alumno`: la identidad raíz es `usuario`. */
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_usuario", nullable = false)
+    /**
+     * Quién pagó, <b>cuando tiene cuenta</b>. Nullable desde `V19`.
+     *
+     * <p>La otra mitad es {@link #nombrePagadorExterno}, y el CHECK
+     * {@code pago_pagador_identificado} exige uno de los dos. El caso que lo
+     * motivó: una venta de equipo a alguien que compra por el acuerdo con
+     * Pioneer y no se registra en un estudio de música por eso — antes de `V19`
+     * <b>no se le podía cobrar nunca</b>, porque su plata no tenía dónde
+     * colgarse.
+     *
+     * <p>⚠️ <b>Todo lo que lea este campo tiene que contemplar el null.</b> Cinco
+     * consultas lo asumían presente y están listadas en `mejoras.md` §9.1.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_usuario")
     private Usuario usuario;
+
+    /** Quién pagó, cuando <b>no</b> tiene cuenta. Espeja `venta_equipo`. */
+    @Column(name = "nombre_pagador_externo", length = 150)
+    private String nombrePagadorExterno;
+
+    /** Teléfono o mail del pagador sin cuenta. Identificar no es poder contactar. */
+    @Column(name = "contacto_pagador_externo", length = 150)
+    private String contactoPagadorExterno;
 
     @Column(name = "id_usuario_registra")
     private Long idUsuarioRegistra;
@@ -145,6 +169,27 @@ public class Pago {
     @Column(name = "motivo_invalidacion", columnDefinition = "text")
     private String motivoInvalidacion;
 
+    // -- La edición ----------------------------------------------------------
+
+    /**
+     * Quién editó el pago por última vez. <b>Lo exige `V19` §2</b>
+     * ({@code pago_edicion_con_autor}) cuando cambia algo que mueve plata.
+     *
+     * <p>Se escribe con {@link #firmarEdicion}, no con el setter: la fecha la pone
+     * el trigger, y separar las dos cosas es cómo se cuela una edición sin autor.
+     */
+    @Column(name = "id_usuario_modifico")
+    private Long idUsuarioModifico;
+
+    /**
+     * Cuándo. <b>La escribe el trigger, no la aplicación</b> — un sello que el
+     * cliente elige se puede antedatar (DB-07), y hay un caso de la suite (171)
+     * que prueba que una fecha mandada a mano no queda escrita.
+     */
+    @Column(name = "fecha_modificacion", insertable = false, updatable = false)
+    @Generated(event = EventType.UPDATE)
+    private OffsetDateTime fechaModificacion;
+
     // -- La anulación --------------------------------------------------------
 
     @Column(name = "id_usuario_anula")
@@ -166,7 +211,28 @@ public class Pago {
     @Column(name = "fecha_registro", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime fechaRegistro;
 
-    // -- Las dos excepciones, cada una con sus tres firmas -------------------
+    // -- La edición, y las dos excepciones con sus tres firmas ---------------
+
+    /**
+     * Firma la edición. <b>Se llama siempre que se toque algo que mueve plata.</b>
+     *
+     * <p>Es un método y no un setter por el mismo motivo que {@link #anular}: `V19`
+     * §2 rechaza el UPDATE si el autor viene en NULL, y un setter suelto se puede
+     * olvidar sin que nada se queje hasta que la base contesta un 409. El autor
+     * sale del token, nunca del cuerpo del pedido.
+     *
+     * <p><b>La fecha no se escribe acá</b>: la pone el trigger. Ver
+     * {@link #fechaModificacion}.
+     *
+     * <p>⚠️ Hereda el límite conocido de `V7`, escrito en la cabecera de `V19`: el
+     * trigger exige que la columna <i>no esté en null</i>, no que la edición de hoy
+     * haya declarado su autor. Después de la primera edición firmada, una segunda
+     * que no toque el campo pasa con el autor de la anterior. Por eso este método
+     * se llama en cada edición aunque el valor no cambie.
+     */
+    public void firmarEdicion(Long idAutor) {
+        this.idUsuarioModifico = idAutor;
+    }
 
     /**
      * Da de baja el pago.

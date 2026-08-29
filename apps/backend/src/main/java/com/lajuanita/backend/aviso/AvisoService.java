@@ -153,20 +153,39 @@ public class AvisoService {
         List<Deudor> vencidos = pagoService.deudores().stream().filter(Deudor::vencido).toList();
 
         for (Deudor deudor : vencidos) {
-            String quien = deudor.nombre() + " " + deudor.apellido();
+            // Desde `V19` un deudor puede no tener cuenta, y entonces `apellido` es
+            // null: sin esto el aviso decía "Juan null debe...".
+            String quien = deudor.apellido() == null
+                    ? deudor.nombre()
+                    : deudor.nombre() + " " + deudor.apellido();
             long cuantos = deudor.cantidadDePagos();
+
+            // ⚠️ **La clave describe el HECHO, y sin cuenta el hecho se identifica
+            // por el nombre.** Con `u=%d` sobre un id nulo, todos los deudores sin
+            // cuenta compartían la clave `u=null` y el índice parcial de `V17`
+            // dejaba pasar **un solo aviso para todos**: el segundo deudor externo
+            // no se avisaba nunca y nadie se enteraba, porque el primero sí llegó.
+            String clave = deudor.idUsuario() != null
+                    ? "DEUDA:u=%d:%s:desde=%s".formatted(
+                            deudor.idUsuario(), deudor.moneda(), deudor.desde())
+                    : "DEUDA:ext=%s:%s:desde=%s".formatted(
+                            quien, deudor.moneda(), deudor.desde());
 
             pendientes.add(new Aviso(
                     TipoNotificacion.DEUDA_VENCIDA,
-                    "DEUDA:u=%d:%s:desde=%s".formatted(
-                            deudor.idUsuario(), deudor.moneda(), deudor.desde()),
+                    clave,
                     "Deuda vencida: " + quien,
                     "%s debe %s %s desde hace %d días (%d %s). El aviso salta a los %d."
                             .formatted(quien, deudor.moneda(), plata(deudor.adeudado()),
                                     deudor.diasDeAtraso(), cuantos,
                                     cuantos == 1 ? "pago pendiente" : "pagos pendientes",
                                     PagoService.DIAS_PARA_VENCER),
-                    "/admin/estado-de-cuenta/" + deudor.idUsuario()));
+                    // Sin cuenta no hay estado de cuenta al que llevar: el aviso
+                    // manda a la pantalla de deudores, donde la fila sí está. Un
+                    // link a `/estado-de-cuenta/null` es peor que uno más general.
+                    deudor.idUsuario() != null
+                            ? "/admin/estado-de-cuenta/" + deudor.idUsuario()
+                            : "/admin/deudores"));
         }
         return vencidos.size();
     }
