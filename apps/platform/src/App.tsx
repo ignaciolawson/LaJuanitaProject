@@ -32,6 +32,7 @@ import { NotificacionesPagina } from './paginas/NotificacionesPagina'
 import { ReservarPagina } from './paginas/ReservarPagina'
 import { SelloPagina } from './paginas/SelloPagina'
 import { SubirMaterialPagina } from './paginas/SubirMaterialPagina'
+import { ReprogramacionesPagina } from './paginas/ReprogramacionesPagina'
 import { SolicitantesPagina } from './paginas/SolicitantesPagina'
 import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
@@ -96,6 +97,7 @@ function Rutas() {
           <Route path="/admin/reservas" element={<CalendarioPagina />} />
           <Route path="/admin/solicitudes" element={<SolicitudesPagina />} />
           <Route path="/admin/buzon" element={<SolicitantesPagina />} />
+          <Route path="/admin/reprogramaciones" element={<ReprogramacionesPagina />} />
           <Route path="/admin/bloqueos" element={<BloqueosPagina />} />
           <Route path="/admin/uso-salas" element={<UsoDeSalasPagina />} />
           <Route path="/admin/pagos" element={<PagosPagina />} />

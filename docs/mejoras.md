@@ -93,7 +93,7 @@ a parecer más baratas de lo que son:**
 |---|---|---|---|
 | 1 | El admin no debería cambiarse el nombre ni el mail | ~~B~~ → **A** | ✅ **Cerrada · §9.5** — sí puede cambiarse el nombre; lo que falta es que la pantalla diga que es admin |
 | ~~2~~ | ~~Que el rol ADMIN no use los servicios~~ | ~~A~~ | **❌ Descartada (Ignacio, 2026-08-28)** |
-| 3 | **Solicitar reprogramación** | **B, y es una funcionalidad faltante, no un retoque.** La tabla existe desde `V1` y hasta tiene su trigger; no hay endpoint ni pantalla. El Módulo 4 se la debe | Activa — reforzada por el hallazgo #2 de §8 |
+| ~~3~~ | ~~**Solicitar reprogramación**~~ | ~~B, y es funcionalidad faltante, no un retoque~~ | ✅ **HECHA el 2026-08-29 · §9.11.** Era la última viva de las cinco |
 | ~~4~~ | ~~Cotización del dólar por API~~ | ~~B/C~~ | **⏸️ Pospuesta por ahora (Ignacio, 2026-08-28)** |
 | ~~5~~ | ~~No poder pedir un horario ya tomado~~ | ~~B~~ | ❌ **Se cae · §9.2** — ni filtrar ni avisar: queda como está. Se cayó junto con el hallazgo #3 |
 
@@ -177,7 +177,7 @@ contraseña de desarrollo.
 | # | Pantalla | Qué querías hacer | Qué pasó | Grupo | Estado |
 |---|---|---|---|---|---|
 | 1 | `/admin/ventas` | Marcar como cobrada una venta a un comprador **sin cuenta** | No existe — y tampoco había forma de cargarla cobrada | **C** | ✅ **HECHO** · `V19` §1 |
-| 2 | `/admin/reservas` o portal | Que el alumno pueda modificar/reprogramar su reserva | No existe — confirma §5 #3, el Módulo 4 se la debe | **B** | Pendiente de construir |
+| 2 | `/admin/reservas` o portal | Que el alumno pueda modificar/reprogramar su reserva | No existe — confirma §5 #3, el Módulo 4 se la debe | **B** | ✅ **HECHO** · §9.11 |
 | 3 | `ReservarPagina` (portal) | Que un pedido para un horario ocupado no llegue a la bandeja | No hay chequeo de disponibilidad al pedir | ~~B~~ | ❌ **Se cae** · §9.2 |
 | 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | ✅ **HECHO** · §9.8 |
 | 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | ✅ **HECHO** · §9.9 |
@@ -460,6 +460,64 @@ inscripción — `demo-julieta` en la base de demo es exactamente ese caso.
 
 ---
 
+### 9.11 · Solicitar reprogramación, construida el 2026-08-29
+
+**Sin migración**: `solicitud_reprogramacion` existe desde `V1` y su candado de *"una
+solicitud resuelta es final"* desde `V13` — que se lo puso **antes de que existiera
+nadie que escribiera en ella**. Este es su primer escritor, dos etapas después.
+
+**P9 se contestó primero, como en los Módulos 6, 7 y 8** — es la cuarta vez que ese
+orden evita frenar a mitad de camino. Ignacio: **el profesor pide con el mismo botón que
+el alumno.** El detalle está en `platform.md` §16, que es donde viven las decisiones.
+
+**Lo que decidió, y el orden importa porque cada una sale de la anterior:**
+
+**1 · Aprobar mueve la clase EN EL LUGAR.** Este sistema tiene dos formas de mover una
+reserva y no son sinónimos: *editarla* —la misma fila cambia de día, lo que hace el
+calendario— y *reemplazarla* —la original pasa a REPROGRAMADA y nace otra que la apunta,
+que es el modelo de **recuperación** de P2, para la clase que **no se dictó**—. Un pedido
+de reprogramación es lo primero: nadie faltó, la clase se corre.
+
+> ⚠️ **Y elegir lo segundo habría creado un problema de plata que no tiene por qué
+> existir.** Una reserva REPROGRAMADA deja de deber seña (`V11`) y la nueva la debe, así
+> que **mover un alquiler de cabina pasaría a ser cobrar de nuevo y devolver lo
+> cobrado**: dos movimientos de caja por una mudanza. Moviéndola en el lugar, la plata ni
+> se entera. Hay un caso de la suite que fuerza el chequeo diferido de `V10` después de
+> mover un alquiler — si alguien cambia el enfoque, ese caso se cae, que es para lo que
+> está.
+
+**2 · Acá NO se aprueba "tal como se pidió", y lo impone la tabla.** El pedido de sala se
+aprueba exactamente como llegó; `fecha_alternativa_solicitada` es un `DATE` **opcional**,
+sin hora y sin sala, así que no alcanza para crear nada. La diferencia de fondo es quién
+puede saber qué: el que pide una cabina elige una franja libre que el portal le muestra;
+el que pide mover su clase no puede saber qué sala queda libre ni de qué profesor
+depende. **Por eso aprobar es un formulario con la franja nueva y no un botón** — y el
+backend rechaza aprobar dejando el mismo horario, porque un pedido resuelto sin
+movimiento no le avisa a nadie y deja a la persona esperando.
+
+**3 · Al aprobar llega un solo aviso, y es el de que la clase se movió.** Mover ya avisa
+por su cuenta, diciendo de dónde a dónde. Un segundo aviso por el mismo hecho es lo que
+entrena a la gente a ignorarlos. **El rechazo sí avisa** (`REPROGRAMACION_RECHAZADA`), con
+el motivo adentro: ahí no se movió nada, así que sin el aviso la persona no se entera.
+
+**4 · "Mía" son tres caminos.** Estar anotado, haberla pagado —los dos que ya usan el
+portal y `V12` para encontrar la plata detrás de una reserva— **o ser el profesor de esa
+clase**. El tercero vive en el servicio y **no** se agregó a `ReservaRepository.deLaPersona`:
+ahí haría que las clases que dicta le aparezcan entre "sus reservas" como si fuera el
+cliente de ellas.
+
+**5 · No hay pantalla "mis pedidos de cambio".** El estado del pedido se muestra sobre la
+clase, en las dos pantallas, con el mismo componente (`PedirOtroDia`): un pedido de mover
+algo no se entiende sin la cosa que se quiere mover, y una lista aparte obligaría a
+cruzar dos pantallas para saber si el martes sigue siendo el martes.
+
+**6 · Y una que quedó afuera, anotada para que no parezca olvido:** el enum tiene **tres**
+estados y no cuatro. `solicitud_reprogramacion` no acepta CANCELADA desde `V1`, así que el
+que se arrepiente avisa y administración rechaza. Agregarla es una migración para algo que
+el alcance nunca pidió.
+
+---
+
 ## 10. El plan de acción
 
 > Acordado el 2026-08-28. **El orden no es "bugs → diseño" sino "esquema →
@@ -495,6 +553,9 @@ migraciones son inmutables y se acumulan, eso no es prolijidad.
 
 ### Fase 2 · Backend sin tocar el esquema
 
+> ✅ **CERRADA el 2026-08-29**, salvo 2.2b (los formularios de la landing), que es
+> trabajo de la otra app. Suites al cierre: **536 backend · 411 front · 198 + 51 SQL**.
+
 De más barato a más caro:
 
 | Orden | Qué | Tamaño |
@@ -503,7 +564,7 @@ De más barato a más caro:
 | ~~2.1~~ | ~~**#5** comprobante al aprobar seña~~ | ✅ **HECHO el 2026-08-29** (§9.9) |
 | ~~2.2a~~ | ~~**9.4** buzón de solicitantes~~ | ✅ **HECHO el 2026-08-29** — `V20`, paquete `solicitante`, `/admin/buzon`. Ver §9.10 |
 | 2.2b | **9.4** conectar los cuatro formularios de la landing | Chico y de otra app — CORS, URL de API configurable, y los cuatro `onSubmit`. El endpoint ya existe y se puede probar con `curl` |
-| 2.4 | **#2 + §5 #3** solicitar reprogramación | **El más grande** — endpoint + pantalla del portal + pantalla de admin. La tabla y el trigger están desde `V1` |
+| ~~2.4~~ | ~~**#2 + §5 #3** solicitar reprogramación~~ | ✅ **HECHO el 2026-08-29** — sin migración: la tabla y el trigger estaban desde `V1` y `V13` esperando su primer escritor. Ver §9.11 |
 
 *(La vieja 2.3 —disponibilidad al pedir— se cayó por §9.2.)*
 

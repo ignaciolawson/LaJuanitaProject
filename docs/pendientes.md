@@ -18,10 +18,12 @@
 > **⚠️ Al 2026-08-29 la etapa de mejoras ya está en marcha y produjo su primera
 > migración.** `mejoras.md` §9 tiene **las decisiones cerradas** y §10 **el plan de
 > fases**, que es lo que gobierna qué se hace ahora. Estado: **Fase 1 cerrada
-> (`V19`), Fase 2 con 3 de 4 hechos** — el buzón de solicitantes cerró el mismo
-> 2026-08-29 (`V20`, §9.10). Los hallazgos 1, 4, 5, 6 y **la mitad del 7** de su
-> §8 están construidos; del 7 falta conectar los formularios de la landing, que
-> es trabajo de esa otra app contra un endpoint que ya existe.
+> (`V19`) y Fase 2 también** — el buzón de solicitantes (`V20`, §9.10) y
+> solicitar reprogramación (§9.11, sin migración) cerraron el mismo 2026-08-29.
+> Los hallazgos 1, 2, 4, 5, 6 y **la mitad del 7** de su §8 están construidos;
+> del 7 falta conectar los formularios de la landing, que es trabajo de esa otra
+> app contra un endpoint que ya existe. **Lo que queda es la Fase 3: el
+> rediseño**, que espera el corte de la lista (~11/09).
 >
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
@@ -150,12 +152,12 @@ módulos, de a uno.** No se hacen mientras se espera nada.
 > ([`mejoras.md`](mejoras.md)), porque hacer estos cinco antes de saber el resto es
 > arreglar pantallas que después se rehacen.
 >
-> **⚠️ Al 2026-08-29 quedan TRES vivas de las cinco, y solo UNA para construir**
-> (`mejoras.md` §5): la #2 fue descartada por Ignacio, la #4 (cotización del dólar)
-> quedó pospuesta hasta que se decida qué cotización, y la #5 se dio de baja entera
-> —ni filtrar ni avisar— con el argumento de que **quien pide no puede saber si está
-> ocupado** y el EXCLUDE al aprobar ya es la autoridad. La #1 se convirtió en trabajo
-> de diseño. **Queda solo la #3, solicitar reprogramación.**
+> **⚠️ Al 2026-08-29 no queda ninguna para construir** (`mejoras.md` §5): la #2 fue
+> descartada por Ignacio, la #4 (cotización del dólar) quedó pospuesta hasta que se
+> decida qué cotización, y la #5 se dio de baja entera —ni filtrar ni avisar— con el
+> argumento de que **quien pide no puede saber si está ocupado** y el EXCLUDE al
+> aprobar ya es la autoridad. La #1 se convirtió en trabajo de diseño. **Y la #3,
+> solicitar reprogramación, se construyó ese mismo día** (`mejoras.md` §9.11).
 >
 > **Y una corrección que `mejoras.md` §5 detalla: dos de las cinco NO son retoques.**
 > *Solicitar reprogramación* es una pantalla y un endpoint que el Módulo 4 se debe, y
@@ -168,8 +170,9 @@ módulos, de a uno.** No se hacen mientras se espera nada.
 2. **Que el rol ADMIN no use los servicios** → **como MENÚ, no como permiso.** Es
    la recomendación más importante de la lista: como permiso rompe la separación
    de los dos ejes. Es un cambio en `menu.ts` y en ningún otro lado.
-3. **Solicitar reprogramación** → es una pantalla que el Módulo 4 se debe. La tabla
-   existe desde `V1` y hasta tiene su trigger; falta el endpoint y la pantalla.
+3. ~~**Solicitar reprogramación**~~ → ✅ **HECHA el 2026-08-29** (`mejoras.md` §9.11).
+   La tabla y el trigger estaban desde `V1` y `V13` esperando su primer escritor, así
+   que no hizo falta migración.
 4. **Cotización del dólar por API** → **solo como prellenado**, nunca fuente de
    verdad, nunca tocando filas viejas. Y una pregunta que es del negocio: **¿qué
    cotización — oficial, blue o MEP?**
@@ -249,7 +252,7 @@ cuando el módulo correspondiente las necesite.
 | P5 | Nivelación dentro del sistema | 1 |
 | P7 | Generación automática de clases semanales | 2 — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* |
 | P8 | Quién autoriza reservar con deuda | 2 |
-| P9 | ¿El profesor puede pedir mover su clase? | 2 |
+| ~~P9~~ | ✅ **CERRADA el 2026-08-29**: el profesor pide con el mismo botón que el alumno (`platform.md` §16) | 2 |
 | **P13** | **¿Lista de precios en el sistema?** | 3 — **la más consecuente de las que quedan**: ver abajo |
 | P17 | Alcance real de la autogestión | 4 |
 | P19 | Acceso del alumno inactivo | 4 |

@@ -637,7 +637,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (octava tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (novena tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -669,9 +669,9 @@ Tres cosas para ese momento:
 
 ### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-29
 
-## ✅ FASE 1 CERRADA Y FASE 2 CON 3 DE 4
+## ✅ FASE 1 Y FASE 2 CERRADAS · LO QUE QUEDA ES EL REDISEÑO
 
-**Suites: 518 backend · 393 front · 198 + 51 SQL, sobre 20 migraciones.**
+**Suites: 536 backend · 411 front · 198 + 51 SQL, sobre 20 migraciones.**
 
 Ya no se construyen módulos: **estamos en la etapa de mejoras**, y el plan de fases
 vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
@@ -680,10 +680,47 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 |---|---|
 | **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. Quedan dos cosas que **no dependen de nadie sentado a programar**: reproducir el bug #8 y esperar que el test flaky caiga en CI |
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
-| **2 · Backend sin esquema** | **3 de 4 hechos.** El buzón de solicitantes cerró hoy (`V20`). **Falta solicitar reprogramación**, que es lo más grande de lo que queda — y, por carril aparte, conectar los formularios de la landing contra el endpoint que el buzón dejó hecho |
-| **3 · Diseño** | Bloqueada hasta que se congele la lista. El contenido del Inicio ya está decidido en `mejoras.md` §11 |
+| **2 · Backend sin esquema** | ✅ **CERRADA.** El buzón de solicitantes (`V20`) y solicitar reprogramación (sin migración) cerraron el mismo día. Lo único que queda de la fase es **conectar los cuatro formularios de la landing**, que es trabajo de la otra app contra un endpoint que ya existe |
+| **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |
 
-### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: EL BUZÓN DE LA WEB
+### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: "NO PUEDO ESE DÍA"
+
+**`SolicitudReprogramacion` en el paquete `solicitud`, `/admin/reprogramaciones` y el
+componente `PedirOtroDia`** — Fase 2.4 de [`mejoras.md`](mejoras.md), el hallazgo #2 y la
+última viva de las cinco de §6f. **Sin migración**: la tabla existe desde `V1` y su
+candado desde `V13`, que se lo puso **antes de que existiera nadie que escribiera en
+ella**. Este es su primer escritor.
+
+**P9 se contestó antes de escribir código, por cuarta vez con el mismo resultado**: el
+profesor pide con el mismo botón que el alumno (`platform.md` §16, la tanda de decisiones
+de la etapa de mejoras). Lo que esa respuesta destraba no es una pantalla sino un dato —
+hoy el profesor le avisa a Micaela por WhatsApp y **por qué se movió una clase no queda
+escrito en ningún lado**, que es justo para lo que existe `solicitud_reprogramacion.motivo`.
+
+Las decisiones, en orden, porque cada una sale de la anterior:
+
+- **Aprobar mueve la clase EN EL LUGAR.** Hay dos formas de mover una reserva en este
+  sistema y no son sinónimos: *editarla* —la misma fila, otro día— y *reemplazarla* —la
+  original a REPROGRAMADA y otra que la apunta, que es la **recuperación** de P2, para la
+  clase que **no se dictó**—. Un pedido de reprogramación es lo primero: nadie faltó.
+  ⚠️ **Y elegir lo segundo creaba un problema de plata de la nada**: una reserva
+  REPROGRAMADA deja de deber seña (`V11`) y la nueva la debe, así que mover un alquiler
+  sería cobrar de nuevo y devolver lo cobrado. Hay un caso que fuerza el chequeo diferido
+  de `V10` después de mover un alquiler — si alguien cambia el enfoque, ese caso se cae.
+- **Acá NO se aprueba "tal como se pidió"**, al revés que en los pedidos de sala, y lo
+  impone la tabla: `fecha_alternativa_solicitada` es un `DATE` **opcional**, sin hora y sin
+  sala. El que pide una cabina elige una franja libre que el portal le muestra; el que
+  pide mover su clase no puede saber qué sala queda libre. **Por eso el "sí" es un
+  formulario con la franja nueva**, y el backend rechaza aprobar dejando el mismo horario.
+- **Un solo aviso al aprobar**, el de que la clase se movió — mover ya avisa por su
+  cuenta y dice de dónde a dónde. El rechazo sí manda el suyo, con el motivo adentro.
+- **"Mía" son tres caminos**: anotado, pagador, **o profesor de esa clase**. El tercero
+  vive en el servicio y no se agregó a `deLaPersona`, donde haría que las clases que dicta
+  le aparezcan entre "sus reservas" como si fuera el cliente de ellas.
+- **No hay pantalla "mis pedidos de cambio"**: el estado se muestra sobre la clase, en las
+  dos pantallas y con el mismo componente.
+
+### 📚 LA TANDA ANTERIOR, DEL MISMO DÍA: EL BUZÓN DE LA WEB
 
 **`V20__el_buzon_de_solicitantes.sql`, paquete `com.lajuanita.backend.solicitante`,
 pantalla `/admin/buzon`** — Fase 2.2 de [`mejoras.md`](mejoras.md), hallazgo #7. Es
@@ -777,18 +814,14 @@ adentro.
 
 ### ⏭️ LO PRÓXIMO, EN ORDEN
 
-1. **Solicitar reprogramación** (`mejoras.md` §8 #2 y §5 #3) — **lo más grande de lo que
-   queda de la Fase 2**: endpoint + pantalla del portal + pantalla de admin. La tabla
-   `solicitud_reprogramacion` y su trigger existen desde `V1`, y `V13` §4 ya le puso
-   el candado de "una solicitud resuelta es final".
-2. **Conectar los cuatro formularios de la landing** contra `POST /api/solicitantes`.
+1. **Conectar los cuatro formularios de la landing** contra `POST /api/solicitantes`.
    Va por carril aparte porque es otra app: CORS, una URL de API configurable y los
    cuatro `onSubmit`. **No es solo el `onSubmit`**: hay que partir *"Nombre y
    apellido"* en dos campos y hacer obligatorio el teléfono. El contrato completo
    está en `mejoras.md` §9.10.
-3. **El rediseño**, cuando se congele la lista (~11/09). El contenido del Inicio por
-   perfil ya está decidido en `mejoras.md` §11 y **no falta ningún endpoint**: es
-   armado, no desarrollo.
+2. **El rediseño** — **lo único que queda del plan**, cuando se congele la lista
+   (~11/09). El contenido del Inicio por perfil ya está decidido en `mejoras.md` §11 y
+   **no falta ningún endpoint**: es armado, no desarrollo.
 
 ### 🔑 Usuarios de demostración, creados el 2026-08-20
 

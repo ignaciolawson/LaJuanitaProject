@@ -160,6 +160,7 @@ export type TipoNotificacion =
   | 'SOLICITUD_APROBADA'
   | 'SOLICITUD_RECHAZADA'
   | 'RESERVA_MOVIDA'
+  | 'REPROGRAMACION_RECHAZADA'
   | 'DEUDA_VENCIDA'
   | 'ENTREGA_IMPAGA'
 
@@ -178,4 +179,49 @@ export type EdicionPerfil = {
   nombre: string
   apellido: string
   telefono?: string
+}
+
+
+// -- Pedir que muevan una clase (Fase 2.4) ----------------------------------
+
+/**
+ * Espeja `EstadoReprogramacion`. **Son tres y no cuatro**: esta tabla no acepta
+ * CANCELADA desde `V1`, así que el que se arrepiente avisa y administración
+ * rechaza el pedido. Agregarla es una migración y el alcance nunca la pidió.
+ */
+export type EstadoReprogramacion = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
+
+export const NOMBRE_DE_ESTADO_REPROGRAMACION: Record<EstadoReprogramacion, string> = {
+  PENDIENTE: 'Esperando respuesta',
+  APROBADA: 'Movida',
+  RECHAZADA: 'No se pudo mover',
+}
+
+/**
+ * Un pedido de mover una clase. Espeja `ReprogramacionResumen`.
+ *
+ * ⚠️ **`fecha` y las horas son las que la clase tiene AHORA**, no las que tenía
+ * cuando se pidió: aprobar mueve la misma fila. En un pedido ya aprobado, ese
+ * campo muestra el horario nuevo. De dónde a dónde se movió lo cuenta la
+ * notificación, que es donde alguien se hace esa pregunta.
+ */
+export type ReprogramacionResumen = {
+  idSolicitud: number
+  idUsuario: number
+  nombre: string
+  apellido: string
+  idReserva: number
+  sala: string
+  tipoUso: string
+  fecha: string
+  horaInicio: string
+  horaFin: string
+  motivo: string
+  /** El día que propuso, si propuso alguno. */
+  fechaAlternativaSolicitada: string | null
+  estado: EstadoReprogramacion
+  respuesta: string | null
+  resueltaPor: string | null
+  fechaSolicitud: string
+  fechaResolucion: string | null
 }

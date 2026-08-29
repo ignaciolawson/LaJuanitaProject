@@ -33,6 +33,19 @@ public enum TipoNotificacion {
     SOLICITUD_RECHAZADA,
 
     /**
+     * Pediste mover una clase y no se pudo, y el aviso dice por qué.
+     *
+     * <p><b>No existe el aprobado.</b> Cuando el pedido se aprueba la clase se
+     * mueve, y mover una clase ya avisa por su cuenta con {@link #RESERVA_MOVIDA},
+     * diciendo de dónde a dónde — que es lo que quien pidió quiere saber. Dos
+     * avisos por el mismo hecho entrenan a la gente a ignorarlos.
+     *
+     * <p>Este existe porque del lado del "no" no se mueve nada: sin aviso, la
+     * persona se queda esperando.
+     */
+    REPROGRAMACION_RECHAZADA,
+
+    /**
      * Te movieron una clase de sala o de horario (M5).
      *
      * <p>Es la regla dura *"las notificaciones de cambio de sala llegan solas"* de

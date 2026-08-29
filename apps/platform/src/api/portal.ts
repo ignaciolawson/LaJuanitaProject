@@ -13,7 +13,7 @@ import type {
   ReservaDelPortal,
   SolicitudResumen,
 } from './tiposPortal'
-import type { EstadoSolicitud } from './tiposPortal'
+import type { EstadoReprogramacion, EstadoSolicitud, ReprogramacionResumen } from './tiposPortal'
 import type { Pagina } from './tiposAdmin'
 
 /**
@@ -139,6 +139,80 @@ export function rechazarSolicitud(
   respuesta: string,
 ): Promise<SolicitudResumen> {
   return pedir(`/api/solicitudes-reserva/${idSolicitud}/rechazo`, {
+    metodo: 'PATCH',
+    cuerpo: { respuesta },
+  })
+}
+
+
+// == Mover una clase ========================================================
+//
+// Las dos mitades juntas otra vez: lo que se pide desde Mis reservas o desde Mi
+// agenda, y lo que administración resuelve en su bandeja.
+
+/**
+ * Lo que pedí mover, en todos los estados.
+ *
+ * **No tiene pantalla propia a propósito**: la pantalla es Mis reservas, que
+ * cruza esta lista por `idReserva`. Un pedido de mover algo se entiende al lado
+ * de la cosa que se quiere mover.
+ */
+export function misReprogramaciones(): Promise<ReprogramacionResumen[]> {
+  return pedir('/api/me/reprogramaciones')
+}
+
+/**
+ * "No puedo ese día".
+ *
+ * **Esto no mueve la clase**: la mueve administración al aprobar, eligiendo el
+ * horario nuevo — que es lo que quien pide no puede saber. `fechaAlternativa` es
+ * una preferencia y es opcional.
+ */
+export function pedirMoverLaClase(pedido: {
+  idReserva: number
+  motivo: string
+  fechaAlternativa?: string
+}): Promise<ReprogramacionResumen> {
+  return pedir('/api/me/reprogramaciones', { metodo: 'POST', cuerpo: pedido })
+}
+
+export function listarReprogramaciones(
+  estado: EstadoReprogramacion | '',
+  pagina = 0,
+  tamanio = 20,
+): Promise<Pagina<ReprogramacionResumen>> {
+  const parametros = new URLSearchParams({ pagina: String(pagina), tamanio: String(tamanio) })
+  if (estado) parametros.set('estado', estado)
+  return pedir(`/api/reprogramaciones?${parametros}`)
+}
+
+/**
+ * Aprobar **es mover**: el cuerpo lleva la franja nueva, no un "sí".
+ *
+ * El backend rechaza aprobar dejando el mismo horario — un pedido resuelto sin
+ * movimiento no avisa a nadie y deja a la persona esperando.
+ */
+export function aprobarReprogramacion(
+  idSolicitud: number,
+  nuevaFranja: {
+    idSala: number
+    fecha: string
+    horaInicio: string
+    horaFin: string
+    respuesta?: string
+  },
+): Promise<ReprogramacionResumen> {
+  return pedir(`/api/reprogramaciones/${idSolicitud}/aprobacion`, {
+    metodo: 'PATCH',
+    cuerpo: nuevaFranja,
+  })
+}
+
+export function rechazarReprogramacion(
+  idSolicitud: number,
+  respuesta: string,
+): Promise<ReprogramacionResumen> {
+  return pedir(`/api/reprogramaciones/${idSolicitud}/rechazo`, {
     metodo: 'PATCH',
     cuerpo: { respuesta },
   })

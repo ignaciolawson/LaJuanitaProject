@@ -111,6 +111,16 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       {
+        // La otra bandeja, y es otra cosa que "Pedidos de sala": ahí se pide
+        // crear algo que no existe y aprobar es cobrar la seña; acá se pide mover
+        // algo que existe y aprobar es elegir el horario nuevo. Juntarlas
+        // obligaría a que una sola pantalla tenga dos formas de decir que sí.
+        etiqueta: 'Pedidos de cambio',
+        ruta: '/admin/reprogramaciones',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
         etiqueta: 'Salas bloqueadas',
         ruta: '/admin/bloqueos',
         visible: puedeAdministrar,

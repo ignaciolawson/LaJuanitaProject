@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ReservaResumen } from '../api/tiposAdmin'
@@ -22,8 +23,12 @@ import { MiAgendaPagina } from './MiAgendaPagina'
  */
 
 vi.mock('../api/docencia', () => ({ miAgenda: vi.fn(), misClasesDictadas: vi.fn() }))
+// El profesor pide mover su clase con el mismo componente que el alumno (P9),
+// así que esta pantalla llama al portal aunque no sea suya.
+vi.mock('../api/portal', () => ({ misReprogramaciones: vi.fn(), pedirMoverLaClase: vi.fn() }))
 
 const { miAgenda, misClasesDictadas } = await import('../api/docencia')
+const { misReprogramaciones, pedirMoverLaClase } = await import('../api/portal')
 
 function clase(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
   return {
@@ -87,6 +92,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(miAgenda).mockResolvedValue([clase()])
   vi.mocked(misClasesDictadas).mockResolvedValue(RESUMEN)
+  vi.mocked(misReprogramaciones).mockResolvedValue([])
 })
 
 describe('la agenda', () => {
@@ -168,5 +174,54 @@ describe('las clases dictadas', () => {
     const rangoDeLaAgenda = vi.mocked(miAgenda).mock.calls[0]
     const rangoDelResumen = vi.mocked(misClasesDictadas).mock.calls[0]
     expect(rangoDelResumen).toEqual(rangoDeLaAgenda)
+  })
+})
+
+
+/**
+ * P9, contestada el 2026-08-29: **el profesor pide mover su clase con el mismo
+ * botón que el alumno.** Es el que más veces lo necesita —se enferma, se le
+ * superpone algo— y hasta ahora eso viajaba por WhatsApp y no quedaba escrito.
+ *
+ * Lo que sigue sin poder hacer es moverla él: mover una clase revisa
+ * solapamientos y arrastra la seña. Pide; mueve administración.
+ */
+describe('pedir que muevan una clase (P9)', () => {
+  it('el profesor puede pedirlo sobre una clase que todavía no pasó', async () => {
+    vi.mocked(miAgenda).mockResolvedValue([clase({ fecha: '2030-04-08' })])
+    render(<MiAgendaPagina />)
+
+    expect(await screen.findByRole('button', { name: 'Pedir otro día' })).toBeDefined()
+  })
+
+  it('manda el pedido con su motivo', async () => {
+    vi.mocked(miAgenda).mockResolvedValue([clase({ fecha: '2030-04-08' })])
+    vi.mocked(pedirMoverLaClase).mockResolvedValue({
+      idSolicitud: 1,
+      idUsuario: 9,
+      nombre: 'Lucas',
+      apellido: 'Gómez',
+      idReserva: 1,
+      sala: 'Sala 1',
+      tipoUso: 'Clase de DJ',
+      fecha: '2030-04-08',
+      horaInicio: '10:00:00',
+      horaFin: '11:30:00',
+      motivo: 'Tengo una fecha ese día',
+      fechaAlternativaSolicitada: null,
+      estado: 'PENDIENTE',
+      respuesta: null,
+      resueltaPor: null,
+      fechaSolicitud: '2026-08-29T10:00:00-03:00',
+      fechaResolucion: null,
+    })
+    render(<MiAgendaPagina />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Pedir otro día' }))
+    await userEvent.type(screen.getByLabelText(/Por qué no podés/), 'Tengo una fecha ese día')
+    await userEvent.click(screen.getByRole('button', { name: 'Mandar el pedido' }))
+
+    await waitFor(() => expect(pedirMoverLaClase).toHaveBeenCalled())
+    expect(vi.mocked(pedirMoverLaClase).mock.calls[0][0].motivo).toBe('Tengo una fecha ese día')
   })
 })

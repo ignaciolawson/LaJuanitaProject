@@ -348,7 +348,7 @@ Por eso varias quedan como pregunta y no como hecho.
 | Ver el calendario completo | ✅ | ✅ | ✅ | ✅ | Solo sus reservas |
 | Crear / modificar / cancelar reserva | ✅ | — | ✅ | — | — |
 | Bloquear sala | ✅ | — | ✅ | — | — |
-| Solicitar reprogramación | — | — | — | ❓P9 | ✅ |
+| Solicitar reprogramación | — | — | — | ✅ **P9, resuelta el 2026-08-29 (§16)** | ✅ |
 
 ### ⚠️ Dos reglas que este módulo tiene que traer consigo
 
@@ -375,7 +375,7 @@ por falta de este módulo, y **son parte de darlo por terminado**:
 - **✅P6 — RESUELTO (2026-08-11). Asignación explícita**: cada profe con su/s alumno/s. Vive en `inscripcion.id_profesor`, no en el alumno — así el mismo alumno puede tener a un profe para DJ y a otro para mentoría, y *Mis Alumnos* sale de ahí. Que otro profesor cubra una clase suelta **no** le transfiere el alumno.
 - **✅P7 — RESUELTO (2026-08-16): se cargan A MANO, de a una.** Se evaluó que el sistema generara las ocho semanales al inscribir —era la recomendación de este documento— y **Ignacio lo descartó**. Queda anotado el costo, porque es real y se paga en diciembre: son 8 cargas por alumno, y la migración del Notion trae ~80. Si al usarlo se vuelve insoportable, la generación se puede agregar después sin tocar nada de lo construido: es un endpoint que llama ocho veces al alta que ya existe. Lo que **no** se puede agregar después barato es lo contrario.
 - **✅P8 — RESUELTO (2026-08-14 y 2026-08-15). No hay autorización manual: no existe la excepción.** No se reserva sin seña, y la seña es el **50% del total**, para todos los tipos de uso menos `MIX_MASTERING` —que Ghezz decide caso por caso y el sistema no exige—. La ficha completa está en §13; lo que falta es la migración, arriba.
-- **❓P9 — ¿Un profesor puede pedir mover su propia clase?** Hoy todo pasa por Micaela. ¿Le damos al profesor el mismo botón de "solicitar reprogramación" que al alumno, o sigue siendo un mensaje a Mica?
+- **✅P9 — RESUELTA (Ignacio, 2026-08-29). Sí: el mismo botón que el alumno.** Mismo endpoint y mismo componente; lo único que cambia es la pantalla desde la que se entra. Sigue sin poder mover la clase él — pide, y mueve administración. El detalle está en §16.
 - **✅P10 — RESUELTO (2026-08-11).** Son **tres salas: Sala 1, Sala 2 y Cabina de grabación.** No existe una "Sala de Producción" — el relevamiento está mal. La matriz de qué se puede hacer en cada una está en §2.6.
 - **✅P29 — RESUELTO (2026-08-11).** El **alquiler de cabina** es un uso propio y va en **Sala 1 y Sala 2** (no en la de grabación). Es un servicio **distinto** de la grabación de set. Ambos están en la matriz de §2.6.
 - **✅P30 — RESUELTO (2026-08-11). Las clases SÍ pueden ser grupales.** Por eso una reserva no lleva un alumno sino una tabla de participantes (`reserva_participante`), donde cada uno trae su propia inscripción y su propia asistencia. Esa tabla además reemplazó a `historial_clase` del modelo viejo.
@@ -801,7 +801,7 @@ o a comprar licencia; es la razón principal de la elección y está escrita en 
 | ~~P6~~ | ✅ Profesor asignado explícito, en la inscripción | — |
 | P7 | Generación automática de clases semanales | Módulo 2 |
 | P8 | Quién autoriza reservar con deuda | Módulo 2 |
-| P9 | ¿El profesor puede pedir mover su clase? | Módulo 2 |
+| ~~P9~~ | ✅ **Sí, el mismo botón que el alumno** (§16) | — |
 | ~~P10~~ | ✅ Sala 1, Sala 2, Cabina de grabación | — |
 | ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
 | ~~P12~~ | ✅ Pago parcial contra la inscripción; el estado sale de la suma (§13) | — |
@@ -1405,3 +1405,56 @@ antes de construirlo:
 - **Excel de verdad, no un CSV con otro nombre.** Si va a haber una sola exportación
   buena, tiene que abrirse con los tipos bien (fechas como fechas, importes como
   números) o el primer `SUM` que alguien haga da cualquier cosa.
+
+
+---
+
+## 16. Decisiones cerradas el 2026-08-29 — la etapa de mejoras
+
+> **Esta sección gana sobre §13, §14 y §15**, por lo mismo que aquellas ganan sobre el
+> plan: es posterior. Y **`docs/mejoras.md` §9 y §10 ganan sobre esta** en lo que sea
+> *qué se hace ahora*; acá vive lo que es una **decisión del negocio**.
+
+### ✅P9 — Sí: el profesor pide mover su clase, con el mismo botón que el alumno
+
+Estaba abierta desde el alcance del Módulo 2 —*"¿le damos al profesor el mismo botón de
+solicitar reprogramación que al alumno, o sigue siendo un mensaje a Mica?"*— y era la
+única que bloqueaba construir esa pantalla. **Contestada por Ignacio: el mismo botón.**
+
+La tabla de "quién puede qué" del Módulo 2 queda así, con el ❓ resuelto:
+
+| | ADMIN | DIRECTIVO | STAFF | Profesor | Alumno |
+|---|---|---|---|---|---|
+| Solicitar reprogramación | — | — | — | **✅** | ✅ |
+
+Tres cosas que la respuesta arrastra y conviene tener escritas:
+
+- **Es el mismo endpoint y el mismo componente**, no un circuito paralelo. Lo único que
+  cambia es desde qué pantalla se entra: el alumno desde *Mis reservas*, el profesor
+  desde *Mi agenda*. Un segundo circuito habría duplicado la regla de quién puede pedir.
+- **El profesor sigue sin mover reservas**, y eso no cambió: mover una clase revisa
+  solapamientos y arrastra la seña. Pide; mueve administración. La regla dura del
+  Módulo 4 —*"las solicitudes de reprogramación no son automáticas: las aprueba
+  administración"*— vale igual para él.
+- **Lo que la respuesta destraba no es una pantalla, es un dato.** Hoy el profesor le
+  avisa a Micaela por WhatsApp y **por qué se movió una clase no queda escrito en
+  ningún lado**. El motivo es exactamente lo que `solicitud_reprogramacion` guarda desde
+  `V1`, y hasta ahora esa columna no la escribía nadie.
+
+### ✅ Y una decisión de alcance que este circuito obligó a tomar: acá NO se aprueba "tal como se pidió"
+
+El Módulo 4 dejó escrito, para los pedidos de sala, que **una solicitud se aprueba tal
+como se pidió** — no se puede aprobar *"pero a las 18"*. **Para las reprogramaciones la
+regla es la contraria, y no es una excepción inventada: la impone la tabla.**
+`solicitud_reprogramacion.fecha_alternativa_solicitada` es un `DATE` **opcional**, sin
+hora y sin sala. No alcanza para crear nada.
+
+La diferencia de fondo es **quién puede saber qué**: el que pide una cabina elige una
+franja libre que el portal le muestra (`GET /api/me/disponibilidad`); el que pide mover
+su clase **no puede saber** qué sala queda libre ni de qué profesor depende. Pide un día,
+o ni eso, y el horario lo pone administración al aprobar.
+
+> Por eso **aprobar es mover**: el "sí" es la franja nueva, no un botón. Un pedido
+> marcado como aprobado con la clase todavía en el día que la persona dijo que no podía
+> no aprobó nada, y nadie se entera — porque el aviso de que la clase se movió solo sale
+> si la clase se movió.

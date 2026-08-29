@@ -147,4 +147,37 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("hasta") LocalDate hasta,
             @Param("cancelada") EstadoAsistencia cancelada,
             @Param("entraron") Iterable<EstadoPago> entraron);
+
+    /**
+     * ¿ESTA reserva es de esta persona?
+     *
+     * <p><b>Misma definición que {@link #deLaPersona} y por eso está pegada a
+     * ella</b>: estar anotado, o haberla pagado con plata que entró. Lo pregunta
+     * el pedido de reprogramación, que necesita la respuesta para una sola fila y
+     * sin rango de fechas — traer el listado entero para buscar un id adentro
+     * funciona hasta el día que la fila queda fuera del rango, y ahí el sistema
+     * contesta "no es tuya" sobre algo que sí lo es.
+     *
+     * <p><b>Lo que esta consulta NO incluye, a propósito, es al profesor.</b> Que
+     * el profesor de una clase pueda pedir moverla (P9) es cierto y lo resuelve
+     * {@code SolicitudReprogramacionService} con un chequeo aparte. Meterlo acá
+     * haría que las clases que dicta le aparezcan entre "sus reservas" como si
+     * fuera el cliente de ellas, que es otra cosa: él las da, no las contrata.
+     */
+    @Query("""
+            SELECT count(r) > 0 FROM Reserva r
+            WHERE r.id = :idReserva
+              AND (EXISTS (SELECT 1 FROM ReservaParticipante rp
+                           WHERE rp.reserva = r
+                             AND rp.usuario.id = :idUsuario
+                             AND rp.estadoAsistencia <> :cancelada)
+                OR EXISTS (SELECT 1 FROM Pago g
+                           WHERE g.reserva = r
+                             AND g.usuario.id = :idUsuario
+                             AND g.estadoPago IN :entraron))
+            """)
+    boolean esDeLaPersona(@Param("idReserva") Long idReserva,
+            @Param("idUsuario") Long idUsuario,
+            @Param("cancelada") EstadoAsistencia cancelada,
+            @Param("entraron") Iterable<EstadoPago> entraron);
 }

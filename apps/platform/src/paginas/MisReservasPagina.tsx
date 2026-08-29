@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
-import { misReservas } from '../api/portal'
-import type { ReservaDelPortal } from '../api/tiposPortal'
+import { misReprogramaciones, misReservas } from '../api/portal'
+import type { ReprogramacionResumen, ReservaDelPortal } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 
 /**
@@ -18,10 +19,15 @@ import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
  * pantalla: esconderlas haría que la clase del martes desaparezca sin que nadie
  * explique nada, y enterarse de que se cayó una clase es justamente para lo que
  * el alumno abre esto.
+ *
+ * **Y es la pantalla donde se pide mover una clase** (Fase 2.4). No hay una
+ * "mis pedidos de cambio": el pedido se hace y se sigue acá, sobre la clase, que
+ * es lo único que lo hace entendible — ver `PedirOtroDia`.
  */
 export function MisReservasPagina() {
   const [desde, setDesde] = useState(() => lunesDe(hoy()))
   const [reservas, setReservas] = useState<ReservaDelPortal[]>([])
+  const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,7 +39,11 @@ export function MisReservasPagina() {
     setCargando(true)
     setError(null)
     try {
-      setReservas(await misReservas(desde, hasta))
+      // Las dos juntas: sin los pedidos, una clase con uno pendiente ofrecería
+      // el botón otra vez y el backend contestaría que ya hay uno esperando.
+      const [agenda, mios] = await Promise.all([misReservas(desde, hasta), misReprogramaciones()])
+      setReservas(agenda)
+      setPedidos(mios)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudieron cargar tus reservas.')
     } finally {
@@ -44,6 +54,17 @@ export function MisReservasPagina() {
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  /**
+   * El pedido de cada clase. La lista viene de lo más nuevo a lo más viejo, así
+   * que el primero que aparece por reserva es el vigente: una clase que se pidió
+   * mover, se rechazó y se volvió a pedir tiene dos, y el que importa es el
+   * último.
+   */
+  const pedidoDe = new Map<number, ReprogramacionResumen>()
+  for (const p of pedidos) {
+    if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
+  }
 
   return (
     <div>
@@ -114,7 +135,7 @@ export function MisReservasPagina() {
                 </div>
               </div>
 
-              <div className="text-right text-xs">
+              <div className="flex items-center gap-4 text-right text-xs">
                 {caida ? (
                   <span className="font-medium text-acento">
                     {r.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}
@@ -122,6 +143,12 @@ export function MisReservasPagina() {
                 ) : (
                   <Asistencia estado={r.miAsistencia} />
                 )}
+
+                <PedirOtroDia
+                  reserva={r}
+                  pedido={pedidoDe.get(r.idReserva)}
+                  onPedido={() => void cargar()}
+                />
               </div>
             </li>
           )

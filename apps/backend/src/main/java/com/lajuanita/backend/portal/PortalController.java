@@ -25,8 +25,11 @@ import com.lajuanita.backend.portal.dto.CatalogoParaPedir;
 import com.lajuanita.backend.portal.dto.FranjaOcupada;
 import com.lajuanita.backend.portal.dto.ProgresoDelCurso;
 import com.lajuanita.backend.portal.dto.ReservaDelPortal;
+import com.lajuanita.backend.solicitud.SolicitudReprogramacionService;
 import com.lajuanita.backend.solicitud.SolicitudReservaService;
+import com.lajuanita.backend.solicitud.dto.AltaReprogramacionRequest;
 import com.lajuanita.backend.solicitud.dto.AltaSolicitudRequest;
+import com.lajuanita.backend.solicitud.dto.ReprogramacionResumen;
 import com.lajuanita.backend.solicitud.dto.SolicitudResumen;
 
 import jakarta.validation.Valid;
@@ -62,13 +65,16 @@ public class PortalController {
 
     private final PortalService portal;
     private final SolicitudReservaService solicitudes;
+    private final SolicitudReprogramacionService reprogramaciones;
     private final NotificacionService avisos;
 
     public PortalController(PortalService portal,
             SolicitudReservaService solicitudes,
+            SolicitudReprogramacionService reprogramaciones,
             NotificacionService avisos) {
         this.portal = portal;
         this.solicitudes = solicitudes;
+        this.reprogramaciones = reprogramaciones;
         this.avisos = avisos;
     }
 
@@ -160,6 +166,41 @@ public class PortalController {
     @PatchMapping("/solicitudes/{id}/cancelacion")
     public SolicitudResumen cancelarSolicitud(@PathVariable Long id, Authentication quienPide) {
         return solicitudes.cancelar(id, Autoridades.idDe(quienPide));
+    }
+
+    // == Mover una clase =====================================================
+
+    /**
+     * Lo que pedí mover, en todos los estados.
+     *
+     * <p>No tiene pantalla propia: la pantalla es <b>Mis reservas</b>, que cruza
+     * esta lista por {@code idReserva} y muestra en cada clase si hay un pedido
+     * esperando o qué contestaron. Un pedido de mover algo se entiende al lado de
+     * la cosa que se quiere mover, no en una lista aparte.
+     */
+    @GetMapping("/reprogramaciones")
+    public List<ReprogramacionResumen> misReprogramaciones(Authentication quienPide) {
+        return reprogramaciones.mios(Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * "No puedo ese día".
+     *
+     * <p><b>Esto no mueve la clase</b>, igual que pedir una sala no crea la
+     * reserva: la mueve administración al aprobar, eligiendo el horario nuevo — que
+     * es lo que quien pide no puede saber (qué sala queda libre, de qué profesor
+     * depende). Ver {@code SolicitudReprogramacion}.
+     *
+     * <p>Lo puede pedir el alumno <b>y el profesor de esa clase</b> (P9): es el
+     * mismo endpoint, y lo que cambia es desde qué pantalla se entra.
+     */
+    @PostMapping("/reprogramaciones")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ReprogramacionResumen pedirMoverLaClase(
+            @Valid @RequestBody AltaReprogramacionRequest pedido,
+            Authentication quienPide) {
+
+        return reprogramaciones.pedir(pedido, Autoridades.idDe(quienPide));
     }
 
     // == Mis notificaciones ==================================================

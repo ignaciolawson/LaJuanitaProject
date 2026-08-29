@@ -2,9 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
 import { miAgenda, misClasesDictadas } from '../api/docencia'
+import { misReprogramaciones } from '../api/portal'
 import type { ReservaResumen } from '../api/tiposAdmin'
 import type { ClasesDictadas } from '../api/tiposDocencia'
+import type { ReprogramacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 
 /**
@@ -19,14 +22,18 @@ import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
  * *"cuándo tengo que venir"*, y para eso una lista en orden gana. Es la misma
  * decisión que tomó `MisReservasPagina`.
  *
- * **El profesor no modifica reservas, y no es un botón que falte**: mover una
- * clase vuelve a chequear el solapamiento y arrastra la seña, así que es de
- * administración. No hay endpoint para eso en este módulo y no hay que agregarlo.
+ * **El profesor no modifica reservas, y sigue sin hacerlo**: mover una clase
+ * vuelve a chequear el solapamiento y arrastra la seña, así que la mueve
+ * administración. Lo que sí puede desde el 2026-08-29 es **pedir que la muevan**
+ * (P9), con el mismo botón que el alumno — es el que más veces lo necesita, y
+ * hasta ahora eso viajaba por WhatsApp y no quedaba escrito en ningún lado. El
+ * botón es `PedirOtroDia`, el mismo componente que dibuja Mis reservas.
  */
 export function MiAgendaPagina() {
   const [desde, setDesde] = useState(() => lunesDe(hoy()))
   const [clases, setClases] = useState<ReservaResumen[]>([])
   const [dictadas, setDictadas] = useState<ClasesDictadas | null>(null)
+  const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,12 +45,14 @@ export function MiAgendaPagina() {
     try {
       // Las dos preguntas son del mismo período a propósito: el resumen cuenta
       // lo que la lista de arriba muestra, así que no pueden discrepar.
-      const [agenda, resumen] = await Promise.all([
+      const [agenda, resumen, mios] = await Promise.all([
         miAgenda(desde, hasta),
         misClasesDictadas(desde, hasta),
+        misReprogramaciones(),
       ])
       setClases(agenda)
       setDictadas(resumen)
+      setPedidos(mios)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cargar tu agenda.')
     } finally {
@@ -58,6 +67,12 @@ export function MiAgendaPagina() {
   const ordenadas = [...clases].sort(
     (a, b) => a.fecha.localeCompare(b.fecha) || a.horaInicio.localeCompare(b.horaInicio),
   )
+
+  /** El pedido vigente de cada clase: la lista viene de lo más nuevo a lo más viejo. */
+  const pedidoDe = new Map<number, ReprogramacionResumen>()
+  for (const p of pedidos) {
+    if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
+  }
 
   return (
     <div>
@@ -145,6 +160,12 @@ export function MiAgendaPagina() {
                   {c.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}
                 </span>
               )}
+
+              <PedirOtroDia
+                reserva={c}
+                pedido={pedidoDe.get(c.idReserva)}
+                onPedido={() => void cargar()}
+              />
             </li>
           )
         })}
