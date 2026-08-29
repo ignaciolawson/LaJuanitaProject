@@ -637,7 +637,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (séptima tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (octava tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -669,9 +669,9 @@ Tres cosas para ese momento:
 
 ### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-29
 
-## ✅ FASE 1 CERRADA Y FASE 2 A LA MITAD
+## ✅ FASE 1 CERRADA Y FASE 2 CON 3 DE 4
 
-**Suites: 503 backend · 384 front · 189 + 51 SQL, sobre 19 migraciones.**
+**Suites: 518 backend · 393 front · 198 + 51 SQL, sobre 20 migraciones.**
 
 Ya no se construyen módulos: **estamos en la etapa de mejoras**, y el plan de fases
 vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
@@ -680,10 +680,45 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 |---|---|
 | **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. Quedan dos cosas que **no dependen de nadie sentado a programar**: reproducir el bug #8 y esperar que el test flaky caiga en CI |
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
-| **2 · Backend sin esquema** | **2 de 4 hechos.** Faltan el buzón de solicitantes y solicitar reprogramación |
+| **2 · Backend sin esquema** | **3 de 4 hechos.** El buzón de solicitantes cerró hoy (`V20`). **Falta solicitar reprogramación**, que es lo más grande de lo que queda — y, por carril aparte, conectar los formularios de la landing contra el endpoint que el buzón dejó hecho |
 | **3 · Diseño** | Bloqueada hasta que se congele la lista. El contenido del Inicio ya está decidido en `mejoras.md` §11 |
 
-### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA
+### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: EL BUZÓN DE LA WEB
+
+**`V20__el_buzon_de_solicitantes.sql`, paquete `com.lajuanita.backend.solicitante`,
+pantalla `/admin/buzon`** — Fase 2.2 de [`mejoras.md`](mejoras.md), hallazgo #7. Es
+la mitad que **recibe** los formularios de la landing; conectarlos es la tanda que
+sigue, y el contrato de lo que tienen que mandar está en `mejoras.md` §9.10.
+
+Lo que decidió, más allá de lo que §9.4 ya dejaba escrito:
+
+- **Es una TABLA y no una notificación**, que era la corrección de diseño de §9.4:
+  una notificación se lee y se va; un solicitante tiene ciclo de vida, y lo que el
+  buzón garantiza es **que quede la lista de a quién no se contestó**. Por eso no
+  hay estado "leído": las dos acciones que ofrece la cierran —darle cuenta, o
+  descartar con motivo—. Un "marcar como visto" habría dejado el mismo agujero.
+- **El formulario de equipos entra también** (Ignacio, 2026-08-29). §9.4 nombraba
+  tres flujos y la landing tiene cuatro formularios; el cuarto era igual de mudo y
+  su circuito termina en `/admin/ventas`, una pantalla que ya existe.
+- **`POST /api/solicitantes` es la primera escritura pública fuera de auth**, y el
+  matcher de `SeguridadConfig` es por **método**: abrir la ruta entera publicaría
+  `GET /api/solicitantes`, que es el buzón con el teléfono y el mail de todos.
+  Hay un caso de la suite que pide el listado sin credencial y espera 401.
+- **Convertir tiene dos caminos y los dos terminan igual.** El segundo —la persona
+  ya tenía cuenta— no es un borde raro: un alumno de un año que pide la cabina
+  desde la web llega exactamente así, y con un solo camino esa ficha choca contra
+  `usuario_email_unico` para siempre. `passwordTemporal` viene null ahí, y la
+  pantalla lo dice en vez de dejar el hueco.
+- **No se escribe un aviso por cada ficha que entra, y está anotado como decisión.**
+  Es el único escritor público del sistema: un aviso por formulario es uno por cada
+  bot, multiplicado por cada ADMIN y STAFF — el modo de falla que `AvisoService`
+  tiene escrito en su propia cabecera. Si hace falta avisar, la forma correcta es
+  un aviso del disparador (*"3 fichas sin contestar hace más de 48 horas"*).
+- **Nombre y apellido son dos columnas**, y el formulario va a tener que pedirlos
+  separados. Es la lección de `V4` aplicada a tiempo: allá hubo que partir una
+  columna adivinando dónde terminaba el nombre.
+
+### 📚 LA TANDA ANTERIOR, DEL MISMO DÍA: `V19` Y LOS PAGOS
 
 **1 · `V19`, la primera migración que no es de un módulo sino de la etapa de mejoras.**
 Dos reglas en **una sola** migración porque tocan la misma tabla: `pago.id_usuario`
@@ -742,14 +777,15 @@ adentro.
 
 ### ⏭️ LO PRÓXIMO, EN ORDEN
 
-1. **El buzón de solicitantes** (`mejoras.md` §9.4) — tabla nueva + bandeja, y el resto
-   es reutilizar pantallas que ya existen. **Ojo con dos cosas que ya están decididas**:
-   es una **tabla**, no una notificación (un solicitante tiene ciclo de vida; una
-   notificación se lee y se va), y **la contraseña se comunica por WhatsApp, no por
-   mail** — no hay infraestructura de correo y está decidido que no la habrá.
-2. **Solicitar reprogramación** (`mejoras.md` §8 #2 y §5 #3) — **el más grande de lo que
-   queda**: endpoint + pantalla del portal + pantalla de admin. La tabla
-   `solicitud_reprogramacion` y su trigger existen desde `V1`.
+1. **Solicitar reprogramación** (`mejoras.md` §8 #2 y §5 #3) — **lo más grande de lo que
+   queda de la Fase 2**: endpoint + pantalla del portal + pantalla de admin. La tabla
+   `solicitud_reprogramacion` y su trigger existen desde `V1`, y `V13` §4 ya le puso
+   el candado de "una solicitud resuelta es final".
+2. **Conectar los cuatro formularios de la landing** contra `POST /api/solicitantes`.
+   Va por carril aparte porque es otra app: CORS, una URL de API configurable y los
+   cuatro `onSubmit`. **No es solo el `onSubmit`**: hay que partir *"Nombre y
+   apellido"* en dos campos y hacer obligatorio el teléfono. El contrato completo
+   está en `mejoras.md` §9.10.
 3. **El rediseño**, cuando se congele la lista (~11/09). El contenido del Inicio por
    perfil ya está decidido en `mejoras.md` §11 y **no falta ningún endpoint**: es
    armado, no desarrollo.

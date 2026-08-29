@@ -68,7 +68,7 @@ No hace falta que sea prolijo ni que esté ordenado: eso lo hace el triage.
 |---|---|---|
 | **A · Front puro** | Estilos, textos, orden de una pantalla, qué se ve primero | Entra en la pasada de rediseño, todo junto |
 | **B · Backend sin tocar el esquema** | Un endpoint nuevo que solo lee, un filtro, un cálculo | Ordenado y con tests, de a uno |
-| **C · ⚠️ Backend que toca una regla o el esquema** | Una columna nueva, un CHECK, un trigger, cambiar qué es válido | **Migración nueva (`V20`+ — `V19` ya se usó), y la disciplina completa** |
+| **C · ⚠️ Backend que toca una regla o el esquema** | Una columna nueva, un CHECK, un trigger, cambiar qué es válido | **Migración nueva (`V21`+ — `V19` y `V20` ya se usaron), y la disciplina completa** |
 
 **El grupo C es el que no se puede hacer a las apuradas, y la razón es la misma
 que rigió todo el proyecto: las migraciones son inmutables y se acumulan.** Una
@@ -182,7 +182,7 @@ contraseña de desarrollo.
 | 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | ✅ **HECHO** · §9.8 |
 | 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | ✅ **HECHO** · §9.9 |
 | 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
-| 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ Decidido · §9.4 |
+| 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | 🟡 **Buzón HECHO** (`V20`) · faltan los formularios de la landing · §9.4 |
 | 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
 | 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ⏳ §9.6 |
 
@@ -307,6 +307,54 @@ puede existir.
 ficha de solicitante, pero un interesado que nunca contesta no es lo mismo que
 uno que se anotó. Si con el uso aparece la necesidad de distinguirlos, es un
 estado más en la misma tabla, no una tabla nueva.
+
+### 9.10 · El buzón, construido el 2026-08-29 — y las tres cosas que decidió
+
+**`V20__el_buzon_de_solicitantes.sql`, paquete `com.lajuanita.backend.solicitante`,
+pantalla `/admin/buzon`.** Suites: **518 backend · 393 front · 198 + 51 SQL** sobre
+20 migraciones. Lo que §9.4 dejaba dicho se respetó entero —tabla y no
+notificación, un solo buzón, la contraseña por WhatsApp— y lo que hubo que
+decidir arriba de eso es esto:
+
+**1 · El formulario de equipos entra también** (Ignacio, 2026-08-29). §9.4 nombraba
+tres flujos y la landing tiene **cuatro** formularios: el de consulta de equipos
+existía y era igual de mudo. El circuito es idéntico hasta el final, que es
+`/admin/ventas`. Costó un valor más en el enum y cierra el hallazgo #7 entero en
+vez de dejar un formulario sin destino.
+
+**2 · No se escribe una notificación por cada ficha que entra.** §9.4 usaba el par
+*"tabla + notificación que la anuncia"* de `V13` como modelo, y la segunda mitad
+quedó afuera **a propósito**: este es el único escritor público del sistema, así
+que un aviso por formulario es un aviso por cada bot, multiplicado por cada ADMIN
+y STAFF — exactamente el modo de falla que `AvisoService` tiene escrito en su
+cabecera. Y no hace falta para lo que el buzón garantiza: §9.4 dice que lo que
+evita perder gente es **que quede la lista**. Si con el uso resulta que hay que
+avisar, la forma correcta es un aviso del disparador —*"hay 3 fichas sin contestar
+hace más de 48 horas"*—, que es uno por hecho y no uno por formulario. **Está
+anotado acá para que no se lea como un olvido.**
+
+**3 · Convertir tiene dos caminos, y el segundo no es un borde raro.** Un alumno
+que cursa hace un año y pide la cabina desde la web llega con una ficha cuyo mail
+**ya tiene cuenta**. Con un solo camino esa ficha choca contra
+`usuario_email_unico` y queda trabada para siempre, o se descarta como si el
+pedido no valiera. Los dos terminan igual —ficha CONVERTIDA apuntando a una
+cuenta—, y lo único que cambia es si hay contraseña para pasar por WhatsApp:
+`passwordTemporal` viene **null** en el segundo y la pantalla lo dice, porque un
+campo vacío ahí deja a quien atiende esperando un dato que no existe.
+
+> ⚠️ **Lo que la landing tiene que mandar, para la tanda que sigue.**
+> `POST /api/solicitantes`, público, sin credencial:
+> `nombre`, `apellido`, `email`, `telefono` (**los cuatro obligatorios**),
+> `interes` (`CURSO` · `ALQUILER_CABINA` · `GRABACION_SET` · `EQUIPOS` · `OTRO`),
+> y opcionales `detalle` —el resto del formulario armado en texto por la landing,
+> *"Programa DJ · presencial · sin experiencia"*— y `mensaje`.
+>
+> **Dos cosas que obligan a tocar los formularios y no solo el `onSubmit`:**
+> hoy piden *"Nombre y apellido"* en **un** campo y acá son dos (es la lección de
+> `V4`: partir después es adivinar dónde termina el nombre), y el teléfono
+> **es obligatorio** — la contraseña temporal viaja por WhatsApp, así que una
+> ficha sin teléfono no se puede convertir, y enterarse al querer atenderla es
+> tarde.
 
 ### 9.8 · El alta de pagos acepta los cuatro destinos (hallazgo #4) — HECHO
 
@@ -453,10 +501,18 @@ De más barato a más caro:
 |---|---|---|
 | ~~2.3~~ | ~~**#4** pago de un no-alumno~~ | ✅ **HECHO el 2026-08-29** — se hizo junto con el front de `V19`, porque son la misma pantalla (§9.8) |
 | ~~2.1~~ | ~~**#5** comprobante al aprobar seña~~ | ✅ **HECHO el 2026-08-29** (§9.9) |
-| 2.2 | **9.4** buzón de solicitantes + formularios de la landing | Medio — tabla nueva, bandeja, y el resto es reutilizar pantallas |
+| ~~2.2a~~ | ~~**9.4** buzón de solicitantes~~ | ✅ **HECHO el 2026-08-29** — `V20`, paquete `solicitante`, `/admin/buzon`. Ver §9.10 |
+| 2.2b | **9.4** conectar los cuatro formularios de la landing | Chico y de otra app — CORS, URL de API configurable, y los cuatro `onSubmit`. El endpoint ya existe y se puede probar con `curl` |
 | 2.4 | **#2 + §5 #3** solicitar reprogramación | **El más grande** — endpoint + pantalla del portal + pantalla de admin. La tabla y el trigger están desde `V1` |
 
 *(La vieja 2.3 —disponibilidad al pedir— se cayó por §9.2.)*
+
+> ⚠️ **El título de esta fase quedó a medias y conviene saberlo:** el buzón **sí
+> tocó el esquema** (`V20`, tabla nueva) — ya estaba anotado como *"tabla nueva"*
+> cuando se planificó, así que no fue una sorpresa, pero por el triage de §4 era
+> grupo **C** y no B. Se hizo con la disciplina completa que el grupo C pide:
+> preguntas de negocio contestadas antes de escribir código, y casos en las dos
+> suites. Lo que queda de la fase (2.2b y 2.4) sí es backend sin esquema.
 
 ### Fase 3 · El diseño, una sola pasada
 

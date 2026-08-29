@@ -18,8 +18,10 @@
 > **⚠️ Al 2026-08-29 la etapa de mejoras ya está en marcha y produjo su primera
 > migración.** `mejoras.md` §9 tiene **las decisiones cerradas** y §10 **el plan de
 > fases**, que es lo que gobierna qué se hace ahora. Estado: **Fase 1 cerrada
-> (`V19`), Fase 2 con 2 de 4 hechos.** Los hallazgos 1, 4, 5 y 6 de su §8 están
-> construidos.
+> (`V19`), Fase 2 con 3 de 4 hechos** — el buzón de solicitantes cerró el mismo
+> 2026-08-29 (`V20`, §9.10). Los hallazgos 1, 4, 5, 6 y **la mitad del 7** de su
+> §8 están construidos; del 7 falta conectar los formularios de la landing, que
+> es trabajo de esa otra app contra un endpoint que ya existe.
 >
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
@@ -110,7 +112,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V20`+, porque `V19` ya se usó** para los pagos sin cuenta.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V21`+, porque `V19` ya se usó** para los pagos sin cuenta y **`V20`** para el buzón de solicitantes.
 
 ---
 
@@ -125,7 +127,7 @@ Lo que hay que hacer antes de publicar, y **ninguno depende de código**:
 
 | Qué | Dónde | Por qué importa |
 |---|---|---|
-| **Conectar los formularios** | `components/forms/Fields.tsx` y `LoginForm.tsx` | Son los dos `onSubmit`. Hoy no mandan nada |
+| **Conectar los formularios** | `components/forms/Fields.tsx` y `LoginForm.tsx` | Son los dos `onSubmit`. Hoy no mandan nada. ⚠️ **Ya tienen a dónde ir**: `POST /api/solicitantes` existe desde el 2026-08-29 (`mejoras.md` §9.10 tiene el contrato). Ojo que obliga a **partir "Nombre y apellido" en dos campos** y a hacer el teléfono obligatorio |
 | ⚠️ **Los precios inventados** | `data/services.ts` | Son **números sobre los que un cliente decide**. Es el ítem de más riesgo de toda la landing |
 | ⚠️ **P34 — la duración de los cursos no coincide** | landing vs. relevamiento | Landing: DJ 6 meses / 2 clases semanales. Confirmado: DJ 8 clases, 1 por semana. **Alguno de los dos está mal** |
 | ⚠️ **Mix & Mastering aparece como programa de 3 meses** | landing | **No existe como programa** (P31): es un servicio. Lo inventó la landing |

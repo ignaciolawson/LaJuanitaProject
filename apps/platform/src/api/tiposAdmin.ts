@@ -482,3 +482,82 @@ export const NOMBRE_DE_ESTADO_PAGO: Record<EstadoPago, string> = {
   VENCIDO: 'Vencido',
   ANULADO: 'Anulado',
 }
+
+// -- El buzón de solicitantes (V20, hallazgo #7) -----------------------------
+
+export type EstadoSolicitante = 'PENDIENTE' | 'CONVERTIDO' | 'DESCARTADO'
+
+export const NOMBRE_DE_ESTADO_SOLICITANTE: Record<EstadoSolicitante, string> = {
+  PENDIENTE: 'Sin contestar',
+  CONVERTIDO: 'Ya tiene cuenta',
+  DESCARTADO: 'Descartada',
+}
+
+/**
+ * Qué pidió. **Decide a qué pantalla va quien la atiende**, que es lo único que
+ * la ficha tiene que decir: un curso termina en Inscripciones, una cabina o una
+ * grabación en el Calendario, una consulta de equipos en Venta de equipos.
+ *
+ * Espeja `InteresDelSolicitante`. Mix & Mastering no está a propósito: llega por
+ * WhatsApp a Ghezz y se carga a mano (§14, P23).
+ */
+export type InteresDelSolicitante =
+  | 'CURSO'
+  | 'ALQUILER_CABINA'
+  | 'GRABACION_SET'
+  | 'EQUIPOS'
+  | 'OTRO'
+
+export const NOMBRE_DE_INTERES: Record<InteresDelSolicitante, string> = {
+  CURSO: 'Un curso',
+  ALQUILER_CABINA: 'Alquilar la cabina',
+  GRABACION_SET: 'Grabar un set',
+  EQUIPOS: 'Comprar equipos',
+  OTRO: 'Otra cosa',
+}
+
+/**
+ * A dónde sigue el trámite después de convertir la ficha. Es la razón de ser de
+ * `interes`, y vive acá y no adentro de la pantalla para que se lea junto con la
+ * tabla de nombres: son la misma decisión mirada dos veces.
+ */
+export const DONDE_SIGUE: Record<InteresDelSolicitante, { texto: string; ruta: string } | null> = {
+  CURSO: { texto: 'Cargale la inscripción', ruta: '/admin/inscripciones' },
+  ALQUILER_CABINA: { texto: 'Cargale la reserva', ruta: '/admin/reservas' },
+  GRABACION_SET: { texto: 'Cargale la reserva', ruta: '/admin/reservas' },
+  EQUIPOS: { texto: 'Cargale la venta', ruta: '/admin/ventas' },
+  OTRO: null,
+}
+
+/** Una ficha del buzón. Espeja `SolicitanteResumen`. */
+export type SolicitanteResumen = {
+  idSolicitante: number
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
+  interes: InteresDelSolicitante
+  detalle: string | null
+  mensaje: string | null
+  estado: EstadoSolicitante
+  /** Nota interna de quien la atendió. Obligatoria si se descartó. */
+  respuesta: string | null
+  resueltaPor: string | null
+  idUsuario: number | null
+  fechaResolucion: string | null
+  fechaCreacion: string
+}
+
+/**
+ * Lo que devuelve convertir. Espeja `ConversionRealizada`.
+ *
+ * `passwordTemporal` viene **null cuando la persona ya tenía cuenta**, que es el
+ * otro camino de la conversión. No es un dato que falte: es la diferencia entre
+ * "copiá esto y mandáselo" y "ya tiene la suya, no le mandes nada".
+ */
+export type ConversionRealizada = {
+  solicitante: SolicitanteResumen
+  usuario: UsuarioResumen
+  passwordTemporal: string | null
+  cuentaNueva: boolean
+}

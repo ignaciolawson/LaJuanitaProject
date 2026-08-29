@@ -194,11 +194,16 @@ public class SeguridadConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Los dos únicos endpoints abiertos: pedir la credencial
-                        // y crearse una cuenta. Los dos son POST y nada más:
-                        // abrir la ruta entera expondría métodos que no existen.
+                        // Los tres únicos endpoints abiertos: pedir la credencial,
+                        // crearse una cuenta y mandar un formulario de la landing.
+                        // Los tres son POST y nada más: abrir la ruta entera
+                        // expondría métodos que no existen -- y en el tercero
+                        // expondría uno que sí existe, `GET /api/solicitantes`,
+                        // que es el buzón con los teléfonos y mails de todos los
+                        // que escribieron.
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/registro").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/solicitantes").permitAll()
                         // El preflight de CORS viaja sin Authorization por definición.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // /error NO es un endpoint: es el reenvío interno al que

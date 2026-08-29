@@ -21,7 +21,7 @@
 -- distinto de cero si algún caso falla**. Corre también en CI
 -- (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-19, 50/50 sobre el esquema V1..V13.
+-- Última corrida: 2026-08-29, 51/51 sobre el esquema V1..V20.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES: el script lee el
 -- directorio y las aplica en orden de versión, así que una migración nueva

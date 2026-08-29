@@ -10,7 +10,7 @@
 -- con todas las migraciones aplicadas, y **sale con código distinto de cero si
 -- algún caso falla**. Corre también en CI (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-19, 157/157 sobre el esquema V1..V13.
+-- Última corrida: 2026-08-29, 198/198 sobre el esquema V1..V20.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES, y es a propósito. Antes
 -- estaban acá los nueve comandos con las ocho migraciones nombradas una por
@@ -1477,6 +1477,72 @@ SELECT probar('172','corregir solo el concepto no exige autor','ANDA',
 SELECT probar('173','anular sigue exigiendo motivo, no alcanza con el autor','FALLA',
  $q$UPDATE pago SET estado_pago='ANULADO', id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
+
+
+
+-- =============================================================================
+-- EL BUZON DE SOLICITANTES  (V20)
+--
+-- La unica tabla que escribe gente SIN CUENTA: lo que llega de los formularios
+-- de la web. Lo que se prueba aca es el ciclo de vida de la ficha, que es lo
+-- unico que la hace servir para algo — una ficha que se puede reabrir, o borrar,
+-- o cerrar sin decir nada, no es una lista de "a quien no conteste".
+-- =============================================================================
+
+SELECT probar('174','entra una ficha de la web','ANDA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,detalle)
+    VALUES ('Camila','Rios','camila@web.local','11-5555-0001','CURSO','Programa DJ')$q$);
+
+-- El CHECK y no un FK: dos de los cinco valores no son usos de una sala.
+SELECT probar('175','pedir algo que la web no ofrece','FALLA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes)
+    VALUES ('Bot','Bot','bot@web.local','11-5555-0002','MIX_MASTERING')$q$);
+
+SELECT probar('176','cerrar una ficha sin decir quien ni cuando','FALLA',
+ $q$UPDATE solicitante SET estado='DESCARTADO', respuesta='spam'
+    WHERE email='camila@web.local'$q$);
+
+-- Sin motivo no hay descarte: sin el, "spam" y "llame tres veces y no atiende"
+-- se ven igual, y son decisiones opuestas.
+SELECT probar('177','descartar sin motivo','FALLA',
+ $q$UPDATE solicitante SET estado='DESCARTADO',
+        id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+    WHERE email='camila@web.local'$q$);
+
+-- Y la mitad de `V7` que sigue viva: un motivo NULL pasaba con `btrim(x) <> ''`,
+-- porque un CHECK que evalua a NULL no rechaza nada. Este caso lo mira de frente.
+SELECT probar('178','descartar con un motivo de puros espacios','FALLA',
+ $q$UPDATE solicitante SET estado='DESCARTADO', respuesta='   ',
+        id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+    WHERE email='camila@web.local'$q$);
+
+-- Una ficha CONVERTIDA sin cuenta miente: dice que la persona entro al sistema y
+-- no hay a quien cargarle nada.
+SELECT probar('179','convertir sin apuntar a ninguna cuenta','FALLA',
+ $q$UPDATE solicitante SET estado='CONVERTIDO',
+        id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+    WHERE email='camila@web.local'$q$);
+
+SELECT probar('180','convertir apuntando a la cuenta','ANDA',
+ $q$UPDATE solicitante SET estado='CONVERTIDO', id_usuario=(SELECT u_juan FROM v),
+        id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
+    WHERE email='camila@web.local'$q$);
+
+-- El esquive: convertir (nace una cuenta con su password temporal), volver la
+-- ficha a PENDIENTE y convertirla otra vez. Dos cuentas para la misma persona.
+-- Con `probar_mensaje` porque el rechazo viene de un TRIGGER — el de `V13`,
+-- reusado sin tocarlo — y un 'FALLA' que no mira el mensaje no distingue una
+-- regla que anda de un trigger que revienta antes de su propio RAISE (`V16`).
+SELECT probar_mensaje('181','reabrir una ficha ya atendida',
+ 'ya fue resuelta',
+ $q$UPDATE solicitante SET estado='PENDIENTE' WHERE email='camila@web.local'$q$);
+
+-- Se descarta, no se borra. Y el mensaje tiene que nombrar ESTA tabla: la
+-- enumeracion es su mitad util (`V18`), porque quien choca necesita saber como se
+-- retira la fila que tiene delante.
+SELECT probar_mensaje('182','borrar una ficha en vez de descartarla',
+ 'solicitante -> DESCARTADO',
+ $q$DELETE FROM solicitante WHERE email='camila@web.local'$q$);
 
 
 -- =============================================================================

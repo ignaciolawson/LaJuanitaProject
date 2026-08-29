@@ -101,6 +101,16 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       {
+        // El buzón de la web (hallazgo #7). Va acá arriba, entre Personas y el
+        // Calendario, y no al final: es lo primero que hay que mirar a la mañana
+        // —del otro lado hay alguien esperando que lo llamen— y es la única
+        // pantalla del sistema cuyo contenido lo escribe gente de afuera.
+        etiqueta: 'Buzón de la web',
+        ruta: '/admin/buzon',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
         etiqueta: 'Salas bloqueadas',
         ruta: '/admin/bloqueos',
         visible: puedeAdministrar,

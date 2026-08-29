@@ -17,8 +17,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * Límite por IP sobre los tres endpoints que valen la pena atacar: pedir una
- * credencial, crear una cuenta y cambiar una contraseña.
+ * Límite por IP sobre los cuatro endpoints que valen la pena atacar: pedir una
+ * credencial, crear una cuenta, cambiar una contraseña y mandar un formulario de
+ * la landing.
  *
  * <p>El límite <b>por email</b> vive en {@code SesionService} y no acá. No es
  * una omisión: el email viaja en el cuerpo del pedido, y leer el cuerpo desde un
@@ -41,7 +42,13 @@ public class FiltroDeFrecuencia extends OncePerRequestFilter {
     private static final Set<String> RUTAS_VIGILADAS = Set.of(
             "/api/auth/login",
             "/api/auth/registro",
-            "/api/me/password");
+            "/api/me/password",
+            // El formulario de la landing. Es el único de los cuatro que no vale
+            // la pena atacar por lo que devuelve —no da ni una credencial ni una
+            // cuenta— sino por lo que deja: filas que no se pueden borrar (`V20`)
+            // en la pantalla que Micaela abre todas las mañanas. Un buzón con
+            // diez mil fichas de bot adentro no está protegido por ser inofensivo.
+            "/api/solicitantes");
 
     private final LimitadorDeIntentos limitador;
     private final RegistroDeEventos eventos;

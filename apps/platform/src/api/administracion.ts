@@ -6,10 +6,12 @@ import type {
   AlumnoResumen,
   BloqueoResumen,
   CajaDelPeriodo,
+  ConversionRealizada,
   Deudor,
   EgresoResumen,
   EstadoDeCuenta,
   EstadoPago,
+  EstadoSolicitante,
   MedioPago,
   PagoResumen,
   Disciplina,
@@ -26,6 +28,7 @@ import type {
   ProfesorResumen,
   ReservaResumen,
   SalaResumen,
+  SolicitanteResumen,
   TipoUsoResumen,
   UsoDeSala,
   UsuarioCreado,
@@ -701,5 +704,39 @@ export function cambiarMiPassword(passwordActual: string, passwordNueva: string)
   return pedir<void>('/api/me/password', {
     metodo: 'POST',
     cuerpo: { passwordActual, passwordNueva } satisfies CambioPasswordRequest,
+  })
+}
+
+// -- El buzón de solicitantes (hallazgo #7) ---------------------------------
+
+/**
+ * El buzón. Sin filtro trae todo; la pantalla abre en lo que nadie contestó.
+ *
+ * El alta **no está acá y no debería estar**: la escribe la landing, que es otra
+ * aplicación, contra el único POST público de la API. Este módulo es el de las
+ * pantallas de administración.
+ */
+export function listarSolicitantes(opciones: { estado?: EstadoSolicitante; pagina?: number }) {
+  return pedir<Pagina<SolicitanteResumen>>(
+    `/api/solicitantes${query({ estado: opciones.estado, pagina: opciones.pagina })}`,
+  )
+}
+
+/**
+ * Convertir la ficha en cuenta.
+ *
+ * Es POST y no PATCH porque crea un recurso —una cuenta que no existía—; el
+ * cambio de estado de la ficha es la consecuencia. Si la persona ya tenía cuenta,
+ * la vincula: mismo endpoint, y `cuentaNueva` dice cuál de los dos pasó.
+ */
+export function convertirSolicitante(id: number) {
+  return pedir<ConversionRealizada>(`/api/solicitantes/${id}/conversion`, { metodo: 'POST' })
+}
+
+/** Descartar, diciendo por qué. El motivo lo exige la base, no solo la pantalla. */
+export function descartarSolicitante(id: number, motivo: string) {
+  return pedir<SolicitanteResumen>(`/api/solicitantes/${id}/descarte`, {
+    metodo: 'PATCH',
+    cuerpo: { motivo },
   })
 }
