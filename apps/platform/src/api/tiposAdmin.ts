@@ -311,10 +311,22 @@ export type DestinoDePago = 'INSCRIPCION' | 'RESERVA' | 'TRABAJO_MASTERING' | 'V
 /** Una fila del listado de pagos. Espeja `PagoResumen`. */
 export type PagoResumen = {
   idPago: number
-  idUsuario: number
-  nombre: string
-  apellido: string
-  email: string
+  /**
+   * **Null si quien pagó no tiene cuenta** (`V19`). Los cuatro campos de la
+   * persona vienen juntos: o están los cuatro, o no está ninguno.
+   *
+   * Para mostrar el nombre usá `pagador`, que siempre tiene valor. Estos cuatro
+   * sirven para lo que *solo* se puede hacer con una cuenta — cruzar el estado
+   * de cuenta, mandarle algo.
+   */
+  idUsuario: number | null
+  nombre: string | null
+  apellido: string | null
+  email: string | null
+  /** Cómo se llama quien pagó, tenga cuenta o no. **Siempre tiene valor.** */
+  pagador: string
+  /** Si no tiene cuenta. La fila lo marca y no se le puede cruzar el estado de cuenta. */
+  pagadorSinCuenta: boolean
   destino: DestinoDePago
   idDestino: number
   /** Ya legible, resuelto en el servidor: "DJ · INICIAL", "Sala 2 · 14/08 10:00". */
@@ -385,10 +397,15 @@ export type CajaDelPeriodo = {
 
 /** Espeja `Deudor`. `diasDeAtraso` se cuenta desde el renglón más viejo. */
 export type Deudor = {
-  idUsuario: number
+  /**
+   * **Null si el deudor no tiene cuenta** (`V19`). Entra igual a esta pantalla:
+   * una deuda que no aparece acá es una deuda que nadie va a ir a cobrar.
+   * Lo que no tiene es estado de cuenta al que linkear.
+   */
+  idUsuario: number | null
   nombre: string
-  apellido: string
-  email: string
+  apellido: string | null
+  email: string | null
   telefono: string | null
   moneda: Moneda
   adeudado: number

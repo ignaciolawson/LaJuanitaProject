@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 
 import {
   anularPago,
+  editarPago,
   invalidarComprobante,
   listarAlumnos,
   listarInscripciones,
@@ -61,6 +62,8 @@ export function PagosPagina() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
+  /** El pago que se está corrigiendo (`V19` §2). Null = no hay ninguno abierto. */
+  const [editando, setEditando] = useState<PagoResumen | null>(null)
   /** El pago sobre el que se está pidiendo un motivo, y para qué. */
   const [pidiendoMotivo, setPidiendoMotivo] = useState<
     { pago: PagoResumen; que: 'anular' | 'comprobante' } | null
@@ -174,6 +177,17 @@ export function PagosPagina() {
         />
       )}
 
+      {editando && puedeEscribir && (
+        <FormularioCorreccion
+          pago={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={() => {
+            setEditando(null)
+            void cargar()
+          }}
+        />
+      )}
+
       {pidiendoMotivo && (
         <PedirMotivo
           key={`${pidiendoMotivo.pago.idPago}-${pidiendoMotivo.que}`}
@@ -209,13 +223,27 @@ export function PagosPagina() {
             {pagos.map((p) => (
               <tr key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/admin/estado-de-cuenta/${p.idUsuario}`}
-                    className="font-medium underline underline-offset-2 hover:text-acento"
-                  >
-                    {p.apellido}, {p.nombre}
-                  </Link>
-                  <div className="text-xs text-tenue">{p.email}</div>
+                  {/* **El pagador sin cuenta se muestra igual pero no se linkea**
+                      (`V19`): no tiene estado de cuenta al que llevar. Se usa
+                      `pagador`, que el servidor arma por el camino que sea y
+                      siempre tiene valor — una fila de plata sin nombre es
+                      justamente el problema que este sistema resuelve. */}
+                  {p.pagadorSinCuenta ? (
+                    <div className="font-medium">
+                      {p.pagador}
+                      <span className="ml-2 text-xs font-normal text-apagado">sin cuenta</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Link
+                        to={`/admin/estado-de-cuenta/${p.idUsuario}`}
+                        className="font-medium underline underline-offset-2 hover:text-acento"
+                      >
+                        {p.apellido}, {p.nombre}
+                      </Link>
+                      <div className="text-xs text-tenue">{p.email}</div>
+                    </>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div>{p.queSalda}</div>
@@ -239,6 +267,18 @@ export function PagosPagina() {
                 <td className="px-4 py-3">
                   {puedeEscribir && p.estadoPago !== 'ANULADO' && (
                     <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                      {/* **Corregir viene antes que anular, y ese orden importa.**
+                          Hasta `V19` la única salida para un pago mal cargado era
+                          anularlo y volver a cargarlo; ahora corregir el monto o la
+                          fecha es una edición común. Anular queda para lo que de
+                          verdad es una baja, no para arreglar un tipeo. */}
+                      <button
+                        type="button"
+                        onClick={() => setEditando(p)}
+                        className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
+                      >
+                        Corregir
+                      </button>
                       {p.comprobantePath && !p.comprobanteInvalido && (
                         <button
                           type="button"
@@ -337,6 +377,205 @@ function fechaCorta(iso: string): string {
  * destino. Aceptarlo es rehacer este formulario —hoy es alumno → sus
  * inscripciones— y nadie pidió todavía la venta en cuotas.
  */
+/**
+ * Corregir un pago mal cargado (`V19` §2, `mejoras.md` §9.3).
+ *
+ * **Hasta `V19` la única salida era anular y volver a cargar.** Ignacio pidió
+ * edición directa, y la base nunca la había prohibido: `V6` §7 bloquea el DELETE,
+ * no el UPDATE. Lo que faltaba era la condición con la que se abre — **queda
+ * firmado quién lo hizo**, igual que editar una asistencia en `V7` §2, y con el
+ * mismo argumento: si cambiar un PRESENTE por un AUSENTE decide cuántas clases le
+ * quedan a un alumno, cambiar un monto decide la caja.
+ *
+ * **Lo que NO se edita es la primera línea de la pantalla, no una omisión.** Ni
+ * quién pagó ni qué salda: son la identidad del pago y tienen tres reglas del
+ * esquema colgadas. Se dice arriba de todo para que nadie abra esto buscando
+ * cambiar el alumno y crea que el campo se perdió.
+ */
+function FormularioCorreccion({
+  pago,
+  onCerrar,
+  onGuardado,
+}: {
+  pago: PagoResumen
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [datos, setDatos] = useState({
+    monto: String(pago.monto),
+    moneda: pago.moneda,
+    cotizacionDolar: pago.cotizacionDolar ? String(pago.cotizacionDolar) : '',
+    medioPago: pago.medioPago,
+    fechaPago: pago.fechaPago,
+    concepto: pago.concepto ?? '',
+    descuentoPorcentaje: pago.descuentoPorcentaje ? String(pago.descuentoPorcentaje) : '',
+    motivoDescuento: pago.motivoDescuento ?? '',
+    comprobantePath: pago.comprobantePath ?? '',
+  })
+  const [errores, setErrores] = useState<Record<string, string>>({})
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  function cambiar(campo: keyof typeof datos) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
+  }
+
+  async function onSubmit(evento: React.FormEvent) {
+    evento.preventDefault()
+
+    // Las mismas tres reglas del esquema que adelanta el alta, por el mismo
+    // motivo: el backend rechaza con un mensaje que no nombra ningún campo, y el
+    // formulario tiene que pintar de rojo el input que está mal.
+    const locales: Record<string, string> = {}
+    if (!datos.monto || Number(datos.monto) <= 0) locales.monto = 'Poné un monto mayor a cero.'
+    if (datos.moneda === 'USD' && !datos.cotizacionDolar) {
+      locales.cotizacionPresenteSiEsUsd = 'Un pago en dólares necesita la cotización del día.'
+    }
+    if (Number(datos.descuentoPorcentaje) > 0 && !datos.motivoDescuento.trim()) {
+      locales.descuentoJustificado = 'Un descuento necesita una justificación escrita.'
+    }
+    if (Number(datos.descuentoPorcentaje) > 100) {
+      locales.descuentoPorcentaje = 'El descuento es un porcentaje: no puede pasar de 100.'
+    }
+    if (Object.keys(locales).length > 0) {
+      setErrores(locales)
+      return
+    }
+
+    setErrores({})
+    setErrorGeneral(null)
+    setEnviando(true)
+
+    try {
+      await editarPago(pago.idPago, {
+        monto: Number(datos.monto),
+        moneda: datos.moneda,
+        cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : null,
+        medioPago: datos.medioPago,
+        fechaPago: datos.fechaPago,
+        concepto: datos.concepto || undefined,
+        descuentoPorcentaje: datos.descuentoPorcentaje
+          ? Number(datos.descuentoPorcentaje)
+          : undefined,
+        motivoDescuento: datos.motivoDescuento || undefined,
+        comprobantePath: datos.comprobantePath || undefined,
+      })
+      onGuardado()
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.errores) setErrores(e.errores)
+        else setErrorGeneral(e.message)
+      } else {
+        setErrorGeneral('No se pudo conectar con el servidor.')
+      }
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+      <h3 className="mb-1 font-semibold">Corregir el pago</h3>
+
+      {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
+      <p className="mb-4 text-xs leading-relaxed text-tenue">
+        De <strong>{pago.pagador}</strong>, por <strong>{pago.queSalda}</strong>. De quién es el
+        pago y qué salda no se editan: si eso está mal, el pago es otro — anulalo y cargá el
+        correcto. Tu nombre y la fecha quedan guardados con la corrección.
+      </p>
+
+      {errorGeneral && (
+        <div className="mb-4">
+          <Aviso>{errorGeneral}</Aviso>
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo
+          etiqueta="Monto"
+          type="number"
+          step="0.01"
+          value={datos.monto}
+          onChange={cambiar('monto')}
+          error={errores.monto}
+        />
+
+        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+          <option value="ARS">Pesos</option>
+          <option value="USD">Dólares</option>
+        </CampoSelect>
+
+        {datos.moneda === 'USD' && (
+          <Campo
+            etiqueta="Cotización del dólar"
+            type="number"
+            step="0.01"
+            value={datos.cotizacionDolar}
+            onChange={cambiar('cotizacionDolar')}
+            error={errores.cotizacionPresenteSiEsUsd}
+          />
+        )}
+
+        <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
+          {MEDIOS.map((m) => (
+            <option key={m} value={m}>
+              {NOMBRE_DE_MEDIO[m]}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <Campo
+          etiqueta="Fecha del pago"
+          type="date"
+          value={datos.fechaPago}
+          onChange={cambiar('fechaPago')}
+          error={errores.fechaPago}
+        />
+
+        <Campo
+          etiqueta="Concepto"
+          value={datos.concepto}
+          onChange={cambiar('concepto')}
+          error={errores.concepto}
+        />
+
+        <Campo
+          etiqueta="Descuento (%)"
+          type="number"
+          step="0.01"
+          value={datos.descuentoPorcentaje}
+          onChange={cambiar('descuentoPorcentaje')}
+          error={errores.descuentoPorcentaje}
+        />
+
+        <Campo
+          etiqueta="Por qué el descuento"
+          value={datos.motivoDescuento}
+          onChange={cambiar('motivoDescuento')}
+          error={errores.descuentoJustificado}
+        />
+
+        <Campo
+          etiqueta="Comprobante"
+          value={datos.comprobantePath}
+          onChange={cambiar('comprobantePath')}
+          error={errores.comprobantePath}
+          className="sm:col-span-2"
+        />
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        <Boton type="submit" disabled={enviando}>
+          {enviando ? 'Guardando…' : 'Guardar la corrección'}
+        </Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}
+
 function FormularioPago({
   onCerrar,
   onGuardado,

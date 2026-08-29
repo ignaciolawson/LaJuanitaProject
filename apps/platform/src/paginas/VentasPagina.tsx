@@ -319,8 +319,9 @@ function FormularioVenta({
         cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : undefined,
         fechaVenta: datos.fechaVenta,
         notas: datos.notas.trim() || undefined,
-        // Sin cuenta no hay dónde colgar el pago: `pago.id_usuario` es NOT NULL.
-        medioPago: datos.cobrada && conCuenta ? datos.medioPago : undefined,
+        // Desde `V19` el cobro no depende de que el comprador tenga cuenta: el
+        // pago viaja con su nombre, el mismo que la venta ya guarda.
+        medioPago: datos.cobrada ? datos.medioPago : undefined,
       })
       onGuardada()
     } catch (e) {
@@ -463,27 +464,25 @@ function FormularioVenta({
         <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} />
 
         {/* El cobro. Se registra en la misma transacción que la venta -- es el
-            caso normal: se vendió y se cobró. */}
+            caso normal: se vendió y se cobró.
+
+            **Ya no depende de que el comprador tenga cuenta.** Hasta `V19`,
+            `pago.id_usuario` era NOT NULL y este checkbox estaba deshabilitado
+            para el comprador externo, con un texto que explicaba por qué: o sea
+            que una venta a alguien que compra por el acuerdo con Pioneer **no se
+            podía cobrar nunca**. Era el hallazgo #1 de `docs/mejoras.md`. */}
         <div className="sm:col-span-2">
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={datos.cobrada}
               onChange={(e) => setDatos((previo) => ({ ...previo, cobrada: e.target.checked }))}
-              disabled={!conCuenta}
             />
             Ya se cobró
           </label>
-          {!conCuenta && (
-            // No es un capricho de la pantalla: `pago.id_usuario` es NOT NULL, así
-            // que un cobro necesita alguien a quien colgárselo.
-            <p className="mt-1 text-xs text-apagado">
-              Para registrar el cobro el comprador tiene que tener cuenta.
-            </p>
-          )}
         </div>
 
-        {datos.cobrada && conCuenta && (
+        {datos.cobrada && (
           <CampoSelect
             etiqueta="Cómo pagó"
             value={datos.medioPago}

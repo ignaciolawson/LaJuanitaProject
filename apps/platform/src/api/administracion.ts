@@ -469,7 +469,14 @@ export function usoDeSalas(opciones: { desde: string; hasta: string; idSala?: nu
 
 /** Espeja `AltaPagoRequest`. Exactamente uno de los cuatro destinos. */
 export type AltaPago = {
-  idUsuario: number
+  /**
+   * De quién es el pago, **cuando tiene cuenta**. Desde `V19` es opcional: la
+   * otra mitad es `nombrePagadorExterno`, y el backend exige uno de los dos.
+   */
+  idUsuario?: number
+  /** De quién es, cuando **no** tiene cuenta. Uno de los dos, no los dos. */
+  nombrePagadorExterno?: string
+  contactoPagadorExterno?: string
   idInscripcion?: number
   idReserva?: number
   idTrabajoMastering?: number
@@ -500,6 +507,37 @@ export function listarPagos(opciones: {
 
 export function registrarPago(datos: AltaPago) {
   return pedir<PagoResumen>('/api/pagos', { metodo: 'POST', cuerpo: datos })
+}
+
+/**
+ * Espeja `EdicionPagoRequest`.
+ *
+ * **No lleva ni el pagador ni el destino, y eso es la decisión** (`V19` §2): esos
+ * dos son la identidad del pago y tienen tres reglas del esquema colgadas —la seña
+ * que respalda una reserva, el pago que sostiene un premaster liberado, y el estado
+ * de cuenta de una persona—. Moverlos lo convierte en *otro* pago, y para eso está
+ * anular y volver a cargar, que deja las dos filas y la explicación.
+ */
+export type EdicionPago = {
+  concepto?: string
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  medioPago: MedioPago
+  descuentoPorcentaje?: number
+  motivoDescuento?: string
+  fechaPago: string
+  comprobantePath?: string
+}
+
+/**
+ * Corregir un pago mal cargado (`V19` §2).
+ *
+ * Queda firmado quién lo hizo: lo exige un trigger de la base, y el autor sale del
+ * token. La fecha de la edición la escribe la base, no la aplicación.
+ */
+export function editarPago(id: number, datos: EdicionPago) {
+  return pedir<PagoResumen>(`/api/pagos/${id}`, { metodo: 'PUT', cuerpo: datos })
 }
 
 /**

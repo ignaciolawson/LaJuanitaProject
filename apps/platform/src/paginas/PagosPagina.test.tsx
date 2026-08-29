@@ -21,14 +21,22 @@ import { PagosPagina } from './PagosPagina'
 vi.mock('../api/administracion', () => ({
   listarPagos: vi.fn(),
   registrarPago: vi.fn(),
+  editarPago: vi.fn(),
   anularPago: vi.fn(),
   invalidarComprobante: vi.fn(),
   listarAlumnos: vi.fn(),
   listarInscripciones: vi.fn(),
 }))
 
-const { anularPago, invalidarComprobante, listarAlumnos, listarInscripciones, listarPagos, registrarPago } =
-  await import('../api/administracion')
+const {
+  anularPago,
+  editarPago,
+  invalidarComprobante,
+  listarAlumnos,
+  listarInscripciones,
+  listarPagos,
+  registrarPago,
+} = await import('../api/administracion')
 
 function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
   return {
@@ -37,6 +45,8 @@ function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
     nombre: 'Camila',
     apellido: 'Ríos',
     email: 'camila@ejemplo.com',
+    pagador: 'Camila Ríos',
+    pagadorSinCuenta: false,
     destino: 'INSCRIPCION',
     idDestino: 5,
     queSalda: 'DJ · INICIAL',
@@ -343,5 +353,90 @@ describe('eje de escritura', () => {
     montar(rol)
 
     expect(await screen.findByRole('button', { name: 'Registrar pago' })).toBeDefined()
+  })
+})
+
+describe('el pagador sin cuenta y la corrección (V19)', () => {
+  /**
+   * **El pago de alguien sin cuenta se muestra igual, y no se linkea.** Aparece
+   * porque `pagador` siempre tiene valor —una fila de plata sin nombre es el
+   * problema que este sistema resuelve—; no se linkea porque no hay estado de
+   * cuenta al que llevar.
+   */
+  it('el pago sin cuenta se muestra con su nombre y sin link', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([
+        pago({
+          idUsuario: null,
+          nombre: null,
+          apellido: null,
+          email: null,
+          pagador: 'Comprador de Paso',
+          pagadorSinCuenta: true,
+          destino: 'VENTA_EQUIPO',
+          queSalda: 'CDJ-3000',
+        }),
+      ]),
+    )
+    montar()
+
+    expect(await screen.findByText('Comprador de Paso')).toBeDefined()
+    expect(screen.getByText('sin cuenta')).toBeDefined()
+    // Lo que importa: no hay link roto a `/estado-de-cuenta/null`.
+    expect(screen.queryByRole('link', { name: /Comprador de Paso/ })).toBeNull()
+  })
+
+  it('el pago con cuenta sigue linkeando al estado de cuenta', async () => {
+    montar()
+
+    const link = await screen.findByRole('link', { name: 'Ríos, Camila' })
+    expect(link.getAttribute('href')).toBe('/admin/estado-de-cuenta/10')
+  })
+
+  it('corregir manda los campos editados', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Corregir' }))
+
+    const monto = screen.getByLabelText('Monto')
+    await user.clear(monto)
+    await user.type(monto, '95000')
+    await user.click(screen.getByRole('button', { name: 'Guardar la corrección' }))
+
+    await waitFor(() => expect(editarPago).toHaveBeenCalled())
+    expect(vi.mocked(editarPago).mock.calls[0][0]).toBe(1)
+    expect(vi.mocked(editarPago).mock.calls[0][1].monto).toBe(95000)
+  })
+
+  /**
+   * **Que el pagador y el destino no se editen es una decisión, no un olvido**, y
+   * la pantalla lo dice antes de que alguien los busque. Este caso lo fija: si
+   * algún día se agregan esos campos, hay que venir acá y decidirlo a conciencia.
+   */
+  it('corregir no ofrece cambiar de quién es ni qué salda', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Corregir' }))
+
+    expect(screen.queryByLabelText('Alumno')).toBeNull()
+    expect(screen.queryByLabelText('Qué salda')).toBeNull()
+    expect(screen.getByText(/no se editan/)).toBeDefined()
+  })
+
+  it('un pago anulado no ofrece corregirse', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ estadoPago: 'ANULADO' })]))
+    montar()
+
+    expect(await screen.findByText('DJ · INICIAL')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Corregir' })).toBeNull()
+  })
+
+  it('un DIRECTIVO no ve el botón de corregir', async () => {
+    montar('DIRECTIVO')
+
+    expect(await screen.findByText('DJ · INICIAL')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Corregir' })).toBeNull()
   })
 })

@@ -80,14 +80,28 @@ export function DeudoresPagina() {
             {deudores.map((d) => (
               // La clave lleva la moneda: quien debe en las dos aparece dos
               // veces, y son dos deudas distintas que se reclaman por separado.
-              <tr key={`${d.idUsuario}-${d.moneda}`}>
+              // Sin cuenta no hay id, así que la clave lleva el nombre: dos
+              // deudores externos distintos no pueden colapsar en la misma fila.
+              <tr key={`${d.idUsuario ?? d.nombre}-${d.moneda}`}>
                 <td className="px-4 py-3">
-                  <Link
-                    to={`/admin/estado-de-cuenta/${d.idUsuario}`}
-                    className="font-medium underline underline-offset-2 hover:text-acento"
-                  >
-                    {d.apellido}, {d.nombre}
-                  </Link>
+                  {/* **El deudor sin cuenta entra igual, pero no se linkea.**
+                      Aparece porque una deuda que no está en esta pantalla es una
+                      deuda que nadie va a ir a cobrar (`V19`, `mejoras.md` §9.1);
+                      no se linkea porque no tiene estado de cuenta al que llevar,
+                      y un link a `/estado-de-cuenta/null` es peor que ninguno. */}
+                  {d.idUsuario === null ? (
+                    <div className="font-medium">
+                      {d.nombre}
+                      <span className="ml-2 text-xs font-normal text-apagado">sin cuenta</span>
+                    </div>
+                  ) : (
+                    <Link
+                      to={`/admin/estado-de-cuenta/${d.idUsuario}`}
+                      className="font-medium underline underline-offset-2 hover:text-acento"
+                    >
+                      {d.apellido}, {d.nombre}
+                    </Link>
+                  )}
                   <div className="text-xs text-tenue">
                     {d.cantidadDePagos === 1
                       ? '1 pago pendiente'
@@ -96,9 +110,11 @@ export function DeudoresPagina() {
                 </td>
                 <td className="px-4 py-3 text-tenue">
                   {/* El teléfono primero: el reclamo se hace por WhatsApp, que
-                      es el canal que el relevamiento marca como el único real. */}
+                      es el canal que el relevamiento marca como el único real.
+                      Para el deudor sin cuenta es lo único que hay: el contacto
+                      que se anotó al cobrar. */}
                   {d.telefono ?? <span className="text-apagado">Sin teléfono</span>}
-                  <div className="text-xs">{d.email}</div>
+                  {d.email && <div className="text-xs">{d.email}</div>}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums">
                   {importe(d.adeudado, d.moneda)}

@@ -205,21 +205,32 @@ describe('registrar una venta', () => {
   })
 
   /**
-   * <b>`pago.id_usuario` es NOT NULL</b>, así que un cobro necesita alguien a
-   * quien colgárselo. La pantalla lo dice antes en vez de dejar mandar un pedido
-   * que la base rechaza.
+   * **Estos dos casos decían lo contrario hasta `V19`, y vale contar la vuelta.**
+   *
+   * Defendían que la pantalla deshabilitara el cobro para un comprador sin cuenta,
+   * con un texto que explicaba por qué: `pago.id_usuario` era NOT NULL y no había
+   * dónde colgar esa plata. Estaban bien escritos y eran correctos *para esa
+   * versión del esquema*.
+   *
+   * Lo que no era, es una regla del negocio: era una **consecuencia técnica de una
+   * columna**, y en el uso real resultó ser el hallazgo #1 de `docs/mejoras.md` —
+   * **una venta a un comprador sin cuenta no se podía cobrar nunca**, y el que
+   * compra un CDJ por el acuerdo con Pioneer no se registra en un estudio de
+   * música por eso.
+   *
+   * Es el mismo tipo de test que el Módulo 8 encontró en `menu.test.ts`:
+   * **defendía una interpretación, no un hecho.**
    */
-  it('sin cuenta no ofrece cobrar, y lo explica', async () => {
+  it('sin cuenta también se puede cobrar', async () => {
     const user = await abrirAlta()
 
     await user.click(screen.getByLabelText('No tiene cuenta'))
 
-    expect(screen.getByLabelText('Ya se cobró')).toHaveProperty('disabled', true)
-    expect(screen.getByText(/el comprador tiene que tener cuenta/)).toBeDefined()
-    expect(screen.queryByLabelText('Cómo pagó')).toBeNull()
+    expect(screen.getByLabelText('Ya se cobró')).toHaveProperty('disabled', false)
+    expect(screen.queryByText(/el comprador tiene que tener cuenta/)).toBeNull()
   })
 
-  it('sin cuenta la venta se manda sin medio de pago', async () => {
+  it('sin cuenta la venta se manda CON su medio de pago', async () => {
     const user = await abrirAlta()
 
     await user.click(screen.getByLabelText('No tiene cuenta'))
@@ -229,7 +240,13 @@ describe('registrar una venta', () => {
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
-    expect(vi.mocked(registrarVenta).mock.calls[0][0].medioPago).toBeUndefined()
+
+    const cuerpo = vi.mocked(registrarVenta).mock.calls[0][0]
+    // El cobro viaja, y el comprador sigue identificado por su nombre: son las
+    // dos mitades de `pago_pagador_identificado`.
+    expect(cuerpo.medioPago).toBe('EFECTIVO')
+    expect(cuerpo.nombreCompradorExterno).toBe('Joaco')
+    expect(cuerpo.idUsuarioComprador).toBeUndefined()
   })
 
   /** Una venta que se cobra después: destildar el cobro es válido. */
