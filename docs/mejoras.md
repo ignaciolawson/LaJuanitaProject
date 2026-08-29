@@ -176,12 +176,12 @@ contraseña de desarrollo.
 
 | # | Pantalla | Qué querías hacer | Qué pasó | Grupo | Estado |
 |---|---|---|---|---|---|
-| 1 | `/admin/ventas` | Marcar como cobrada una venta a un comprador **sin cuenta** | No existe — y tampoco había forma de cargarla cobrada | **C** | ✅ Decidido · §9.1 |
+| 1 | `/admin/ventas` | Marcar como cobrada una venta a un comprador **sin cuenta** | No existe — y tampoco había forma de cargarla cobrada | **C** | ✅ **HECHO** · `V19` §1 |
 | 2 | `/admin/reservas` o portal | Que el alumno pueda modificar/reprogramar su reserva | No existe — confirma §5 #3, el Módulo 4 se la debe | **B** | Pendiente de construir |
 | 3 | `ReservarPagina` (portal) | Que un pedido para un horario ocupado no llegue a la bandeja | No hay chequeo de disponibilidad al pedir | ~~B~~ | ❌ **Se cae** · §9.2 |
-| 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | Pendiente de construir |
+| 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | ✅ **HECHO** · §9.8 |
 | 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | Pendiente de construir |
-| 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ Decidido · §9.3 |
+| 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
 | 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ Decidido · §9.4 |
 | 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
 | 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ⏳ §9.6 |
@@ -308,6 +308,37 @@ ficha de solicitante, pero un interesado que nunca contesta no es lo mismo que
 uno que se anotó. Si con el uso aparece la necesidad de distinguirlos, es un
 estado más en la misma tabla, no una tabla nueva.
 
+### 9.8 · El alta de pagos acepta los cuatro destinos (hallazgo #4) — HECHO
+
+**Construido el 2026-08-29, junto con el front de `V19` y no después.** Son la
+misma pantalla: rehacer el formulario de pago para aceptar un pagador externo
+(`V19`) y para aceptar los cuatro destinos (#4) es un solo trabajo, y separarlos
+habría significado rehacerlo dos veces — exactamente lo que §6 dice del rediseño.
+
+**Lo que faltaba era la pantalla, no la API.** `pago_tiene_destino` pide *uno* de
+los cuatro desde `V1`, y `AltaPagoRequest` los aceptaba todos. El formulario era
+alumno → sus cursos, y la consecuencia estaba escrita en el propio código: *"una
+venta cargada sin cobro no tiene después por dónde cobrarse"*.
+
+**"Qué salda" va primero porque decide el resto del formulario**, y en un caso
+decide una regla:
+
+| Destino | Quién paga |
+|---|---|
+| **Un curso** | El alumno, y **no se pregunta** |
+| Una reserva · un trabajo de M&M · una venta | Libre: cuenta **o** nombre escrito |
+
+Que un curso solo se salde a nombre del alumno no es una comodidad de la pantalla:
+una `inscripcion` cuelga de un `alumno`, que cuelga de un `usuario`, así que un
+pago externo se acreditaría en una cuenta que no es de nadie. El backend lo
+rechaza con ese mismo argumento, y la pantalla lo dice en una línea en vez de
+dejar mandar un pedido que va a fallar.
+
+**El picker de reservas usa una ventana de 60 días** (45 atrás, 15 adelante),
+porque la agenda del backend corta en 62. No es una limitación de esta pantalla:
+es la del endpoint, y conviene saberlo antes de que alguien busque una reserva de
+hace tres meses y no la encuentre.
+
 ### 9.5 · El admin puede cambiarse el nombre (§5 #1) — CERRADO
 
 **Sí puede.** Micaela es una persona y puede cambiarse el apellido. Lo que falta
@@ -333,6 +364,12 @@ y ahí es donde se cuela una regresión real.
 **No se persigue a mano.** A 1 de 10, correr el suite localmente sale más caro
 que esperarlo: CI corre `npm run test:platform` en cada push y cuando vuelva a
 caer el nombre queda en el log de Actions.
+
+> **Segunda aparición el 2026-08-29**, cerrando el front de `V19`: 1 falla de 382,
+> y la corrida siguiente 382/382. Tampoco se pudo capturar cuál. Lo que confirma
+> es que **no fue casualidad de aquel día** y que la frecuencia sigue siendo baja
+> — sirve para no salir a buscar una regresión inexistente la próxima vez que el
+> suite falle una sola vez y pase al reintentar.
 
 ### 9.7 · La seña para inscribirse NO es una regla del sistema
 
@@ -384,15 +421,20 @@ migraciones son inmutables y se acumulan, eso no es prolijidad.
 1. **9.1** — `pago.id_usuario` opcional + CHECK, y **los cinco lugares a revisar**
 2. **9.3** — editar un pago, con trigger de autor (molde `V7` §2)
 
+> ✅ **CERRADA el 2026-08-29.** Migración, backend (los cinco lugares revisados; tres
+> tenían el modo de falla que §9.1 anticipaba) y front. Suites: **500 backend /
+> 189+51 SQL / 382 platform.** El front se hizo junto con el hallazgo #4 (§9.8),
+> que es la misma pantalla.
+
 ### Fase 2 · Backend sin tocar el esquema
 
 De más barato a más caro:
 
 | Orden | Qué | Tamaño |
 |---|---|---|
+| ~~2.3~~ | ~~**#4** pago de un no-alumno~~ | ✅ **HECHO el 2026-08-29** — se hizo junto con el front de `V19`, porque son la misma pantalla (§9.8) |
 | 2.1 | **#5** comprobante al aprobar seña | Chico — un campo que le falta a `AltaSenaRequest`; la columna existe desde `V1` |
 | 2.2 | **9.4** buzón de solicitantes + formularios de la landing | Medio — tabla nueva, bandeja, y el resto es reutilizar pantallas |
-| 2.3 | **#4** pago de un no-alumno | Medio-grande — rehacer el formulario; la API ya lo soporta |
 | 2.4 | **#2 + §5 #3** solicitar reprogramación | **El más grande** — endpoint + pantalla del portal + pantalla de admin. La tabla y el trigger están desde `V1` |
 
 *(La vieja 2.3 —disponibilidad al pedir— se cayó por §9.2.)*

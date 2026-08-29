@@ -26,17 +26,27 @@ vi.mock('../api/administracion', () => ({
   invalidarComprobante: vi.fn(),
   listarAlumnos: vi.fn(),
   listarInscripciones: vi.fn(),
+  // Los tres destinos que el alta acepta desde el 2026-08-29, además del curso.
+  agenda: vi.fn(),
+  listarUsuarios: vi.fn(),
+  listarVentas: vi.fn(),
 }))
 
+vi.mock('../api/mastering', () => ({ listarTrabajos: vi.fn() }))
+
 const {
+  agenda,
   anularPago,
   editarPago,
   invalidarComprobante,
   listarAlumnos,
   listarInscripciones,
   listarPagos,
+  listarUsuarios,
+  listarVentas,
   registrarPago,
 } = await import('../api/administracion')
+const { listarTrabajos } = await import('../api/mastering')
 
 function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
   return {
@@ -115,6 +125,10 @@ beforeEach(() => {
     pagina([]) as never,
   )
   vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
+  vi.mocked(agenda).mockResolvedValue([] as never)
+  vi.mocked(listarUsuarios).mockResolvedValue(pagina([]) as never)
+  vi.mocked(listarVentas).mockResolvedValue(pagina([]) as never)
+  vi.mocked(listarTrabajos).mockResolvedValue(pagina([]) as never)
 })
 
 describe('el listado', () => {
@@ -281,7 +295,7 @@ describe('el alta', () => {
     const user = await abrir()
 
     await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Qué salda'), '5')
+    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
     await user.type(screen.getByLabelText('Monto'), '150')
     await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
@@ -305,7 +319,7 @@ describe('el alta', () => {
     const user = await abrir()
 
     await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Qué salda'), '5')
+    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.type(screen.getByLabelText(/Descuento/), '20')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
@@ -320,7 +334,7 @@ describe('el alta', () => {
     vi.mocked(registrarPago).mockResolvedValue(pago())
 
     await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Qué salda'), '5')
+    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -438,5 +452,94 @@ describe('el pagador sin cuenta y la corrección (V19)', () => {
 
     expect(await screen.findByText('DJ · INICIAL')).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Corregir' })).toBeNull()
+  })
+})
+
+/**
+ * **El alta acepta los cuatro destinos desde el 2026-08-29** (hallazgo #4 de
+ * `docs/mejoras.md`). Antes era alumno → sus cursos y nada más, y la consecuencia
+ * estaba escrita en el propio código: una venta cargada sin cobro no tenía después
+ * por dónde cobrarse.
+ */
+describe('los cuatro destinos y el pagador libre', () => {
+  it('ofrece los cuatro destinos, no solo cursos', async () => {
+    const user = userEvent.setup()
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+
+    const destinos = screen.getByLabelText<HTMLSelectElement>('Qué salda')
+    expect([...destinos.options].map((o) => o.value)).toEqual([
+      'INSCRIPCION',
+      'RESERVA',
+      'TRABAJO_MASTERING',
+      'VENTA_EQUIPO',
+    ])
+  })
+
+  /**
+   * **Un curso solo se salda a nombre del alumno**, y la pantalla ni lo pregunta.
+   * No es una comodidad: una `inscripcion` cuelga de un `alumno`, que cuelga de un
+   * `usuario`, así que un pago externo se acreditaría en una cuenta que no es de
+   * nadie — el backend lo rechaza con ese mismo argumento.
+   */
+  it('para un curso no pregunta quién paga', async () => {
+    const user = userEvent.setup()
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+
+    expect(screen.queryByLabelText('Tiene cuenta')).toBeNull()
+    expect(screen.getByText(/va a nombre del alumno/)).toBeDefined()
+  })
+
+  it('para una venta sí pregunta quién paga, y acepta que no tenga cuenta', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([
+        {
+          idVenta: 7,
+          comprador: 'Joaco',
+          modeloEquipo: 'CDJ-3000',
+          precio: 900000,
+          moneda: 'ARS',
+        },
+      ]) as never,
+    )
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+    await user.selectOptions(screen.getByLabelText('Qué salda'), 'VENTA_EQUIPO')
+
+    await user.click(await screen.findByLabelText('No tiene cuenta'))
+    await user.selectOptions(await screen.findByLabelText('Cuál venta'), '7')
+    await user.type(screen.getByLabelText('Nombre de quien paga'), 'Comprador de Paso')
+    await user.type(screen.getByLabelText('Monto'), '900000')
+    await user.click(screen.getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => expect(registrarPago).toHaveBeenCalled())
+
+    const cuerpo = vi.mocked(registrarPago).mock.calls[0][0]
+    expect(cuerpo.idVentaEquipo).toBe(7)
+    expect(cuerpo.nombrePagadorExterno).toBe('Comprador de Paso')
+    expect(cuerpo.idUsuario).toBeUndefined()
+    // Un pago salda UNA cosa: `pago_tiene_destino`. Si el formulario dejara
+    // colgado el destino anterior al cambiar de tipo, el backend lo rechazaría.
+    expect(cuerpo.idInscripcion).toBeUndefined()
+  })
+
+  it('sin decir quién paga no manda nada', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([
+        { idVenta: 7, comprador: 'Joaco', modeloEquipo: 'CDJ-3000', precio: 900000, moneda: 'ARS' },
+      ]) as never,
+    )
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+    await user.selectOptions(screen.getByLabelText('Qué salda'), 'VENTA_EQUIPO')
+    await user.selectOptions(await screen.findByLabelText('Cuál venta'), '7')
+    await user.type(screen.getByLabelText('Monto'), '900000')
+    await user.click(screen.getByRole('button', { name: 'Registrar' }))
+
+    expect(await screen.findByText('Elegí quién paga.')).toBeDefined()
+    expect(registrarPago).not.toHaveBeenCalled()
   })
 })
