@@ -311,8 +311,9 @@ estado más en la misma tabla, no una tabla nueva.
 ### 9.10 · El buzón, construido el 2026-08-29 — y las tres cosas que decidió
 
 **`V20__el_buzon_de_solicitantes.sql`, paquete `com.lajuanita.backend.solicitante`,
-pantalla `/admin/buzon`.** Suites: **518 backend · 393 front · 198 + 51 SQL** sobre
-20 migraciones. Lo que §9.4 dejaba dicho se respetó entero —tabla y no
+pantalla `/admin/buzon`.** Suites al cerrar esa tanda: **518 backend · 393 front ·
+198 + 51 SQL** sobre 20 migraciones. (Al cierre de la Fase 2, el 2026-08-30, son
+**536 · 411 · 198 + 51**.) Lo que §9.4 dejaba dicho se respetó entero —tabla y no
 notificación, un solo buzón, la contraseña por WhatsApp— y lo que hubo que
 decidir arriba de eso es esto:
 

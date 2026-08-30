@@ -667,7 +667,7 @@ Tres cosas para ese momento:
 > No estaba enlazada desde ningún lado, y por eso el informe pasó un día listando
 > como *"bloqueado por una decisión"* diez hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-29
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-30
 
 ## ✅ FASE 1 Y FASE 2 CERRADAS ENTERAS · LO QUE QUEDA ES EL REDISEÑO
 
@@ -682,6 +682,25 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
 | **2 · Backend sin esquema** | ✅ **CERRADA ENTERA.** Buzón de solicitantes (`V20`), solicitar reprogramación, y el 2026-08-30 los formularios de la landing — que cerraron el circuito de punta a punta |
 | **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |
+
+### 🟢 PARA ARRANCAR EN VERDE
+
+```
+docker compose up -d                     # Postgres
+cd apps/backend  && mvn spring-boot:run  # :8080
+cd apps/platform && npm run dev          # :5173  → admin@lajuanita.local / lajuanita2026
+cd apps/landing  && npm run dev          # :3000  (sólo si vas a tocar la landing)
+```
+
+**Las tres apps ya se hablan.** La plataforma usa el proxy de Vite; la landing habla
+por HTTP contra `:8080`, y eso depende de tres cosas que tienen que coincidir —
+`NEXT_PUBLIC_API_URL`, el `connect-src` de la CSP en `next.config.ts`, y
+`CORS_ORIGENES` del backend—. **Si un formulario de la landing no responde, mirá esas
+tres antes que el código**: una CSP desalineada no muestra ningún error en la página.
+
+Para ver el circuito nuevo entero: completá un formulario en `:3000/servicios#reservar`
+y abrí `/admin/buzon` en la plataforma. **Ya hay dos fichas de prueba cargadas** el
+2026-08-30 (*Prueba Humo* y *Prueba Acento*) — no se borran, se descartan con motivo.
 
 ### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: LOS FORMULARIOS DE LA LANDING
 
@@ -2694,21 +2713,29 @@ Al 2026-08-15 los cuatro pasan.
 
 ---
 
-## 7. La landing espera a la plataforma
+## 7. La landing esperó a la plataforma — y se conectó el 2026-08-30
+
+> ✅ **La decisión se cumplió tal cual se tomó, así que esta sección queda como
+> registro.** Los formularios se conectaron el **2026-08-30**, el día después de
+> que existiera el buzón que los recibe, y nunca hizo falta el parche intermedio
+> que abajo se descarta. El detalle está en [`mejoras.md`](mejoras.md) §9.12.
+>
+> **Lo que sigue bloqueando publicar no es código**: los precios inventados, las
+> seis notas del blog y los perfiles reales de Instagram y YouTube.
 
 **Decidido el 2026-08-10: la landing NO se publica antes que el sistema de gestión.**
 
-Motivo: hoy los formularios (inscripción, reserva de cabina, consulta de equipos)
-contestan "listo" y **la solicitud no le llega a nadie**. El cliente pidió sacar el aviso
-de "no se envía" el 2026-08-09. Mientras la landing esté sin publicar, eso es inofensivo.
-El día que se publique, es plata que se pierde: gente que quiere anotarse, cree que se
-anotó, y nadie la contacta nunca.
+Motivo: los formularios (inscripción, reserva de cabina, consulta de equipos)
+contestaban "listo" y **la solicitud no le llegaba a nadie**. El cliente pidió sacar el
+aviso de "no se envía" el 2026-08-09. Mientras la landing estuviera sin publicar eso era
+inofensivo; el día que se publicara, era plata perdida: gente que quiere anotarse, cree
+que se anotó, y nadie la contacta nunca.
 
 **Consecuencias:**
 
 - No se hace ningún parche intermedio para los formularios (no hay que armar envío de
   mail ni servicio externo). Se conectan directo al backend cuando el módulo de alumnos
-  esté vivo, en septiembre.
+  esté vivo, en septiembre. **Cumplido: se conectaron el 2026-08-30, sin parche.**
 - La landing queda terminada y sin publicar ~4 meses. Es aceptable porque **igual no
   podría publicarse**: siguen faltando los datos que debe confirmar el cliente
   (sección 2).

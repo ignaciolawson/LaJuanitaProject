@@ -26,8 +26,9 @@
 >
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
-> después `platform.md` §13 → §14 → §15 (gana el último) · después
-> `sistema-gestion-plan.md` §6d · después el resto.
+> después `platform.md` §13 → §14 → §15 → **§16** (gana el último; §16 es del
+> 2026-08-29 y cierra P9) · después `sistema-gestion-plan.md` §6d · después el
+> resto.
 
 ---
 

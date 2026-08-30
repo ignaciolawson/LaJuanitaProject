@@ -37,7 +37,7 @@ en reservas de cabina y en consultas de equipamiento. Reemplaza el Linktree.
 | `/nosotros` | |
 | `/faq` | |
 | `/contacto` | |
-| `/ingresar` | Login del campus — maqueta, sin auth |
+| `/ingresar` | **Puerta al campus** — dos accesos a la plataforma, sin auth propia. Ver `mejoras.md` §9.12 |
 
 ## Secciones de la home
 
@@ -138,10 +138,13 @@ eso se paga seguido, así que el número no significaría nada.
 
 ### Bloquea publicar
 
-1. **Conectar los formularios.** Los cinco contestan "listo" sin enviar nada, y
-   el aviso de "no se envía" se sacó de pantalla el 2026-08-09 a pedido del
-   cliente. Publicar así pierde leads reales. Decisión del 2026-08-10: la landing
-   espera al sistema de gestión (~septiembre).
+1. ~~**Conectar los formularios.**~~ ✅ **HECHO el 2026-08-30** (`mejoras.md`
+   §9.12). Los tres formularios de captación mandan a `POST /api/solicitantes` y
+   caen en el buzón de administración; `/ingresar` quedó como puerta a la
+   plataforma, porque un login acá no puede entregarle la sesión. **La decisión
+   del 2026-08-10 se cumplió tal cual**: la landing esperó al sistema, no hubo
+   parche intermedio, y el envío se conectó el día que existió el buzón que lo
+   recibe. **Lo que queda para publicar ya no es código.**
 2. **Reescribir o borrar las seis notas del blog.** Son inventadas. Publicar
    consejos técnicos falsos con formato de nota técnica es peor que no tener
    blog.
