@@ -814,7 +814,7 @@ pantalla dice que sos admin.
 | **USUARIO** puro | Mi próxima reserva · Mis pedidos esperando respuesta · Lo que debo |
 | **+ alumno** | agrega: **Clases que me quedan** (por curso) · Mi próxima clase · Material nuevo |
 | **+ profesor** | agrega: Mis clases de hoy · **Alumnos sin marcar** |
-| **STAFF** | La agenda de hoy · Pedidos de sala sin responder · *(futuro: solicitantes nuevos)* · Deudores |
+| **STAFF** | La agenda de hoy · Pedidos de sala sin responder · **Solicitantes nuevos** · Deudores |
 | **DIRECTIVO** | Los números del período — **no tiene lista de tareas** |
 | **ADMIN** | Lo de STAFF **+** los números |
 
@@ -856,8 +856,11 @@ Verificado contra el backend:
 | Agenda de hoy (admin) | `GET /api/reservas` |
 | Bandeja de pedidos | `GET /api/solicitudes` |
 | Deudores | `GET /api/pagos/deudores` |
+| Solicitantes nuevos | `GET /api/solicitantes?estado=PENDIENTE` |
 | Números | `GET /api/tablero` · `GET /api/tablero/resumen` |
 
-**Es armado, no desarrollo.** La única pieza que todavía no existe es
-*"solicitantes nuevos"*, que llega con §9.4 en la Fase 2 — y por eso ese bloque
-va anotado como futuro en vez de inventado.
+**Es armado, no desarrollo, y ahora sin ninguna excepción.** Cuando esto se
+escribió, *"solicitantes nuevos"* era la única pieza que no existía y por eso el
+bloque iba anotado como futuro; **el buzón se construyó el 2026-08-29** (§9.10),
+así que ese bloque tiene su endpoint como todos los demás. **La Fase 3 no espera
+ningún desarrollo de backend.**
