@@ -9,6 +9,26 @@ import {
   FormShell,
 } from "@/components/forms/Fields";
 import { SERVICES } from "@/data/services";
+import { mandarSolicitud, type Interes } from "@/lib/api";
+
+/**
+ * De qué servicio de la landing sale cada interés del sistema.
+ *
+ * **Son los dos usos de sala que el sistema deja pedir sin que administración
+ * los arme**, y del otro lado el catálogo los tiene marcados uno por uno. Si esta
+ * página suma un tercer servicio, el valor por defecto es `OTRO` —una ficha que
+ * igual llega— y no un valor inventado que la API rechace.
+ */
+const INTERES_POR_SERVICIO: Record<string, Interes> = {
+  cabina: "ALQUILER_CABINA",
+  "grabacion-sets": "GRABACION_SET",
+};
+
+/** `2026-09-10` → `10/09`. La ficha la lee una persona, no un parser. */
+function comoDia(iso: string): string {
+  const [anio, mes, dia] = iso.split("-");
+  return dia && mes ? `${dia}/${mes}/${anio}` : iso;
+}
 
 /**
  * Reserva de cabina / grabación.
@@ -34,8 +54,27 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-14">
       <FormShell
         submitLabel="Pedir reserva"
-        successTitle="Reserva solicitada"
-        successBody="Cuando esté conectado, el equipo confirma disponibilidad de la sala y el precio final antes de cerrar la fecha."
+        successTitle="Recibimos tu pedido"
+        successBody="Todavía no reserva la sala: confirmamos disponibilidad y el precio final, y recién ahí te la apartamos. Te escribimos por WhatsApp."
+        enviar={async (datos) =>
+          mandarSolicitud({
+            nombre: String(datos.get("nombre") ?? ""),
+            apellido: String(datos.get("apellido") ?? ""),
+            email: String(datos.get("email") ?? ""),
+            telefono: String(datos.get("telefono") ?? ""),
+            interes: INTERES_POR_SERVICIO[service] ?? "OTRO",
+            // Fecha, hora, duración y personas viajan en texto: del otro lado
+            // nadie los procesa. La reserva la carga administración a mano —no
+            // existe sin una seña, y quien pide no tiene cómo ponerla— así que
+            // esto es para saber qué proponer, no un pedido que el sistema ejecuta.
+            detalle: [
+              current.name,
+              `${comoDia(String(datos.get("fecha") ?? ""))} a las ${datos.get("hora") ?? ""}`,
+              `${hours} ${hours === 1 ? "hora" : "horas"}`,
+              people === "2" ? "dos personas" : "una persona",
+            ].join(" · "),
+          })
+        }
       >
         <fieldset>
           <legend className="t-mono text-[color:var(--page-faint)]">Qué querés reservar</legend>
@@ -59,12 +98,18 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
           </ChoiceGrid>
         </fieldset>
 
+        {/* Nombre y apellido separados: el sistema los guarda en dos columnas y
+            partirlos después es adivinar dónde termina el nombre. */}
         <div className="grid gap-6 sm:grid-cols-2">
-          <Field label="Nombre y apellido" name="nombre" required autoComplete="name" />
-          <Field label="Teléfono" name="telefono" type="tel" required autoComplete="tel" />
+          <Field label="Nombre" name="nombre" required autoComplete="given-name" />
+          <Field label="Apellido" name="apellido" required autoComplete="family-name" />
         </div>
 
-        <Field label="Mail" name="email" type="email" required autoComplete="email" />
+        {/* El teléfono es obligatorio: todo lo que sigue pasa por WhatsApp. */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field label="Teléfono" name="telefono" type="tel" required autoComplete="tel" />
+          <Field label="Mail" name="email" type="email" required autoComplete="email" />
+        </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <Field label="Fecha" name="fecha" type="date" required />

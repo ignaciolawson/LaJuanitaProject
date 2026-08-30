@@ -165,18 +165,30 @@ teachers' names: they must be rewritten or deleted before publishing. See
 the landing `CLAUDE.md` for the migration point (`generateStaticParams` will
 need revalidation).
 
-**Every form on the landing is visual only.** Program applications, booth
-booking, gear inquiries and the `/ingresar` login submit nothing. The
-connection points are the `onSubmit` in `components/forms/Fields.tsx` and
-`components/forms/LoginForm.tsx`.
+**The landing's forms were connected on 2026-08-30** — program applications,
+booth booking and gear inquiries all POST to `/api/solicitantes` and land in
+the admin inbox. Three pieces must agree or the send fails **invisibly**:
+`NEXT_PUBLIC_API_URL`, that same origin in the CSP's `connect-src`
+(`next.config.ts` derives it from the variable on purpose), and the backend's
+`CORS_ORIGENES`. A CSP mismatch shows up as a form that does nothing, with no
+error on the page.
 
-**The landing waits for the platform — decided 2026-08-10; it does not
-publish first.** The forms currently answer "listo" without the request
-reaching anyone (the client asked for the "not connected" notice to be
-removed on 2026-08-09), so publishing early means losing real leads. No
-interim patch (no email relay, no third-party form service) — they get wired
-straight to the backend once the students module is live, ~September. This
-is affordable because the landing is blocked on client-supplied data anyway.
+**`/ingresar` is a door, not a login, and that is decided.** A session started
+on the landing cannot be handed to the platform — different origins, and
+`localStorage` is not shared — so the alternatives were putting the token in
+the URL (history, `Referer`) or betting on an undecided hosting shape. The
+page now links to the platform's login and registration (`AccesoAlCampus`,
+`NEXT_PUBLIC_PLATFORM_URL`). *"Olvidé mi contraseña"* is gone: there is no mail
+infrastructure, so it was a door that never opens.
+
+**The landing waited for the platform — decided 2026-08-10 — and the wait is
+over.** For three weeks the forms answered "listo" without the request reaching
+anyone (the client had asked for the "not connected" notice to be removed on
+2026-08-09), which is why publishing early meant losing real leads. No interim
+patch was built (no email relay, no third-party form service) and none was
+needed: they were wired straight to the backend on 2026-08-30, once the inbox
+existed. **What still blocks publishing is not code** — invented prices, the six
+invented blog posts, and the real Instagram/YouTube profiles.
 Revisit only if the client confirms that data and wants to publish early.
 
 **Most long-form copy and all prices are invented placeholder.** The landing
@@ -509,7 +521,7 @@ Four decisions the scheduler made:
 
 The front added no test cases, deliberately: `NotificacionesPagina` decides nothing from the alert's type — it renders title and body — which is why an automatic alert has to stand alone (*"Juan debe $50.000 desde hace 12 días"*, not *"tenés una deuda para revisar"*), and why administration sees them without touching the menu (`Notificaciones` has no predicate in `menu.ts`). The only front change is the TypeScript type, **which had also been missing `RESERVA_MOVIDA` since Módulo 5** — harmless precisely because nobody reads the type.
 
-**The applicant inbox shipped on 2026-08-29** (`V20`, the `solicitante` package, `/admin/buzon`) — Fase 2.2 of `docs/mejoras.md`, hallazgo #7. The landing's four forms answer *"listo, lo recibimos"* without the request leaving the browser, which is why the landing cannot be published; this is the half that receives them. **The forms themselves are not wired yet — that is the next batch**, and the endpoint is `POST /api/solicitantes`.
+**The applicant inbox shipped on 2026-08-29** (`V20`, the `solicitante` package, `/admin/buzon`) — Fase 2.2 of `docs/mejoras.md`, hallazgo #7. The landing's four forms answer *"listo, lo recibimos"* without the request leaving the browser, which is why the landing cannot be published; this is the half that receives them. **The forms were wired on 2026-08-30**, so the circuit is closed end to end: `POST /api/solicitantes` from the landing, card in `/admin/buzon`, account created from there.
 
 - **It is a TABLE, not a notification, and that is the design correction.** A notification is read and gone; an applicant is a card with a lifecycle (pending → converted → discarded), and what the inbox has to guarantee is that **the list of who nobody answered still exists**. Same pair the system already had: `solicitud_reserva` is the table with states and the notification is what *announces* it.
 - **One inbox, not one per service.** The flows are identical until the last step — form → card → Micaela creates the account — and that last step is already built (`/admin/inscripciones`, `/admin/reservas`, `/admin/ventas`). The card only has to say **what they asked for**, which is what `interes` is; the screen turns it into the link to the right page. Equipment enquiries are in too (decided 2026-08-29): the fourth landing form existed and was equally mute. M&M stays out — it arrives by WhatsApp to Ghezz, the standing Módulo 6 decision.

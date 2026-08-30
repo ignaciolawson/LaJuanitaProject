@@ -637,7 +637,7 @@ Tres cosas para ese momento:
 
 ---
 
-## 6d. DÓNDE RETOMAR · última actualización 2026-08-29 (novena tanda)
+## 6d. DÓNDE RETOMAR · última actualización 2026-08-30 (décima tanda)
 
 > **Empezá acá si estás abriendo el proyecto de nuevo.** Esta sección se
 > actualiza al cerrar cada tanda; si contradice a otra parte del documento, gana
@@ -669,7 +669,7 @@ Tres cosas para ese momento:
 
 ### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-29
 
-## ✅ FASE 1 Y FASE 2 CERRADAS · LO QUE QUEDA ES EL REDISEÑO
+## ✅ FASE 1 Y FASE 2 CERRADAS ENTERAS · LO QUE QUEDA ES EL REDISEÑO
 
 **Suites: 536 backend · 411 front · 198 + 51 SQL, sobre 20 migraciones.**
 
@@ -680,10 +680,38 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 |---|---|
 | **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. Quedan dos cosas que **no dependen de nadie sentado a programar**: reproducir el bug #8 y esperar que el test flaky caiga en CI |
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
-| **2 · Backend sin esquema** | ✅ **CERRADA.** El buzón de solicitantes (`V20`) y solicitar reprogramación (sin migración) cerraron el mismo día. Lo único que queda de la fase es **conectar los cuatro formularios de la landing**, que es trabajo de la otra app contra un endpoint que ya existe |
+| **2 · Backend sin esquema** | ✅ **CERRADA ENTERA.** Buzón de solicitantes (`V20`), solicitar reprogramación, y el 2026-08-30 los formularios de la landing — que cerraron el circuito de punta a punta |
 | **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |
 
-### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: "NO PUEDO ESE DÍA"
+### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: LOS FORMULARIOS DE LA LANDING
+
+**Fase 2.2b**, y con eso la Fase 2 queda cerrada entera. Los tres formularios de
+captación mandan a `POST /api/solicitantes` y caen en `/admin/buzon`. Verificado
+contra el backend real con el `Origin` de la landing: preflight 200 y alta 201, con
+acentos y separadores intactos.
+
+- **⚠️ La trampa que casi lo hace fallar en silencio fue la CSP.** La landing
+  declara `connect-src 'self'`, así que un `fetch` a otro origen **lo bloquea el
+  navegador sin mostrar nada en la página** — idéntico a un backend caído. El
+  origen de la API entró en la CSP y **sale de la misma variable que usa el
+  cliente**, para que no se puedan desincronizar. Son tres piezas que tienen que
+  coincidir: `NEXT_PUBLIC_API_URL`, la CSP y `CORS_ORIGENES` del backend.
+- **El "listo" ahora sale sólo si el envío salió bien.** Ése era el agujero de
+  fondo, y el envío vive una sola vez en `FormShell`, no cuatro.
+- **"Nombre y apellido" se partió en dos campos.** Es la lección de `V4` aplicada a
+  tiempo, y del lado correcto: allá hubo que partir una columna adivinando.
+- **`/ingresar` resultó no ser un formulario.** El plan decía "conectar el login";
+  al hacerlo apareció que **una sesión iniciada en la landing no se le puede
+  entregar a la plataforma** —orígenes distintos, `localStorage` no se comparte—.
+  Las salidas eran pasar el token por la URL (historial, `Referer`) o atarse a una
+  decisión de hosting que no está tomada. Quedó como **puerta**: dos accesos a la
+  plataforma, que funcionan con cualquier deploy. Y se fue el "olvidé mi
+  contraseña", que sin correo es una puerta que no abre.
+
+⚠️ **Publicar la landing sigue bloqueado, pero ya no por código**: precios
+inventados, las seis notas del blog y los perfiles reales de Instagram y YouTube.
+
+### 📚 LA TANDA ANTERIOR: "NO PUEDO ESE DÍA"
 
 **`SolicitudReprogramacion` en el paquete `solicitud`, `/admin/reprogramaciones` y el
 componente `PedirOtroDia`** — Fase 2.4 de [`mejoras.md`](mejoras.md), el hallazgo #2 y la
@@ -814,12 +842,7 @@ adentro.
 
 ### ⏭️ LO PRÓXIMO, EN ORDEN
 
-1. **Conectar los cuatro formularios de la landing** contra `POST /api/solicitantes`.
-   Va por carril aparte porque es otra app: CORS, una URL de API configurable y los
-   cuatro `onSubmit`. **No es solo el `onSubmit`**: hay que partir *"Nombre y
-   apellido"* en dos campos y hacer obligatorio el teléfono. El contrato completo
-   está en `mejoras.md` §9.10.
-2. **El rediseño** — **lo único que queda del plan**, cuando se congele la lista
+1. **El rediseño** — **lo único que queda del plan**, cuando se congele la lista
    (~11/09). El contenido del Inicio por perfil ya está decidido en `mejoras.md` §11 y
    **no falta ningún endpoint**: es armado, no desarrollo.
 

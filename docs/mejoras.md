@@ -182,7 +182,7 @@ contraseña de desarrollo.
 | 4 | `/admin/pagos` | Registrar un pago de un usuario que no es alumno | El formulario solo permite alumno → inscripción; la API ya acepta los cuatro destinos | **B** | ✅ **HECHO** · §9.8 |
 | 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | ✅ **HECHO** · §9.9 |
 | 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
-| 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | 🟡 **Buzón HECHO** (`V20`) · faltan los formularios de la landing · §9.4 |
+| 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ **HECHO** · buzón `V20` (§9.10) + formularios y `/ingresar` (§9.12) |
 | 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
 | 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ⏳ §9.6 |
 
@@ -518,6 +518,62 @@ el alcance nunca pidió.
 
 ---
 
+### 9.12 · Los formularios de la landing, conectados el 2026-08-30
+
+**Cierra el hallazgo #7 y la Fase 2 entera.** Los tres formularios de captación
+—programa, cabina/grabación, equipos— mandan a `POST /api/solicitantes` y del otro
+lado son una ficha en `/admin/buzon`. Verificado de punta a punta contra el
+backend real, con el `Origin` de la landing: preflight 200 y alta 201, con los
+acentos y el `·` del detalle intactos.
+
+**1 · La trampa que casi hace fallar todo en silencio: la CSP.** Este sitio
+declara `connect-src 'self'`, así que un `fetch` a otro origen lo **bloquea el
+navegador sin mostrar nada en la página** — se ve idéntico a un backend caído. El
+origen de la API entró en la CSP, y **se saca de la misma variable de entorno que
+usa el cliente** (`NEXT_PUBLIC_API_URL`) a propósito: escritas por separado, el día
+que la API cambie de dominio el síntoma es un formulario que no responde y nadie
+sabe por qué. Son tres piezas que tienen que estar de acuerdo —la variable, la CSP
+y `CORS_ORIGENES` del backend— y están anotadas juntas en el `CLAUDE.md` de la
+landing.
+
+**2 · El "listo" ahora sale sólo si el envío salió bien.** Era el agujero: durante
+tres semanas el formulario contestaba *"listo, lo recibimos"* sin mandar nada. El
+envío vive en `FormShell` —una sola vez, no cuatro— y si falla muestra el mensaje
+que vino de la API **y deja el formulario como estaba**, con lo que la persona
+escribió adentro.
+
+**3 · "Nombre y apellido" se partió en dos campos**, en los tres formularios. Es la
+lección de `V4` aplicada a tiempo: allá hubo que partir una columna adivinando
+dónde terminaba el nombre. Y el teléfono quedó obligatorio, que ya lo era en la
+API por una razón de negocio: la contraseña temporal viaja por WhatsApp.
+
+**4 · `/ingresar` resultó no ser un formulario, y esa es la decisión de la tanda.**
+El plan decía "conectar el login". Al ir a hacerlo apareció el problema de fondo:
+**una sesión iniciada en la landing no se le puede entregar a la plataforma** —son
+dos apps en orígenes distintos y `localStorage` no se comparte, así que el token
+quedaría de un lado sin ninguna pantalla que lo use—. Las dos salidas conocidas son
+peores que el problema:
+
+- **Pasar el token por la URL**: queda en el historial, en el `Referer` y en
+  cualquier extensión. Es el patrón que la industria abandonó, y no es coherente en
+  un sistema que se toma el trabajo de que las tres formas de fallar un login
+  tarden lo mismo.
+- **Apostar a que las dos apps queden en el mismo dominio**: es exactamente la
+  decisión de hosting de octubre, que no está tomada.
+
+Así que `/ingresar` quedó como **la puerta**: dos accesos a la plataforma —iniciar
+sesión y crear cuenta—, que funcionan con cualquier forma de deploy. **Y se fue el
+"olvidé mi contraseña"**, que no existe ni puede existir sin correo: ofrecerlo
+mandaba a la persona a una puerta que no abre.
+
+> Si en octubre se decide mismo origen, convertir la puerta en un formulario de
+> verdad es un cambio chico. Desarmar un login que ya entrega mal la sesión no lo es.
+
+⚠️ **Publicar la landing sigue bloqueado, y ya no por código**: los precios
+inventados, las seis notas del blog y los perfiles reales de Instagram y YouTube.
+
+---
+
 ## 10. El plan de acción
 
 > Acordado el 2026-08-28. **El orden no es "bugs → diseño" sino "esquema →
@@ -553,8 +609,8 @@ migraciones son inmutables y se acumulan, eso no es prolijidad.
 
 ### Fase 2 · Backend sin tocar el esquema
 
-> ✅ **CERRADA el 2026-08-29**, salvo 2.2b (los formularios de la landing), que es
-> trabajo de la otra app. Suites al cierre: **536 backend · 411 front · 198 + 51 SQL**.
+> ✅ **CERRADA ENTERA el 2026-08-30.** Suites: **536 backend · 411 front ·
+> 198 + 51 SQL**. Lo único que queda del plan es la Fase 3.
 
 De más barato a más caro:
 
@@ -563,7 +619,7 @@ De más barato a más caro:
 | ~~2.3~~ | ~~**#4** pago de un no-alumno~~ | ✅ **HECHO el 2026-08-29** — se hizo junto con el front de `V19`, porque son la misma pantalla (§9.8) |
 | ~~2.1~~ | ~~**#5** comprobante al aprobar seña~~ | ✅ **HECHO el 2026-08-29** (§9.9) |
 | ~~2.2a~~ | ~~**9.4** buzón de solicitantes~~ | ✅ **HECHO el 2026-08-29** — `V20`, paquete `solicitante`, `/admin/buzon`. Ver §9.10 |
-| 2.2b | **9.4** conectar los cuatro formularios de la landing | Chico y de otra app — CORS, URL de API configurable, y los cuatro `onSubmit`. El endpoint ya existe y se puede probar con `curl` |
+| ~~2.2b~~ | ~~**9.4** conectar los formularios de la landing~~ | ✅ **HECHO el 2026-08-30** — y con él `/ingresar`, que resultó no ser un formulario. Ver §9.12 |
 | ~~2.4~~ | ~~**#2 + §5 #3** solicitar reprogramación~~ | ✅ **HECHO el 2026-08-29** — sin migración: la tabla y el trigger estaban desde `V1` y `V13` esperando su primer escritor. Ver §9.11 |
 
 *(La vieja 2.3 —disponibilidad al pedir— se cayó por §9.2.)*

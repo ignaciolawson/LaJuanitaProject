@@ -9,6 +9,18 @@ import {
   FormShell,
 } from "@/components/forms/Fields";
 import { GEAR } from "@/data/gear";
+import { mandarSolicitud } from "@/lib/api";
+
+const NIVEL: Record<string, string> = {
+  arrancando: "arrancando",
+  tocando: "ya toca",
+  renovando: "renueva cabina",
+};
+
+const PRESUPUESTO: Record<string, string> = {
+  "no-se": "presupuesto sin definir",
+  definido: "presupuesto definido",
+};
 
 /**
  * Consulta de equipamiento.
@@ -25,15 +37,40 @@ export function GearInquiryForm() {
   return (
     <FormShell
       submitLabel="Enviar consulta"
-      successTitle="Consulta cargada"
-      successBody="Cuando el formulario esté conectado, esto llega al equipo del shop y te responden con opciones y precios actualizados."
+      successTitle="Recibimos tu consulta"
+      successBody="Te escribimos con opciones y precios actualizados. Los equipos se piden a Pioneer, así que la disponibilidad la confirmamos al responderte."
+      enviar={async (datos) =>
+        mandarSolicitud({
+          nombre: String(datos.get("nombre") ?? ""),
+          apellido: String(datos.get("apellido") ?? ""),
+          email: String(datos.get("email") ?? ""),
+          telefono: String(datos.get("telefono") ?? ""),
+          interes: "EQUIPOS",
+          // Las categorías son checkboxes: `getAll`, no `get`. Con `get` viajaría
+          // sólo la primera y la ficha diría que alguien pregunta por una sola
+          // cosa cuando marcó tres.
+          detalle: [
+            datos.getAll("categorias").map(String).map(nombreDeCategoria).join(", ") || null,
+            NIVEL[String(datos.get("nivel"))] ?? null,
+            PRESUPUESTO[String(datos.get("presupuesto"))] ?? null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          mensaje: String(datos.get("mensaje") ?? "") || undefined,
+        })
+      }
     >
+      {/* Nombre y apellido separados: el sistema los guarda en dos columnas. */}
       <div className="grid gap-6 sm:grid-cols-2">
-        <Field label="Nombre y apellido" name="nombre" required autoComplete="name" />
-        <Field label="Teléfono" name="telefono" type="tel" required autoComplete="tel" />
+        <Field label="Nombre" name="nombre" required autoComplete="given-name" />
+        <Field label="Apellido" name="apellido" required autoComplete="family-name" />
       </div>
 
-      <Field label="Mail" name="email" type="email" required autoComplete="email" />
+      {/* El teléfono es obligatorio: la respuesta va por WhatsApp. */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        <Field label="Teléfono" name="telefono" type="tel" required autoComplete="tel" />
+        <Field label="Mail" name="email" type="email" required autoComplete="email" />
+      </div>
 
       <fieldset>
         <legend className="t-mono text-[color:var(--page-faint)]">
@@ -86,4 +123,9 @@ export function GearInquiryForm() {
       />
     </FormShell>
   );
+}
+
+/** El slug de una categoría no le dice nada a quien atiende la ficha. */
+function nombreDeCategoria(slug: string): string {
+  return GEAR.find((c) => c.slug === slug)?.name ?? slug;
 }

@@ -6,15 +6,16 @@ import clsx from "clsx";
 /**
  * Primitivas de formulario.
  *
- * ⚠️ TODO ESTO ES VISUAL. No hay backend, no se envía nada a ningún lado:
- * el submit sólo muestra el estado de confirmación. Cuando exista el
- * endpoint, el único lugar a tocar es el `onSubmit` de <FormShell>.
+ * ✅ **Conectados el 2026-08-30.** Los formularios mandan de verdad: cada uno
+ * arma su ficha y `FormShell` la manda a `POST /api/solicitantes`, que del otro
+ * lado es una fila en el buzón de administración. Durante casi tres semanas esto
+ * contestaba *"listo, lo recibimos"* sin que el pedido saliera del navegador —el
+ * aviso visible de "todavía no se envía" se había sacado por pedido explícito el
+ * 2026-08-09— y **ese era el motivo por el que este sitio no se podía publicar**.
  *
- * El aviso visible de "todavía no se envía" se sacó por pedido explícito
- * (2026-08-09), sabiendo que eso deja al formulario diciendo "listo" sin que
- * la solicitud llegue a nadie. Mientras siga así, la landing no debería estar
- * publicada de cara al público — es para mostrarla, no para recibir gente.
- * Conectar el `onSubmit` es lo que cierra este agujero.
+ * ⚠️ Lo que hay que no romper está en `FormShell`: **el mensaje de éxito se
+ * muestra sólo si el envío salió bien.** Un `catch` que igual dé por enviado
+ * reabre el mismo agujero con más código.
  *
  * Decisiones de estilo: sin cajas redondeadas ni fondos grises. Los campos
  * son una línea inferior que se enciende en rojo al enfocarse — más cerca
@@ -194,10 +195,18 @@ export const choiceOption =
   "choice-option t-mono border border-[color:var(--page-field)] px-3 py-3 text-center text-[color:var(--page-muted)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:text-white peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red";
 
 /**
- * Envoltorio de formulario con estado de confirmación.
+ * Envoltorio de formulario: manda, y recién ahí confirma.
  *
- * Al enviar no llama a ningún endpoint: muestra el mensaje de éxito y nada
- * más. `onSubmit` es el punto de conexión cuando exista la API.
+ * **Quién manda es esto y no cada formulario**, y quién sabe leerse a sí mismo es
+ * cada formulario: por eso `enviar` recibe el `FormData` ya armado y devuelve la
+ * ficha. Con el envío repetido en los cuatro, agregarle un campo a la ficha
+ * significaría acordarse cuatro veces.
+ *
+ * ⚠️ **El mensaje de éxito sale sólo si el envío salió bien.** Es la regla entera
+ * de este componente: hasta el 2026-08-30 contestaba "listo" sin mandar nada, y
+ * eso es lo que tenía a la landing sin publicar. Si el pedido falla, se muestra el
+ * mensaje que vino de la API y **el formulario queda como estaba**, con lo que la
+ * persona escribió adentro, para que pueda reintentar sin volver a completarlo.
  */
 export function FormShell({
   children,
@@ -205,14 +214,19 @@ export function FormShell({
   successTitle,
   successBody,
   compact = false,
+  enviar,
 }: {
   children: ReactNode;
   submitLabel: string;
   successTitle: string;
   successBody: string;
   compact?: boolean;
+  /** Lee el formulario y manda la ficha. Tira si no llegó. */
+  enviar: (datos: FormData) => Promise<void>;
 }) {
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   if (sent) {
     return (
@@ -239,17 +253,45 @@ export function FormShell({
        nombre, teléfono y mail vacíos — la marca roja del asterisco no
        validaba nada. */
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        setSent(true);
+        const datos = new FormData(e.currentTarget);
+        setEnviando(true);
+        setError(null);
+        try {
+          await enviar(datos);
+          setSent(true);
+        } catch (fallo) {
+          setError(
+            fallo instanceof Error
+              ? fallo.message
+              : "No pudimos enviar tu solicitud. Probá de nuevo en un momento.",
+          );
+        } finally {
+          setEnviando(false);
+        }
       }}
       className={clsx("grid gap-6", compact ? "sm:gap-6" : "sm:gap-7")}
     >
       {children}
 
+      {error && (
+        <p
+          role="alert"
+          className="t-body border border-red/40 bg-red-tint p-4 text-sm text-[color:var(--page-fg)]"
+        >
+          {error}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
-        <button type="submit" className="btn btn--solid" data-cursor="ENVIAR">
-          {submitLabel}
+        <button
+          type="submit"
+          disabled={enviando}
+          className="btn btn--solid disabled:opacity-60"
+          data-cursor="ENVIAR"
+        >
+          {enviando ? "Enviando…" : submitLabel}
           <span aria-hidden className="text-[1.25em] leading-none">
             ↗
           </span>

@@ -17,7 +17,9 @@ Landing pública de La Juanita Studio: academia de DJ y producción, estudio
 de mix & mastering, sello discográfico, alquiler de cabina y venta de
 equipamiento. Next.js (App Router) + Tailwind v4 + GSAP. Todo estático.
 
-**No hay backend.** Ningún formulario envía nada — ver [Formularios](#formularios-todo-visual).
+**Los formularios están conectados desde el 2026-08-30** — mandan a
+`POST /api/solicitantes` y del otro lado son una ficha en el buzón de
+administración. Ver [Formularios](#formularios-conectados-el-2026-08-30).
 
 ## Rutas
 
@@ -39,7 +41,7 @@ con otro (SEO-04).
 /nosotros
 /faq
 /contacto
-/ingresar             login del campus (maqueta, sin auth)
+/ingresar             puerta al campus (dos accesos a la plataforma, sin auth propia)
 ```
 
 ---
@@ -390,36 +392,56 @@ scroll animado se sienta roto en el celular y perfecto en el escritorio.
 
 ---
 
-## Formularios: todo visual
+## Formularios: conectados el 2026-08-30
 
-**Ninguno envía nada a ningún lado.**
+**Los cuatro formularios de captación mandan de verdad.** Cada uno arma su ficha
+y `FormShell` la manda a `POST /api/solicitantes`; del otro lado eso es una fila
+en `/admin/buzon`, con su ciclo de vida (pendiente → convertida en cuenta →
+descartada). La contraseña de la cuenta que se cree después viaja por WhatsApp:
+**no hay infraestructura de correo y está decidido que no la va a haber.**
 
-| Formulario | Dónde | Qué falta |
+| Formulario | Dónde | Qué manda |
 | --- | --- | --- |
-| Solicitud de programa | `/programas/convertite-en-dj`, `/programas/produccion-musical` | endpoint + aviso al equipo |
-| Reserva de cabina | `/servicios#reservar` | endpoint + disponibilidad real de sala |
-| Consulta de equipos | `/equipos#consultar` | endpoint + aviso al shop |
-| Inicio de sesión | `/ingresar` | auth, sesión, campus |
-| Contacto | `/contacto` | preexistente, sigue sin conectar |
+| Solicitud de programa | `/programas/[slug]` | `CURSO` + programa, modalidad y experiencia |
+| Reserva de cabina | `/servicios#reservar` | `ALQUILER_CABINA` o `GRABACION_SET` + fecha, hora, duración y personas |
+| Consulta de equipos | `/equipos#consultar` | `EQUIPOS` + categorías, nivel y presupuesto |
+| Contacto | `/contacto` | **Nada: no es un formulario.** Son links a WhatsApp |
+| Inicio de sesión | `/ingresar` | **Nada, a propósito.** Es una puerta — ver abajo |
 
-**Ya no muestran ningún aviso de que no se envían** — se sacó por decisión
-explícita del cliente el 2026-08-09. O sea que hoy el formulario contesta
-"listo, recibimos tu solicitud" y la solicitud no llega a nadie.
+⚠️ **Lo que hay que no romper, y es una sola cosa:** el mensaje de éxito sale
+**sólo si el envío salió bien** (`FormShell`). Durante tres semanas estos
+formularios contestaron *"listo, lo recibimos"* sin mandar nada —el aviso visible
+se había sacado por pedido del cliente el 2026-08-09— y **ése era el motivo por el
+que este sitio no se podía publicar**. Un `catch` que igual dé por enviado reabre
+el mismo agujero con más código.
 
-Consecuencia operativa, mientras siga así: **la landing sirve para
-mostrarla, no para publicarla de cara al público.** Si se publica antes de
-conectar el `onSubmit`, cada persona que complete un formulario queda
-esperando una respuesta que no existe. No lo resuelvas volviendo a poner el
-aviso (ya se decidió que no va): lo que cierra el agujero es conectar el
-envío. Sin backend todavía, la salida más corta es armar un `wa.me`
-prellenado con los datos del form.
+**Tres piezas tienen que estar de acuerdo o el envío falla sin decir nada:**
 
-`/ingresar` es la excepción: ahí quedó un mensaje de derivación a
-`/contacto`, porque el botón sin ninguna respuesta era peor y un "contraseña
-incorrecta" inventado manda a resetear una cuenta que no existe.
+1. `NEXT_PUBLIC_API_URL` — de dónde cuelga la API (`src/lib/api.ts`). Default:
+   `http://localhost:8080`.
+2. **La CSP** (`next.config.ts`) lista ese mismo origen en `connect-src`, y lo
+   saca de la misma variable a propósito. Si no coincide, **el navegador bloquea
+   el `fetch` sin mostrar nada en la página**: se ve igual que un backend caído.
+3. **`CORS_ORIGENES` del backend** tiene que incluir el origen de este sitio. El
+   default de desarrollo ya trae `http://localhost:3000`.
 
-Punto de conexión cuando exista la API: el `onSubmit` de `FormShell` en
-`components/forms/Fields.tsx`, y `components/forms/LoginForm.tsx`.
+### `/ingresar` es una puerta, no un login
+
+**Una sesión iniciada acá no se le puede entregar a la plataforma.** Son dos apps
+en orígenes distintos y `localStorage` no se comparte: el token quedaría de este
+lado, donde no hay ninguna pantalla que lo use. Las dos salidas conocidas son
+peores que el problema —pasar el token por la URL, que queda en el historial y en
+el `Referer`, o atarse a que ambas apps terminen en el mismo dominio, que es
+justo la decisión de hosting que no está tomada—. Un link funciona con las dos.
+
+Así que `AccesoAlCampus` son dos accesos a la plataforma (`NEXT_PUBLIC_PLATFORM_URL`,
+default `http://localhost:5173`): iniciar sesión y crear cuenta. **Se fue el
+"olvidé mi contraseña"**, que no existe ni puede existir sin correo, y ofrecerlo
+mandaba a la persona a una puerta que no abre.
+
+> Si en octubre se decide mismo origen para las dos apps, convertir esto en un
+> formulario de verdad es un cambio chico. Al revés —desarmar un login que ya
+> entrega mal la sesión— no lo es.
 
 La reserva calcula un **precio estimado** sobre el precio por hora de
 `data/services.ts`, etiquetado como referencia. No lo presentes como total
@@ -772,8 +794,8 @@ Las decisiones específicas de teléfono y tablet están en
 
 **Bloquea publicar:**
 
-- **Conectar los formularios.** Los cinco contestan "listo" sin enviar nada. Es
-  *la* razón por la que el sitio no se publica.
+- ~~**Conectar los formularios.**~~ ✅ **Hecho el 2026-08-30.** Era *la* razón
+  por la que el sitio no se publicaba. Lo que queda para publicar no es código.
 - **Reescribir o borrar las seis notas del blog.**
 - **Validar los precios**, que hoy salen con la salvedad "precio de referencia".
 
@@ -795,8 +817,6 @@ confirmaron el 2026-08-14 y el `LocalBusiness` se publica entero.
 - Las páginas interiores (`/sello`, `/profesores`, `/faq`, `/contacto`)
   recibieron migración de tokens y tipografía, pero conservan estructura
   vieja (`EditorialRow`). Son coherentes, no están al nivel de la home.
-- Conectar el envío de los formularios (ver arriba: hoy dicen "listo" sin
-  mandar nada).
 - Sin referencias en el HTML generado: `espacio/entrada-retrato.jpg` (95 KB).
   Los dos archivos de logo ya no están en esta lista: `logo/wordmark.png` y
   `logo/icon.png` los usa `app/opengraph-image.tsx` para componer la imagen

@@ -1,6 +1,25 @@
 "use client";
 
 import { Field, ChoiceGroup, TextArea, FormShell } from "@/components/forms/Fields";
+import { mandarSolicitud } from "@/lib/api";
+
+/**
+ * Cómo se lee cada opción en la ficha que ve administración.
+ *
+ * Los `value` viajan cortos porque son de la interfaz; en el buzón se lee una
+ * frase. Sin esto la ficha diría "cero" y "presencial", que a quien llama no le
+ * dicen lo mismo que "arranca de cero, presencial en Pilar".
+ */
+const MODALIDAD: Record<string, string> = {
+  presencial: "Presencial en Pilar",
+  virtual: "Virtual en vivo",
+};
+
+const EXPERIENCIA: Record<string, string> = {
+  cero: "arranca de cero",
+  algo: "algo por su cuenta",
+  si: "ya toca o produce",
+};
 
 /**
  * Solicitud de inscripción a un programa.
@@ -13,13 +32,42 @@ export function ProgramApplyForm({ programName }: { programName: string }) {
   return (
     <FormShell
       submitLabel="Solicitar lugar"
-      successTitle="Solicitud cargada"
-      successBody="Cuando el formulario esté conectado, esto va a llegar al equipo y te responden por mail o WhatsApp en 48 horas hábiles."
+      successTitle="Recibimos tu solicitud"
+      successBody="Te escribimos por WhatsApp o mail para contarte cómo sigue y coordinar el horario. Si necesitás algo antes, escribinos por WhatsApp."
+      enviar={async (datos) =>
+        mandarSolicitud({
+          nombre: String(datos.get("nombre") ?? ""),
+          apellido: String(datos.get("apellido") ?? ""),
+          email: String(datos.get("email") ?? ""),
+          telefono: String(datos.get("telefono") ?? ""),
+          interes: "CURSO",
+          // El programa es lo primero del detalle porque es lo que decide a qué
+          // pantalla va quien atiende la ficha.
+          detalle: [
+            programName,
+            MODALIDAD[String(datos.get("modalidad"))] ?? null,
+            EXPERIENCIA[String(datos.get("experiencia"))] ?? null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+          mensaje: String(datos.get("mensaje") ?? "") || undefined,
+        })
+      }
     >
       <input type="hidden" name="programa" value={programName} />
 
+      {/* Nombre y apellido separados, no un campo partido después: el sistema los
+          guarda en dos columnas y partir "Juana Pérez López" es adivinar dónde
+          termina el nombre. */}
       <div className="grid gap-6 sm:grid-cols-2">
-        <Field label="Nombre y apellido" name="nombre" required autoComplete="name" placeholder="Juana Pérez" />
+        <Field label="Nombre" name="nombre" required autoComplete="given-name" placeholder="Juana" />
+        <Field label="Apellido" name="apellido" required autoComplete="family-name" placeholder="Pérez" />
+      </div>
+
+      {/* El teléfono es obligatorio y no es una preferencia de esta pantalla: el
+          sistema no manda mails —no hay infraestructura de correo ni la va a
+          haber— así que todo lo que sigue después de esto pasa por WhatsApp. */}
+      <div className="grid gap-6 sm:grid-cols-2">
         <Field
           label="Teléfono"
           name="telefono"
@@ -28,16 +76,15 @@ export function ProgramApplyForm({ programName }: { programName: string }) {
           autoComplete="tel"
           placeholder="11 5555 5555"
         />
+        <Field
+          label="Mail"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="vos@mail.com"
+        />
       </div>
-
-      <Field
-        label="Mail"
-        name="email"
-        type="email"
-        required
-        autoComplete="email"
-        placeholder="vos@mail.com"
-      />
 
       <ChoiceGroup
         label="Cómo querés cursar"

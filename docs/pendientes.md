@@ -18,12 +18,11 @@
 > **⚠️ Al 2026-08-29 la etapa de mejoras ya está en marcha y produjo su primera
 > migración.** `mejoras.md` §9 tiene **las decisiones cerradas** y §10 **el plan de
 > fases**, que es lo que gobierna qué se hace ahora. Estado: **Fase 1 cerrada
-> (`V19`) y Fase 2 también** — el buzón de solicitantes (`V20`, §9.10) y
-> solicitar reprogramación (§9.11, sin migración) cerraron el mismo 2026-08-29.
-> Los hallazgos 1, 2, 4, 5, 6 y **la mitad del 7** de su §8 están construidos;
-> del 7 falta conectar los formularios de la landing, que es trabajo de esa otra
-> app contra un endpoint que ya existe. **Lo que queda es la Fase 3: el
-> rediseño**, que espera el corte de la lista (~11/09).
+> (`V19`) y Fase 2 también** — el buzón de solicitantes (`V20`, §9.10),
+> solicitar reprogramación (§9.11) y los formularios de la landing (§9.12).
+> **Los siete hallazgos de su §8 que eran construibles están construidos.**
+> Lo que queda es la Fase 3: el rediseño, que espera el corte de la lista
+> (~11/09).
 >
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
@@ -120,16 +119,17 @@ deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migració
 
 ## 🟡 2. La landing, que espera al sistema
 
-**Decidido el 2026-08-10: la landing no publica antes que la plataforma.** Los
-formularios contestan *"listo"* sin que el pedido llegue a nadie, así que publicar
-temprano es perder leads reales. **No hay parche intermedio** (ni relay de mail ni
-servicio de formularios de terceros): se conectan al backend cuando el sistema esté.
+**Decidido el 2026-08-10: la landing no publica antes que la plataforma.** Se
+cumplió: **los formularios se conectaron el 2026-08-30**, cuando el buzón que los
+recibe ya existía, y nunca hizo falta el parche intermedio que se había descartado
+(ni relay de mail ni servicio de terceros).
 
-Lo que hay que hacer antes de publicar, y **ninguno depende de código**:
+⚠️ **Lo que bloquea publicar ya no tiene nada de código.** Son datos que tiene que
+confirmar el cliente:
 
 | Qué | Dónde | Por qué importa |
 |---|---|---|
-| **Conectar los formularios** | `components/forms/Fields.tsx` y `LoginForm.tsx` | Son los dos `onSubmit`. Hoy no mandan nada. ⚠️ **Ya tienen a dónde ir**: `POST /api/solicitantes` existe desde el 2026-08-29 (`mejoras.md` §9.10 tiene el contrato). Ojo que obliga a **partir "Nombre y apellido" en dos campos** y a hacer el teléfono obligatorio |
+| ~~**Conectar los formularios**~~ | `components/forms/Fields.tsx` | ✅ **HECHO el 2026-08-30** (`mejoras.md` §9.12). Y `/ingresar` quedó como puerta a la plataforma: un login acá no puede entregarle la sesión |
 | ⚠️ **Los precios inventados** | `data/services.ts` | Son **números sobre los que un cliente decide**. Es el ítem de más riesgo de toda la landing |
 | ⚠️ **P34 — la duración de los cursos no coincide** | landing vs. relevamiento | Landing: DJ 6 meses / 2 clases semanales. Confirmado: DJ 8 clases, 1 por semana. **Alguno de los dos está mal** |
 | ⚠️ **Mix & Mastering aparece como programa de 3 meses** | landing | **No existe como programa** (P31): es un servicio. Lo inventó la landing |

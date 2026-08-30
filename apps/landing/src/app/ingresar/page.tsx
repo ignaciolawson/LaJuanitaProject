@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { Container } from "@/components/ui/Container";
-import { LoginForm } from "@/components/forms/LoginForm";
+import { AccesoAlCampus } from "@/components/forms/AccesoAlCampus";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión",
@@ -19,12 +19,14 @@ export const metadata: Metadata = {
 /**
  * Pantalla de ingreso al campus.
  *
- * ⚠️ Sólo visual: no hay autenticación, no hay sesión, no hay usuarios. El
- * formulario no valida contra nada — cuando exista el backend, se conecta
- * en `LoginForm`.
+ * **Esta página no autentica, y no es que le falte: es la puerta.** La sesión
+ * vive en la plataforma, que es otra aplicación en otro origen, y una sesión
+ * iniciada acá no se le puede entregar — el porqué está escrito en
+ * `AccesoAlCampus`, y es la razón por la que el formulario que había acá se
+ * reemplazó por dos accesos.
  *
- * Layout partido: formulario a la izquierda, foto del espacio a la derecha.
- * Una pantalla de login es una tarea, no una página para explorar.
+ * Layout partido: los accesos a la izquierda, foto del espacio a la derecha.
+ * Una pantalla de ingreso es una tarea, no una página para explorar.
  *
  * El Navbar del layout se renderiza acá igual que en el resto del sitio (no
  * hay excepción por ruta), así que la marca ya está en pantalla: esta página
@@ -52,7 +54,7 @@ export default function IngresarPage() {
             </p>
 
             <div className="mt-12">
-              <LoginForm />
+              <AccesoAlCampus />
             </div>
 
             <p className="t-mono mt-10 border-t border-[color:var(--page-line)] pt-6 text-[color:var(--page-faint)]">
