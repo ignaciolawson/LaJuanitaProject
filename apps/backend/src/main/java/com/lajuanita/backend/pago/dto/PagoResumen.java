@@ -3,6 +3,7 @@ package com.lajuanita.backend.pago.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
@@ -56,9 +57,16 @@ public record PagoResumen(
         /** Si suma a la caja. Lo decide `EstadoPago.ENTRARON`, no la pantalla. */
         boolean entro,
 
-        String comprobantePath,
-        boolean comprobanteInvalido,
-        String motivoInvalidacion,
+        /**
+         * Los respaldos adjuntos, en orden de carga. <b>Vacía, no null</b>, cuando
+         * no hay ninguno: la pantalla dibuja "sin comprobante" y no un hueco.
+         *
+         * <p>Viaja en el listado y no solo en el detalle a propósito. Es la misma
+         * razón por la que {@code queSalda} viene resuelto del servidor: la fila
+         * tiene que poder decir <i>si este pago tiene respaldo</i> sin un pedido por
+         * fila, que es justo lo que hace inservible un listado de cien pagos.
+         */
+        List<ComprobanteResumen> comprobantes,
 
         String motivoAnulacion,
         OffsetDateTime fechaAnulacion,
@@ -100,9 +108,7 @@ public record PagoResumen(
                 pago.getMotivoDescuento(),
                 pago.getEstadoPago(),
                 pago.getEstadoPago().entro(),
-                pago.getComprobantePath(),
-                pago.isComprobanteInvalido(),
-                pago.getMotivoInvalidacion(),
+                pago.getComprobantes().stream().map(ComprobanteResumen::de).toList(),
                 pago.getMotivoAnulacion(),
                 pago.getFechaAnulacion(),
                 pago.getFechaPago(),

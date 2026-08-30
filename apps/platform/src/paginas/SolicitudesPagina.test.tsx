@@ -23,7 +23,15 @@ vi.mock('../api/portal', () => ({
   rechazarSolicitud: vi.fn(),
 }))
 
+vi.mock('../api/administracion', () => ({ adjuntarComprobante: vi.fn() }))
+
 const { listarSolicitudes, aprobarSolicitud, rechazarSolicitud } = await import('../api/portal')
+const { adjuntarComprobante } = await import('../api/administracion')
+
+/** Lo que devuelve aprobar desde `V21`: la solicitud y el pago de la seña. */
+function aprobada(cambios: Partial<SolicitudResumen> = {}) {
+  return { solicitud: solicitud({ estado: 'APROBADA', idReserva: 99, ...cambios }), idPagoSena: 55 }
+}
 
 function solicitud(cambios: Partial<SolicitudResumen> = {}): SolicitudResumen {
   return {
@@ -123,33 +131,39 @@ describe('aprobar es cobrar', () => {
   })
 
   /**
-   * **El comprobante de la seña viaja con la aprobación** (hallazgo #5 de
+   * **El comprobante de la seña se adjunta al aprobar** (hallazgo #5 de
    * `docs/mejoras.md`). Este es el circuito donde más importa: la persona pidió
    * por el portal, transfirió, y quien aprueba está mirando esa transferencia —
-   * hasta ahora no había dónde anotarla y el respaldo se perdía.
+   * si no se puede adjuntar ahí, el respaldo se pierde en el momento en que existe.
+   *
+   * **Son dos pedidos y no uno**, y eso lo trajo `V21`: el respaldo dejó de ser
+   * una ruta escrita a mano para ser un archivo, y un archivo no viaja en el JSON.
+   * El segundo va contra el pago que el primero devuelve.
    */
-  it('el comprobante de la seña viaja con la aprobación', async () => {
+  it('el comprobante se adjunta al pago que crea la aprobación', async () => {
+    vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
+    const archivo = new File(['%PDF-1.4'], 'transferencia.pdf', { type: 'application/pdf' })
+
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
-    await userEvent.type(screen.getByLabelText(/Comprobante/), '/comprobantes/portal-7.pdf')
+    await userEvent.upload(screen.getByLabelText('Comprobante'), archivo)
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
-    await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
-    expect(vi.mocked(aprobarSolicitud).mock.calls[0][1].comprobantePath).toBe(
-      '/comprobantes/portal-7.pdf',
-    )
+    await waitFor(() => expect(adjuntarComprobante).toHaveBeenCalledWith(55, archivo))
   })
 
   /** Y es opcional: una seña en efectivo no tiene comprobante. */
   it('sin comprobante la aprobación sale igual', async () => {
+    vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
+
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
-    expect(vi.mocked(aprobarSolicitud).mock.calls[0][1].comprobantePath).toBeUndefined()
+    expect(adjuntarComprobante).not.toHaveBeenCalled()
   })
 
   it('no deja confirmar sin monto', async () => {
@@ -179,7 +193,7 @@ describe('aprobar es cobrar', () => {
    * cuenta de otro.
    */
   it('manda la seña sin decir quién paga', async () => {
-    vi.mocked(aprobarSolicitud).mockResolvedValue(solicitud({ estado: 'APROBADA', idReserva: 99 }))
+    vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
     montar()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))

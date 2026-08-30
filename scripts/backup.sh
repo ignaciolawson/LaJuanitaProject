@@ -33,10 +33,10 @@ DB="${POSTGRES_DB:-la_juanita}"
 USUARIO="${POSTGRES_USER:-la_juanita}"
 DESTINO="${LAJUANITA_BACKUP_DIR:-./backups}"
 
-# Los archivos que sube el sistema: contratos del sello, y mas adelante los
-# comprobantes. Tiene que ser la MISMA ruta que `lajuanita.archivos.raiz` del
-# backend -- si no, este script respalda una carpeta vacia todos los dias y nadie
-# se entera hasta el restore.
+# Los archivos que sube el sistema: contratos del sello y, desde el 2026-08-30
+# (`V21`), los comprobantes de los pagos. Tiene que ser la MISMA ruta que
+# `lajuanita.archivos.raiz` del backend -- si no, este script respalda una carpeta
+# vacia todos los dias y nadie se entera hasta el restore.
 ARCHIVOS="${LAJUANITA_ARCHIVOS_DIR:-./apps/backend/archivos}"
 
 # Retencion. 7 diarios + 4 semanales: un dump de esta base pesa ~105 KB, asi

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
+import { adjuntarComprobante } from '../api/administracion'
 import { aprobarSolicitud, listarSolicitudes, rechazarSolicitud } from '../api/portal'
 import { NOMBRE_DE_MEDIO, type MedioPago, type Moneda } from '../api/tiposAdmin'
 import {
@@ -162,8 +163,16 @@ export function SolicitudesPagina() {
               <div className="mt-4 border-t border-linea pt-4">
                 <FormularioDeSena
                   onCancelar={() => setAbriendo(null)}
-                  onConfirmar={(sena) =>
-                    void resolver(() => aprobarSolicitud(s.idSolicitud, sena))
+                  onConfirmar={(sena, comprobante) =>
+                    void resolver(async () => {
+                      const hecha = await aprobarSolicitud(s.idSolicitud, sena)
+                      // La reserva y su seña ya existen. El archivo va contra el
+                      // pago recién creado: `V21` lo saca del JSON, y este es el
+                      // momento en que quien aprueba está mirando la transferencia.
+                      if (comprobante) {
+                        await adjuntarComprobante(hecha.idPagoSena, comprobante)
+                      }
+                    })
                   }
                 />
               </div>
@@ -204,20 +213,27 @@ function FormularioDeSena({
   onConfirmar,
 }: {
   onCancelar: () => void
-  onConfirmar: (sena: {
-    monto: number
-    moneda: Moneda
-    cotizacionDolar?: number
-    medioPago: MedioPago
-    comprobantePath?: string
-    respuesta?: string
-  }) => void
+  onConfirmar: (
+    sena: {
+      monto: number
+      moneda: Moneda
+      cotizacionDolar?: number
+      medioPago: MedioPago
+      respuesta?: string
+    },
+    /**
+     * El comprobante viaja aparte porque **es un archivo desde `V21`** y no cabe
+     * en el JSON de la aprobación: se sube en un segundo pedido, contra el pago
+     * que la aprobación acaba de crear.
+     */
+    comprobante: File | null,
+  ) => void
 }) {
   const [monto, setMonto] = useState('')
   const [moneda, setMoneda] = useState<Moneda>('ARS')
   const [cotizacion, setCotizacion] = useState('')
   const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
-  const [comprobante, setComprobante] = useState('')
+  const [comprobante, setComprobante] = useState<File | null>(null)
   const [respuesta, setRespuesta] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -274,16 +290,25 @@ function FormularioDeSena({
 
       {/* El comprobante de la seña. **Este es el circuito donde más se necesita**:
           la persona pidió por el portal, transfirió, y quien aprueba está mirando
-          esa transferencia. Hasta ahora no había dónde anotarla, así que el
-          respaldo se perdía en el momento mismo en que existía (hallazgo #5).
+          esa transferencia. Hasta el 2026-08-29 no había dónde anotarla y el
+          respaldo se perdía en el momento mismo en que existía (hallazgo #5);
+          desde `V21` lo que se guarda es el archivo y no una ruta escrita.
           Opcional a propósito: en efectivo no hay ninguno. */}
-      <Campo
-        etiqueta="Comprobante (opcional)"
-        className="mt-4"
-        value={comprobante}
-        onChange={(e) => setComprobante(e.target.value)}
-        ayuda="Si te transfirieron, dejá acá el comprobante. En efectivo no hace falta."
-      />
+      <div className="mt-4">
+        <span className="mb-1 block text-xs font-medium text-tenue">
+          Comprobante (opcional)
+        </span>
+        <input
+          type="file"
+          accept=".pdf,.png,.jpg,.jpeg"
+          aria-label="Comprobante"
+          onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+          className="w-full text-sm text-tenue"
+        />
+        <p className="mt-1 text-xs text-apagado">
+          Si te transfirieron, adjuntá la captura o el PDF. En efectivo no hace falta.
+        </p>
+      </div>
 
       <Campo
         etiqueta="Mensaje (opcional)"
@@ -311,14 +336,16 @@ function FormularioDeSena({
               setError('Un pago en dólares necesita la cotización del día.')
               return
             }
-            onConfirmar({
-              monto: Number(monto),
-              moneda,
-              cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
-              medioPago,
-              comprobantePath: comprobante.trim() || undefined,
-              respuesta: respuesta.trim() || undefined,
-            })
+            onConfirmar(
+              {
+                monto: Number(monto),
+                moneda,
+                cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
+                medioPago,
+                respuesta: respuesta.trim() || undefined,
+              },
+              comprobante,
+            )
           }}
         >
           Confirmar y crear la reserva

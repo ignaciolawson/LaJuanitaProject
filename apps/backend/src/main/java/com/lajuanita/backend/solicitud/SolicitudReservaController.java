@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
+import com.lajuanita.backend.solicitud.dto.AprobacionRealizada;
 import com.lajuanita.backend.solicitud.dto.AprobacionRequest;
 import com.lajuanita.backend.solicitud.dto.RechazoRequest;
 import com.lajuanita.backend.solicitud.dto.SolicitudResumen;
@@ -66,7 +67,7 @@ public class SolicitudReservaController {
      */
     @PatchMapping("/{id}/aprobacion")
     @PuedeOperar
-    public SolicitudResumen aprobar(@PathVariable Long id,
+    public AprobacionRealizada aprobar(@PathVariable Long id,
             @Valid @RequestBody AprobacionRequest aprobacion,
             Authentication quienPide) {
 

@@ -63,10 +63,7 @@ public record EdicionPagoRequest(
         String motivoDescuento,
 
         @NotNull(message = "Poné la fecha del pago.")
-        LocalDate fechaPago,
-
-        @Size(max = 500)
-        String comprobantePath) {
+        LocalDate fechaPago) {
 
     /** Espeja {@code pago_usd_con_cotizacion}: sin ella el importe no se reconstruye. */
     @AssertTrue(message = "Un pago en dólares necesita la cotización del día.")

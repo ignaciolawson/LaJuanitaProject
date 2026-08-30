@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router'
 
-import { estadoDeCuenta } from '../api/administracion'
+import { abrirComprobante, estadoDeCuenta } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { type EstadoDeCuenta } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
@@ -44,6 +44,14 @@ export function EstadoDeCuentaPagina() {
     void cargar()
   }, [cargar])
 
+  async function abrir(idPago: number, comprobante: { idComprobante: number }) {
+    try {
+      await abrirComprobante(idPago, comprobante.idComprobante)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo abrir el comprobante.')
+    }
+  }
+
   if (cargando) return <p className="text-sm text-tenue">Cargando…</p>
 
   if (error) return <Aviso>{error}</Aviso>
@@ -59,7 +67,7 @@ export function EstadoDeCuentaPagina() {
         <p className="mt-1 text-sm text-tenue">{cuenta.email}</p>
       </div>
 
-      <DetalleDeCuenta cuenta={cuenta} />
+      <DetalleDeCuenta cuenta={cuenta} onVerComprobante={(pago, c) => void abrir(pago.idPago, c)} />
     </div>
   )
 }

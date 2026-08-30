@@ -3,8 +3,10 @@ package com.lajuanita.backend.portal;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +22,7 @@ import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.dto.NotificacionResumen;
 import com.lajuanita.backend.docencia.dto.MaterialResumen;
+import com.lajuanita.backend.pago.ComprobanteService;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.portal.dto.CatalogoParaPedir;
 import com.lajuanita.backend.portal.dto.FranjaOcupada;
@@ -68,14 +71,25 @@ public class PortalController {
     private final SolicitudReprogramacionService reprogramaciones;
     private final NotificacionService avisos;
 
+    /**
+     * <b>Se reusa el servicio de administración, y eso no afloja el eje de
+     * identidad</b>: {@code ComprobanteService} tiene dos métodos distintos, uno que
+     * filtra por pago y otro que filtra por dueño, y acá se llama al segundo. La
+     * alternativa —una copia en {@code PortalService}— sería una segunda forma de
+     * leer el mismo archivo, que es como se cuela la que se olvida del filtro.
+     */
+    private final ComprobanteService comprobantes;
+
     public PortalController(PortalService portal,
             SolicitudReservaService solicitudes,
             SolicitudReprogramacionService reprogramaciones,
-            NotificacionService avisos) {
+            NotificacionService avisos,
+            ComprobanteService comprobantes) {
         this.portal = portal;
         this.solicitudes = solicitudes;
         this.reprogramaciones = reprogramaciones;
         this.avisos = avisos;
+        this.comprobantes = comprobantes;
     }
 
     // == Lo que tengo ========================================================
@@ -100,6 +114,28 @@ public class PortalController {
     @GetMapping("/estado-de-cuenta")
     public EstadoDeCuenta miEstadoDeCuenta(Authentication quienPide) {
         return portal.miEstadoDeCuenta(Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Bajar un comprobante <b>mío</b>.
+     *
+     * <p>Es la última pantalla que el Módulo 4 dejó anotada como pendiente:
+     * <i>"la descarga de comprobantes necesita el {@code StorageService} de §2.4,
+     * que todavía no existe"</i>. Existe desde el Módulo 7, y el respaldo es un
+     * archivo de verdad desde `V21`.
+     *
+     * <p><b>El id del comprobante viaja, el del dueño no</b>: sale del {@code sub}
+     * del token, como todo {@code /api/me/**}. Uno ajeno contesta "no existe" —
+     * decir "no podés" le confirmaría a quien prueba ids que la fila está ahí.
+     *
+     * <p>No cuelga de {@code /pagos/{id}/...} como el de administración porque acá
+     * no hace falta: el filtro no es el pago sino de quién es la plata, y pedir el
+     * id del pago sería un dato de más en la URL que igual no decide nada.
+     */
+    @GetMapping("/comprobantes/{id}")
+    public ResponseEntity<Resource> miComprobante(@PathVariable Long id,
+            Authentication quienPide) {
+        return comprobantes.miArchivo(id, Autoridades.idDe(quienPide)).comoRespuesta();
     }
 
     /**

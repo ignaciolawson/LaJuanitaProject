@@ -220,9 +220,13 @@ class SolicitudReservaTest {
                         {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
                         """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.estado").value("APROBADA"))
-                .andExpect(jsonPath("$.idReserva").isNumber())
-                .andExpect(jsonPath("$.resueltaPor").isNotEmpty())
+                // `$.solicitud.` desde `V21`: aprobar devuelve `AprobacionRealizada`
+                // —la solicitud y el pago de la seña—, porque el comprobante dejó de
+                // ser una ruta escrita y hay que saber a qué pago adjuntar el archivo.
+                .andExpect(jsonPath("$.solicitud.estado").value("APROBADA"))
+                .andExpect(jsonPath("$.solicitud.idReserva").isNumber())
+                .andExpect(jsonPath("$.solicitud.resueltaPor").isNotEmpty())
+                .andExpect(jsonPath("$.idPagoSena").isNumber())
                 .andReturn().getResponse().getContentAsString();
 
         long idReserva = Long.parseLong(entre(cuerpo, "\"idReserva\":"));
@@ -242,16 +246,19 @@ class SolicitudReservaTest {
     }
 
     /**
-     * <b>El comprobante de la seña queda guardado al aprobar</b> (hallazgo #5 de
-     * `docs/mejoras.md`), y este es el circuito donde más importa.
+     * <b>Aprobar devuelve el pago de la seña</b>, y de eso depende el comprobante —
+     * el hallazgo #5 de `docs/mejoras.md` después de `V21`.
      *
-     * <p>La persona pidió por el portal, transfirió, y quien aprueba está mirando
-     * esa transferencia — pero {@code AprobacionRequest} no tenía dónde anotarla,
-     * así que <b>el respaldo del cobro se perdía en el momento mismo en que
-     * existía</b>. La columna estaba desde `V1`; lo que faltaba era el campo.
+     * <p>Este es el circuito donde más importa: la persona pidió por el portal,
+     * transfirió, y quien aprueba está mirando esa transferencia. Antes el respaldo
+     * viajaba en el JSON como una ruta escrita a mano, o sea sin archivo detrás;
+     * ahora es un archivo y necesita a qué pago colgarse. Sin este id, el respaldo
+     * del cobro se vuelve a perder en el momento mismo en que existe.
+     *
+     * <p>El adjuntar propiamente dicho se prueba en {@code ComprobanteTest}.
      */
     @Test
-    void aprobar_guarda_el_comprobante_de_la_sena() throws Exception {
+    void aprobar_devuelve_el_pago_de_la_sena_para_adjuntarle_el_comprobante() throws Exception {
         Usuario quienPide = crear(Rol.USUARIO);
         long id = idDe(mvc.perform(pedir(quienPide, cabina, grabacion, "20:00", "21:00")));
 
@@ -259,17 +266,18 @@ class SolicitudReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
-                         "comprobantePath":"/comprobantes/portal-7.pdf"}
+                        {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
                         """))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         long idReserva = Long.parseLong(entre(cuerpo, "\"idReserva\":"));
+        Long idPagoSena = jdbc.queryForObject(
+                "SELECT id_pago FROM pago WHERE id_reserva = ?", Long.class, idReserva);
 
-        assertThat(jdbc.queryForObject(
-                "SELECT comprobante_path FROM pago WHERE id_reserva = ?", String.class, idReserva))
-                .isEqualTo("/comprobantes/portal-7.pdf");
+        // Que sea el pago de ESTA reserva y no cualquiera: con otro id, la pantalla
+        // adjuntaría la transferencia al cobro de otra persona.
+        assertThat(cuerpo).contains("\"idPagoSena\":" + idPagoSena);
     }
 
     @Test

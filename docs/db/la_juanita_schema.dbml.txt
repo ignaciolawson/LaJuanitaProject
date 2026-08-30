@@ -4,7 +4,27 @@
 // Generado a partir del esquema real, migraciones V1..V14.
 // (V14 no agrega tablas ni columnas: es un trigger sobre `seguimiento_alumno`.)
 //
-// Al 2026-08-19 el diagrama está AL DÍA: comparado tabla por tabla y columna
+// ⚠️ AL 2026-08-30 EL DIAGRAMA QUEDÓ ATRÁS, Y CONVIENE SABER DE QUÉ.
+// Lo que sigue abajo describe el esquema hasta V14. Desde entonces entraron
+// siete migraciones y el diagrama no las tiene:
+//
+//     V17  `notificacion.clave_evento` + su UNIQUE parcial
+//     V18  la tabla `aparicion_release`, y `release`/`contrato_sello` con las
+//          columnas de la publicación sin contrato
+//     V19  `pago.id_usuario` pasa a NULLABLE, + `nombre_pagador_externo`,
+//          `contacto_pagador_externo` y la firma de la edición
+//     V20  la tabla `solicitante` (el buzón de la web)
+//     V21  la tabla `comprobante_pago`, y `pago` PIERDE sus cinco columnas de
+//          comprobante (`comprobante_path`, `comprobante_invalido` y las tres
+//          de la invalidación)
+//
+// Se anota en vez de arreglarse a medias por la razón que esta misma cabecera
+// aprendió una vez: **una cabecera que dice algo falso sobre el diagrama es peor
+// que el diagrama viejo**, porque invita a "corregirlo" hacia atrás. La fuente de
+// verdad son las migraciones; esto es un dibujo para mirar el modelo de un
+// vistazo. Ponerlo al día es una tarea propia, no un renglón de otra.
+//
+// Al 2026-08-19 el diagrama estaba AL DÍA: comparado tabla por tabla y columna
 // por columna contra el catálogo de una base con las migraciones aplicadas,
 // coinciden las 23 tablas y todas sus columnas. La número 23 es
 // `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal

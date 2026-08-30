@@ -144,11 +144,11 @@ class ReservaTest {
     void una_reserva_bien_formada_entra() throws Exception {
         mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.sala").value("Sala 1"))
-                .andExpect(jsonPath("$.tipoUso").value("Clase de DJ"))
-                .andExpect(jsonPath("$.estado").value("CONFIRMADA"))
+                .andExpect(jsonPath("$.reserva.sala").value("Sala 1"))
+                .andExpect(jsonPath("$.reserva.tipoUso").value("Clase de DJ"))
+                .andExpect(jsonPath("$.reserva.estado").value("CONFIRMADA"))
                 // El color lo pone `tipo_uso`, no el front.
-                .andExpect(jsonPath("$.color").isNotEmpty());
+                .andExpect(jsonPath("$.reserva.color").isNotEmpty());
     }
 
     // == La regla más importante del sistema: nunca dos en la misma sala ======
@@ -351,11 +351,12 @@ class ReservaTest {
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
                 participante(alumno.getUsuario().getId(), inscripcion.getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(1)))
-                .andExpect(jsonPath("$.participantes[0].idUsuario")
+                .andExpect(jsonPath("$.reserva.participantes", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.reserva.participantes[0].idUsuario")
                         .value(alumno.getUsuario().getId()))
-                .andExpect(jsonPath("$.participantes[0].idInscripcion").value(inscripcion.getId()))
-                .andExpect(jsonPath("$.participantes[0].disciplina").value("DJ"));
+                .andExpect(jsonPath("$.reserva.participantes[0].idInscripcion")
+                        .value(inscripcion.getId()))
+                .andExpect(jsonPath("$.reserva.participantes[0].disciplina").value("DJ"));
 
         // Que la respuesta los dibuje no alcanza: lo que importa es que la clase
         // quedó consumida, porque ese es el mismo número que la seña va a leer.
@@ -375,7 +376,7 @@ class ReservaTest {
                 participante(uno.getUsuario().getId(), null) + ","
                         + participante(otro.getUsuario().getId(), null)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(2)));
+                .andExpect(jsonPath("$.reserva.participantes", org.hamcrest.Matchers.hasSize(2)));
     }
 
     /**
@@ -388,7 +389,7 @@ class ReservaTest {
     void el_alta_sigue_andando_sin_participantes() throws Exception {
         mvc.perform(alta(cabina, grabacion, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.participantes", org.hamcrest.Matchers.hasSize(0)));
+                .andExpect(jsonPath("$.reserva.participantes", org.hamcrest.Matchers.hasSize(0)));
     }
 
     /**
@@ -534,33 +535,35 @@ class ReservaTest {
     }
 
     /**
-     * <b>El comprobante de la seña llega al pago</b> (hallazgo #5 de
-     * `docs/mejoras.md`).
+     * <b>El alta devuelve el pago de la seña</b>, y de eso depende el comprobante.
      *
-     * <p>{@code pago.comprobante_path} existe desde `V1` y el alta manual de
-     * `/admin/pagos` ya lo usaba, pero <b>este camino la dejaba siempre en
-     * NULL</b>: {@code AltaSenaRequest} no tenía el campo. O sea que la seña de
-     * una transferencia entraba sin su respaldo — justo el caso donde el
-     * comprobante importa.
+     * <p>Es el hallazgo #5 de `docs/mejoras.md` después de `V21`. Antes el respaldo
+     * viajaba adentro del alta como una ruta escrita a mano —{@code
+     * "comprobantePath":"/comprobantes/9.pdf"}—, o sea un texto sin ningún archivo
+     * atrás. Ahora es un archivo de verdad y no cabe en este JSON, así que lo que el
+     * alta tiene que devolver es <b>a quién adjuntárselo</b>: sin este id, el
+     * momento en que quien carga está mirando la transferencia se pierde, que es
+     * justo lo que §9.9 vino a arreglar.
+     *
+     * <p>El adjuntar propiamente dicho se prueba en {@code ComprobanteTest}.
      */
     @Test
-    void la_sena_guarda_su_comprobante() throws Exception {
+    void el_alta_con_sena_devuelve_el_pago_para_adjuntarle_el_comprobante() throws Exception {
         Usuario quienPaga = crear(Rol.USUARIO);
-        mvc.perform(post("/api/reservas")
-                .header("Authorization", comoStaff())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"12:00","horaFin":"13:30",
-                         "sena":{"idUsuario":%d,"monto":45000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
-                                 "comprobantePath":"/comprobantes/transferencia-9.pdf"}}
-                        """.formatted(cabina, grabacion, LUNES, quienPaga.getId())))
+        ResultActions respuesta = mvc.perform(
+                altaConSena(cabina, grabacion, LUNES, "12:00", "13:30", quienPaga.getId()))
                 .andExpect(status().isCreated());
 
         em.flush();
-        assertThat(jdbc.queryForObject(
-                "SELECT comprobante_path FROM pago WHERE id_usuario = ?", String.class,
-                quienPaga.getId()))
-                .isEqualTo("/comprobantes/transferencia-9.pdf");
+        long idReserva = idDe(respuesta);
+        Long idPagoSena = jdbc.queryForObject(
+                "SELECT id_pago FROM pago WHERE id_reserva = ?", Long.class, idReserva);
+
+        // El id que volvió es el del pago de ESTA reserva, no cualquiera: si el
+        // servicio devolviera otro, la pantalla adjuntaría el comprobante al pago
+        // de otra persona y nadie se enteraría.
+        assertThat(respuesta.andReturn().getResponse().getContentAsString())
+                .contains("\"idPagoSena\":" + idPagoSena);
     }
 
     /**
@@ -765,7 +768,10 @@ class ReservaTest {
                          "motivoReprogramacion":"Faltó el profesor"}
                         """.formatted(sala1, claseDj, LUNES.plusDays(7), original)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idReservaRecupera").value(original));
+                // `$.reserva.` desde `V21`: el alta devuelve `ReservaCreada` —la
+                // reserva y el id del pago de la seña—, porque el comprobante ya no
+                // viaja adentro del JSON y la pantalla necesita a quién adjuntárselo.
+                .andExpect(jsonPath("$.reserva.idReservaRecupera").value(original));
 
         mvc.perform(get("/api/reservas/" + original).header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
@@ -816,7 +822,7 @@ class ReservaTest {
                          "motivoReprogramacion":"Se corrió una hora"}
                         """.formatted(sala1, claseDj, LUNES, original)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.horaInicio").value("11:00:00"));
+                .andExpect(jsonPath("$.reserva.horaInicio").value("11:00:00"));
     }
 
     // == La agenda ============================================================

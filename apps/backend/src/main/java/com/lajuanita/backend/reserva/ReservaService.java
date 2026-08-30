@@ -28,6 +28,7 @@ import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
+import com.lajuanita.backend.reserva.dto.ReservaCreada;
 import com.lajuanita.backend.reserva.dto.EdicionReservaRequest;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
@@ -227,7 +228,7 @@ public class ReservaService {
      * pasa a REPROGRAMADA en la misma transacción.
      */
     @Transactional
-    public ReservaResumen alta(AltaReservaRequest solicitud, Long idAutor) {
+    public ReservaCreada alta(AltaReservaRequest solicitud, Long idAutor) {
         Reserva reserva = new Reserva();
         reserva.setSala(buscarSala(solicitud.idSala()));
         reserva.setTipoUso(buscarTipoUso(solicitud.idTipoUso()));
@@ -278,11 +279,14 @@ public class ReservaService {
         // `PagoService` en vez de armar el `Pago` acá: las reglas de la plata
         // -normalización del importe, la cotización del dólar, quién registra-
         // son suyas, y duplicarlas sería la segunda copia que se olvida de una.
-        if (solicitud.sena() != null) {
-            registrarLaSena(solicitud.sena(), guardada.getId(), idAutor);
-        }
+        Long idPagoSena = solicitud.sena() == null
+                ? null
+                : registrarLaSena(solicitud.sena(), guardada.getId(), idAutor);
 
-        return ReservaResumen.de(guardada, anotados);
+        // El id de la seña vuelve para que la pantalla pueda adjuntarle el
+        // comprobante enseguida: desde `V21` el archivo va por su propio endpoint y
+        // no cabe en este JSON. Ver `ReservaCreada`.
+        return new ReservaCreada(ReservaResumen.de(guardada, anotados), idPagoSena);
     }
 
     /**
@@ -295,8 +299,8 @@ public class ReservaService {
      * <p>{@code SENADO}, no {@code PAGADO}: es plata que entró contra un total que
      * todavía no se completó.
      */
-    private void registrarLaSena(AltaSenaRequest sena, Long idReserva, Long idAutor) {
-        pagos.registrar(new AltaPagoRequest(
+    private Long registrarLaSena(AltaSenaRequest sena, Long idReserva, Long idAutor) {
+        return pagos.registrar(new AltaPagoRequest(
                 sena.idUsuario(),
                 // La seña sigue pidiendo cuenta: `AltaSenaRequest.idUsuario` es
                 // `@NotNull`, y quien ocupa una sala entra como participante de la
@@ -311,12 +315,12 @@ public class ReservaService {
                 sena.medioPago(),
                 null, null,
                 EstadoPago.SENADO,
-                null,
-                // El comprobante de la seña (hallazgo #5). La columna existía desde
-                // `V1` y este camino la dejaba siempre en NULL: una seña por
-                // transferencia entraba sin su respaldo.
-                sena.comprobantePath()),
-                idAutor);
+                null),
+                idAutor)
+                // El comprobante de la seña (hallazgo #5) ya no viaja en este DTO:
+                // desde `V21` es un archivo con su propia firma, y se adjunta contra
+                // este id apenas la reserva existe.
+                .idPago();
     }
 
     @Transactional

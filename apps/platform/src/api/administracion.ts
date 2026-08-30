@@ -1,7 +1,8 @@
-import { pedir } from './cliente'
+import { abrirEnPestania, pedir } from './cliente'
 import type { CambioPasswordRequest, Rol } from './tipos'
 import type { MaterialResumen, NotaDeAlumno } from './tiposDocencia'
 import type {
+  ComprobanteResumen,
   AltaAlumnoResultado,
   AlumnoResumen,
   BloqueoResumen,
@@ -355,13 +356,6 @@ export type AltaSena = {
   moneda: Moneda
   cotizacionDolar?: number | null
   medioPago: MedioPago
-  /**
-   * El comprobante de la seña. Opcional — en efectivo no hay ninguno.
-   *
-   * Faltaba (hallazgo #5): `pago.comprobante_path` existe desde `V1` y el alta
-   * manual de pagos ya lo usaba, pero este camino la dejaba siempre en NULL.
-   */
-  comprobantePath?: string
 }
 
 /** Espeja `EdicionReservaRequest`. Sin autor: lo pone el servidor con el token. */
@@ -375,8 +369,22 @@ export type EdicionReserva = {
   notas?: string
 }
 
+/**
+ * Lo que devuelve el alta: la reserva y, si vino con seña, el pago que la respalda.
+ *
+ * **El id del pago está para el comprobante.** Desde `V21` el respaldo es un
+ * archivo que va por su propio endpoint y no cabe en el JSON del alta, así que la
+ * pantalla hace dos pasos: crear la reserva con su seña, y adjuntarle el archivo
+ * que quien carga está mirando. Sin este id no habría a qué adjuntárselo.
+ */
+export type ReservaCreada = {
+  reserva: ReservaResumen
+  /** Null si el alta no traía seña: una clase la cubre la inscripción del alumno. */
+  idPagoSena: number | null
+}
+
 export function altaReserva(datos: AltaReserva) {
-  return pedir<ReservaResumen>('/api/reservas', { metodo: 'POST', cuerpo: datos })
+  return pedir<ReservaCreada>('/api/reservas', { metodo: 'POST', cuerpo: datos })
 }
 
 export function editarReserva(id: number, datos: EdicionReserva) {
@@ -500,7 +508,6 @@ export type AltaPago = {
   motivoDescuento?: string
   estadoPago?: EstadoPago
   fechaPago?: string
-  comprobantePath?: string
 }
 
 export function listarPagos(opciones: {
@@ -537,7 +544,6 @@ export type EdicionPago = {
   descuentoPorcentaje?: number
   motivoDescuento?: string
   fechaPago: string
-  comprobantePath?: string
 }
 
 /**
@@ -561,12 +567,59 @@ export function anularPago(id: number, motivo: string) {
   return pedir<PagoResumen>(`/api/pagos/${id}/anulacion`, { metodo: 'PATCH', cuerpo: { motivo } })
 }
 
-/** Marcar el comprobante como inválido. Tampoco se borra: se marca. */
-export function invalidarComprobante(id: number, motivo: string) {
-  return pedir<PagoResumen>(`/api/pagos/${id}/comprobante-invalido`, {
-    metodo: 'PATCH',
-    cuerpo: { motivo },
+// -- Los comprobantes de un pago (`V21`) --------------------------------------
+//
+// Hasta esta tanda el comprobante era un campo de texto de este mismo formulario:
+// alguien escribía "transferencia.pdf" y no había ningún archivo en ningún lado.
+// Ahora se sube, se baja y se marca inválido, y un pago puede tener varios — que
+// es lo que hace que adjuntar el correcto no borre la firma de quien rechazó el
+// anterior.
+
+/**
+ * Adjuntar el archivo a un pago que ya existe.
+ *
+ * **Son dos pedidos y no uno**, tanto acá como en el alta de una reserva con seña:
+ * un archivo no viaja adentro de un JSON. El sistema mira el **contenido** y no la
+ * extensión, así que un ejecutable renombrado a `.pdf` vuelve como 400 con esa
+ * explicación.
+ */
+export function adjuntarComprobante(idPago: number, archivo: File) {
+  return pedir<ComprobanteResumen>(`/api/pagos/${idPago}/comprobantes`, {
+    metodo: 'POST',
+    archivo,
   })
+}
+
+/**
+ * Marcar un comprobante como inválido. **No se borra: se marca** (§6).
+ *
+ * El autor y la fecha los pone el servidor; de acá solo viaja el motivo. Y no se
+ * puede deshacer —`V21` §3—: quien lo marcó firmó esa decisión.
+ */
+export function invalidarComprobante(idPago: number, idComprobante: number, motivo: string) {
+  return pedir<ComprobanteResumen>(
+    `/api/pagos/${idPago}/comprobantes/${idComprobante}/invalidacion`,
+    { metodo: 'PATCH', cuerpo: { motivo } },
+  )
+}
+
+/**
+ * Abre el comprobante en una pestaña.
+ *
+ * Mismo mecanismo que el contrato del sello, y por el mismo motivo: la ruta pide
+ * credencial y **el navegador no manda el `Authorization` en una navegación
+ * común**, así que un `<a href>` volvería 401. Se baja con `fetch`, se arma un
+ * blob y se abre.
+ *
+ * Un comprobante tiene el nombre y el banco de una persona: no puede quedar en una
+ * ruta que se adivina. La URL del blob se revoca después de un rato — revocarla en
+ * el acto le corta la carga a la pestaña que se está abriendo.
+ */
+export async function abrirComprobante(idPago: number, idComprobante: number): Promise<void> {
+  await abrirEnPestania(
+    `/api/pagos/${idPago}/comprobantes/${idComprobante}/archivo`,
+    'No se pudo abrir el comprobante.',
+  )
 }
 
 export function estadoDeCuenta(idUsuario: number) {

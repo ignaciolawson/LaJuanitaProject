@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import {
+  abrirComprobante,
+  adjuntarComprobante,
   agenda,
   anularPago,
   editarPago,
@@ -20,6 +22,7 @@ import {
   NOMBRE_DE_ESTADO_PAGO,
   NOMBRE_DE_MEDIO,
   type AlumnoResumen,
+  type ComprobanteResumen,
   type DestinoDePago,
   type EstadoPago,
   type InscripcionResumen,
@@ -33,6 +36,7 @@ import {
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
+import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
@@ -73,9 +77,16 @@ export function PagosPagina() {
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   /** El pago que se está corrigiendo (`V19` §2). Null = no hay ninguno abierto. */
   const [editando, setEditando] = useState<PagoResumen | null>(null)
-  /** El pago sobre el que se está pidiendo un motivo, y para qué. */
+  /**
+   * El pago sobre el que se está pidiendo un motivo, y para qué.
+   *
+   * Desde `V21` invalidar necesita además **cuál** comprobante: un pago puede
+   * tener varios, y el que no sirve es uno solo.
+   */
   const [pidiendoMotivo, setPidiendoMotivo] = useState<
-    { pago: PagoResumen; que: 'anular' | 'comprobante' } | null
+    | { pago: PagoResumen; que: 'anular' }
+    | { pago: PagoResumen; que: 'comprobante'; comprobante: ComprobanteResumen }
+    | null
   >(null)
 
   const cargar = useCallback(async () => {
@@ -112,7 +123,11 @@ export function PagosPagina() {
       if (pidiendoMotivo.que === 'anular') {
         await anularPago(pidiendoMotivo.pago.idPago, motivo)
       } else {
-        await invalidarComprobante(pidiendoMotivo.pago.idPago, motivo)
+        await invalidarComprobante(
+          pidiendoMotivo.pago.idPago,
+          pidiendoMotivo.comprobante.idComprobante,
+          motivo,
+        )
       }
       setPidiendoMotivo(null)
       await cargar()
@@ -122,6 +137,29 @@ export function PagosPagina() {
       // Recargar antes de mostrar: `cargar` arranca limpiando el error.
       await cargar()
       setError(mensaje)
+    }
+  }
+
+  /**
+   * Adjuntar es un pedido aparte del alta: el archivo no viaja adentro del JSON.
+   * Se recarga el listado para que la fila muestre el comprobante recién subido.
+   */
+  async function adjuntar(idPago: number, archivo: File) {
+    try {
+      await adjuntarComprobante(idPago, archivo)
+      await cargar()
+    } catch (e) {
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo adjuntar el comprobante.'
+      await cargar()
+      setError(mensaje)
+    }
+  }
+
+  async function abrir(idPago: number, comprobante: ComprobanteResumen) {
+    try {
+      await abrirComprobante(idPago, comprobante.idComprobante)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo abrir el comprobante.')
     }
   }
 
@@ -225,6 +263,7 @@ export function PagosPagina() {
               <th className="px-4 py-3 font-semibold">Medio</th>
               <th className="px-4 py-3 font-semibold">Fecha</th>
               <th className="px-4 py-3 font-semibold">Estado</th>
+              <th className="px-4 py-3 font-semibold">Comprobante</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -273,6 +312,29 @@ export function PagosPagina() {
                 <td className="px-4 py-3">
                   <EtiquetaDeEstado pago={p} />
                 </td>
+                <td className="px-4 py-3 align-top">
+                  <Comprobantes
+                    comprobantes={p.comprobantes}
+                    onVer={(c) => void abrir(p.idPago, c)}
+                    onInvalidar={
+                      puedeEscribir
+                        ? (c) => setPidiendoMotivo({ pago: p, que: 'comprobante', comprobante: c })
+                        : undefined
+                    }
+                  />
+                  {/* Adjuntar sigue disponible en un pago anulado, al revés que
+                      corregirlo: aparece el respaldo de algo que se había anulado
+                      justamente por no encontrarlo, y esconderlo obligaría a
+                      cargar el pago de nuevo para poder guardar el papel. */}
+                  {puedeEscribir && (
+                    <div className="mt-1">
+                      <AdjuntarComprobante
+                        onElegir={(archivo) => adjuntar(p.idPago, archivo)}
+                        etiqueta={p.comprobantes.length === 0 ? 'Adjuntar' : 'Adjuntar otro'}
+                      />
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   {puedeEscribir && p.estadoPago !== 'ANULADO' && (
                     <div className="flex items-center justify-end gap-3 whitespace-nowrap">
@@ -288,15 +350,6 @@ export function PagosPagina() {
                       >
                         Corregir
                       </button>
-                      {p.comprobantePath && !p.comprobanteInvalido && (
-                        <button
-                          type="button"
-                          onClick={() => setPidiendoMotivo({ pago: p, que: 'comprobante' })}
-                          className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                        >
-                          Invalidar comprobante
-                        </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setPidiendoMotivo({ pago: p, que: 'anular' })}
@@ -348,9 +401,6 @@ function EtiquetaDeEstado({ pago }: { pago: PagoResumen }) {
       </span>
       {pago.motivoAnulacion && (
         <div className="mt-1 max-w-40 text-xs text-apagado">{pago.motivoAnulacion}</div>
-      )}
-      {pago.comprobanteInvalido && (
-        <div className="mt-1 text-xs text-acento">Comprobante inválido</div>
       )}
     </div>
   )
@@ -419,7 +469,6 @@ function FormularioCorreccion({
     concepto: pago.concepto ?? '',
     descuentoPorcentaje: pago.descuentoPorcentaje ? String(pago.descuentoPorcentaje) : '',
     motivoDescuento: pago.motivoDescuento ?? '',
-    comprobantePath: pago.comprobantePath ?? '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
@@ -468,7 +517,6 @@ function FormularioCorreccion({
           ? Number(datos.descuentoPorcentaje)
           : undefined,
         motivoDescuento: datos.motivoDescuento || undefined,
-        comprobantePath: datos.comprobantePath || undefined,
       })
       onGuardado()
     } catch (e) {
@@ -564,14 +612,11 @@ function FormularioCorreccion({
           error={errores.descuentoJustificado}
         />
 
-        <Campo
-          etiqueta="Comprobante"
-          value={datos.comprobantePath}
-          onChange={cambiar('comprobantePath')}
-          error={errores.comprobantePath}
-          className="sm:col-span-2"
-        />
       </div>
+
+      {/* El comprobante no se corrige acá: se adjunta y se invalida desde la fila
+          del listado, porque es un archivo con su propia firma y no un campo de
+          este formulario. Corregir un pago no toca su respaldo. */}
 
       <div className="mt-5 flex gap-3">
         <Boton type="submit" disabled={enviando}>
@@ -664,8 +709,16 @@ function FormularioPago({
     concepto: '',
     descuentoPorcentaje: '',
     motivoDescuento: '',
-    comprobantePath: '',
   })
+  /**
+   * El comprobante elegido, si lo hay.
+   *
+   * **No viaja con el alta**: un archivo no entra en un JSON, así que se sube en
+   * un segundo pedido contra el pago recién creado. Se pide acá igual —y no desde
+   * el listado— porque quien carga el pago está mirando la transferencia justo en
+   * ese momento, que es el argumento entero de `mejoras.md` §9.9.
+   */
+  const [comprobante, setComprobante] = useState<File | null>(null)
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -771,7 +824,7 @@ function FormularioPago({
     setEnviando(true)
 
     try {
-      await registrarPago({
+      const creado = await registrarPago({
         // Un curso va siempre a nombre del alumno: es la regla del backend, no
         // una comodidad del formulario.
         idUsuario: esCurso
@@ -802,8 +855,24 @@ function FormularioPago({
           ? Number(datos.descuentoPorcentaje)
           : undefined,
         motivoDescuento: datos.motivoDescuento || undefined,
-        comprobantePath: datos.comprobantePath || undefined,
       })
+
+      // El pago ya entró: si el archivo falla, lo que se avisa es eso y no que
+      // falló el pago. Adjuntarlo después, desde la fila, sigue disponible.
+      if (comprobante) {
+        try {
+          await adjuntarComprobante(creado.idPago, comprobante)
+        } catch (e) {
+          setErrorGeneral(
+            e instanceof ApiError
+              ? `El pago quedó registrado, pero el comprobante no: ${e.message}`
+              : 'El pago quedó registrado, pero el comprobante no se pudo subir.',
+          )
+          setEnviando(false)
+          return
+        }
+      }
+
       onGuardado()
     } catch (e) {
       if (e instanceof ApiError) {
@@ -1067,12 +1136,23 @@ function FormularioPago({
           error={errores.descuentoJustificado}
         />
 
-        <Campo
-          etiqueta="Comprobante"
-          value={datos.comprobantePath}
-          onChange={cambiar('comprobantePath')}
-          className="sm:col-span-2"
-        />
+        <div className="sm:col-span-2">
+          <span className="mb-1 block text-xs font-medium text-tenue">
+            Comprobante (opcional)
+          </span>
+          <input
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            aria-label="Comprobante"
+            onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+            className="w-full text-sm text-tenue"
+          />
+          <p className="mt-1 text-xs text-apagado">
+            {/* Opcional a propósito: una seña en efectivo no tiene ninguno, y
+                exigirlo dejaría media caja sin poder cargarse. */}
+            PDF o foto. Se puede adjuntar después, y un pago admite varios.
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 flex gap-3">

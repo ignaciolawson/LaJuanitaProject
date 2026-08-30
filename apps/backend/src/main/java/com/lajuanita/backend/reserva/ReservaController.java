@@ -24,6 +24,7 @@ import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.EdicionReservaRequest;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
+import com.lajuanita.backend.reserva.dto.ReservaCreada;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
 import com.lajuanita.backend.reserva.dto.UsoDeSala;
 
@@ -109,7 +110,7 @@ public class ReservaController {
     @PostMapping
     @PuedeOperar
     @ResponseStatus(HttpStatus.CREATED)
-    public ReservaResumen alta(@Valid @RequestBody AltaReservaRequest solicitud,
+    public ReservaCreada alta(@Valid @RequestBody AltaReservaRequest solicitud,
             Authentication quienPide) {
         return reservas.alta(solicitud, Autoridades.idDe(quienPide));
     }

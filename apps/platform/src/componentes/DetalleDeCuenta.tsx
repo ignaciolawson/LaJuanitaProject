@@ -1,8 +1,11 @@
 import {
   NOMBRE_DE_ESTADO_PAGO,
   NOMBRE_DE_MEDIO,
+  type ComprobanteResumen,
   type EstadoDeCuenta,
+  type PagoResumen,
 } from '../api/tiposAdmin'
+import { Comprobantes } from './Comprobantes'
 import { importe } from './dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from './presentacion'
 
@@ -25,7 +28,20 @@ import { NOMBRE_DE_DISCIPLINA, capitalizar } from './presentacion'
  * dólares. Las monedas nunca se restan entre sí (§2.3) — unificarlas exigiría
  * elegir una cotización y el número no correspondería a ninguna caja real.
  */
-export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
+export function DetalleDeCuenta({
+  cuenta,
+  onVerComprobante,
+}: {
+  cuenta: EstadoDeCuenta
+  /**
+   * Cómo se baja un comprobante. **Lo pone cada pantalla y no este componente**,
+   * porque es lo único que de verdad cambia entre las dos: administración lo pide
+   * por el endpoint del pago y el alumno por `/api/me/**`, donde el id del dueño
+   * sale del token. Un solo camino con un permiso más flojo seria la forma de
+   * romper el eje de identidad del Módulo 4 sin que nada falle.
+   */
+  onVerComprobante: (pago: PagoResumen, comprobante: ComprobanteResumen) => void
+}) {
   return (
     <>
     {/* 1. Los saldos, por moneda */}
@@ -72,6 +88,7 @@ export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
                 <th className="px-4 py-3 font-semibold">Pagado</th>
                 <th className="px-4 py-3 font-semibold">Saldo</th>
                 <th className="px-4 py-3 font-semibold">Estado</th>
+                <th className="px-4 py-3 font-semibold">Comprobante</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-linea">
@@ -159,6 +176,16 @@ export function DetalleDeCuenta({ cuenta }: { cuenta: EstadoDeCuenta }) {
                     {p.motivoAnulacion && (
                       <div className="text-xs text-apagado">{p.motivoAnulacion}</div>
                     )}
+                  </td>
+                  {/* El alumno baja su comprobante: es la pantalla que el Módulo 4
+                      dejó anotada como pendiente esperando al `StorageService`.
+                      De solo lectura en las dos vistas — invalidarlo es una
+                      decisión de administración y vive en el listado de pagos. */}
+                  <td className="px-4 py-3 align-top">
+                    <Comprobantes
+                      comprobantes={p.comprobantes}
+                      onVer={(c) => onVerComprobante(p, c)}
+                    />
                   </td>
                 </tr>
               ))}

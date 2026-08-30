@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 
@@ -14,9 +15,12 @@ import { EstadoDeCuentaPagina } from './EstadoDeCuentaPagina'
  * después con un total que parecería más prolijo y sería mentira.
  */
 
-vi.mock('../api/administracion', () => ({ estadoDeCuenta: vi.fn() }))
+vi.mock('../api/administracion', () => ({
+  estadoDeCuenta: vi.fn(),
+  abrirComprobante: vi.fn(),
+}))
 
-const { estadoDeCuenta } = await import('../api/administracion')
+const { estadoDeCuenta, abrirComprobante } = await import('../api/administracion')
 
 function cuenta(cambios: Partial<EstadoDeCuenta> = {}): EstadoDeCuenta {
   return {
@@ -216,5 +220,65 @@ describe('errores', () => {
 
     expect(await screen.findByText('No existe el usuario 10.')).toBeDefined()
     expect(screen.queryByText('Qué contrató')).toBeNull()
+  })
+})
+
+/**
+ * Los comprobantes, que hasta `V21` no se podían bajar de ningún lado: el campo
+ * era una ruta escrita a mano y no había archivo detrás.
+ */
+describe('los comprobantes', () => {
+  it('el comprobante se abre por el endpoint de ese pago', async () => {
+    const user = userEvent.setup()
+    vi.mocked(estadoDeCuenta).mockResolvedValue(
+      cuenta({
+        pagos: [
+          {
+            idPago: 3,
+            idUsuario: 10,
+            nombre: 'Camila',
+            apellido: 'Ríos',
+            email: 'camila@ejemplo.com',
+            pagador: 'Camila Ríos',
+            pagadorSinCuenta: false,
+            destino: 'INSCRIPCION',
+            idDestino: 5,
+            queSalda: 'DJ · INICIAL',
+            concepto: null,
+            monto: 90000,
+            moneda: 'ARS',
+            cotizacionDolar: null,
+            medioPago: 'TRANSFERENCIA',
+            descuentoPorcentaje: 0,
+            motivoDescuento: null,
+            estadoPago: 'PAGADO',
+            entro: true,
+            comprobantes: [
+              {
+                idComprobante: 8,
+                nombreOriginal: 'transferencia.pdf',
+                cargadoPor: 'Micaela Gómez',
+                fechaCreacion: '2026-08-30T14:00:00Z',
+                invalido: false,
+                invalidadoPor: null,
+                fechaInvalidacion: null,
+                motivoInvalidacion: null,
+              },
+            ],
+            motivoAnulacion: null,
+            fechaAnulacion: null,
+            fechaPago: '2026-08-16',
+            fechaRegistro: '2026-08-16T14:00:00Z',
+          },
+        ],
+      }),
+    )
+
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'transferencia.pdf' }))
+
+    // Con el id del pago y el del comprobante: la ruta está anidada, y el backend
+    // verifica que ese comprobante sea de ese pago.
+    expect(abrirComprobante).toHaveBeenCalledWith(3, 8)
   })
 })

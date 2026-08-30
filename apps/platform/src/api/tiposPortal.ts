@@ -129,16 +129,22 @@ export type Aprobacion = {
   moneda: Moneda
   cotizacionDolar?: number
   medioPago: MedioPago
-  /**
-   * El comprobante de la seña. Opcional — en efectivo no hay ninguno.
-   *
-   * Faltaba, y era el hallazgo #5 de `docs/mejoras.md`: **este es el circuito
-   * donde más se necesita.** El usuario pidió por el portal, transfirió, y quien
-   * aprueba está mirando esa transferencia — pero no tenía dónde anotarla, así
-   * que el respaldo se perdía en el momento mismo en que existía.
-   */
-  comprobantePath?: string
   respuesta?: string
+}
+
+/**
+ * Lo que devuelve aprobar: la solicitud resuelta y el pago de la seña que nació
+ * con ella.
+ *
+ * **El id del pago está para el comprobante**, y este es el circuito donde más
+ * importa (§9.9): la persona pidió por el portal, transfirió, y quien aprueba está
+ * mirando esa transferencia. Desde `V21` el respaldo es un archivo y va por su
+ * propio endpoint, así que sin este id el momento en que existe se vuelve a
+ * perder.
+ */
+export type AprobacionRealizada = {
+  solicitud: SolicitudResumen
+  idPagoSena: number
 }
 
 /**

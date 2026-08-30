@@ -1,6 +1,7 @@
 package com.lajuanita.backend.archivo;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  * Los tipos que el sistema acepta, reconocidos <b>por su contenido</b>.
@@ -59,6 +60,37 @@ public enum TipoDeArchivo {
         for (TipoDeArchivo tipo : values()) {
             if (encabezado.length >= tipo.firma.length
                     && Arrays.equals(encabezado, 0, tipo.firma.length, tipo.firma, 0, tipo.firma.length)) {
+                return tipo;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Qué tipo es un archivo <b>ya guardado</b>, por la extensión de su clave.
+     *
+     * <p>Mirar la extensión acá no contradice el resto de esta clase: la clave la
+     * escribió {@link #extension()} después de reconocer el contenido, así que no
+     * es el nombre que eligió quien subió — es lo que el sistema dedujo y anotó.
+     * Sirve para contestar la descarga con el {@code Content-Type} correcto, que es
+     * lo que hace que un comprobante fotografiado se abra como imagen en vez de
+     * bajarse como un archivo que nadie sabe abrir.
+     *
+     * <p>Devuelve {@code null} si la clave no termina en ninguna de las tres. Hoy no
+     * puede pasar; el que llama decide qué hacer, y lo razonable es el tipo genérico
+     * antes que fallar: el archivo está, lo único que falta es cómo mostrarlo.
+     */
+    public static TipoDeArchivo porClave(String clave) {
+        if (clave == null) {
+            return null;
+        }
+        int punto = clave.lastIndexOf('.');
+        if (punto < 0) {
+            return null;
+        }
+        String extension = clave.substring(punto + 1).toLowerCase(Locale.ROOT);
+        for (TipoDeArchivo tipo : values()) {
+            if (tipo.extension.equals(extension)) {
                 return tipo;
             }
         }

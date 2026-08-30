@@ -158,3 +158,30 @@ export function cabeceraDeCredencial(): Record<string, string> {
   const credencial = leerCredencial()
   return credencial ? { Authorization: `Bearer ${credencial.token}` } : {}
 }
+
+/**
+ * Baja un archivo con credencial y lo abre en otra pestaña.
+ *
+ * **Un `<a href>` no sirve para estas rutas**: piden `Authorization` y el
+ * navegador no manda cabeceras en una navegación común, así que volvería un 401
+ * mudo. Se baja con `fetch`, se arma un blob y se abre eso.
+ *
+ * La URL del blob se revoca **después de un rato** y no en el acto: revocarla
+ * enseguida le corta la carga a la pestaña que se está abriendo.
+ *
+ * Lo estrenó `sello.ts` con los contratos; se extrajo acá el 2026-08-30, cuando
+ * los comprobantes del Módulo 3 —dos endpoints más, uno de administración y uno
+ * del portal— fueron el segundo y el tercer usuario (ARQ-06: se extrae cuando
+ * aparece el segundo, no antes).
+ */
+export async function abrirEnPestania(
+  ruta: string,
+  mensajeDeError = 'No se pudo abrir el archivo.',
+): Promise<void> {
+  const respuesta = await fetch(ruta, { headers: cabeceraDeCredencial() })
+  if (!respuesta.ok) throw new ApiError(respuesta.status, mensajeDeError)
+
+  const url = URL.createObjectURL(await respuesta.blob())
+  window.open(url, '_blank', 'noopener')
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}

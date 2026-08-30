@@ -573,6 +573,75 @@ mandaba a la persona a una puerta que no abre.
 ⚠️ **Publicar la landing sigue bloqueado, y ya no por código**: los precios
 inventados, las seis notas del blog y los perfiles reales de Instagram y YouTube.
 
+### 9.13 · Los comprobantes, construidos el 2026-08-30 — y por qué son una tabla
+
+**`V21__los_comprobantes_de_un_pago.sql`, `ComprobanteService`, y las tres
+pantallas que los muestran.** No sale de la lista del testeo sino de
+[`pendientes.md`](pendientes.md) §3.3: **la deuda más vieja del Módulo 3**, abierta
+desde agosto, que dejó de estar bloqueada el 2026-08-20 cuando el Módulo 7
+construyó el `StorageService` que §2.4 declaraba desde el primer día.
+
+**Lo que había era peor de lo que parecía en la lista.** `pago.comprobante_path`
+era un campo de texto del formulario: alguien escribía *"transferencia.pdf"* y **no
+había ningún archivo en ninguna parte**. O sea que el sistema mostraba respaldo
+donde no lo había — el mismo modo de falla que el ensayo de restore del 2026-08-20
+probó desde el otro lado.
+
+**La pregunta de negocio se contestó antes de escribir código** (Ignacio,
+2026-08-30), que es lo que el grupo C de §4 pide y la quinta vez que ese orden
+paga. La pregunta: *si se adjunta el comprobante equivocado y se marca inválido
+—que es la regla dura de §6—, ¿dónde va el correcto?* Con una sola columna no hay
+lugar: hay que pisar el que está, y **pisarlo borra la firma de `V7`**, o sea que
+el mecanismo que existe para dejar rastro se convierte en el que lo borra.
+
+**Respuesta: varios comprobantes por pago.** El equivocado queda listado como
+inválido con quién lo marcó y por qué, y el correcto se suma al lado. Es el mismo
+criterio con el que en este esquema no se borra ni un pago, ni una clase, ni un
+contrato que respalda algo publicado: **lo que alguien firmó no lo pisa la
+operación siguiente.**
+
+Lo que decidió, además de la tabla:
+
+- **`V21` §3 es la mitad que estuvo a punto de faltar**, y es la forma exacta de lo
+  que `V18` §1b encontró en el sello: una tabla de comprobantes no compra nada si
+  la fila se puede editar. Cambiar `archivo_path` es la columna pisada con más
+  pasos, y volver `invalido` a FALSE deshace una firma sin dejar rastro. **Desde
+  adentro de "no se borra, se marca" no se ve la otra mitad: que la marca tampoco
+  se borre.**
+- **Los cinco campos viejos de `pago` se van, no se dejan al lado.** Dos columnas
+  que contestan *¿este pago tiene comprobante?* son dos lugares donde mirar y uno
+  que se va a quedar viejo — la deuda que este proyecto ya paga dos veces y tiene
+  anotada. **Y los valores no se migran**: eran texto tipeado, así que copiarlos
+  fabricaría respaldo inexistente. La migración imprime un NOTICE con los ids en
+  vez de descartarlos en silencio.
+- **Adjuntar es un segundo pedido, y por eso dos altas cambiaron de respuesta.** Un
+  archivo no viaja en un JSON, así que el alta de una reserva con seña y la
+  aprobación de un pedido de sala ahora devuelven **el id del pago que crearon**
+  (`ReservaCreada`, `AprobacionRealizada` — el molde de `ConversionRealizada`). Sin
+  eso, §9.9 se caía: el respaldo se vuelve a perder en el momento en que existe,
+  que es el argumento entero de aquel hallazgo. **No se le agregó un campo opcional
+  a `ReservaResumen`**: ese record también dibuja la agenda, donde vendría siempre
+  en null y *"null"* se leería como "esta reserva no tiene seña".
+- **El `Content-Type` sale del archivo y no de un valor fijo.** `ContratoController`
+  contesta siempre `application/pdf`, que alcanzaba mientras el único archivo del
+  sistema fuera un contrato escaneado; **la mitad de los comprobantes son fotos de
+  una transferencia**, y bajarlas como PDF le deja al alumno un archivo que no abre
+  nada. `TipoDeArchivo.porClave` lo deduce de la clave que escribió el sistema.
+- **El alumno baja el suyo por `/api/me/comprobantes/{id}`**, no por el endpoint de
+  administración con un permiso más flojo: el id del dueño sale del token y el
+  ajeno contesta *"no existe"*. Cierra la tercera de las tres cosas que el Módulo 4
+  dejó dichas en pantalla en vez de omitidas.
+- **Editar un pago no toca su respaldo.** El comprobante salió del formulario de
+  corrección: es un archivo con su propia firma, no un campo.
+
+**Y una trampa de Hibernate que costó dos casos rojos**: colgar el comprobante solo
+del lado dueño guarda bien la fila, pero **el pago que ya está en la sesión sigue
+mostrando la lista vieja** — adjuntar y volver a leer el pago en la misma
+transacción devolvía cero comprobantes. `Pago.agregarComprobante` pone las dos
+puntas.
+
+Suites al cierre: **549 backend · 417 front · 205 + 56 SQL**, sobre 21 migraciones.
+
 ---
 
 ## 10. El plan de acción

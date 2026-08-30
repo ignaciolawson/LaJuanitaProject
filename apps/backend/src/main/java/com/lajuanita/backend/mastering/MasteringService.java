@@ -285,7 +285,6 @@ public class MasteringService {
                 solicitud.medioPago(),
                 null, null,
                 EstadoPago.PAGADO,
-                null,
                 null),
                 idAutor);
 

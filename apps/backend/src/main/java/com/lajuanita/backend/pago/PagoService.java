@@ -163,7 +163,6 @@ public class PagoService {
         if (solicitud.fechaPago() != null) {
             pago.setFechaPago(solicitud.fechaPago());
         }
-        pago.setComprobantePath(normalizar(solicitud.comprobantePath()));
 
         return PagoResumen.de(pagos.saveAndFlush(pago));
     }
@@ -203,8 +202,10 @@ public class PagoService {
                 : solicitud.descuentoPorcentaje());
         pago.setMotivoDescuento(normalizar(solicitud.motivoDescuento()));
         pago.setFechaPago(solicitud.fechaPago());
-        pago.setComprobantePath(normalizar(solicitud.comprobantePath()));
 
+        // El comprobante no está en esta lista, y no es un olvido: desde `V21` es
+        // una fila propia con su firma, que se adjunta y se invalida por su propio
+        // endpoint. Editar un pago no toca su respaldo.
         pago.firmarEdicion(idAutor);
 
         return PagoResumen.de(pagos.saveAndFlush(pago));
@@ -242,22 +243,10 @@ public class PagoService {
         return PagoResumen.de(pago);
     }
 
-    /** Marca el comprobante como inválido. No lo borra — regla dura de §6. */
-    @Transactional
-    public PagoResumen invalidarComprobante(Long id, String motivo, Long idAutor) {
-        Pago pago = buscar(id);
-
-        if (pago.getComprobantePath() == null) {
-            throw new SolicitudInvalidaException("Ese pago no tiene comprobante cargado.");
-        }
-        if (pago.isComprobanteInvalido()) {
-            throw new SolicitudInvalidaException("Ese comprobante ya está marcado como inválido.");
-        }
-
-        pago.invalidarComprobante(idAutor, motivo.trim());
-        pagos.flush();
-        return PagoResumen.de(pago);
-    }
+    // La invalidación del comprobante vivía acá y se mudó a `ComprobanteService`
+    // con `V21`: dejó de ser una marca sobre el pago para ser una fila con su
+    // archivo, su firma y su propio ciclo. El pago no sabe cuál de sus respaldos
+    // sirve — cada respaldo lo dice de sí mismo.
 
     // == Estado de cuenta =====================================================
 

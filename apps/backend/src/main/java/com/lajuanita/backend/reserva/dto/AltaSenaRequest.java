@@ -8,7 +8,6 @@ import com.lajuanita.backend.pago.MedioPago;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 
 /**
  * La seña de una reserva, <b>en el mismo pedido que la reserva</b>.
@@ -32,6 +31,13 @@ import jakarta.validation.constraints.Size;
  *
  * <p>Va como {@code SENADO} y no como {@code PAGADO}: es plata que entró contra un
  * total que todavía no se completó, que es exactamente lo que dice ese estado.
+ *
+ * <p><b>El comprobante no viaja acá desde `V21`.</b> Era un {@code String} con la
+ * ruta escrita a mano —el hallazgo #5 de `mejoras.md`, que puso el campo donde
+ * faltaba— y ahora es un archivo de verdad, con su firma y su ciclo propio. Se
+ * adjunta contra el pago que devuelve el alta ({@code ReservaCreada.idPagoSena}),
+ * en el mismo paso de la pantalla: el momento sigue siendo el mismo, lo que cambió
+ * es que ahora hay un archivo atrás.
  */
 public record AltaSenaRequest(
 
@@ -54,21 +60,7 @@ public record AltaSenaRequest(
         BigDecimal cotizacionDolar,
 
         @NotNull(message = "Decí cómo se pagó.")
-        MedioPago medioPago,
-
-        /**
-         * El comprobante de la seña. <b>Opcional</b>: una seña en efectivo no tiene
-         * ninguno, y exigirlo dejaría media caja sin poder cargarse.
-         *
-         * <p><b>Faltaba, y era el hallazgo #5 de `docs/mejoras.md`.</b>
-         * {@code pago.comprobante_path} existe desde `V1` y el alta manual de
-         * `/admin/pagos` ya lo usaba; este record —el que se usa al cargar una
-         * reserva y al aprobar un pedido de sala— nunca lo tuvo. O sea que la seña
-         * de una transferencia entraba sin su respaldo, que es justamente el caso
-         * donde el comprobante importa.
-         */
-        @Size(max = 500, message = "La ruta del comprobante no puede pasar de 500 caracteres.")
-        String comprobantePath) {
+        MedioPago medioPago) {
 
     /** Espeja {@code pago_usd_con_cotizacion}: sin ella el importe no se reconstruye. */
     @AssertTrue(message = "Un pago en dólares necesita la cotización del día.")

@@ -3,7 +3,10 @@ package com.lajuanita.backend.pago;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Generated;
 import org.hibernate.generator.EventType;
 
@@ -22,6 +25,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -46,8 +51,10 @@ import lombok.Setter;
  *   <li><b>No deja anular sin firma.</b> `V7` exige autor, fecha y motivo, y era
  *       la única excepción del esquema que no exigía nada. Se escribe con
  *       {@link #anular}, que pone las tres juntas.
- *   <li><b>No deja invalidar un comprobante sin firma</b>, por lo mismo y con su
- *       propio juego de tres columnas. Un comprobante no se borra: se marca.
+ *   <li><b>No guarda su comprobante.</b> Desde `V21` cada respaldo es una fila de
+ *       {@link ComprobantePago}: un pago puede tener varios, ninguno se borra, y el
+ *       que no corresponde se marca inválido con su firma sin que el correcto tenga
+ *       que pisarlo.
  * </ul>
  *
  * <p><b>{@code descuentoPorcentaje} es un porcentaje (0–100), no un importe</b>,
@@ -152,22 +159,41 @@ public class Pago {
     @Column(name = "estado_pago", nullable = false, length = 20)
     private EstadoPago estadoPago = EstadoPago.PAGADO;
 
-    // -- El comprobante ------------------------------------------------------
+    // -- Los comprobantes ----------------------------------------------------
 
-    @Column(name = "comprobante_path", length = 500)
-    private String comprobantePath;
+    /**
+     * El respaldo adjunto. <b>Varios, desde `V21`</b>.
+     *
+     * <p>Era una columna con su marca de inválido y su firma. El problema no era el
+     * modelo sino lo que pasaba después de marcar: el comprobante correcto no tenía
+     * dónde ir salvo pisando al anterior, o sea borrando la firma que se pedía
+     * justamente para dejar rastro. Ver la cabecera de `V21`.
+     *
+     * <p><b>{@code BatchSize} no es una optimización de más.</b> El listado de pagos
+     * pagina de a veinte y cada fila dibuja sus comprobantes: sin esto son veinte
+     * consultas extra por página, y con esto una. No se puede resolver con un
+     * {@code JOIN FETCH} en la consulta del listado — traer una colección paginando
+     * obliga a Hibernate a paginar en memoria, que es la trampa contraria.
+     */
+    @OneToMany(mappedBy = "pago")
+    @OrderBy("id ASC")
+    @BatchSize(size = 50)
+    private List<ComprobantePago> comprobantes = new ArrayList<>();
 
-    @Column(name = "comprobante_invalido", nullable = false)
-    private boolean comprobanteInvalido = false;
-
-    @Column(name = "id_usuario_invalida")
-    private Long idUsuarioInvalida;
-
-    @Column(name = "fecha_invalidacion")
-    private OffsetDateTime fechaInvalidacion;
-
-    @Column(name = "motivo_invalidacion", columnDefinition = "text")
-    private String motivoInvalidacion;
+    /**
+     * Cuelga un comprobante, <b>de los dos lados</b>.
+     *
+     * <p>Poner solo el lado dueño ({@code comprobante.setPago}) alcanza para que la
+     * fila quede bien guardada, y ahí está la trampa: <b>el pago que ya está en la
+     * sesión sigue mostrando la lista vieja</b>. Se ve enseguida y en el lugar donde
+     * más molesta —adjuntar y volver a leer el pago en la misma transacción devuelve
+     * cero comprobantes—, así que este método pone las dos puntas y no hay una
+     * versión de este objeto que contradiga a la base.
+     */
+    public void agregarComprobante(ComprobantePago comprobante) {
+        comprobante.setPago(this);
+        this.comprobantes.add(comprobante);
+    }
 
     // -- La edición ----------------------------------------------------------
 
@@ -250,14 +276,4 @@ public class Pago {
         this.motivoAnulacion = motivo;
     }
 
-    /**
-     * Marca el comprobante como inválido. <b>No lo borra</b> — es una regla dura
-     * del alcance (§6) y `V7` la sostiene con las mismas tres exigencias.
-     */
-    public void invalidarComprobante(Long idAutor, String motivo) {
-        this.comprobanteInvalido = true;
-        this.idUsuarioInvalida = idAutor;
-        this.fechaInvalidacion = OffsetDateTime.now();
-        this.motivoInvalidacion = motivo;
-    }
 }

@@ -21,7 +21,7 @@
 -- distinto de cero si algún caso falla**. Corre también en CI
 -- (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-29, 51/51 sobre el esquema V1..V20.
+-- Última corrida: 2026-08-30, 56/56 sobre el esquema V1..V21.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES: el script lee el
 -- directorio y las aplica en orden de versión, así que una migración nueva
@@ -521,6 +521,63 @@ SELECT probar('G04','la misma reserva en READ COMMITTED (el modo soportado)','AN
  $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
     SELECT sala1,u_alq,'2027-11-01','10:00','11:00' FROM v RETURNING id_reserva)
     SELECT sena(id_reserva) FROM nueva$q$);
+
+
+-- =============================================================================
+-- H. EL RESPALDO DE UN PAGO  (V21 §2 y §3)
+--
+-- La tabla de comprobantes se creo para que el equivocado se marque y el correcto
+-- entre al lado. Eso no compra nada si la fila se puede editar: cambiar
+-- `archivo_path` es la columna pisada de siempre con mas pasos, y volver
+-- `invalido` a FALSE deja sin efecto una firma — el pago vuelve a mostrar como
+-- bueno un comprobante que alguien rechazo, sin rastro de la vuelta atras.
+--
+-- H03 es la forma exacta de lo que `V18` §1b encontro en el sello: desde adentro
+-- de "no se borra, se marca" no se ve la otra mitad, que la marca tampoco se
+-- borre. Los tres van con `probar_mensaje` porque el rechazo lo redacta un
+-- trigger, y un 'FALLA' que no mira el mensaje no distingue una regla que anda de
+-- un bug que revienta antes (`V16`).
+-- =============================================================================
+
+INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,concepto)
+SELECT u_juan, ins_juan, 80000, 'TRANSFERENCIA', 'pago atacado' FROM v;
+
+INSERT INTO comprobante_pago (id_pago,archivo_path,nombre_original,id_usuario_carga)
+SELECT (SELECT id_pago FROM pago WHERE concepto='pago atacado'),
+       'comprobantes/2026/08/atacado.pdf','transferencia.pdf',(SELECT u_mica FROM v);
+
+SELECT probar_mensaje('H01','CAMBIAR el archivo de un comprobante ya adjunto',
+ 'no se cambia',
+ $q$UPDATE comprobante_pago SET archivo_path='comprobantes/2026/08/otro.pdf'
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+SELECT probar_mensaje('H02','BORRAR un comprobante en vez de marcarlo',
+ 'comprobante_pago -> invalido = TRUE',
+ $q$DELETE FROM comprobante_pago WHERE nombre_original='transferencia.pdf'$q$);
+
+UPDATE comprobante_pago SET invalido=TRUE,
+       id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+       motivo_invalidacion='Era de otra transferencia'
+WHERE nombre_original='transferencia.pdf';
+
+SELECT probar_mensaje('H03','ESQUIVE: desmarcar un comprobante ya invalidado',
+ 'no vuelve atras',
+ $q$UPDATE comprobante_pago SET invalido=FALSE
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+-- El otro esquive del mismo tipo: dejar la marca y reescribir quien la puso.
+SELECT probar_mensaje('H04','ESQUIVE: reescribir la firma de la invalidacion',
+ 'no se reescribe',
+ $q$UPDATE comprobante_pago SET motivo_invalidacion='Otra cosa'
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+-- Dos filas al mismo archivo serian una valida y una invalida sobre el mismo PDF.
+-- Hoy no puede pasar —cada subida genera su UUID— y por eso la restriccion es
+-- gratis: lo unico que puede violarla es un error futuro.
+SELECT probar('H05','dos comprobantes apuntando al mismo archivo','FALLA',
+ $q$INSERT INTO comprobante_pago (id_pago,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_pago FROM pago WHERE concepto='pago atacado'),
+           'comprobantes/2026/08/atacado.pdf','copia.pdf',(SELECT u_mica FROM v)$q$);
 
 
 -- =============================================================================

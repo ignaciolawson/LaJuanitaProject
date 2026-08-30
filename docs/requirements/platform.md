@@ -157,9 +157,16 @@ eliminan: se marcan como inválidos.**
 >
 > **El `StorageService` existe desde el 2026-08-20** (`com.lajuanita.backend.archivo`),
 > construido por el Módulo 7: el contrato del sello es el primer archivo que entra al
-> sistema, y `contrato_sello.archivo_path` es `NOT NULL` desde `V1`. Lo único que le
-> queda debiendo a esta sección es **la descarga de comprobantes** del Módulo 3, que
-> ahora es trabajo de pantalla y no de infraestructura.
+> sistema, y `contrato_sello.archivo_path` es `NOT NULL` desde `V1`.
+>
+> ✅ **Y el 2026-08-30 se saldó lo que quedaba: los comprobantes del Módulo 3**
+> (`V21`, `mejoras.md` §9.13). **Esta sección ya no le debe nada a nadie.** Lo que
+> había no era "falta la descarga" sino que no había nada que descargar:
+> `pago.comprobante_path` era texto tipeado en el formulario. Y una corrección a la
+> frase de arriba: *"los comprobantes no se eliminan, se marcan como inválidos"*
+> ahora se cumple **por comprobante** — un pago tiene varios, así que adjuntar el
+> correcto ya no obliga a pisar al equivocado ni a borrar la firma de quien lo
+> rechazó.
 >
 > **Y una consecuencia que no es de §2.4 pero se decide acá:** con archivos en disco,
 > `scripts/backup.sh` dejó de alcanzar solo. Respalda las dos cosas desde el mismo
@@ -485,8 +492,11 @@ consulta capaz de devolver lo de otro.
 - **Los materiales de clase.** Los sube el profesor y esa pantalla es del Módulo
   5; hoy `material` no tiene quién le escriba una fila. Aparece como bloque
   nombrado en Mis cursos.
-- **La descarga de comprobantes.** Necesita el `StorageService` de §2.4, que
-  todavía no existe. El estado de cuenta muestra los pagos.
+- ~~**La descarga de comprobantes.**~~ ✅ **Construida el 2026-08-30** (`V21`,
+  `mejoras.md` §9.13). Era la última de las tres que este módulo dejó dichas en
+  pantalla en vez de omitidas. El alumno la baja por `GET /api/me/comprobantes/{id}`
+  —el id del dueño sale del token, el ajeno contesta "no existe"— y la ve en el
+  mismo `DetalleDeCuenta` que administración.
 - ~~**El aviso automático a los 7 días de deuda.**~~ ✅ **Construido el 2026-08-20**
   (`V17`, paquete `com.lajuanita.backend.aviso`), junto con el de M&M y la
   infraestructura que va a usar el Módulo 7. Le llega a administración —no al
@@ -1107,7 +1117,8 @@ entregables como `VARCHAR(500)` —`url_material_cliente`, `url_master`,
 - **El `StorageService` de §2.4 deja de trabar este módulo.** Sigue debiéndose —lo
   necesitan la descarga de comprobantes (Módulo 3) y el material de clase (Módulo 5,
   que hoy también va por link)— pero **ya no es un prerrequisito del M6**, que era la
-  única razón por la que este módulo parecía caro.
+  única razón por la que este módulo parecía caro. *(Al 2026-08-30 lo construyó el
+  Módulo 7 y los comprobantes ya lo usan; el material de clase sigue por link.)*
 - **Corrige a §2.4**, que decía que las entregas de M&M pasan por el `StorageService`.
   No pasan. Esa frase y `V1` se contradecían desde el primer día y nadie lo había
   marcado; gana `V1`, que es donde la decisión está implementada.
@@ -1243,8 +1254,9 @@ llegan a 500 MB. El costo está en otras tres cosas, y las tres hay que saberlas
    contenedor efímero que se reinicia y se lleva los PDF.
 
 **Y se amortiza en dos módulos, no en uno:** el `StorageService` le paga además la
-deuda abierta del Módulo 3 —la descarga de comprobantes— que sigue pendiente desde
-agosto por esta misma pieza.
+deuda abierta del Módulo 3 —la descarga de comprobantes— que seguía pendiente desde
+agosto por esta misma pieza. ✅ **Cobrada el 2026-08-30** (`V21`, `mejoras.md`
+§9.13): diez días después de construirlo, y sin tocarlo.
 
 ### ✅ P24 — Los artistas NO entran al sistema
 

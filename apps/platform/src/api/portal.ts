@@ -1,10 +1,11 @@
-import { pedir } from './cliente'
+import { abrirEnPestania, pedir } from './cliente'
 import type { UsuarioActual } from './tipos'
 import type { EstadoDeCuenta } from './tiposAdmin'
 import type { MaterialResumen } from './tiposDocencia'
 import type {
   AltaSolicitud,
   Aprobacion,
+  AprobacionRealizada,
   CatalogoParaPedir,
   EdicionPerfil,
   FranjaOcupada,
@@ -123,11 +124,25 @@ export function listarSolicitudes(
   return pedir(`/api/solicitudes-reserva?${parametros}`)
 }
 
+/**
+ * Abre un comprobante **mío**.
+ *
+ * Es la pantalla que el Módulo 4 dejó anotada como pendiente: *"la descarga de
+ * comprobantes necesita el `StorageService` de §2.4"*. Existe desde el Módulo 7 y
+ * el respaldo es un archivo de verdad desde `V21`.
+ *
+ * **Otra ruta que la de administración, no la misma con menos permiso.** Acá el id
+ * del dueño no viaja: sale del token, y uno ajeno contesta "no existe".
+ */
+export async function abrirMiComprobante(idComprobante: number): Promise<void> {
+  await abrirEnPestania(`/api/me/comprobantes/${idComprobante}`, 'No se pudo abrir el comprobante.')
+}
+
 /** Aprobar crea la reserva con su seña. Sin seña no hay reserva (`V10`). */
 export function aprobarSolicitud(
   idSolicitud: number,
   aprobacion: Aprobacion,
-): Promise<SolicitudResumen> {
+): Promise<AprobacionRealizada> {
   return pedir(`/api/solicitudes-reserva/${idSolicitud}/aprobacion`, {
     metodo: 'PATCH',
     cuerpo: aprobacion,

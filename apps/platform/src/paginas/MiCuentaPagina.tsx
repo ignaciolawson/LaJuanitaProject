@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
-import { miEstadoDeCuenta } from '../api/portal'
+import { abrirMiComprobante, miEstadoDeCuenta } from '../api/portal'
 import type { EstadoDeCuenta } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { DetalleDeCuenta } from '../componentes/DetalleDeCuenta'
@@ -15,8 +15,10 @@ import { DetalleDeCuenta } from '../componentes/DetalleDeCuenta'
  * más fácil de que un día no coincidan — con la mala suerte de que la que se
  * equivocaría es la que ve el cliente.
  *
- * **El alumno no modifica nada acá** (regla dura de §7): mira. Los comprobantes
- * descargables llegan cuando exista el `StorageService` de §2.4.
+ * **El alumno no modifica nada acá** (regla dura de §7): mira — pero desde el
+ * 2026-08-30 **sí baja sus comprobantes**, que era lo que el Módulo 4 dejó
+ * anotado como pendiente esperando al `StorageService` de §2.4. Los baja por
+ * `/api/me/**`, donde su id sale del token: el ajeno contesta "no existe".
  */
 export function MiCuentaPagina() {
   const [cuenta, setCuenta] = useState<EstadoDeCuenta | null>(null)
@@ -40,6 +42,14 @@ export function MiCuentaPagina() {
     }
   }, [])
 
+  async function abrir(idComprobante: number) {
+    try {
+      await abrirMiComprobante(idComprobante)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo abrir el comprobante.')
+    }
+  }
+
   if (cargando) return <p className="text-sm text-tenue">Cargando…</p>
   if (error) return <Aviso>{error}</Aviso>
   if (!cuenta) return null
@@ -51,7 +61,7 @@ export function MiCuentaPagina() {
         <p className="mt-1 text-sm text-tenue">Lo que contrataste, lo que pagaste y lo que debés.</p>
       </div>
 
-      <DetalleDeCuenta cuenta={cuenta} />
+      <DetalleDeCuenta cuenta={cuenta} onVerComprobante={(_, c) => void abrir(c.idComprobante)} />
 
       <p className="mt-6 text-xs leading-relaxed text-apagado">
         Si ves algo que no cuadra, escribinos: los pagos los registra

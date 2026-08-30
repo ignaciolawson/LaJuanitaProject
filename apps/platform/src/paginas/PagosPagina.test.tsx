@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 
-import type { PagoResumen } from '../api/tiposAdmin'
+import type { ComprobanteResumen, PagoResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { PagosPagina } from './PagosPagina'
@@ -21,6 +21,8 @@ import { PagosPagina } from './PagosPagina'
 vi.mock('../api/administracion', () => ({
   listarPagos: vi.fn(),
   registrarPago: vi.fn(),
+  adjuntarComprobante: vi.fn(),
+  abrirComprobante: vi.fn(),
   editarPago: vi.fn(),
   anularPago: vi.fn(),
   invalidarComprobante: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock('../api/administracion', () => ({
 vi.mock('../api/mastering', () => ({ listarTrabajos: vi.fn() }))
 
 const {
+  adjuntarComprobante,
   agenda,
   anularPago,
   editarPago,
@@ -69,13 +72,25 @@ function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
     motivoDescuento: null,
     estadoPago: 'SENADO',
     entro: true,
-    comprobantePath: null,
-    comprobanteInvalido: false,
-    motivoInvalidacion: null,
+    comprobantes: [],
     motivoAnulacion: null,
     fechaAnulacion: null,
     fechaPago: '2026-08-16',
     fechaRegistro: '2026-08-16T14:00:00Z',
+    ...cambios,
+  }
+}
+
+function comprobante(cambios: Partial<ComprobanteResumen> = {}): ComprobanteResumen {
+  return {
+    idComprobante: 7,
+    nombreOriginal: 'transferencia.pdf',
+    cargadoPor: 'Micaela Gómez',
+    fechaCreacion: '2026-08-30T14:00:00Z',
+    invalido: false,
+    invalidadoPor: null,
+    fechaInvalidacion: null,
+    motivoInvalidacion: null,
     ...cambios,
   }
 }
@@ -168,14 +183,36 @@ describe('el listado', () => {
     expect(within(screen.getByRole('table')).getByText('Anulado')).toBeDefined()
   })
 
-  it('un comprobante invalidado se avisa', async () => {
+  /**
+   * **El inválido no se esconde, y dice por qué.** Una fila que desaparece se lee
+   * como que el sistema perdió el dato; que esté tachada y explicada es la
+   * información: alguien miró ese archivo y dijo que no servía.
+   */
+  it('un comprobante invalidado se muestra con su motivo y su autor', async () => {
     vi.mocked(listarPagos).mockResolvedValue(
-      pagina([pago({ comprobantePath: '/c/1.pdf', comprobanteInvalido: true })]),
+      pagina([
+        pago({
+          comprobantes: [
+            comprobante({
+              invalido: true,
+              invalidadoPor: 'Micaela Gómez',
+              motivoInvalidacion: 'Era de otra transferencia',
+            }),
+          ],
+        }),
+      ]),
     )
 
     montar()
 
-    expect(await screen.findByText('Comprobante inválido')).toBeDefined()
+    expect(await screen.findByText(/Era de otra transferencia/)).toBeDefined()
+    expect(screen.getByText(/Micaela Gómez/)).toBeDefined()
+  })
+
+  /** Sin ninguno lo dice: el hueco se lee como un dato perdido. */
+  it('un pago sin comprobante lo dice', async () => {
+    montar()
+    expect(await screen.findByText('Sin comprobante')).toBeDefined()
   })
 })
 
@@ -224,27 +261,51 @@ describe('las dos operaciones de reversa', () => {
     expect(screen.getByText(/no se borra/)).toBeDefined()
   })
 
-  it('invalidar el comprobante solo se ofrece si hay comprobante', async () => {
-    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ comprobantePath: null })]))
+  it('invalidar solo se ofrece si hay un comprobante válido', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ comprobantes: [] })]))
     montar()
 
     await screen.findByRole('button', { name: 'Anular' })
-    expect(screen.queryByRole('button', { name: 'Invalidar comprobante' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Invalidar' })).toBeNull()
   })
 
-  it('invalidar el comprobante manda el motivo', async () => {
+  /**
+   * **El motivo va contra UN comprobante, no contra el pago.** Es la diferencia
+   * que trajo `V21`: un pago puede tener varios y el que no sirve es uno solo.
+   */
+  it('invalidar manda el motivo y dice cuál comprobante', async () => {
     const user = userEvent.setup()
-    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ comprobantePath: '/c/1.pdf' })]))
-    vi.mocked(invalidarComprobante).mockResolvedValue(pago())
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([pago({ comprobantes: [comprobante({ idComprobante: 42 })] })]),
+    )
+    vi.mocked(invalidarComprobante).mockResolvedValue(comprobante({ invalido: true }))
 
     montar()
-    await user.click(await screen.findByRole('button', { name: 'Invalidar comprobante' }))
+    await user.click(await screen.findByRole('button', { name: 'Invalidar' }))
     await user.type(screen.getByLabelText('Motivo'), 'Era de otra transferencia')
     await user.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await waitFor(() =>
-      expect(invalidarComprobante).toHaveBeenCalledWith(1, 'Era de otra transferencia'),
+      expect(invalidarComprobante).toHaveBeenCalledWith(1, 42, 'Era de otra transferencia'),
     )
+  })
+
+  /**
+   * Un comprobante ya marcado no se vuelve a marcar: `V21` §3 no deja deshacerlo
+   * ni reescribir la firma, así que la pantalla tampoco lo ofrece.
+   */
+  it('un comprobante ya invalidado no se puede volver a invalidar', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([
+        pago({
+          comprobantes: [comprobante({ invalido: true, motivoInvalidacion: 'No servía' })],
+        }),
+      ]),
+    )
+
+    montar()
+    await screen.findByRole('button', { name: 'Anular' })
+    expect(screen.queryByRole('button', { name: 'Invalidar' })).toBeNull()
   })
 
   /** Un pago ya anulado no se vuelve a anular: el backend lo rechaza y acá ni se ofrece. */
@@ -541,5 +602,71 @@ describe('los cuatro destinos y el pagador libre', () => {
 
     expect(await screen.findByText('Elegí quién paga.')).toBeDefined()
     expect(registrarPago).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * Los comprobantes (`V21`).
+ *
+ * Hasta esta tanda esto era un campo de texto: alguien escribía
+ * "transferencia.pdf" y **no había ningún archivo detrás, en ningún lado**. Lo
+ * que estos casos cuidan es que el archivo llegue y que el pago pueda tener más
+ * de uno — que es lo que hace que adjuntar el correcto no borre la firma de quien
+ * rechazó el anterior.
+ */
+describe('los comprobantes', () => {
+  it('adjuntar sube el archivo contra ese pago', async () => {
+    const user = userEvent.setup()
+    const archivo = new File(['%PDF-1.4'], 'transferencia.pdf', { type: 'application/pdf' })
+    vi.mocked(adjuntarComprobante).mockResolvedValue(comprobante())
+
+    montar()
+    await user.upload(await screen.findByLabelText('Adjuntar'), archivo)
+
+    await waitFor(() => expect(adjuntarComprobante).toHaveBeenCalledWith(1, archivo))
+  })
+
+  /**
+   * **El pago admite varios, y por eso el segundo no reemplaza al primero.** Es la
+   * razón entera de que `V21` sea una tabla: con la columna de `V1`, adjuntar el
+   * correcto obligaba a pisar al equivocado y se llevaba puesta la firma de quien
+   * lo había rechazado.
+   */
+  it('un pago con dos comprobantes los muestra a los dos', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([
+        pago({
+          comprobantes: [
+            comprobante({
+              idComprobante: 1,
+              nombreOriginal: 'equivocado.pdf',
+              invalido: true,
+              motivoInvalidacion: 'Era de otra transferencia',
+            }),
+            comprobante({ idComprobante: 2, nombreOriginal: 'el-que-va.pdf' }),
+          ],
+        }),
+      ]),
+    )
+
+    montar()
+
+    expect(await screen.findByRole('button', { name: 'equivocado.pdf' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'el-que-va.pdf' })).toBeDefined()
+    // Y el que ya no vale no ofrece invalidarse de nuevo: solo hay un "Invalidar".
+    expect(screen.getAllByRole('button', { name: 'Invalidar' })).toHaveLength(1)
+  })
+
+  /** Un DIRECTIVO lee todo y no escribe nada: ve el comprobante, no los botones. */
+  it('un DIRECTIVO ve los comprobantes y no puede adjuntar ni invalidar', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([pago({ comprobantes: [comprobante()] })]),
+    )
+
+    montar('DIRECTIVO')
+
+    expect(await screen.findByRole('button', { name: 'transferencia.pdf' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Invalidar' })).toBeNull()
+    expect(screen.queryByLabelText('Adjuntar')).toBeNull()
   })
 })

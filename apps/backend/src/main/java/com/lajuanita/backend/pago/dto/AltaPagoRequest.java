@@ -69,10 +69,7 @@ public record AltaPagoRequest(
         EstadoPago estadoPago,
 
         /** Vacío = hoy. Puede ser anterior: la carga y el hecho son dos fechas. */
-        LocalDate fechaPago,
-
-        @Size(max = 500)
-        String comprobantePath) {
+        LocalDate fechaPago) {
 
     /**
      * <b>Un pago salda una cosa, exactamente.</b> Espeja {@code pago_tiene_destino}.

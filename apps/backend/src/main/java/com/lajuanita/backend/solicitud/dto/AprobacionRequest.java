@@ -8,7 +8,6 @@ import com.lajuanita.backend.pago.MedioPago;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 
 /**
  * Aprobar una solicitud del portal: la reserva nace acá, y nace con su seña.
@@ -35,6 +34,13 @@ import jakarta.validation.constraints.Size;
  * viaja la plata y, si hace falta, una respuesta. Si la franja no sirve, se
  * rechaza diciendo por qué y la persona pide de nuevo — así lo aprobado es
  * siempre lo que alguien pidió, y no algo que nadie eligió.
+ *
+ * <p><b>El comprobante tampoco viaja acá desde `V21`</b>, por lo mismo que en
+ * {@code AltaSenaRequest}: dejó de ser una ruta escrita a mano para ser un archivo.
+ * La aprobación devuelve el id del pago que creó ({@code AprobacionRealizada}) y la
+ * pantalla le adjunta la transferencia que está mirando, en el mismo paso. Lo que
+ * `mejoras.md` §9.9 pedía —que el respaldo no se pierda en el momento en que
+ * existe— se sostiene igual, con un archivo de verdad detrás.
  */
 public record AprobacionRequest(
 
@@ -49,18 +55,6 @@ public record AprobacionRequest(
 
         @NotNull(message = "Decí cómo se pagó.")
         MedioPago medioPago,
-
-        /**
-         * El comprobante de la seña. <b>Opcional</b> — en efectivo no hay ninguno.
-         *
-         * <p>Faltaba, y era el hallazgo #5 de `docs/mejoras.md`: <b>este es
-         * justamente el circuito donde más se necesita</b>. El usuario pidió por el
-         * portal, transfirió, y quien aprueba está mirando esa transferencia — pero
-         * no tenía dónde dejarla anotada, así que el respaldo del cobro se perdía en
-         * el mismo momento en que existía.
-         */
-        @Size(max = 500, message = "La ruta del comprobante no puede pasar de 500 caracteres.")
-        String comprobantePath,
 
         /** Opcional: la respuesta de una aprobación es la reserva misma. */
         String respuesta) {

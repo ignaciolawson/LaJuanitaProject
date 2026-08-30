@@ -309,6 +309,26 @@ export type EstadoPago = 'SENADO' | 'PAGADO' | 'DEBE' | 'VENCIDO' | 'ANULADO'
 export type DestinoDePago = 'INSCRIPCION' | 'RESERVA' | 'TRABAJO_MASTERING' | 'VENTA_EQUIPO'
 
 /** Una fila del listado de pagos. Espeja `PagoResumen`. */
+/**
+ * Un comprobante adjunto a un pago (`V21`).
+ *
+ * **No trae la ruta del archivo, y es a propósito**: la clave del almacenamiento
+ * es interna y publicarla en el JSON la deja a mano de cualquiera que abra las
+ * herramientas del navegador. Se baja por su endpoint, que verifica quién
+ * pregunta — igual que el link del premaster, que tampoco viaja.
+ */
+export type ComprobanteResumen = {
+  idComprobante: number
+  /** Con el que se subió: "transferencia-agosto.pdf". Ya saneado por el servidor. */
+  nombreOriginal: string
+  cargadoPor: string
+  fechaCreacion: string
+  invalido: boolean
+  invalidadoPor: string | null
+  fechaInvalidacion: string | null
+  motivoInvalidacion: string | null
+}
+
 export type PagoResumen = {
   idPago: number
   /**
@@ -341,9 +361,15 @@ export type PagoResumen = {
   estadoPago: EstadoPago
   /** Si suma a la caja. Lo decide el backend. */
   entro: boolean
-  comprobantePath: string | null
-  comprobanteInvalido: boolean
-  motivoInvalidacion: string | null
+  /**
+   * Los respaldos adjuntos, en orden de carga. Vacía, no null.
+   *
+   * **Son varios desde `V21`**, y eso es lo que la pantalla tiene que poder
+   * dibujar: el comprobante equivocado queda marcado como inválido —con quién lo
+   * marcó y por qué— y el correcto se muestra al lado. Antes era un solo campo de
+   * texto que alguien tipeaba, o sea un respaldo sin ningún archivo detrás.
+   */
+  comprobantes: ComprobanteResumen[]
   motivoAnulacion: string | null
   fechaAnulacion: string | null
   fechaPago: string

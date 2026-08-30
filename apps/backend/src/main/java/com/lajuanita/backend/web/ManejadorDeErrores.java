@@ -94,9 +94,16 @@ public class ManejadorDeErrores {
             Map.entry("pago_estado_valido", "Ese estado de pago no existe."),
             Map.entry("pago_descuento_rango", "El descuento es un porcentaje: tiene que estar entre 0 y 100."),
             Map.entry("pago_cotizacion_positiva", "La cotización tiene que ser mayor a cero."),
-            // Las dos excepciones de un pago, cada una con sus tres firmas (V7 §1).
+            // Las excepciones de un pago, cada una con sus tres firmas (V7 §1). La del
+            // comprobante se mudó a su propia tabla con `V21`: la regla es la misma,
+            // una vez por comprobante en vez de una vez por pago.
             Map.entry("pago_anulacion_justificada", "Para anular un pago hacen falta el autor, la fecha y el motivo."),
-            Map.entry("pago_comprobante_invalido_justificado", "Para invalidar un comprobante hacen falta el autor, la fecha y el motivo."),
+            Map.entry("comprobante_invalidacion_justificada",
+                    "Para invalidar un comprobante hacen falta el autor, la fecha y el motivo."),
+            Map.entry("comprobante_archivo_no_vacio",
+                    "Un comprobante necesita su archivo y su nombre."),
+            Map.entry("comprobante_archivo_unico",
+                    "Ese archivo ya está adjunto en otro comprobante."),
             Map.entry("egreso_moneda_valida", "Esa moneda no existe: solo se manejan pesos y dólares."),
             Map.entry("egreso_monto_positivo", "El monto tiene que ser mayor a cero."),
             Map.entry("egreso_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),

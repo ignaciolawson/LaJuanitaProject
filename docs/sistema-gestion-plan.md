@@ -671,7 +671,7 @@ Tres cosas para ese momento:
 
 ## ✅ FASE 1 Y FASE 2 CERRADAS ENTERAS · LO QUE QUEDA ES EL REDISEÑO
 
-**Suites: 536 backend · 411 front · 198 + 51 SQL, sobre 20 migraciones.**
+**Suites: 549 backend · 417 front · 205 + 56 SQL, sobre 21 migraciones.**
 
 Ya no se construyen módulos: **estamos en la etapa de mejoras**, y el plan de fases
 vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
@@ -682,6 +682,10 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
 | **2 · Backend sin esquema** | ✅ **CERRADA ENTERA.** Buzón de solicitantes (`V20`), solicitar reprogramación, y el 2026-08-30 los formularios de la landing — que cerraron el circuito de punta a punta |
 | **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |
+
+**Y el 2026-08-30 se cerró algo que no venía del plan sino de
+[`pendientes.md`](pendientes.md) §3.3: los comprobantes** — la deuda más vieja del
+Módulo 3, abierta desde agosto. Ver abajo.
 
 ### 🟢 PARA ARRANCAR EN VERDE
 
@@ -702,7 +706,37 @@ Para ver el circuito nuevo entero: completá un formulario en `:3000/servicios#r
 y abrí `/admin/buzon` en la plataforma. **Ya hay dos fichas de prueba cargadas** el
 2026-08-30 (*Prueba Humo* y *Prueba Acento*) — no se borran, se descartan con motivo.
 
-### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: LOS FORMULARIOS DE LA LANDING
+### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: LOS COMPROBANTES DE UN PAGO
+
+**`V21`, `ComprobanteService`, y las tres pantallas que los muestran.** Cierra
+[`pendientes.md`](pendientes.md) §3.3 — la última deuda del Módulo 3, que el
+`StorageService` del Módulo 7 había desbloqueado diez días antes. El detalle
+razonado está en [`mejoras.md`](mejoras.md) §9.13.
+
+- **Lo que había era peor que "falta la descarga": no había nada que descargar.**
+  `pago.comprobante_path` era un campo de texto del formulario — alguien escribía
+  *"transferencia.pdf"* y no existía ningún archivo. El sistema mostraba respaldo
+  donde no lo había.
+- **⚠️ Resultó grupo C y no trabajo de pantalla, y lo decidió una pregunta de
+  negocio contestada antes de escribir código** (la quinta vez que ese orden paga):
+  *si se marca inválido el comprobante equivocado —regla dura de §6—, ¿dónde va el
+  correcto?* Con una sola columna hay que pisar la que está, **y pisarla borra la
+  firma que `V7` exige**. Un pago tiene ahora varios comprobantes: el equivocado
+  queda listado como inválido con su firma y el correcto se suma al lado.
+- **`V21` §3 es la mitad que casi falta.** La tabla no compra nada si la fila se
+  puede editar: cambiar `archivo_path` es la columna pisada con más pasos, y volver
+  `invalido` a FALSE deshace una firma sin dejar rastro. Es la forma exacta de lo
+  que `V18` §1b encontró en el sello — **desde adentro de "no se borra, se marca"
+  no se ve la otra mitad: que la marca tampoco se borre.**
+- **Dos altas cambiaron de respuesta**, y de eso depende §9.9: el alta de una
+  reserva con seña y la aprobación de un pedido de sala devuelven ahora **el id del
+  pago que crearon** (`ReservaCreada`, `AprobacionRealizada`), porque el archivo va
+  en un segundo pedido y sin ese id el respaldo se vuelve a perder en el momento en
+  que existe.
+- **El alumno baja el suyo** por `/api/me/comprobantes/{id}` — otra ruta, no la de
+  administración con un permiso más flojo.
+
+### 📚 LA TANDA ANTERIOR: LOS FORMULARIOS DE LA LANDING
 
 **Fase 2.2b**, y con eso la Fase 2 queda cerrada entera. Los tres formularios de
 captación mandan a `POST /api/solicitantes` y caen en `/admin/buzon`. Verificado
@@ -730,7 +764,7 @@ acentos y separadores intactos.
 ⚠️ **Publicar la landing sigue bloqueado, pero ya no por código**: precios
 inventados, las seis notas del blog y los perfiles reales de Instagram y YouTube.
 
-### 📚 LA TANDA ANTERIOR: "NO PUEDO ESE DÍA"
+### 📚 ANTES: "NO PUEDO ESE DÍA"
 
 **`SolicitudReprogramacion` en el paquete `solicitud`, `/admin/reprogramaciones` y el
 componente `PedirOtroDia`** — Fase 2.4 de [`mejoras.md`](mejoras.md), el hallazgo #2 y la

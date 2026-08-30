@@ -1,4 +1,4 @@
-import { cabeceraDeCredencial, pedir } from './cliente'
+import { abrirEnPestania, pedir } from './cliente'
 import type { Pagina } from './tiposAdmin'
 import type {
   AltaAparicion,
@@ -163,14 +163,7 @@ export function rutaDelContrato(id: number) {
  * carga a la pestaña que se está abriendo.
  */
 export async function abrirContrato(id: number): Promise<void> {
-  const respuesta = await fetch(rutaDelContrato(id), {
-    headers: cabeceraDeCredencial(),
-  })
-  if (!respuesta.ok) throw new Error('No se pudo abrir el contrato.')
-
-  const url = URL.createObjectURL(await respuesta.blob())
-  window.open(url, '_blank', 'noopener')
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  await abrirEnPestania(rutaDelContrato(id), 'No se pudo abrir el contrato.')
 }
 
 

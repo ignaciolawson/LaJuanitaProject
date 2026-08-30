@@ -306,45 +306,11 @@ class PagoTest {
     }
 
     // == El comprobante =======================================================
-
-    @Test
-    void invalidar_un_comprobante_lo_marca_y_no_lo_borra() throws Exception {
-        Alumno alumno = alumnoNuevo();
-        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
-        long idPago = idDe(mvc.perform(pagar("""
-                {"idUsuario":%d,"idInscripcion":%d,"monto":90000,"moneda":"ARS",
-                 "medioPago":"TRANSFERENCIA","comprobantePath":"/comprobantes/1.pdf"}
-                """.formatted(alumno.getUsuario().getId(), curso.getId()))));
-
-        mvc.perform(patch("/api/pagos/" + idPago + "/comprobante-invalido")
-                .header("Authorization", comoStaff())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"motivo":"El comprobante era de otra transferencia"}
-                        """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.comprobanteInvalido").value(true))
-                // El path sigue estando: se marca, no se borra.
-                .andExpect(jsonPath("$.comprobantePath").value("/comprobantes/1.pdf"))
-                .andExpect(jsonPath("$.motivoInvalidacion").isNotEmpty());
-    }
-
-    @Test
-    void no_se_invalida_un_comprobante_que_no_existe() throws Exception {
-        Alumno alumno = alumnoNuevo();
-        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
-        long idPago = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000")));
-
-        mvc.perform(patch("/api/pagos/" + idPago + "/comprobante-invalido")
-                .header("Authorization", comoStaff())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                        {"motivo":"No sirve"}
-                        """))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("no tiene comprobante")));
-    }
+    //
+    // Los casos se mudaron a `ComprobanteTest` con `V21`. Hasta entonces el
+    // comprobante era una columna de `pago` con una ruta escrita a mano; ahora es
+    // una tabla con su archivo, su firma y sus tres reglas en la base, y probarlo
+    // desde acá obligaría a este test a saber de multipart y de almacenamiento.
 
     // == `V19` · el pagador sin cuenta y la edición ============================
 

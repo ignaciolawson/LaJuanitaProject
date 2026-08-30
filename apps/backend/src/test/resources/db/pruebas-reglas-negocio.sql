@@ -10,7 +10,7 @@
 -- con todas las migraciones aplicadas, y **sale con código distinto de cero si
 -- algún caso falla**. Corre también en CI (`.github/workflows/ci.yml`).
 --
--- Última corrida: 2026-08-29, 198/198 sobre el esquema V1..V20.
+-- Última corrida: 2026-08-30, 205/205 sobre el esquema V1..V21.
 --
 -- ESTA CABECERA YA NO LLEVA LA LISTA DE MIGRACIONES, y es a propósito. Antes
 -- estaban acá los nueve comandos con las ocho migraciones nombradas una por
@@ -1543,6 +1543,75 @@ SELECT probar_mensaje('181','reabrir una ficha ya atendida',
 SELECT probar_mensaje('182','borrar una ficha en vez de descartarla',
  'solicitante -> DESCARTADO',
  $q$DELETE FROM solicitante WHERE email='camila@web.local'$q$);
+
+
+-- =============================================================================
+-- LOS COMPROBANTES DE UN PAGO  (V21)
+--
+-- La regla dura de §6 es *"los comprobantes no se eliminan: se marcan como
+-- invalidos"*, y hasta `V21` vivia como una columna de `pago` con su marca. El
+-- problema no era la marca sino lo que venia despues: el comprobante correcto no
+-- tenia donde ir salvo pisando al anterior, o sea borrando la firma que se pedia
+-- justamente para dejar rastro. Lo que se prueba aca es el ciclo completo, que es
+-- lo unico que hace util a la tabla: adjuntar, marcar el equivocado, y que el
+-- correcto entre AL LADO sin llevarse nada puesto.
+--
+-- Los esquives —deshacer la marca, cambiar el archivo, borrar la fila— estan en
+-- la suite adversarial, seccion H.
+-- =============================================================================
+
+INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,concepto)
+SELECT u_juan, ins_juan, 100000, 'TRANSFERENCIA', 'pago con respaldo' FROM v;
+
+SELECT probar('183','adjuntar un comprobante al pago','ANDA',
+ $q$INSERT INTO comprobante_pago (id_pago,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_pago FROM pago WHERE concepto='pago con respaldo'),
+           'comprobantes/2026/08/uno.pdf','transferencia.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Una fila sin archivo dice que hay respaldo adjunto y no hay ninguno: es
+-- exactamente lo que el campo de texto de antes permitia todo el tiempo.
+SELECT probar('184','adjuntar un comprobante sin archivo','FALLA',
+ $q$INSERT INTO comprobante_pago (id_pago,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_pago FROM pago WHERE concepto='pago con respaldo'),
+           '   ','transferencia.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Marcar un comprobante es una decision sobre la prueba de que alguien pago, asi
+-- que lleva las mismas tres exigencias que anular (`V7`).
+SELECT probar('185','marcar invalido sin decir quien ni por que','FALLA',
+ $q$UPDATE comprobante_pago SET invalido=TRUE
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+-- La mitad de `V7` que sigue viva: con `btrim(x) <> ''` un motivo NULL da NULL,
+-- el CHECK entero da NULL, y un CHECK que evalua a NULL no rechaza nada. El
+-- motivo de puros espacios lo mira de frente.
+SELECT probar('186','marcar invalido con un motivo de puros espacios','FALLA',
+ $q$UPDATE comprobante_pago SET invalido=TRUE,
+        id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+        motivo_invalidacion='   '
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+SELECT probar('187','marcarlo invalido con la firma completa','ANDA',
+ $q$UPDATE comprobante_pago SET invalido=TRUE,
+        id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+        motivo_invalidacion='Era de otra transferencia'
+    WHERE nombre_original='transferencia.pdf'$q$);
+
+-- EL CASO QUE JUSTIFICA LA TABLA. Con la columna de `V1` esto era imposible sin
+-- pisar el anterior, y al pisarlo se iba la firma de arriba.
+SELECT probar('188','adjuntar el correcto al lado del invalido','ANDA',
+ $q$INSERT INTO comprobante_pago (id_pago,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_pago FROM pago WHERE concepto='pago con respaldo'),
+           'comprobantes/2026/08/dos.pdf','la-que-va.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Y quedan los DOS, con el invalido diciendo quien lo marco y por que: eso es lo
+-- que el modelo viejo no podia sostener. El caso es un SELECT que devuelve una
+-- fila solo si la cuenta da; si diera cualquier otra cosa, no devuelve ninguna y
+-- 'ANDA' falla por la regla 2 de la cabecera (afectar filas es parte del caso).
+SELECT probar('189','el pago quedo con sus dos comprobantes, uno invalido','ANDA',
+ $q$SELECT 1 FROM comprobante_pago c
+    WHERE c.id_pago=(SELECT id_pago FROM pago WHERE concepto='pago con respaldo')
+    GROUP BY c.id_pago
+    HAVING count(*)=2 AND count(*) FILTER (WHERE c.invalido)=1$q$);
 
 
 -- =============================================================================

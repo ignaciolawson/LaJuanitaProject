@@ -24,6 +24,11 @@
 > Lo que queda es la Fase 3: el rediseño, que espera el corte de la lista
 > (~11/09).
 >
+> **Al 2026-08-30 se cerró además la deuda más vieja del Módulo 3**, que no venía
+> de la lista sino del punto 3.3 de acá: los comprobantes (`V21`, `mejoras.md`
+> §9.13). Resultó grupo C —un pago tiene varios comprobantes— y no el trabajo de
+> pantalla que este documento suponía.
+>
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
 > después `platform.md` §13 → §14 → §15 → **§16** (gana el último; §16 es del
@@ -114,7 +119,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V21`+, porque `V19` ya se usó** para los pagos sin cuenta y **`V20`** para el buzón de solicitantes.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V22`+, porque `V19` ya se usó** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes y **`V21`** para los comprobantes.
 
 ---
 
@@ -195,10 +200,21 @@ rediseño no puede romper que una reserva necesite seña. La landing no se toca.
 > puede destapar funcionalidad faltante, y mezclados hacen que la pasada de diseño se
 > coma meses sin resolver el segundo.
 
-### 3.3 · La descarga de comprobantes (Módulo 3)
+### 3.3 · ~~La descarga de comprobantes (Módulo 3)~~ — **CERRADA el 2026-08-30**
 
-Abierta desde agosto. **Ya no está bloqueada**: el `StorageService` existe desde el
-Módulo 7. Pasó de ser infraestructura a ser trabajo de pantalla.
+**`V21`, el paquete `comprobante` dentro de `pago`, y las tres pantallas que los
+muestran** (`/admin/pagos`, el estado de cuenta de administración y el del alumno).
+Estaba abierta desde agosto; el `StorageService` del Módulo 7 la desbloqueó y esto
+la cierra. El detalle está en [`mejoras.md`](mejoras.md) §9.13.
+
+⚠️ **Lo que había era peor que "falta la descarga": no había nada que descargar.**
+`pago.comprobante_path` era texto que alguien tipeaba en el formulario, así que el
+sistema mostraba respaldo donde no lo había.
+
+**Y resultó grupo C, no trabajo de pantalla.** La pregunta que lo decidió —*si se
+marca inválido el comprobante equivocado, ¿dónde va el correcto?*— no tiene
+respuesta con una sola columna: hay que pisar la que está, y eso borra la firma
+que `V7` exige. Un pago tiene ahora varios comprobantes.
 
 ### 3.4 · Dos copias de una misma definición
 

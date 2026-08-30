@@ -137,8 +137,7 @@ public class VentaEquipoService {
                 solicitud.medioPago(),
                 null, null,
                 EstadoPago.PAGADO,
-                venta.getFechaVenta(),
-                null),
+                venta.getFechaVenta()),
                 idAutor);
     }
 

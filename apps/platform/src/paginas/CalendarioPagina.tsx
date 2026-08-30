@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
+  adjuntarComprobante,
   agenda,
   agregarParticipante,
   altaReserva,
@@ -819,8 +820,16 @@ function FormularioReserva({
     moneda: 'ARS' as Moneda,
     cotizacionDolar: '',
     medioPago: 'EFECTIVO' as MedioPago,
-    comprobantePath: '',
   })
+  /**
+   * El comprobante de la seña, si lo hay.
+   *
+   * **No viaja con el alta**: desde `V21` es un archivo y no una ruta escrita a
+   * mano, así que va en un segundo pedido contra el pago que el alta devuelve
+   * (`idPagoSena`). Se pide igual acá y no después, porque quien carga el alquiler
+   * está mirando la transferencia en ese momento — `mejoras.md` §9.9.
+   */
+  const [comprobante, setComprobante] = useState<File | null>(null)
   const [personas, setPersonas] = useState<UsuarioResumen[]>([])
 
   // Quien alquila puede no ser alumno de nada -- es la decisión de `usuario` como
@@ -907,7 +916,7 @@ function FormularioReserva({
         // Un solo participante. Una clase grupal se completa desde el detalle con
         // "Anotar a alguien" -- lo que la seña necesita es que la reserva no nazca
         // vacía, no que entre entera de una.
-        await altaReserva({
+        const creada = await altaReserva({
           ...cuerpo,
           participantes: participante.elegido ? [participante.elegido] : undefined,
           sena: pideSena
@@ -917,12 +926,26 @@ function FormularioReserva({
                 moneda: sena.moneda,
                 cotizacionDolar: sena.cotizacionDolar ? Number(sena.cotizacionDolar) : null,
                 medioPago: sena.medioPago,
-                // El comprobante de la seña (hallazgo #5): la columna existía desde
-                // `V1` y este camino la dejaba siempre en NULL.
-                comprobantePath: sena.comprobantePath.trim() || undefined,
               }
             : undefined,
         })
+
+        // La reserva y su seña ya entraron: si el archivo falla, lo que se avisa
+        // es eso —no que falló el alta— y el comprobante se puede adjuntar
+        // después desde Pagos.
+        if (comprobante && creada.idPagoSena) {
+          try {
+            await adjuntarComprobante(creada.idPagoSena, comprobante)
+          } catch (e) {
+            setErrorGeneral(
+              e instanceof ApiError
+                ? `La reserva quedó cargada, pero el comprobante no: ${e.message}`
+                : 'La reserva quedó cargada, pero el comprobante no se pudo subir.',
+            )
+            setEnviando(false)
+            return
+          }
+        }
       }
       onGuardada()
     } catch (e) {
@@ -1055,11 +1078,18 @@ function FormularioReserva({
 
             {/* Opcional a propósito: una seña en efectivo no tiene comprobante, y
                 exigirlo dejaría media caja sin poder cargarse. */}
-            <Campo
-              etiqueta="Comprobante (opcional)"
-              value={sena.comprobantePath}
-              onChange={cambiarSena('comprobantePath')}
-            />
+            <div>
+              <span className="mb-1 block text-xs font-medium text-tenue">
+                Comprobante (opcional)
+              </span>
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg"
+                aria-label="Comprobante"
+                onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+                className="w-full text-sm text-tenue"
+              />
+            </div>
 
             {sena.moneda === 'USD' && (
               <Campo

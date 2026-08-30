@@ -16,12 +16,14 @@ import com.lajuanita.backend.reserva.ReservaService;
 import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
+import com.lajuanita.backend.reserva.dto.ReservaCreada;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
 import com.lajuanita.backend.sala.Sala;
 import com.lajuanita.backend.sala.SalaRepository;
 import com.lajuanita.backend.sala.TipoUso;
 import com.lajuanita.backend.sala.TipoUsoRepository;
 import com.lajuanita.backend.solicitud.dto.AltaSolicitudRequest;
+import com.lajuanita.backend.solicitud.dto.AprobacionRealizada;
 import com.lajuanita.backend.solicitud.dto.AprobacionRequest;
 import com.lajuanita.backend.solicitud.dto.RechazoRequest;
 import com.lajuanita.backend.solicitud.dto.SolicitudResumen;
@@ -175,11 +177,11 @@ public class SolicitudReservaService {
      * decisión de aprobarla.
      */
     @Transactional
-    public SolicitudResumen aprobar(Long id, AprobacionRequest aprobacion, Long idAutor) {
+    public AprobacionRealizada aprobar(Long id, AprobacionRequest aprobacion, Long idAutor) {
         SolicitudReserva solicitud = pendientePorId(id);
         Usuario quienPidio = solicitud.getUsuario();
 
-        ReservaResumen creada = circuitoDeReservas.alta(new AltaReservaRequest(
+        ReservaCreada creada = circuitoDeReservas.alta(new AltaReservaRequest(
                 solicitud.getSala().getId(),
                 solicitud.getTipoUso().getId(),
                 null,
@@ -195,11 +197,10 @@ public class SolicitudReservaService {
                         aprobacion.monto(),
                         aprobacion.moneda(),
                         aprobacion.cotizacionDolar(),
-                        aprobacion.medioPago(),
-                        aprobacion.comprobantePath())),
+                        aprobacion.medioPago())),
                 idAutor);
 
-        Reserva reserva = reservas.getReferenceById(creada.idReserva());
+        Reserva reserva = reservas.getReferenceById(creada.reserva().idReserva());
         solicitud.aprobar(reserva, buscarUsuario(idAutor), normalizar(aprobacion.respuesta()));
 
         avisos.avisar(quienPidio,
@@ -211,7 +212,9 @@ public class SolicitudReservaService {
                         + " está confirmado.",
                 "/mis-reservas");
 
-        return SolicitudResumen.de(solicitud);
+        // El id de la seña vuelve con la solicitud para que la pantalla le adjunte
+        // el comprobante que quien aprueba está mirando. Ver `AprobacionRealizada`.
+        return new AprobacionRealizada(SolicitudResumen.de(solicitud), creada.idPagoSena());
     }
 
     /**
