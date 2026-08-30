@@ -678,7 +678,7 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 
 | Fase | Estado |
 |---|---|
-| **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. Quedan dos cosas que **no dependen de nadie sentado a programar**: reproducir el bug #8 y esperar que el test flaky caiga en CI |
+| **0 · Congelar** | Corte de la lista fijado (~2026-09-11) y decisiones de negocio cerradas. **El test flaky se resolvió el 2026-08-30** (`mejoras.md` §9.6: eran dos techos de tiempo, no un test). Queda una sola cosa, y **no depende de nadie sentado a programar**: reproducir el bug #8 |
 | **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
 | **2 · Backend sin esquema** | ✅ **CERRADA ENTERA.** Buzón de solicitantes (`V20`), solicitar reprogramación, y el 2026-08-30 los formularios de la landing — que cerraron el circuito de punta a punta |
 | **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |

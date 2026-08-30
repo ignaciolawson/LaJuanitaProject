@@ -184,7 +184,7 @@ contraseña de desarrollo.
 | 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
 | 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ **HECHO** · buzón `V20` (§9.10) + formularios y `/ingresar` (§9.12) |
 | 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
-| 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ⏳ §9.6 |
+| 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ✅ **HECHO** el 2026-08-30 · §9.6 |
 
 ### 8 · El botón "Anotando…" trabado — necesita reproducirse
 
@@ -416,28 +416,56 @@ es otra cosa: **que la pantalla diga que es admin.** Eso es front puro —
 El mail sigue sin cambiarse, y eso ya estaba resuelto desde el Módulo 4: es la
 credencial de acceso y no hay forma de verificar una nueva.
 
-### 9.6 · El suite tiene un test flaky
+### 9.6 · El suite tenía tests flaky — **RESUELTO el 2026-08-30**
 
-Medido: **1 falla en 10 corridas**, y no se pudo capturar cuál. Un dato que
-apunta a la causa: la corrida que falló tardó `environment 232.95s` contra
-`179.35s` de una que pasó — sugiere **timing bajo carga**, típicamente un
-`waitFor` de Testing Library que se queda corto, no un bug de la aplicación.
+**No era un test: eran dos techos de tiempo, y ninguno tenía que ver con la
+aplicación.** La suite no tenía margen bajo carga.
 
-**Por qué importa para el rediseño y no es un detalle:** §6f dice que el rediseño
-**va a romper tests a propósito** —los casos preguntan por texto visible porque
-prueban decisiones, no píxeles— y que no hay que esquivarlo con `data-testid`.
-Con un suite flaky no se distingue *"rompí esto"* de *"es el ruido de siempre"*,
-y ahí es donde se cuela una regresión real.
+**Lo primero que hubo que corregir fue el método.** Este documento decía *"no se
+persigue a mano: a 1 de 10, correr el suite localmente sale más caro que
+esperarlo"*, y era cierto **mientras el rediseño estuviera lejos**. Con la Fase 3
+arrancando la cuenta se da vuelta: quince minutos de CPU contra semanas leyendo
+rojos ambiguos. Pero repetir la suite no alcanzaba —**8 corridas seguidas dieron
+8 verdes**— y el dato que explicaba por qué ya estaba anotado acá sin que nadie lo
+usara: la corrida que falló aquel día tardó **232,95 s** contra **179,35 s** de una
+que pasó, mientras que estas ocho tardaron **59–91 s**. **La máquina estaba
+demasiado descargada para reproducir nada.**
 
-**No se persigue a mano.** A 1 de 10, correr el suite localmente sale más caro
-que esperarlo: CI corre `npm run test:platform` en cada push y cuando vuelva a
-caer el nombre queda en el log de Actions.
+Con `mvn test` del backend corriendo encima y los workers al doble
+(`--maxWorkers=16`), el 1-de-10 pasó a ser **4 de 5 corridas en rojo**, y las
+fallas cambiaban de nombre en cada una — la firma de un problema de tiempo global,
+no de un caso mal escrito. Los dos techos:
 
-> **Segunda aparición el 2026-08-29**, cerrando el front de `V19`: 1 falla de 382,
-> y la corrida siguiente 382/382. Tampoco se pudo capturar cuál. Lo que confirma
-> es que **no fue casualidad de aquel día** y que la frecuencia sigue siendo baja
-> — sirve para no salir a buscar una regresión inexistente la próxima vez que el
-> suite falle una sola vez y pase al reintentar.
+| Familia | Cómo falla | Quién corta |
+|---|---|---|
+| **~1,3 s** | `EgresosPagina`: *"Unable to find role=button name=Anular"* | El **`asyncUtilTimeout` de Testing Library: 1000 ms**, contra el `setTimeout(cargar, 250)` que comparten **diez pantallas de listado** |
+| **~5 s** | `SubirMaterialPagina`, `InscripcionesPagina`: *"Test timed out in 5000ms"* | El **`testTimeout` de vitest**, comido por `userEvent` completando un formulario |
+
+**El arreglo son dos líneas y no toca ningún caso**: `configure({ asyncUtilTimeout:
+5000 })` en `src/pruebas/preparar.ts` y `testTimeout: 20_000` en
+`vite.config.ts`. Va en el setup compartido y no en los casos que fallaron porque
+**la causa es estructural** — diez pantallas comparten el debounce, así que
+arreglar los tres que cayeron hoy deja a los otros esperando su turno.
+
+⚠️ **La relación entre los dos números es parte del arreglo.** El techo asíncrono
+tiene que quedar bien por debajo del techo del caso: si se igualaran, un elemento
+que no aparece nunca se comería el timeout entero y el reporte diría *"Test timed
+out"* en vez de *"Unable to find role=button name=Anular"* con el DOM impreso al
+lado. Ese mensaje es la mitad del valor de estos tests **justo cuando la Fase 3
+empiece a romperlos a propósito**.
+
+**Y lo que no se hizo, que es lo que §6f prohíbe**: ni un `data-testid`, ni una
+aserción aflojada. Cada caso sigue preguntando por el mismo texto visible; solo
+espera más antes de rendirse. Un test que de verdad se cuelga sigue fallando, 15 s
+más tarde.
+
+**Verificado invirtiendo el experimento**: bajo la misma carga que había dado 4 de
+5 en rojo, **5 de 5 en verde**, 417/417.
+
+> **Lo que queda para la próxima vez que algo sea "flaky": el resultado de repetir
+> no sirve si no reproducís las condiciones.** Ocho verdes seguidas parecían
+> descartar el problema y solo probaban que la máquina estaba libre. El dato que
+> lo destrabó fue una duración anotada al pasar meses antes.
 
 ### 9.7 · La seña para inscribirse NO es una regla del sistema
 
@@ -661,7 +689,7 @@ Suites al cierre: **549 backend · 417 front · 205 + 56 SQL**, sobre 21 migraci
 | 0.1 | **Fecha de corte de la lista** | ✅ Una a dos semanas → ~2026-09-11 (§6) |
 | 0.2 | Contestar las preguntas de negocio | ✅ Hecho — §9 |
 | 0.3 | Reproducir el hallazgo #8 ("Anotando…") | ⏳ Cuando vuelva a pasar |
-| 0.4 | El test flaky | ⏳ Esperando que caiga en CI — §9.6 |
+| 0.4 | El test flaky | ✅ **HECHO el 2026-08-30** — eran dos techos de tiempo, no un test. §9.6 |
 
 ### Fase 1 · `V19` — una sola migración
 
