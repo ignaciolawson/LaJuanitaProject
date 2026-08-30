@@ -78,6 +78,20 @@ export default defineConfig({
     // segundo encuentra los nodos del primero.
     globals: false,
     restoreMocks: true,
+    /**
+     * El default son 5 s y **se quedaban cortos bajo carga** (`mejoras.md` §9.6):
+     * un caso que completa un formulario con `userEvent` tarda más de lo que
+     * parece cuando la máquina está ocupada, y la suite fallaba 1 de cada 10
+     * corridas sin que nadie pudiera capturar cuál. Con `mvn test` corriendo
+     * encima, `SubirMaterialPagina` e `InscripcionesPagina` cortaban a los 5000 ms
+     * exactos.
+     *
+     * No esconde nada: un test que de verdad se cuelga sigue fallando, solo que
+     * 15 s más tarde. Lo que se evita es leer en rojo algo que anda — que es lo
+     * que hace inservible una suite justo cuando el rediseño empiece a romper
+     * casos a propósito y haya que distinguir cuáles.
+     */
+    testTimeout: 20_000,
     setupFiles: ['./src/pruebas/preparar.ts'],
   },
 })
