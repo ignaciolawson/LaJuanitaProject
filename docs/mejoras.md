@@ -183,18 +183,54 @@ contraseña de desarrollo.
 | 5 | `/admin/pagos` (aprobar solicitud) | Adjuntar el comprobante al confirmar un pedido con seña | `pago.comprobante_path` existe desde `V1`; `AltaSenaRequest` nunca lo tuvo | **B** | ✅ **HECHO** · §9.9 |
 | 6 | `/admin/pagos` | Editar un pago mal cargado en vez de anularlo | No existe | **C** | ✅ **HECHO** · `V19` §2 |
 | 7 | Landing | Registro propio + que los formularios lleguen a Micaela | Login y formularios sin conectar | **B** | ✅ **HECHO** · buzón `V20` (§9.10) + formularios y `/ingresar` (§9.12) |
-| 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ⏳ Falta reproducir |
+| 8 | `/admin/reservas`, anotar participante | Anotar a alguien en una clase | El botón queda trabado en "Anotando…" | Bug | ✅ **HECHO** el 2026-08-30 · §8.1 |
 | 9 | — (no es una pantalla) | — | **Un test del suite es flaky**: falló 1 de 10 corridas | Infra | ✅ **HECHO** el 2026-08-30 · §9.6 |
 
-### 8 · El botón "Anotando…" trabado — necesita reproducirse
+### 8.1 · El botón "Anotando…" trabado — **RESUELTO el 2026-08-30**
 
-`CalendarioPagina.tsx`: el `catch` del alta de participante sí resetea `enviando`
-(`setEnviando(false)`), así que un rechazo normal de la API —persona ya anotada,
-choque de horario, techo de clases contratadas— debería destrabar el botón y
-mostrar el mensaje. La causa no se ve leyendo el código. **Hipótesis a probar con
-la consola de red abierta la próxima vez que pase:** un pedido que no vuelve
-(cuelgue o timeout) en vez de un error que sí vuelve. Sin el error real no
-conviene tocar el código a ciegas.
+**No era intermitente y no era la red: era determinista, y estaba a la vista.**
+
+Lo que decía esta sección hasta hoy —*"el `catch` sí resetea `enviando`, así que un
+rechazo normal de la API debería destrabar el botón; la causa no se ve leyendo el
+código"*— era cierto **y miraba el camino equivocado**. El `catch` estaba bien. El
+que no reseteaba nada era **el camino feliz**:
+
+```
+setEnviando(true)
+try {
+  await agregarParticipante(...)
+  selector.limpiar()
+  setAbierto(false)     // "cierra" el formulario
+  onAnotado()
+} catch (e) {
+  setError(...)
+  setEnviando(false)    // el UNICO lugar donde volvia a false
+}
+```
+
+`setAbierto(false)` **no desmonta el componente**: `FormularioParticipante` sigue
+montado y solo cambia lo que dibuja, así que el `true` sobrevivía. Por eso parecía
+un cuelgue de red: **la primera vez anda siempre**, y el botón aparece trabado
+recién al abrir el formulario de nuevo — o sea al anotar al segundo alumno de una
+clase grupal, que es el caso más común de esa pantalla.
+
+**El arreglo es mover el reseteo al `finally`.** Y el caso que lo pinta anota a
+**dos** personas: los cuatro casos que ya existían anotaban a una sola, que es
+exactamente por qué la suite nunca lo vio.
+
+> **La lección de método, que vale más que el arreglo:** la nota decía *"sin el
+> error real no conviene tocar el código a ciegas"* y eso frenó la búsqueda tres
+> días. Era buena regla para un cuelgue de red y mala para esto: **el bug estaba
+> escrito en doce líneas que nadie volvió a leer completas**, porque la primera
+> lectura había encontrado un `catch` correcto y dio el asunto por revisado.
+> Antes de esperar una reproducción, conviene leer el camino que NO falla.
+
+**Y apareció un segundo defecto en el mismo click**, que nadie había reportado:
+el panel abierto es su propio estado con una copia de la reserva, así que anotar a
+alguien recargaba la agenda **y dejaba la lista de participantes vieja**. Se anota
+a una persona y no aparece — que se lee como que no entró. Tomar lista ya
+refrescaba el detalle; anotar, no. Ahora los dos usan el mismo `refrescar()`, y de
+paso el fetch de la agenda dejó de estar duplicado en dos lugares.
 
 ---
 
@@ -668,7 +704,7 @@ mostrando la lista vieja** — adjuntar y volver a leer el pago en la misma
 transacción devolvía cero comprobantes. `Pago.agregarComprobante` pone las dos
 puntas.
 
-Suites al cierre: **549 backend · 417 front · 205 + 56 SQL**, sobre 21 migraciones.
+Suites al cierre: **549 backend · 419 front · 205 + 56 SQL**, sobre 21 migraciones.
 
 ---
 
@@ -688,7 +724,7 @@ Suites al cierre: **549 backend · 417 front · 205 + 56 SQL**, sobre 21 migraci
 |---|---|---|
 | 0.1 | **Fecha de corte de la lista** | ✅ Una a dos semanas → ~2026-09-11 (§6) |
 | 0.2 | Contestar las preguntas de negocio | ✅ Hecho — §9 |
-| 0.3 | Reproducir el hallazgo #8 ("Anotando…") | ⏳ Cuando vuelva a pasar |
+| 0.3 | Reproducir el hallazgo #8 ("Anotando…") | ✅ **HECHO el 2026-08-30** — no hizo falta reproducirlo: estaba en el código. §8.1 |
 | 0.4 | El test flaky | ✅ **HECHO el 2026-08-30** — eran dos techos de tiempo, no un test. §9.6 |
 
 ### Fase 1 · `V19` — una sola migración
@@ -707,8 +743,9 @@ migraciones son inmutables y se acumulan, eso no es prolijidad.
 
 ### Fase 2 · Backend sin tocar el esquema
 
-> ✅ **CERRADA ENTERA el 2026-08-30.** Suites: **536 backend · 411 front ·
-> 198 + 51 SQL**. Lo único que queda del plan es la Fase 3.
+> ✅ **CERRADA ENTERA el 2026-08-30.** Suites al cerrarla: **536 backend · 411
+> front · 198 + 51 SQL** (después crecieron con `V21` — ver §9.13). Lo único que
+> queda del plan es la Fase 3.
 
 De más barato a más caro:
 

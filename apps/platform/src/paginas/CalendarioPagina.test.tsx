@@ -445,6 +445,75 @@ describe('anotar a alguien en una clase', () => {
     ).toBeDefined()
   })
 
+  /**
+   * **El hallazgo #8 de `docs/mejoras.md`: el botón trabado en "Anotando…".**
+   *
+   * Se veía intermitente y no lo es: la PRIMERA vez anda siempre. El camino feliz
+   * no devolvía `enviando` a `false` —solo lo hacía el `catch`— y se apoyaba en
+   * que cerrar el formulario lo desmontaba, cosa que no pasa: el componente sigue
+   * montado y solo cambia lo que dibuja. Entonces el `true` sobrevive y aparece al
+   * abrirlo de nuevo, que es el caso más común de todos: cargar una clase grupal
+   * con dos alumnos.
+   */
+  it('despues de anotar a alguien, el boton vuelve a estar disponible', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
+    )
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
+
+    // Y ahora el segundo alumno de la clase grupal.
+    await user.click(await screen.findByRole('button', { name: '+ Anotar a alguien' }))
+
+    const boton = await screen.findByRole('button', { name: 'Anotar' })
+    expect(boton.hasAttribute('disabled')).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Anotando…' })).toBeNull()
+  })
+
+  /**
+   * **El otro lado del mismo hallazgo.** El panel abierto es su propio estado con
+   * una copia de la reserva, así que recargar la agenda no lo tocaba: se anotaba a
+   * alguien y la lista de participantes seguía igual, que se lee como que no
+   * entró. Tomar lista ya refrescaba el detalle; anotar no.
+   */
+  it('el recien anotado aparece en el panel sin cerrarlo y volverlo a abrir', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
+    )
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    // Lo que devuelve el backend después de anotar: la misma reserva, con la
+    // persona adentro.
+    vi.mocked(agenda).mockResolvedValue([
+      reserva({
+        participantes: [
+          {
+            idParticipacion: 90,
+            idUsuario: 30,
+            nombre: 'Camila',
+            apellido: 'Ríos',
+            idInscripcion: 7,
+            disciplina: 'DJ',
+            estadoAsistencia: 'PENDIENTE',
+            observaciones: null,
+          },
+        ],
+      }),
+    ])
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+
+    expect(await screen.findByText(/Ríos/)).toBeDefined()
+  })
+
   it('un DIRECTIVO no puede anotar a nadie', async () => {
     const user = userEvent.setup()
     montar('DIRECTIVO')

@@ -121,24 +121,52 @@ export function CalendarioPagina() {
       .catch(() => setError('No se pudo cargar el catálogo de salas.'))
   }, [])
 
+  /**
+   * La semana que se está mirando, con los filtros puestos.
+   *
+   * Vive en un solo lugar porque **la piden tres cosas distintas** —la carga
+   * inicial, tomar lista y anotar a alguien— y cada copia de estos cuatro
+   * parámetros es una que se olvida de `incluirCanceladas` el día que alguien
+   * agregue un filtro.
+   */
+  const traerAgenda = useCallback(
+    () =>
+      agenda({
+        desde: dias[0],
+        hasta: dias[6],
+        idSala: idSala === '' ? undefined : idSala,
+        incluirCanceladas,
+      }),
+    [dias, idSala, incluirCanceladas],
+  )
+
+  /**
+   * Refresca la agenda **y el detalle que esté abierto**, con un solo pedido.
+   *
+   * `elegida` es su propio estado con una copia de la reserva, así que sin esto el
+   * panel abierto sigue mostrando la lista de participantes vieja: se anota a
+   * alguien y no aparece, que se lee como que no entró.
+   *
+   * Si la reserva ya no está en lo que vuelve —se canceló, o cambió el filtro— el
+   * detalle se cierra en vez de quedar mostrando algo que ya no existe.
+   */
+  const refrescar = useCallback(async () => {
+    const refrescadas = await traerAgenda()
+    setReservas(refrescadas)
+    setElegida((previa) => refrescadas.find((r) => r.idReserva === previa?.idReserva) ?? null)
+  }, [traerAgenda])
+
   const cargar = useCallback(async () => {
     setCargando(true)
     setError(null)
     try {
-      setReservas(
-        await agenda({
-          desde: dias[0],
-          hasta: dias[6],
-          idSala: idSala === '' ? undefined : idSala,
-          incluirCanceladas,
-        }),
-      )
+      setReservas(await traerAgenda())
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cargar el calendario.')
     } finally {
       setCargando(false)
     }
-  }, [dias, idSala, incluirCanceladas])
+  }, [traerAgenda])
 
   useEffect(() => {
     void cargar()
@@ -174,18 +202,18 @@ export function CalendarioPagina() {
   async function marcarAsistencia(idParticipacion: number, estado: EstadoAsistencia) {
     try {
       await cambiarAsistencia(idParticipacion, estado)
-      const refrescadas = await agenda({
-        desde: dias[0],
-        hasta: dias[6],
-        idSala: idSala === '' ? undefined : idSala,
-        incluirCanceladas,
-      })
-      setReservas(refrescadas)
-      setElegida(
-        (previa) => refrescadas.find((r) => r.idReserva === previa?.idReserva) ?? null,
-      )
+      await refrescar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo tomar lista.')
+    }
+  }
+
+  /** Anotar a alguien refresca lo mismo que tomar lista, y por lo mismo. */
+  async function refrescarTrasAnotar() {
+    try {
+      await refrescar()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo actualizar el calendario.')
     }
   }
 
@@ -304,7 +332,7 @@ export function CalendarioPagina() {
           onEditar={() => setEditando(elegida)}
           onCancelar={() => void cancelar(elegida)}
           onAsistencia={marcarAsistencia}
-          onAnotado={() => void cargar()}
+          onAnotado={() => void refrescarTrasAnotar()}
         />
       )}
 
@@ -711,6 +739,18 @@ function FormularioParticipante({
       // en otra sala a esa hora, y la de `V9` §5 —no consumir más clases que las
       // contratadas—, que además nombra la salida.
       setError(e instanceof ApiError ? e.message : 'No se pudo anotar.')
+    } finally {
+      // ⚠️ **En el `finally`, no solo en el `catch`** — el hallazgo #8 de
+      // `docs/mejoras.md`, que se veía intermitente y no lo era.
+      //
+      // Antes esto vivía únicamente en el `catch`, y el camino feliz se apoyaba en
+      // que `setAbierto(false)` desmontara el formulario. **No lo desmonta**: este
+      // componente sigue montado y solo cambia lo que devuelve, así que el `true`
+      // sobrevivía y el botón quedaba en "Anotando…", deshabilitado para siempre.
+      //
+      // Por eso parecía un cuelgue de red: la primera vez anda, y el trabado
+      // aparece recién al abrir el formulario de nuevo — o sea al anotar al
+      // segundo alumno de una clase grupal, que es el caso más común.
       setEnviando(false)
     }
   }
