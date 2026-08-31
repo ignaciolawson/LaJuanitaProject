@@ -6,6 +6,7 @@ import type { UsuarioActual as Actual } from '../api/tipos'
 import type { SolicitudResumen } from '../api/tiposPortal'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { SolicitudesPagina } from './SolicitudesPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 4 — la bandeja de pedidos de sala.
@@ -180,7 +181,7 @@ describe('aprobar es cobrar', () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '100')
-    await userEvent.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await elegir(userEvent, 'Moneda', 'USD')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     expect(screen.getByRole('alert').textContent).toContain('cotización')

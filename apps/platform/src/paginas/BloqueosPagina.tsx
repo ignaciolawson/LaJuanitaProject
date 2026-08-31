@@ -6,7 +6,7 @@ import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { diaYMes, hhmm, hoy } from '../componentes/semana'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
@@ -91,6 +91,8 @@ export function BloqueosPagina() {
                 : `${bloqueos.length} ${bloqueos.length === 1 ? 'bloqueo' : 'bloqueos'}`}</>}
         acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Bloquear una sala</Boton>}</>}
       />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
@@ -282,7 +284,7 @@ function FormularioBloqueo({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Bloquear una sala</h3>
+      <h3 className="t-seccion mb-4">Bloquear una sala</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoSelect

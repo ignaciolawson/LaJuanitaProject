@@ -25,6 +25,8 @@ import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { Etiqueta } from '../componentes/Etiqueta'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 1, pantalla 3 — el perfil del alumno.
@@ -105,19 +107,15 @@ export function AlumnoPerfilPagina() {
     <div>
       <Volver />
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {alumno.nombre} {alumno.apellido}
-        </h2>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-tenue">
-          <span>{capitalizar(alumno.estadoAlumno)} desde el {fecha(alumno.fechaIngreso)}</span>
+      <CabeceraDePagina
+        titulo={`${alumno.nombre} ${alumno.apellido}`}
+        aclaracion={<><span>{capitalizar(alumno.estadoAlumno)} desde el {fecha(alumno.fechaIngreso)}</span>
           {/* Dos ejes distintos: el alumno puede estar activo y la cuenta dada
               de baja. Si no se dice, "activo" parece significar que entra. */}
           {!alumno.usuarioActivo && (
             <Etiqueta tono="atencion">Cuenta desactivada</Etiqueta>
-          )}
-        </p>
-      </div>
+          )}</>}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Bloque titulo="Datos">
@@ -138,14 +136,12 @@ export function AlumnoPerfilPagina() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-apagado">
-              No tiene ninguna inscripción vigente.
-            </p>
+            <EstadoVacio titulo="No tiene ninguna inscripción vigente." marca={false} />
           )}
         </Bloque>
       </div>
 
-      <h3 className="mb-3 mt-8 font-semibold">
+      <h3 className="t-seccion mb-3 mt-8">
         Inscripciones{' '}
         <span className="font-normal text-tenue">({totalInscripciones})</span>
       </h3>
@@ -218,7 +214,7 @@ function Volver() {
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-3 font-semibold">{titulo}</h3>
+      <h3 className="t-seccion mb-3">{titulo}</h3>
       {children}
     </section>
   )
@@ -299,7 +295,7 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
 
   return (
     <section className="mt-8">
-      <h3 className="mb-3 font-semibold">Notas de profesores y materiales</h3>
+      <h3 className="t-seccion mb-3">Notas de profesores y materiales</h3>
 
       {error && <Aviso>{error}</Aviso>}
       {!error && cargando && <p className="text-sm text-tenue">Cargando…</p>}
@@ -394,7 +390,7 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
 
   return (
     <section className="mt-8">
-      <h3 className="mb-3 font-semibold">
+      <h3 className="t-seccion mb-3">
         Historial de clases{' '}
         <span className="text-sm font-normal text-tenue">(últimos 45 días)</span>
       </h3>
@@ -473,7 +469,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
   return (
     <section className="mt-8">
       <div className="mb-3 flex items-baseline justify-between gap-4">
-        <h3 className="font-semibold">Estado de cuenta</h3>
+        <h3 className="t-seccion">Estado de cuenta</h3>
         <Link
           to={`/admin/estado-de-cuenta/${idUsuario}`}
           className="text-xs text-tenue underline underline-offset-2 hover:text-acento"

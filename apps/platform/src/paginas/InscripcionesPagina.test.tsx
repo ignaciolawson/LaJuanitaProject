@@ -6,6 +6,7 @@ import type { UsuarioActual } from '../api/tipos'
 import type { AlumnoResumen, InscripcionResumen } from '../api/tiposAdmin'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { InscripcionesPagina } from './InscripcionesPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * El curso contratado de cada alumno.
@@ -176,7 +177,7 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
-    await user.selectOptions(screen.getByLabelText('Disciplina'), 'DJ')
+    await elegir(user, 'Disciplina', 'DJ')
 
     expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '8')
   })
@@ -186,7 +187,7 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
-    await user.selectOptions(screen.getByLabelText('Disciplina'), 'PRODUCCION')
+    await elegir(user, 'Disciplina', 'PRODUCCION')
 
     expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '16')
   })
@@ -202,7 +203,7 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
     await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
-    await user.selectOptions(screen.getByLabelText('Disciplina'), 'MENTORIA')
+    await elegir(user, 'Disciplina', 'MENTORIA')
 
     expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '')
 
@@ -222,7 +223,7 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
     await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
-    await user.selectOptions(screen.getByLabelText('Disciplina'), 'MENTORIA')
+    await elegir(user, 'Disciplina', 'MENTORIA')
     await user.type(screen.getByLabelText(/Clases contratadas/), '4')
     await user.type(screen.getByLabelText(/Precio total/), '90000')
     await user.click(screen.getByRole('button', { name: 'Crear inscripción' }))
@@ -252,7 +253,7 @@ describe('la firma de una baja de nivel (V9)', () => {
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
-    await user.selectOptions(screen.getByLabelText('Nivel'), 'INICIAL')
+    await elegir(user, 'Nivel', 'INICIAL')
 
     expect(screen.getByText(/Estás bajando el nivel de Avanzado a Inicial/)).toBeDefined()
 
@@ -273,7 +274,7 @@ describe('la firma de una baja de nivel (V9)', () => {
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
-    await user.selectOptions(screen.getByLabelText('Nivel'), 'INICIAL')
+    await elegir(user, 'Nivel', 'INICIAL')
     await user.type(screen.getByLabelText(/Motivo/), 'No llegó con la práctica final')
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
@@ -291,7 +292,7 @@ describe('la firma de una baja de nivel (V9)', () => {
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
-    await user.selectOptions(screen.getByLabelText('Nivel'), 'AVANZADO')
+    await elegir(user, 'Nivel', 'AVANZADO')
 
     expect(screen.queryByText(/Estás bajando el nivel/)).toBeNull()
 
@@ -337,10 +338,7 @@ describe('estados vacíos y de error', () => {
     )
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
-    await user.selectOptions(
-      screen.getByLabelText(/Cambiar estado de la inscripción/),
-      'COMPLETADA',
-    )
+    await elegir(user, /Cambiar estado de la inscripción/, 'COMPLETADA')
 
     expect(
       await screen.findByText('Ese alumno ya tiene una inscripción activa en esa disciplina.'),

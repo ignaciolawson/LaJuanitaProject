@@ -25,6 +25,8 @@ import { CampoSelect } from '../componentes/Campo'
 import { Semaforo } from '../componentes/Semaforo'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
 import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /** Cuánto atrás se buscan clases para poder colgarles una nota. */
 const DIAS_DE_CLASES_RECIENTES = 60
@@ -122,19 +124,15 @@ export function FichaDeAlumnoPagina() {
     <div className="max-w-3xl">
       <Volver />
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {alumno.nombre} {alumno.apellido}
-        </h2>
-        <p className="mt-1 text-sm text-tenue">
-          {alumno.disciplinas.length === 0
+      <CabeceraDePagina
+        titulo={`${alumno.nombre} ${alumno.apellido}`}
+        aclaracion={<>{alumno.disciplinas.length === 0
             ? 'Sin curso vigente'
             : alumno.disciplinas.map((d) => NOMBRE_DE_DISCIPLINA[d]).join(' · ')}
           {' · '}
           {alumno.clasesRestantes}{' '}
-          {alumno.clasesRestantes === 1 ? 'clase restante' : 'clases restantes'}
-        </p>
-      </div>
+          {alumno.clasesRestantes === 1 ? 'clase restante' : 'clases restantes'}</>}
+      />
 
       <Seguimiento
         alumno={alumno}
@@ -234,7 +232,7 @@ function Seguimiento({
   return (
     <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="font-semibold">Cómo viene</h3>
+        <h3 className="t-seccion">Cómo viene</h3>
         <Semaforo estado={alumno.estadoSeguimiento} />
       </div>
 
@@ -362,7 +360,7 @@ function Notas({
 
   return (
     <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="font-semibold">Mis notas</h3>
+      <h3 className="t-seccion">Mis notas</h3>
       <p className="mt-1 text-sm text-tenue">
         Privadas: no las ve el alumno ni otro profesor.
       </p>
@@ -518,7 +516,7 @@ function Materiales({
   return (
     <section className="rounded-lg border border-linea bg-superficie p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h3 className="font-semibold">Material para {nombre}</h3>
+        <h3 className="t-seccion">Material para {nombre}</h3>
         <Link
           to="/material"
           className="text-sm text-tenue underline underline-offset-2 hover:text-acento"
@@ -534,9 +532,9 @@ function Materiales({
       )}
 
       {materiales.length === 0 ? (
-        <p className="mt-3 text-sm text-tenue">
-          Todavía no le subiste nada. Lo que subas para todo el grupo no aparece acá.
-        </p>
+        <EstadoVacio titulo="Todavía no le subiste nada." marca={false}>
+          Lo que subas para todo el grupo no aparece acá.
+        </EstadoVacio>
       ) : (
         <ul className="mt-4 space-y-2">
           {materiales.map((m) => (

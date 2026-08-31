@@ -6,6 +6,8 @@ import { marcarLeida, marcarTodasLeidas, misNotificaciones } from '../api/portal
 import type { NotificacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { cuando } from '../componentes/presentacion'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 4 — mis notificaciones.
@@ -56,14 +58,10 @@ export function NotificacionesPagina() {
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Notificaciones</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : sinLeer === 0 ? 'Nada sin leer' : `${sinLeer} sin leer`}
-          </p>
-        </div>
-        {sinLeer > 0 && (
+      <CabeceraDePagina
+        titulo="Notificaciones"
+        aclaracion={<>{cargando ? 'Cargando…' : sinLeer === 0 ? 'Nada sin leer' : `${sinLeer} sin leer`}</>}
+        acciones={<>{sinLeer > 0 && (
           <Boton
             variante="secundario"
             onClick={() => {
@@ -72,8 +70,8 @@ export function NotificacionesPagina() {
           >
             Marcar todas como leídas
           </Boton>
-        )}
-      </div>
+        )}</>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -82,9 +80,7 @@ export function NotificacionesPagina() {
       )}
 
       {!cargando && avisos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No tenés notificaciones.
-        </p>
+        <EstadoVacio titulo="No tenés notificaciones." />
       )}
 
       <ul className="space-y-2">

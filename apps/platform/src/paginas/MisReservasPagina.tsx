@@ -6,6 +6,8 @@ import type { ReprogramacionResumen, ReservaDelPortal } from '../api/tiposPortal
 import { Aviso, Boton } from '../componentes/Boton'
 import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 4 — mis clases y mis cabinas.
@@ -68,16 +70,10 @@ export function MisReservasPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Mis reservas</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}
-          </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -28))}>
+      <CabeceraDePagina
+        titulo="Mis reservas"
+        aclaracion={<>{cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}</>}
+        acciones={<><Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -28))}>
             ← Anterior
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(lunesDe(hoy()))}>
@@ -85,9 +81,8 @@ export function MisReservasPagina() {
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 28))}>
             Siguiente →
-          </Boton>
-        </div>
-      </div>
+          </Boton></>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -96,9 +91,7 @@ export function MisReservasPagina() {
       )}
 
       {!cargando && reservas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No tenés nada agendado en estas cuatro semanas.
-        </p>
+        <EstadoVacio titulo="No tenés nada agendado en estas cuatro semanas." />
       )}
 
       <ul className="space-y-3">

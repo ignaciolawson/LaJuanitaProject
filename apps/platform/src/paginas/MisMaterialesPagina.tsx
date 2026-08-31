@@ -5,6 +5,8 @@ import { misMateriales } from '../api/portal'
 import type { MaterialResumen } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
 import { cuando } from '../componentes/presentacion'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 5, pantalla 6 — mis materiales, **como alumno**.
@@ -49,15 +51,15 @@ export function MisMaterialesPagina() {
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Mis materiales</h2>
-        <p className="mt-1 text-sm text-tenue">Lo que subieron tus profesores para vos.</p>
-      </div>
+      <CabeceraDePagina
+        titulo="Mis materiales"
+        aclaracion={<>Lo que subieron tus profesores para vos.</>}
+      />
 
       {materiales.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          Todavía no tenés materiales. Los sube tu profesor cuando los tiene listos.
-        </p>
+        <EstadoVacio titulo="Todavía no tenés materiales.">
+          Los sube tu profesor cuando los tiene listos.
+        </EstadoVacio>
       )}
 
       <ul className="space-y-2">

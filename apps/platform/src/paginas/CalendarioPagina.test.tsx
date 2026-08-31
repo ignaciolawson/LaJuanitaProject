@@ -7,6 +7,7 @@ import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { diaYMes, filasDeHoras, lunesDe, ocupaLaHora, sumarDias } from '../componentes/semana'
 import { CalendarioPagina } from './CalendarioPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 2 — la grilla semanal.
@@ -396,7 +397,7 @@ describe('anotar a alguien en una clase', () => {
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Quién', '3')
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
@@ -415,7 +416,7 @@ describe('anotar a alguien en una clase', () => {
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Quién', '3')
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
@@ -437,7 +438,7 @@ describe('anotar a alguien en una clase', () => {
     )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Quién', '3')
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     expect(
@@ -463,7 +464,7 @@ describe('anotar a alguien en una clase', () => {
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Quién', '3')
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
 
@@ -508,7 +509,7 @@ describe('anotar a alguien en una clase', () => {
     ])
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Quién', '3')
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     expect(await screen.findByText(/Ríos/)).toBeDefined()
@@ -595,8 +596,8 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('una clase manda al alumno y su inscripción en el mismo pedido', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '1')
-    await user.selectOptions(await screen.findByLabelText('Quién'), '3')
+    await elegir(user, 'Para qué', '1')
+    await elegir(user, 'Quién', '3')
     // Con un solo curso vigente viene puesto; sin esperarlo, el click puede salir
     // antes de que llegue y la clase no descontaría de nada.
     await waitFor(() =>
@@ -621,12 +622,12 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('una grabación de set pide seña en vez de participantes', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+    await elegir(user, 'Para qué', '9')
 
     expect(screen.queryByLabelText('Quién')).toBeNull()
     expect(await screen.findByLabelText('Quién paga')).toBeDefined()
 
-    await user.selectOptions(screen.getByLabelText('Quién paga'), '30')
+    await elegir(user, 'Quién paga', '30')
     await user.type(screen.getByLabelText('Monto'), '45000')
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 
@@ -645,7 +646,7 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('una grabación sin seña no se manda', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+    await elegir(user, 'Para qué', '9')
     await screen.findByLabelText('Quién paga')
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 
@@ -660,7 +661,7 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('mix & mastering no pide seña: es la excepción de Ghezz', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '4')
+    await elegir(user, 'Para qué', '4')
 
     expect(screen.queryByLabelText('Quién paga')).toBeNull()
     expect(screen.queryByLabelText('Quién')).toBeNull()
@@ -679,7 +680,7 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('una clase sin alumno no se manda', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '1')
+    await elegir(user, 'Para qué', '1')
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 
     expect(await screen.findByText(/una clase se carga junto con quién la toma/)).toBeDefined()
@@ -690,7 +691,7 @@ describe('el alta carga la clase junto con su alumno', () => {
   it('no trae el listado de alumnos para cargar una grabación', async () => {
     const user = await abrirAlta()
 
-    await user.selectOptions(screen.getByLabelText('Para qué'), '9')
+    await elegir(user, 'Para qué', '9')
 
     await waitFor(() => expect(screen.queryByLabelText('Quién')).toBeNull())
     expect(listarAlumnos).not.toHaveBeenCalled()

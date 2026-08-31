@@ -7,6 +7,7 @@ import type { ComprobanteResumen, PagoResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { PagosPagina } from './PagosPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 3, pantalla 1 — registrar pagos.
@@ -355,10 +356,10 @@ describe('el alta', () => {
   it('en dólares pide la cotización y no manda sin ella', async () => {
     const user = await abrir()
 
-    await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
+    await elegir(user, 'Alumno', '3')
+    await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '150')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await elegir(user, 'Moneda', 'USD')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(
@@ -372,15 +373,15 @@ describe('el alta', () => {
     const user = await abrir()
 
     expect(screen.queryByLabelText(/Cotización del dólar/)).toBeNull()
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await elegir(user, 'Moneda', 'USD')
     expect(screen.getByLabelText(/Cotización del dólar/)).toBeDefined()
   })
 
   it('un descuento sin justificación no se manda', async () => {
     const user = await abrir()
 
-    await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
+    await elegir(user, 'Alumno', '3')
+    await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.type(screen.getByLabelText(/Descuento/), '20')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
@@ -394,8 +395,8 @@ describe('el alta', () => {
     const user = await abrir()
     vi.mocked(registrarPago).mockResolvedValue(pago())
 
-    await user.selectOptions(await screen.findByLabelText('Alumno'), '3')
-    await user.selectOptions(await screen.findByLabelText('Cuál curso'), '5')
+    await elegir(user, 'Alumno', '3')
+    await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -567,10 +568,10 @@ describe('los cuatro destinos y el pagador libre', () => {
     )
     montar()
     await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
-    await user.selectOptions(screen.getByLabelText('Qué salda'), 'VENTA_EQUIPO')
+    await elegir(user, 'Qué salda', 'VENTA_EQUIPO')
 
     await user.click(await screen.findByLabelText('No tiene cuenta'))
-    await user.selectOptions(await screen.findByLabelText('Cuál venta'), '7')
+    await elegir(user, 'Cuál venta', '7')
     await user.type(screen.getByLabelText('Nombre de quien paga'), 'Comprador de Paso')
     await user.type(screen.getByLabelText('Monto'), '900000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
@@ -595,8 +596,8 @@ describe('los cuatro destinos y el pagador libre', () => {
     )
     montar()
     await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
-    await user.selectOptions(screen.getByLabelText('Qué salda'), 'VENTA_EQUIPO')
-    await user.selectOptions(await screen.findByLabelText('Cuál venta'), '7')
+    await elegir(user, 'Qué salda', 'VENTA_EQUIPO')
+    await elegir(user, 'Cuál venta', '7')
     await user.type(screen.getByLabelText('Monto'), '900000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 

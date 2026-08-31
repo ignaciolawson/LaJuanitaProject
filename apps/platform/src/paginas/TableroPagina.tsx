@@ -29,6 +29,7 @@ import {
 import { capitalizar, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
 import { puedeVerElTableroCompleto } from '../layout/menu'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 8 — el tablero de dirección.
@@ -133,14 +134,13 @@ export function TableroPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {completo ? 'Tablero de dirección' : 'Resumen financiero'}
-        </h2>
-        <p className="mt-1 text-sm text-tenue">
-          {cargando ? 'Cargando…' : `Del ${legible(desde)} al ${legible(hasta)}`}
-        </p>
-      </div>
+      {/* El título cambia con el rol porque la pantalla es otra: STAFF llama a
+          un endpoint distinto y ve el resumen financiero básico, no el tablero
+          completo (§11, Módulo 8). */}
+      <CabeceraDePagina
+        titulo={completo ? 'Tablero de dirección' : 'Resumen financiero'}
+        aclaracion={cargando ? 'Cargando…' : `Del ${legible(desde)} al ${legible(hasta)}`}
+      />
 
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <Campo
@@ -427,7 +427,7 @@ function Seccion({
     <section className="mb-8">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <div>
-          <h3 className="font-semibold tracking-tight">{titulo}</h3>
+          <h3 className="t-seccion">{titulo}</h3>
           {aclaracion && <p className="text-xs text-tenue">{aclaracion}</p>}
         </div>
         {detalle && (
@@ -451,6 +451,11 @@ function Seccion({
 function Grilla({ ocupacion }: { ocupacion: Ocupacion }) {
   const maximo = Math.max(1, ...ocupacion.franjas.map((f) => f.reservas))
 
+  // Esta NO usa `Tabla`, y es a propósito: no es un listado, es un mapa de calor.
+  // Tiene columna de encabezados de FILA, celdas separadas (`border-separate`) que
+  // son cuadros de color y ninguna fila que dividir. `Tabla` aporta el `thead` en
+  // mono y el `divide-y` de un listado, que acá estorban. Es la única `<table>` del
+  // sistema que quedó fuera del componente y no es deuda.
   return (
     <div className="overflow-x-auto rounded-lg border border-linea bg-superficie p-4">
       <table className="w-full min-w-[32rem] border-separate border-spacing-1 text-xs">

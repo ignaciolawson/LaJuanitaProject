@@ -6,6 +6,7 @@ import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { BloqueosPagina } from './BloqueosPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 2, pantalla 3 — salas fuera de servicio.
@@ -195,7 +196,7 @@ describe('el alta', () => {
     vi.mocked(altaBloqueo).mockResolvedValue(bloqueo())
     const user = await abrirFormulario()
 
-    await user.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(user, 'Sala', '1')
     await user.type(screen.getByLabelText('Motivo'), 'Mantenimiento')
     await user.click(screen.getByRole('button', { name: 'Bloquear' }))
 
@@ -210,7 +211,7 @@ describe('el alta', () => {
     vi.mocked(altaBloqueo).mockResolvedValue(bloqueo())
     const user = await abrirFormulario()
 
-    await user.selectOptions(screen.getByLabelText('Sala'), '2')
+    await elegir(user, 'Sala', '2')
     await user.type(screen.getByLabelText('Motivo'), 'Obra')
     await user.click(screen.getByLabelText('Solo una franja horaria'))
     await user.click(screen.getByRole('button', { name: 'Bloquear' }))
@@ -231,7 +232,7 @@ describe('el alta', () => {
   it('un bloqueo sin motivo no se manda', async () => {
     const user = await abrirFormulario()
 
-    await user.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(user, 'Sala', '1')
     await user.click(screen.getByRole('button', { name: 'Bloquear' }))
 
     expect(await screen.findByText('Escribí por qué se bloquea la sala.')).toBeDefined()
@@ -250,7 +251,7 @@ describe('el alta', () => {
     )
     const user = await abrirFormulario()
 
-    await user.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(user, 'Sala', '1')
     await user.type(screen.getByLabelText('Motivo'), 'Refacción')
     await user.click(screen.getByRole('button', { name: 'Bloquear' }))
 

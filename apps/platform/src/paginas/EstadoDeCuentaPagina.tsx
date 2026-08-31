@@ -6,6 +6,7 @@ import { ApiError } from '../api/cliente'
 import { type EstadoDeCuenta } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { DetalleDeCuenta } from '../componentes/DetalleDeCuenta'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 3, pantalla 2 — qué contrató una persona, qué pagó y qué debe.
@@ -60,12 +61,10 @@ export function EstadoDeCuentaPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">
-          {cuenta.apellido}, {cuenta.nombre}
-        </h2>
-        <p className="mt-1 text-sm text-tenue">{cuenta.email}</p>
-      </div>
+      <CabeceraDePagina
+        titulo={`${cuenta.apellido}, ${cuenta.nombre}`}
+        aclaracion={cuenta.email}
+      />
 
       <DetalleDeCuenta cuenta={cuenta} onVerComprobante={(pago, c) => void abrir(pago.idPago, c)} />
     </div>

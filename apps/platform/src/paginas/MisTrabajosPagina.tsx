@@ -9,6 +9,8 @@ import {
 } from '../api/tiposMastering'
 import { Aviso } from '../componentes/Boton'
 import { importe } from '../componentes/dinero'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 6, el lado del cliente — mis trabajos de Mix & Mastering.
@@ -58,18 +60,15 @@ export function MisTrabajosPagina() {
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Mix &amp; Mastering</h2>
-        <p className="mt-1 text-sm text-tenue">
-          Tus trabajos, cómo vienen y dónde bajarlos.
-        </p>
-      </div>
+      <CabeceraDePagina
+        titulo="Mix &amp; Mastering"
+        aclaracion={<>Tus trabajos, cómo vienen y dónde bajarlos.</>}
+      />
 
       {trabajos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          Todavía no tenés trabajos cargados. Se piden por WhatsApp y aparecen acá cuando
-          los damos de alta.
-        </p>
+        <EstadoVacio titulo="Todavía no tenés trabajos cargados.">
+          Se piden por WhatsApp y aparecen acá cuando los damos de alta.
+        </EstadoVacio>
       )}
 
       <ul className="space-y-3">

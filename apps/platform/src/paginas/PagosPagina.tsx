@@ -41,8 +41,9 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy } from '../componentes/semana'
 import { importe } from '../componentes/dinero'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const ESTADOS: EstadoPago[] = ['SENADO', 'PAGADO', 'DEBE', 'VENCIDO', 'ANULADO']
 /** Los que se pueden elegir al cargar: un pago no se registra ya anulado. */
@@ -165,15 +166,13 @@ export function PagosPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Pagos</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'pago' : 'pagos'}`}
-          </p>
-        </div>
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar pago</Boton>}
-      </div>
+      <CabeceraDePagina
+        titulo="Pagos"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'pago' : 'pagos'}`}</>}
+        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar pago</Boton>}</>}
+      />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
@@ -512,7 +511,7 @@ function FormularioCorreccion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-1 font-semibold">Corregir el pago</h3>
+      <h3 className="t-seccion mb-1">Corregir el pago</h3>
 
       {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
       <p className="mb-4 text-xs leading-relaxed text-tenue">
@@ -867,7 +866,7 @@ function FormularioPago({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Registrar pago</h3>
+      <h3 className="t-seccion mb-4">Registrar pago</h3>
 
       {errorGeneral && (
         <div className="mb-4">

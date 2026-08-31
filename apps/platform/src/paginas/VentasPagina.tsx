@@ -16,8 +16,9 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const MEDIOS_DE_PAGO: MedioPago[] = [
   'EFECTIVO',
@@ -92,15 +93,13 @@ export function VentasPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Venta de equipos</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'venta' : 'ventas'}`}
-          </p>
-        </div>
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar venta</Boton>}
-      </div>
+      <CabeceraDePagina
+        titulo="Venta de equipos"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'venta' : 'ventas'}`}</>}
+        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar venta</Boton>}</>}
+      />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4">
         <input
@@ -322,7 +321,7 @@ function FormularioVenta({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Registrar venta</h3>
+      <h3 className="t-seccion mb-4">Registrar venta</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo

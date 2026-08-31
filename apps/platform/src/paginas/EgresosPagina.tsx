@@ -9,7 +9,7 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
@@ -80,6 +80,8 @@ export function EgresosPagina() {
         aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'egreso' : 'egresos'}`}</>}
         acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar egreso</Boton>}</>}
       />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4">
         <input
@@ -252,7 +254,7 @@ function FormularioEgreso({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Registrar egreso</h3>
+      <h3 className="t-seccion mb-4">Registrar egreso</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo

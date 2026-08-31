@@ -45,7 +45,7 @@ import {
   rangoLegible,
   sumarDias,
 } from '../componentes/semana'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -239,6 +239,8 @@ export function CalendarioPagina() {
         )}</>}
       />
 
+      <AvisoSoloLectura />
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-2">
           <Boton variante="secundario" onClick={() => mover(-1)}>
@@ -413,6 +415,9 @@ export function CalendarioPagina() {
         </div>
       </div>
 
+      {/* Este NO es un `EstadoVacio` y es a propósito: la grilla de la semana ya
+          está dibujada arriba, así que la pantalla no se lee como rota ni como
+          que faltó cargar algo. Acá la frase aclara, no rescata. */}
       {!cargando && reservas.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">
           No hay nada reservado esta semana.
@@ -498,7 +503,7 @@ function Detalle({
     <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-semibold">
+          <h3 className="t-seccion">
             {reserva.tipoUso} · {reserva.sala}
           </h3>
           <p className="mt-1 text-sm text-tenue">
@@ -996,7 +1001,7 @@ function FormularioReserva({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">{reserva ? 'Mover la reserva' : 'Nueva reserva'}</h3>
+      <h3 className="t-seccion mb-4">{reserva ? 'Mover la reserva' : 'Nueva reserva'}</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoSelect etiqueta="Sala" value={datos.idSala} onChange={cambiar('idSala')} error={errores.idSala}>

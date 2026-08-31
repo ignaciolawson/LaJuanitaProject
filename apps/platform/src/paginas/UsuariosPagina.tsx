@@ -16,13 +16,9 @@ import { Paginado } from '../componentes/Paginado'
 import { useUsuario } from '../auth/contexto'
 import { puedeOperar } from '../layout/menu'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
-
-const NOMBRE_DE_ROL: Record<Rol, string> = {
-  ADMIN: 'Administración',
-  DIRECTIVO: 'Dirección',
-  STAFF: 'Equipo',
-  USUARIO: 'Usuario',
-}
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { AvisoSoloLectura } from '../componentes/SoloLectura'
+import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 
 const ROLES = Object.keys(NOMBRE_DE_ROL) as Rol[]
 
@@ -103,18 +99,16 @@ export function UsuariosPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Personas</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'cuenta' : 'cuentas'}`} · incluye a
-            quien solo alquila cabina o compra equipos
-          </p>
-        </div>
-        {/* DIRECTIVO lee todo y no escribe nada: no se le ofrece lo que el
+      <CabeceraDePagina
+        titulo="Personas"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'cuenta' : 'cuentas'}`} · incluye a
+            quien solo alquila cabina o compra equipos</>}
+        acciones={<>{/* DIRECTIVO lee todo y no escribe nada: no se le ofrece lo que el
             backend le va a negar. Quien autoriza sigue siendo el backend. */}
-        {puedeEscribir && <Boton onClick={() => setCreando(true)}>Nueva cuenta</Boton>}
-      </div>
+        {puedeEscribir && <Boton onClick={() => setCreando(true)}>Nueva cuenta</Boton>}</>}
+      />
+
+      <AvisoSoloLectura />
 
       <input
         type="search"
@@ -252,7 +246,7 @@ function PasswordNueva({
 }) {
   return (
     <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="font-semibold">Contraseña de {de}</h3>
+      <h3 className="t-seccion">Contraseña de {de}</h3>
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
         <strong className="text-ink">vence a los 7 días</strong> si no la usa.{' '}
@@ -334,7 +328,7 @@ function FormularioCuenta({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Nueva cuenta</h3>
+      <h3 className="t-seccion mb-4">Nueva cuenta</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
@@ -454,7 +448,7 @@ function FormularioEdicion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">
+      <h3 className="t-seccion mb-4">
         Editar a {usuario.nombre} {usuario.apellido}
       </h3>
 

@@ -1,18 +1,10 @@
 import { NavLink, Outlet } from 'react-router'
 
-import { nombreCompleto, type UsuarioActual } from '../api/tipos'
+import { nombreCompleto } from '../api/tipos'
 import { useAuth, useUsuario } from '../auth/contexto'
+import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { menuPara } from './menu'
 import { Boton } from '../componentes/Boton'
-import { Etiqueta } from '../componentes/Etiqueta'
-
-/** Etiqueta legible del rol. El enum crudo no se le muestra a nadie. */
-const NOMBRE_DE_ROL: Record<UsuarioActual['rol'], string> = {
-  ADMIN: 'Administración',
-  DIRECTIVO: 'Dirección',
-  STAFF: 'Equipo',
-  USUARIO: 'Usuario',
-}
 
 export function Layout() {
   const { cerrarSesion } = useAuth()
@@ -73,7 +65,11 @@ export function Layout() {
 
         <div className="border-t border-linea px-5 py-4">
           <p className="truncate text-sm font-medium">{nombreCompleto(usuario)}</p>
-          <p className="truncate text-xs text-apagado">{usuario.email}</p>
+          {/* El rol se dice acá y no en una barra superior: es un dato de quién
+              sos, y vive junto al nombre y al logout en vez de ocupar una franja
+              propia arriba de las 36 pantallas. */}
+          <p className="t-mono mt-1 text-tenue">{NOMBRE_DE_ROL[usuario.rol]}</p>
+          <p className="mt-1 truncate text-xs text-apagado">{usuario.email}</p>
           <Boton variante="enlace"
             type="button"
             onClick={cerrarSesion} className="mt-3">
@@ -82,16 +78,20 @@ export function Layout() {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-linea bg-superficie px-8 py-4">
-          <h1 className="text-sm font-medium">Hola, {usuario.nombre}</h1>
-          <Etiqueta>{NOMBRE_DE_ROL[usuario.rol]}</Etiqueta>
-        </header>
+      {/* NO hay barra superior, y es una decisión (Fase 3.1, 2026-08-31).
+          Contenía sólo "Hola, X" y el chip de rol: una franja fija en las 36
+          pantallas para dos datos que no cambian y que nadie mira dos veces.
+          El saludo pasó al Inicio, que es donde §11 lo puso —"Hola, Micaela ·
+          Administradora"— y el rol al pie del sidebar.
 
-        <main className="flex-1 px-8 py-8">
-          <Outlet />
-        </main>
-      </div>
+          La consecuencia es de jerarquía y es la que importa: sin este
+          encabezado, **el título de cada pantalla es el `<h1>` de verdad**. Antes
+          el `<h1>` del documento decía "Hola, Ignacio" y el nombre de la pantalla
+          era un `<h2>`, que es exactamente lo que `CabeceraDePagina` tenía
+          anotado para revisar "de una vez, no de a una". */}
+      <main className="min-w-0 flex-1 px-8 py-8">
+        <Outlet />
+      </main>
     </div>
   )
 }

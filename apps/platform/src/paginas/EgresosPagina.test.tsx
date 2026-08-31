@@ -6,6 +6,7 @@ import type { EgresoResumen, ProfesorResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { EgresosPagina } from './EgresosPagina'
+import { elegir } from '../pruebas/elegir'
 
 /** Módulo 3, pantalla 5 — la plata que sale. */
 
@@ -189,7 +190,7 @@ describe('el alta', () => {
 
     await user.type(screen.getByLabelText('Concepto'), 'Plugin')
     await user.type(screen.getByLabelText('Monto'), '500')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
+    await elegir(user, 'Moneda', 'USD')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(
@@ -205,7 +206,7 @@ describe('el alta', () => {
 
     await user.type(screen.getByLabelText('Concepto'), 'Clases de marzo')
     await user.type(screen.getByLabelText('Monto'), '150000')
-    await user.selectOptions(screen.getByLabelText('Profesor'), '2')
+    await elegir(user, 'Profesor', '2')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     await waitFor(() => expect(registrarEgreso).toHaveBeenCalled())
@@ -217,7 +218,7 @@ describe('el alta', () => {
     const user = await abrir()
 
     expect(screen.getByLabelText('A quién')).toBeDefined()
-    await user.selectOptions(screen.getByLabelText('Profesor'), '2')
+    await elegir(user, 'Profesor', '2')
     expect(screen.queryByLabelText('A quién')).toBeNull()
   })
 })

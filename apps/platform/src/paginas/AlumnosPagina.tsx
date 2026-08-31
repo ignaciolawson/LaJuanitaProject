@@ -19,7 +19,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
@@ -115,6 +115,8 @@ export function AlumnosPagina() {
             formulario. Quien autoriza sigue siendo el backend. */}
         {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo alumno</Boton>}</>}
       />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
@@ -341,7 +343,7 @@ function FormularioEdicion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-1 font-semibold">
+      <h3 className="t-seccion mb-1">
         Editar a {alumno.nombre} {alumno.apellido}
       </h3>
       <p className="mb-4 text-xs text-apagado">
@@ -453,7 +455,7 @@ function FormularioAlta({
   if (passwordTemporal) {
     return (
       <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-        <h3 className="font-semibold">Alumno creado</h3>
+        <h3 className="t-seccion">Alumno creado</h3>
         <p className="mt-2 text-sm leading-relaxed text-tenue">
           Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
           cambie cuando entre. <strong className="text-ink">No se puede volver a ver:</strong>{' '}
@@ -471,7 +473,7 @@ function FormularioAlta({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Nuevo alumno</h3>
+      <h3 className="t-seccion mb-4">Nuevo alumno</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo

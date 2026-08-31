@@ -7,6 +7,7 @@ import type { CatalogoParaPedir, FranjaOcupada } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { hhmm, hoy, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 4 — pedir una sala.
@@ -130,13 +131,11 @@ export function ReservarPagina() {
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Reservar una cabina</h2>
-        <p className="mt-1 text-sm leading-relaxed text-tenue">
-          Elegís sala, día y horario, y nosotros te confirmamos. La reserva queda
-          tomada cuando abonás la seña — te escribimos para coordinarla.
-        </p>
-      </div>
+      <CabeceraDePagina
+        titulo="Reservar una cabina"
+        aclaracion={<>Elegís sala, día y horario, y nosotros te confirmamos. La reserva queda
+          tomada cuando abonás la seña — te escribimos para coordinarla.</>}
+      />
 
       <form noValidate onSubmit={enviar} className="rounded-lg border border-linea bg-superficie p-5">
         <div className="grid gap-4 sm:grid-cols-2">

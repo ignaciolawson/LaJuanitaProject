@@ -5,6 +5,7 @@ import { editarPerfil } from '../api/portal'
 import { useAuth, useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 4 — mi perfil.
@@ -63,10 +64,10 @@ export function MiPerfilPagina() {
 
   return (
     <div className="max-w-xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Mi perfil</h2>
-        <p className="mt-1 text-sm text-tenue">Tus datos de contacto.</p>
-      </div>
+      <CabeceraDePagina
+        titulo="Mi perfil"
+        aclaracion={<>Tus datos de contacto.</>}
+      />
 
       <form noValidate onSubmit={guardar} className="rounded-lg border border-linea bg-superficie p-5">
         <div className="grid gap-4 sm:grid-cols-2">

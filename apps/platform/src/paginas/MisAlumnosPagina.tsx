@@ -7,6 +7,8 @@ import type { AlumnoDelProfesor } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
 import { Semaforo } from '../componentes/Semaforo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 5, pantalla 2 — mis alumnos.
@@ -50,19 +52,16 @@ export function MisAlumnosPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Mis alumnos</h2>
-        <p className="mt-1 text-sm text-tenue">
-          Los de tus cursos y los de las clases que diste. Entrá a cada uno para ver
-          tus notas y marcar cómo viene.
-        </p>
-      </div>
+      <CabeceraDePagina
+        titulo="Mis alumnos"
+        aclaracion={<>Los de tus cursos y los de las clases que diste. Entrá a cada uno para ver
+          tus notas y marcar cómo viene.</>}
+      />
 
       {alumnos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          Todavía no tenés alumnos. Aparecen acá cuando te asignan una inscripción o
-          cuando das una clase.
-        </p>
+        <EstadoVacio titulo="Todavía no tenés alumnos.">
+          Aparecen acá cuando te asignan una inscripción o cuando das una clase.
+        </EstadoVacio>
       )}
 
       <ul className="space-y-3">

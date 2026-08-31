@@ -24,8 +24,9 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
 const NIVELES: Nivel[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -106,19 +107,17 @@ export function InscripcionesPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Inscripciones</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando
+      <CabeceraDePagina
+        titulo="Inscripciones"
+        aclaracion={<>{cargando
               ? 'Cargando…'
-              : `${total} ${total === 1 ? 'inscripción' : 'inscripciones'}`}
-          </p>
-        </div>
-        {puedeEscribir && (
+              : `${total} ${total === 1 ? 'inscripción' : 'inscripciones'}`}</>}
+        acciones={<>{puedeEscribir && (
           <Boton onClick={() => setMostrandoAlta(true)}>Nueva inscripción</Boton>
-        )}
-      </div>
+        )}</>}
+      />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
@@ -601,7 +600,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Nueva inscripción</h3>
+      <h3 className="t-seccion mb-4">Nueva inscripción</h3>
 
       <div className="mb-4">
         <SelectorDeAlumno elegido={alumno} onElegir={setAlumno} error={errores.idAlumno} />
@@ -767,7 +766,7 @@ function FormularioEdicion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-1 font-semibold">
+      <h3 className="t-seccion mb-1">
         Editar {NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]} de {inscripcion.nombre}{' '}
         {inscripcion.apellido}
       </h3>

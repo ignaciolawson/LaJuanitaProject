@@ -9,6 +9,8 @@ import type { ReprogramacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 5, pantallas 1 y 5 — mi agenda y mis clases dictadas.
@@ -76,18 +78,16 @@ export function MiAgendaPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Mi agenda</h2>
-          {/* El texto del rango se arma con `diaYMes` y no con `rangoLegible`:
+      <CabeceraDePagina
+        titulo="Mi agenda"
+        aclaracion={<>{cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}</>}
+        acciones={<>{/* El texto del rango se arma con `diaYMes` y no con `rangoLegible`:
               aquella indexa el día [6] y da por hecho una semana de siete. Acá
               hoy son siete, pero atar el encabezado a eso ya rompió una vez. */}
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}
-          </p>
-        </div>
+          
+        
 
-        <div className="flex gap-2">
+        
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -7))}>
             ← Anterior
           </Boton>
@@ -96,9 +96,8 @@ export function MiAgendaPagina() {
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 7))}>
             Siguiente →
-          </Boton>
-        </div>
-      </div>
+          </Boton></>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -107,9 +106,7 @@ export function MiAgendaPagina() {
       )}
 
       {!cargando && ordenadas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No tenés clases en esta semana.
-        </p>
+        <EstadoVacio titulo="No tenés clases en esta semana." />
       )}
 
       {/* Con nombre: el tipo de uso —"Clase de DJ"— aparece también en el
@@ -192,7 +189,7 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
       aria-label="Clases dictadas en el período"
       className="mt-8 rounded-lg border border-linea bg-superficie p-5"
     >
-      <h3 className="font-semibold">Clases dictadas en el período</h3>
+      <h3 className="t-seccion">Clases dictadas en el período</h3>
       <p className="mt-1 text-sm text-tenue">
         Cuenta las clases que ocuparon la sala. Una cancelada no cuenta.
       </p>

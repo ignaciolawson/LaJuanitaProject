@@ -33,7 +33,9 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { Etiqueta } from '../componentes/Etiqueta'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 const TIPOS: TipoRelease[] = ['SINGLE', 'EP', 'REMIX', 'ALBUM']
 const ESTADOS: EstadoRelease[] = [
@@ -118,19 +120,17 @@ export function SelloPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Sello</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'release' : 'releases'}`}
-          </p>
-        </div>
-        {puedeEscribir && (
+      <CabeceraDePagina
+        titulo="Sello"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'release' : 'releases'}`}</>}
+        acciones={<>{puedeEscribir && (
           <Boton onClick={() => setMostrandoAlta(true)} disabled={artistas.length === 0}>
             Nuevo release
           </Boton>
-        )}
-      </div>
+        )}</>}
+      />
+
+      <AvisoSoloLectura />
 
       {/* Un release cuelga de un artista: sin ninguno cargado, el alta no tiene
           de dónde elegir. Se dice acá en vez de ofrecer un formulario que no se
@@ -191,9 +191,7 @@ export function SelloPagina() {
       )}
 
       {!cargando && releases.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No hay releases cargados.
-        </p>
+        <EstadoVacio titulo="No hay releases cargados." />
       )}
 
       <div className="space-y-3">

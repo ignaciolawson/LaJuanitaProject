@@ -9,12 +9,13 @@ import {
   type EstadoSolicitud,
   type SolicitudResumen,
 } from '../api/tiposPortal'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { puedeOperar } from '../layout/menu'
 import { diaYMes, hhmm } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 4 — la bandeja de pedidos de sala.
@@ -33,8 +34,7 @@ import { diaYMes, hhmm } from '../componentes/semana'
  * persona pide de nuevo — así lo aprobado es siempre algo que alguien eligió.
  */
 export function SolicitudesPagina() {
-  const usuario = useUsuario()
-  const puedeResolver = puedeOperar(usuario)
+  const puedeResolver = usePuedeEscribir()
 
   const [estado, setEstado] = useState<EstadoSolicitud | ''>('PENDIENTE')
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([])
@@ -77,15 +77,10 @@ export function SolicitudesPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Pedidos de sala</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'pedido' : 'pedidos'}`}
-          </p>
-        </div>
-
-        <CampoSelect
+      <CabeceraDePagina
+        titulo="Pedidos de sala"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'pedido' : 'pedidos'}`}</>}
+        acciones={<><CampoSelect
           etiqueta="Estado"
           value={estado}
           onChange={(e) => setEstado(e.target.value as EstadoSolicitud | '')}
@@ -96,8 +91,10 @@ export function SolicitudesPagina() {
           <option value="RECHAZADA">Rechazadas</option>
           <option value="CANCELADA">Canceladas</option>
           <option value="">Todos</option>
-        </CampoSelect>
-      </div>
+        </CampoSelect></>}
+      />
+
+      <AvisoSoloLectura />
 
       {error && (
         <div className="mb-4">
@@ -106,9 +103,7 @@ export function SolicitudesPagina() {
       )}
 
       {!cargando && solicitudes.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          {estado === 'PENDIENTE' ? 'No hay pedidos esperando respuesta.' : 'No hay pedidos acá.'}
-        </p>
+        <EstadoVacio titulo={estado === 'PENDIENTE' ? 'No hay pedidos esperando respuesta.' : 'No hay pedidos acá.'} />
       )}
 
       <ul className="space-y-3">
@@ -239,7 +234,7 @@ function FormularioDeSena({
 
   return (
     <div>
-      <h3 className="mb-1 font-semibold">Confirmar el pedido</h3>
+      <h3 className="t-seccion mb-1">Confirmar el pedido</h3>
       <p className="mb-4 text-sm text-tenue">
         La reserva se crea con esta seña adentro. Sin ella la base no la acepta —
         no se aparta un horario sin pago por adelantado.

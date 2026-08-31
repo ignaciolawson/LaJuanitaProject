@@ -6,7 +6,7 @@ import { ApiError } from '../api/cliente'
 import { DIAS_PARA_VENCER, type Deudor } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { antiguedad, importe } from '../componentes/dinero'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
@@ -117,13 +117,15 @@ export function DeudoresPagina() {
                 </Celda>
               </tr>
             ))}
+          
+            {/* Adentro de la tabla y no debajo: vacía pero con encabezados, se
+                ve qué columnas hay y que ninguna tiene filas. Sueltos, no se
+                distingue "no hay deudas" de "filtré de más" ni de "no cargó". */}
+            {!cargando && deudores.length === 0 && (
+              <FilaVacia columnas={4}>No hay deudas anotadas. Todo al día.</FilaVacia>
+            )}
           </Tabla>
 
-      {!cargando && deudores.length === 0 && (
-        <p className="mt-4 text-center text-sm text-tenue">
-          No hay deudas anotadas. Todo al día.
-        </p>
-      )}
     </div>
   )
 }

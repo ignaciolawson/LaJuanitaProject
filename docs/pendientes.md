@@ -33,11 +33,10 @@
 > techos de tiempo, no un test) y el botón trabado en "Anotando…" (§8.1 — estaba en
 > el código, no hacía falta reproducirlo).
 >
-> **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO.** Ignacio adelantó el rediseño y
-> canceló lo que quedaba del testeo, así que **el corte de la lista del ~11/09 no
-> va a existir** y no hay que esperarlo. La 3.1 arrancó y quedó a mitad, con el
-> estado exacto —lo hecho, lo que falta, y una decisión tomada y todavía sin
-> implementar— en `mejoras.md` §10 · *Estado al 2026-08-31*. **Empezar por ahí.**
+> **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO: 3.1 y 3.2 cerradas, queda la 3.3.**
+> Ignacio adelantó el rediseño y canceló lo que quedaba del testeo, así que **el
+> corte de la lista del ~11/09 no va a existir** y no hay que esperarlo. El estado
+> exacto está en `mejoras.md` §10 · *Estado al 2026-08-31*. **Empezar por ahí.**
 >
 > Lo que encontró al arrancar reordena la fase: **el sistema de diseño estaba
 > escrito y nunca se había adoptado** — `Tabla` tenía cero usuarios contra once

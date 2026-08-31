@@ -5,6 +5,7 @@ import { abrirMiComprobante, miEstadoDeCuenta } from '../api/portal'
 import type { EstadoDeCuenta } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { DetalleDeCuenta } from '../componentes/DetalleDeCuenta'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 4 — mi estado de cuenta.
@@ -56,10 +57,10 @@ export function MiCuentaPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Mis pagos</h2>
-        <p className="mt-1 text-sm text-tenue">Lo que contrataste, lo que pagaste y lo que debés.</p>
-      </div>
+      <CabeceraDePagina
+        titulo="Mis pagos"
+        aclaracion={<>Lo que contrataste, lo que pagaste y lo que debés.</>}
+      />
 
       <DetalleDeCuenta cuenta={cuenta} onVerComprobante={(_, c) => void abrir(c.idComprobante)} />
 

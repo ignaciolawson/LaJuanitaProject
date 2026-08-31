@@ -7,6 +7,7 @@ import type { UsuarioActual } from '../api/tipos'
 import type { AlumnoResumen } from '../api/tiposAdmin'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { AlumnosPagina } from './AlumnosPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * El listado que reemplaza el Notion de Micaela.
@@ -215,8 +216,8 @@ describe('qué cursa cada alumno', () => {
     montar('STAFF')
     await screen.findByText('Apellido1, Nombre1')
 
-    await user.selectOptions(screen.getByLabelText('Filtrar por disciplina'), 'DJ')
-    await user.selectOptions(screen.getByLabelText('Filtrar por nivel del curso'), 'AVANZADO')
+    await elegir(user, 'Filtrar por disciplina', 'DJ')
+    await elegir(user, 'Filtrar por nivel del curso', 'AVANZADO')
 
     await waitFor(() =>
       expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({
@@ -239,7 +240,7 @@ describe('qué cursa cada alumno', () => {
       expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({ pagina: 1 }),
     )
 
-    await user.selectOptions(screen.getByLabelText('Filtrar por disciplina'), 'DJ')
+    await elegir(user, 'Filtrar por disciplina', 'DJ')
 
     await waitFor(() =>
       expect(vi.mocked(listarAlumnos).mock.lastCall?.[0]).toMatchObject({

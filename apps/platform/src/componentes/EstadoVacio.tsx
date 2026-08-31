@@ -33,13 +33,22 @@ export function EstadoVacio({
   /** Opcional: el botón que resuelve el vacío, cuando hay uno. */
   accion?: ReactNode
   /**
-   * `false` para los vacíos chicos que viven dentro de un bloque de una
-   * pantalla — ahí el abanico es ruido, no identidad.
+   * `false` para los vacíos chicos que viven DENTRO de un bloque de una
+   * pantalla. Saca dos cosas, no una: el abanico —ahí es ruido, no identidad—
+   * **y el marco**. El bloque que lo contiene ya tiene borde y fondo propios, y
+   * una segunda tarjeta adentro se lee como un panel anidado, que es un objeto
+   * que en este sistema no existe.
    */
   marca?: boolean
 }) {
   return (
-    <div className="flex flex-col items-center rounded-lg border border-linea bg-superficie px-6 py-12 text-center">
+    <div
+      className={
+        marca
+          ? 'flex flex-col items-center rounded-lg border border-linea bg-superficie px-6 py-12 text-center'
+          : 'flex flex-col items-center px-6 py-8 text-center'
+      }
+    >
       {marca && <Abanico className="mb-5 h-10 w-auto text-linea" arco={false} />}
 
       <p className="t-seccion">{titulo}</p>

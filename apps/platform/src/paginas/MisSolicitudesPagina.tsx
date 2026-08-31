@@ -6,6 +6,8 @@ import { cancelarSolicitud, misSolicitudes } from '../api/portal'
 import { NOMBRE_DE_ESTADO_SOLICITUD, type SolicitudResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { diaYMes, hhmm } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 4 — mis pedidos de sala.
@@ -47,17 +49,13 @@ export function MisSolicitudesPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Mis pedidos</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${solicitudes.length} en total`}
-          </p>
-        </div>
-        <Link to="/reservar">
+      <CabeceraDePagina
+        titulo="Mis pedidos"
+        aclaracion={<>{cargando ? 'Cargando…' : `${solicitudes.length} en total`}</>}
+        acciones={<><Link to="/reservar">
           <Boton>Pedir una cabina</Boton>
-        </Link>
-      </div>
+        </Link></>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -66,9 +64,7 @@ export function MisSolicitudesPagina() {
       )}
 
       {!cargando && solicitudes.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          Todavía no pediste ninguna sala.
-        </p>
+        <EstadoVacio titulo="Todavía no pediste ninguna sala." />
       )}
 
       <ul className="space-y-3">

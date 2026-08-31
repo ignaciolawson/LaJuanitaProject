@@ -6,6 +6,7 @@ import type { UsuarioResumen, VentaResumen } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { VentasPagina } from './VentasPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 3, pantalla 6 — la venta de equipamiento.
@@ -168,7 +169,7 @@ describe('registrar una venta', () => {
 
     await user.type(screen.getByLabelText(/^Modelo/), 'DDJ-FLX4')
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await user.selectOptions(await screen.findByLabelText('Quién compró'), '30')
+    await elegir(user, 'Quién compró', '30')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
@@ -255,7 +256,7 @@ describe('registrar una venta', () => {
 
     await user.type(screen.getByLabelText(/^Modelo/), 'DDJ-FLX4')
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await user.selectOptions(await screen.findByLabelText('Quién compró'), '30')
+    await elegir(user, 'Quién compró', '30')
     await user.click(screen.getByLabelText('Ya se cobró'))
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -279,7 +280,7 @@ describe('registrar una venta', () => {
     const user = await abrirAlta()
 
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await user.selectOptions(await screen.findByLabelText('Quién compró'), '30')
+    await elegir(user, 'Quién compró', '30')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(await screen.findByText('Poné el modelo del equipo.')).toBeDefined()
@@ -292,8 +293,8 @@ describe('registrar una venta', () => {
 
     await user.type(screen.getByLabelText(/^Modelo/), 'CDJ-3000')
     await user.type(screen.getByLabelText('Precio'), '2400')
-    await user.selectOptions(screen.getByLabelText('Moneda'), 'USD')
-    await user.selectOptions(await screen.findByLabelText('Quién compró'), '30')
+    await elegir(user, 'Moneda', 'USD')
+    await elegir(user, 'Quién compró', '30')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(await screen.findByText(/necesita la cotización del día/)).toBeDefined()

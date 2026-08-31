@@ -29,7 +29,9 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 const TIPOS: TipoTrabajo[] = ['MIX', 'MASTER', 'MIX_MASTER']
 const ESTADOS: EstadoTrabajo[] = [
@@ -107,15 +109,13 @@ export function MixMasteringPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Mix &amp; Mastering</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'trabajo' : 'trabajos'}`}
-          </p>
-        </div>
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo trabajo</Boton>}
-      </div>
+      <CabeceraDePagina
+        titulo="Mix &amp; Mastering"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'trabajo' : 'trabajos'}`}</>}
+        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo trabajo</Boton>}</>}
+      />
+
+      <AvisoSoloLectura />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
@@ -163,9 +163,7 @@ export function MixMasteringPagina() {
       )}
 
       {!cargando && trabajos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No hay trabajos cargados.
-        </p>
+        <EstadoVacio titulo="No hay trabajos cargados." />
       )}
 
       <div className="space-y-3">
@@ -383,7 +381,7 @@ function FormularioAlta({
 
   return (
     <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="mb-4 font-semibold">Nuevo trabajo</h3>
+      <h3 className="t-seccion mb-4">Nuevo trabajo</h3>
 
       <div className="mb-4 flex gap-4 text-sm">
         <label className="flex items-center gap-2">

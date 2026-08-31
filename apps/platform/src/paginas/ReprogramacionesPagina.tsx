@@ -13,7 +13,6 @@ import {
   type EstadoReprogramacion,
   type ReprogramacionResumen,
 } from '../api/tiposPortal'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -22,7 +21,7 @@ import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { diaYMes, hhmm } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 
 /**
  * La bandeja de "no puedo ese día" (Fase 2.4).
@@ -49,8 +48,7 @@ import { puedeOperar } from '../layout/menu'
  * devolver lo cobrado.
  */
 export function ReprogramacionesPagina() {
-  const usuario = useUsuario()
-  const puedeResolver = puedeOperar(usuario)
+  const puedeResolver = usePuedeEscribir()
 
   const [estado, setEstado] = useState<EstadoReprogramacion | ''>('PENDIENTE')
   const [pagina, setPagina] = useState(0)
@@ -125,6 +123,8 @@ export function ReprogramacionesPagina() {
           </CampoSelect>
         }
       />
+
+      <AvisoSoloLectura />
 
       {error && (
         <div className="mb-4">
@@ -272,7 +272,7 @@ function FormularioDeHorario({
 
   return (
     <div>
-      <h3 className="mb-1 font-semibold">Darle otro horario</h3>
+      <h3 className="t-seccion mb-1">Darle otro horario</h3>
       <p className="mb-4 text-sm text-tenue">
         La clase se mueve a esto y se le avisa sola, diciendo de dónde a dónde. Es la misma
         reserva: la seña que la respalda queda como está.

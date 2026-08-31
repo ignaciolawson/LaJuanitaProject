@@ -116,7 +116,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
 
   return (
     <div className="rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="font-semibold">{caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h3>
+      <h3 className="t-seccion">{caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h3>
 
       {sinMovimientos ? (
         // No se omite la moneda: "en dólares no entró nada este mes" es un dato,

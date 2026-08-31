@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SalaResumen, UsoDeSala } from '../api/tiposAdmin'
 import { UsoDeSalasPagina } from './UsoDeSalasPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 2, pantalla 4 — el uso de las salas.
@@ -161,7 +162,7 @@ describe('los filtros', () => {
     render(<UsoDeSalasPagina />)
 
     await tarjeta('Sala 1')
-    await user.selectOptions(screen.getByLabelText('Filtrar por sala'), '2')
+    await elegir(user, 'Filtrar por sala', '2')
 
     await waitFor(() => expect(vi.mocked(usoDeSalas).mock.calls.at(-1)?.[0].idSala).toBe(2))
   })

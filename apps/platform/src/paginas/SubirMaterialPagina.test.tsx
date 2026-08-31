@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
 import { SubirMaterialPagina } from './SubirMaterialPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 5, pantalla 4 — subir material.
@@ -94,7 +95,7 @@ describe('el destinatario', () => {
     render(<SubirMaterialPagina />)
     await completarElFormulario()
 
-    await userEvent.selectOptions(screen.getByLabelText(/Para quién/), '7')
+    await elegir(userEvent, /Para quién/, '7')
     await userEvent.click(screen.getByRole('button', { name: 'Subir material' }))
 
     await waitFor(() => {

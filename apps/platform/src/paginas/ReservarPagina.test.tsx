@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SalaResumen, TipoUsoResumen } from '../api/tiposAdmin'
 import { ReservarPagina } from './ReservarPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 4 — pedir una sala.
@@ -114,7 +115,7 @@ describe('el catálogo', () => {
     montar()
     await screen.findByLabelText('Sala')
 
-    await userEvent.selectOptions(screen.getByLabelText('Qué querés hacer'), '6')
+    await elegir(userEvent, 'Qué querés hacer', '6')
 
     await waitFor(() => {
       expect(screen.getByLabelText('Sala').textContent).not.toContain('Sala 1')
@@ -126,7 +127,7 @@ describe('el catálogo', () => {
   it('muestra la advertencia de la matriz cuando la hay', async () => {
     montar()
     await screen.findByLabelText('Sala')
-    await userEvent.selectOptions(screen.getByLabelText('Sala'), '3')
+    await elegir(userEvent, 'Sala', '3')
 
     expect(await screen.findByText(/no tiene silla ni escritorio/)).toBeDefined()
   })
@@ -138,7 +139,7 @@ describe('el pedido', () => {
     montar()
 
     await screen.findByLabelText('Sala')
-    await userEvent.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(userEvent, 'Sala', '1')
     await userEvent.click(screen.getByRole('button', { name: 'Mandar pedido' }))
 
     const enviado = vi.mocked(pedirSala).mock.calls[0][0]
@@ -171,7 +172,7 @@ describe('la disponibilidad', () => {
 
     montar()
     await screen.findByLabelText('Sala')
-    await userEvent.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(userEvent, 'Sala', '1')
 
     expect(await screen.findByText('10:00–11:30')).toBeDefined()
     expect(screen.getByText(/14:00–18:00 · sala no disponible/)).toBeDefined()
@@ -180,7 +181,7 @@ describe('la disponibilidad', () => {
   it('avisa cuando el día está libre', async () => {
     montar()
     await screen.findByLabelText('Sala')
-    await userEvent.selectOptions(screen.getByLabelText('Sala'), '1')
+    await elegir(userEvent, 'Sala', '1')
 
     expect(await screen.findByText('La sala está libre todo el día.')).toBeDefined()
   })

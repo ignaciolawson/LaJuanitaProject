@@ -14,9 +14,12 @@ import type { ReactNode } from 'react'
  * ve la deuda y cree que se generó en agosto — que es la forma más barata que
  * tiene una pantalla de mentir sin que falle nada.
  *
- * Sigue siendo `<h2>` y no `<h1>` porque el encabezado de la aplicación ya usa
- * el `<h1>`. Cuando la navegación se rehaga (0.2) hay que revisar esa jerarquía
- * completa de una vez, no acá de a una.
+ * **Es el `<h1>` de la pantalla**, desde que la barra superior de la aplicación
+ * salió (Fase 3.1). Antes era `<h2>`, porque el `<h1>` del documento lo gastaba
+ * un "Hola, Ignacio" que estaba fijo en las 36 pantallas: el nombre de la
+ * pantalla —lo único que cambia y lo único que alguien busca— quedaba un nivel
+ * más abajo que un saludo. Este archivo pedía revisar esa jerarquía "de una vez,
+ * no de a una", y eso es lo que se hizo.
  */
 export function CabeceraDePagina({
   titulo,
@@ -32,7 +35,7 @@ export function CabeceraDePagina({
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <h2 className="t-titulo">{titulo}</h2>
+        <h1 className="t-titulo">{titulo}</h1>
         {aclaracion && <p className="mt-1.5 text-sm text-tenue">{aclaracion}</p>}
       </div>
 

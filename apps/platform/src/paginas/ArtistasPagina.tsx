@@ -13,8 +13,9 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { FormularioContrato } from './SelloPagina'
 import { Etiqueta } from '../componentes/Etiqueta'
-import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 7 — las fichas de los artistas del sello.
@@ -80,6 +81,8 @@ export function ArtistasPagina() {
         )}</>}
       />
 
+      <AvisoSoloLectura />
+
       <input
         type="search"
         value={buscar}
@@ -110,9 +113,7 @@ export function ArtistasPagina() {
       )}
 
       {!cargando && artistas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          No hay artistas cargados.
-        </p>
+        <EstadoVacio titulo="No hay artistas cargados." />
       )}
 
       <div className="space-y-3">

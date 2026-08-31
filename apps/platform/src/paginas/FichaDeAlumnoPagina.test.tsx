@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReservaResumen } from '../api/tiposAdmin'
 import type { AlumnoDelProfesor, MaterialResumen, NotaResumen } from '../api/tiposDocencia'
 import { FichaDeAlumnoPagina } from './FichaDeAlumnoPagina'
+import { elegir } from '../pruebas/elegir'
 
 /**
  * Módulo 5, pantalla 3 — la ficha de un alumno mío.
@@ -186,7 +187,7 @@ describe('el semáforo', () => {
     })
     montar()
 
-    await userEvent.selectOptions(await screen.findByLabelText(/Estado/), 'REQUIERE_ATENCION')
+    await elegir(userEvent, /Estado/, 'REQUIERE_ATENCION')
     await userEvent.type(
       screen.getByLabelText(/Observaciones/),
       'Faltó tres veces seguidas.',
@@ -227,10 +228,7 @@ describe('las notas', () => {
     montar()
 
     await userEvent.type(await screen.findByLabelText('Nota'), 'Mejoró mucho el mixeo.')
-    await userEvent.selectOptions(
-      screen.getByLabelText(/Sobre qué clase/),
-      String(ID_PARTICIPACION),
-    )
+    await elegir(userEvent, /Sobre qué clase/, String(ID_PARTICIPACION))
     await userEvent.click(screen.getByRole('button', { name: 'Guardar nota' }))
 
     await waitFor(() => {

@@ -15,7 +15,6 @@ import {
   type EstadoSolicitante,
   type SolicitanteResumen,
 } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { CampoSelect } from '../componentes/Campo'
@@ -24,7 +23,7 @@ import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { cuando } from '../componentes/presentacion'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -48,8 +47,7 @@ import { puedeOperar } from '../layout/menu'
  * pantallas sigue.
  */
 export function SolicitantesPagina() {
-  const usuario = useUsuario()
-  const puedeResolver = puedeOperar(usuario)
+  const puedeResolver = usePuedeEscribir()
 
   const [estado, setEstado] = useState<EstadoSolicitante | ''>('PENDIENTE')
   const [pagina, setPagina] = useState(0)
@@ -136,6 +134,8 @@ export function SolicitantesPagina() {
           </CampoSelect>
         }
       />
+
+      <AvisoSoloLectura />
 
       {error && (
         <div className="mb-4">
@@ -255,7 +255,7 @@ function CuentaLista({
 
   return (
     <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
-      <h3 className="font-semibold">
+      <h3 className="t-seccion">
         {resultado.cuentaNueva ? `Cuenta creada para ${quien}` : `${quien} ya tenía cuenta`}
       </h3>
 

@@ -6,6 +6,7 @@ import type { SalaResumen, UsoDeSala } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { hoy, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 2, pantalla 4 — cuánto se usó cada sala en un período.
@@ -62,14 +63,12 @@ export function UsoDeSalasPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Uso de las salas</h2>
-        <p className="mt-1 text-sm text-tenue">
-          {cargando
+      <CabeceraDePagina
+        titulo="Uso de las salas"
+        aclaracion={<>{cargando
             ? 'Cargando…'
-            : `${horas(totalDeHoras)} en total, del ${legible(desde)} al ${legible(hasta)}`}
-        </p>
-      </div>
+            : `${horas(totalDeHoras)} en total, del ${legible(desde)} al ${legible(hasta)}`}</>}
+      />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Campo
@@ -131,7 +130,7 @@ function TarjetaDeSala({ uso, maximo }: { uso: UsoDeSala; maximo: number }) {
   return (
     <div className="rounded-lg border border-linea bg-superficie p-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-semibold">
+        <h3 className="t-seccion">
           {uso.sala}
           {!uso.activa && <span className="ml-2 text-xs font-normal text-apagado">(inactiva)</span>}
         </h3>

@@ -6,6 +6,8 @@ import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { cuando } from '../componentes/presentacion'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { EstadoVacio } from '../componentes/EstadoVacio'
 
 /**
  * Módulo 5, pantalla 4 — subir material.
@@ -52,13 +54,11 @@ export function SubirMaterialPagina() {
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Subir material</h2>
-        <p className="mt-1 text-sm text-tenue">
-          Un link con un título: un pack de samples, un proyecto, un video. Podés
-          dejarlo sin publicar y habilitarlo después.
-        </p>
-      </div>
+      <CabeceraDePagina
+        titulo="Subir material"
+        aclaracion={<>Un link con un título: un pack de samples, un proyecto, un video. Podés
+          dejarlo sin publicar y habilitarlo después.</>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -71,14 +71,12 @@ export function SubirMaterialPagina() {
         alSubir={(nuevo) => setMateriales([nuevo, ...materiales])}
       />
 
-      <h3 className="mt-8 mb-3 font-semibold">Lo que subiste</h3>
+      <h3 className="t-seccion mt-8 mb-3">Lo que subiste</h3>
 
       {cargando && <p className="text-sm text-tenue">Cargando…</p>}
 
       {!cargando && materiales.length === 0 && (
-        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
-          Todavía no subiste nada.
-        </p>
+        <EstadoVacio titulo="Todavía no subiste nada." />
       )}
 
       <ul className="space-y-2">
