@@ -3,11 +3,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { altaBloqueo, eliminarBloqueo, listarBloqueos, listarSalas } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { diaYMes, hhmm, hoy } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 2, pantalla 3 — salas fuera de servicio.
@@ -26,7 +27,7 @@ import { puedeOperar } from '../layout/menu'
  * que escribieron el EXCLUDE y los triggers.
  */
 export function BloqueosPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [bloqueos, setBloqueos] = useState<BloqueoResumen[]>([])
   const [salas, setSalas] = useState<SalaResumen[]>([])
@@ -81,26 +82,22 @@ export function BloqueosPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Salas fuera de servicio</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando
+      <CabeceraDePagina
+        titulo="Salas fuera de servicio"
+        aclaracion={<>{cargando
               ? 'Cargando…'
               : bloqueos.length === 0
                 ? 'Ninguna sala bloqueada'
-                : `${bloqueos.length} ${bloqueos.length === 1 ? 'bloqueo' : 'bloqueos'}`}
-          </p>
-        </div>
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Bloquear una sala</Boton>}
-      </div>
+                : `${bloqueos.length} ${bloqueos.length === 1 ? 'bloqueo' : 'bloqueos'}`}</>}
+        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Bloquear una sala</Boton>}</>}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -137,49 +134,34 @@ export function BloqueosPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Sala</th>
-              <th className="px-4 py-3 font-semibold">Cuándo</th>
-              <th className="px-4 py-3 font-semibold">Motivo</th>
-              <th className="px-4 py-3 font-semibold">Cargado por</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Sala', 'Cuándo', 'Motivo', 'Cargado por', '']}>
             {bloqueos.map((b) => (
               <tr key={b.idBloqueo} className={b.vigente ? '' : 'text-apagado'}>
-                <td className="px-4 py-3">
+                <Celda>
                   <div className="font-medium">{b.sala}</div>
                   {!b.vigente && <div className="text-xs">vencido</div>}
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   <div>{diasDe(b)}</div>
                   <div className="text-xs text-tenue">{franjaDe(b)}</div>
-                </td>
-                <td className="px-4 py-3">{b.motivo}</td>
-                <td className="px-4 py-3 text-xs text-tenue">
+                </Celda>
+                <Celda>{b.motivo}</Celda>
+                <Celda className="text-xs text-tenue">
                   {b.registradoPor ?? <span className="text-apagado">—</span>}
                   <div>{fechaCorta(b.fechaRegistro)}</div>
-                </td>
-                <td className="px-4 py-3 text-right">
+                </Celda>
+                <Celda className="text-right">
                   {puedeEscribir && (
-                    <button
+                    <Boton variante="enlace"
                       type="button"
-                      onClick={() => void desbloquear(b)}
-                      className="whitespace-nowrap text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-                    >
+                      onClick={() => void desbloquear(b)} className="whitespace-nowrap">
                       Desbloquear
-                    </button>
+                    </Boton>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       {!cargando && bloqueos.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">
@@ -299,7 +281,7 @@ function FormularioBloqueo({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Bloquear una sala</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

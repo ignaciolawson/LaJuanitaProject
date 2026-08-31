@@ -3,14 +3,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 3, pantalla 5 — la plata que sale.
@@ -25,7 +26,7 @@ import { puedeOperar } from '../layout/menu'
  * de baja. Por eso el botón dice "Anular" y no "Eliminar", igual que en Pagos.
  */
 export function EgresosPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [egresos, setEgresos] = useState<EgresoResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -74,15 +75,11 @@ export function EgresosPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Egresos</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'egreso' : 'egresos'}`}
-          </p>
-        </div>
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar egreso</Boton>}
-      </div>
+      <CabeceraDePagina
+        titulo="Egresos"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'egreso' : 'egresos'}`}</>}
+        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar egreso</Boton>}</>}
+      />
 
       <div className="mb-4">
         <input
@@ -93,7 +90,7 @@ export function EgresosPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por concepto o destinatario…"
-          className="w-full rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="w-full rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
       </div>
 
@@ -123,58 +120,43 @@ export function EgresosPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Concepto</th>
-              <th className="px-4 py-3 font-semibold">A quién</th>
-              <th className="px-4 py-3 font-semibold">Monto</th>
-              <th className="px-4 py-3 font-semibold">Fecha</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Concepto', 'A quién', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Fecha', '']}>
             {egresos.map((e) => (
               <tr key={e.idEgreso} className={e.anulado ? 'text-apagado' : undefined}>
-                <td className="px-4 py-3 font-medium">
+                <Celda className="font-medium">
                   {/* Tachado y con el motivo: la fila anulada es la que explica
                       por qué el total de la caja cambió, así que se queda. */}
                   <span className={e.anulado ? 'line-through' : undefined}>{e.concepto}</span>
                   {e.anulado && (
                     <div className="text-xs text-acento">Anulado · {e.motivoAnulacion}</div>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   {e.destinatario ?? <span className="text-apagado">—</span>}
                   {/* Vale distinguirlo: un egreso a alguien con cuenta se puede
                       cruzar contra sus clases; uno a texto libre, no. */}
                   {e.idUsuarioDestino && (
                     <div className="text-xs text-apagado">tiene cuenta en el sistema</div>
                   )}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums">
+                </Celda>
+                <Celda numerica className="whitespace-nowrap font-medium">
                   {importe(e.monto, e.moneda)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-tenue">
+                </Celda>
+                <Celda className="whitespace-nowrap text-tenue">
                   {e.fechaEgreso.split('-').reverse().join('/')}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </Celda>
+                <Celda className="text-right">
                   {puedeEscribir && !e.anulado && (
-                    <button
+                    <Boton variante="enlace"
                       type="button"
-                      onClick={() => setAnulando(e)}
-                      className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                    >
+                      onClick={() => setAnulando(e)}>
                       Anular
-                    </button>
+                    </Boton>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       {!cargando && egresos.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">No hay egresos cargados.</p>
@@ -269,7 +251,7 @@ function FormularioEgreso({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Registrar egreso</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

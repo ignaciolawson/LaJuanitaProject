@@ -90,7 +90,7 @@ export function UsoDeSalasPagina() {
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="rounded-md border border-linea bg-white px-3 py-2.5 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none focus:border-red"
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -129,7 +129,7 @@ function TarjetaDeSala({ uso, maximo }: { uso: UsoDeSala; maximo: number }) {
   const sinUso = uso.reservas === 0
 
   return (
-    <div className="rounded-lg border border-linea bg-white p-5">
+    <div className="rounded-lg border border-linea bg-superficie p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-semibold">
           {uso.sala}
@@ -166,7 +166,7 @@ function TarjetaDeSala({ uso, maximo }: { uso: UsoDeSala; maximo: number }) {
                 </span>
                 <span className="whitespace-nowrap text-tenue">{horas(t.horas)}</span>
               </div>
-              <div className="mt-1 h-1 rounded bg-papel">
+              <div className="mt-1 h-1 rounded bg-superficie-2">
                 <div
                   style={{
                     width: `${uso.horas > 0 ? (t.horas / uso.horas) * 100 : 0}%`,

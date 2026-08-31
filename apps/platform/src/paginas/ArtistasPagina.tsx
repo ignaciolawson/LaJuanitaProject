@@ -9,11 +9,12 @@ import {
   registrarArtista,
 } from '../api/sello'
 import type { ArtistaResumen, ContratoResumen } from '../api/tiposSello'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
-import { puedeOperar } from '../layout/menu'
 import { FormularioContrato } from './SelloPagina'
+import { Etiqueta } from '../componentes/Etiqueta'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 7 — las fichas de los artistas del sello.
@@ -33,7 +34,7 @@ import { FormularioContrato } from './SelloPagina'
  * respalda todos sus lanzamientos — la mitad no obvia de la regla dura del módulo.
  */
 export function ArtistasPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [artistas, setArtistas] = useState<ArtistaResumen[]>([])
   const [buscar, setBuscar] = useState('')
@@ -62,16 +63,12 @@ export function ArtistasPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Artistas</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando
+      <CabeceraDePagina
+        titulo="Artistas"
+        aclaracion={<>{cargando
               ? 'Cargando…'
-              : `${artistas.length} ${artistas.length === 1 ? 'artista' : 'artistas'}`}
-          </p>
-        </div>
-        {puedeEscribir && (
+              : `${artistas.length} ${artistas.length === 1 ? 'artista' : 'artistas'}`}</>}
+        acciones={<>{puedeEscribir && (
           <Boton
             onClick={() => {
               setEditando(null)
@@ -80,15 +77,15 @@ export function ArtistasPagina() {
           >
             Nuevo artista
           </Boton>
-        )}
-      </div>
+        )}</>}
+      />
 
       <input
         type="search"
         value={buscar}
         onChange={(e) => setBuscar(e.target.value)}
         placeholder="Buscar por nombre artístico o real…"
-        className="mb-4 w-full max-w-md rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+        className="mb-4 w-full max-w-md rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
       />
 
       {error && (
@@ -113,14 +110,14 @@ export function ArtistasPagina() {
       )}
 
       {!cargando && artistas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No hay artistas cargados.
         </p>
       )}
 
       <div className="space-y-3">
         {artistas.map((a) => (
-          <article key={a.idArtista} className="rounded-lg border border-linea bg-white">
+          <article key={a.idArtista} className="rounded-lg border border-linea bg-superficie">
             <button
               type="button"
               onClick={() => setAbierto(abierto === a.idArtista ? null : a.idArtista)}
@@ -134,15 +131,12 @@ export function ArtistasPagina() {
                 </div>
               </div>
 
-              {a.confirmado ? (
-                <span className="shrink-0 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-800">
-                  Confirmado
-                </span>
-              ) : (
-                <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
-                  Sin confirmar
-                </span>
-              )}
+              {/* Confirmado es el default y no necesita color; sin confirmar es
+                  lo que le pide algo a alguien. Antes eran verde y ámbar de
+                  Tailwind, que nadie eligió. */}
+              <Etiqueta tono={a.confirmado ? 'neutra' : 'atencion'}>
+                {a.confirmado ? 'Confirmado' : 'Sin confirmar'}
+              </Etiqueta>
 
               <div className="w-24 shrink-0 text-right text-xs text-tenue">
                 {a.releases === 0
@@ -200,15 +194,13 @@ function Detalle({
 
       <section>
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-medium uppercase tracking-wider text-tenue">Contratos</h4>
+          <h4 className="t-mono text-tenue">Contratos</h4>
           {puedeEscribir && (
-            <button
+            <Boton variante="secundario" tamaño="chico"
               type="button"
-              onClick={() => setSubiendo(true)}
-              className="text-xs font-medium underline"
-            >
+              onClick={() => setSubiendo(true)}>
               Adjuntar contrato general
-            </button>
+            </Boton>
           )}
         </div>
 
@@ -218,13 +210,11 @@ function Detalle({
           <ul className="mt-1.5 space-y-1.5">
             {contratos.map((c) => (
               <li key={c.idContrato} className="flex flex-wrap items-center gap-3">
-                <button
+                <Boton variante="enlace"
                   type="button"
-                  onClick={() => void abrirContrato(c.idContrato)}
-                  className="font-medium underline"
-                >
+                  onClick={() => void abrirContrato(c.idContrato)}>
                   Ver PDF
-                </button>
+                </Boton>
                 <span className="text-xs text-tenue">
                   {c.general ? 'General del artista' : `Del release ${c.codigoRelease}`}
                   {c.fechaFirma && ` · firmado el ${c.fechaFirma}`}
@@ -259,7 +249,7 @@ function Detalle({
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wider text-tenue">{etiqueta}</div>
+      <div className="t-mono text-tenue">{etiqueta}</div>
       <div className={valor ? '' : 'text-apagado'}>{valor ?? 'Sin cargar'}</div>
     </div>
   )
@@ -320,7 +310,7 @@ function Formulario({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mb-4 space-y-4 rounded-lg border border-linea bg-white p-5"
+      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie p-5"
     >
       <h3 className="font-medium">{artista ? 'Editar artista' : 'Nuevo artista'}</h3>
 

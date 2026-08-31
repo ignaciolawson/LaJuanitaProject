@@ -96,7 +96,7 @@ export function MisReservasPagina() {
       )}
 
       {!cargando && reservas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No tenés nada agendado en estas cuatro semanas.
         </p>
       )}
@@ -108,7 +108,7 @@ export function MisReservasPagina() {
           return (
             <li
               key={r.idReserva}
-              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-white px-5 py-4 ${
+              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie px-5 py-4 ${
                 caida ? 'text-apagado' : ''
               }`}
             >

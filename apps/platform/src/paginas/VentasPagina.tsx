@@ -16,7 +16,8 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda } from '../componentes/Tabla'
 
 const MEDIOS_DE_PAGO: MedioPago[] = [
   'EFECTIVO',
@@ -41,7 +42,7 @@ const MEDIOS_DE_PAGO: MedioPago[] = [
  * que se declara inexistente, y el backend lo rechaza con ese mensaje.
  */
 export function VentasPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [ventas, setVentas] = useState<VentaResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -110,7 +111,7 @@ export function VentasPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por equipo, marca o comprador…"
-          className="w-full rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="w-full rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
       </div>
 
@@ -140,22 +141,10 @@ export function VentasPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Equipo</th>
-              <th className="px-4 py-3 font-semibold">Comprador</th>
-              <th className="px-4 py-3 font-semibold">Vendió</th>
-              <th className="px-4 py-3 font-semibold">Precio</th>
-              <th className="px-4 py-3 font-semibold">Fecha</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Equipo', 'Comprador', 'Vendió', { etiqueta: 'Precio', alineacion: 'derecha' }, 'Fecha', '']}>
             {ventas.map((v) => (
               <tr key={v.idVenta} className={v.anulada ? 'text-apagado' : undefined}>
-                <td className="px-4 py-3">
+                <Celda>
                   <span className={`font-medium ${v.anulada ? 'line-through' : ''}`}>
                     {v.modeloEquipo}
                   </span>
@@ -169,8 +158,8 @@ export function VentasPagina() {
                   {v.anulada && (
                     <div className="text-xs text-acento">Anulada · {v.motivoAnulacion}</div>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   {v.comprador}
                   {/* La misma distinción que en egresos: a un comprador con
                       cuenta se le puede cruzar el estado de cuenta; a un nombre
@@ -180,9 +169,9 @@ export function VentasPagina() {
                       sin cuenta{v.contactoCompradorExterno && ` · ${v.contactoCompradorExterno}`}
                     </div>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">{v.vendedor}</td>
-                <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums">
+                </Celda>
+                <Celda className="text-tenue">{v.vendedor}</Celda>
+                <Celda numerica className="whitespace-nowrap font-medium">
                   {importe(v.precio, v.moneda)}
                   {/* Una venta sin cobrar que no se ve es una venta que nadie
                       reclama. Se marca solo lo que falta: lo cobrado es lo normal
@@ -190,26 +179,22 @@ export function VentasPagina() {
                   {!v.cobrada && !v.anulada && (
                     <div className="text-xs font-normal text-acento">sin cobrar</div>
                   )}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-tenue">
+                </Celda>
+                <Celda className="whitespace-nowrap text-tenue">
                   {v.fechaVenta.split('-').reverse().join('/')}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </Celda>
+                <Celda className="text-right">
                   {puedeEscribir && !v.anulada && (
-                    <button
+                    <Boton variante="enlace"
                       type="button"
-                      onClick={() => setAnulando(v)}
-                      className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                    >
+                      onClick={() => setAnulando(v)}>
                       Anular
-                    </button>
+                    </Boton>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       {!cargando && ventas.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">No hay ventas cargadas.</p>
@@ -336,7 +321,7 @@ function FormularioVenta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Registrar venta</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

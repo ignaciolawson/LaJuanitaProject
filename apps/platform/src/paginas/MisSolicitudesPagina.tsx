@@ -66,14 +66,14 @@ export function MisSolicitudesPagina() {
       )}
 
       {!cargando && solicitudes.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no pediste ninguna sala.
         </p>
       )}
 
       <ul className="space-y-3">
         {solicitudes.map((s) => (
-          <li key={s.idSolicitud} className="rounded-lg border border-linea bg-white px-5 py-4">
+          <li key={s.idSolicitud} className="rounded-lg border border-linea bg-superficie px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="font-medium">

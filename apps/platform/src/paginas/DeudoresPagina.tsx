@@ -6,6 +6,8 @@ import { ApiError } from '../api/cliente'
 import { DIAS_PARA_VENCER, type Deudor } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { antiguedad, importe } from '../componentes/dinero'
+import { Tabla, Celda } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 3, pantalla 4 — quién debe, cuánto y hace cuántos días.
@@ -48,17 +50,15 @@ export function DeudoresPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Deudores</h2>
-        <p className="mt-1 text-sm text-tenue">
-          {cargando
+      <CabeceraDePagina
+        titulo="Deudores"
+        aclaracion={<>{cargando
             ? 'Cargando…'
             : deudores.length === 0
               ? 'Nadie debe nada'
               : `${deudores.length} ${deudores.length === 1 ? 'deuda' : 'deudas'}` +
-                (vencidos > 0 ? ` · ${vencidos} de más de ${DIAS_PARA_VENCER} días` : '')}
-        </p>
-      </div>
+                (vencidos > 0 ? ` · ${vencidos} de más de ${DIAS_PARA_VENCER} días` : '')}</>}
+      />
 
       {error && (
         <div className="mb-4">
@@ -66,24 +66,14 @@ export function DeudoresPagina() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Quién</th>
-              <th className="px-4 py-3 font-semibold">Contacto</th>
-              <th className="px-4 py-3 font-semibold">Debe</th>
-              <th className="px-4 py-3 font-semibold">Desde</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Quién', 'Contacto', { etiqueta: 'Debe', alineacion: 'derecha' }, 'Desde']}>
             {deudores.map((d) => (
               // La clave lleva la moneda: quien debe en las dos aparece dos
               // veces, y son dos deudas distintas que se reclaman por separado.
               // Sin cuenta no hay id, así que la clave lleva el nombre: dos
               // deudores externos distintos no pueden colapsar en la misma fila.
               <tr key={`${d.idUsuario ?? d.nombre}-${d.moneda}`}>
-                <td className="px-4 py-3">
+                <Celda>
                   {/* **El deudor sin cuenta entra igual, pero no se linkea.**
                       Aparece porque una deuda que no está en esta pantalla es una
                       deuda que nadie va a ir a cobrar (`V19`, `mejoras.md` §9.1);
@@ -107,29 +97,27 @@ export function DeudoresPagina() {
                       ? '1 pago pendiente'
                       : `${d.cantidadDePagos} pagos pendientes`}
                   </div>
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   {/* El teléfono primero: el reclamo se hace por WhatsApp, que
                       es el canal que el relevamiento marca como el único real.
                       Para el deudor sin cuenta es lo único que hay: el contacto
                       que se anotó al cobrar. */}
                   {d.telefono ?? <span className="text-apagado">Sin teléfono</span>}
                   {d.email && <div className="text-xs">{d.email}</div>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap font-medium tabular-nums">
+                </Celda>
+                <Celda numerica className="whitespace-nowrap font-medium">
                   {importe(d.adeudado, d.moneda)}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                </Celda>
+                <Celda className="whitespace-nowrap">
                   <span className={d.vencido ? 'font-medium text-acento' : 'text-tenue'}>
                     {antiguedad(d.diasDeAtraso)}
                   </span>
                   <div className="text-xs text-tenue">{fechaCorta(d.desde)}</div>
-                </td>
+                </Celda>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       {!cargando && deudores.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">

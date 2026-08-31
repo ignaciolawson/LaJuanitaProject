@@ -7,6 +7,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
 import { hoy, sumarDias } from '../componentes/semana'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
  * Módulo 3, pantalla 3 — la caja del período.
@@ -51,12 +52,10 @@ export function CajaPagina() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold tracking-tight">Caja</h2>
-        <p className="mt-1 text-sm text-tenue">
-          {cargando ? 'Cargando…' : `Del ${legible(desde)} al ${legible(hasta)}`}
-        </p>
-      </div>
+      <CabeceraDePagina
+        titulo="Caja"
+        aclaracion={<>{cargando ? 'Cargando…' : `Del ${legible(desde)} al ${legible(hasta)}`}</>}
+      />
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <Campo
@@ -116,7 +115,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
   const sinMovimientos = caja.cantidadDePagos === 0 && caja.cantidadDeEgresos === 0
 
   return (
-    <div className="rounded-lg border border-linea bg-white p-5">
+    <div className="rounded-lg border border-linea bg-superficie p-5">
       <h3 className="font-semibold">{caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h3>
 
       {sinMovimientos ? (
@@ -156,7 +155,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
 
           {caja.porMedio.length > 0 && (
             <div className="mt-5 border-t border-linea pt-4">
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-tenue">
+              <h4 className="mb-2 t-mono text-tenue">
                 Por dónde entró
               </h4>
               <dl className="space-y-1.5 text-sm">
@@ -191,7 +190,7 @@ function Renglon({
         {etiqueta}
         {nota && <span className="ml-1 text-xs text-apagado">· {nota}</span>}
       </dt>
-      <dd className="whitespace-nowrap tabular-nums">{valor}</dd>
+      <dd className="whitespace-nowrap t-cifra">{valor}</dd>
     </div>
   )
 }

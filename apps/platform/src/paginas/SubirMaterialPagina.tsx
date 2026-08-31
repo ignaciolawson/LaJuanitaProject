@@ -76,7 +76,7 @@ export function SubirMaterialPagina() {
       {cargando && <p className="text-sm text-tenue">Cargando…</p>}
 
       {!cargando && materiales.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no subiste nada.
         </p>
       )}
@@ -148,7 +148,7 @@ function Formulario({
   }
 
   return (
-    <form onSubmit={enviar} className="rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={enviar} className="rounded-lg border border-linea bg-superficie p-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
           etiqueta="Título"
@@ -237,7 +237,7 @@ function Fila({
   }
 
   return (
-    <li className="rounded-md border border-linea bg-white px-4 py-3">
+    <li className="rounded-md border border-linea bg-superficie px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-40 grow">
           <div className="text-sm font-medium">{material.titulo}</div>

@@ -42,6 +42,31 @@
   --tenue: rgba(10, 10, 11, 0.56);
   --apagado: rgba(10, 10, 11, 0.3);
 
+  /* LAS DOS SUPERFICIES QUE VAN ENCIMA DEL PAPEL.
+
+     Estaban escritas como `bg-white` en 122 lugares y como `bg-papel` o
+     `bg-bone-2/50` para el relleno sutil. Mientras hubo un solo tono daba
+     igual; el problema aparece cuando hay que cambiarlo, porque `white` no
+     dice qué es —¿la tarjeta, la fila, el diálogo?— y hay que mirar los 122.
+
+       --superficie    la tarjeta, la tabla, el diálogo: lo que se lee
+       --superficie-2  el relleno que NO se lee: hover, fila alternada,
+                       encabezado de tabla, celda apagada
+
+     La jerarquía es por LÍNEA y no por sombra: en una pantalla densa las
+     sombras se apilan y ensucian. La sombra queda para lo que flota de
+     verdad, que son los dos diálogos. */
+  --superficie: #ffffff;
+
+  /* `--superficie-2` ES el papel, y no un cuarto tono: un hueco hundido en la
+     tarjeta deja ver el fondo que hay atrás. Por eso los 16 lugares que ya lo
+     necesitaban habían escrito `bg-papel` a mano y acertaron — lo que faltaba
+     no era el color, era el nombre. Sigue siendo una paleta de tres tintas. */
+  --superficie-2: var(--papel);
+  --sombra-flotante:
+    0 1px 2px rgba(10, 10, 11, 0.05),
+    0 12px 32px rgba(10, 10, 11, 0.12);
+
   /* Las tres familias de la marca. Se cargan en index.html.
      Los nombres van por ROL y no por familia, al revés que la landing —
      allá el nombre por familia evita un ciclo con las clases de next/font,
@@ -63,6 +88,10 @@
   --color-linea: var(--linea);
   --color-tenue: var(--tenue);
   --color-apagado: var(--apagado);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+
+  --shadow-flotante: var(--sombra-flotante);
 
   --font-titulo: var(--fuente-titulo);
   --font-serif: var(--fuente-serif);
@@ -146,6 +175,20 @@ body {
 .t-cifra {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* La cifra de una tarjeta: las clases que te quedan, lo que debés, cuántos
+   pedidos esperan respuesta. Es el mismo eje de ancho del titular, porque en
+   estas tarjetas el número ES el título — el rótulo de arriba solo lo nombra.
+   `tabular-nums` va incluido por la misma razón que en `.t-cifra`. */
+.t-dato {
+  font-family: var(--fuente-titulo);
+  font-weight: 700;
+  font-stretch: 112%;
+  font-size: 1.875rem;
+  line-height: 1;
+  letter-spacing: -0.022em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* El foco visible no se saca nunca: esto lo van a usar personas que cargan

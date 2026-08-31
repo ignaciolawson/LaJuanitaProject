@@ -16,6 +16,26 @@ import { CajaPagina } from './CajaPagina'
 
 vi.mock('../api/administracion', () => ({ caja: vi.fn() }))
 
+/**
+ * El día de hoy queda fijo, y no es una manía de determinismo: sin esto, dos
+ * casos fallan <b>siete días al año</b>.
+ *
+ * El rango por defecto de la pantalla es <code>hoy() − 30</code> y el atajo
+ * "Este mes" es el día 1. Los 31 de enero, marzo, mayo, julio, agosto, octubre
+ * y diciembre <b>los dos dan la misma fecha</b>, así que apretar el atajo no
+ * cambia el estado, no dispara el pedido, y los dos casos que verifican
+ * justamente eso se caen sin que nadie haya tocado nada.
+ *
+ * Es el mismo problema que §9.6 —una suite que se pone roja sola deja de poder
+ * decirte si rompiste algo— pero de otra especie: aquel dependía de la carga de
+ * la máquina, este del almanaque. Se mockea <code>hoy</code> y no los timers
+ * porque <code>userEvent</code> usa timers para escribir.
+ */
+vi.mock('../componentes/semana', async (importarReal) => ({
+  ...(await importarReal<typeof import('../componentes/semana')>()),
+  hoy: () => '2026-08-17',
+}))
+
 const { caja } = await import('../api/administracion')
 
 function moneda(cambios: Partial<CajaDelPeriodo> = {}): CajaDelPeriodo {

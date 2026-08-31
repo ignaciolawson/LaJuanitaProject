@@ -20,12 +20,12 @@ import {
   type Nivel,
   type ProfesorResumen,
 } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
 const NIVELES: Nivel[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -43,7 +43,7 @@ const ESTADOS: EstadoInscripcion[] = ['ACTIVA', 'COMPLETADA', 'PAUSADA', 'CANCEL
  * recalcula por su cuenta — lo muestra.
  */
 export function InscripcionesPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [inscripciones, setInscripciones] = useState<InscripcionResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -126,13 +126,13 @@ export function InscripcionesPagina() {
           value={buscar}
           onChange={(e) => filtrar(setBuscar)(e.target.value)}
           placeholder="Buscar por nombre, apellido o email del alumno…"
-          className="min-w-64 flex-1 rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-64 flex-1 rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           value={disciplina}
           onChange={(e) => filtrar(setDisciplina)(e.target.value as Disciplina | '')}
           aria-label="Filtrar por disciplina"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todas las disciplinas</option>
           {DISCIPLINAS.map((d) => (
@@ -145,7 +145,7 @@ export function InscripcionesPagina() {
           value={estado}
           onChange={(e) => filtrar(setEstado)(e.target.value as EstadoInscripcion | '')}
           aria-label="Filtrar por estado"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -183,69 +183,54 @@ export function InscripcionesPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Alumno</th>
-              <th className="px-4 py-3 font-semibold">Curso</th>
-              <th className="px-4 py-3 font-semibold">Profesor</th>
-              <th className="px-4 py-3 font-semibold">Clases</th>
-              <th className="px-4 py-3 font-semibold">Precio</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Alumno', 'Curso', 'Profesor', 'Clases', 'Precio', 'Estado', '']}>
             {inscripciones.map((i) => (
               <tr key={i.idInscripcion}>
-                <td className="px-4 py-3">
+                <Celda>
                   <div className="font-medium">
                     {i.apellido}, {i.nombre}
                   </div>
                   <div className="text-xs text-tenue">{i.email}</div>
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   <div>{NOMBRE_DE_DISCIPLINA[i.disciplina]}</div>
                   <div className="text-xs text-tenue">
                     {i.nivel ? capitalizar(i.nivel) : 'Sin nivel'}
                   </div>
-                </td>
+                </Celda>
                 {/* Sin profe asignado es un estado válido —se anota primero y se
                     decide después quién lo toma—, pero conviene que se note. */}
-                <td className="px-4 py-3 text-tenue">
+                <Celda className="text-tenue">
                   {i.profesor ?? <span className="text-apagado">Sin asignar</span>}
-                </td>
+                </Celda>
                 {/* El número por el que existe el módulo. Va como una sola
                     cadena y no partido en dos spans: "5" y "de 8" separados se
                     leen como dos datos distintos. */}
-                <td className="px-4 py-3 whitespace-nowrap">
+                <Celda className="whitespace-nowrap">
                   <div className="font-medium">{`${i.clasesRestantes} de ${i.clasesContratadas}`}</div>
                   <div className="text-xs text-tenue">clases restantes</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-tenue">
+                </Celda>
+                <Celda className="whitespace-nowrap text-tenue">
                   {precio(i.precioTotal, i.moneda)}
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   <Etiqueta estado={i.estado} />
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   {puedeEscribir && (
                     <div className="flex items-center justify-end gap-3 whitespace-nowrap">
-                      <button
+                      <Boton variante="enlace"
                         type="button"
-                        onClick={() => setEditando(i)}
-                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-                      >
+                        onClick={() => setEditando(i)}>
                         Editar
-                      </button>
+                      </Boton>
                       <select
                         value={i.estado}
                         onChange={(e) =>
                           void cambiarEstado(i, e.target.value as EstadoInscripcion)
                         }
                         aria-label={`Cambiar estado de la inscripción de ${i.nombre} ${i.apellido}`}
-                        className="rounded border border-linea bg-white px-2 py-1 text-xs outline-none focus:border-red"
+                        className="rounded border border-linea bg-superficie px-2 py-1 text-xs outline-none focus:border-red"
                       >
                         {ESTADOS.map((e) => (
                           <option key={e} value={e}>
@@ -255,22 +240,18 @@ export function InscripcionesPagina() {
                       </select>
                     </div>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
 
             {!cargando && inscripciones.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-tenue">
-                  {buscar || disciplina || estado
+              <FilaVacia columnas={7}>
+                {buscar || disciplina || estado
                     ? 'No hay inscripciones que coincidan con la búsqueda.'
                     : 'Todavía no hay inscripciones cargadas.'}
-                </td>
-              </tr>
+              </FilaVacia>
             )}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       <Paginado
         pagina={pagina}
@@ -347,23 +328,21 @@ function SelectorDeAlumno({
   if (elegido) {
     return (
       <div>
-        <span className="text-xs font-medium uppercase tracking-wider text-tenue">
+        <span className="t-mono text-tenue">
           Alumno<span className="ml-0.5 text-acento">*</span>
         </span>
-        <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-papel px-3 py-2.5 text-sm">
+        <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
           <span>
             <strong className="font-medium">
               {elegido.apellido}, {elegido.nombre}
             </strong>
             <span className="ml-2 text-xs text-tenue">{elegido.email}</span>
           </span>
-          <button
+          <Boton variante="enlace"
             type="button"
-            onClick={() => onElegir(null)}
-            className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-          >
+            onClick={() => onElegir(null)}>
             Cambiar
-          </button>
+          </Boton>
         </div>
       </div>
     )
@@ -388,7 +367,7 @@ function SelectorDeAlumno({
             <button
               type="button"
               onClick={() => onElegir(a)}
-              className="block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-papel"
+              className="block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-superficie-2"
             >
               <span className="font-medium">
                 {a.apellido}, {a.nombre}
@@ -621,7 +600,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Nueva inscripción</h3>
 
       <div className="mb-4">
@@ -787,7 +766,7 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-1 font-semibold">
         Editar {NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]} de {inscripcion.nombre}{' '}
         {inscripcion.apellido}

@@ -39,7 +39,7 @@ export function Tabla({
   children: ReactNode
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-linea bg-white">
+    <div className="overflow-x-auto rounded-lg border border-linea bg-superficie">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-linea text-left text-tenue">

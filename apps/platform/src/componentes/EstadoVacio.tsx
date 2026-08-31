@@ -39,7 +39,7 @@ export function EstadoVacio({
   marca?: boolean
 }) {
   return (
-    <div className="flex flex-col items-center rounded-lg border border-linea bg-white px-6 py-12 text-center">
+    <div className="flex flex-col items-center rounded-lg border border-linea bg-superficie px-6 py-12 text-center">
       {marca && <Abanico className="mb-5 h-10 w-auto text-linea" arco={false} />}
 
       <p className="t-seccion">{titulo}</p>

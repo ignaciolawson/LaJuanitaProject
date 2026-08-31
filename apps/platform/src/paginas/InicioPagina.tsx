@@ -20,8 +20,8 @@ export function InicioPagina() {
         vienen.
       </p>
 
-      <section className="mt-8 rounded-lg border border-linea bg-white">
-        <h3 className="border-b border-linea px-5 py-3 text-xs font-semibold uppercase tracking-wider text-tenue">
+      <section className="mt-8 rounded-lg border border-linea bg-superficie">
+        <h3 className="border-b border-linea px-5 py-3 t-mono text-tenue">
           Lo que devolvió <code className="font-mono">GET /api/me</code>
         </h3>
 

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
 import { useAuth } from '../auth/contexto'
+import { Boton } from '../componentes/Boton'
 
 export function LoginPagina() {
   const { iniciarSesion } = useAuth()
@@ -48,7 +49,7 @@ export function LoginPagina() {
 
         <form onSubmit={onSubmit} noValidate>
           <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wider text-tenue">
+            <span className="t-mono text-tenue">
               Email
             </span>
             <input
@@ -59,12 +60,12 @@ export function LoginPagina() {
               autoComplete="username"
               required
               autoFocus
-              className="mt-1.5 w-full rounded-md border border-linea bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+              className="mt-1.5 w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
             />
           </label>
 
           <label className="mt-5 block">
-            <span className="text-xs font-medium uppercase tracking-wider text-tenue">
+            <span className="t-mono text-tenue">
               Contraseña
             </span>
             <input
@@ -74,7 +75,7 @@ export function LoginPagina() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               required
-              className="mt-1.5 w-full rounded-md border border-linea bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+              className="mt-1.5 w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
             />
           </label>
 
@@ -89,13 +90,11 @@ export function LoginPagina() {
             </p>
           )}
 
-          <button
+          <Boton
             type="submit"
-            disabled={enviando}
-            className="mt-7 w-full rounded-md bg-ink px-4 py-2.5 text-sm font-medium text-bone transition-colors hover:bg-red disabled:cursor-not-allowed disabled:opacity-50"
-          >
+            disabled={enviando} className="mt-7 w-full">
             {enviando ? 'Entrando…' : 'Entrar'}
-          </button>
+          </Boton>
         </form>
 
         <p className="mt-8 text-sm text-tenue">

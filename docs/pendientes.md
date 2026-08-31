@@ -31,9 +31,17 @@
 >
 > **Y ese mismo día se cerró la Fase 0 entera**: el test flaky (§9.6 — eran dos
 > techos de tiempo, no un test) y el botón trabado en "Anotando…" (§8.1 — estaba en
-> el código, no hacía falta reproducirlo). **Queda una sola cosa entre el proyecto y
-> el rediseño: el corte de la lista, ~2026-09-11.** El briefing para arrancarlo es
-> `mejoras.md` §10 · Fase 3.
+> el código, no hacía falta reproducirlo).
+>
+> **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO.** Ignacio adelantó el rediseño y
+> canceló lo que quedaba del testeo, así que **el corte de la lista del ~11/09 no
+> va a existir** y no hay que esperarlo. La 3.1 arrancó y quedó a mitad, con el
+> estado exacto —lo hecho, lo que falta, y una decisión tomada y todavía sin
+> implementar— en `mejoras.md` §10 · *Estado al 2026-08-31*. **Empezar por ahí.**
+>
+> Lo que encontró al arrancar reordena la fase: **el sistema de diseño estaba
+> escrito y nunca se había adoptado** — `Tabla` tenía cero usuarios contra once
+> tablas a mano. La 3.1 no es repintar componentes, es adoptarlos.
 >
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·

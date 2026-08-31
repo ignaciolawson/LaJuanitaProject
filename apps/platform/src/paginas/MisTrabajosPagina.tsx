@@ -66,7 +66,7 @@ export function MisTrabajosPagina() {
       </div>
 
       {trabajos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no tenés trabajos cargados. Se piden por WhatsApp y aparecen acá cuando
           los damos de alta.
         </p>
@@ -79,7 +79,7 @@ export function MisTrabajosPagina() {
           return (
             <li
               key={t.idTrabajo}
-              className={`rounded-lg border border-linea bg-white px-5 py-4 ${
+              className={`rounded-lg border border-linea bg-superficie px-5 py-4 ${
                 caido ? 'text-apagado' : ''
               }`}
             >

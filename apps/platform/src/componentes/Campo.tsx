@@ -17,7 +17,7 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
 export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
   return (
     <label className={`block ${className ?? ''}`}>
-      <span className="text-xs font-medium uppercase tracking-wider text-tenue">
+      <span className="t-mono text-tenue">
         {etiqueta}
         {input.required && <span className="ml-0.5 text-acento">*</span>}
       </span>
@@ -25,7 +25,7 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
       <input
         {...input}
         aria-invalid={error ? true : undefined}
-        className={`mt-1.5 w-full rounded-md border bg-white px-3 py-2.5 text-sm outline-none transition-colors ${
+        className={`mt-1.5 w-full rounded-md border bg-superficie px-3 py-2.5 text-sm outline-none transition-colors ${
           error ? 'border-red' : 'border-linea focus:border-red'
         }`}
       />
@@ -53,10 +53,10 @@ export function CampoSelect({
 }) {
   return (
     <label className={`block ${className ?? ''}`}>
-      <span className="text-xs font-medium uppercase tracking-wider text-tenue">{etiqueta}</span>
+      <span className="t-mono text-tenue">{etiqueta}</span>
       <select
         {...select}
-        className={`mt-1.5 w-full rounded-md border bg-white px-3 py-2.5 text-sm outline-none transition-colors ${
+        className={`mt-1.5 w-full rounded-md border bg-superficie px-3 py-2.5 text-sm outline-none transition-colors ${
           error ? 'border-red' : 'border-linea focus:border-red'
         }`}
       >

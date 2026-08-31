@@ -15,6 +15,7 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { useUsuario } from '../auth/contexto'
 import { puedeOperar } from '../layout/menu'
+import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 
 const NOMBRE_DE_ROL: Record<Rol, string> = {
   ADMIN: 'Administración',
@@ -120,7 +121,7 @@ export function UsuariosPagina() {
         value={buscar}
         onChange={(e) => cambiarBusqueda(e.target.value)}
         placeholder="Buscar por nombre, apellido o email…"
-        className="mb-4 w-full max-w-md rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+        className="mb-4 w-full max-w-md rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
       />
 
       {error && (
@@ -162,21 +163,10 @@ export function UsuariosPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Persona</th>
-              <th className="px-4 py-3 font-semibold">Contacto</th>
-              <th className="px-4 py-3 font-semibold">Rol</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Persona', 'Contacto', 'Rol', 'Estado', '']}>
             {usuarios.map((u) => (
               <tr key={u.id}>
-                <td className="px-4 py-3">
+                <Celda>
                   <span className="font-medium">
                     {u.apellido}, {u.nombre}
                   </span>
@@ -184,13 +174,13 @@ export function UsuariosPagina() {
                   {u.debeCambiarPassword && (
                     <span className="ml-2 text-xs text-apagado">· contraseña sin cambiar</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   <div>{u.email}</div>
                   {u.telefono && <div className="text-xs">{u.telefono}</div>}
-                </td>
-                <td className="px-4 py-3 text-tenue">{NOMBRE_DE_ROL[u.rol] ?? u.rol}</td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda className="text-tenue">{NOMBRE_DE_ROL[u.rol] ?? u.rol}</Celda>
+                <Celda>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${
                       u.activo ? 'border-ink/20 text-ink' : 'border-linea text-apagado'
@@ -198,8 +188,8 @@ export function UsuariosPagina() {
                   >
                     {u.activo ? 'Activa' : 'Desactivada'}
                   </span>
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   {puedeEscribir && (
                     <div className="flex justify-end gap-3 whitespace-nowrap">
                       <Accion onClick={() => setEditando(u)}>Editar</Accion>
@@ -214,20 +204,16 @@ export function UsuariosPagina() {
                       )}
                     </div>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
 
             {!cargando && usuarios.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-tenue">
-                  No hay cuentas que coincidan con la búsqueda.
-                </td>
-              </tr>
+              <FilaVacia columnas={5}>
+                No hay cuentas que coincidan con la búsqueda.
+              </FilaVacia>
             )}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       <Paginado
         pagina={pagina}
@@ -241,13 +227,11 @@ export function UsuariosPagina() {
 
 function Accion({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
+    <Boton variante="enlace"
       type="button"
-      onClick={onClick}
-      className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-    >
+      onClick={onClick}>
       {children}
-    </button>
+    </Boton>
   )
 }
 
@@ -267,7 +251,7 @@ function PasswordNueva({
   onCerrar: () => void
 }) {
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="font-semibold">Contraseña de {de}</h3>
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
@@ -275,7 +259,7 @@ function PasswordNueva({
         <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
         generar otra.
       </p>
-      <p className="mt-3 rounded-md border border-linea bg-papel px-4 py-3 font-mono text-lg tracking-wider">
+      <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
         {valor}
       </p>
       <Boton className="mt-4" onClick={onCerrar}>
@@ -349,7 +333,7 @@ function FormularioCuenta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Nueva cuenta</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -469,7 +453,7 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">
         Editar a {usuario.nombre} {usuario.apellido}
       </h3>

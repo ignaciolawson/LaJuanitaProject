@@ -59,7 +59,7 @@ export function MisAlumnosPagina() {
       </div>
 
       {alumnos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no tenés alumnos. Aparecen acá cuando te asignan una inscripción o
           cuando das una clase.
         </p>
@@ -70,7 +70,7 @@ export function MisAlumnosPagina() {
           <li key={a.idAlumno}>
             <Link
               to={`/mis-alumnos/${a.idAlumno}`}
-              className="flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-white px-5 py-4 transition-colors hover:border-red"
+              className="flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie px-5 py-4 transition-colors hover:border-red"
             >
               <div className="min-w-40 grow">
                 <div className="font-medium">

@@ -107,7 +107,7 @@ export function MiAgendaPagina() {
       )}
 
       {!cargando && ordenadas.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No tenés clases en esta semana.
         </p>
       )}
@@ -126,7 +126,7 @@ export function MiAgendaPagina() {
           return (
             <li
               key={c.idReserva}
-              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-white px-5 py-4 ${
+              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie px-5 py-4 ${
                 caida ? 'text-apagado' : ''
               }`}
             >
@@ -190,7 +190,7 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
   return (
     <section
       aria-label="Clases dictadas en el período"
-      className="mt-8 rounded-lg border border-linea bg-white p-5"
+      className="mt-8 rounded-lg border border-linea bg-superficie p-5"
     >
       <h3 className="font-semibold">Clases dictadas en el período</h3>
       <p className="mt-1 text-sm text-tenue">
@@ -199,7 +199,7 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
 
       <div className="mt-4 flex flex-wrap gap-8">
         <div>
-          <div className="text-3xl font-semibold tracking-tight tabular-nums">
+          <div className="t-dato">
             {dictadas.clases}
           </div>
           <div className="text-xs text-tenue">
@@ -208,7 +208,7 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
         </div>
 
         <div>
-          <div className="text-3xl font-semibold tracking-tight tabular-nums">
+          <div className="t-dato">
             {dictadas.alumnosAtendidos}
           </div>
           {/* Personas distintas, no participaciones: quien fue a ocho clases es

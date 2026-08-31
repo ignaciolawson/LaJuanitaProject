@@ -19,8 +19,9 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
-import { useUsuario } from '../auth/contexto'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
 const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -37,7 +38,7 @@ const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
  * secas.
  */
 export function AlumnosPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -106,18 +107,14 @@ export function AlumnosPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Alumnos</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'alumno' : 'alumnos'}`}
-          </p>
-        </div>
-        {/* DIRECTIVO lee todo y no escribe nada. Ofrecerle el alta terminaba en
+      <CabeceraDePagina
+        titulo="Alumnos"
+        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'alumno' : 'alumnos'}`}</>}
+        acciones={<>{/* DIRECTIVO lee todo y no escribe nada. Ofrecerle el alta terminaba en
             "No tenés permiso para hacer esto" después de completar el
             formulario. Quien autoriza sigue siendo el backend. */}
-        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo alumno</Boton>}
-      </div>
+        {puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Nuevo alumno</Boton>}</>}
+      />
 
       <div className="mb-4 flex flex-wrap gap-3">
         <input
@@ -125,13 +122,13 @@ export function AlumnosPagina() {
           value={buscar}
           onChange={(e) => cambiarBusqueda(e.target.value)}
           placeholder="Buscar por nombre, apellido o email…"
-          className="min-w-64 flex-1 rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-64 flex-1 rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           value={estado}
           onChange={(e) => filtrar(setEstado)(e.target.value as EstadoAlumno | '')}
           aria-label="Filtrar por estado"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -147,7 +144,7 @@ export function AlumnosPagina() {
           value={disciplina}
           onChange={(e) => filtrar(setDisciplina)(e.target.value as Disciplina | '')}
           aria-label="Filtrar por disciplina"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todas las disciplinas</option>
           {DISCIPLINAS.map((d) => (
@@ -160,7 +157,7 @@ export function AlumnosPagina() {
           value={nivelCurso}
           onChange={(e) => filtrar(setNivelCurso)(e.target.value as Nivel | '')}
           aria-label="Filtrar por nivel del curso"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los niveles del curso</option>
           {NIVELES.map((n) => (
@@ -198,22 +195,10 @@ export function AlumnosPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Alumno</th>
-              <th className="px-4 py-3 font-semibold">Contacto</th>
-              <th className="px-4 py-3 font-semibold">Cursa</th>
-              <th className="px-4 py-3 font-semibold">Nivel de ingreso</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Alumno', 'Contacto', 'Cursa', 'Nivel de ingreso', 'Estado', '']}>
             {alumnos.map((a) => (
               <tr key={a.idAlumno}>
-                <td className="px-4 py-3">
+                <Celda>
                   {/* El nombre es la puerta al perfil. Va en la fila entera y no
                       como una columna "Ver" al final: es donde la gente hace
                       clic sin que se lo digan. */}
@@ -226,38 +211,36 @@ export function AlumnosPagina() {
                   {!a.usuarioActivo && (
                     <span className="ml-2 text-xs text-apagado">(cuenta desactivada)</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   <div>{a.email}</div>
                   {a.telefono && <div className="text-xs">{a.telefono}</div>}
-                </td>
+                </Celda>
                 {/* Se muestra siempre, no solo al filtrar: una lista filtrada
                     que no dice de qué es cada fila obliga a confiar en que el
                     filtro hizo lo que dijo. */}
-                <td className="px-4 py-3 text-tenue">
+                <Celda className="text-tenue">
                   {a.disciplinas.length > 0
                     ? a.disciplinas.map((d) => NOMBRE_DE_DISCIPLINA[d]).join(', ')
                     : <span className="text-apagado">Nada vigente</span>}
-                </td>
-                <td className="px-4 py-3 text-tenue">{a.nivelIngreso ?? '—'}</td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda className="text-tenue">{a.nivelIngreso ?? '—'}</Celda>
+                <Celda>
                   <Etiqueta estado={a.estadoAlumno} />
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   {puedeEscribir && (
                     <div className="flex items-center justify-end gap-3 whitespace-nowrap">
-                      <button
+                      <Boton variante="enlace"
                         type="button"
-                        onClick={() => setEditando(a)}
-                        className="text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-                      >
+                        onClick={() => setEditando(a)}>
                         Editar
-                      </button>
+                      </Boton>
                       <select
                         value={a.estadoAlumno}
                         onChange={(e) => void cambiarEstado(a, e.target.value as EstadoAlumno)}
                         aria-label={`Cambiar estado de ${a.nombre} ${a.apellido}`}
-                        className="rounded border border-linea bg-white px-2 py-1 text-xs outline-none focus:border-red"
+                        className="rounded border border-linea bg-superficie px-2 py-1 text-xs outline-none focus:border-red"
                       >
                         {ESTADOS.map((e) => (
                           <option key={e} value={e}>
@@ -267,22 +250,18 @@ export function AlumnosPagina() {
                       </select>
                     </div>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
 
             {!cargando && alumnos.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-tenue">
-                  {buscar || estado || disciplina || nivelCurso
+              <FilaVacia columnas={6}>
+                {buscar || estado || disciplina || nivelCurso
                     ? 'No hay alumnos que coincidan con la búsqueda.'
                     : 'Todavía no hay alumnos cargados.'}
-                </td>
-              </tr>
+              </FilaVacia>
             )}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       <Paginado
         pagina={pagina}
@@ -361,7 +340,7 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-1 font-semibold">
         Editar a {alumno.nombre} {alumno.apellido}
       </h3>
@@ -473,14 +452,14 @@ function FormularioAlta({
 
   if (passwordTemporal) {
     return (
-      <div className="mb-6 rounded-lg border border-linea bg-white p-5">
+      <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
         <h3 className="font-semibold">Alumno creado</h3>
         <p className="mt-2 text-sm leading-relaxed text-tenue">
           Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
           cambie cuando entre. <strong className="text-ink">No se puede volver a ver:</strong>{' '}
           si se pierde, hay que generar una nueva.
         </p>
-        <p className="mt-3 rounded-md border border-linea bg-papel px-4 py-3 font-mono text-lg tracking-wider">
+        <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
           {passwordTemporal}
         </p>
         <Boton className="mt-4" onClick={onCreado}>
@@ -491,7 +470,7 @@ function FormularioAlta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Nuevo alumno</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

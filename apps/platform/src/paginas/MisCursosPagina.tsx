@@ -53,14 +53,14 @@ export function MisCursosPagina() {
       </div>
 
       {cursos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no estás inscripto en ningún curso.
         </p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {cursos.map((c) => (
-          <article key={c.idInscripcion} className="rounded-lg border border-linea bg-white p-5">
+          <article key={c.idInscripcion} className="rounded-lg border border-linea bg-superficie p-5">
             <header className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="font-semibold">{NOMBRE_DE_DISCIPLINA[c.disciplina]}</h3>
@@ -76,7 +76,7 @@ export function MisCursosPagina() {
               )}
             </header>
 
-            <p className="mt-5 text-3xl font-semibold tracking-tight tabular-nums">
+            <p className="mt-5 t-dato">
               {c.clasesRestantes}
             </p>
             <p className="text-xs text-tenue">
@@ -103,7 +103,7 @@ export function MisCursosPagina() {
           nombrado. Llegó el Módulo 5 y ahora apunta a la pantalla real: el
           cartel se reemplaza por el camino, no se borra —el alumno que lo leyó
           alguna vez sigue buscando sus materiales acá. */}
-      <section className="mt-8 rounded-lg border border-linea bg-white px-5 py-6">
+      <section className="mt-8 rounded-lg border border-linea bg-superficie px-5 py-6">
         <h3 className="text-sm font-semibold">Materiales de clase</h3>
         <p className="mt-1 text-sm text-tenue">
           Los que subieron tus profesores están en{' '}

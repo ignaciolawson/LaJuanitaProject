@@ -232,7 +232,7 @@ function Seguimiento({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="font-semibold">Cómo viene</h3>
         <Semaforo estado={alumno.estadoSeguimiento} />
@@ -256,7 +256,7 @@ function Seguimiento({
         </CampoSelect>
 
         <label className="block">
-          <span className="text-xs font-medium uppercase tracking-wider text-tenue">
+          <span className="t-mono text-tenue">
             Observaciones
           </span>
           <textarea
@@ -267,7 +267,7 @@ function Seguimiento({
             }}
             rows={2}
             placeholder="Por qué. Es lo que hace útil un requiere atención."
-            className="mt-1.5 w-full rounded-md border border-linea bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+            className="mt-1.5 w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
           />
         </label>
       </div>
@@ -361,7 +361,7 @@ function Notas({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="font-semibold">Mis notas</h3>
       <p className="mt-1 text-sm text-tenue">
         Privadas: no las ve el alumno ni otro profesor.
@@ -374,7 +374,7 @@ function Notas({
           rows={3}
           placeholder="Qué pasó en la clase, qué practicar, cómo viene."
           aria-label="Nota"
-          className="w-full rounded-md border border-linea bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+          className="w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
         />
 
         <div className="flex flex-wrap items-end gap-3">
@@ -445,7 +445,7 @@ function Notas({
                     onChange={(e) => setTextoEditado(e.target.value)}
                     rows={3}
                     aria-label="Corregir la nota"
-                    className="w-full rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+                    className="w-full rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
                   />
                   <div className="flex gap-2">
                     <Boton
@@ -464,16 +464,14 @@ function Notas({
               ) : (
                 <div className="mt-1 flex items-start justify-between gap-3">
                   <p className="whitespace-pre-wrap text-sm">{n.contenido}</p>
-                  <button
+                  <Boton variante="enlace"
                     type="button"
                     onClick={() => {
                       setEditando(n.idNota)
                       setTextoEditado(n.contenido)
-                    }}
-                    className="shrink-0 text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                  >
+                    }} className="shrink-0">
                     Corregir
-                  </button>
+                  </Boton>
                 </div>
               )}
             </li>
@@ -518,7 +516,7 @@ function Materiales({
   }
 
   return (
-    <section className="rounded-lg border border-linea bg-white p-5">
+    <section className="rounded-lg border border-linea bg-superficie p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h3 className="font-semibold">Material para {nombre}</h3>
         <Link

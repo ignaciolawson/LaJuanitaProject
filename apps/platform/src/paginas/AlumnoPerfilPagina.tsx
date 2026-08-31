@@ -23,6 +23,8 @@ import { Paginado } from '../componentes/Paginado'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
+import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Etiqueta } from '../componentes/Etiqueta'
 
 /**
  * Módulo 1, pantalla 3 — el perfil del alumno.
@@ -112,9 +114,7 @@ export function AlumnoPerfilPagina() {
           {/* Dos ejes distintos: el alumno puede estar activo y la cuenta dada
               de baja. Si no se dice, "activo" parece significar que entra. */}
           {!alumno.usuarioActivo && (
-            <span className="rounded-full border border-red/40 px-2 py-0.5 text-[11px] uppercase tracking-wide text-acento">
-              Cuenta desactivada
-            </span>
+            <Etiqueta tono="atencion">Cuenta desactivada</Etiqueta>
           )}
         </p>
       </div>
@@ -153,56 +153,41 @@ export function AlumnoPerfilPagina() {
       {/* Todas, no solo las vigentes: acá es donde vive el "recorrido formativo,
           niveles completados" que pide el Módulo 1. El listado de alumnos hace
           lo contrario y filtra por vigentes, porque contesta otra pregunta. */}
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Curso</th>
-              <th className="px-4 py-3 font-semibold">Profesor</th>
-              <th className="px-4 py-3 font-semibold">Clases</th>
-              <th className="px-4 py-3 font-semibold">Inicio</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Curso', 'Profesor', 'Clases', 'Inicio', 'Estado']}>
             {inscripciones.map((i) => (
               <tr key={i.idInscripcion}>
-                <td className="px-4 py-3">
+                <Celda>
                   <div>{NOMBRE_DE_DISCIPLINA[i.disciplina]}</div>
                   <div className="text-xs text-tenue">
                     {i.nivel ? capitalizar(i.nivel) : 'Sin nivel'}
                   </div>
-                </td>
-                <td className="px-4 py-3 text-tenue">
+                </Celda>
+                <Celda className="text-tenue">
                   {i.profesor ?? <span className="text-apagado">Sin asignar</span>}
-                </td>
+                </Celda>
                 {/* Las clases restantes son POR INSCRIPCIÓN y no hay un total:
                     nadie "tiene 5 clases", tiene 5 de DJ y 3 de mentoría. Es el
                     mismo razonamiento de §3.3 con el estado de pago — un número
                     único de algo que vive abajo miente. */}
-                <td className="px-4 py-3 whitespace-nowrap">
+                <Celda className="whitespace-nowrap">
                   <div className="font-medium">{`${i.clasesRestantes} de ${i.clasesContratadas}`}</div>
                   <div className="text-xs text-tenue">clases restantes</div>
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap text-tenue">
+                </Celda>
+                <Celda className="whitespace-nowrap text-tenue">
                   {i.fechaInicio ? fecha(i.fechaInicio) : <span className="text-apagado">A acordar</span>}
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   <EtiquetaEstado estado={i.estado} />
-                </td>
+                </Celda>
               </tr>
             ))}
 
             {inscripciones.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-tenue">
-                  Este alumno todavía no tiene ninguna inscripción.
-                </td>
-              </tr>
+              <FilaVacia columnas={5}>
+                Este alumno todavía no tiene ninguna inscripción.
+              </FilaVacia>
             )}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       <Paginado
         pagina={pagina}
@@ -232,7 +217,7 @@ function Volver() {
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-linea bg-white p-5">
+    <section className="rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-3 font-semibold">{titulo}</h3>
       {children}
     </section>
@@ -242,7 +227,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
   return (
     <p className="mb-2 text-sm last:mb-0">
-      <span className="text-xs uppercase tracking-wider text-tenue">{etiqueta}: </span>
+      <span className="t-mono text-tenue">{etiqueta}: </span>
       {valor ?? <span className="text-apagado">—</span>}
     </p>
   )
@@ -421,7 +406,7 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
       )}
 
       {clases.length > 0 && (
-        <ul className="divide-y divide-linea rounded-lg border border-linea bg-white">
+        <ul className="divide-y divide-linea rounded-lg border border-linea bg-superficie">
           {clases.map((clase) => {
             const suya = clase.participantes.find((p) => p.idUsuario === idUsuario)!
             const caida = clase.estado === 'CANCELADA' || clase.estado === 'REPROGRAMADA'
@@ -500,7 +485,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
       {cuenta.saldos.length === 0 ? (
         <p className="text-sm text-apagado">Todavía no tiene movimientos.</p>
       ) : (
-        <div className="rounded-lg border border-linea bg-white p-5">
+        <div className="rounded-lg border border-linea bg-superficie p-5">
           <dl className="space-y-1.5 text-sm">
             {cuenta.saldos.map((s) => (
               <div key={s.moneda} className="flex items-baseline justify-between gap-3">

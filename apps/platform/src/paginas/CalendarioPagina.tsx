@@ -30,7 +30,6 @@ import {
   type TipoUsoResumen,
   type UsuarioResumen,
 } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
@@ -46,7 +45,8 @@ import {
   rangoLegible,
   sumarDias,
 } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
@@ -91,7 +91,7 @@ type Franja = { fecha: string; hora: number; idSala?: number }
  * reporta, simplemente dos personas terminan en la misma sala.
  */
 export function CalendarioPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [lunes, setLunes] = useState(() => lunesDe(hoy()))
   const [idSala, setIdSala] = useState<number | ''>('')
@@ -219,14 +219,10 @@ export function CalendarioPagina() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Calendario</h2>
-          <p className="mt-1 text-sm text-tenue">
-            {cargando ? 'Cargando…' : rangoLegible(dias)}
-          </p>
-        </div>
-        {puedeEscribir && (
+      <CabeceraDePagina
+        titulo="Calendario"
+        aclaracion={cargando ? 'Cargando…' : rangoLegible(dias)}
+        acciones={<>{puedeEscribir && (
           <Boton
             onClick={() =>
               setNueva({
@@ -240,8 +236,8 @@ export function CalendarioPagina() {
           >
             Nueva reserva
           </Boton>
-        )}
-      </div>
+        )}</>}
+      />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-2">
@@ -260,7 +256,7 @@ export function CalendarioPagina() {
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -336,7 +332,7 @@ export function CalendarioPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
+      <div className="overflow-x-auto rounded-lg border border-linea bg-superficie">
         <div className="min-w-3xl">
           {/* Encabezado de días */}
           <div className="grid border-b border-linea" style={{ gridTemplateColumns: COLUMNAS }}>
@@ -404,7 +400,7 @@ export function CalendarioPagina() {
                           })
                         }
                         aria-label={`Cargar reserva el ${diaYMes(dia)} a las ${String(hora).padStart(2, '0')}:00`}
-                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-papel hover:text-apagado focus:bg-papel focus:text-apagado focus:outline-none"
+                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-superficie-2 hover:text-apagado focus:bg-superficie-2 focus:text-apagado focus:outline-none"
                       >
                         + reservar
                       </button>
@@ -446,7 +442,7 @@ function Bloque({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () =
       type="button"
       onClick={onElegir}
       style={{ borderLeftColor: reserva.color ?? '#999' }}
-      className={`mb-1 block w-full border-l-4 bg-papel px-1.5 py-1 text-left text-[11px] leading-tight transition-colors hover:bg-bone-2/60 ${
+      className={`mb-1 block w-full border-l-4 bg-superficie-2 px-1.5 py-1 text-left text-[11px] leading-tight transition-colors hover:bg-superficie-2 ${
         caida ? 'opacity-50 line-through' : ''
       }`}
     >
@@ -472,7 +468,7 @@ function Continuacion({ reserva, onElegir }: { reserva: ReservaResumen; onElegir
       onClick={onElegir}
       style={{ borderLeftColor: reserva.color ?? '#999' }}
       title={`${reserva.tipoUso} · ${reserva.sala} · sigue desde ${hhmm(reserva.horaInicio)}`}
-      className={`mb-1 block w-full border-l-4 border-dashed bg-papel/50 px-1.5 py-0.5 text-left text-[10px] leading-tight text-apagado transition-colors hover:bg-bone-2/60 ${
+      className={`mb-1 block w-full border-l-4 border-dashed bg-superficie-2/50 px-1.5 py-0.5 text-left text-[10px] leading-tight text-apagado transition-colors hover:bg-superficie-2 ${
         cayo(reserva) ? 'opacity-50 line-through' : ''
       }`}
     >
@@ -499,7 +495,7 @@ function Detalle({
   onAnotado: () => void
 }) {
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <h3 className="font-semibold">
@@ -514,16 +510,14 @@ function Detalle({
           </p>
           {reserva.notas && <p className="mt-2 text-sm">{reserva.notas}</p>}
         </div>
-        <button
+        <Boton variante="enlace"
           type="button"
-          onClick={onCerrar}
-          className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-        >
+          onClick={onCerrar}>
           Cerrar
-        </button>
+        </Boton>
       </div>
 
-      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-tenue">
+      <h4 className="mb-2 t-mono text-tenue">
         Quiénes vienen ({reserva.participantes.length})
       </h4>
 
@@ -545,7 +539,7 @@ function Detalle({
                   value={p.estadoAsistencia}
                   onChange={(e) => onAsistencia(p.idParticipacion, e.target.value as EstadoAsistencia)}
                   aria-label={`Asistencia de ${p.nombre} ${p.apellido}`}
-                  className="rounded border border-linea bg-white px-2 py-1 text-xs outline-none focus:border-red"
+                  className="rounded border border-linea bg-superficie px-2 py-1 text-xs outline-none focus:border-red"
                 >
                   {ASISTENCIAS.map((a) => (
                     <option key={a} value={a}>
@@ -757,13 +751,11 @@ function FormularioParticipante({
 
   if (!abierto) {
     return (
-      <button
+      <Boton variante="enlace"
         type="button"
-        onClick={() => setAbierto(true)}
-        className="mt-3 text-xs text-tenue underline underline-offset-2 hover:text-acento"
-      >
+        onClick={() => setAbierto(true)} className="mt-3">
         + Anotar a alguien
-      </button>
+      </Boton>
     )
   }
 
@@ -1003,7 +995,7 @@ function FormularioReserva({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">{reserva ? 'Mover la reserva' : 'Nueva reserva'}</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

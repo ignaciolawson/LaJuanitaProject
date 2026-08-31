@@ -119,13 +119,11 @@ export function CambioPasswordObligatorio() {
           </Boton>
         </form>
 
-        <button
+        <Boton variante="enlace"
           type="button"
-          onClick={cerrarSesion}
-          className="mt-6 text-xs text-tenue underline underline-offset-2 transition-colors hover:text-acento"
-        >
+          onClick={cerrarSesion} className="mt-6">
           Cerrar sesión
-        </button>
+        </Boton>
       </div>
     </main>
   )

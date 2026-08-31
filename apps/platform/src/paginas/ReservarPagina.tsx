@@ -138,7 +138,7 @@ export function ReservarPagina() {
         </p>
       </div>
 
-      <form noValidate onSubmit={enviar} className="rounded-lg border border-linea bg-white p-5">
+      <form noValidate onSubmit={enviar} className="rounded-lg border border-linea bg-superficie p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <CampoSelect
             etiqueta="Qué querés hacer"
@@ -200,7 +200,7 @@ export function ReservarPagina() {
         {/* La advertencia de la matriz: "se puede, pero ojo". Bloquearlo sería
             rígido de más; no decir nada dejaría pedir una sala sin escritorio. */}
         {advertencia && (
-          <p className="mt-4 rounded-md border border-linea bg-papel px-3 py-2.5 text-xs text-tenue">
+          <p className="mt-4 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-xs text-tenue">
             {advertencia}
           </p>
         )}
@@ -246,7 +246,7 @@ function Disponibilidad({ franjas, hayFecha }: { franjas: FranjaOcupada[]; hayFe
 
   return (
     <div className="mt-4 rounded-md border border-linea px-3 py-2.5">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-tenue">Ese día</h3>
+      <h3 className="t-mono text-tenue">Ese día</h3>
       {franjas.length === 0 ? (
         <p className="mt-1 text-xs text-tenue">La sala está libre todo el día.</p>
       ) : (

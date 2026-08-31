@@ -28,12 +28,12 @@ import {
   type TipoAparicion,
   type TipoRelease,
 } from '../api/tiposSello'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { puedeOperar } from '../layout/menu'
+import { Etiqueta } from '../componentes/Etiqueta'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
 
 const TIPOS: TipoRelease[] = ['SINGLE', 'EP', 'REMIX', 'ALBUM']
 const ESTADOS: EstadoRelease[] = [
@@ -63,7 +63,7 @@ const TIPOS_DE_APARICION: TipoAparicion[] = ['RADIO', 'SET', 'PLAYLIST', 'OTRO']
  * sistema. Esta pantalla es todo el módulo del lado de quien mira.
  */
 export function SelloPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [releases, setReleases] = useState<ReleaseResumen[]>([])
   const [artistas, setArtistas] = useState<ArtistaResumen[]>([])
@@ -153,7 +153,7 @@ export function SelloPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por código, nombre o artista…"
-          className="min-w-60 grow rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-60 grow rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           aria-label="Estado"
@@ -162,7 +162,7 @@ export function SelloPagina() {
             setEstado(e.target.value as EstadoRelease | '')
             setPagina(0)
           }}
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -191,14 +191,14 @@ export function SelloPagina() {
       )}
 
       {!cargando && releases.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No hay releases cargados.
         </p>
       )}
 
       <div className="space-y-3">
         {releases.map((r) => (
-          <article key={r.idRelease} className="rounded-lg border border-linea bg-white">
+          <article key={r.idRelease} className="rounded-lg border border-linea bg-superficie">
             <button
               type="button"
               onClick={() => setAbierto(abierto === r.idRelease ? null : r.idRelease)}
@@ -276,19 +276,23 @@ function EstadoDelContrato({ release }: { release: ReleaseResumen }) {
   return <span className="text-acento">Sin contrato</span>
 }
 
+/**
+ * El estado de un release, con los tres tonos del sistema.
+ *
+ * Antes eran verde / ámbar / gris de Tailwind, y el ámbar caía sobre TRES
+ * estados: a confirmar, confirmado y en distribución. Dos de esos no le piden
+ * nada a nadie —el release está en camino— así que el color decía "atención"
+ * donde no había ninguna. Es lo que `Etiqueta` viene a impedir: si todo estado
+ * tiene color, el del que sí pide algo deja de saltar.
+ *
+ * Sólo `A_CONFIRMAR` pide una acción. El nombre del estado sigue estando
+ * escrito, así que no se pierde la diferencia entre confirmado y publicado.
+ */
 function EtiquetaEstado({ estado }: { estado: EstadoRelease }) {
-  const color =
-    estado === 'PUBLICADO'
-      ? 'bg-green-50 text-green-800'
-      : estado === 'CANCELADO'
-        ? 'bg-neutral-100 text-neutral-600'
-        : 'bg-amber-50 text-amber-800'
+  const tono =
+    estado === 'CANCELADO' ? 'apagada' : estado === 'A_CONFIRMAR' ? 'atencion' : 'neutra'
 
-  return (
-    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${color}`}>
-      {NOMBRE_DE_ESTADO_RELEASE[estado]}
-    </span>
-  )
+  return <Etiqueta tono={tono}>{NOMBRE_DE_ESTADO_RELEASE[estado]}</Etiqueta>
 }
 
 // == El detalle ==============================================================
@@ -341,7 +345,7 @@ function Detalle({
 
       {release.notas && (
         <section>
-          <h4 className="text-xs font-medium uppercase tracking-wider text-tenue">Notas</h4>
+          <h4 className="t-mono text-tenue">Notas</h4>
           <p className="mt-1.5 whitespace-pre-line text-sm">{release.notas}</p>
         </section>
       )}
@@ -396,7 +400,7 @@ function BloquePublicacion({
 
   if (release.estado === 'PUBLICADO') {
     return (
-      <section className="rounded-md bg-neutral-50 px-4 py-3 text-sm">
+      <section className="rounded-md bg-superficie-2 px-4 py-3 text-sm">
         <div className="font-medium">Publicado{release.fechaReal && ` el ${release.fechaReal}`}</div>
         {release.publicadoSinContrato && (
           <p className="mt-1.5 text-xs text-acento">
@@ -411,7 +415,7 @@ function BloquePublicacion({
 
   if (release.estado === 'CANCELADO') {
     return (
-      <section className="rounded-md bg-neutral-50 px-4 py-3 text-sm text-tenue">
+      <section className="rounded-md bg-superficie-2 px-4 py-3 text-sm text-tenue">
         Este release está cancelado. <strong>No se puede reabrir</strong>: un
         lanzamiento que se retoma es un release nuevo.
       </section>
@@ -450,15 +454,13 @@ function BloquePublicacion({
 
       {/* La regla, con las palabras del backend, y la salida SOLO después. */}
       {rechazo && (
-        <div className="rounded-md border border-red bg-red-50 px-4 py-3 text-sm">
+        <div className="rounded-md border border-red/30 bg-red/5 px-4 py-3 text-sm">
           <p>{rechazo}</p>
-          <button
+          <Boton variante="secundario" tamaño="chico"
             type="button"
-            onClick={() => setPidiendoMotivo(true)}
-            className="mt-2 text-xs font-medium underline"
-          >
+            onClick={() => setPidiendoMotivo(true)} className="mt-2">
             Publicarlo igual, con motivo
-          </button>
+          </Boton>
         </div>
       )}
 
@@ -477,7 +479,7 @@ function BloquePublicacion({
           creyendo que quedó registrada. Si algún día hace falta el motivo, es una
           migración, no un campo más en este formulario. */}
       {confirmandoCancelar && (
-        <div className="rounded-md border border-linea bg-neutral-50 px-4 py-3 text-sm">
+        <div className="rounded-md border border-linea bg-superficie-2 px-4 py-3 text-sm">
           <p>
             <strong>Un release cancelado no se puede reabrir.</strong> Si el
             lanzamiento se retoma, va a ser un release nuevo, con otro código.
@@ -523,15 +525,13 @@ function BloqueContratos({
   return (
     <section>
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-medium uppercase tracking-wider text-tenue">Contratos</h4>
+        <h4 className="t-mono text-tenue">Contratos</h4>
         {puedeEscribir && (
-          <button
+          <Boton variante="secundario" tamaño="chico"
             type="button"
-            onClick={() => setSubiendo(true)}
-            className="text-xs font-medium underline"
-          >
+            onClick={() => setSubiendo(true)}>
             Adjuntar contrato
-          </button>
+          </Boton>
         )}
       </div>
 
@@ -543,13 +543,11 @@ function BloqueContratos({
         <ul className="mt-1.5 space-y-1.5 text-sm">
           {contratos.map((c) => (
             <li key={c.idContrato} className="flex flex-wrap items-center gap-3">
-              <button
+              <Boton variante="enlace"
                 type="button"
-                onClick={() => void abrirContrato(c.idContrato)}
-                className="font-medium underline"
-              >
+                onClick={() => void abrirContrato(c.idContrato)}>
                 Ver PDF
-              </button>
+              </Boton>
               <span className="text-xs text-tenue">
                 {/* La distinción que hace no obvia a la regla: un contrato general
                     respalda todos los lanzamientos del artista. */}
@@ -557,13 +555,11 @@ function BloqueContratos({
                 {c.fechaFirma && ` · firmado el ${c.fechaFirma}`}
               </span>
               {puedeEscribir && (
-                <button
+                <Boton variante="enlace"
                   type="button"
-                  onClick={() => void sacar(c.idContrato)}
-                  className="ml-auto text-xs text-tenue underline"
-                >
+                  onClick={() => void sacar(c.idContrato)} className="ml-auto">
                   Sacar
-                </button>
+                </Boton>
               )}
             </li>
           ))}
@@ -612,15 +608,13 @@ function BloqueApariciones({
   return (
     <section>
       <div className="flex items-center justify-between">
-        <h4 className="text-xs font-medium uppercase tracking-wider text-tenue">Dónde sonó</h4>
+        <h4 className="t-mono text-tenue">Dónde sonó</h4>
         {puedeEscribir && (
-          <button
+          <Boton variante="secundario" tamaño="chico"
             type="button"
-            onClick={() => setAnotando(true)}
-            className="text-xs font-medium underline"
-          >
+            onClick={() => setAnotando(true)}>
             Anotar
-          </button>
+          </Boton>
         )}
       </div>
 
@@ -630,7 +624,7 @@ function BloqueApariciones({
         <ul className="mt-1.5 space-y-1.5 text-sm">
           {apariciones.map((a) => (
             <li key={a.idAparicion} className="flex flex-wrap items-center gap-2">
-              <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs">
+              <span className="rounded bg-superficie-2 px-1.5 py-0.5 text-xs">
                 {NOMBRE_DE_TIPO_APARICION[a.tipoAparicion]}
               </span>
               <span className="font-medium">{a.donde}</span>
@@ -647,7 +641,7 @@ function BloqueApariciones({
                 </a>
               )}
               {puedeEscribir && (
-                <button
+                <Boton variante="enlace"
                   type="button"
                   onClick={() =>
                     void borrarAparicion(a.idAparicion)
@@ -655,11 +649,9 @@ function BloqueApariciones({
                       .catch((e: unknown) =>
                         onError(e instanceof ApiError ? e.message : 'No se pudo borrar.'),
                       )
-                  }
-                  className="ml-auto text-xs text-tenue underline"
-                >
+                  } className="ml-auto">
                   Borrar
-                </button>
+                </Boton>
               )}
             </li>
           ))}
@@ -724,7 +716,7 @@ function FormularioAlta({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mb-4 space-y-4 rounded-lg border border-linea bg-white p-5"
+      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie p-5"
     >
       <h3 className="font-medium">Nuevo release</h3>
 
@@ -848,7 +840,7 @@ function FormularioContrato({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mt-3 space-y-4 rounded-md border border-linea bg-neutral-50 p-4"
+      className="mt-3 space-y-4 rounded-md border border-linea bg-superficie-2 p-4"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
@@ -944,7 +936,7 @@ function FormularioAparicion({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mt-3 space-y-4 rounded-md border border-linea bg-neutral-50 p-4"
+      className="mt-3 space-y-4 rounded-md border border-linea bg-superficie-2 p-4"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <CampoSelect

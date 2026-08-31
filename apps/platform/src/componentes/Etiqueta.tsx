@@ -13,10 +13,12 @@ import type { ReactNode } from 'react'
  * Si todo estado tiene su color, el rojo del vencido deja de saltar, que es
  * exactamente lo único para lo que existe.
  *
- * ⚠️ `ArtistasPagina` hoy usa `bg-green-50` y `bg-amber-50` —colores por
- * defecto de Tailwind que nadie eligió y que no están en la paleta de tres
- * tintas—. Es deriva de cuando esto se escribía a mano en cada pantalla, y se
- * corrige cuando esa pantalla entre en la pasada de rediseño.
+ * Esa deriva existió: `ArtistasPagina` y `SelloPagina` usaban `bg-green-50` y
+ * `bg-amber-50` —colores por defecto de Tailwind que nadie eligió—. Se corrigió
+ * en la pasada de rediseño (Fase 3.1), y lo que apareció al hacerlo vale más que
+ * los colores: **el ámbar caía sobre tres de los cinco estados de un release**,
+ * dos de los cuales no le piden nada a nadie. No era un problema de paleta, era
+ * el sistema diciendo "atención" cuatro veces por pantalla.
  */
 
 type Tono =

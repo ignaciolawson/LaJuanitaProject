@@ -136,7 +136,7 @@ export function BarrasHorizontales({ barras }: { barras: Barra[] }) {
             <span className="truncate text-tenue">{b.etiqueta}</span>
             <span className="whitespace-nowrap font-medium">{b.textoValor}</span>
           </div>
-          <div className="h-1.5 rounded bg-papel">
+          <div className="h-1.5 rounded bg-superficie-2">
             <div
               className="h-1.5 rounded"
               style={{

@@ -33,7 +33,6 @@ import {
   type UsuarioResumen,
   type VentaResumen,
 } from '../api/tiposAdmin'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
@@ -41,8 +40,9 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy } from '../componentes/semana'
-import { puedeOperar } from '../layout/menu'
 import { importe } from '../componentes/dinero'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
+import { Tabla, Celda } from '../componentes/Tabla'
 
 const ESTADOS: EstadoPago[] = ['SENADO', 'PAGADO', 'DEBE', 'VENCIDO', 'ANULADO']
 /** Los que se pueden elegir al cargar: un pago no se registra ya anulado. */
@@ -63,7 +63,7 @@ const MEDIOS: MedioPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'PAYPAL', 'CUENTA_EEUU
  * los botones dicen "Anular" y no "Eliminar".
  */
 export function PagosPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [pagos, setPagos] = useState<PagoResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -181,13 +181,13 @@ export function PagosPagina() {
           value={buscar}
           onChange={(e) => filtrar(setBuscar)(e.target.value)}
           placeholder="Buscar por nombre, apellido o email…"
-          className="min-w-64 flex-1 rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-64 flex-1 rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           value={estado}
           onChange={(e) => filtrar(setEstado)(e.target.value as EstadoPago | '')}
           aria-label="Filtrar por estado"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -200,7 +200,7 @@ export function PagosPagina() {
           value={moneda}
           onChange={(e) => filtrar(setMoneda)(e.target.value as Moneda | '')}
           aria-label="Filtrar por moneda"
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Las dos monedas</option>
           <option value="ARS">Pesos</option>
@@ -253,24 +253,10 @@ export function PagosPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-linea text-left text-xs uppercase tracking-wider text-tenue">
-              <th className="px-4 py-3 font-semibold">Quién</th>
-              <th className="px-4 py-3 font-semibold">Qué salda</th>
-              <th className="px-4 py-3 font-semibold">Monto</th>
-              <th className="px-4 py-3 font-semibold">Medio</th>
-              <th className="px-4 py-3 font-semibold">Fecha</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
-              <th className="px-4 py-3 font-semibold">Comprobante</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-linea">
+      <Tabla columnas={['Quién', 'Qué salda', 'Monto', 'Medio', 'Fecha', 'Estado', 'Comprobante', '']}>
             {pagos.map((p) => (
               <tr key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
-                <td className="px-4 py-3">
+                <Celda>
                   {/* **El pagador sin cuenta se muestra igual pero no se linkea**
                       (`V19`): no tiene estado de cuenta al que llevar. Se usa
                       `pagador`, que el servidor arma por el camino que sea y
@@ -292,12 +278,12 @@ export function PagosPagina() {
                       <div className="text-xs text-tenue">{p.email}</div>
                     </>
                   )}
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   <div>{p.queSalda}</div>
                   {p.concepto && <div className="text-xs text-tenue">{p.concepto}</div>}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                </Celda>
+                <Celda className="whitespace-nowrap">
                   <div className={`font-medium ${p.estadoPago === 'ANULADO' ? 'line-through' : ''}`}>
                     {importe(p.monto, p.moneda)}
                   </div>
@@ -306,13 +292,13 @@ export function PagosPagina() {
                       {p.descuentoPorcentaje}% de descuento
                     </div>
                   )}
-                </td>
-                <td className="px-4 py-3 text-tenue">{NOMBRE_DE_MEDIO[p.medioPago]}</td>
-                <td className="px-4 py-3 whitespace-nowrap text-tenue">{fechaCorta(p.fechaPago)}</td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda className="text-tenue">{NOMBRE_DE_MEDIO[p.medioPago]}</Celda>
+                <Celda className="whitespace-nowrap text-tenue">{fechaCorta(p.fechaPago)}</Celda>
+                <Celda>
                   <EtiquetaDeEstado pago={p} />
-                </td>
-                <td className="px-4 py-3 align-top">
+                </Celda>
+                <Celda className="align-top">
                   <Comprobantes
                     comprobantes={p.comprobantes}
                     onVer={(c) => void abrir(p.idPago, c)}
@@ -334,8 +320,8 @@ export function PagosPagina() {
                       />
                     </div>
                   )}
-                </td>
-                <td className="px-4 py-3">
+                </Celda>
+                <Celda>
                   {puedeEscribir && p.estadoPago !== 'ANULADO' && (
                     <div className="flex items-center justify-end gap-3 whitespace-nowrap">
                       {/* **Corregir viene antes que anular, y ese orden importa.**
@@ -343,28 +329,22 @@ export function PagosPagina() {
                           anularlo y volver a cargarlo; ahora corregir el monto o la
                           fecha es una edición común. Anular queda para lo que de
                           verdad es una baja, no para arreglar un tipeo. */}
-                      <button
+                      <Boton variante="enlace"
                         type="button"
-                        onClick={() => setEditando(p)}
-                        className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                      >
+                        onClick={() => setEditando(p)}>
                         Corregir
-                      </button>
-                      <button
+                      </Boton>
+                      <Boton variante="enlace"
                         type="button"
-                        onClick={() => setPidiendoMotivo({ pago: p, que: 'anular' })}
-                        className="text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                      >
+                        onClick={() => setPidiendoMotivo({ pago: p, que: 'anular' })}>
                         Anular
-                      </button>
+                      </Boton>
                     </div>
                   )}
-                </td>
+                </Celda>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tabla>
 
       {!cargando && pagos.length === 0 && (
         <p className="mt-4 text-center text-sm text-tenue">No hay pagos que coincidan.</p>
@@ -391,8 +371,8 @@ function EtiquetaDeEstado({ pago }: { pago: PagoResumen }) {
     pago.estadoPago === 'VENCIDO' || pago.estadoPago === 'DEBE'
       ? 'border-red/30 bg-red/5 text-acento'
       : pago.estadoPago === 'ANULADO'
-        ? 'border-linea bg-papel text-apagado'
-        : 'border-linea bg-papel text-tenue'
+        ? 'border-linea bg-superficie-2 text-apagado'
+        : 'border-linea bg-superficie-2 text-tenue'
 
   return (
     <div>
@@ -531,7 +511,7 @@ function FormularioCorreccion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-1 font-semibold">Corregir el pago</h3>
 
       {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
@@ -886,7 +866,7 @@ function FormularioPago({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Registrar pago</h3>
 
       {errorGeneral && (

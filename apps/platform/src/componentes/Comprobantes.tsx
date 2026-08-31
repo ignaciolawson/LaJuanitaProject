@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 
 import type { ComprobanteResumen } from '../api/tiposAdmin'
+import { Boton } from './Boton'
 
 /**
  * Los comprobantes de un pago: los que hay, y cuáles ya no valen.
@@ -50,13 +51,11 @@ export function Comprobantes({
               {c.nombreOriginal}
             </button>
             {!c.invalido && onInvalidar && (
-              <button
+              <Boton variante="enlace"
                 type="button"
-                onClick={() => onInvalidar(c)}
-                className="text-apagado underline underline-offset-2 hover:text-acento"
-              >
+                onClick={() => onInvalidar(c)}>
                 Invalidar
-              </button>
+              </Boton>
             )}
           </div>
           {c.invalido && (
@@ -110,14 +109,12 @@ export function AdjuntarComprobante({
 
   return (
     <>
-      <button
+      <Boton variante="enlace"
         type="button"
         disabled={subiendo}
-        onClick={() => entrada.current?.click()}
-        className="text-xs text-tenue underline underline-offset-2 hover:text-acento disabled:opacity-50"
-      >
+        onClick={() => entrada.current?.click()}>
         {subiendo ? 'Subiendo…' : etiqueta}
-      </button>
+      </Boton>
       <input
         ref={entrada}
         type="file"

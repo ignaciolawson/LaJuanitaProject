@@ -165,7 +165,7 @@ export function SolicitantesPagina() {
 
       <ul className="space-y-3">
         {fichas.map((f) => (
-          <li key={f.idSolicitante} className="rounded-lg border border-linea bg-white px-5 py-4">
+          <li key={f.idSolicitante} className="rounded-lg border border-linea bg-superficie px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +254,7 @@ function CuentaLista({
   const quien = `${resultado.usuario.nombre} ${resultado.usuario.apellido}`
 
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="font-semibold">
         {resultado.cuentaNueva ? `Cuenta creada para ${quien}` : `${quien} ya tenía cuenta`}
       </h3>
@@ -267,7 +267,7 @@ function CuentaLista({
             <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
             generar otra desde Personas.
           </p>
-          <p className="mt-3 rounded-md border border-linea bg-papel px-4 py-3 font-mono text-lg tracking-wider">
+          <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
           </p>
         </>

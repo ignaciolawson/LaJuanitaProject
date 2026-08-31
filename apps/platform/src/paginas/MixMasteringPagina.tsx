@@ -24,13 +24,12 @@ import {
   type TipoTrabajo,
   type TrabajoResumen,
 } from '../api/tiposMastering'
-import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
-import { puedeOperar } from '../layout/menu'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
 
 const TIPOS: TipoTrabajo[] = ['MIX', 'MASTER', 'MIX_MASTER']
 const ESTADOS: EstadoTrabajo[] = [
@@ -63,7 +62,7 @@ const MEDIOS_DE_PAGO: MedioPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'PAYPAL', 'CUE
  * impedía, lo que hacía imposible avisar de algo que no se podía registrar.
  */
 export function MixMasteringPagina() {
-  const puedeEscribir = puedeOperar(useUsuario())
+  const puedeEscribir = usePuedeEscribir()
 
   const [trabajos, setTrabajos] = useState<TrabajoResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -127,7 +126,7 @@ export function MixMasteringPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por track o cliente…"
-          className="min-w-60 grow rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-60 grow rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         />
         <select
           aria-label="Estado"
@@ -136,7 +135,7 @@ export function MixMasteringPagina() {
             setEstado(e.target.value as EstadoTrabajo | '')
             setPagina(0)
           }}
-          className="rounded-md border border-linea bg-white px-3 py-2 text-sm outline-none focus:border-red"
+          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -164,14 +163,14 @@ export function MixMasteringPagina() {
       )}
 
       {!cargando && trabajos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No hay trabajos cargados.
         </p>
       )}
 
       <div className="space-y-3">
         {trabajos.map((t) => (
-          <article key={t.idTrabajo} className="rounded-lg border border-linea bg-white">
+          <article key={t.idTrabajo} className="rounded-lg border border-linea bg-superficie">
             <button
               type="button"
               onClick={() => setAbierto(abierto === t.idTrabajo ? null : t.idTrabajo)}
@@ -383,7 +382,7 @@ function FormularioAlta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-white p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
       <h3 className="mb-4 font-semibold">Nuevo trabajo</h3>
 
       <div className="mb-4 flex gap-4 text-sm">
@@ -713,7 +712,7 @@ function Detalle({
 
       {puedeEscribir && (
         <div className="mt-6 border-t border-linea pt-5">
-          <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-tenue">
+          <h4 className="mb-3 t-mono text-tenue">
             Qué pasó con este trabajo
           </h4>
 

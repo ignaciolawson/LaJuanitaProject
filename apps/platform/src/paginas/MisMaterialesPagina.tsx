@@ -55,7 +55,7 @@ export function MisMaterialesPagina() {
       </div>
 
       {materiales.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           Todavía no tenés materiales. Los sube tu profesor cuando los tiene listos.
         </p>
       )}
@@ -64,7 +64,7 @@ export function MisMaterialesPagina() {
         {materiales.map((m) => (
           <li
             key={m.idMaterial}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-linea bg-white px-5 py-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-linea bg-superficie px-5 py-4"
           >
             <div className="min-w-40 grow">
               <div className="font-medium">{m.titulo}</div>

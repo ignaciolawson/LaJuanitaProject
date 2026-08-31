@@ -802,6 +802,96 @@ Los 22, agrupados por lo que son —que es como conviene rediseñarlos, no de a 
 > pantallas, de antes de las tandas del 29 y el 30 de agosto—. **Si volvés a
 > tocarlo, contá los archivos en vez de copiar el número.**
 
+#### ⏸ Estado al 2026-08-31 — la 3.1 arrancó y quedó a mitad
+
+> **Ignacio decidió adelantar la Fase 3 y cancelar lo que quedaba del testeo**
+> (2026-08-31). Queda dicho para que nadie busque la lista congelada del 11/09:
+> no va a existir. El costo asumido es el que §6 anticipaba — si más adelante
+> aparece un hallazgo de grupo B o C sobre una pantalla ya rediseñada, esa
+> pantalla se toca dos veces.
+
+**Lo que apareció al arrancar vale más que el CSS que se escribió, y reordena la
+fase: el sistema de diseño estaba escrito y nunca se había adoptado.** Los
+componentes existían con su docstring diciendo *"esto hoy está repetido a mano en
+diez pantallas"* — y la migración no había ocurrido nunca. `Tabla`, `Celda` y
+`FilaVacia` tenían **cero** usuarios contra 11 tablas escritas a mano;
+`usePuedeEscribir`, cero contra 12 repeticiones del predicado.
+
+Así que la 3.1 no es "repintar los componentes": es **adoptarlos**. Y es
+exactamente lo que hace que el rediseño sea una sola pasada — cambiar `Tabla`
+una vez cambia 11 tablas.
+
+**Hecho y verde (419/419, typecheck y build limpios):**
+
+| | Antes | Ahora |
+|---|---|---|
+| `Tabla` · `Celda` · `FilaVacia` | 0 | 11 tablas · 61 celdas · 4 filas vacías |
+| `usePuedeEscribir` | 0 | 11 pantallas |
+| `Boton` | 29 | 34 — con la variante `enlace` que faltaba |
+| `Etiqueta` | 4 | 9 |
+| `CabeceraDePagina` | 2 | 9 · **quedan 25** |
+| `bg-white` sueltos | 122 | 0 (token `--superficie`) |
+| colores fuera de paleta | 14 | 0 |
+| `uppercase` a mano | 46 | 8 (4 son el logotipo: identidad, no metadato) |
+
+En tokens se agregaron `--superficie`, `--superficie-2`, `--sombra-flotante` y
+`.t-dato`. **`--superficie-2` ES el papel y no un cuarto tono** —un hueco hundido
+en la tarjeta deja ver el fondo—, así que la paleta sigue siendo de tres tintas.
+
+**Tres cosas que encontró la pasada, y que no eran de diseño:**
+
+1. **Había columnas de pesos alineadas a la izquierda** — Deudores, Egresos,
+   Ventas y las dos tablas del estado de cuenta. Es el defecto exacto contra el
+   que `Celda` fue escrita: *"un importe alineado a la izquierda no se puede
+   comparar con el de la fila de abajo, que es para lo único que se lo mira"*.
+2. **El ámbar de `SelloPagina` caía sobre 3 de los 5 estados de un release**, dos
+   de los cuales no le piden nada a nadie. No era paleta: el sistema decía
+   "atención" cuatro veces por pantalla, que es cómo el rojo del que sí importa
+   deja de saltar.
+3. **Un test rojo que aparecía siete días al año.** `CajaPagina` compara el rango
+   por defecto (`hoy() − 30`) contra el atajo *"Este mes"*: los 31 de enero,
+   marzo, mayo, julio, agosto, octubre y diciembre **dan la misma fecha**, no
+   cambia el estado, no se dispara el pedido y los dos casos que verifican eso se
+   caen solos. Se arregló fijando el `hoy()` que ve la pantalla (no los timers:
+   `userEvent` los usa para escribir). **Es §9.6 otra vez pero de almanaque en vez
+   de carga**, y hace el mismo daño: una suite que se pone roja sola deja de poder
+   avisarte que rompiste algo — que es justo la precondición de esta fase.
+
+> ⚠️ Una corrida de `npm test` salió en rojo y el detalle se perdió en un `tail`.
+> Las tres siguientes dieron 419/419, **incluida una bajo carga con
+> `--maxWorkers=16`**, la condición de repro que §9.6 documentó. No queda
+> explicado; queda anotado.
+
+**⚠️ Decidido y NO implementado — es lo primero al retomar.** Ignacio eligió
+**sacar la barra superior de la aplicación**. Hoy contiene sólo *"Hola, X"* y el
+chip de rol, y §11 acaba de mudar ese saludo al Inicio. Sacarla implica, en este
+orden:
+
+1. `Layout.tsx` — sacar el `<header>`; el rol pasa al pie del sidebar, donde ya
+   están el nombre y el logout.
+2. `CabeceraDePagina.tsx` — el título de pantalla pasa de `<h2>` a **`<h1>`**.
+   Su propio docstring pedía revisar esa jerarquía "de una vez, no de a una", y
+   este es el momento.
+3. Recién ahí, migrar las **25 pantallas** que todavía escriben el encabezado a
+   mano — y de paso ganan el gesto de marca: hoy lo escriben como `<h2
+   className="text-xl font-semibold tracking-tight">`, o sea que **`.t-titulo` y
+   su eje expandido no aparecen en ninguna de las 25**.
+
+   El script que migró las otras siete murió en `InicioPagina`, que es la única
+   cuyo `<h2>` no vive dentro de un `<div className="mb-6">`; antes había salteado
+   `AlumnoPerfil`, `EstadoDeCuenta` y `FichaDeAlumno` por la misma diferencia de
+   forma. **Son cuatro casos a mano y 21 mecánicos**, no 25 mecánicos.
+
+**Lo que sigue pendiente de la 3.1**, además de eso: `EstadoVacio` (3 usos contra
+~10 vacíos a mano), **`AvisoSoloLectura` sigue en cero** —que es la mitad que
+`SoloLectura.tsx` dice que falta: hoy un DIRECTIVO abre Alumnos, no encuentra
+"Nuevo alumno" y nada le dice por qué—, la única tabla que queda a mano
+(`TableroPagina`, que tiene otro envoltorio), y los ~33 `<h3 className="[mb-*]
+font-semibold">` que son `.t-seccion` sin usar.
+
+Después de todo eso siguen la **3.2** (el Inicio de §11) y la **3.3** (la
+recorrida por rol).
+
 #### El orden
 
 **3.1 · Primero el sistema, no las pantallas.** Las 36 pantallas se componen casi

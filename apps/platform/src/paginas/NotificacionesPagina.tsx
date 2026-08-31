@@ -82,7 +82,7 @@ export function NotificacionesPagina() {
       )}
 
       {!cargando && avisos.length === 0 && (
-        <p className="rounded-lg border border-linea bg-white px-5 py-8 text-center text-sm text-tenue">
+        <p className="rounded-lg border border-linea bg-superficie px-5 py-8 text-center text-sm text-tenue">
           No tenés notificaciones.
         </p>
       )}
@@ -91,7 +91,7 @@ export function NotificacionesPagina() {
         {avisos.map((a) => (
           <li
             key={a.idNotificacion}
-            className={`rounded-lg border bg-white px-5 py-4 ${
+            className={`rounded-lg border bg-superficie px-5 py-4 ${
               a.leida ? 'border-linea' : 'border-ink'
             }`}
           >
@@ -116,15 +116,13 @@ export function NotificacionesPagina() {
               <div className="shrink-0 text-right">
                 <div className="text-xs text-apagado">{cuando(a.fechaCreacion)}</div>
                 {!a.leida && (
-                  <button
+                  <Boton variante="enlace"
                     type="button"
                     onClick={() => {
                       void marcarLeida(a.idNotificacion).then(cargar)
-                    }}
-                    className="mt-2 text-xs text-tenue underline underline-offset-2 hover:text-acento"
-                  >
+                    }} className="mt-2">
                     Marcar leída
-                  </button>
+                  </Boton>
                 )}
               </div>
             </div>

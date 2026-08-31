@@ -68,7 +68,7 @@ export function MiPerfilPagina() {
         <p className="mt-1 text-sm text-tenue">Tus datos de contacto.</p>
       </div>
 
-      <form noValidate onSubmit={guardar} className="rounded-lg border border-linea bg-white p-5">
+      <form noValidate onSubmit={guardar} className="rounded-lg border border-linea bg-superficie p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo
             etiqueta="Nombre"
@@ -95,8 +95,8 @@ export function MiPerfilPagina() {
           ayuda="Es por donde te escribimos para coordinar."
         />
 
-        <div className="mt-4 rounded-md border border-linea bg-papel px-3 py-2.5">
-          <div className="text-xs font-medium uppercase tracking-wider text-tenue">Email</div>
+        <div className="mt-4 rounded-md border border-linea bg-superficie-2 px-3 py-2.5">
+          <div className="t-mono text-tenue">Email</div>
           <div className="mt-0.5 text-sm">{usuario.email}</div>
           <p className="mt-1 text-xs text-apagado">
             Es con lo que entrás al sistema. Para cambiarlo, escribinos.
