@@ -768,53 +768,127 @@ De más barato a más caro:
 
 ### Fase 3 · El diseño, una sola pasada
 
-**3.1 · Primero el sistema, no las pantallas.** El grueso está en `componentes/`
-— son **13**: `Boton`, `Campo`, `CampoSelect`, `Tabla`, `EstadoVacio`,
-`Paginado`, `PedirMotivo`, `CabeceraDePagina`, `Etiqueta`, `Semaforo`,
-`DetalleDeCuenta`, `SoloLectura`, `Abanico`. Las 34 pantallas se componen casi
-enteramente de ahí. No arranca de cero: `index.css` ya tiene los tokens y la
-decisión tomada — **la landing es oscura y teatral porque vende; la plataforma es
-clara y densa porque se mira ocho horas por día.**
+> **Es lo único que queda del plan.** Las fases 0, 1 y 2 están cerradas enteras
+> (2026-08-30), y el punto 3.3 de [`pendientes.md`](pendientes.md) —los
+> comprobantes— también. **No falta backend, ni infraestructura, ni decisiones de
+> negocio**: lo que sigue es diseño.
+>
+> ⚠️ **Arranca cuando se congele la lista (~2026-09-11), no antes.** El argumento
+> es de §6 y no cambió: un rediseño hecho dos veces es el caro. Si el testeo trae
+> hallazgos de grupo B o C, **esos van primero**, porque cambian *qué hay* en la
+> pantalla y el diseño cambia *cómo se ve* — en ese orden cada pantalla se toca una
+> vez.
+
+#### Lo que hay hoy, contado de verdad
+
+| | |
+|---|---|
+| **Componentes** | **22 exportados en 15 archivos** de `componentes/` |
+| **Pantallas** | **36** en `paginas/` |
+| **Tokens** | `index.css`, ya con la decisión tomada y con la trampa del rojo documentada adentro |
+| **Suites que lo cuidan** | 419 casos de front, 549 de backend, 205 + 56 de SQL |
+
+Los 22, agrupados por lo que son —que es como conviene rediseñarlos, no de a uno:
+
+- **Acción y formulario:** `Boton`, `Aviso`, `Campo`, `CampoSelect`
+- **Tabla:** `Tabla`, `Celda`, `FilaVacia`
+- **Estructura de pantalla:** `CabeceraDePagina`, `Paginado`, `EstadoVacio`, `Etiqueta`
+- **Diálogos que piden algo escrito:** `PedirMotivo`, `PedirOtroDia`
+- **De dominio:** `DetalleDeCuenta`, `Comprobantes`, `AdjuntarComprobante`, `Semaforo`, `Abanico`
+- **Permisos:** `AvisoSoloLectura` (+ el hook `usePuedeEscribir`)
+- **Gráficos:** `BarrasHorizontales`, `Dona`, `Medidor`
+
+> Este inventario ya estuvo desactualizado una vez —decía 13 componentes y 34
+> pantallas, de antes de las tandas del 29 y el 30 de agosto—. **Si volvés a
+> tocarlo, contá los archivos en vez de copiar el número.**
+
+#### El orden
+
+**3.1 · Primero el sistema, no las pantallas.** Las 36 pantallas se componen casi
+enteramente de esos 22 componentes, así que el sistema es lo que multiplica. No
+arranca de cero: `index.css` ya tiene los tokens y la decisión tomada — **la
+landing es oscura y teatral porque vende; la plataforma es clara y densa porque se
+mira ocho horas por día**, sin una sola animación decorativa.
+
+⚠️ **Y adentro de `index.css` está la trampa que ya costó 81 usos**: el rojo está
+partido en dos porque `--red` no llega a AA como texto. `bg-red`/`border-red` para
+superficie, `text-acento` para texto. `text-red` no existe en este repo. Es el
+mismo hallazgo que en la landing obligó a renombrar 56 usos.
 
 **3.2 · La pantalla de Inicio, de verdad.** Hoy `InicioPagina` es una pantalla de
-diagnóstico de Fase 0: su propio comentario dice *"deliberadamente no hace nada
-útil todavía… se reemplaza por el panel real cuando exista el módulo de
-alumnos"*. Existen los ocho. **Sacar el texto de testing no alcanza** — abajo
-queda un volcado de `GET /api/me`. Es la primera pantalla que ve todo el mundo al
-entrar y necesita una decisión de producto por perfil, no una pasada de CSS.
+diagnóstico de la Fase 0 — su propio comentario lo dice— y abajo queda un volcado
+de `GET /api/me`. **Sacar el texto de testing no alcanza**: es la primera pantalla
+que ve todo el mundo y necesita una decisión de producto por perfil.
 
-✅ **Ya está decidido qué ve cada perfil: §11.** Ignacio delegó la decisión el
-2026-08-28 y quedó tomada, con los endpoints verificados uno por uno — **no falta
-ninguno**, así que es armado y no desarrollo.
+✅ **Esa decisión ya está tomada: §11.** Qué ve cada perfil, con qué regla, y con
+**los once endpoints verificados uno por uno**. Es armado, no desarrollo.
 
-**3.3 · La recorrida por rol.** El inventario real, de `menu.ts`:
+**3.3 · La recorrida por rol**, con el inventario de `menu.ts` que está más abajo
+en esta misma sección.
+
+#### Las cinco cosas que el rediseño no puede romper
+
+1. **El texto que explica una regla no es decoración.** *"Todavía no reserva la
+   sala: primero lo confirmamos"*, *"no se aparta un horario sin pago por
+   adelantado"*, *"el comprobante no se borra: queda marcado como inválido"*. Se
+   reescriben, **no se eliminan** (§6f).
+2. **Cada pantalla de administración tiene dos variantes y hay que mirar las dos.**
+   La riesgosa es `DIRECTIVO`, y está diagnosticada en el header de
+   `SoloLectura.tsx`: *"abre Alumnos, no encuentra 'Nuevo alumno' y no hay nada que
+   le diga por qué"*. Una pantalla diseñada con sus botones se ve rota sin ellos.
+3. **Las tarjetas y bloques vacíos se muestran, no se esconden.** Es la misma regla
+   en cinco lugares del sistema: el informe de uso de salas, la grilla de ocupación
+   del tablero, los bloques del perfil del alumno, el "sin comprobante" de un pago y
+   el semáforo gris del Módulo 5. **Un hueco se lee como que el sistema perdió el
+   dato.**
+4. **Los predicados de permiso no se tocan.** `puedeAdministrar`, `puedeOperar` y
+   `puedeVerElTableroCompleto` viven en `menu.ts` y los comparte toda la SPA. No
+   autorizan nada —el backend resuelve el rol contra la base en cada pedido— pero
+   son lo que evita mentirle al usuario. Nada de `rol === …` suelto en un
+   componente.
+5. **La landing no se toca.** Va por carril separado y está bloqueada esperando
+   datos del cliente.
+
+#### Cómo saber que no rompiste nada
+
+**Los tests van a romperse a propósito, y eso está bien**: los casos preguntan por
+texto visible porque prueban decisiones de producto, no píxeles. Cuando un caso
+falla porque cambió una palabra, **se actualiza el caso**; lo que no se hace es
+esquivarlo con `data-testid` ni aflojar la aserción, que es cambiar la pregunta
+para que dé la respuesta que uno quiere.
+
+⚠️ **Esto recién ahora es confiable.** Hasta el 2026-08-30 la suite fallaba 1 de
+cada 10 corridas por dos techos de tiempo (§9.6), y con ese ruido de fondo no se
+distingue *"rompí esto"* de *"es lo de siempre"*. Ya está arreglado y verificado
+bajo carga: **un rojo hoy significa algo.**
+
+Y lo que **no** puede romper un rediseño, que es la razón por la que esta fase es
+afordable: **las reglas de negocio viven en la base**. Ninguna pasada de CSS puede
+hacer que una reserva exista sin seña.
+
+#### 3.3 · La recorrida por rol
+
+El inventario real de `menu.ts` — **8 + 5 + 18 ítems**, repartidos por tres reglas
+distintas y no por rol:
 
 | Perfil | Mi cuenta | Mi formación | Administración |
 |---|---|---|---|
 | **USUARIO** puro | 8 | — | — |
 | **USUARIO + alumno** | 8 | 2 (Mis cursos, Mis materiales) | — |
 | **USUARIO + profesor** | 8 | 3 (Mi agenda, Mis alumnos, Subir material) | — |
-| **STAFF** | 8 | según relación | 16 · **Tablero reducido** |
-| **DIRECTIVO** | 8 | según relación | 16 · **sin botones de escritura** |
-| **ADMIN** | 8 | según relación | 16 · completo |
+| **STAFF** | 8 | según relación | 18 · **Tablero reducido** |
+| **DIRECTIVO** | 8 | según relación | 18 · **sin botones de escritura** |
+| **ADMIN** | 8 | según relación | 18 · completo |
 
-Las combinaciones son reales, no teóricas: **Ghezz es STAFF *y* profesor *y*
-puede alquilarse una cabina.** El menú no se arma por rol sino por tres reglas
-distintas —sección siempre visible, sección por relación, sección por rol—, así
-que *"el diseño del perfil X"* no existe: existe el diseño de los componentes,
-que se combinan distinto según quién entra.
+Las combinaciones son reales, no teóricas: **Ghezz es STAFF *y* profesor *y* puede
+alquilarse una cabina.** El menú se arma por tres reglas —sección siempre visible,
+sección por relación, sección por rol—, así que **"el diseño del perfil X" no
+existe**: existe el diseño de los componentes, que se combinan distinto según quién
+entra.
 
-> ⚠️ **La variante riesgosa es DIRECTIVO, y ya está diagnosticada en el propio
-> código.** El header de `SoloLectura.tsx` lo dice: *"hoy un DIRECTIVO abre
-> Alumnos, no encuentra 'Nuevo alumno' y no hay nada que le diga por qué. Se lee
-> como un sistema a medio hacer o como una falla."* Una pantalla diseñada con sus
-> botones se ve rota sin ellos. **Cada pantalla de administración hay que mirarla
-> en sus dos variantes.**
-
-> ⚠️ **Lo único que el rediseño no puede borrar** (§6f): el texto que no es
-> decoración sino la explicación de una regla — *"Todavía no reserva la sala:
-> primero lo confirmamos"*, *"no se aparta un horario sin pago por adelantado"*.
-> Se reescriben, no se eliminan.
+Para recorrerlo hay usuarios de demostración de cada perfil, todos con la
+contraseña de desarrollo, en [`sistema-gestion-plan.md`](sistema-gestion-plan.md)
+§6d.
 
 ### En paralelo, sin frenar nada
 

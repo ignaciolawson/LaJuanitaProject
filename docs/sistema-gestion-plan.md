@@ -669,7 +669,7 @@ Tres cosas para ese momento:
 
 ### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-30
 
-## ✅ FASE 1 Y FASE 2 CERRADAS ENTERAS · LO QUE QUEDA ES EL REDISEÑO
+## ✅ LAS FASES 0, 1 Y 2 ESTÁN CERRADAS · LO ÚNICO QUE QUEDA ES EL REDISEÑO
 
 **Suites: 549 backend · 419 front · 205 + 56 SQL, sobre 21 migraciones.**
 
@@ -686,6 +686,31 @@ vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
 **Y el 2026-08-30 se cerró algo que no venía del plan sino de
 [`pendientes.md`](pendientes.md) §3.3: los comprobantes** — la deuda más vieja del
 Módulo 3, abierta desde agosto. Ver abajo.
+
+### ▶️ ARRANCAR LA FASE 3 (EL REDISEÑO)
+
+**El briefing completo está en [`docs/mejoras.md` §10 · Fase 3](mejoras.md)** —
+inventario contado, el orden, las cinco cosas que no se pueden romper y cómo saber
+que no rompiste nada. Y **el contenido del Inicio ya está decidido en §11**, con los
+once endpoints verificados: es armado, no desarrollo.
+
+Lo mínimo para no arrancar torcido:
+
+1. ⚠️ **Esperá el corte de la lista (~2026-09-11).** Si el testeo trae hallazgos de
+   grupo B o C, **van primero**: cambian *qué hay* en la pantalla, y el diseño
+   cambia *cómo se ve*. En ese orden cada pantalla se toca una vez.
+2. **Primero el sistema, después las pantallas.** Son **22 componentes en 15
+   archivos** contra **36 pantallas** que se arman casi enteramente con ellos.
+3. **`index.css` ya tiene los tokens y la decisión**: la plataforma es clara y densa
+   porque se mira ocho horas por día. ⚠️ Y adentro está la trampa del rojo —
+   `bg-red`/`border-red` para superficie, `text-acento` para texto; `text-red` no
+   existe en este repo.
+4. **Los tests se van a romper a propósito y eso está bien**: preguntan por texto
+   visible porque prueban decisiones. Se actualiza el caso; **nunca** se esquiva con
+   `data-testid` ni se afloja la aserción. Desde el 2026-08-30 la suite es confiable
+   para eso (`mejoras.md` §9.6), así que **un rojo hoy significa algo**.
+5. **Nada de esto puede romper una regla de negocio**: viven en la base. Es
+   exactamente lo que hace afordable rediseñar todo de una.
 
 ### 🟢 PARA ARRANCAR EN VERDE
 
@@ -706,7 +731,31 @@ Para ver el circuito nuevo entero: completá un formulario en `:3000/servicios#r
 y abrí `/admin/buzon` en la plataforma. **Ya hay dos fichas de prueba cargadas** el
 2026-08-30 (*Prueba Humo* y *Prueba Acento*) — no se borran, se descartan con motivo.
 
-### 🔨 LO QUE SE CONSTRUYÓ EN ESTA TANDA: LOS COMPROBANTES DE UN PAGO
+### 🔨 LO ÚLTIMO QUE SE HIZO: LOS DOS ÍTEMS QUE CERRARON LA FASE 0
+
+**El 2026-08-30, después de los comprobantes.** Los dos estaban anotados como
+*"esperando que pase"* y ninguno lo necesitaba:
+
+- **El test flaky** (`mejoras.md` §9.6) — **eran dos techos de tiempo, no un test**:
+  el `asyncUtilTimeout` de Testing Library (1000 ms) contra el debounce de 250 ms
+  que comparten diez listados, y el `testTimeout` de vitest (5 s) contra `userEvent`.
+  Se arregló en el setup compartido y en `vite.config.ts`. ⚠️ **El método fue lo
+  caro**: repetir la suite ocho veces dio ocho verdes y no probaba nada — la máquina
+  estaba descargada. Recién con `mvn test` corriendo encima y los workers al doble
+  cayó 4 de 5 veces.
+- **El botón trabado en "Anotando…"** (§8.1) — **no era la red y no era
+  intermitente**: el camino feliz nunca devolvía `enviando` a `false`, y se apoyaba
+  en que cerrar el formulario lo desmontara, cosa que no pasa. Aparecía recién al
+  anotar al **segundo** alumno de una clase grupal. De yapa apareció un segundo
+  defecto en el mismo click: el panel abierto quedaba con la lista de participantes
+  vieja.
+
+> **Lo que dejan las dos, y conviene tener presente en la Fase 3:** el error estaba
+> en el camino que NO falla, y en los dos casos la búsqueda se había cerrado
+> temprano con un argumento razonable (*"no se persigue a mano"*, *"sin el error
+> real no se toca a ciegas"*). Buenas reglas, aplicadas al problema equivocado.
+
+### 📚 LA TANDA ANTERIOR: LOS COMPROBANTES DE UN PAGO
 
 **`V21`, `ComprobanteService`, y las tres pantallas que los muestran.** Cierra
 [`pendientes.md`](pendientes.md) §3.3 — la última deuda del Módulo 3, que el
@@ -736,7 +785,7 @@ razonado está en [`mejoras.md`](mejoras.md) §9.13.
 - **El alumno baja el suyo** por `/api/me/comprobantes/{id}` — otra ruta, no la de
   administración con un permiso más flojo.
 
-### 📚 LA TANDA ANTERIOR: LOS FORMULARIOS DE LA LANDING
+### 📚 ANTES: LOS FORMULARIOS DE LA LANDING
 
 **Fase 2.2b**, y con eso la Fase 2 queda cerrada entera. Los tres formularios de
 captación mandan a `POST /api/solicitantes` y caen en `/admin/buzon`. Verificado

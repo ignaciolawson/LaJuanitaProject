@@ -29,6 +29,12 @@
 > §9.13). Resultó grupo C —un pago tiene varios comprobantes— y no el trabajo de
 > pantalla que este documento suponía.
 >
+> **Y ese mismo día se cerró la Fase 0 entera**: el test flaky (§9.6 — eran dos
+> techos de tiempo, no un test) y el botón trabado en "Anotando…" (§8.1 — estaba en
+> el código, no hacía falta reproducirlo). **Queda una sola cosa entre el proyecto y
+> el rediseño: el corte de la lista, ~2026-09-11.** El briefing para arrancarlo es
+> `mejoras.md` §10 · Fase 3.
+>
 > **Orden de autoridad, para cuando dos documentos se contradigan:**
 > `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
 > después `platform.md` §13 → §14 → §15 → **§16** (gana el último; §16 es del
@@ -195,6 +201,11 @@ rediseño no puede romper que una reserva necesite seña. La landing no se toca.
 > caro. Espera a que el testeo cierre — con fecha de corte, porque una lista sin corte
 > crece para siempre. Ver [`mejoras.md`](mejoras.md) §6.
 >
+> ✅ **Al 2026-08-30 es lo único que queda de todo el plan, y ya no espera nada más
+> que esa fecha**: no falta backend, ni infraestructura, ni decisiones. El briefing
+> —inventario contado, orden, las cinco cosas que no se pueden romper— está en
+> `mejoras.md` §10 · Fase 3, y el contenido del Inicio en §11.
+>
 > **Y hay una distinción que sostener mientras se junta la lista: "aburrido" y "poco
 > intuitivo" no son el mismo problema.** Lo primero es una pasada de diseño; lo segundo
 > puede destapar funcionalidad faltante, y mezclados hacen que la pasada de diseño se
@@ -228,7 +239,20 @@ Este proyecto tiene **dos**, y las dos están anotadas donde viven:
   *decide* y la de Java solo *muestra*. Si se separan, la pantalla lista un
   contrato de menos y la publicación sigue siendo imposible sin respaldo.
 
-### 3.5 · Cosas chicas de la base, para cuando algo toque esas tablas
+### 3.5 · El diagrama de la base quedó atrás
+
+**`docs/db/la_juanita_schema.dbml.txt` describe el esquema hasta `V14`.** Le faltan
+siete migraciones: `V17` (la clave de deduplicación de los avisos), `V18` (la tabla
+`aparicion_release` y la publicación sin contrato), `V19` (el pagador sin cuenta),
+`V20` (`solicitante`) y `V21` (`comprobante_pago`, y las cinco columnas que `pago`
+perdió).
+
+**La cabecera del archivo dice exactamente qué no refleja**, que es lo que lo hace
+inofensivo: el peligro de un diagrama viejo no es estar viejo sino que alguien lo
+"corrija" hacia atrás — le pasó a ese mismo archivo una vez. La fuente de verdad son
+las migraciones. **Ponerlo al día es una tarea propia**, no un renglón de otra.
+
+### 3.6 · Cosas chicas de la base, para cuando algo toque esas tablas
 
 - **`trabajo_liberacion_justificada` acepta un motivo de un solo espacio.** Es
   anterior a la lección de `V7` (un CHECK que evalúa a NULL no rechaza nada, y
@@ -247,7 +271,7 @@ Este proyecto tiene **dos**, y las dos están anotadas donde viven:
   `ContratoService` lo borra; si ese borrado también falla, queda el huérfano —
   **el error barato de los dos, a propósito**. No hay tarea de limpieza y no urge.
 
-### 3.6 · Seguridad: lo que se sabe y se aceptó
+### 3.7 · Seguridad: lo que se sabe y se aceptó
 
 - **Un token robado no se puede revocar** antes de que venza (8 horas). La solución
   es una lista de revocados, **no bajar el vencimiento a minutos**.
