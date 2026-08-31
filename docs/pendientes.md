@@ -33,6 +33,16 @@
 > techos de tiempo, no un test) y el botón trabado en "Anotando…" (§8.1 — estaba en
 > el código, no hacía falta reproducirlo).
 >
+> **⚠️ Al 2026-08-31 (noche) la Fase 3 está EN CURSO y el rediseño de verdad
+> arrancó.** Ignacio vio el sistema andando, dijo que sigue viéndose *"re
+> default"*, y tomó tres decisiones: **shell oscuro sobre lienzo claro**, **menú
+> agrupado en 5 dominios** y **login en la landing**. Las dos primeras están
+> construidas. La tercera **adelantó a hoy la decisión de hosting de octubre**
+> (punto 1.3 de este documento): un solo origen, landing en `/`, plataforma en
+> `/app`, backend en `/api`. Lo difícil está hecho; **falta el formulario**.
+> El detalle exacto de lo que queda está en `mejoras.md` §10 ·
+> *Sesión del 2026-08-31 (noche)*. **Empezar por ahí.**
+>
 > **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO: 3.1 y 3.2 cerradas, queda la 3.3.**
 > Ignacio adelantó el rediseño y canceló lo que quedaba del testeo, así que **el
 > corte de la lista del ~11/09 no va a existir** y no hay que esperarlo. El estado
@@ -109,9 +119,16 @@ de 120 KB y uno de varios GB no fallan por las mismas razones.
 ### 1.3 · El deploy
 
 **`docs/operacion.md` §3 — la única sección incompleta del documento, a propósito.**
-Espera la decisión de hosting de **octubre**.
 
-Lo que ya está decidido: VPS con Docker Compose, los tres servicios en la misma
+**⚠️ Al 2026-08-31 la FORMA del hosting ya no espera a octubre: se decidió un solo
+origen.** Landing en `/`, plataforma en `/app`, backend en `/api`, todo detrás de
+un reverse proxy. No fue una decisión de infraestructura sino de producto — es lo
+único que permite que el login se haga en la landing y entregue la sesión, porque
+`localStorage` es por origen y no por path. El código de las dos apps ya está
+configurado así (`base`, `basename`, `rewrites`, `API_URL` relativa); **lo que
+falta escribir es la configuración del proxy en §3**.
+
+Lo que ya estaba decidido: VPS con Docker Compose, los tres servicios en la misma
 red interna, y un compose distinto del de desarrollo.
 
 **Lo que el Módulo 7 le agregó y no estaba:** hace falta **disco persistente**. Un

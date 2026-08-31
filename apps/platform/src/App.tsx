@@ -44,7 +44,11 @@ import { UsuariosPagina } from './paginas/UsuariosPagina'
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      {/* El `basename` es el gemelo del `base` de `vite.config.ts`: la
+          plataforma se sirve bajo `/app` porque comparte origen con la landing
+          (ver el comentario largo alla). Los dos tienen que moverse juntos —con
+          uno solo, o cargan los assets y no resuelve ninguna ruta, o al reves. */}
+      <BrowserRouter basename="/app">
         <Rutas />
       </BrowserRouter>
     </AuthProvider>

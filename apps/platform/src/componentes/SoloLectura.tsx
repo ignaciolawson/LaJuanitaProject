@@ -51,7 +51,7 @@ export function AvisoSoloLectura() {
   if (puedeEscribir) return null
 
   return (
-    <p className="mb-6 rounded-lg border border-linea bg-superficie px-4 py-3 text-sm text-tenue">
+    <p className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta px-4 py-3 text-sm text-tenue">
       Estás viendo el sistema en <strong className="font-semibold">solo lectura</strong>: podés
       consultar todo y no modificar nada.
     </p>

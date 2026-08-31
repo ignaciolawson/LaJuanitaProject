@@ -147,7 +147,7 @@ export function ReprogramacionesPagina() {
 
       <ul className="space-y-3">
         {pedidos.map((p) => (
-          <li key={p.idSolicitud} className="rounded-lg border border-linea bg-superficie px-5 py-4">
+          <li key={p.idSolicitud} className="rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="font-medium">

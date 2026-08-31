@@ -334,7 +334,7 @@ export function CalendarioPagina() {
         />
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-superficie">
+      <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta">
         <div className="min-w-3xl">
           {/* Encabezado de días */}
           <div className="grid border-b border-linea" style={{ gridTemplateColumns: COLUMNAS }}>
@@ -500,7 +500,7 @@ function Detalle({
   onAnotado: () => void
 }) {
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="mb-3 flex items-start justify-between gap-4">
         <div>
           <h3 className="t-seccion">
@@ -1000,7 +1000,7 @@ function FormularioReserva({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">{reserva ? 'Mover la reserva' : 'Nueva reserva'}</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

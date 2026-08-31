@@ -45,7 +45,7 @@ export function EstadoVacio({
     <div
       className={
         marca
-          ? 'flex flex-col items-center rounded-lg border border-linea bg-superficie px-6 py-12 text-center'
+          ? 'flex flex-col items-center rounded-lg border border-linea bg-superficie shadow-tarjeta px-6 py-12 text-center'
           : 'flex flex-col items-center px-6 py-8 text-center'
       }
     >

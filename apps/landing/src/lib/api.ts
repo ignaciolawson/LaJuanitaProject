@@ -25,11 +25,24 @@
 /**
  * De dónde cuelga la API.
  *
- * `NEXT_PUBLIC_` porque se resuelve en el navegador — y por lo mismo **no es un
- * secreto**: es una URL pública. El default es el backend local, así que un
- * `npm run dev:landing` contra el backend levantado funciona sin configurar nada.
+ * **El default es vacío, o sea el MISMO ORIGEN**, y eso es la decisión de
+ * hosting tomada el 2026-08-31: landing en `/`, plataforma en `/app` y backend
+ * en `/api`, todo detrás de un solo proxy. En desarrollo lo hace Next
+ * (`rewrites` en `next.config.ts`); en producción, el reverse proxy del servidor.
+ *
+ * Lo que se gana no es prolijidad: **es lo único que permite que el login se
+ * haga acá**. `localStorage` es por origen, así que la credencial que escribe
+ * este sitio es la misma que lee la plataforma. Y de yapa desaparecen dos cosas
+ * que eran pura superficie de falla — CORS deja de ejercerse y `connect-src`
+ * queda en `'self'`.
+ *
+ * `NEXT_PUBLIC_` porque se resuelve en el navegador, y por lo mismo **no es un
+ * secreto**. Se mantiene como escape: si algún día la API vuelve a vivir en otro
+ * dominio, se define la variable y el `fetch` pasa a ser absoluto — pero
+ * entonces el login de acá deja de poder entregar la sesión, y hay que volver a
+ * los dos links de antes.
  */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 /**
  * Qué está pidiendo la persona.

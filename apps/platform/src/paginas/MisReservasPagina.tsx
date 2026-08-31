@@ -101,7 +101,7 @@ export function MisReservasPagina() {
           return (
             <li
               key={r.idReserva}
-              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie px-5 py-4 ${
+              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 ${
                 caida ? 'text-apagado' : ''
               }`}
             >

@@ -137,7 +137,7 @@ export function ReservarPagina() {
           tomada cuando abonás la seña — te escribimos para coordinarla.</>}
       />
 
-      <form noValidate onSubmit={enviar} className="rounded-lg border border-linea bg-superficie p-5">
+      <form noValidate onSubmit={enviar} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <CampoSelect
             etiqueta="Qué querés hacer"

@@ -342,7 +342,7 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-1">
         Editar a {alumno.nombre} {alumno.apellido}
       </h3>
@@ -454,7 +454,7 @@ function FormularioAlta({
 
   if (passwordTemporal) {
     return (
-      <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+      <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
         <h3 className="t-seccion">Alumno creado</h3>
         <p className="mt-2 text-sm leading-relaxed text-tenue">
           Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
@@ -472,7 +472,7 @@ function FormularioAlta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">Nuevo alumno</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

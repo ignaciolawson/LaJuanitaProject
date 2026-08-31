@@ -459,7 +459,7 @@ function Tarjeta<T>({
   const [a, texto] = enlace
 
   return (
-    <section className="flex flex-col rounded-lg border border-linea bg-superficie px-5 py-4">
+    <section className="flex flex-col rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4">
       <h3 className="t-mono text-apagado">{titulo}</h3>
 
       <div className="mt-3 grow">

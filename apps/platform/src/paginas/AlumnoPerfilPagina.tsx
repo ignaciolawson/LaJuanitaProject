@@ -213,7 +213,7 @@ function Volver() {
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-linea bg-superficie p-5">
+    <section className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-3">{titulo}</h3>
       {children}
     </section>
@@ -402,7 +402,7 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
       )}
 
       {clases.length > 0 && (
-        <ul className="divide-y divide-linea rounded-lg border border-linea bg-superficie">
+        <ul className="divide-y divide-linea rounded-lg border border-linea bg-superficie shadow-tarjeta">
           {clases.map((clase) => {
             const suya = clase.participantes.find((p) => p.idUsuario === idUsuario)!
             const caida = clase.estado === 'CANCELADA' || clase.estado === 'REPROGRAMADA'
@@ -481,7 +481,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
       {cuenta.saldos.length === 0 ? (
         <p className="text-sm text-apagado">Todavía no tiene movimientos.</p>
       ) : (
-        <div className="rounded-lg border border-linea bg-superficie p-5">
+        <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
           <dl className="space-y-1.5 text-sm">
             {cuenta.saldos.map((s) => (
               <div key={s.moneda} className="flex items-baseline justify-between gap-3">

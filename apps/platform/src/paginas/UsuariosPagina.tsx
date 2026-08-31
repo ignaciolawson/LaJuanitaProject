@@ -245,7 +245,7 @@ function PasswordNueva({
   onCerrar: () => void
 }) {
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion">Contraseña de {de}</h3>
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
@@ -327,7 +327,7 @@ function FormularioCuenta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">Nueva cuenta</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -447,7 +447,7 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">
         Editar a {usuario.nombre} {usuario.apellido}
       </h3>

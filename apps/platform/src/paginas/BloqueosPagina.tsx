@@ -283,7 +283,7 @@ function FormularioBloqueo({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">Bloquear una sala</h3>
 
       <div className="grid gap-4 sm:grid-cols-2">

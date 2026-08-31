@@ -53,6 +53,24 @@ function cspEnElBuild(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  /**
+   * La plataforma vive bajo `/app`, y eso es una decision de hosting, no una
+   * preferencia de rutas.
+   *
+   * Landing y plataforma van al MISMO origen detras de un solo proxy —landing
+   * en `/`, plataforma en `/app`, backend en `/api`—, que es lo unico que
+   * permite que el login se haga en la landing y entregue la sesion: como
+   * `localStorage` es por origen y no por path, el token que escribe la landing
+   * es el mismo que lee esta app. La alternativa era pasarlo por la URL, que lo
+   * deja en el historial y en el `Referer`.
+   *
+   * El prefijo hace falta porque las dos aplicaciones se pelean la raiz: la
+   * landing quiere `/` y esta quiere `/login`, `/mis-reservas`, `/admin/...`.
+   *
+   * Va junto con el `basename` del router en `App.tsx`. Si uno cambia sin el
+   * otro, los assets cargan y ninguna ruta resuelve, o al reves.
+   */
+  base: '/app/',
   plugins: [react(), tailwindcss(), cspEnElBuild()],
   server: {
     proxy: {

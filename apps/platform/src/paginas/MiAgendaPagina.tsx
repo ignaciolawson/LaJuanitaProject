@@ -123,7 +123,7 @@ export function MiAgendaPagina() {
           return (
             <li
               key={c.idReserva}
-              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie px-5 py-4 ${
+              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 ${
                 caida ? 'text-apagado' : ''
               }`}
             >
@@ -187,7 +187,7 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
   return (
     <section
       aria-label="Clases dictadas en el período"
-      className="mt-8 rounded-lg border border-linea bg-superficie p-5"
+      className="mt-8 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
     >
       <h3 className="t-seccion">Clases dictadas en el período</h3>
       <p className="mt-1 text-sm text-tenue">

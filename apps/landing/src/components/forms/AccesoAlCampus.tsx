@@ -30,7 +30,20 @@ import Link from "next/link";
  * existir —no hay infraestructura de correo—, así que ofrecerlo mandaba a la
  * persona a una puerta que no abre. La salida real es escribir, y es la que está.
  */
-const PLATAFORMA = process.env.NEXT_PUBLIC_PLATFORM_URL ?? "http://localhost:5173";
+/**
+ * Dónde vive la plataforma. **Ahora es una ruta del mismo origen y no una URL.**
+ *
+ * El 2026-08-31 se cerró la decisión de hosting que este archivo daba por
+ * abierta: landing en `/`, plataforma en `/app`, backend en `/api`, todo detrás
+ * de un proxy. Eso desbloquea justamente lo que el comentario de arriba decía
+ * que no se podía hacer — con un solo origen, `localStorage` se comparte y una
+ * sesión iniciada acá SÍ se le puede entregar a la plataforma.
+ *
+ * ⚠️ **Esto todavía son dos links, no el formulario.** El formulario es lo que
+ * queda por construir; está anotado en `docs/mejoras.md` §10. Mientras tanto los
+ * links siguen funcionando y ya apuntan al lugar definitivo.
+ */
+const PLATAFORMA = process.env.NEXT_PUBLIC_PLATFORM_URL ?? "/app";
 
 export function AccesoAlCampus() {
   return (

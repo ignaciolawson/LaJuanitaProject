@@ -63,6 +63,38 @@
      necesitaban habían escrito `bg-papel` a mano y acertaron — lo que faltaba
      no era el color, era el nombre. Sigue siendo una paleta de tres tintas. */
   --superficie-2: var(--papel);
+
+  /* EL SHELL VA EN TINTA Y EL TRABAJO EN PAPEL.
+
+     La decisión de arriba —claro y denso porque se mira ocho horas por día—
+     vale para la SUPERFICIE DE TRABAJO, que es donde se leen tablas de treinta
+     filas y se cargan formularios. **No vale para la navegación, que no se lee:
+     se recorre.**
+
+     Partirlo en dos resuelve las dos cosas que estaban en conflicto: la marca
+     entra por el shell —oscuro y teatral, como la landing— y el lienzo se queda
+     claro, que es lo que no cansa cargando datos. De paso hace lo que el borde
+     de 1px no lograba: separar de un vistazo "dónde estoy" de "qué estoy
+     mirando".
+
+     Los tonos sobre tinta salen de la misma medición que la landing (QA-06):
+     0,56 de hueso sobre #0a0a0b da 4,9:1 y pasa AA; por debajo de 0,52 no. Y
+     como allá, **la jerarquía la lleva la tipografía y no una escala de grises**
+     —mono en versalita contra texto corrido—, así que hay UN solo tono apagado
+     y no tres casi iguales. */
+  --shell: var(--ink);
+  --shell-texto: var(--bone);
+  --shell-tenue: rgba(232, 225, 212, 0.56);
+  --shell-linea: rgba(232, 225, 212, 0.12);
+  --shell-activo: rgba(232, 225, 212, 0.08);
+
+  /* La profundidad del lienzo. Es deliberadamente casi imperceptible: alcanza
+     para que una tarjeta se despegue del papel, y no tanto como para que
+     apilarlas veinte veces en una pantalla de listado ensucie el dibujo. La
+     jerarquía fuerte la sigue haciendo la línea. */
+  --sombra-tarjeta:
+    0 1px 2px rgba(10, 10, 11, 0.04),
+    0 1px 3px rgba(10, 10, 11, 0.06);
   --sombra-flotante:
     0 1px 2px rgba(10, 10, 11, 0.05),
     0 12px 32px rgba(10, 10, 11, 0.12);
@@ -91,7 +123,14 @@
   --color-superficie: var(--superficie);
   --color-superficie-2: var(--superficie-2);
 
+  --color-shell: var(--shell);
+  --color-shell-texto: var(--shell-texto);
+  --color-shell-tenue: var(--shell-tenue);
+  --color-shell-linea: var(--shell-linea);
+  --color-shell-activo: var(--shell-activo);
+
   --shadow-flotante: var(--sombra-flotante);
+  --shadow-tarjeta: var(--sombra-tarjeta);
 
   --font-titulo: var(--fuente-titulo);
   --font-serif: var(--fuente-serif);

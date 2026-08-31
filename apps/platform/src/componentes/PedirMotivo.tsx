@@ -42,7 +42,7 @@ export function PedirMotivo({
         }
         onConfirmar(motivo.trim())
       }}
-      className="mb-6 rounded-lg border border-linea bg-superficie p-5"
+      className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
     >
       <h3 className="t-seccion mb-1">{titulo}</h3>
       <p className="mb-4 text-sm text-tenue">{ayuda}</p>

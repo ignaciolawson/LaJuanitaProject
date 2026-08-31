@@ -55,7 +55,7 @@ export function DetalleDeCuenta({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {cuenta.saldos.map((s) => (
-            <div key={s.moneda} className="rounded-lg border border-linea bg-superficie p-5">
+            <div key={s.moneda} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
               <h4 className="font-semibold">{s.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
               <p className="mt-1 text-2xl font-semibold tracking-tight">
                 {importe(s.pagado, s.moneda)}

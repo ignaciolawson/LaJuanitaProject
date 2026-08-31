@@ -196,7 +196,7 @@ export function SelloPagina() {
 
       <div className="space-y-3">
         {releases.map((r) => (
-          <article key={r.idRelease} className="rounded-lg border border-linea bg-superficie">
+          <article key={r.idRelease} className="rounded-lg border border-linea bg-superficie shadow-tarjeta">
             <button
               type="button"
               onClick={() => setAbierto(abierto === r.idRelease ? null : r.idRelease)}
@@ -714,7 +714,7 @@ function FormularioAlta({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie p-5"
+      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
     >
       <h3 className="font-medium">Nuevo release</h3>
 

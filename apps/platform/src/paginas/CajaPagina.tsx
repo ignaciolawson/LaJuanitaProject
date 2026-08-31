@@ -115,7 +115,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
   const sinMovimientos = caja.cantidadDePagos === 0 && caja.cantidadDeEgresos === 0
 
   return (
-    <div className="rounded-lg border border-linea bg-superficie p-5">
+    <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion">{caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h3>
 
       {sinMovimientos ? (

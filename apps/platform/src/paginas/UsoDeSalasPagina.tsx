@@ -128,7 +128,7 @@ function TarjetaDeSala({ uso, maximo }: { uso: UsoDeSala; maximo: number }) {
   const sinUso = uso.reservas === 0
 
   return (
-    <div className="rounded-lg border border-linea bg-superficie p-5">
+    <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="t-seccion">
           {uso.sala}

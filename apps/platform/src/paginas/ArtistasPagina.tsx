@@ -118,7 +118,7 @@ export function ArtistasPagina() {
 
       <div className="space-y-3">
         {artistas.map((a) => (
-          <article key={a.idArtista} className="rounded-lg border border-linea bg-superficie">
+          <article key={a.idArtista} className="rounded-lg border border-linea bg-superficie shadow-tarjeta">
             <button
               type="button"
               onClick={() => setAbierto(abierto === a.idArtista ? null : a.idArtista)}
@@ -311,7 +311,7 @@ function Formulario({
   return (
     <form
       onSubmit={(e) => void guardar(e)}
-      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie p-5"
+      className="mb-4 space-y-4 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
     >
       <h3 className="font-medium">{artista ? 'Editar artista' : 'Nuevo artista'}</h3>
 

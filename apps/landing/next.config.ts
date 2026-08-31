@@ -36,7 +36,11 @@ import type { NextConfig } from "next";
  * Se guarda sólo el origen —sin path— porque `connect-src` compara orígenes.
  */
 function origenDeLaApi(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+  const url = process.env.NEXT_PUBLIC_API_URL ?? "";
+  // Sin variable, la API es del mismo origen y `'self'` ya la cubre: no hay
+  // origen extra que agregar. Es el caso normal desde que las dos apps
+  // comparten proxy.
+  if (!url) return "";
   try {
     return new URL(url).origin;
   } catch {
@@ -65,6 +69,39 @@ const cspDirectivas = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  /**
+   * En DESARROLLO, este sitio hace de proxy y todo pasa por :3000.
+   *
+   * **No es una comodidad: es la unica forma de poder probar el login.** La
+   * sesion se inicia en la landing y la lee la plataforma, y eso funciona porque
+   * comparten origen — `localStorage` es por origen, no por path. En desarrollo,
+   * con la landing en :3000 y la plataforma en :5173, son origenes distintos y
+   * la entrega **no puede funcionar**. Sin este proxy, el login de la landing
+   * seria codigo que recien se prueba el dia del deploy.
+   *
+   * En produccion esto no corre: ahi el mismo reparto lo hace el reverse proxy
+   * del servidor (`docs/operacion.md` §3), con las mismas tres rutas.
+   *
+   *   /       -> este sitio
+   *   /app    -> la plataforma (Vite: `base: '/app/'`)
+   *   /api    -> el backend
+   *
+   * ⚠️ **El HMR de la plataforma NO viaja por aca**: los rewrites de Next no
+   * pasan websockets, asi que a traves de :3000 la plataforma no recarga sola.
+   * Para desarrollar la plataforma se sigue usando **http://localhost:5173/app/**,
+   * que tiene HMR; :3000 es para probar el circuito entero, que es lo que no se
+   * podia probar de ninguna otra manera.
+   */
+  async rewrites() {
+    if (process.env.NODE_ENV !== "development") return [];
+
+    return [
+      { source: "/app", destination: "http://localhost:5173/app/" },
+      { source: "/app/:path*", destination: "http://localhost:5173/app/:path*" },
+      { source: "/api/:path*", destination: "http://localhost:8080/api/:path*" },
+    ];
+  },
+
   /**
    * Cabeceras de seguridad. Ninguna de las dos apps declaraba una sola (SEC-07);
    * la API sí quedaba cubierta, por los defaults de Spring Security.

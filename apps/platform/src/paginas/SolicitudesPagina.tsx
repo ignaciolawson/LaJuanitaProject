@@ -108,7 +108,7 @@ export function SolicitudesPagina() {
 
       <ul className="space-y-3">
         {solicitudes.map((s) => (
-          <li key={s.idSolicitud} className="rounded-lg border border-linea bg-superficie px-5 py-4">
+          <li key={s.idSolicitud} className="rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="font-medium">

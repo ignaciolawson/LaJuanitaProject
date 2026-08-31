@@ -77,12 +77,36 @@ const MENU: GrupoMenu[] = [
       { etiqueta: 'Subir material', ruta: '/material', visible: (u) => u.esProfesor, disponible: true },
     ],
   },
+  // ─────────────────────────────────────────────────────────────────────
+  // Administración: CINCO grupos por dominio, no uno solo con 18 ítems.
+  //
+  // Eran 18 corridos bajo un título, y estaban en **orden de construcción de los
+  // módulos**, que es el orden en que se fueron agregando y no el orden en que
+  // alguien los usa. Nadie navega "el módulo 6": navega "necesito cobrar".
+  //
+  // Los grupos siguen las líneas del negocio y no la numeración de los módulos.
+  // Por eso Venta de equipos cae en Dinero —es del Módulo 3, y lo que registra es
+  // una operación con su cobro, no un inventario— y por eso Mix & Mastering y el
+  // Sello quedan juntos: son las dos patas de disco, contra la pata de academia.
+  //
+  // Regla 3 en todos: dependen del rol. DIRECTIVO ve estas pantallas y no escribe
+  // nada; eso lo impone el backend, no el menú. Ocultárselas acá sería mentir
+  // sobre lo que puede.
+  // ─────────────────────────────────────────────────────────────────────
   {
-    titulo: 'Administración',
+    titulo: 'Personas',
     items: [
-      // Regla 3: dependen del rol.
-      // DIRECTIVO ve estas pantallas pero no escribe nada; eso lo impone el
-      // backend, no el menú. Ocultárselas acá sería mentir sobre lo que puede.
+      {
+        // El buzón de la web (hallazgo #7) abre el grupo, y no está puesto al
+        // azar: **es lo primero que hay que mirar a la mañana** —del otro lado
+        // hay alguien esperando que lo llamen— y es la única pantalla del sistema
+        // cuyo contenido lo escribe gente de afuera. Además es de dónde salen las
+        // personas nuevas, así que el dominio es este y no "servicios".
+        etiqueta: 'Buzón de la web',
+        ruta: '/admin/buzon',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
       { etiqueta: 'Alumnos', ruta: '/admin/alumnos', visible: puedeAdministrar, disponible: true },
       {
         etiqueta: 'Inscripciones',
@@ -91,22 +115,17 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
+    ],
+  },
+  {
+    titulo: 'Salas y agenda',
+    items: [
       { etiqueta: 'Calendario', ruta: '/admin/reservas', visible: puedeAdministrar, disponible: true },
       {
         // La otra mitad del portal: sin esta pantalla, lo que el alumno pide no
         // lo lee nadie.
         etiqueta: 'Pedidos de sala',
         ruta: '/admin/solicitudes',
-        visible: puedeAdministrar,
-        disponible: true,
-      },
-      {
-        // El buzón de la web (hallazgo #7). Va acá arriba, entre Personas y el
-        // Calendario, y no al final: es lo primero que hay que mirar a la mañana
-        // —del otro lado hay alguien esperando que lo llamen— y es la única
-        // pantalla del sistema cuyo contenido lo escribe gente de afuera.
-        etiqueta: 'Buzón de la web',
-        ruta: '/admin/buzon',
         visible: puedeAdministrar,
         disponible: true,
       },
@@ -132,19 +151,32 @@ const MENU: GrupoMenu[] = [
         visible: puedeAdministrar,
         disponible: true,
       },
+    ],
+  },
+  {
+    titulo: 'Dinero',
+    items: [
       { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Caja', ruta: '/admin/caja', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Deudores', ruta: '/admin/deudores', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Egresos', ruta: '/admin/egresos', visible: puedeAdministrar, disponible: true },
       {
-        etiqueta: 'Mix & Mastering',
-        ruta: '/admin/mix-mastering',
+        // Cae en Dinero y no en un grupo de "servicios" porque es del Módulo 3 y
+        // porque **no es un inventario**: no hay stock propio, la venta va contra
+        // el de Pioneer, así que la fila registra una operación y su cobro.
+        etiqueta: 'Venta de equipos',
+        ruta: '/admin/ventas',
         visible: puedeAdministrar,
         disponible: true,
       },
+    ],
+  },
+  {
+    titulo: 'Sello y mastering',
+    items: [
       {
-        etiqueta: 'Venta de equipos',
-        ruta: '/admin/ventas',
+        etiqueta: 'Mix & Mastering',
+        ruta: '/admin/mix-mastering',
         visible: puedeAdministrar,
         disponible: true,
       },
@@ -164,6 +196,11 @@ const MENU: GrupoMenu[] = [
         visible: puedeAdministrar,
         disponible: true,
       },
+    ],
+  },
+  {
+    titulo: 'Dirección',
+    items: [
       {
         // Era el placeholder apagado del Módulo 8 y quedó construido el
         // 2026-08-20. La ruta pasó de `/admin/dashboard` a `/admin/tablero`

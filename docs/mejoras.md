@@ -907,6 +907,140 @@ de ocupación del Tablero **no usa `Tabla` y no es deuda** (es un mapa de calor,
 un listado), y el vacío del calendario **no es un `EstadoVacio`** porque la grilla
 de la semana ya está dibujada y la frase aclara en vez de rescatar.
 
+#### ⏸ Sesión del 2026-08-31 (noche) — el rediseño de verdad, a mitad
+
+> **Ignacio vio el sistema andando y el veredicto fue: *"le falta diseño, un
+> montón, sigue el blanco de antes, como que sigue re default, nada que ver con
+> la landing"*.** Es correcto y era esperable: **lo que la 3.1 hizo fue ADOPTAR el
+> sistema de diseño, no repintarlo.** Los tokens eran los mismos de antes; lo que
+> cambió es que ahora hay un solo lugar donde tocarlos. Antes, repintar eran 122
+> `bg-white` a mano, 11 tablas cada una a su manera y 46 estilos tipográficos
+> sueltos. **No se empieza de 0: la adopción es exactamente la palanca que hace
+> barata esta pasada.**
+
+**Por qué se veía "default", diagnosticado — y ninguna de las tres razones era
+"porque es claro":** no había profundidad ni jerarquía (todo tarjeta blanca sobre
+papel casi blanco con un borde de 1px), la marca no aparecía en ningún lado (el
+abanico sólo en estados vacíos, el wordmark nunca), y el rojo sólo salía en
+errores, así que el sistema no tenía acento — tenía alarmas.
+
+##### Las tres decisiones que tomó Ignacio
+
+1. **Shell oscuro + lienzo claro.** La decisión vieja escrita en `index.css`
+   —todo claro porque se mira ocho horas por día— **valía para la superficie de
+   trabajo y no para la navegación, que no se lee: se recorre.** Partirlo deja
+   entrar la marca por el shell, donde no le compite a ningún dato, y deja el
+   lienzo claro, que es lo que no cansa cargando alumnos.
+2. **El menú se agrupa por dominio.** "Administración" eran **18 ítems corridos
+   bajo un solo título, en orden de construcción de los módulos** — el orden en
+   que se fueron agregando, no en el que alguien los usa. Nadie navega "el módulo
+   6": navega "necesito cobrar".
+3. **Login en la landing, con mismo origen.** Ver más abajo: la parte difícil no
+   es el formulario.
+
+##### Hecho y verde (432/432, ambos typechecks, ambos linters, build)
+
+- **Tokens del shell** en `index.css`: `--shell`, `--shell-texto`,
+  `--shell-tenue`, `--shell-linea`, `--shell-activo`, más `--sombra-tarjeta` para
+  la profundidad del lienzo (aplicada en **61** superficies). Los tonos sobre
+  tinta salen de la misma medición que la landing (QA-06): 0,56 de hueso sobre
+  `#0a0a0b` da 4,9:1 y pasa AA; por debajo de 0,52 no. Y como allá, **hay UN solo
+  tono apagado y no tres casi iguales**: la jerarquía la lleva la tipografía.
+- **`Layout.tsx` reescrito**: sidebar en tinta, con el abanico y el wordmark — la
+  marca aparece por primera vez fuera de los estados vacíos. Ítem activo con
+  barra roja a la izquierda (el rojo como bisturí, uno solo por pantalla). El
+  borde va siempre, transparente cuando no está activo, **para que el texto no se
+  corra dos píxeles al navegar**. La columna es `sticky h-screen`: con siete
+  grupos, un ADMIN tiene más menú que pantalla.
+- **`menu.ts` en 5 dominios**, no 6 como se había dibujado. Dos ajustes que
+  aparecieron al agruparlo de verdad: **el buzón de la web no va en "Servicios"
+  sino primero en "Personas"** —su propio comentario dice que es lo primero que se
+  mira a la mañana, y conceptualmente es de donde salen las personas nuevas— y
+  **Mix & Mastering solo quedaba como grupo de uno**, así que va con el Sello (son
+  las dos patas de disco contra la pata de academia). Los grupos siguen las
+  líneas del negocio y **no la numeración de los módulos**: por eso Venta de
+  equipos cae en Dinero.
+
+  | Grupo | Ítems |
+  |---|---|
+  | Personas | Buzón de la web, Alumnos, Inscripciones, Personas |
+  | Salas y agenda | Calendario, Pedidos de sala, Pedidos de cambio, Salas bloqueadas, Uso de salas |
+  | Dinero | Pagos, Caja, Deudores, Egresos, Venta de equipos |
+  | Sello y mastering | Mix & Mastering, Sello, Artistas |
+  | Dirección | Tablero |
+
+  Los 21 casos de `menu.test.ts` pasaron sin tocarlos: prueban predicados, no
+  estructura.
+- **⚠️ Un `<button>` a mano volvió a `Layout.tsx`, y es deliberado.** Las
+  variantes de `Boton` están calibradas contra el papel (`text-tenue`,
+  `hover:text-acento`) y sobre tinta no se ven. Darle a `Boton` un juego de
+  colores para el shell obligaría a que **cada variante futura tenga su gemela
+  oscura**, para un solo control. El shell tiene paleta propia y ése es su único
+  botón.
+
+##### Mismo origen: hecho lo difícil, falta el formulario
+
+**La decisión de hosting de octubre se adelantó a hoy**, porque es lo único que
+destraba el login en la landing. `AccesoAlCampus` ya decía que las dos salidas
+eran *pasar el token por la URL* (queda en historial y `Referer` — descartado) **o
+apostar a que las dos apps queden en el mismo dominio**. El pedido de Ignacio es
+esa apuesta, tomada.
+
+```
+/       →  landing
+/app    →  plataforma
+/api    →  backend
+```
+
+- **`vite.config.ts` → `base: '/app/'`** y **`App.tsx` → `<BrowserRouter
+  basename="/app">`**. Son gemelos: si uno se mueve sin el otro, o cargan los
+  assets y no resuelve ninguna ruta, o al revés.
+  ⚠️ **En desarrollo la plataforma ahora está en `http://localhost:5173/app/`**,
+  no en la raíz.
+- **`next.config.ts` → `rewrites()` sólo en desarrollo**, que hacen de proxy para
+  las tres rutas. **No es comodidad: es lo único que permite PROBAR el login.**
+  Con landing en :3000 y plataforma en :5173 son orígenes distintos y la entrega
+  de sesión no puede funcionar; sin el proxy, el login sería código que se prueba
+  recién el día del deploy.
+  ⚠️ **El HMR de la plataforma no viaja por los rewrites** (Next no pasa
+  websockets). Para desarrollar la plataforma se sigue usando **:5173/app/**;
+  **:3000 es para probar el circuito entero**.
+- **`src/lib/api.ts` → `API_URL` por defecto vacío** (mismo origen). Con eso
+  desaparecen CORS y el origen extra en `connect-src`.
+- **`AccesoAlCampus` apunta a `/app/login` y `/app/registro`** — siguen siendo dos
+  links, pero ya al lugar definitivo.
+
+##### ⚠️ LO QUE QUEDA — por acá se retoma
+
+1. **El formulario de login en la landing.** Es lo único que falta del circuito.
+   Lo que tiene que hacer, exacto:
+   - `POST` a `/api/auth/login` (relativo, mismo origen) con `{ email, password }`.
+   - La respuesta es `LoginResponse` = `{ token, expiraEn, usuario }`.
+   - Escribir en `localStorage` la clave **`lajuanita.credencial`** con
+     `JSON.stringify({ token, expiraEn })` — exactamente la forma que lee
+     `apps/platform/src/auth/credencial.ts`.
+   - Redirigir a `/app`. El `debeCambiarPassword` lo maneja la plataforma sola.
+   - Reemplaza el botón "Iniciar sesión" de `AccesoAlCampus`; "Crear mi cuenta"
+     se queda como link a `/app/registro`.
+   - ⚠️ **Ese formato de credencial queda acoplado entre las dos apps.** Si la
+     plataforma cambia cómo guarda el token, el login de la landing sigue
+     "andando" y rebota a la persona al login, **sin ningún error visible**. La
+     advertencia hay que escribirla en los DOS archivos.
+   - ⚠️ **Los tres modos de falla del login tardan lo mismo a propósito** (el
+     backend compara contra un hash señuelo cuando el mail no existe). El
+     formulario **no puede diferenciar los mensajes**: un solo texto para los
+     tres.
+2. **`docs/operacion.md` §3**: escribir la configuración del reverse proxy con las
+   tres rutas. Es la sección que estaba en blanco esperando octubre, y ya no
+   espera.
+3. **`CORS_ORIGENES` del backend** deja de ejercerse en producción. Queda como red
+   de seguridad; revisar que el default de desarrollo no confunda.
+4. **La pincelada del lienzo, que es lo que Ignacio pidió y todavía NO está
+   hecho.** El shell ya tiene marca y profundidad, pero **las 36 pantallas por
+   dentro siguen igual**: falta revisar formularios, tablas y tarjetas contra el
+   contraste nuevo, y decidir dónde más entra el acento.
+5. **La 3.3, la recorrida por rol**, que sigue pendiente desde la sesión anterior.
+
 #### El orden
 
 **3.1 · Primero el sistema, no las pantallas.** Las 36 pantallas se componen casi

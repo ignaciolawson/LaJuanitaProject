@@ -230,7 +230,7 @@ function Seguimiento({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <section className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="t-seccion">Cómo viene</h3>
         <Semaforo estado={alumno.estadoSeguimiento} />
@@ -359,7 +359,7 @@ function Notas({
   }
 
   return (
-    <section className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <section className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion">Mis notas</h3>
       <p className="mt-1 text-sm text-tenue">
         Privadas: no las ve el alumno ni otro profesor.
@@ -514,7 +514,7 @@ function Materiales({
   }
 
   return (
-    <section className="rounded-lg border border-linea bg-superficie p-5">
+    <section className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h3 className="t-seccion">Material para {nombre}</h3>
         <Link

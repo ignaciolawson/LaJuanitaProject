@@ -213,7 +213,7 @@ export function TableroPagina() {
       <Seccion titulo="La caja del período" detalle={`/admin/caja?${rango}`}>
         <div className="grid gap-4 sm:grid-cols-2">
           {caja.map((c) => (
-            <div key={c.moneda} className="rounded-lg border border-linea bg-superficie p-5">
+            <div key={c.moneda} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
               <div className="flex items-baseline justify-between">
                 <h4 className="font-semibold">{c.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
                 <span className="text-sm text-tenue">
@@ -238,7 +238,7 @@ export function TableroPagina() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           {pendientes.map((p) => (
-            <div key={p.moneda} className="rounded-lg border border-linea bg-superficie p-5">
+            <div key={p.moneda} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
               <div className="flex items-baseline justify-between">
                 <h4 className="font-semibold">{p.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
                 <span className="text-sm text-tenue">
@@ -274,7 +274,7 @@ export function TableroPagina() {
                   textoValor: importe(l.monto, l.moneda),
                 }))
                 return (
-                  <div key={moneda} className="rounded-lg border border-linea bg-superficie p-5">
+                  <div key={moneda} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
                     <div className="flex items-baseline justify-between">
                       <h4 className="font-semibold">{moneda === 'USD' ? 'Dólares' : 'Pesos'}</h4>
                       <span className="text-xs text-tenue">Total {importe(total, moneda)}</span>
@@ -299,7 +299,7 @@ export function TableroPagina() {
                 return (
                   <div
                     key={`${a.disciplina}-${a.nivel ?? 'sin'}`}
-                    className="rounded-lg border border-linea bg-superficie p-5"
+                    className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
                   >
                     <h4 className="font-semibold">{NOMBRE_DE_DISCIPLINA[a.disciplina]}</h4>
                     {a.nivel && a.nivel !== 'SIN_NIVEL' && (
@@ -344,7 +344,7 @@ export function TableroPagina() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <Seccion titulo="Mix & Mastering" detalle="/admin/mix-mastering">
-              <div className="rounded-lg border border-linea bg-superficie p-5">
+              <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
                 <BarrasHorizontales
                   barras={tablero.mixMastering.porEstado.map(
                     (e): Barra => ({
@@ -366,7 +366,7 @@ export function TableroPagina() {
             </Seccion>
 
             <Seccion titulo="El sello" detalle="/admin/sello">
-              <div className="rounded-lg border border-linea bg-superficie p-5">
+              <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
                 <BarrasHorizontales
                   barras={tablero.sello.porEstado.map(
                     (e): Barra => ({
@@ -457,7 +457,7 @@ function Grilla({ ocupacion }: { ocupacion: Ocupacion }) {
   // mono y el `divide-y` de un listado, que acá estorban. Es la única `<table>` del
   // sistema que quedó fuera del componente y no es deuda.
   return (
-    <div className="overflow-x-auto rounded-lg border border-linea bg-superficie p-4">
+    <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta p-4">
       <table className="w-full min-w-[32rem] border-separate border-spacing-1 text-xs">
         <thead>
           <tr>
@@ -534,7 +534,7 @@ function Casilla({
  */
 function TarjetaDeRetencion({ retencion }: { retencion: Retencion }) {
   return (
-    <div className="rounded-lg border border-linea bg-superficie p-5">
+    <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="flex items-center gap-4">
         <Medidor porcentaje={retencion.tasa} />
         <div className="min-w-0">
@@ -573,7 +573,7 @@ function TarjetaDeRetencion({ retencion }: { retencion: Retencion }) {
  */
 function TarjetaDeConversion({ conversion }: { conversion: Conversion }) {
   return (
-    <div className="rounded-lg border border-linea bg-superficie p-5">
+    <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="flex items-center gap-4">
         <Medidor porcentaje={conversion.tasa} />
         <div className="min-w-0">

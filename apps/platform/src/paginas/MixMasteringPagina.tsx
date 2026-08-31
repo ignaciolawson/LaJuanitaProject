@@ -168,7 +168,7 @@ export function MixMasteringPagina() {
 
       <div className="space-y-3">
         {trabajos.map((t) => (
-          <article key={t.idTrabajo} className="rounded-lg border border-linea bg-superficie">
+          <article key={t.idTrabajo} className="rounded-lg border border-linea bg-superficie shadow-tarjeta">
             <button
               type="button"
               onClick={() => setAbierto(abierto === t.idTrabajo ? null : t.idTrabajo)}
@@ -380,7 +380,7 @@ function FormularioAlta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">Nuevo trabajo</h3>
 
       <div className="mb-4 flex gap-4 text-sm">

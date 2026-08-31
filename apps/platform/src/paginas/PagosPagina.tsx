@@ -510,7 +510,7 @@ function FormularioCorreccion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-1">Corregir el pago</h3>
 
       {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
@@ -865,7 +865,7 @@ function FormularioPago({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie p-5">
+    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <h3 className="t-seccion mb-4">Registrar pago</h3>
 
       {errorGeneral && (

@@ -2,10 +2,26 @@ import { NavLink, Outlet } from 'react-router'
 
 import { nombreCompleto } from '../api/tipos'
 import { useAuth, useUsuario } from '../auth/contexto'
+import { Abanico } from '../componentes/Abanico'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { menuPara } from './menu'
-import { Boton } from '../componentes/Boton'
 
+/**
+ * El armazón de la aplicación: navegación en tinta, trabajo en papel.
+ *
+ * **Las dos superficies son distintas a propósito** (Fase 3.1, `index.css`). La
+ * decisión vieja —todo claro porque se mira ocho horas por día— era correcta
+ * para la superficie donde se leen tablas de treinta filas, y equivocada para la
+ * navegación, que no se lee: se recorre. Partirlo deja entrar la marca por el
+ * shell, que es donde no le compite a ningún dato, y deja el lienzo claro, que es
+ * lo que no cansa cargando alumnos.
+ *
+ * **NO hay barra superior**, y también es una decisión. Contenía sólo "Hola, X" y
+ * el chip de rol: una franja fija en las 36 pantallas para dos datos que nadie
+ * mira dos veces. El saludo pasó al Inicio, donde §11 lo puso, y el rol al pie de
+ * esta columna. La consecuencia es de jerarquía y es la que importa: sin ese
+ * encabezado, **el título de cada pantalla es el `<h1>` de verdad**.
+ */
 export function Layout() {
   const { cerrarSesion } = useAuth()
   const usuario = useUsuario()
@@ -13,18 +29,28 @@ export function Layout() {
 
   return (
     <div className="flex min-h-full">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-linea bg-superficie">
-        <div className="border-b border-linea px-5 py-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
-            La Juanita
-          </p>
-          <p className="mt-0.5 text-xs text-apagado">Gestión</p>
+      {/* `h-screen` + `sticky`: con siete grupos y treinta y un ítems, un ADMIN
+          tiene más menú que pantalla. La columna se queda quieta y scrollea sólo
+          la lista; la marca y la identidad no se van de la vista. */}
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-shell text-shell-texto">
+        {/* La marca, que en el resto del sistema no aparece: el abanico está
+            reservado para login, vacíos y acá. Sobre tinta el rojo es gráfico y
+            no texto, así que va el rojo de marca y no `--acento`. */}
+        <div className="flex items-center gap-3 border-b border-shell-linea px-5 py-5">
+          <Abanico className="h-9 w-auto shrink-0 text-red" />
+          <div className="min-w-0">
+            <p className="t-mono text-shell-texto">La Juanita</p>
+            <p className="t-mono text-shell-tenue">Gestión</p>
+          </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-5">
+        <nav className="flex-1 overflow-y-auto py-5">
           {grupos.map((grupo) => (
             <div key={grupo.titulo} className="mb-6 last:mb-0">
-              <p className="t-mono px-2 pb-2 text-apagado">{grupo.titulo}</p>
+              {/* Título de dominio y etiqueta de ítem comparten color: lo que los
+                  separa es la tipografía —mono en versalita contra texto
+                  corrido—, que es como esta marca jerarquiza en los dos lados. */}
+              <p className="t-mono px-5 pb-2 text-shell-tenue">{grupo.titulo}</p>
 
               <ul>
                 {grupo.items.map((item) => (
@@ -34,10 +60,13 @@ export function Layout() {
                         to={item.ruta}
                         end
                         className={({ isActive }: { isActive: boolean }) =>
-                          `flex rounded-md px-2 py-1.5 text-sm transition-colors ${
+                          // El borde va siempre, transparente cuando no está
+                          // activo: si apareciera sólo al activarse, el texto se
+                          // correría dos píxeles cada vez que navegás.
+                          `flex border-l-2 py-1.5 pr-3 pl-3.5 text-sm transition-colors ${
                             isActive
-                              ? 'bg-ink font-medium text-bone'
-                              : 'text-ink hover:bg-superficie-2'
+                              ? 'border-red bg-shell-activo font-medium text-shell-texto'
+                              : 'border-transparent text-shell-tenue hover:bg-shell-activo hover:text-shell-texto'
                           }`
                         }
                       >
@@ -50,7 +79,7 @@ export function Layout() {
                       // pantalla vacía con un error.
                       <span
                         aria-disabled="true"
-                        className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-apagado"
+                        className="flex items-center justify-between border-l-2 border-transparent py-1.5 pr-3 pl-3.5 text-sm text-shell-tenue opacity-60"
                       >
                         {item.etiqueta}
                         <span className="t-mono text-[9px]">pronto</span>
@@ -63,32 +92,31 @@ export function Layout() {
           ))}
         </nav>
 
-        <div className="border-t border-linea px-5 py-4">
-          <p className="truncate text-sm font-medium">{nombreCompleto(usuario)}</p>
-          {/* El rol se dice acá y no en una barra superior: es un dato de quién
-              sos, y vive junto al nombre y al logout en vez de ocupar una franja
-              propia arriba de las 36 pantallas. */}
-          <p className="t-mono mt-1 text-tenue">{NOMBRE_DE_ROL[usuario.rol]}</p>
-          <p className="mt-1 truncate text-xs text-apagado">{usuario.email}</p>
-          <Boton variante="enlace"
+        <div className="border-t border-shell-linea px-5 py-4">
+          <p className="truncate text-sm font-medium text-shell-texto">
+            {nombreCompleto(usuario)}
+          </p>
+          {/* El rol se dice acá y no en una barra propia arriba de las 36
+              pantallas: es un dato de quién sos, y vive junto al nombre. */}
+          <p className="t-mono mt-1 text-shell-tenue">{NOMBRE_DE_ROL[usuario.rol]}</p>
+          <p className="mt-1 truncate text-xs text-shell-tenue">{usuario.email}</p>
+
+          {/* ⚠️ El único `<button>` a mano que queda en la aplicación, y es
+              deliberado: las variantes de `Boton` están calibradas contra el
+              papel —`text-tenue`, `hover:text-acento`— y sobre tinta no se ven.
+              Darle a `Boton` un juego de colores para el shell obligaría a que
+              cada variante futura tenga su gemela oscura, para un solo control.
+              El shell tiene una paleta propia y este es su único botón. */}
+          <button
             type="button"
-            onClick={cerrarSesion} className="mt-3">
+            onClick={cerrarSesion}
+            className="mt-3 text-xs font-medium text-shell-tenue underline underline-offset-2 transition-colors hover:text-red"
+          >
             Cerrar sesión
-          </Boton>
+          </button>
         </div>
       </aside>
 
-      {/* NO hay barra superior, y es una decisión (Fase 3.1, 2026-08-31).
-          Contenía sólo "Hola, X" y el chip de rol: una franja fija en las 36
-          pantallas para dos datos que no cambian y que nadie mira dos veces.
-          El saludo pasó al Inicio, que es donde §11 lo puso —"Hola, Micaela ·
-          Administradora"— y el rol al pie del sidebar.
-
-          La consecuencia es de jerarquía y es la que importa: sin este
-          encabezado, **el título de cada pantalla es el `<h1>` de verdad**. Antes
-          el `<h1>` del documento decía "Hola, Ignacio" y el nombre de la pantalla
-          era un `<h2>`, que es exactamente lo que `CabeceraDePagina` tenía
-          anotado para revisar "de una vez, no de a una". */}
       <main className="min-w-0 flex-1 px-8 py-8">
         <Outlet />
       </main>
