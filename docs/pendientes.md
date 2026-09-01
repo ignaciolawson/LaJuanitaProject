@@ -49,30 +49,29 @@
 > claro/oscuro con interruptor y default por perfil) · las puertas · el sistema de
 > bloques · el Inicio redistribuido · el portal · administración · notificaciones y
 > la recorrida por rol. **Suites: 470 de front**, typecheck, los dos linters y el
-> build limpios. El detalle de cada etapa —y lo que decidió cada una— está en
-> `mejoras.md` §10 · *Sesión del 2026-09-01*.
+> build limpios. El detalle de cada etapa está en `mejoras.md` §10 · *Sesión del
+> 2026-09-01*.
 >
-> **Lo que sigue es la barrida de correcciones** sobre el conjunto ya armado, que
-> es la metodología que Ignacio fijó: las siete etapas primero, los ajustes
-> después. Lo anotado a propósito para esa barrida está al final de cada etapa.
+> **⚠️ Y ese mismo día se abrió lo que viene: `mejoras.md` §12, LA PRIMERA BARRIDA
+> DE CORRECCIONES.** Once puntos de Ignacio después de usar el sistema, triados en
+> **A (8, pantalla y estilo) · B (1, funcionalidad sin schema) · C (1, toca una
+> regla)**. **Empezar por ahí.**
 >
-> Y lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config
-> del reverse proxy), `CORS_ORIGENES`, y el deploy con su migración `V22`.
+> ⚠️ **Es la PRIMERA y va a haber más**: *"pueden haber más conforme pase el
+> tiempo, no te puedo dar un plazo definido"*. O sea que **no es una lista que se
+> cierra, es un modo de trabajo** — no hay que esperar a tenerla completa para
+> empezar, y cada punto conviene cerrarlo por su cuenta.
 >
-> **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO: 3.1 y 3.2 cerradas, queda la 3.3.**
-> Ignacio adelantó el rediseño y canceló lo que quedaba del testeo, así que **el
-> corte de la lista del ~11/09 no va a existir** y no hay que esperarlo. El estado
-> exacto está en `mejoras.md` §10 · *Estado al 2026-08-31*. **Empezar por ahí.**
+> **Ya cerrado de esa lista**: el mojibake (era de una sola pantalla, `mejoras.md`
+> §12 · A7) y la causa de los rectángulos superpuestos del Inicio (§12 · A1).
 >
-> Lo que encontró al arrancar reordena la fase: **el sistema de diseño estaba
-> escrito y nunca se había adoptado** — `Tabla` tenía cero usuarios contra once
-> tablas a mano. La 3.1 no es repintar componentes, es adoptarlos.
+> **Y sus dos preguntas de negocio están contestadas**: `platform.md` §17 — sin
+> inscripción vigente el alta se rechaza (P39) y la mentoría descuenta igual que
+> las otras dos (P40).
 >
-> **Orden de autoridad, para cuando dos documentos se contradigan:**
-> `mejoras.md` §9 y §10 (lo más nuevo, y lo que decide qué se hace) ·
-> después `platform.md` §13 → §14 → §15 → **§16** (gana el último; §16 es del
-> 2026-08-29 y cierra P9) · después `sistema-gestion-plan.md` §6d · después el
-> resto.
+> Lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config del
+> reverse proxy), `CORS_ORIGENES`, y el deploy con su migración para desactivar el
+> admin sembrado — que ahora es **`V23`**, porque `V22` es `tipo_uso.disciplina`.
 
 ---
 
@@ -165,7 +164,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V22`+, porque `V19` ya se usó** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes y **`V21`** para los comprobantes.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V23`+, porque `V22` es `tipo_uso.disciplina` (`mejoras.md` §12 · C1), `V19` ya se usó** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes y **`V21`** para los comprobantes.
 
 ---
 

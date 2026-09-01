@@ -1871,3 +1871,213 @@ escribió, *"solicitantes nuevos"* era la única pieza que no existía y por eso
 bloque iba anotado como futuro; **el buzón se construyó el 2026-08-29** (§9.10),
 así que ese bloque tiene su endpoint como todos los demás. **La Fase 3 no espera
 ningún desarrollo de backend.**
+
+---
+
+## 12. La primera barrida de correcciones — abierta el 2026-09-01
+
+> **Las siete etapas del rediseño están cerradas (§10) y esto es lo que sigue**, que es
+> la metodología que fijó Ignacio: *"terminar las 7 etapas y luego la barrida de
+> correcciones"*. Miró el sistema andando y volvió con once puntos.
+>
+> ⚠️ **Es la PRIMERA barrida y va a haber más.** Palabras de Ignacio: *"pueden haber más
+> conforme pase el tiempo, no te puedo dar un plazo definido"*. O sea que esto **no es
+> una lista que se cierra**: es un modo de trabajo. La consecuencia práctica: no hay que
+> esperar a tenerla completa para empezar —esa espera ya se descartó una vez al adelantar
+> la Fase 3— y conviene que cada punto quede cerrado por su cuenta.
+
+### El triage, con los grupos de §4
+
+| Grupo | Qué significa | Cuántos |
+|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **8** |
+| 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **1** |
+| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1** |
+
+**Orden de ejecución: A → B → C.** Dentro de A, primero el Inicio (que ya tiene su causa
+encontrada) y después el bloque de tema y contraste, porque **cuatro de los puntos de
+Ignacio se resuelven en una sola pasada sobre la paleta** (A3, A4, A6 y parte de A1).
+
+---
+
+### 🟢 Grupo A — pantalla y estilo
+
+#### A7 · El mojibake — ✅ **RESUELTO el 2026-09-01**
+
+*"Revisar el UTF-8, hay mojibake en ciertos lugares donde se usan acentos o ñ's."*
+
+**Era mío**, de la etapa 2: reescribí `LoginPagina.tsx` con `.encode().decode('unicode_escape')`
+y quedó doble-codificado. Se veía en pantalla como *"Sistema de gestiÃ³n"* y
+*"Â¿No tenÃ©s cuenta?"*.
+
+⚠️ **El archivo tenía TRES codificaciones mezcladas** —UTF-8 correcto en la parte vieja,
+doble-codificado en la parte reescrita, y bytes latin-1 sueltos—, así que se reparó
+**secuencia por secuencia y no byte por byte**: reemplazar `A1` suelto rompe todos los
+`á` que ya estaban bien, porque `á` es `C3 A1`. Probado y descartado antes de dar con la
+forma correcta.
+
+**La barrida completa dio limpio**: mojibake 0, archivos que no son UTF-8 válido 0,
+archivos con BOM 0, y el build de producción 0. `LoginPagina.tsx` era el único archivo
+afectado de todo el repositorio.
+
+> ⚠️ **Y lo que costó más que el arreglo: `TaskStop` mata el shell, no el proceso `node`
+> hijo.** El archivo en disco estaba bien y el build salía limpio, pero el dev server
+> seguía sirviendo la versión rota. Reinicié dos veces y las dos veces el Vite viejo
+> siguió escuchando en :5173 con su transformación vieja en memoria — el proceso nuevo ni
+> podía tomar el puerto. Hubo que matar el PID a mano.
+>
+> **La regla que queda: si tocás un archivo y el navegador no lo refleja, verificá que el
+> `node` del puerto sea el nuevo ANTES de buscar el bug en otro lado.** Se fue una vuelta
+> entera de diagnóstico en eso.
+
+#### A1 · El Inicio — causa encontrada, falta la distribución nueva
+
+*"Esos rectángulos están como superpuestos, está raro, rediseñar el inicio."*
+
+**Es una regresión de la etapa 4 y era literal.** Al fusionar el saludo con la frase metí
+`FraseDelDia` **adentro** de la portada nueva — y `FraseDelDia` seguía dibujando su
+propia banda completa: mismo `bg-shell`, su propio abanico en la esquina y su propio
+grano. Dos rectángulos de tinta, uno dentro del otro, con los dos abanicos pisándose.
+
+**Ya está corregido**: la frase dejó de ser una pieza y pasó a ser un `<blockquote>`
+dentro de la portada. **La lección para la próxima fusión de dos piezas: una de las dos
+tiene que dejar de ser una pieza.** Anidar dos contenedores que se dibujan igual no
+compone nada — los superpone.
+
+**Lo que falta** es lo otro que pidió: repensar la distribución del Inicio ahora que el
+solapamiento no la tapa.
+
+#### A4 · El sidebar sigue al tema
+
+*"Al poner light mode, que también se cambie el sidebar."*
+
+⚠️ **Revierte una decisión explícita mía de la etapa 1**, que está escrita en
+`index.css` y en `tema.ts`: *"el shell NO sigue al tema, y eso es la identidad"*. El
+argumento era que la navegación no se lee, se recorre, y que la tinta permanente es lo
+que deja entrar la marca.
+
+**Ignacio decidió lo contrario y es su llamada.** Al implementarlo hay que **borrar ese
+argumento de los dos archivos, no dejarlo al lado del código nuevo** — es la regla del
+proyecto para cuando una decisión cambia (`sistema-gestion-plan.md`: *"si una decisión
+cambia, editá ese archivo; no dejes la vieja al lado de la nueva"*).
+
+#### A3 · Contraste en oscuro
+
+*"Al poner el fondo negro hay botones o palabras en menúes desplegables y en otras
+secciones que no se notan bien, recorrer todo y mejorar el contraste."*
+
+Recorrida completa sobre el tema oscuro. **Sospechosos principales, para arrancar por
+ahí**: los `<option>` de los `<select>` (los pinta el sistema operativo y `color-scheme`
+sólo los orienta), los `Boton` con `variante="secundario"` y `variante="enlace"`, las
+`Etiqueta` de estado, y el texto `--apagado`, que en oscuro mide 2,64:1 — pasa para lo
+decorativo y no para nada que haya que leer.
+
+#### A6 · Interruptor de tema en el login
+
+*"Que el iniciar sesión también tenga botón de light y dark mode."*
+
+Va en la mitad de papel de `Puerta`, no en la de tinta —esa es marca y no cambia—. Y
+**tiene que escribir la misma clave `lajuanita.tema`** que usa `useTema`, o alguien elige
+el tema en la puerta y al entrar le cambia solo.
+
+#### A8 · El favicon
+
+*"Cambiar el ícono del sistema, ahora tiene un rayito violeta, ponele el abanico u otra
+cosa de identidad."*
+
+Es el `favicon.svg` que vino con la plantilla de Vite. Va el abanico, que ya existe
+dibujado en SVG (`componentes/Abanico.tsx`) y **no se puede importar desde ahí**: el
+favicon es un archivo estático que pide el navegador antes de que corra un solo módulo.
+Hay que exportarlo a `public/favicon.svg` a mano y **asumir que son dos copias del mismo
+dibujo**, igual que el abanico ya está duplicado entre la landing y la plataforma.
+
+#### A9 · El cursor
+
+*"Que el cursor se ponga modo pointer cuando hay algo clickeable; por ejemplo en
+artistas, al apretar el nombre se abre su info pero el cursor no está pointer,
+cualquier persona no sabría que hay que hacerle click."*
+
+⚠️ **No es cosmético: es la afordancia.** Un `<div>` o un `<td>` con `onClick` no le dice
+a nadie que se puede tocar. Y el diagnóstico de Ignacio apunta a algo más profundo — **si
+hace falta `cursor-pointer`, probablemente ese elemento debería ser un `<button>` o un
+`<a>`**, que además lo hace alcanzable con teclado. La recorrida tiene que distinguir los
+dos casos y no tapar el segundo con una clase.
+
+#### A5 · Las frases
+
+*"Que la frase de algún DJ cambie por día, podríamos armarnos un lugar en el repo para
+almacenar muchas e ir poniéndolas."*
+
+**La rotación por día ya está construida** (§10, etapa 2): `fraseDelDia(fecha)` rota por
+fecha y no al azar, justamente para que sea la misma para toda la gente todo el día. Lo
+que falta es **volumen**: hoy son cuatro (dos citas verificadas y dos de la casa), así
+que la rotación se nota poco.
+
+⚠️ **Y el cuello de botella no es el código: es conseguir las citas.** El tipo de
+`datos/frases.ts` impide agregar una frase atribuida sin `fuente`, a propósito — este
+proyecto ya tiene abierto el problema de las seis notas del blog firmadas con los nombres
+reales de los profesores. Cada cita nueva es trabajo de búsqueda y verificación, no de
+programación.
+
+---
+
+### 🟡 Grupo B — funcionalidad, sin tocar el schema
+
+#### B1 · Divisiones por sección
+
+*"Intentar hacer divisiones por donde se pueda; por ejemplo en pagos, dividir esa sección
+por dentro: pagos de equipos, de servicios, de programas. Mismo con materiales que le
+subieron al alumno, dividirlo por programa, por clase. Ahí te tiré ejemplos, quizás hay
+más."*
+
+**El dato para dividir ya existe en los dos casos**, así que es agrupar en la pantalla y
+no cambiar la base:
+
+- **Pagos**: un pago apunta a una inscripción, a una reserva o a una venta de equipo, y
+  de ahí sale su línea de negocio. **Esa definición ya está escrita y probada**: es la
+  que usa el Tablero para no decir que el estudio factura por alquilar lo que cobró por
+  enseñar. ⚠️ **Hay que reusarla, no escribir una segunda** — sería la tercera copia de
+  una definición en este proyecto.
+- **Materiales**: `material` cuelga de la inscripción y puede colgar de una clase, así
+  que agrupar por curso y por clase sale del dato.
+
+**Y el pedido tiene una parte abierta a propósito** (*"quizás hay más"*): antes de
+construir hay que recorrer las pantallas de listado buscando las que mezclan cosas de
+distinta naturaleza en una sola lista.
+
+---
+
+### 🔴 Grupo C — toca una regla del negocio
+
+#### C1 · Que la clase se descuente sola
+
+*"Al agendar algún tipo de programa como mentoría, DJ o producción, que no haya el botón
+de selección de 'descuenta de' sino que se descuente solo; si se cancela se vuelve a
+sumar y todas las funcionalidades demás que tiene. Pero si no, uno podría reservar sala
+para producción y descontar de clase de DJ sin querer."*
+
+**El riesgo que describe es real y está en el código**: `CamposDeParticipante` ofrece
+*todas* las inscripciones vigentes del alumno, sin mirar para qué es la reserva.
+
+✅ **Las dos preguntas que lo bloqueaban están contestadas** (Ignacio, 2026-09-01) y
+viven en `docs/requirements/platform.md` §17:
+
+- **P39** — sin inscripción vigente en esa disciplina, **el alta se rechaza**: *"que el
+  admin lo inscriba, para eso está"*. Y el error tiene que decir dónde ir a arreglarlo.
+- **P40** — **la mentoría descuenta igual que las otras dos**. Lo que no tiene es un
+  valor por defecto, no la capacidad de descontar: el admin pone las clases contratadas
+  al dar de alta el programa y se descuenta contra ese número.
+
+**Lo que hay que construir**, en orden:
+
+1. **`V22`: `tipo_uso.disciplina`**, nullable, con CHECK contra los tres valores. ⚠️ La
+   correspondencia hoy no vive en ninguna capa —está implícita en los nombres— y va como
+   columna y no como `Map` en Java, por el precedente que escribió la propia `V1` para la
+   matriz sala×uso. Con esto, desactivar el admin sembrado pasa a ser **`V23`**.
+2. **El backend deriva la inscripción** del tipo de uso de la reserva y rechaza con
+   mensaje propio si no hay una vigente.
+3. **El `<select>` "Descuenta de" desaparece de la pantalla.** El alta muestra contra qué
+   curso va a descontar, como dato y no como control.
+4. **Lo que NO cambia y hay que verificar que siga andando**: cancelar la participación
+   devuelve la clase (ya lo hace — es `reserva_participante` cancelada, que `V9` §5 no
+   cuenta como consumida), y los tres usos que no son clase siguen sin descontar nada.

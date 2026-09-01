@@ -1470,3 +1470,91 @@ o ni eso, y el horario lo pone administración al aprobar.
 > marcado como aprobado con la clase todavía en el día que la persona dijo que no podía
 > no aprobó nada, y nadie se entera — porque el aviso de que la clase se movió solo sale
 > si la clase se movió.
+
+---
+
+## 17. Decisiones cerradas el 2026-09-01 — el descuento automático de clases
+
+> **Esta sección gana sobre §13, §14, §15 y §16**, por lo mismo que aquellas ganan sobre
+> el plan: es posterior. Y **`docs/mejoras.md` §12 gana sobre esta** en lo que sea *qué se
+> hace ahora*; acá vive lo que es una **decisión del negocio**.
+
+Las dos preguntas salieron de la primera barrida de correcciones de Ignacio
+(`mejoras.md` §12, punto C1): **hoy, al anotar a alguien en una clase, un `<select>`
+llamado "Descuenta de" ofrece TODAS las inscripciones vigentes del alumno**, así que se
+puede reservar una sala para producción y descontarle una clase de DJ sin querer.
+
+El pedido es que el descuento **salga solo del tipo de uso de la reserva**. Eso deja dos
+casos que el `<select>` venía tapando, y son los que se contestan acá.
+
+### ✅ P39 — Sin inscripción vigente en esa disciplina, el alta se RECHAZA
+
+*"¿Qué pasa si le cargás una clase de DJ a alguien que no está inscripto en DJ: se
+rechaza, o entra la clase sin descontar nada?"*
+
+**Ignacio: *"que el admin lo inscriba, para eso está".*** Se rechaza.
+
+Es la lectura estricta y es la correcta, por tres razones que conviene tener escritas
+antes de implementarla:
+
+- **La pantalla de Inscripciones existe exactamente para eso.** Dejar entrar la clase
+  "sin descontar" convierte un olvido de carga en una clase fantasma: se dictó, ocupó la
+  sala, y no le baja de ningún curso. Nadie se entera hasta que las cuentas no cierran.
+- **Es coherente con cómo este sistema trata la plata.** `V10` no deja crear una reserva
+  sin la seña; la misma idea del otro lado: no se dicta una clase de un curso que la
+  persona no contrató.
+- ⚠️ **Y el error tiene que decir qué hacer.** *"Este alumno no tiene una inscripción
+  vigente de DJ. Cargala en Inscripciones y volvé."* Un 409 que sólo diga "no se puede"
+  manda a alguien a adivinar dónde está el problema, que es exactamente el tipo de
+  mensaje que `ManejadorDeErrores` viene evitando desde el principio.
+
+**Lo que NO cambia**: los tres usos que no son clase —alquiler de cabina, grabación de
+set y mix & mastering— siguen sin descontar nada y sin exigir inscripción. La opción "no
+descuenta clases" no desaparece del sistema: **deja de ser algo que alguien elige y pasa
+a ser lo que el tipo de uso determina.**
+
+### ✅ P40 — La mentoría descuenta igual que las otras dos
+
+*"¿La mentoría descuenta? No tiene cantidad estándar de clases (DJ 8, Producción 16,
+mentoría sin número)."*
+
+**Ignacio: *"cuando se da de alta un programa el admin pone la cantidad de clases
+contratadas; se descuenta del valor que se seleccione".*** O sea: **sí, y no hay
+excepción por disciplina.**
+
+La aclaración resuelve la confusión que traía la pregunta: lo que MENTORIA no tiene es un
+**valor por defecto**, no la capacidad de descontar. Eso ya estaba construido y funciona
+así desde el 2026-08-16 (§13, P34):
+
+| Disciplina | Clases contratadas |
+|---|---|
+| DJ | 8 por defecto, editable |
+| Producción | 16 por defecto, editable |
+| **Mentoría** | **sin defecto: el alta la exige y rechaza el pedido en vez de adivinar** |
+
+Así que el descuento es **uno solo para las tres**: se resta contra
+`inscripcion.clases_contratadas`, sea cual sea el número y de dónde haya salido. Y el
+tope ya lo sostiene la base: `V9` no deja que una inscripción consuma más clases de las
+que contrató.
+
+### Lo que estas dos respuestas implican para construirlo
+
+**La correspondencia `tipo_uso` → `disciplina` hoy NO VIVE EN NINGÚN LADO.** Está
+implícita en los nombres (`CLASE_DJ`→`DJ`, `PRODUCCION_MUSICAL`→`PRODUCCION`,
+`MENTORIA`→`MENTORIA`) y en la cabeza de quien carga. Es una regla del negocio que
+ninguna capa enuncia — el mismo hallazgo que ya apareció tres veces en este proyecto
+(§8 del Módulo 5, `V16`, y la regla del contrato del Módulo 7): **una regla que nadie
+implementa no tiene nada que fallar.**
+
+**Va como columna en `tipo_uso`, no como un `Map` en Java**, por el precedente que la
+propia `V1` escribió para la matriz sala×uso: *"es una tabla y no reglas en el código a
+propósito: el día que compren una tele y una silla para la cabina de grabación, la regla
+se cambia desde una pantalla, sin migración ni deploy"*. Un `Map` en Java sería una
+segunda definición de algo que ya es catálogo, y este proyecto ya paga esa deuda dos
+veces (`contarClasesConsumidas` contra `V9` §5).
+
+Es **`V22`** — y con eso, desactivar el admin sembrado por `V3` pasa a ser `V23`.
+
+⚠️ **La columna es nullable y tiene que serlo**: los tres usos que no son clase no tienen
+disciplina, y ésa es justamente la información. `disciplina IS NULL` significa "no
+descuenta", que es un hecho del catálogo y no un dato faltante.
