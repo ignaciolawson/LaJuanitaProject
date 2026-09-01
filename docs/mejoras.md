@@ -1886,13 +1886,44 @@ ningún desarrollo de backend.**
 > esperar a tenerla completa para empezar —esa espera ya se descartó una vez al adelantar
 > la Fase 3— y conviene que cada punto quede cerrado por su cuenta.
 
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-01)
+
+**Lo que sigue, en orden, es esto:**
+
+1. **C3 · Egresos: "pagos a profesores" vs. "otros gastos".** Contestado
+   (`platform.md` §18 · P42), **sin migración**, sin empezar. Es corto: un filtro
+   por destino en `EgresoRepository.listar` —**en el servidor**, que la pantalla
+   pagina— más la marca en la fila. Es el mismo trabajo que B1 hizo en Pagos, y
+   conviene mirar cómo quedó allá antes de escribirlo.
+2. **C2 · Materiales por programa y por clase.** Contestado y **listo para
+   construir**: `platform.md` §18 · P41 tiene la forma completa y las dos cosas que
+   hay que decidir al escribir la migración. Sería **`V23`**.
+3. Después: desactivar el admin sembrado por `V3` (una migración propia), y el
+   deploy de octubre.
+
+**Lo que quedó cerrado el 2026-09-01**: los ocho puntos del grupo A, B1, y C1
+(`V22`). **Suites: 558 backend · 489 front · 212 + 56 SQL**, build y linters
+limpios. Nada quedó a medias en el árbol.
+
+⚠️ **Y las dos advertencias de método que costaron tiempo esta sesión**, las dos
+anotadas también en `CLAUDE.md`:
+
+- **`mvn compile` miente.** Dio verde sobre dos errores reales —un componente
+  borrado de un record y un método que no existe— y sólo `mvn clean compile` los
+  mostró. En este proyecto, un compile verde sin `clean` no prueba nada.
+- **Los contrastes se miden, no se estiman.** Tres valores que "se veían bien"
+  estaban debajo del piso de WCAG y uno que parecía el peor estaba bien. A ojo no
+  se distingue 2,0:1 de 4,5:1 sobre fondo claro.
+
+---
+
 ### El triage, con los grupos de §4
 
 | Grupo | Qué significa | Cuántos | Estado |
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **8** | ✅ cerrado el 2026-09-01 |
 | 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **1** | ✅ cerrado el 2026-09-01, salvo lo que se mudó a C |
-| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1 → 3** | C1 desbloqueado (§17); C2 y C3 los trajo B1 |
+| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1 → 3** | ✅ C1 hecho (`V22`); C2 y C3 los trajo B1, con sus preguntas ya contestadas |
 
 **Orden de ejecución: A → B → C.** Dentro de A, primero el Inicio (que ya tiene su causa
 encontrada) y después el bloque de tema y contraste, porque **cuatro de los puntos de
@@ -2279,17 +2310,51 @@ era ninguna de las dos que Ignacio nombró:
 > triados — son columnas que hay que agregar, o sea migraciones, o sea el grupo
 > que no se apura.
 >
-> - **C2 · Materiales por programa y por clase.** `material` cuelga de `profesor`
->   y de `alumno`, y no tiene `id_inscripcion` ni `id_reserva`. Antes de escribir
->   la migración hay una pregunta de negocio: **¿un material puede pertenecer a
->   dos cursos?** Si no, la columna va en `material`; si sí, es una tabla puente.
->   Y una segunda: al subir material para todo el curso, **¿qué curso**, si el
->   profesor le da dos disciplinas a la misma persona? Hoy la pantalla no lo
->   pregunta porque no tiene dónde guardarlo.
-> - **C3 · Egresos por rubro.** `egreso` tiene `concepto` en texto libre y
->   `destinatario`. Dividir sueldos de gastos necesita una columna de rubro, y
->   antes que la columna, **la lista de rubros, que la decide el cliente** — es el
->   tipo de dato que si se inventa, se usa mal para siempre.
+> - **C2 · Materiales por programa y por clase** — ✅ **contestado el 2026-09-01,
+>   listo para construir.** Ignacio: ***"el profe sube el material para su alumno
+>   de su programa de esa clase, punto"***, más un sí explícito a colgarlo de la
+>   clase concreta.
+>
+>   ⚠️ **Eso no es "agregar dos columnas": borra el material grupal tal como
+>   existe hoy.** Y lo que existe hoy es peor de lo que decía la lista — la
+>   consulta no filtra ni por profesor ni por curso, así que **un material "para
+>   todos" le llega a todos los alumnos del estudio**, incluidos los que nunca
+>   tuvieron a ese profesor. Las tres pantallas dicen tres cosas distintas y
+>   ninguna es ésa: *"Todos mis alumnos"* al subirlo, *"Para todos"* en la lista
+>   del profesor, *"para todo el curso"* en la del alumno. **Ninguna miente a
+>   propósito: nadie decidió nunca qué significaba.**
+>
+>   La forma que la respuesta pide es la misma que `V22` acaba de estrenar: **el
+>   profesor elige la clase y el sistema deriva el resto** —el programa sale de la
+>   inscripción del participante, los destinatarios de quiénes estuvieron—, en vez
+>   de un control que deja elegir mal.
+>
+>   ✅ **Y la última pregunta también está contestada** (2026-09-01): **sí, un
+>   material puede ser del curso entero**, sin clase puntual. O sea
+>   **`id_inscripcion` NOT NULL** (todo material pertenece a un programa) y
+>   **`id_reserva` NULLABLE** (puede ser de una clase o de todo el curso). Sin esa
+>   respuesta la migración quedaba escrita al revés, y una migración no se corrige
+>   editándola.
+>
+>   **Está listo para construir. El detalle completo, en `platform.md` §18 · P41**,
+>   incluidas las dos cosas que hay que decidir al escribirla: qué pasa con
+>   `es_grupal` —que cambia de significado— y **qué se hace con las filas que ya
+>   existen y no tienen programa** (el precedente es `V21` §2: no se inventan).
+> - **C3 · Egresos** — ✅ **contestado el 2026-09-01**: ***profesores vs. resto,
+>   ya***. **Y eso NO necesita migración**: sale de `egreso.id_usuario_destino`,
+>   que existe desde `V1` y hoy no lo usa ninguna pantalla. O sea que C3, tal como
+>   quedó contestado, **es grupo B y no C** — vuelve a la lista de lo que se hace
+>   sin tocar el esquema. Ver `platform.md` §18 · P42.
+>
+>   ⚠️ **Es lo próximo a construir y está sin empezar** (se cortó la sesión antes
+>   de escribir una línea; no hay nada a medias en el árbol). El corte es por si el
+>   egreso apunta a alguien con relación `profesor`, filtrado **en el servidor** —
+>   `EgresosPagina` pagina, así que filtrar lo ya traído mostraría un subconjunto
+>   como si fuera el total, que es el mismo defecto que B1 evitó en Pagos.
+>
+>   Los rubros de verdad (alquiler, servicios, equipamiento) quedan afuera por
+>   ahora: necesitan la lista confirmada con el cliente, y es el tipo de dato que
+>   si se inventa se usa mal para siempre.
 
 #### C1 · Que la clase se descuente sola
 
@@ -2323,3 +2388,53 @@ viven en `docs/requirements/platform.md` §17:
 4. **Lo que NO cambia y hay que verificar que siga andando**: cancelar la participación
    devuelve la clase (ya lo hace — es `reserva_participante` cancelada, que `V9` §5 no
    cuenta como consumida), y los tres usos que no son clase siguen sin descontar nada.
+
+---
+
+✅ **HECHO el 2026-09-01.** `V22` aplicada, los cuatro pasos construidos, y las
+suites en **558 backend / 489 front / 212 + 56 SQL**.
+
+**Lo que encontró, y es lo que hay que leer antes de tocar esto de nuevo:**
+
+⚠️ **1. "La inscripción vigente de esa disciplina" puede no ser una.** El índice
+único de `V1` es `WHERE estado = 'ACTIVA'` — **sólo ACTIVA**—, mientras que
+"vigente" en este sistema es `ACTIVA + PAUSADA`. O sea que alguien que cursó,
+pausó y se reinscribió tiene **dos vigentes de DJ**, y "la vigente" no sería una
+sino dos. **Elegir entre ellas en silencio es el mismo bug de C1 con otro
+disfraz**, así que el servidor busca sólo la ACTIVA: eso es lo único que el índice
+garantiza único.
+
+La consecuencia es una regla nueva y conviene que esté dicha: **un curso pausado
+no recibe clases.** Es la lectura estricta de P39 aplicada al otro estado —dar una
+clase contra un curso pausado lo reactiva de hecho, sin que nadie lo decida ni lo
+firme—, y tiene **su propio mensaje**: *"tiene el curso de DJ pausado… reactivale
+la inscripción en Inscripciones y volvé"*. Sin ese mensaje, a quien pausó un curso
+el sistema le diría "no tiene inscripción" y lo mandaría a cargar una segunda, que
+el índice único después le rechaza.
+
+⚠️ **2. Un caso viejo dejó de poder existir, y no se borró: se movió de capa.**
+`no_se_puede_descontarle_la_clase_a_la_inscripcion_de_otro` mandaba la inscripción
+ajena en el pedido y esperaba el 409 de `V1` §8.2. **Ahora el pedido no tiene
+dónde poner una inscripción**, así que por la API el error no se puede ni
+expresar. La regla de la base sigue siendo la que manda, y ahora se la ataca **con
+SQL crudo** — el mismo recurso que `InscripcionTest` usa con la firma de la baja de
+nivel. Borrar el caso hubiera dejado sin vigilancia un trigger que sigue vivo.
+
+⚠️ **3. Seis casos de `ReservaTest` empezaron a fallar, y todos por la razón
+correcta**: anotaban alumnos **sin inscripción** en clases de DJ, que es
+exactamente lo que P39 vino a prohibir. Es la señal de cuánto tapaba el `<select>`:
+seis pruebas del módulo de reservas daban por normal una clase que no descontaba de
+ningún lado.
+
+**Y una decisión de forma que conviene no deshacer:** el CHECK de `V22` va en los
+**dos** sentidos. Que un alquiler no descuente es lo obvio; la mitad que importa es
+que **una clase no pueda quedarse sin disciplina** — un `tipo_uso` nuevo con
+`es_clase = TRUE` y la columna en NULL no fallaría nunca y produciría clases
+fantasma. Si algún día existe una clase que no descuenta (una charla abierta, una
+clase de prueba), esto se revisa **a propósito** en otra migración: eso es lo que se
+quiere, una decisión explícita y no un NULL que alguien se olvidó.
+
+**En la pantalla**, el `<select>` "Descuenta de" ya no existe: en su lugar hay un
+dato que dice contra qué curso va a descontar, con cuántas clases le quedan — y
+cuando el alumno no tiene ese curso, **lo avisa antes de mandar el pedido**, con el
+mismo texto que devolvería el backend.

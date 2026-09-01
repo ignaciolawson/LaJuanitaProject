@@ -16,6 +16,8 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.alumno.AlumnoRepository;
+import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.TipoNotificacion;
@@ -98,6 +100,7 @@ public class ReservaService {
     private final ProfesorRepository profesores;
     private final UsuarioRepository usuarios;
     private final InscripcionRepository inscripciones;
+    private final AlumnoRepository alumnos;
 
     /**
      * Para la seña. Es el único service del que depende este, y no hay ciclo:
@@ -117,6 +120,7 @@ public class ReservaService {
             ProfesorRepository profesores,
             UsuarioRepository usuarios,
             InscripcionRepository inscripciones,
+            AlumnoRepository alumnos,
             PagoService pagos,
             NotificacionService avisos) {
         this.reservas = reservas;
@@ -126,6 +130,7 @@ public class ReservaService {
         this.profesores = profesores;
         this.usuarios = usuarios;
         this.inscripciones = inscripciones;
+        this.alumnos = alumnos;
         this.pagos = pagos;
         this.avisos = avisos;
     }
@@ -459,6 +464,20 @@ public class ReservaService {
      * son de la base y no distinguen por dónde se entró. Dos copias de este método
      * serían dos lugares donde olvidarse del pre-chequeo.
      */
+    /**
+     * Cómo se nombra cada curso en un mensaje de error.
+     *
+     * <p>El enum crudo no se le muestra a nadie: <i>"no tiene una inscripción
+     * vigente de PRODUCCION"</i> es la clase de mensaje que hace dudar de si el
+     * sistema está roto. Es la misma tabla que el front tiene en
+     * {@code NOMBRE_DE_DISCIPLINA}, y acá existe porque este texto lo escribe el
+     * servidor.
+     */
+    private static final Map<Disciplina, String> NOMBRE_DE_DISCIPLINA = Map.of(
+            Disciplina.DJ, "DJ",
+            Disciplina.PRODUCCION, "Producción",
+            Disciplina.MENTORIA, "Mentoría");
+
     private ReservaParticipante anotar(Reserva reserva, AltaParticipanteRequest solicitud) {
         Usuario persona = usuarios.findById(solicitud.idUsuario())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
@@ -476,10 +495,66 @@ public class ReservaService {
         ReservaParticipante participante = new ReservaParticipante();
         participante.setReserva(reserva);
         participante.setUsuario(persona);
-        participante.setInscripcion(buscarInscripcion(solicitud.idInscripcion()));
+        participante.setInscripcion(inscripcionQueDescuenta(reserva, persona));
         participante.setObservaciones(normalizar(solicitud.observaciones()));
 
         return participantes.save(participante);
+    }
+
+    /**
+     * De qué curso descuenta esta clase — <b>lo decide el tipo de uso de la
+     * reserva, no quien carga</b> (`mejoras.md` §12 · C1, `V22`).
+     *
+     * <p>Antes venía en el pedido, desde un {@code <select>} que ofrecía todas las
+     * inscripciones vigentes de la persona sin mirar para qué era la reserva. Con
+     * las palabras de Ignacio: <i>"uno podría reservar sala para producción y
+     * descontar de clase de DJ sin querer"</i>. Elegir mal ahí no falla nunca: la
+     * clase se dicta, la sala se ocupa, y la que baja es la del otro curso.
+     *
+     * <p>Los tres usos que no son clase —alquiler de cabina, grabación de set y
+     * mix & mastering— tienen {@code disciplina} en null y siguen sin descontar
+     * nada y sin exigir inscripción. <b>La opción "no descuenta" no desapareció:
+     * dejó de ser algo que alguien elige y pasó a ser lo que el catálogo
+     * determina.</b>
+     *
+     * <p>⚠️ <b>Sin inscripción activa se RECHAZA</b> (§17 · P39,
+     * <i>"que el admin lo inscriba, para eso está"</i>). Dejar entrar la clase
+     * "sin descontar" convertiría un olvido de carga en una clase fantasma: se
+     * dictó, ocupó la sala, y no le baja de ningún curso — y nadie se entera hasta
+     * que las cuentas no cierran. Es la misma idea con la que `V10` no deja crear
+     * una reserva sin su seña, del otro lado.
+     *
+     * <p>Los tres mensajes son distintos <b>porque las tres salidas son
+     * distintas</b>: inscribirlo, reactivarle el curso, o darle la relación de
+     * alumno. Un 409 que sólo diga "no se puede" manda a alguien a adivinar dónde
+     * está el problema.
+     */
+    private Inscripcion inscripcionQueDescuenta(Reserva reserva, Usuario persona) {
+        Disciplina disciplina = reserva.getTipoUso().getDisciplina();
+        if (disciplina == null) {
+            return null;
+        }
+
+        return inscripciones.activaDeLaPersona(persona.getId(), disciplina)
+                .orElseThrow(() -> new SolicitudInvalidaException(faltaLaInscripcion(persona, disciplina)));
+    }
+
+    /** Ver el ⚠️ de {@link #inscripcionQueDescuenta}: cada salida se nombra. */
+    private String faltaLaInscripcion(Usuario persona, Disciplina disciplina) {
+        String quien = persona.getNombre() + " " + persona.getApellido();
+        String curso = NOMBRE_DE_DISCIPLINA.getOrDefault(disciplina, disciplina.name());
+
+        if (!alumnos.existsByUsuarioId(persona.getId())) {
+            return quien + " no está cargado como alumno, así que no puede tener una inscripción de "
+                    + curso + ". Dale de alta la relación en Personas y después inscribilo.";
+        }
+        if (inscripciones.tienePausadaDeLaPersona(persona.getId(), disciplina)) {
+            return quien + " tiene el curso de " + curso
+                    + " pausado, así que esta clase no le descontaría de ningún lado."
+                    + " Reactivale la inscripción en Inscripciones y volvé.";
+        }
+        return quien + " no tiene una inscripción vigente de " + curso
+                + ". Cargala en Inscripciones y volvé.";
     }
 
     /**
@@ -592,14 +667,6 @@ public class ReservaService {
         }
         return profesores.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe el profesor " + id + "."));
-    }
-
-    private Inscripcion buscarInscripcion(Long id) {
-        if (id == null) {
-            return null;
-        }
-        return inscripciones.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la inscripción " + id + "."));
     }
 
     private String normalizar(String texto) {

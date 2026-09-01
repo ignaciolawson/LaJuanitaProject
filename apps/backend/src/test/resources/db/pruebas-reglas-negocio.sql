@@ -1615,6 +1615,54 @@ SELECT probar('189','el pago quedo con sus dos comprobantes, uno invalido','ANDA
 
 
 -- =============================================================================
+-- V22 - LA CLASE SE DESCUENTA SOLA
+--
+-- La regla que V22 agrega a la base es una sola: `tipo_uso` dice de que curso
+-- descuenta, y esa columna no puede contradecir a `es_clase`. El resto de C1
+-- vive en el servicio (elegir la inscripcion) y esta cubierto por ReservaTest.
+--
+-- El CHECK va en los dos sentidos, y el segundo es el que importa: una clase
+-- SIN disciplina no fallaria nunca -- se dictarian clases que no le bajan de
+-- ningun curso a nadie, la "clase fantasma" de §17 P39.
+-- =============================================================================
+
+SELECT probar('190','los tres tipos de clase quedaron con su disciplina','ANDA',
+ $q$SELECT 1 FROM tipo_uso
+    WHERE codigo IN ('CLASE_DJ','PRODUCCION_MUSICAL','MENTORIA')
+    GROUP BY 1 HAVING count(*)=3 AND count(*) FILTER (WHERE disciplina IS NOT NULL)=3$q$);
+
+SELECT probar('191','y los tres que no son clase quedaron sin ninguna','ANDA',
+ $q$SELECT 1 FROM tipo_uso
+    WHERE codigo IN ('MIX_MASTERING','ALQUILER_CABINA','GRABACION_SET')
+    GROUP BY 1 HAVING count(*)=3 AND count(*) FILTER (WHERE disciplina IS NULL)=3$q$);
+
+SELECT probar('192','cada clase apunta a la disciplina de su nombre','ANDA',
+ $q$SELECT 1 FROM tipo_uso
+    WHERE (codigo='CLASE_DJ'           AND disciplina='DJ')
+       OR (codigo='PRODUCCION_MUSICAL' AND disciplina='PRODUCCION')
+       OR (codigo='MENTORIA'           AND disciplina='MENTORIA')
+    GROUP BY 1 HAVING count(*)=3$q$);
+
+-- La mitad que evita el modo de falla silenciosa.
+SELECT probar('193','una clase no puede quedarse sin disciplina','FALLA',
+ $q$UPDATE tipo_uso SET disciplina=NULL WHERE codigo='CLASE_DJ'$q$);
+
+-- Y la otra: lo que no es clase no descuenta de ningun curso.
+SELECT probar('194','un alquiler de cabina no puede descontar de un curso','FALLA',
+ $q$UPDATE tipo_uso SET disciplina='DJ' WHERE codigo='ALQUILER_CABINA'$q$);
+
+SELECT probar('195','la disciplina tiene que ser una de las tres','FALLA',
+ $q$UPDATE tipo_uso SET disciplina='GUITARRA' WHERE codigo='CLASE_DJ'$q$);
+
+-- Volverlo clase y darle disciplina en el mismo UPDATE si es valido: el CHECK
+-- mira la fila resultante, no el orden de las asignaciones. Sin este caso, el
+-- de arriba no distingue "no se puede cambiar" de "no se puede nunca".
+SELECT probar('196','un uso puede pasar a ser clase con su disciplina','ANDA',
+ $q$UPDATE tipo_uso SET es_clase=TRUE, disciplina='MENTORIA'
+    WHERE codigo='ALQUILER_CABINA'$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

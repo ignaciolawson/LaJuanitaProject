@@ -1,6 +1,10 @@
 package com.lajuanita.backend.sala;
 
+import com.lajuanita.backend.inscripcion.Disciplina;
+
 import jakarta.persistence.Column;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,6 +43,29 @@ public class TipoUso {
 
     @Column(name = "es_clase", nullable = false)
     private boolean esClase;
+
+    /**
+     * De qué curso descuenta una clase de este tipo. {@code null} = no descuenta
+     * (`V22`, `mejoras.md` §12 · C1).
+     *
+     * <p><b>Es el dato del que sale la inscripción al anotar a alguien</b>, y por
+     * eso existe: la correspondencia tipo de uso → disciplina no vivía en ninguna
+     * capa —estaba implícita en los nombres y en la cabeza de quien carga—, así
+     * que el formulario ofrecía todas las inscripciones vigentes del alumno y se
+     * podía reservar una sala para producción descontando una clase de DJ.
+     *
+     * <p><b>Es catálogo y no un {@code Map} en Java</b>, por el precedente que
+     * escribió `V1` para la matriz sala×uso: la regla se cambia desde la base, sin
+     * migración ni deploy. Un {@code Map} sería una segunda definición.
+     *
+     * <p>El null no es un dato faltante: `V22` lo ata con un CHECK a
+     * {@link #esClase} en los dos sentidos, así que <b>no puede haber una clase
+     * sin disciplina</b> —serían clases que no le bajan de ningún curso a nadie—
+     * ni un uso que no es clase con una.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "disciplina", length = 20)
+    private Disciplina disciplina;
 
     /** Color con el que se pinta en el calendario. */
     @Column(name = "color", length = 20)

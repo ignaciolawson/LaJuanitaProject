@@ -106,6 +106,17 @@ export type TipoUsoResumen = {
   codigo: string
   nombre: string
   esClase: boolean
+  /**
+   * De qué curso descuenta una clase de este tipo. **Null = no descuenta**
+   * (`V22`, `mejoras.md` §12 · C1).
+   *
+   * ⚠️ **No es para decidir, es para mostrar.** Quien elige la inscripción contra
+   * la que se descuenta es el servidor; el `<select>` "Descuenta de" dejó de
+   * existir justamente porque dejaba elegir un curso que no tenía nada que ver
+   * con la reserva. Acá viaja para que el alta pueda *decir* contra qué va a
+   * descontar antes de mandar el pedido.
+   */
+  disciplina: Disciplina | null
   color: string | null
   activo: boolean
   /**

@@ -191,7 +191,7 @@ public class SolicitudReservaService {
                 solicitud.getComentario(),
                 null,
                 null,
-                List.of(new AltaParticipanteRequest(quienPidio.getId(), null, null)),
+                List.of(new AltaParticipanteRequest(quienPidio.getId(), null)),
                 // Quién paga lo pone el servidor: es el que pidió. Ver AprobacionRequest.
                 new AltaSenaRequest(quienPidio.getId(),
                         aprobacion.monto(),

@@ -2,6 +2,7 @@ package com.lajuanita.backend.inscripcion;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -144,4 +145,52 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
             """)
     List<Inscripcion> vigentesDeLosAlumnos(@Param("ids") Collection<Long> ids,
             @Param("vigentes") Collection<EstadoInscripcion> vigentes);
+
+    /**
+     * La inscripción contra la que se descuenta una clase de esta disciplina
+     * (`V22`, `mejoras.md` §12 · C1).
+     *
+     * <p>Entra por {@code id_usuario} y no por {@code id_alumno} porque un
+     * participante de una reserva es un {@code usuario}: es el mismo cruce que
+     * hace {@link #deLaPersona}.
+     *
+     * <p>⚠️ <b>Sólo {@code ACTIVA}, y no las VIGENTES.</b> Es la diferencia que
+     * hace que esto pueda devolver una sola: el índice único parcial de `V1` es
+     * {@code WHERE estado = 'ACTIVA'}, así que <b>una persona puede tener varias
+     * PAUSADAS de la misma disciplina</b> —cursó, pausó, se reinscribió— y
+     * "la vigente" no sería una sino tres. Elegir entre ellas en silencio es
+     * exactamente el bug que C1 vino a matar, con otro disfraz.
+     *
+     * <p>Que un curso pausado no reciba clases es la lectura estricta de §17 ·
+     * P39 (<i>"que el admin lo inscriba, para eso está"</i>) aplicada al otro
+     * estado: dar una clase contra un curso pausado lo reactiva de hecho, sin que
+     * nadie lo haya decidido ni firmado. El servicio lo rechaza con un mensaje
+     * propio que dice justamente eso.
+     */
+    @Query("""
+            SELECT i FROM Inscripcion i
+            JOIN i.alumno a
+            JOIN a.usuario u
+            WHERE u.id = :idUsuario
+              AND i.disciplina = :disciplina
+              AND i.estado = com.lajuanita.backend.inscripcion.EstadoInscripcion.ACTIVA
+            """)
+    Optional<Inscripcion> activaDeLaPersona(@Param("idUsuario") Long idUsuario,
+            @Param("disciplina") Disciplina disciplina);
+
+    /**
+     * ¿Tiene el curso pausado? Sólo para el mensaje de error: sin esto, a quien
+     * pausó un curso el sistema le diría "no tiene inscripción" y lo mandaría a
+     * cargar una segunda.
+     */
+    @Query("""
+            SELECT count(i) > 0 FROM Inscripcion i
+            JOIN i.alumno a
+            JOIN a.usuario u
+            WHERE u.id = :idUsuario
+              AND i.disciplina = :disciplina
+              AND i.estado = com.lajuanita.backend.inscripcion.EstadoInscripcion.PAUSADA
+            """)
+    boolean tienePausadaDeLaPersona(@Param("idUsuario") Long idUsuario,
+            @Param("disciplina") Disciplina disciplina);
 }

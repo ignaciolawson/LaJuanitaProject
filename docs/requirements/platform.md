@@ -1558,3 +1558,79 @@ Es **`V22`** — y con eso, desactivar el admin sembrado por `V3` pasa a ser `V2
 ⚠️ **La columna es nullable y tiene que serlo**: los tres usos que no son clase no tienen
 disciplina, y ésa es justamente la información. `disciplina IS NULL` significa "no
 descuenta", que es un hecho del catálogo y no un dato faltante.
+
+
+---
+
+## 18. Decisiones cerradas el 2026-09-01 (segunda tanda) — materiales y egresos
+
+> **Esta sección gana sobre §17 y todo lo anterior**, por lo mismo que aquélla:
+> es posterior. Salieron de la primera barrida (`mejoras.md` §12), del punto B1,
+> cuando construirlo mostró que **el dato para dividir no existía**.
+
+### ✅ P41 — Un material es de un alumno, de su programa y de esa clase
+
+*"Cuando un profesor sube material «para todos», ¿a quién le tiene que llegar?"*
+
+**Ignacio: *"el profe sube el material para su alumno de su programa de esa clase,
+punto"***, y a la repregunta de si además puede ser de todo el curso sin clase
+puntual: **sí, puede ser del curso entero.**
+
+⚠️ **Antes de implementar hay que entender qué hace el sistema HOY, porque no es
+lo que ninguna pantalla dice.** `material` cuelga de `profesor` y de `alumno`, y
+**no tiene ninguna columna de curso ni de clase** — verificado contra la base, no
+contra el modelo. Y `MaterialRepository.paraElAlumno` trae lo grupal **sin filtrar
+por profesor ni por curso**, con el comentario escrito: *"es material del estudio
+para quien curse"*. O sea:
+
+| Dónde | Qué dice |
+|---|---|
+| El profesor, al subirlo | *"Todos **mis alumnos**"* |
+| La lista del profesor | *"Para todos"* |
+| El alumno, al recibirlo | *"para todo **el curso**"* |
+| **La consulta** | **todos los alumnos del estudio, de cualquier profesor** |
+
+Tres textos distintos y una cuarta cosa en el código. **Ninguno miente a
+propósito: nadie decidió nunca qué significaba** — es la quinta vez que este
+proyecto encuentra una regla del negocio que ninguna capa enuncia, y la primera en
+que las capas además se contradicen entre sí.
+
+**La forma que la respuesta pide es la de `V22`**: el profesor elige **la clase** y
+el sistema deriva el resto —el programa sale de la inscripción del participante,
+los destinatarios de quiénes estuvieron—, en vez de un control que deja elegir mal.
+Es la misma corrección que C1, aplicada a otra pantalla.
+
+**Lo que eso implica para la migración** (será `V23` si es la próxima):
+
+- **`material.id_inscripcion` NOT NULL**: todo material pertenece a un programa.
+  Es la mitad que borra el "material del estudio" que existe hoy.
+- **`material.id_reserva` NULLABLE**: puede ser de una clase puntual o del curso
+  entero (la bibliografía, el programa de estudio). ⚠️ **Ésta es la respuesta a la
+  repregunta y es la que hace que la columna sea nullable en vez de NOT NULL**; sin
+  ella la migración quedaba escrita al revés, y una migración no se corrige
+  editándola.
+- **`es_grupal` cambia de significado**: pasa de "para todo el estudio" a "para
+  todos los de este programa/clase". Hay que decidir si sobrevive como columna o si
+  se deduce de `id_alumno IS NULL`, que es lo que ya hace el CHECK
+  `material_destinatario_definido`.
+- ⚠️ **Y hay que decidir qué se hace con las filas que ya existen**, que no tienen
+  programa. No se pueden inventar: el precedente es `V21` §2, que sacó cinco
+  columnas tipeadas a mano en vez de migrar valores que habrían fabricado un
+  respaldo inexistente, e imprimió un NOTICE con los ids afectados.
+
+### ✅ P42 — Los egresos se dividen en pagos a profesores y el resto
+
+*"¿Rubros de verdad, o alcanza con profesores vs. resto?"*
+
+**Ignacio: *profesores vs. resto, ya.***
+
+**Y eso NO necesita migración**: sale de `egreso.id_usuario_destino`, que existe
+desde `V1` —*"si el egreso es un pago a un profesor, queda vinculado"*— y que hoy
+**no lo usa ninguna pantalla**. Así que este punto, tal como quedó contestado,
+**es grupo B y no C**.
+
+**Los rubros de verdad quedan afuera por ahora** (alquiler, servicios,
+equipamiento, marketing). Necesitan la lista confirmada con el cliente antes de la
+columna: es el tipo de dato que si se inventa se usa mal para siempre, y una lista
+de rubros mal elegida se corrige con otra migración encima.
+

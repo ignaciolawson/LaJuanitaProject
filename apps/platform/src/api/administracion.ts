@@ -400,21 +400,21 @@ export function cambiarEstadoReserva(id: number, estado: EstadoReserva) {
 /** Espeja `AltaParticipanteRequest`. */
 export type AltaParticipante = {
   idUsuario: number
-  /** Sin esto la clase **no descuenta** del curso. */
-  idInscripcion?: number | null
   observaciones?: string
 }
 
 /**
  * Anotar a alguien en una clase.
  *
- * **`idInscripcion` es lo que hace que la clase se descuente del curso.** Va
- * vacío cuando la persona participa sin cursar —un alquiler de cabina—, y cuando
- * viene, la base exige que esa inscripción sea de esa misma persona: sin ese
- * control se podía anotar a Juan descontándole la clase a Ana.
+ * ⚠️ **Ya no lleva `idInscripcion`** (`mejoras.md` §12 · C1). De qué curso
+ * descuenta lo decide el servidor con la disciplina del tipo de uso de la
+ * reserva (`V22`): antes lo elegía un `<select>` que ofrecía todos los cursos
+ * vigentes del alumno sin mirar para qué era la reserva, así que se podía
+ * reservar sala para producción y descontar una clase de DJ sin querer.
  *
- * Acá también salta la regla de `V9` §5, "no consumir más clases que las
- * contratadas", con un mensaje que nombra la salida.
+ * Sin inscripción vigente de esa disciplina **el pedido se rechaza** (§17 · P39),
+ * con un mensaje que dice dónde ir a cargarla. Acá también salta la regla de
+ * `V9` §5, "no consumir más clases que las contratadas".
  */
 export function agregarParticipante(idReserva: number, datos: AltaParticipante) {
   return pedir<ParticipanteResumen>(`/api/reservas/${idReserva}/participantes`, {

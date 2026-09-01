@@ -98,7 +98,7 @@ const TIPOS: TipoUsoResumen[] = [
     idTipoUso: 1,
     codigo: 'CLASE_DJ',
     nombre: 'Clase de DJ',
-    esClase: true,
+    esClase: true, disciplina: 'DJ',
     color: '#e63946',
     activo: true,
     // Una clase la arma administración, nunca el portal (P17).
@@ -405,22 +405,55 @@ describe('anotar a alguien en una clase', () => {
     expect(idReserva).toBe(1)
     // El usuario, no el alumno: `usuario` es la identidad raíz.
     expect(cuerpo.idUsuario).toBe(30)
-    // Con un solo curso vigente viene puesto: no hay nada que elegir.
-    expect(cuerpo.idInscripcion).toBe(7)
+    // ⚠️ Y el pedido NO lleva inscripción (§12 · C1): de qué curso descuenta lo
+    // decide el servidor con la disciplina del tipo de uso. Mandarla otra vez
+    // sería devolverle a la pantalla la decisión que se le sacó.
+    expect('idInscripcion' in cuerpo).toBe(false)
   })
 
-  /** Un alquiler de cabina no descuenta de ningún curso, y eso es válido. */
-  it('se puede anotar a alguien sin descontar clases', async () => {
+  /**
+   * ⚠️ **El bug que dio origen a C1**, con las palabras de Ignacio: *"uno podría
+   * reservar sala para producción y descontar de clase de DJ sin querer"*.
+   *
+   * La pantalla ya no deja elegir: muestra contra qué curso va a descontar, que
+   * es el de la disciplina del tipo de uso de la reserva — acá, DJ— y no el otro
+   * curso vigente del alumno.
+   */
+  it('dice contra qué curso descuenta, y no lo deja elegir', async () => {
     const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
-    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([
+        { idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 },
+        { idInscripcion: 9, disciplina: 'PRODUCCION', clasesRestantes: 12 },
+      ]) as never,
+    )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
     await elegir(user, 'Quién', '3')
-    await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
-    await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
-    expect(vi.mocked(agregarParticipante).mock.calls[0][1].idInscripcion).toBeNull()
+    // El curso de la reserva, con lo que le queda.
+    expect(await screen.findByText(/le quedan 5/)).toBeDefined()
+    // Y el otro curso no se ofrece: no hay ningún control que lo elija.
+    expect(screen.queryByLabelText('Descuenta de')).toBeNull()
+    expect(screen.queryByRole('option', { name: /Producción/ })).toBeNull()
+  })
+
+  /**
+   * El caso que el backend rechaza (§17 · P39), avisado antes de mandar el
+   * pedido: sin inscripción vigente de esa disciplina no se puede anotar, y el
+   * mensaje dice dónde ir a cargarla.
+   */
+  it('avisa cuando el alumno no tiene el curso de esa clase', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 9, disciplina: 'PRODUCCION', clasesRestantes: 12 }]) as never,
+    )
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await elegir(user, 'Quién', '3')
+
+    expect(await screen.findByText(/No tiene una inscripción vigente de DJ/)).toBeDefined()
+    expect(screen.getByText(/Cargala en Inscripciones/)).toBeDefined()
   })
 
   /**
@@ -542,7 +575,7 @@ describe('el alta carga la clase junto con su alumno', () => {
     idTipoUso: 9,
     codigo: 'GRABACION_SET',
     nombre: 'Grabación de set',
-    esClase: false,
+    esClase: false, disciplina: null,
     color: '#457b9d',
     activo: true,
     solicitablePorUsuario: true,
@@ -552,7 +585,7 @@ describe('el alta carga la clase junto con su alumno', () => {
     idTipoUso: 4,
     codigo: 'MIX_MASTERING',
     nombre: 'Mix & Mastering',
-    esClase: false,
+    esClase: false, disciplina: null,
     // No es clase y aun así no se pide desde el portal: tiene su propio
     // circuito. Es la razón por la que la marca no es el negado de `esClase`.
     solicitablePorUsuario: false,
@@ -593,23 +626,23 @@ describe('el alta carga la clase junto con su alumno', () => {
     return user
   }
 
-  it('una clase manda al alumno y su inscripción en el mismo pedido', async () => {
+  it('una clase manda a su alumno en el mismo pedido', async () => {
     const user = await abrirAlta()
 
     await elegir(user, 'Para qué', '1')
     await elegir(user, 'Quién', '3')
-    // Con un solo curso vigente viene puesto; sin esperarlo, el click puede salir
-    // antes de que llegue y la clase no descontaría de nada.
-    await waitFor(() =>
-      expect(screen.getByLabelText<HTMLSelectElement>('Descuenta de').value).toBe('7'),
-    )
+    // Se espera a que la pantalla resuelva contra qué descuenta: es lo que dice
+    // que ya llegaron las inscripciones del alumno. Antes esta espera miraba el
+    // valor del `<select>` "Descuenta de", que ya no existe (§12 · C1).
+    await waitFor(() => expect(screen.getByText(/le quedan 5/)).toBeDefined())
 
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 
     await waitFor(() => expect(altaReserva).toHaveBeenCalled())
     const cuerpo = vi.mocked(altaReserva).mock.calls[0][0]
-    // El usuario, no el alumno: `usuario` es la identidad raíz.
-    expect(cuerpo.participantes).toEqual([{ idUsuario: 30, idInscripcion: 7 }])
+    // El usuario, no el alumno: `usuario` es la identidad raíz. Y sin
+    // inscripción: la elige el servidor con la disciplina del tipo de uso.
+    expect(cuerpo.participantes).toEqual([{ idUsuario: 30 }])
   })
 
   /**

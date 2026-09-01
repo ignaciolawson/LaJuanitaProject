@@ -327,6 +327,7 @@ export function CalendarioPagina() {
       {elegida && (
         <Detalle
           reserva={elegida}
+          tipos={tipos}
           puedeEscribir={puedeEscribir}
           onCerrar={() => setElegida(null)}
           onEditar={() => setEditando(elegida)}
@@ -494,6 +495,7 @@ function Continuacion({ reserva, onElegir }: { reserva: ReservaResumen; onElegir
 
 function Detalle({
   reserva,
+  tipos,
   puedeEscribir,
   onCerrar,
   onEditar,
@@ -502,6 +504,8 @@ function Detalle({
   onAnotado,
 }: {
   reserva: ReservaResumen
+  /** Para saber de qué curso descuenta esta clase (`V22`). */
+  tipos: TipoUsoResumen[]
   puedeEscribir: boolean
   onCerrar: () => void
   onEditar: () => void
@@ -569,7 +573,7 @@ function Detalle({
       )}
 
       {puedeEscribir && reserva.estado !== 'CANCELADA' && (
-        <FormularioParticipante reserva={reserva} onAnotado={onAnotado} />
+        <FormularioParticipante reserva={reserva} tipos={tipos} onAnotado={onAnotado} />
       )}
 
       {puedeEscribir && reserva.estado !== 'CANCELADA' && (
@@ -599,11 +603,10 @@ function Detalle({
  * parámetro y no un `useEffect` suelto: son ~80 alumnos que no hacen falta hasta
  * que el formulario esté abierto, ni nunca si lo que se carga es un alquiler.
  */
-function useParticipante(activo: boolean) {
+function useParticipante(activo: boolean, disciplina: string | null) {
   const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
   const [cursos, setCursos] = useState<InscripcionResumen[]>([])
   const [idAlumno, setIdAlumno] = useState('')
-  const [idInscripcion, setIdInscripcion] = useState('')
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null)
 
   useEffect(() => {
@@ -618,45 +621,61 @@ function useParticipante(activo: boolean) {
   useEffect(() => {
     if (!idAlumno) {
       setCursos([])
-      setIdInscripcion('')
       return
     }
     listarInscripciones({ idAlumno: Number(idAlumno), estado: 'ACTIVA' })
-      .then((r) => {
-        setCursos(r.contenido)
-        // Con un solo curso no hay nada que elegir.
-        setIdInscripcion(r.contenido.length === 1 ? String(r.contenido[0].idInscripcion) : '')
-      })
+      .then((r) => setCursos(r.contenido))
       .catch(() => setErrorDeCarga('No se pudieron cargar las inscripciones.'))
   }, [idAlumno])
 
   const alumno = alumnos.find((a) => String(a.idAlumno) === idAlumno)
+
+  /**
+   * Contra qué curso va a descontar esta clase — **como dato, no como control**
+   * (`mejoras.md` §12 · C1).
+   *
+   * ⚠️ **Esto NO decide nada: lo decide el servidor**, con la disciplina del tipo
+   * de uso de la reserva (`V22`). Acá se repite la misma cuenta para poder
+   * mostrarla antes de mandar el pedido, que es lo que evita que alguien cargue
+   * una clase y se coma un 400. Si las dos discreparan, manda el backend.
+   *
+   * `null` cuando el uso no es una clase —un alquiler no descuenta— y también
+   * cuando el alumno no tiene ese curso, que es el caso que la pantalla avisa.
+   */
+  const cursoQueDescuenta =
+    disciplina === null ? null : (cursos.find((c) => c.disciplina === disciplina) ?? null)
 
   return {
     alumnos,
     cursos,
     idAlumno,
     setIdAlumno,
-    idInscripcion,
-    setIdInscripcion,
+    disciplina,
+    cursoQueDescuenta,
     errorDeCarga,
     limpiar() {
       setIdAlumno('')
-      setIdInscripcion('')
     },
     /** Listo para el cuerpo del pedido, o null si todavía no eligió a nadie. */
-    elegido: alumno
-      ? {
-          idUsuario: alumno.idUsuario,
-          idInscripcion: idInscripcion ? Number(idInscripcion) : null,
-        }
-      : null,
+    elegido: alumno ? { idUsuario: alumno.idUsuario } : null,
   }
 }
 
 /**
- * Los dos selects, sueltos: los dos formularios que los usan tienen su propia
- * grilla de dos columnas, así que esto es un fragmento y no un bloque.
+ * El selector de alumno y **contra qué curso descuenta**, sueltos: los dos
+ * formularios que los usan tienen su propia grilla de dos columnas, así que esto
+ * es un fragmento y no un bloque.
+ *
+ * ⚠️ **Antes eran dos selects y el segundo era el bug** (`mejoras.md` §12 · C1).
+ * "Descuenta de" ofrecía TODAS las inscripciones vigentes del alumno sin mirar
+ * para qué era la reserva, así que —con las palabras de Ignacio— *"uno podría
+ * reservar sala para producción y descontar de clase de DJ sin querer"*. Y
+ * elegir mal ahí **no falla nunca**: la clase se dicta, la sala se ocupa, y la
+ * que baja es la del otro curso.
+ *
+ * Ahora el curso **se muestra, no se elige**. Es la misma forma que el resto del
+ * sistema le da a lo que el servidor decide: el dato a la vista, sin un control
+ * que sugiera que hay algo que resolver.
  */
 function CamposDeParticipante({
   selector,
@@ -681,21 +700,52 @@ function CamposDeParticipante({
         ))}
       </CampoSelect>
 
-      <CampoSelect
-        etiqueta="Descuenta de"
-        value={selector.idInscripcion}
-        onChange={(e) => selector.setIdInscripcion(e.target.value)}
-      >
-        {/* El vacío es una opción válida y no un "elegí algo": una clase que
-            no descuenta de ningún curso es el alquiler de cabina. */}
-        <option value="">No descuenta clases</option>
-        {selector.cursos.map((i) => (
-          <option key={i.idInscripcion} value={i.idInscripcion}>
-            {NOMBRE_DE_DISCIPLINA[i.disciplina]} — le quedan {i.clasesRestantes}
-          </option>
-        ))}
-      </CampoSelect>
+      <DescuentaDe selector={selector} />
     </>
+  )
+}
+
+/**
+ * Contra qué curso descuenta esta clase.
+ *
+ * **Los cuatro estados se dicen, y ninguno se esconde.** Un hueco donde antes
+ * había un control se lee como que la pantalla perdió algo; y sobre todo, el
+ * tercer caso —el alumno no tiene ese curso— es un pedido que el backend va a
+ * rechazar, así que decirlo acá es la diferencia entre enterarse antes o después
+ * de completar el formulario.
+ */
+function DescuentaDe({ selector }: { selector: ReturnType<typeof useParticipante> }) {
+  const { disciplina, idAlumno, cursoQueDescuenta } = selector
+
+  return (
+    <div>
+      <span className="t-mono text-tenue">Descuenta de</span>
+      <div className="mt-1.5 py-2 text-sm">
+        {disciplina === null ? (
+          // Un alquiler de cabina, una grabación, un mastering. Antes esto era la
+          // opción vacía de un desplegable; ahora es lo que el catálogo dice.
+          <span className="text-tenue">No descuenta clases</span>
+        ) : !idAlumno ? (
+          <span className="text-apagado">Elegí un alumno</span>
+        ) : cursoQueDescuenta ? (
+          <>
+            {NOMBRE_DE_DISCIPLINA[cursoQueDescuenta.disciplina]}
+            <span className="text-tenue">
+              {' '}
+              — le quedan {cursoQueDescuenta.clasesRestantes}
+            </span>
+          </>
+        ) : (
+          // ⚠️ El mensaje dice DÓNDE ir a arreglarlo, igual que el del backend
+          // (§17 · P39): un "no se puede" a secas manda a adivinar.
+          <span className="text-acento">
+            No tiene una inscripción vigente de{' '}
+            {NOMBRE_DE_DISCIPLINA[disciplina as keyof typeof NOMBRE_DE_DISCIPLINA] ?? disciplina}.
+            Cargala en Inscripciones.
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -711,23 +761,26 @@ function CamposDeParticipante({
  * un alumno que se suma a una clase grupal la semana siguiente, o una
  * recuperación, entran por acá.
  *
- * <p><b>La inscripción es lo que hace que la clase descuente del curso.</b> Va
- * vacía cuando la persona viene sin cursar —un alquiler de cabina— y por eso se
- * elige aparte del alumno en vez de deducirse: alguien con dos cursos activos
- * tiene dos, y adivinar cuál descontar es adivinar mal la mitad de las veces.
- * Cuando tiene una sola, viene puesta.
+ * <p><b>De qué curso descuenta lo decide el tipo de uso de la reserva</b>
+ * (`mejoras.md` §12 · C1, `V22`), y por eso este formulario necesita el
+ * catálogo: la reserva trae su {@code idTipoUso} y la disciplina vive ahí. Antes
+ * se elegía con un {@code <select>} que ofrecía todos los cursos vigentes del
+ * alumno sin mirar para qué era la reserva.
  */
 function FormularioParticipante({
   reserva,
+  tipos,
   onAnotado,
 }: {
   reserva: ReservaResumen
+  tipos: TipoUsoResumen[]
   onAnotado: () => void
 }) {
   const [abierto, setAbierto] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const selector = useParticipante(abierto)
+  const tipo = tipos.find((t) => t.idTipoUso === reserva.idTipoUso)
+  const selector = useParticipante(abierto, tipo?.disciplina ?? null)
 
   async function anotar(evento: React.FormEvent) {
     evento.preventDefault()
@@ -847,7 +900,8 @@ function FormularioReserva({
    * plata llega por `pago.id_reserva`.
    */
   const pideParticipante = !reserva && (tipo?.esClase ?? false)
-  const participante = useParticipante(pideParticipante)
+  // De qué curso descuenta lo dice el catálogo, no quien carga (`V22`).
+  const participante = useParticipante(pideParticipante, tipo?.disciplina ?? null)
 
   /**
    * El otro camino del dinero de `V10`, y el espejo exacto del de arriba.

@@ -62,16 +62,33 @@
 > cierra, es un modo de trabajo** — no hay que esperar a tenerla completa para
 > empezar, y cada punto conviene cerrarlo por su cuenta.
 >
-> **Ya cerrado de esa lista**: el mojibake (era de una sola pantalla, `mejoras.md`
-> §12 · A7) y la causa de los rectángulos superpuestos del Inicio (§12 · A1).
+> **⚠️ ESTADO AL 2026-09-01, cerrado el mismo día que se abrió: los ocho puntos
+> del grupo A, el único de B, y C1.** Suites en **558 backend · 489 front · 212 +
+> 56 SQL**; build y linters limpios. La migración `V22` es de esa barrida.
 >
-> **Y sus dos preguntas de negocio están contestadas**: `platform.md` §17 — sin
-> inscripción vigente el alta se rechaza (P39) y la mentoría descuenta igual que
-> las otras dos (P40).
+> **Lo que queda son dos puntos, los dos contestados y ninguno empezado**, y el
+> orden está en el bloque *"DÓNDE RETOMAR"* con el que abre `mejoras.md` §12:
+>
+> 1. **C3 · egresos, pagos a profesores vs. otros gastos** — **no toca el esquema**
+>    (sale de `egreso.id_usuario_destino`, que existe desde `V1` y no usa ninguna
+>    pantalla). Es lo próximo y es corto.
+> 2. **C2 · materiales por programa y por clase** — sería **`V23`**.
+>
+> **Las preguntas de negocio de los tres están contestadas**: `platform.md` §17
+> (P39 y P40, el descuento automático) y **§18 (P41 y P42, materiales y egresos,
+> nueva y posterior)**.
+>
+> ⚠️ **Y B1 dejó dicho algo que hay que leer antes de tocar materiales**: `material`
+> **no cuelga de la inscripción ni de la clase** —esta lista afirmaba que sí, y era
+> falso—, y hoy un material *"para todos"* le llega a **todos los alumnos del
+> estudio**, con tres pantallas diciendo tres cosas distintas y ninguna de ellas
+> ésa. El detalle, en §18 · P41.
 >
 > Lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config del
 > reverse proxy), `CORS_ORIGENES`, y el deploy con su migración para desactivar el
-> admin sembrado — que ahora es **`V23`**, porque `V22` es `tipo_uso.disciplina`.
+> admin sembrado — que va **detrás de lo que tome C2**: `V22` ya se usó para
+> `tipo_uso.disciplina` (aplicada el 2026-09-01) y `V23` está apalabrada para los
+> materiales.
 
 ---
 
@@ -164,7 +181,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva — **`V23`+, porque `V22` es `tipo_uso.disciplina` (`mejoras.md` §12 · C1), `V19` ya se usó** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes y **`V21`** para los comprobantes.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva, **y detrás de lo que tome C2**. Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes y **`V22`** para `tipo_uso.disciplina` (`mejoras.md` §12 · C1, aplicada el 2026-09-01). **`V23`** está apalabrada para los materiales.
 
 ---
 

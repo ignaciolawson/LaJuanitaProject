@@ -104,6 +104,7 @@ class ReservaTest {
     private Long claseDj;
     private Long grabacion;
     private Long alquiler;
+    private Long produccion;
 
     @BeforeEach
     void catalogo() {
@@ -111,6 +112,7 @@ class ReservaTest {
         sala2 = idDeSala("Sala 2");
         cabina = idDeSala("Cabina de grabación");
         claseDj = idDeTipo("CLASE_DJ");
+        produccion = idDeTipo("PRODUCCION_MUSICAL");
         grabacion = idDeTipo("GRABACION_SET");
         alquiler = idDeTipo("ALQUILER_CABINA");
     }
@@ -247,14 +249,15 @@ class ReservaTest {
     @Test
     void el_mismo_alumno_no_puede_estar_en_dos_clases_solapadas() throws Exception {
         Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8);
         long una = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
         long otra = idDe(mvc.perform(alta(sala2, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
 
-        anotar(una, alumno.getUsuario().getId(), null).andExpect(status().isCreated());
+        anotar(una, alumno.getUsuario().getId()).andExpect(status().isCreated());
 
-        anotar(otra, alumno.getUsuario().getId(), null)
+        anotar(otra, alumno.getUsuario().getId())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
                         org.hamcrest.Matchers.containsString("ya esta en otra sala en ese horario")));
@@ -265,29 +268,70 @@ class ReservaTest {
     @Test
     void anotar_a_alguien_dos_veces_en_la_misma_clase_se_rechaza() throws Exception {
         Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8);
         long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
 
-        anotar(id, alumno.getUsuario().getId(), null).andExpect(status().isCreated());
-        anotar(id, alumno.getUsuario().getId(), null)
+        anotar(id, alumno.getUsuario().getId()).andExpect(status().isCreated());
+        anotar(id, alumno.getUsuario().getId())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errores.idUsuario").isNotEmpty());
     }
 
-    /** La inscripción que se descuenta tiene que ser del que asiste (V1 §8.2). */
+    /**
+     * <b>Descontarle la clase a la inscripción de otro dejó de ser posible por la
+     * API</b> (`mejoras.md` §12 · C1).
+     *
+     * <p>Antes este caso mandaba la inscripción ajena en el pedido y esperaba el
+     * 409 de `V1` §8.2. Ahora <b>el pedido no tiene dónde poner una inscripción</b>:
+     * el servidor busca la de esa persona, en esa disciplina. La regla de la base
+     * sigue siendo la que manda —y el caso de abajo lo prueba contra el trigger—,
+     * pero por acá ya no hay forma de expresar el error.
+     *
+     * <p>Lo que se comprueba entonces es lo que sí puede pasar hoy: que la clase se
+     * le descuente a <b>su</b> inscripción y no a la del otro, aunque los dos
+     * tengan una del mismo curso.
+     */
     @Test
-    void no_se_puede_descontarle_la_clase_a_la_inscripcion_de_otro() throws Exception {
+    void la_clase_se_descuenta_de_la_inscripcion_del_que_asiste() throws Exception {
         Alumno unAlumno = alumnoNuevo();
         Alumno otroAlumno = alumnoNuevo();
+        Inscripcion suya = inscripcionDe(unAlumno, 8);
         Inscripcion deOtro = inscripcionDe(otroAlumno, 8);
 
         long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
 
-        anotar(id, unAlumno.getUsuario().getId(), deOtro.getId())
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("no pertenece al usuario")));
+        anotar(id, unAlumno.getUsuario().getId())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idInscripcion").value(suya.getId().intValue()));
+
+        assertThat(deOtro.getId()).isNotEqualTo(suya.getId());
+    }
+
+    /**
+     * <b>Y el trigger de `V1` §8.2 sigue siendo el que sostiene la regla.</b>
+     *
+     * <p>Se la ataca con SQL crudo justamente porque la API ya no puede: si el día
+     * de mañana alguien vuelve a dejar elegir la inscripción, esto es lo que
+     * queda para rechazarlo. Es el mismo recurso que usa {@code InscripcionTest}
+     * con la firma de la baja de nivel.
+     */
+    @Test
+    void el_trigger_sigue_rechazando_la_inscripcion_de_otro() throws Exception {
+        Alumno unAlumno = alumnoNuevo();
+        Alumno otroAlumno = alumnoNuevo();
+        inscripcionDe(unAlumno, 8);
+        Inscripcion deOtro = inscripcionDe(otroAlumno, 8);
+
+        long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated()));
+        anotar(id, unAlumno.getUsuario().getId()).andExpect(status().isCreated());
+
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE reserva_participante SET id_inscripcion = ? WHERE id_reserva = ?",
+                deOtro.getId(), id))
+                .hasMessageContaining("no pertenece al usuario");
     }
 
     /**
@@ -302,7 +346,7 @@ class ReservaTest {
         long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
 
-        anotar(id, alumno.getUsuario().getId(), inscripcion.getId())
+        anotar(id, alumno.getUsuario().getId())
                 .andExpect(status().isCreated());
 
         mvc.perform(get("/api/inscripciones/" + inscripcion.getId())
@@ -320,13 +364,13 @@ class ReservaTest {
 
         long primera = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
-        anotar(primera, alumno.getUsuario().getId(), inscripcion.getId())
+        anotar(primera, alumno.getUsuario().getId())
                 .andExpect(status().isCreated());
 
         long segunda = idDe(mvc.perform(alta(sala1, claseDj, LUNES.plusDays(7), "10:00", "11:30"))
                 .andExpect(status().isCreated()));
 
-        anotar(segunda, alumno.getUsuario().getId(), inscripcion.getId())
+        anotar(segunda, alumno.getUsuario().getId())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
                         org.hamcrest.Matchers.containsString("ampliar la inscripcion")));
@@ -349,7 +393,7 @@ class ReservaTest {
         Inscripcion inscripcion = inscripcionDe(alumno, 8);
 
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                participante(alumno.getUsuario().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.reserva.participantes", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$.reserva.participantes[0].idUsuario")
@@ -371,10 +415,12 @@ class ReservaTest {
     void una_clase_grupal_se_carga_con_sus_dos_alumnos_de_una() throws Exception {
         Alumno uno = alumnoNuevo();
         Alumno otro = alumnoNuevo();
+        inscripcionDe(uno, 8);
+        inscripcionDe(otro, 8);
 
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(uno.getUsuario().getId(), null) + ","
-                        + participante(otro.getUsuario().getId(), null)))
+                participante(uno.getUsuario().getId()) + ","
+                        + participante(otro.getUsuario().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.reserva.participantes", org.hamcrest.Matchers.hasSize(2)));
     }
@@ -400,7 +446,7 @@ class ReservaTest {
     @Test
     void un_participante_sin_persona_es_un_400_y_no_un_error_de_la_base() throws Exception {
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(null, null)))
+                participante(null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errores").isNotEmpty());
     }
@@ -413,12 +459,118 @@ class ReservaTest {
     @Test
     void la_misma_persona_dos_veces_en_el_alta_se_rechaza() throws Exception {
         Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8);
         long persona = alumno.getUsuario().getId();
 
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(persona, null) + "," + participante(persona, null)))
+                participante(persona) + "," + participante(persona)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errores.idUsuario").isNotEmpty());
+    }
+
+    // == La clase se descuenta sola (`mejoras.md` §12 · C1, `V22`) ============
+    //
+    // El bug, con las palabras de Ignacio: *"uno podría reservar sala para
+    // producción y descontar de clase de DJ sin querer"*. Elegir mal ahí NO FALLA
+    // NUNCA — la clase se dicta, la sala se ocupa, y la que baja es la del otro
+    // curso—, que es exactamente por qué esto necesita casos y no una validación.
+
+    /**
+     * <b>El caso que da nombre al punto.</b> El alumno tiene los dos cursos; la
+     * reserva es de producción, así que descuenta de producción — antes, el
+     * {@code <select>} dejaba elegir el de DJ y nadie se enteraba.
+     */
+    @Test
+    void la_clase_descuenta_del_curso_que_dice_el_tipo_de_uso() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8, Disciplina.DJ);
+        Inscripcion deProduccion = inscripcionDe(alumno, 16, Disciplina.PRODUCCION);
+
+        long id = idDe(mvc.perform(alta(sala1, produccion, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated()));
+
+        anotar(id, alumno.getUsuario().getId())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idInscripcion").value(deProduccion.getId().intValue()));
+    }
+
+    /**
+     * §17 · P39: <i>"que el admin lo inscriba, para eso está"</i>.
+     *
+     * <p>Dejar entrar la clase "sin descontar" convertiría un olvido de carga en
+     * una clase fantasma: se dictó, ocupó la sala y no le baja de ningún curso.
+     * Nadie se entera hasta que las cuentas no cierran.
+     */
+    @Test
+    void sin_inscripcion_de_esa_disciplina_el_alta_se_rechaza() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8, Disciplina.DJ);
+
+        long id = idDe(mvc.perform(alta(sala1, produccion, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated()));
+
+        anotar(id, alumno.getUsuario().getId())
+                .andExpect(status().isBadRequest())
+                // ⚠️ El mensaje dice DÓNDE ir a arreglarlo. Un "no se puede" a
+                // secas manda a alguien a adivinar cuál es el problema.
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("Producción")))
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("Inscripciones")));
+    }
+
+    /**
+     * Un curso pausado tiene su propio mensaje, y no es un lujo: sin él, a quien
+     * pausó un curso el sistema le diría "no tiene inscripción" y lo mandaría a
+     * cargar una segunda — que el índice único de `V1` después le rechaza.
+     */
+    @Test
+    void con_el_curso_pausado_el_mensaje_dice_que_hay_que_reactivarlo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, 8, Disciplina.DJ);
+        curso.setEstado(com.lajuanita.backend.inscripcion.EstadoInscripcion.PAUSADA);
+        inscripciones.save(curso);
+
+        long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated()));
+
+        anotar(id, alumno.getUsuario().getId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("pausado")));
+    }
+
+    /** Quien no es alumno tiene la tercera salida: darle la relación primero. */
+    @Test
+    void a_quien_no_es_alumno_el_mensaje_lo_manda_a_personas() throws Exception {
+        Usuario cualquiera = crear(Rol.USUARIO);
+
+        long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
+                .andExpect(status().isCreated()));
+
+        anotar(id, cualquiera.getId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("no está cargado como alumno")));
+    }
+
+    /**
+     * <b>Lo que NO cambia</b> (§17): los tres usos que no son clase siguen sin
+     * descontar nada y sin exigir inscripción. La opción "no descuenta" no
+     * desapareció del sistema — dejó de ser algo que alguien elige y pasó a ser lo
+     * que el catálogo determina.
+     */
+    @Test
+    void un_alquiler_de_cabina_no_descuenta_ni_exige_inscripcion() throws Exception {
+        Usuario cualquiera = crear(Rol.USUARIO);
+
+        long id = idDe(mvc.perform(altaConSena(sala1, alquiler, LUNES, "10:00", "11:30",
+                cualquiera.getId()))
+                .andExpect(status().isCreated()));
+
+        anotar(id, cualquiera.getId())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idInscripcion").doesNotExist());
     }
 
     // == La seña (V10) ========================================================
@@ -449,7 +601,7 @@ class ReservaTest {
         Inscripcion inscripcion = inscripcionDe(alumno, 8);
 
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                participante(alumno.getUsuario().getId())))
                 .andExpect(status().isCreated());
 
         em.flush();
@@ -669,7 +821,7 @@ class ReservaTest {
         Alumno alumno = alumnoNuevo();
         Inscripcion inscripcion = inscripcionDe(alumno, 8);
         long id = idDe(mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
-                participante(alumno.getUsuario().getId(), inscripcion.getId())))
+                participante(alumno.getUsuario().getId())))
                 .andExpect(status().isCreated()));
 
         mvc.perform(patch("/api/reservas/" + id + "/estado?estado=CANCELADA")
@@ -719,10 +871,11 @@ class ReservaTest {
     void tomar_lista_queda_firmado() throws Exception {
         Usuario staff = crear(Rol.STAFF);
         Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8);
         long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
         long participacion = idParticipacionDe(
-                anotar(id, alumno.getUsuario().getId(), null).andExpect(status().isCreated()));
+                anotar(id, alumno.getUsuario().getId()).andExpect(status().isCreated()));
 
         mvc.perform(patch("/api/reservas/participantes/" + participacion + "?estado=PRESENTE")
                 .header("Authorization", credencialPara(staff)))
@@ -830,9 +983,10 @@ class ReservaTest {
     @Test
     void la_agenda_trae_las_reservas_del_rango_con_sus_participantes() throws Exception {
         Alumno alumno = alumnoNuevo();
+        inscripcionDe(alumno, 8);
         long id = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
-        anotar(id, alumno.getUsuario().getId(), null).andExpect(status().isCreated());
+        anotar(id, alumno.getUsuario().getId()).andExpect(status().isCreated());
 
         mvc.perform(get("/api/reservas?desde=" + LUNES + "&hasta=" + LUNES.plusDays(6))
                 .header("Authorization", comoStaff()))
@@ -984,21 +1138,22 @@ class ReservaTest {
                         """.formatted(idSala, idTipoUso, fecha, desde, hasta, idUsuario));
     }
 
-    private String participante(Long idUsuario, Long idInscripcion) {
+    /**
+     * ⚠️ <b>Ya no lleva {@code idInscripcion}</b> (`mejoras.md` §12 · C1): de qué
+     * curso descuenta lo decide el tipo de uso de la reserva, no quien carga.
+     */
+    private String participante(Long idUsuario) {
         return """
-                {"idUsuario":%s,"idInscripcion":%s}""".formatted(
-                idUsuario == null ? "null" : idUsuario,
-                idInscripcion == null ? "null" : idInscripcion);
+                {"idUsuario":%s}""".formatted(idUsuario == null ? "null" : idUsuario);
     }
 
-    private ResultActions anotar(long idReserva, Long idUsuario, Long idInscripcion)
-            throws Exception {
+    private ResultActions anotar(long idReserva, Long idUsuario) throws Exception {
         return mvc.perform(post("/api/reservas/" + idReserva + "/participantes")
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idUsuario":%d,"idInscripcion":%s}
-                        """.formatted(idUsuario, idInscripcion == null ? "null" : idInscripcion)));
+                        {"idUsuario":%d}
+                        """.formatted(idUsuario)));
     }
 
     private long idDe(ResultActions resultado) throws Exception {
@@ -1035,9 +1190,13 @@ class ReservaTest {
     }
 
     private Inscripcion inscripcionDe(Alumno alumno, int clases) {
+        return inscripcionDe(alumno, clases, Disciplina.DJ);
+    }
+
+    private Inscripcion inscripcionDe(Alumno alumno, int clases, Disciplina disciplina) {
         Inscripcion inscripcion = new Inscripcion();
         inscripcion.setAlumno(alumno);
-        inscripcion.setDisciplina(Disciplina.DJ);
+        inscripcion.setDisciplina(disciplina);
         inscripcion.setClasesContratadas((short) clases);
         inscripcion.setPrecioTotal(new BigDecimal("180000"));
         return inscripciones.save(inscripcion);
