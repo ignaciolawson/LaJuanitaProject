@@ -34,6 +34,7 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
+import { Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -477,7 +478,7 @@ function BloquePublicacion({
           creyendo que quedó registrada. Si algún día hace falta el motivo, es una
           migración, no un campo más en este formulario. */}
       {confirmandoCancelar && (
-        <div className="rounded-md border border-linea bg-superficie-2 px-4 py-3 text-sm">
+        <Hueco className="text-sm">
           <p>
             <strong>Un release cancelado no se puede reabrir.</strong> Si el
             lanzamiento se retoma, va a ser un release nuevo, con otro código.
@@ -488,7 +489,7 @@ function BloquePublicacion({
               Volver
             </Boton>
           </div>
-        </div>
+        </Hueco>
       )}
     </section>
   )

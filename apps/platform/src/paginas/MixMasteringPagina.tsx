@@ -25,6 +25,7 @@ import {
   type TrabajoResumen,
 } from '../api/tiposMastering'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -380,133 +381,133 @@ function FormularioAlta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Nuevo trabajo</h3>
+    <Bloque titulo="Nuevo trabajo" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="mb-4 flex gap-4 text-sm">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={!conCuenta} onChange={() => setConCuenta(false)} />
+            Cliente sin cuenta
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={conCuenta} onChange={() => setConCuenta(true)} />
+            Tiene cuenta en el sistema
+          </label>
+        </div>
 
-      <div className="mb-4 flex gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={!conCuenta} onChange={() => setConCuenta(false)} />
-          Cliente sin cuenta
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" checked={conCuenta} onChange={() => setConCuenta(true)} />
-          Tiene cuenta en el sistema
-        </label>
-      </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {conCuenta ? (
+            <CampoSelect
+              etiqueta="Cliente"
+              value={datos.idClienteUsuario}
+              onChange={cambiar('idClienteUsuario')}
+              error={errores.clienteIdentificado}
+              className="sm:col-span-2"
+            >
+              <option value="">Elegí…</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} {p.apellido}
+                </option>
+              ))}
+            </CampoSelect>
+          ) : (
+            <>
+              <Campo
+                etiqueta="Nombre del cliente"
+                required
+                value={datos.nombreClienteExterno}
+                onChange={cambiar('nombreClienteExterno')}
+                error={errores.clienteIdentificado}
+              />
+              <Campo
+                etiqueta="Contacto"
+                value={datos.contactoClienteExterno}
+                onChange={cambiar('contactoClienteExterno')}
+                ayuda="Mail o teléfono, para poder ubicarlo."
+              />
+            </>
+          )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {conCuenta ? (
-          <CampoSelect
-            etiqueta="Cliente"
-            value={datos.idClienteUsuario}
-            onChange={cambiar('idClienteUsuario')}
-            error={errores.clienteIdentificado}
-            className="sm:col-span-2"
-          >
-            <option value="">Elegí…</option>
-            {personas.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} {p.apellido}
+          <Campo
+            etiqueta="Track"
+            required
+            value={datos.nombreTrack}
+            onChange={cambiar('nombreTrack')}
+            error={errores.nombreTrack}
+          />
+
+          <CampoSelect etiqueta="Tipo" value={datos.tipoTrabajo} onChange={cambiar('tipoTrabajo')}>
+            {TIPOS.map((t) => (
+              <option key={t} value={t}>
+                {NOMBRE_DE_TIPO[t]}
               </option>
             ))}
           </CampoSelect>
-        ) : (
-          <>
-            <Campo
-              etiqueta="Nombre del cliente"
-              required
-              value={datos.nombreClienteExterno}
-              onChange={cambiar('nombreClienteExterno')}
-              error={errores.clienteIdentificado}
-            />
-            <Campo
-              etiqueta="Contacto"
-              value={datos.contactoClienteExterno}
-              onChange={cambiar('contactoClienteExterno')}
-              ayuda="Mail o teléfono, para poder ubicarlo."
-            />
-          </>
+
+          <Campo
+            etiqueta="Precio acordado"
+            type="number"
+            step="0.01"
+            value={datos.precioAcordado}
+            onChange={cambiar('precioAcordado')}
+            error={errores.precioAcordado}
+            ayuda="Se puede dejar vacío mientras se presupuesta."
+          />
+
+          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+            <option value="USD">Dólares</option>
+            <option value="ARS">Pesos</option>
+          </CampoSelect>
+
+          <Campo
+            etiqueta="Revisiones incluidas"
+            type="number"
+            value={datos.revisionesIncluidas}
+            onChange={cambiar('revisionesIncluidas')}
+            error={errores.revisionesIncluidas}
+          />
+
+          <Campo
+            etiqueta="Entrega estimada"
+            type="date"
+            value={datos.fechaEstimada}
+            onChange={cambiar('fechaEstimada')}
+          />
+
+          <Campo
+            etiqueta="Link del material del cliente"
+            value={datos.urlMaterialCliente}
+            onChange={cambiar('urlMaterialCliente')}
+            error={errores.urlMaterialCliente ?? errores.materialConEsquema}
+            ayuda="El audio no pasa por el sistema: va el link de WeTransfer o Drive."
+            className="sm:col-span-2"
+          />
+
+          <Campo
+            etiqueta="Notas internas"
+            value={datos.notasInternas}
+            onChange={cambiar('notasInternas')}
+            ayuda="No las ve el cliente."
+            className="sm:col-span-2"
+          />
+        </div>
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
         )}
 
-        <Campo
-          etiqueta="Track"
-          required
-          value={datos.nombreTrack}
-          onChange={cambiar('nombreTrack')}
-          error={errores.nombreTrack}
-        />
-
-        <CampoSelect etiqueta="Tipo" value={datos.tipoTrabajo} onChange={cambiar('tipoTrabajo')}>
-          {TIPOS.map((t) => (
-            <option key={t} value={t}>
-              {NOMBRE_DE_TIPO[t]}
-            </option>
-          ))}
-        </CampoSelect>
-
-        <Campo
-          etiqueta="Precio acordado"
-          type="number"
-          step="0.01"
-          value={datos.precioAcordado}
-          onChange={cambiar('precioAcordado')}
-          error={errores.precioAcordado}
-          ayuda="Se puede dejar vacío mientras se presupuesta."
-        />
-
-        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-          <option value="USD">Dólares</option>
-          <option value="ARS">Pesos</option>
-        </CampoSelect>
-
-        <Campo
-          etiqueta="Revisiones incluidas"
-          type="number"
-          value={datos.revisionesIncluidas}
-          onChange={cambiar('revisionesIncluidas')}
-          error={errores.revisionesIncluidas}
-        />
-
-        <Campo
-          etiqueta="Entrega estimada"
-          type="date"
-          value={datos.fechaEstimada}
-          onChange={cambiar('fechaEstimada')}
-        />
-
-        <Campo
-          etiqueta="Link del material del cliente"
-          value={datos.urlMaterialCliente}
-          onChange={cambiar('urlMaterialCliente')}
-          error={errores.urlMaterialCliente ?? errores.materialConEsquema}
-          ayuda="El audio no pasa por el sistema: va el link de WeTransfer o Drive."
-          className="sm:col-span-2"
-        />
-
-        <Campo
-          etiqueta="Notas internas"
-          value={datos.notasInternas}
-          onChange={cambiar('notasInternas')}
-          ayuda="No las ve el cliente."
-          className="sm:col-span-2"
-        />
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            Guardar trabajo
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
         </div>
-      )}
-
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          Guardar trabajo
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+          </form>
+    </Bloque>
   )
 }
 

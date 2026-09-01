@@ -15,6 +15,7 @@ import {
 import { resumenFinanciero } from '../api/tablero'
 import { useUsuario } from '../auth/contexto'
 import { Abanico } from '../componentes/Abanico'
+import { Bloque, Grupo } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
@@ -86,6 +87,21 @@ export function InicioPagina() {
 
   const numeros = useDato(() => resumenFinanciero(rango.primeroDelMes, rango.hoy), veLosNumeros)
 
+  /**
+   * Cuál es LA tarjeta de esta pantalla, para quien la esté mirando.
+   *
+   * ⚠️ **Tiene que dar exactamente una, y por eso es una cadena de prioridad
+   * y no tres banderas sueltas.** `Bloque` marca la destacada con la línea
+   * roja, y la regla del rojo en este sistema es que señala una cosa: con tres
+   * condiciones independientes, Ghezz —que es STAFF *y* profesor *y* alquila
+   * cabina— abriría el Inicio con tres líneas rojas, o sea con ninguna.
+   *
+   * El orden es el del trabajo, no el de los módulos: quien opera abre esto
+   * para ver a quién hay que cobrarle; quien da clase, para ver si tiene clase
+   * hoy; el resto, para ver cuándo vuelve.
+   */
+  const destacada = opera ? 'deudores' : usuario.esProfesor ? 'clases' : 'reserva'
+
   const proximas = (reservas.dato ?? [])
     .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
     .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))
@@ -121,6 +137,7 @@ export function InicioPagina() {
       <Grupo titulo="Lo mío">
         <Tarjeta
           titulo="Mi próxima reserva"
+          destacado={destacada === 'reserva'}
           estado={reservas}
           enlace={['/mis-reservas', 'Ver mis reservas']}
         >
@@ -245,7 +262,10 @@ export function InicioPagina() {
 
       {usuario.esProfesor && (
         <Grupo titulo="Mis clases">
-          <Tarjeta titulo="Clases de hoy" estado={clasesDeHoy} enlace={['/mi-agenda', 'Ver mi agenda']}>
+          <Tarjeta
+            titulo="Clases de hoy"
+            destacado={destacada === 'clases'}
+            estado={clasesDeHoy} enlace={['/mi-agenda', 'Ver mi agenda']}>
             {(lista) => {
               const dando = lista.filter(
                 (r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA',
@@ -351,6 +371,7 @@ export function InicioPagina() {
 
           <Tarjeta
             titulo="Deudores"
+            destacado={destacada === 'deudores'}
             estado={deudores}
             enlace={['/admin/deudores', 'Ver los deudores']}
           >
@@ -486,15 +507,6 @@ function FraseDelDia({ fecha }: { fecha: string }) {
   )
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
-  return (
-    <section className="mb-8 last:mb-0">
-      <h2 className="t-mono mb-3 text-tenue">{titulo}</h2>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
-    </section>
-  )
-}
-
 /**
  * Una tarjeta del Inicio.
  *
@@ -507,21 +519,28 @@ function Tarjeta<T>({
   titulo,
   estado,
   enlace,
+  destacado,
   children,
 }: {
   titulo: string
   estado: Estado<T>
   /** A dónde se va a resolver esto, y con qué palabras. */
   enlace: [string, string]
+  /** Ver la regla en `Bloque`: uno por pantalla como máximo. */
+  destacado?: boolean
   children: (dato: T) => ReactNode
 }) {
   const [a, texto] = enlace
 
   return (
-    <section className="flex flex-col rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4">
-      <h3 className="t-mono text-apagado">{titulo}</h3>
-
-      <div className="mt-3 grow">
+    <Bloque
+      titulo={titulo}
+      nivel={3}
+      destacado={destacado}
+      relleno="apretado"
+      className="flex flex-col"
+    >
+      <div className="grow">
         {estado.cargando ? (
           <p className="text-sm text-apagado">Cargando…</p>
         ) : estado.error ? (
@@ -537,7 +556,7 @@ function Tarjeta<T>({
       >
         {texto}
       </Link>
-    </section>
+    </Bloque>
   )
 }
 

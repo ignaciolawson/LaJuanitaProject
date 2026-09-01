@@ -34,6 +34,7 @@ import {
   type VentaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Paginado } from '../componentes/Paginado'
@@ -510,102 +511,102 @@ function FormularioCorreccion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-1">Corregir el pago</h3>
+    <Bloque titulo="Corregir el pago" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
+        <p className="mb-4 text-xs leading-relaxed text-tenue">
+          De <strong>{pago.pagador}</strong>, por <strong>{pago.queSalda}</strong>. De quién es el
+          pago y qué salda no se editan: si eso está mal, el pago es otro — anulalo y cargá el
+          correcto. Tu nombre y la fecha quedan guardados con la corrección.
+        </p>
 
-      {/* Lo que no se puede cambiar, dicho antes de que lo busquen. */}
-      <p className="mb-4 text-xs leading-relaxed text-tenue">
-        De <strong>{pago.pagador}</strong>, por <strong>{pago.queSalda}</strong>. De quién es el
-        pago y qué salda no se editan: si eso está mal, el pago es otro — anulalo y cargá el
-        correcto. Tu nombre y la fecha quedan guardados con la corrección.
-      </p>
-
-      {errorGeneral && (
-        <div className="mb-4">
-          <Aviso>{errorGeneral}</Aviso>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Monto"
-          type="number"
-          step="0.01"
-          value={datos.monto}
-          onChange={cambiar('monto')}
-          error={errores.monto}
-        />
-
-        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-          <option value="ARS">Pesos</option>
-          <option value="USD">Dólares</option>
-        </CampoSelect>
-
-        {datos.moneda === 'USD' && (
-          <Campo
-            etiqueta="Cotización del dólar"
-            type="number"
-            step="0.01"
-            value={datos.cotizacionDolar}
-            onChange={cambiar('cotizacionDolar')}
-            error={errores.cotizacionPresenteSiEsUsd}
-          />
+        {errorGeneral && (
+          <div className="mb-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
         )}
 
-        <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
-          {MEDIOS.map((m) => (
-            <option key={m} value={m}>
-              {NOMBRE_DE_MEDIO[m]}
-            </option>
-          ))}
-        </CampoSelect>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            etiqueta="Monto"
+            type="number"
+            step="0.01"
+            value={datos.monto}
+            onChange={cambiar('monto')}
+            error={errores.monto}
+          />
 
-        <Campo
-          etiqueta="Fecha del pago"
-          type="date"
-          value={datos.fechaPago}
-          onChange={cambiar('fechaPago')}
-          error={errores.fechaPago}
-        />
+          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+            <option value="ARS">Pesos</option>
+            <option value="USD">Dólares</option>
+          </CampoSelect>
 
-        <Campo
-          etiqueta="Concepto"
-          value={datos.concepto}
-          onChange={cambiar('concepto')}
-          error={errores.concepto}
-        />
+          {datos.moneda === 'USD' && (
+            <Campo
+              etiqueta="Cotización del dólar"
+              type="number"
+              step="0.01"
+              value={datos.cotizacionDolar}
+              onChange={cambiar('cotizacionDolar')}
+              error={errores.cotizacionPresenteSiEsUsd}
+            />
+          )}
 
-        <Campo
-          etiqueta="Descuento (%)"
-          type="number"
-          step="0.01"
-          value={datos.descuentoPorcentaje}
-          onChange={cambiar('descuentoPorcentaje')}
-          error={errores.descuentoPorcentaje}
-        />
+          <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
+            {MEDIOS.map((m) => (
+              <option key={m} value={m}>
+                {NOMBRE_DE_MEDIO[m]}
+              </option>
+            ))}
+          </CampoSelect>
 
-        <Campo
-          etiqueta="Por qué el descuento"
-          value={datos.motivoDescuento}
-          onChange={cambiar('motivoDescuento')}
-          error={errores.descuentoJustificado}
-        />
+          <Campo
+            etiqueta="Fecha del pago"
+            type="date"
+            value={datos.fechaPago}
+            onChange={cambiar('fechaPago')}
+            error={errores.fechaPago}
+          />
 
-      </div>
+          <Campo
+            etiqueta="Concepto"
+            value={datos.concepto}
+            onChange={cambiar('concepto')}
+            error={errores.concepto}
+          />
 
-      {/* El comprobante no se corrige acá: se adjunta y se invalida desde la fila
-          del listado, porque es un archivo con su propia firma y no un campo de
-          este formulario. Corregir un pago no toca su respaldo. */}
+          <Campo
+            etiqueta="Descuento (%)"
+            type="number"
+            step="0.01"
+            value={datos.descuentoPorcentaje}
+            onChange={cambiar('descuentoPorcentaje')}
+            error={errores.descuentoPorcentaje}
+          />
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Guardar la corrección'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+          <Campo
+            etiqueta="Por qué el descuento"
+            value={datos.motivoDescuento}
+            onChange={cambiar('motivoDescuento')}
+            error={errores.descuentoJustificado}
+          />
+
+        </div>
+
+        {/* El comprobante no se corrige acá: se adjunta y se invalida desde la fila
+            del listado, porque es un archivo con su propia firma y no un campo de
+            este formulario. Corregir un pago no toca su respaldo. */}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Guardar la corrección'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
 /** Los cuatro destinos, con el nombre que usa quien carga y no el del esquema. */
@@ -865,283 +866,283 @@ function FormularioPago({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Registrar pago</h3>
-
-      {errorGeneral && (
-        <div className="mb-4">
-          <Aviso>{errorGeneral}</Aviso>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Va primero porque decide el resto del formulario. */}
-        <CampoSelect
-          etiqueta="Qué salda"
-          value={destino}
-          onChange={(e) => {
-            setDestino(e.target.value as DestinoDePago)
-            setErrores({})
-          }}
-          className="sm:col-span-2"
-        >
-          {DESTINOS.map((d) => (
-            <option key={d.valor} value={d.valor}>
-              {d.etiqueta}
-            </option>
-          ))}
-        </CampoSelect>
-
-        {esCurso && (
-          <>
-            <CampoSelect
-              etiqueta="Alumno"
-              value={datos.idAlumno}
-              onChange={(e) =>
-                setDatos((previo) => ({ ...previo, idAlumno: e.target.value, idInscripcion: '' }))
-              }
-              error={errores.idAlumno}
-            >
-              <option value="">Elegí uno</option>
-              {alumnos.map((a) => (
-                <option key={a.idAlumno} value={a.idAlumno}>
-                  {a.apellido}, {a.nombre}
-                </option>
-              ))}
-            </CampoSelect>
-
-            <CampoSelect
-              etiqueta="Cuál curso"
-              value={datos.idInscripcion}
-              onChange={cambiar('idInscripcion')}
-              error={errores.destinoUnico}
-            >
-              <option value="">
-                {datos.idAlumno ? 'Elegí el curso' : 'Elegí primero el alumno'}
-              </option>
-              {contratos.map((i) => (
-                <option key={i.idInscripcion} value={i.idInscripcion}>
-                  {NOMBRE_DE_DISCIPLINA[i.disciplina]}
-                  {i.nivel ? ` · ${i.nivel.toLowerCase()}` : ''} — {importe(i.precioTotal, i.moneda)}
-                </option>
-              ))}
-            </CampoSelect>
-          </>
+    <Bloque titulo="Registrar pago" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        {errorGeneral && (
+          <div className="mb-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
         )}
 
-        {destino === 'RESERVA' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Va primero porque decide el resto del formulario. */}
           <CampoSelect
-            etiqueta="Cuál reserva"
-            value={datos.idReserva}
-            onChange={cambiar('idReserva')}
-            error={errores.destinoUnico}
+            etiqueta="Qué salda"
+            value={destino}
+            onChange={(e) => {
+              setDestino(e.target.value as DestinoDePago)
+              setErrores({})
+            }}
             className="sm:col-span-2"
           >
-            <option value="">Elegí una</option>
-            {reservas.map((r) => (
-              <option key={r.idReserva} value={r.idReserva}>
-                {fechaCorta(r.fecha)} {r.horaInicio.slice(0, 5)} · {r.sala} · {r.tipoUso}
+            {DESTINOS.map((d) => (
+              <option key={d.valor} value={d.valor}>
+                {d.etiqueta}
               </option>
             ))}
           </CampoSelect>
-        )}
 
-        {destino === 'TRABAJO_MASTERING' && (
-          <CampoSelect
-            etiqueta="Cuál trabajo"
-            value={datos.idTrabajoMastering}
-            onChange={cambiar('idTrabajoMastering')}
-            error={errores.destinoUnico}
-            className="sm:col-span-2"
-          >
-            <option value="">Elegí uno</option>
-            {trabajos.map((t) => (
-              <option key={t.idTrabajo} value={t.idTrabajo}>
-                {t.nombreTrack} — {t.cliente}
-                {t.precioAcordado ? ` · ${importe(t.precioAcordado, t.moneda)}` : ''}
-              </option>
-            ))}
-          </CampoSelect>
-        )}
-
-        {destino === 'VENTA_EQUIPO' && (
-          <CampoSelect
-            etiqueta="Cuál venta"
-            value={datos.idVentaEquipo}
-            onChange={cambiar('idVentaEquipo')}
-            error={errores.destinoUnico}
-            className="sm:col-span-2"
-          >
-            <option value="">Elegí una</option>
-            {ventas.map((v) => (
-              <option key={v.idVenta} value={v.idVenta}>
-                {v.modeloEquipo} — {v.comprador} · {importe(v.precio, v.moneda)}
-              </option>
-            ))}
-          </CampoSelect>
-        )}
-
-        {/* Quién paga. Para un curso no se pregunta: es el alumno, y el backend
-            lo exige. Para los otros tres es libre, y desde `V19` puede no tener
-            cuenta. */}
-        {esCurso ? (
-          <p className="text-xs leading-relaxed text-tenue sm:col-span-2">
-            El pago va a nombre del alumno: un curso se acredita en su cuenta y no
-            en otra.
-          </p>
-        ) : (
-          <>
-            <div className="sm:col-span-2">
-              <span className="mb-2 block text-sm font-medium">Quién paga</span>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="pagador"
-                    checked={conCuenta}
-                    onChange={() => setConCuenta(true)}
-                  />
-                  Tiene cuenta
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="pagador"
-                    checked={!conCuenta}
-                    onChange={() => setConCuenta(false)}
-                  />
-                  No tiene cuenta
-                </label>
-              </div>
-              {errores.pagadorIdentificado && (
-                <p className="mt-1 text-xs text-red">{errores.pagadorIdentificado}</p>
-              )}
-            </div>
-
-            {conCuenta ? (
+          {esCurso && (
+            <>
               <CampoSelect
-                etiqueta="Persona"
-                value={datos.idUsuario}
-                onChange={cambiar('idUsuario')}
-                className="sm:col-span-2"
+                etiqueta="Alumno"
+                value={datos.idAlumno}
+                onChange={(e) =>
+                  setDatos((previo) => ({ ...previo, idAlumno: e.target.value, idInscripcion: '' }))
+                }
+                error={errores.idAlumno}
               >
-                <option value="">Elegí una</option>
-                {personas.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.apellido}, {p.nombre} — {p.email}
+                <option value="">Elegí uno</option>
+                {alumnos.map((a) => (
+                  <option key={a.idAlumno} value={a.idAlumno}>
+                    {a.apellido}, {a.nombre}
                   </option>
                 ))}
               </CampoSelect>
-            ) : (
-              <>
-                <Campo
-                  etiqueta="Nombre de quien paga"
-                  value={datos.nombrePagadorExterno}
-                  onChange={cambiar('nombrePagadorExterno')}
-                />
-                <Campo
-                  etiqueta="Contacto"
-                  value={datos.contactoPagadorExterno}
-                  onChange={cambiar('contactoPagadorExterno')}
-                />
-              </>
-            )}
-          </>
-        )}
 
-        <Campo
-          etiqueta="Monto"
-          type="number"
-          step="0.01"
-          value={datos.monto}
-          onChange={cambiar('monto')}
-          error={errores.monto}
-        />
+              <CampoSelect
+                etiqueta="Cuál curso"
+                value={datos.idInscripcion}
+                onChange={cambiar('idInscripcion')}
+                error={errores.destinoUnico}
+              >
+                <option value="">
+                  {datos.idAlumno ? 'Elegí el curso' : 'Elegí primero el alumno'}
+                </option>
+                {contratos.map((i) => (
+                  <option key={i.idInscripcion} value={i.idInscripcion}>
+                    {NOMBRE_DE_DISCIPLINA[i.disciplina]}
+                    {i.nivel ? ` · ${i.nivel.toLowerCase()}` : ''} — {importe(i.precioTotal, i.moneda)}
+                  </option>
+                ))}
+              </CampoSelect>
+            </>
+          )}
 
-        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-          <option value="ARS">Pesos</option>
-          <option value="USD">Dólares</option>
-        </CampoSelect>
+          {destino === 'RESERVA' && (
+            <CampoSelect
+              etiqueta="Cuál reserva"
+              value={datos.idReserva}
+              onChange={cambiar('idReserva')}
+              error={errores.destinoUnico}
+              className="sm:col-span-2"
+            >
+              <option value="">Elegí una</option>
+              {reservas.map((r) => (
+                <option key={r.idReserva} value={r.idReserva}>
+                  {fechaCorta(r.fecha)} {r.horaInicio.slice(0, 5)} · {r.sala} · {r.tipoUso}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
 
-        {datos.moneda === 'USD' && (
+          {destino === 'TRABAJO_MASTERING' && (
+            <CampoSelect
+              etiqueta="Cuál trabajo"
+              value={datos.idTrabajoMastering}
+              onChange={cambiar('idTrabajoMastering')}
+              error={errores.destinoUnico}
+              className="sm:col-span-2"
+            >
+              <option value="">Elegí uno</option>
+              {trabajos.map((t) => (
+                <option key={t.idTrabajo} value={t.idTrabajo}>
+                  {t.nombreTrack} — {t.cliente}
+                  {t.precioAcordado ? ` · ${importe(t.precioAcordado, t.moneda)}` : ''}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
+
+          {destino === 'VENTA_EQUIPO' && (
+            <CampoSelect
+              etiqueta="Cuál venta"
+              value={datos.idVentaEquipo}
+              onChange={cambiar('idVentaEquipo')}
+              error={errores.destinoUnico}
+              className="sm:col-span-2"
+            >
+              <option value="">Elegí una</option>
+              {ventas.map((v) => (
+                <option key={v.idVenta} value={v.idVenta}>
+                  {v.modeloEquipo} — {v.comprador} · {importe(v.precio, v.moneda)}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
+
+          {/* Quién paga. Para un curso no se pregunta: es el alumno, y el backend
+              lo exige. Para los otros tres es libre, y desde `V19` puede no tener
+              cuenta. */}
+          {esCurso ? (
+            <p className="text-xs leading-relaxed text-tenue sm:col-span-2">
+              El pago va a nombre del alumno: un curso se acredita en su cuenta y no
+              en otra.
+            </p>
+          ) : (
+            <>
+              <div className="sm:col-span-2">
+                <span className="mb-2 block text-sm font-medium">Quién paga</span>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="pagador"
+                      checked={conCuenta}
+                      onChange={() => setConCuenta(true)}
+                    />
+                    Tiene cuenta
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="pagador"
+                      checked={!conCuenta}
+                      onChange={() => setConCuenta(false)}
+                    />
+                    No tiene cuenta
+                  </label>
+                </div>
+                {errores.pagadorIdentificado && (
+                  <p className="mt-1 text-xs text-red">{errores.pagadorIdentificado}</p>
+                )}
+              </div>
+
+              {conCuenta ? (
+                <CampoSelect
+                  etiqueta="Persona"
+                  value={datos.idUsuario}
+                  onChange={cambiar('idUsuario')}
+                  className="sm:col-span-2"
+                >
+                  <option value="">Elegí una</option>
+                  {personas.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.apellido}, {p.nombre} — {p.email}
+                    </option>
+                  ))}
+                </CampoSelect>
+              ) : (
+                <>
+                  <Campo
+                    etiqueta="Nombre de quien paga"
+                    value={datos.nombrePagadorExterno}
+                    onChange={cambiar('nombrePagadorExterno')}
+                  />
+                  <Campo
+                    etiqueta="Contacto"
+                    value={datos.contactoPagadorExterno}
+                    onChange={cambiar('contactoPagadorExterno')}
+                  />
+                </>
+              )}
+            </>
+          )}
+
           <Campo
-            etiqueta="Cotización del dólar"
+            etiqueta="Monto"
             type="number"
             step="0.01"
-            value={datos.cotizacionDolar}
-            onChange={cambiar('cotizacionDolar')}
-            error={errores.cotizacionPresenteSiEsUsd}
+            value={datos.monto}
+            onChange={cambiar('monto')}
+            error={errores.monto}
           />
-        )}
 
-        <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
-          {MEDIOS.map((m) => (
-            <option key={m} value={m}>
-              {NOMBRE_DE_MEDIO[m]}
-            </option>
-          ))}
-        </CampoSelect>
+          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+            <option value="ARS">Pesos</option>
+            <option value="USD">Dólares</option>
+          </CampoSelect>
 
-        <CampoSelect etiqueta="Estado" value={datos.estadoPago} onChange={cambiar('estadoPago')}>
-          {ESTADOS_DE_ALTA.map((e) => (
-            <option key={e} value={e}>
-              {NOMBRE_DE_ESTADO_PAGO[e]}
-            </option>
-          ))}
-        </CampoSelect>
+          {datos.moneda === 'USD' && (
+            <Campo
+              etiqueta="Cotización del dólar"
+              type="number"
+              step="0.01"
+              value={datos.cotizacionDolar}
+              onChange={cambiar('cotizacionDolar')}
+              error={errores.cotizacionPresenteSiEsUsd}
+            />
+          )}
 
-        <Campo
-          etiqueta="Fecha del pago"
-          type="date"
-          value={datos.fechaPago}
-          onChange={cambiar('fechaPago')}
-        />
+          <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
+            {MEDIOS.map((m) => (
+              <option key={m} value={m}>
+                {NOMBRE_DE_MEDIO[m]}
+              </option>
+            ))}
+          </CampoSelect>
 
-        <Campo etiqueta="Concepto" value={datos.concepto} onChange={cambiar('concepto')} />
+          <CampoSelect etiqueta="Estado" value={datos.estadoPago} onChange={cambiar('estadoPago')}>
+            {ESTADOS_DE_ALTA.map((e) => (
+              <option key={e} value={e}>
+                {NOMBRE_DE_ESTADO_PAGO[e]}
+              </option>
+            ))}
+          </CampoSelect>
 
-        <Campo
-          etiqueta="Descuento (%)"
-          type="number"
-          step="0.01"
-          value={datos.descuentoPorcentaje}
-          onChange={cambiar('descuentoPorcentaje')}
-          error={errores.descuentoPorcentaje}
-        />
-
-        <Campo
-          etiqueta="Por qué el descuento"
-          value={datos.motivoDescuento}
-          onChange={cambiar('motivoDescuento')}
-          error={errores.descuentoJustificado}
-        />
-
-        <div className="sm:col-span-2">
-          <span className="mb-1 block text-xs font-medium text-tenue">
-            Comprobante (opcional)
-          </span>
-          <input
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg"
-            aria-label="Comprobante"
-            onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-tenue"
+          <Campo
+            etiqueta="Fecha del pago"
+            type="date"
+            value={datos.fechaPago}
+            onChange={cambiar('fechaPago')}
           />
-          <p className="mt-1 text-xs text-apagado">
-            {/* Opcional a propósito: una seña en efectivo no tiene ninguno, y
-                exigirlo dejaría media caja sin poder cargarse. */}
-            PDF o foto. Se puede adjuntar después, y un pago admite varios.
-          </p>
+
+          <Campo etiqueta="Concepto" value={datos.concepto} onChange={cambiar('concepto')} />
+
+          <Campo
+            etiqueta="Descuento (%)"
+            type="number"
+            step="0.01"
+            value={datos.descuentoPorcentaje}
+            onChange={cambiar('descuentoPorcentaje')}
+            error={errores.descuentoPorcentaje}
+          />
+
+          <Campo
+            etiqueta="Por qué el descuento"
+            value={datos.motivoDescuento}
+            onChange={cambiar('motivoDescuento')}
+            error={errores.descuentoJustificado}
+          />
+
+          <div className="sm:col-span-2">
+            <span className="mb-1 block text-xs font-medium text-tenue">
+              Comprobante (opcional)
+            </span>
+            <input
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg"
+              aria-label="Comprobante"
+              onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-tenue"
+            />
+            <p className="mt-1 text-xs text-apagado">
+              {/* Opcional a propósito: una seña en efectivo no tiene ninguno, y
+                  exigirlo dejaría media caja sin poder cargarse. */}
+              PDF o foto. Se puede adjuntar después, y un pago admite varios.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Registrar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Registrar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }

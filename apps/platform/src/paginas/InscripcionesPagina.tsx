@@ -21,6 +21,7 @@ import {
   type ProfesorResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
@@ -599,52 +600,52 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Nueva inscripción</h3>
-
-      <div className="mb-4">
-        <SelectorDeAlumno elegido={alumno} onElegir={setAlumno} error={errores.idAlumno} />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CampoSelect
-          etiqueta="Disciplina"
-          value={disciplina}
-          onChange={(e) => elegirDisciplina(e.target.value as Disciplina | '')}
-          error={errores.disciplina}
-        >
-          <option value="">Elegí una</option>
-          {DISCIPLINAS.map((d) => (
-            <option key={d} value={d}>
-              {NOMBRE_DE_DISCIPLINA[d]}
-            </option>
-          ))}
-        </CampoSelect>
-
-        <CamposComunes
-          datos={datos}
-          cambiar={cambiar}
-          errores={errores}
-          profesores={profesores}
-          ayudaClases={ayudaDeClases(disciplina)}
-        />
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+    <Bloque titulo="Nueva inscripción" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="mb-4">
+          <SelectorDeAlumno elegido={alumno} onElegir={setAlumno} error={errores.idAlumno} />
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Creando…' : 'Crear inscripción'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoSelect
+            etiqueta="Disciplina"
+            value={disciplina}
+            onChange={(e) => elegirDisciplina(e.target.value as Disciplina | '')}
+            error={errores.disciplina}
+          >
+            <option value="">Elegí una</option>
+            {DISCIPLINAS.map((d) => (
+              <option key={d} value={d}>
+                {NOMBRE_DE_DISCIPLINA[d]}
+              </option>
+            ))}
+          </CampoSelect>
+
+          <CamposComunes
+            datos={datos}
+            cambiar={cambiar}
+            errores={errores}
+            profesores={profesores}
+            ayudaClases={ayudaDeClases(disciplina)}
+          />
+        </div>
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Creando…' : 'Crear inscripción'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
 
@@ -765,61 +766,59 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-1">
-        Editar {NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]} de {inscripcion.nombre}{' '}
-        {inscripcion.apellido}
-      </h3>
-      <p className="mb-4 text-xs text-apagado">
-        El alumno y la disciplina no se editan: cambiarlos no es corregir esta
-        inscripción, es otra. Lleva {inscripcion.clasesConsumidas} de{' '}
-        {inscripcion.clasesContratadas} clases dadas.
-      </p>
+    <Bloque titulo={<>Editar {NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]} de {inscripcion.nombre}{' '} {inscripcion.apellido}</>} className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <p className="mb-4 text-xs text-apagado">
+          El alumno y la disciplina no se editan: cambiarlos no es corregir esta
+          inscripción, es otra. Lleva {inscripcion.clasesConsumidas} de{' '}
+          {inscripcion.clasesContratadas} clases dadas.
+        </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CamposComunes
-          datos={datos}
-          cambiar={cambiar}
-          errores={errores}
-          profesores={profesores}
-          ayudaClases="Ampliar el curso es subir este número."
-        />
-      </div>
-
-      {/* Bajar el nivel es decirle a alguien "no estás para intermedio". La base
-          exige quién, cuándo y por qué; el quién y el cuándo los pone el
-          servidor, así que acá solo se pide el motivo. */}
-      {baja && (
-        <div className="mt-4 rounded-md border border-red/30 bg-red/5 p-4">
-          <p className="mb-3 text-sm text-acento">
-            Estás bajando el nivel de {capitalizar(inscripcion.nivel!)} a{' '}
-            {capitalizar(datos.nivel as string)}. Queda registrado con tu nombre y la
-            fecha.
-          </p>
-          <Campo
-            etiqueta="Motivo"
-            value={motivoBajaNivel}
-            onChange={(e) => setMotivoBajaNivel(e.target.value)}
-            error={errores.motivoBajaNivel}
-            required
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CamposComunes
+            datos={datos}
+            cambiar={cambiar}
+            errores={errores}
+            profesores={profesores}
+            ayudaClases="Ampliar el curso es subir este número."
           />
         </div>
-      )}
 
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+        {/* Bajar el nivel es decirle a alguien "no estás para intermedio". La base
+            exige quién, cuándo y por qué; el quién y el cuándo los pone el
+            servidor, así que acá solo se pide el motivo. */}
+        {baja && (
+          <div className="mt-4 rounded-md border border-red/30 bg-red/5 p-4">
+            <p className="mb-3 text-sm text-acento">
+              Estás bajando el nivel de {capitalizar(inscripcion.nivel!)} a{' '}
+              {capitalizar(datos.nivel as string)}. Queda registrado con tu nombre y la
+              fecha.
+            </p>
+            <Campo
+              etiqueta="Motivo"
+              value={motivoBajaNivel}
+              onChange={(e) => setMotivoBajaNivel(e.target.value)}
+              error={errores.motivoBajaNivel}
+              required
+            />
+          </div>
+        )}
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Guardar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
         </div>
-      )}
-
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Guardar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+          </form>
+    </Bloque>
   )
 }

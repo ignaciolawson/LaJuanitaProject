@@ -31,6 +31,7 @@ import {
   type UsuarioResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import {
@@ -379,7 +380,7 @@ export function CalendarioPagina() {
                 return (
                   <div key={dia + hora} className="flex min-h-14 flex-col border-l border-linea p-1">
                     {empiezan.map((r) => (
-                      <Bloque key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
+                      <ReservaEnGrilla key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
                     ))}
                     {vienen.map((r) => (
                       <Continuacion key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
@@ -439,7 +440,15 @@ function cayo(reserva: ReservaResumen): boolean {
 }
 
 /** Un bloque del calendario. El color lo manda el backend desde `tipo_uso`. */
-function Bloque({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () => void }) {
+/**
+ * Una reserva dibujada dentro de la grilla de la semana.
+ *
+ * Se llamaba `Bloque`, que acá significaba otra cosa que en el resto del
+ * sistema —y encima una tercera distinta de `bloqueo_sala`, que es cuando una
+ * sala no se puede usar—. Tres cosas con el mismo nombre en una pantalla que
+ * las muestra a las tres juntas.
+ */
+function ReservaEnGrilla({ reserva, onElegir }: { reserva: ReservaResumen; onElegir: () => void }) {
   const caida = cayo(reserva)
 
   return (
@@ -1000,171 +1009,171 @@ function FormularioReserva({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">{reserva ? 'Mover la reserva' : 'Nueva reserva'}</h3>
+    <Bloque titulo={reserva ? 'Mover la reserva' : 'Nueva reserva'} className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoSelect etiqueta="Sala" value={datos.idSala} onChange={cambiar('idSala')} error={errores.idSala}>
+            <option value="">Elegí una</option>
+            {salas.map((s) => (
+              <option key={s.idSala} value={s.idSala}>
+                {s.nombre}
+              </option>
+            ))}
+          </CampoSelect>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CampoSelect etiqueta="Sala" value={datos.idSala} onChange={cambiar('idSala')} error={errores.idSala}>
-          <option value="">Elegí una</option>
-          {salas.map((s) => (
-            <option key={s.idSala} value={s.idSala}>
-              {s.nombre}
-            </option>
-          ))}
-        </CampoSelect>
+          <CampoSelect
+            etiqueta="Para qué"
+            value={datos.idTipoUso}
+            onChange={cambiar('idTipoUso')}
+            error={errores.idTipoUso}
+          >
+            <option value="">Elegí uno</option>
+            {permitidos.map((t) => (
+              <option key={t.idTipoUso} value={t.idTipoUso}>
+                {t.nombre}
+              </option>
+            ))}
+          </CampoSelect>
 
-        <CampoSelect
-          etiqueta="Para qué"
-          value={datos.idTipoUso}
-          onChange={cambiar('idTipoUso')}
-          error={errores.idTipoUso}
-        >
-          <option value="">Elegí uno</option>
-          {permitidos.map((t) => (
-            <option key={t.idTipoUso} value={t.idTipoUso}>
-              {t.nombre}
-            </option>
-          ))}
-        </CampoSelect>
+          <Campo etiqueta="Fecha" type="date" value={datos.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
 
-        <Campo etiqueta="Fecha" type="date" value={datos.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
+          <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
+            <option value="">Sin asignar</option>
+            {profesores.map((p) => (
+              <option key={p.idProfesor} value={p.idProfesor}>
+                {p.nombreCompleto}
+              </option>
+            ))}
+          </CampoSelect>
 
-        <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
-          <option value="">Sin asignar</option>
-          {profesores.map((p) => (
-            <option key={p.idProfesor} value={p.idProfesor}>
-              {p.nombreCompleto}
-            </option>
-          ))}
-        </CampoSelect>
+          <Campo etiqueta="Desde" type="time" value={datos.horaInicio} onChange={cambiar('horaInicio')} />
+          <Campo
+            etiqueta="Hasta"
+            type="time"
+            value={datos.horaFin}
+            onChange={cambiar('horaFin')}
+            error={errores.horarioValido}
+          />
 
-        <Campo etiqueta="Desde" type="time" value={datos.horaInicio} onChange={cambiar('horaInicio')} />
-        <Campo
-          etiqueta="Hasta"
-          type="time"
-          value={datos.horaFin}
-          onChange={cambiar('horaFin')}
-          error={errores.horarioValido}
-        />
+          <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} className="sm:col-span-2" />
 
-        <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} className="sm:col-span-2" />
+          {/* Aparecen recién al elegir un tipo de uso que es clase, y por eso el
+              título va adentro del condicional: sin él son dos selects que salen de
+              la nada en medio del formulario. */}
+          {pideParticipante && (
+            <>
+              <p className="mt-2 text-xs font-semibold text-tenue sm:col-span-2">
+                Quién toma la clase
+              </p>
+              <CamposDeParticipante selector={participante} error={errores.idUsuario} />
+            </>
+          )}
 
-        {/* Aparecen recién al elegir un tipo de uso que es clase, y por eso el
-            título va adentro del condicional: sin él son dos selects que salen de
-            la nada en medio del formulario. */}
-        {pideParticipante && (
-          <>
-            <p className="mt-2 text-xs font-semibold text-tenue sm:col-span-2">
-              Quién toma la clase
-            </p>
-            <CamposDeParticipante selector={participante} error={errores.idUsuario} />
-          </>
-        )}
+          {/* El otro camino del dinero. La leyenda dice el porqué en una línea:
+              sin esto la reserva no tiene con qué existir, y el rechazo llegaría
+              recién al guardar, escrito por un trigger. */}
+          {pideSena && (
+            <>
+              <p className="mt-2 sm:col-span-2">
+                <span className="text-xs font-semibold text-tenue">La seña</span>
+                <span className="ml-2 text-xs text-tenue">
+                  Sin seña no se aparta el horario. Es el 50% del total.
+                </span>
+              </p>
 
-        {/* El otro camino del dinero. La leyenda dice el porqué en una línea:
-            sin esto la reserva no tiene con qué existir, y el rechazo llegaría
-            recién al guardar, escrito por un trigger. */}
-        {pideSena && (
-          <>
-            <p className="mt-2 sm:col-span-2">
-              <span className="text-xs font-semibold text-tenue">La seña</span>
-              <span className="ml-2 text-xs text-tenue">
-                Sin seña no se aparta el horario. Es el 50% del total.
-              </span>
-            </p>
+              <CampoSelect
+                etiqueta="Quién paga"
+                value={sena.idUsuario}
+                onChange={cambiarSena('idUsuario')}
+                error={errores.senaIdUsuario}
+              >
+                <option value="">Elegí a la persona</option>
+                {personas.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.apellido}, {p.nombre}
+                  </option>
+                ))}
+              </CampoSelect>
 
-            <CampoSelect
-              etiqueta="Quién paga"
-              value={sena.idUsuario}
-              onChange={cambiarSena('idUsuario')}
-              error={errores.senaIdUsuario}
-            >
-              <option value="">Elegí a la persona</option>
-              {personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.apellido}, {p.nombre}
-                </option>
-              ))}
-            </CampoSelect>
-
-            <Campo
-              etiqueta="Monto"
-              type="number"
-              step="0.01"
-              value={sena.monto}
-              onChange={cambiarSena('monto')}
-              error={errores.senaMonto}
-            />
-
-            <CampoSelect etiqueta="Moneda" value={sena.moneda} onChange={cambiarSena('moneda')}>
-              <option value="ARS">Pesos</option>
-              <option value="USD">Dólares</option>
-            </CampoSelect>
-
-            <CampoSelect
-              etiqueta="Cómo pagó"
-              value={sena.medioPago}
-              onChange={cambiarSena('medioPago')}
-            >
-              {MEDIOS_DE_PAGO.map((m) => (
-                <option key={m} value={m}>
-                  {NOMBRE_DE_MEDIO[m]}
-                </option>
-              ))}
-            </CampoSelect>
-
-            {/* Opcional a propósito: una seña en efectivo no tiene comprobante, y
-                exigirlo dejaría media caja sin poder cargarse. */}
-            <div>
-              <span className="mb-1 block text-xs font-medium text-tenue">
-                Comprobante (opcional)
-              </span>
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg"
-                aria-label="Comprobante"
-                onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
-                className="w-full text-sm text-tenue"
-              />
-            </div>
-
-            {sena.moneda === 'USD' && (
               <Campo
-                etiqueta="Cotización del dólar"
+                etiqueta="Monto"
                 type="number"
                 step="0.01"
-                value={sena.cotizacionDolar}
-                onChange={cambiarSena('cotizacionDolar')}
-                ayuda="Sin esto el importe no se puede reconstruir después."
-                error={errores.senaCotizacion}
-                className="sm:col-span-2"
+                value={sena.monto}
+                onChange={cambiarSena('monto')}
+                error={errores.senaMonto}
               />
-            )}
-          </>
-        )}
-      </div>
 
-      {/* El caso "se puede, pero ojo" de la matriz: una clase de DJ en la cabina
-          de grabación es válida solo si es una práctica. */}
-      {advertencia && <p className="mt-3 text-xs text-acento">{advertencia}</p>}
+              <CampoSelect etiqueta="Moneda" value={sena.moneda} onChange={cambiarSena('moneda')}>
+                <option value="ARS">Pesos</option>
+                <option value="USD">Dólares</option>
+              </CampoSelect>
 
-      {/* El de carga también: sin esto, un fallo al traer los alumnos deja el
-          select vacío sin decir por qué, que se lee como "no hay alumnos". */}
-      {(errorGeneral ?? participante.errorDeCarga) && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral ?? participante.errorDeCarga}</Aviso>
+              <CampoSelect
+                etiqueta="Cómo pagó"
+                value={sena.medioPago}
+                onChange={cambiarSena('medioPago')}
+              >
+                {MEDIOS_DE_PAGO.map((m) => (
+                  <option key={m} value={m}>
+                    {NOMBRE_DE_MEDIO[m]}
+                  </option>
+                ))}
+              </CampoSelect>
+
+              {/* Opcional a propósito: una seña en efectivo no tiene comprobante, y
+                  exigirlo dejaría media caja sin poder cargarse. */}
+              <div>
+                <span className="mb-1 block text-xs font-medium text-tenue">
+                  Comprobante (opcional)
+                </span>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  aria-label="Comprobante"
+                  onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+                  className="w-full text-sm text-tenue"
+                />
+              </div>
+
+              {sena.moneda === 'USD' && (
+                <Campo
+                  etiqueta="Cotización del dólar"
+                  type="number"
+                  step="0.01"
+                  value={sena.cotizacionDolar}
+                  onChange={cambiarSena('cotizacionDolar')}
+                  ayuda="Sin esto el importe no se puede reconstruir después."
+                  error={errores.senaCotizacion}
+                  className="sm:col-span-2"
+                />
+              )}
+            </>
+          )}
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : reserva ? 'Guardar' : 'Reservar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {/* El caso "se puede, pero ojo" de la matriz: una clase de DJ en la cabina
+            de grabación es válida solo si es una práctica. */}
+        {advertencia && <p className="mt-3 text-xs text-acento">{advertencia}</p>}
+
+        {/* El de carga también: sin esto, un fallo al traer los alumnos deja el
+            select vacío sin decir por qué, que se lee como "no hay alumnos". */}
+        {(errorGeneral ?? participante.errorDeCarga) && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral ?? participante.errorDeCarga}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : reserva ? 'Guardar' : 'Reservar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
 

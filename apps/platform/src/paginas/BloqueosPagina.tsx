@@ -4,6 +4,7 @@ import { altaBloqueo, eliminarBloqueo, listarBloqueos, listarSalas } from '../ap
 import { ApiError } from '../api/cliente'
 import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { diaYMes, hhmm, hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
@@ -283,99 +284,99 @@ function FormularioBloqueo({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Bloquear una sala</h3>
+    <Bloque titulo="Bloquear una sala" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoSelect
+            etiqueta="Sala"
+            value={datos.idSala}
+            onChange={cambiar('idSala')}
+            error={errores.idSala}
+          >
+            <option value="">Elegí una</option>
+            {salas.map((s) => (
+              <option key={s.idSala} value={s.idSala}>
+                {s.nombre}
+              </option>
+            ))}
+          </CampoSelect>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CampoSelect
-          etiqueta="Sala"
-          value={datos.idSala}
-          onChange={cambiar('idSala')}
-          error={errores.idSala}
-        >
-          <option value="">Elegí una</option>
-          {salas.map((s) => (
-            <option key={s.idSala} value={s.idSala}>
-              {s.nombre}
-            </option>
-          ))}
-        </CampoSelect>
+          <Campo
+            etiqueta="Motivo"
+            value={datos.motivo}
+            onChange={cambiar('motivo')}
+            placeholder="Mantenimiento, refacción, evento…"
+            error={errores.motivo}
+          />
 
-        <Campo
-          etiqueta="Motivo"
-          value={datos.motivo}
-          onChange={cambiar('motivo')}
-          placeholder="Mantenimiento, refacción, evento…"
-          error={errores.motivo}
-        />
-
-        <Campo
-          etiqueta="Desde el día"
-          type="date"
-          value={datos.fechaInicio}
-          onChange={cambiar('fechaInicio')}
-          error={errores.fechaInicio}
-        />
-        <Campo
-          etiqueta="Hasta el día"
-          type="date"
-          value={datos.fechaFin}
-          onChange={cambiar('fechaFin')}
-          // Inclusive, y conviene decirlo: "hasta el 10" con el 10 afuera es la
-          // clase que se carga el último día y no debería poder cargarse.
-          ayuda="Inclusive"
-          error={errores.fechaFin ?? errores.rangoDeFechasValido}
-        />
-      </div>
-
-      <label className="mt-4 flex items-center gap-2 text-sm text-tenue">
-        <input
-          type="checkbox"
-          checked={porFranja}
-          onChange={(e) => setPorFranja(e.target.checked)}
-        />
-        Solo una franja horaria
-      </label>
-
-      {porFranja && (
-        <>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Campo
-              etiqueta="Desde"
-              type="time"
-              value={horas.horaInicio}
-              onChange={(e) => setHoras((previo) => ({ ...previo, horaInicio: e.target.value }))}
-            />
-            <Campo
-              etiqueta="Hasta"
-              type="time"
-              value={horas.horaFin}
-              onChange={(e) => setHoras((previo) => ({ ...previo, horaFin: e.target.value }))}
-              error={errores.horarioValido}
-            />
-          </div>
-          {/* Lo más fácil de malinterpretar de toda la pantalla. */}
-          <p className="mt-2 text-xs text-tenue">
-            La franja se repite <strong>todos los días</strong> del rango. Fuera de ella la sala
-            sigue disponible.
-          </p>
-        </>
-      )}
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+          <Campo
+            etiqueta="Desde el día"
+            type="date"
+            value={datos.fechaInicio}
+            onChange={cambiar('fechaInicio')}
+            error={errores.fechaInicio}
+          />
+          <Campo
+            etiqueta="Hasta el día"
+            type="date"
+            value={datos.fechaFin}
+            onChange={cambiar('fechaFin')}
+            // Inclusive, y conviene decirlo: "hasta el 10" con el 10 afuera es la
+            // clase que se carga el último día y no debería poder cargarse.
+            ayuda="Inclusive"
+            error={errores.fechaFin ?? errores.rangoDeFechasValido}
+          />
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Bloquear'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        <label className="mt-4 flex items-center gap-2 text-sm text-tenue">
+          <input
+            type="checkbox"
+            checked={porFranja}
+            onChange={(e) => setPorFranja(e.target.checked)}
+          />
+          Solo una franja horaria
+        </label>
+
+        {porFranja && (
+          <>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Campo
+                etiqueta="Desde"
+                type="time"
+                value={horas.horaInicio}
+                onChange={(e) => setHoras((previo) => ({ ...previo, horaInicio: e.target.value }))}
+              />
+              <Campo
+                etiqueta="Hasta"
+                type="time"
+                value={horas.horaFin}
+                onChange={(e) => setHoras((previo) => ({ ...previo, horaFin: e.target.value }))}
+                error={errores.horarioValido}
+              />
+            </div>
+            {/* Lo más fácil de malinterpretar de toda la pantalla. */}
+            <p className="mt-2 text-xs text-tenue">
+              La franja se repite <strong>todos los días</strong> del rango. Fuera de ella la sala
+              sigue disponible.
+            </p>
+          </>
+        )}
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Bloquear'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }

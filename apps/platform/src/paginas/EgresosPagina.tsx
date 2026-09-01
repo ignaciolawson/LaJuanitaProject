@@ -4,6 +4,7 @@ import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '
 import { ApiError } from '../api/cliente'
 import type { EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -253,93 +254,93 @@ function FormularioEgreso({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Registrar egreso</h3>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Concepto"
-          value={datos.concepto}
-          onChange={cambiar('concepto')}
-          placeholder="Clases de marzo, alquiler, equipamiento…"
-          error={errores.concepto}
-          className="sm:col-span-2"
-        />
-
-        <Campo
-          etiqueta="Monto"
-          type="number"
-          step="0.01"
-          value={datos.monto}
-          onChange={cambiar('monto')}
-          error={errores.monto}
-        />
-
-        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-          <option value="ARS">Pesos</option>
-          <option value="USD">Dólares</option>
-        </CampoSelect>
-
-        {datos.moneda === 'USD' && (
+    <Bloque titulo="Registrar egreso" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
           <Campo
-            etiqueta="Cotización del dólar"
+            etiqueta="Concepto"
+            value={datos.concepto}
+            onChange={cambiar('concepto')}
+            placeholder="Clases de marzo, alquiler, equipamiento…"
+            error={errores.concepto}
+            className="sm:col-span-2"
+          />
+
+          <Campo
+            etiqueta="Monto"
             type="number"
             step="0.01"
-            value={datos.cotizacionDolar}
-            onChange={cambiar('cotizacionDolar')}
-            error={errores.cotizacionPresenteSiEsUsd}
+            value={datos.monto}
+            onChange={cambiar('monto')}
+            error={errores.monto}
           />
-        )}
 
-        <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
-          <option value="">No es un pago a un profesor</option>
-          {profesores.map((p) => (
-            <option key={p.idProfesor} value={p.idProfesor}>
-              {p.nombreCompleto}
-            </option>
-          ))}
-        </CampoSelect>
+          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+            <option value="ARS">Pesos</option>
+            <option value="USD">Dólares</option>
+          </CampoSelect>
 
-        {/* Solo cuando no es un profesor: los dos campos juntos invitan a
-            llenar los dos, y el nombre de la cuenta gana igual. */}
-        {!datos.idProfesor && (
+          {datos.moneda === 'USD' && (
+            <Campo
+              etiqueta="Cotización del dólar"
+              type="number"
+              step="0.01"
+              value={datos.cotizacionDolar}
+              onChange={cambiar('cotizacionDolar')}
+              error={errores.cotizacionPresenteSiEsUsd}
+            />
+          )}
+
+          <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
+            <option value="">No es un pago a un profesor</option>
+            {profesores.map((p) => (
+              <option key={p.idProfesor} value={p.idProfesor}>
+                {p.nombreCompleto}
+              </option>
+            ))}
+          </CampoSelect>
+
+          {/* Solo cuando no es un profesor: los dos campos juntos invitan a
+              llenar los dos, y el nombre de la cuenta gana igual. */}
+          {!datos.idProfesor && (
+            <Campo
+              etiqueta="A quién"
+              value={datos.destinatario}
+              onChange={cambiar('destinatario')}
+              placeholder="Inmobiliaria, proveedor…"
+            />
+          )}
+
           <Campo
-            etiqueta="A quién"
-            value={datos.destinatario}
-            onChange={cambiar('destinatario')}
-            placeholder="Inmobiliaria, proveedor…"
+            etiqueta="Fecha"
+            type="date"
+            value={datos.fechaEgreso}
+            onChange={cambiar('fechaEgreso')}
           />
+
+          <Campo
+            etiqueta="Comprobante"
+            value={datos.comprobantePath}
+            onChange={cambiar('comprobantePath')}
+            placeholder="/comprobantes/…"
+          />
+        </div>
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
         )}
 
-        <Campo
-          etiqueta="Fecha"
-          type="date"
-          value={datos.fechaEgreso}
-          onChange={cambiar('fechaEgreso')}
-        />
-
-        <Campo
-          etiqueta="Comprobante"
-          value={datos.comprobantePath}
-          onChange={cambiar('comprobantePath')}
-          placeholder="/comprobantes/…"
-        />
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Registrar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
         </div>
-      )}
-
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Registrar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+          </form>
+    </Bloque>
   )
 }

@@ -21,6 +21,7 @@ import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
@@ -342,52 +343,51 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-1">
-        Editar a {alumno.nombre} {alumno.apellido}
-      </h3>
-      <p className="mb-4 text-xs text-apagado">
-        El nombre y el contacto se editan desde Personas: son datos de la cuenta, no del alumno.
-      </p>
+    <Bloque titulo={<>Editar a {alumno.nombre} {alumno.apellido}</>} className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <p className="mb-4 text-xs text-apagado">
+          El nombre y el contacto se editan desde Personas: son datos de la cuenta, no del alumno.
+        </p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <CampoSelect
-          etiqueta="Nivel de ingreso"
-          value={datos.nivelIngreso}
-          onChange={cambiar('nivelIngreso')}
-          error={errores.nivelIngreso}
-        >
-          <option value="">Sin definir</option>
-          {NIVELES.map((n) => (
-            <option key={n} value={n}>
-              {n.charAt(0) + n.slice(1).toLowerCase()}
-            </option>
-          ))}
-        </CampoSelect>
-        <Campo
-          etiqueta="Instagram"
-          value={datos.instagram}
-          onChange={cambiar('instagram')}
-          error={errores.instagram}
-          placeholder="@usuario"
-        />
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CampoSelect
+            etiqueta="Nivel de ingreso"
+            value={datos.nivelIngreso}
+            onChange={cambiar('nivelIngreso')}
+            error={errores.nivelIngreso}
+          >
+            <option value="">Sin definir</option>
+            {NIVELES.map((n) => (
+              <option key={n} value={n}>
+                {n.charAt(0) + n.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </CampoSelect>
+          <Campo
+            etiqueta="Instagram"
+            value={datos.instagram}
+            onChange={cambiar('instagram')}
+            error={errores.instagram}
+            placeholder="@usuario"
+          />
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Guardar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Guardar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
 
@@ -454,86 +454,85 @@ function FormularioAlta({
 
   if (passwordTemporal) {
     return (
-      <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-        <h3 className="t-seccion">Alumno creado</h3>
+      <Bloque titulo="Alumno creado" className="mb-6">
         <p className="mt-2 text-sm leading-relaxed text-tenue">
           Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
           cambie cuando entre. <strong className="text-ink">No se puede volver a ver:</strong>{' '}
           si se pierde, hay que generar una nueva.
         </p>
-        <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
+        <Hueco className="mt-3 font-mono text-lg tracking-wider">
           {passwordTemporal}
-        </p>
+        </Hueco>
         <Boton className="mt-4" onClick={onCreado}>
           Listo
         </Boton>
-      </div>
+      </Bloque>
     )
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Nuevo alumno</h3>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Nombre"
-          value={datos.nombre}
-          onChange={cambiar('nombre')}
-          error={errores.nombre}
-          required
-          autoFocus
-        />
-        <Campo
-          etiqueta="Apellido"
-          value={datos.apellido}
-          onChange={cambiar('apellido')}
-          error={errores.apellido}
-          required
-        />
-        <Campo
-          etiqueta="Email"
-          type="email"
-          value={datos.email}
-          onChange={cambiar('email')}
-          error={errores.email}
-          required
-        />
-        <Campo
-          etiqueta="Teléfono"
-          type="tel"
-          value={datos.telefono}
-          onChange={cambiar('telefono')}
-          error={errores.telefono}
-        />
-        <CampoSelect
-          etiqueta="Nivel de ingreso"
-          value={datos.nivelIngreso}
-          onChange={cambiar('nivelIngreso')}
-        >
-          <option value="">Sin definir</option>
-          {NIVELES.map((n) => (
-            <option key={n} value={n}>
-              {n.charAt(0) + n.slice(1).toLowerCase()}
-            </option>
-          ))}
-        </CampoSelect>
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+    <Bloque titulo="Nuevo alumno" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            etiqueta="Nombre"
+            value={datos.nombre}
+            onChange={cambiar('nombre')}
+            error={errores.nombre}
+            required
+            autoFocus
+          />
+          <Campo
+            etiqueta="Apellido"
+            value={datos.apellido}
+            onChange={cambiar('apellido')}
+            error={errores.apellido}
+            required
+          />
+          <Campo
+            etiqueta="Email"
+            type="email"
+            value={datos.email}
+            onChange={cambiar('email')}
+            error={errores.email}
+            required
+          />
+          <Campo
+            etiqueta="Teléfono"
+            type="tel"
+            value={datos.telefono}
+            onChange={cambiar('telefono')}
+            error={errores.telefono}
+          />
+          <CampoSelect
+            etiqueta="Nivel de ingreso"
+            value={datos.nivelIngreso}
+            onChange={cambiar('nivelIngreso')}
+          >
+            <option value="">Sin definir</option>
+            {NIVELES.map((n) => (
+              <option key={n} value={n}>
+                {n.charAt(0) + n.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </CampoSelect>
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Creando…' : 'Crear alumno'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Creando…' : 'Crear alumno'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }

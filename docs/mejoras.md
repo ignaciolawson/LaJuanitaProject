@@ -1254,7 +1254,7 @@ Ordenadas por cuánto cambian lo que se ve, no por dificultad.
 |---|---|---|
 | 1 | **La base y la costura** — barra de scroll propia, el borde shell↔lienzo, grano, `color-scheme`, y el tema oscuro entero | ✅ **hecha** |
 | 2 | **Las puertas** — login, registro y cambio obligatorio de contraseña, partidas en dos con foto y marca | ✅ **hecha** |
-| 3 | **El sistema de bloques** — los "rectángulos que dicen la sección" y la jerarquía de tarjetas | pendiente |
+| 3 | **El sistema de bloques** — los "rectángulos que dicen la sección" y la jerarquía de tarjetas | ✅ **hecha** |
 | 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | parcial: la frase del día ya está |
 | 5 | **El portal (alumno y profesor)** — la mitad linda | pendiente |
 | 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | pendiente |
@@ -1333,6 +1333,93 @@ cada mitad estuviera bien:
   no acepta una frase atribuida sin fuente.
 - Es **el primer uso de `.t-serif` en toda la plataforma**. La familia estaba
   declarada, se descargaba en cada carga y no la usaba ni una pantalla.
+
+##### Etapa 3 · El sistema de bloques — construida el 2026-09-01
+
+**El pedido de Ignacio era *"que haya ahí rectángulos que te digan la sección"*, y
+el diagnóstico era literal.** Una sección se anunciaba con un `<h3>` de once
+píxeles de texto gris suelto arriba de la tarjeta, así que cada pantalla era una
+sucesión de rectángulos blancos indistinguibles.
+
+**Y abajo había el mismo problema que la 3.1 encontró con `Tabla`:** la tarjeta
+estaba dibujada a mano **60 veces**, con seis rellenos distintos (`p-5`,
+`px-5 py-4`, `px-5 py-6`, `p-4`, `px-4 py-3`…) y el título con cuatro
+separaciones diferentes (`mb-1`, `mb-3`, `mb-4`, ninguna).
+
+Tres componentes, en `componentes/Bloque.tsx`, y **son dos niveles que conviene
+no confundir**:
+
+| | Qué es | Dónde va el título |
+|---|---|---|
+| **`Bloque`** | La tarjeta con nombre | **Adentro**, sobre una franja en `--superficie-2` |
+| **`Grupo`** | Lo que agrupa tarjetas | **Afuera**, sobre una regla que cruza la pantalla |
+| **`Hueco`** | El relleno hundido dentro de un bloque | — |
+
+**La franja resuelve de paso la falta de profundidad, y sale gratis**: son dos
+tonos dentro de la misma tarjeta (`--superficie-2` sobre `--superficie`), o sea
+la paleta que ya existía, sin sumar un color.
+
+###### Lo que encontró, que es más interesante que lo que construyó
+
+- ⚠️ **Dos pantallas ya habían inventado el componente por su cuenta, y una lo
+  había llamado igual.** `AlumnoPerfilPagina` tenía un `Bloque` local con la
+  **misma API exacta** (`titulo` + `children`); `TableroPagina` tenía un
+  `Seccion` que era el `Grupo`, escrito distinto. **Es la mejor prueba posible
+  de que el componente iba en `componentes/`**: no hubo que convencer a nadie
+  del diseño, ya estaba, dos veces y sin enterarse una de la otra.
+- ⚠️ **`Bloque` era el nombre de tres cosas distintas en el Calendario**, que es
+  la pantalla que las muestra a las tres juntas: la tarjeta de sección, una
+  reserva dibujada en la grilla, y `bloqueo_sala` —cuando una sala no se puede
+  usar—. El local pasó a llamarse `ReservaEnGrilla`; el de la base ya tenía su
+  nombre. Apareció como un choque de imports, no como un bug.
+- **La jerarquía de encabezados estaba salteada en las 38 secciones.** Eran
+  `<h3>` bajo el `<h1>` de `CabeceraDePagina`: para quien navega por
+  encabezados, una sección que cuelga de algo que no está. `Bloque` es `<h2>`,
+  y **`nivel={3}` cuando vive dentro de un `Grupo`**, porque el grupo ya gastó
+  el `<h2>` — sin eso, doce tarjetas en tres grupos se describen como doce
+  secciones hermanas. Es la misma corrección que la 3.1 hizo al sacar la barra
+  superior, terminada del otro lado.
+
+###### La jerarquía del Inicio, que era el otro síntoma
+
+Las doce tarjetas pesaban igual. `Bloque` tiene `destacado`, que dibuja una
+línea roja de 2px arriba — el mismo gesto que la barra del ítem activo del
+sidebar, del otro lado de la costura.
+
+⚠️ **Y la regla que lo hace funcionar: una por pantalla, y ninguna es válido.**
+En el Inicio eso obligó a una **cadena de prioridad y no a tres banderas
+sueltas**: quien opera ve destacado *Deudores*, quien da clase *Clases de hoy*,
+el resto *Mi próxima reserva*. Con tres condiciones independientes, Ghezz —que
+es STAFF *y* profesor *y* alquila cabina— abriría el Inicio con **tres líneas
+rojas, o sea con ninguna**.
+
+###### Adopción, contada de verdad
+
+| | Antes | Ahora |
+|---|---|---|
+| Usos de `Bloque` | 0 | **33 en 16 archivos** |
+| Usos de `Grupo` | 0 (escrito a mano, distinto, en 2 pantallas) | **2 pantallas, un componente** |
+| Usos de `Hueco` | 0 | **4** |
+| `t-seccion` suelto | 38 | **16** |
+| Tarjetas dibujadas a mano | 60 | **36** |
+
+⚠️ **Los 36 que quedan no son deuda escondida: son tarjetas SIN título**, o sea
+contenedores donde la franja no aplica y migrarlos no cambia un píxel. El valor
+que queda ahí es de centralización, no visual, y entra en la barrida de
+correcciones. De los 16 `t-seccion`, varios tampoco son títulos de tarjeta —
+`EstadoVacio`, `PedirMotivo` y la fecha de una reserva en el Inicio lo usan como
+escala tipográfica, que es para lo que está.
+
+###### Una lección de método, cara y corta
+
+**Migrar JSX con regex no se hace.** El primer intento fue un script que
+convirtió `Contraseña de {de}` en el texto literal `"Contraseña de {de}"` — la
+expresión JSX se volvió un string, compilaba, y la pantalla habría mostrado
+llaves a la persona que tiene que leer una contraseña. Se revirtió entero. Lo
+que sí funcionó fue el mismo script con **balanceo de etiquetas por profundidad**
+(no regex para encontrar el cierre) y **títulos literales o marcados como
+expresión**, revisando el diff de cada archivo. El balanceo nunca falló; el
+patrón del título, tres veces.
 
 ##### ⚠️ Una trampa de TypeScript que produce un bug silencioso
 

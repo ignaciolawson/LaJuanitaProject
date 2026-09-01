@@ -6,6 +6,7 @@ import { misCursos } from '../api/portal'
 import type { ProgresoDelCurso } from '../api/tiposPortal'
 import { Aviso } from '../componentes/Boton'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -103,16 +104,14 @@ export function MisCursosPagina() {
           nombrado. Llegó el Módulo 5 y ahora apunta a la pantalla real: el
           cartel se reemplaza por el camino, no se borra —el alumno que lo leyó
           alguna vez sigue buscando sus materiales acá. */}
-      <section className="mt-8 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-6">
-        <h3 className="t-seccion text-sm">Materiales de clase</h3>
-        <p className="mt-1 text-sm text-tenue">
+      <Bloque titulo={"Materiales de clase"} className="mt-8">        <p className="mt-1 text-sm text-tenue">
           Los que subieron tus profesores están en{' '}
           <Link to="/mis-materiales" className="underline underline-offset-2 hover:text-acento">
             Mis materiales
           </Link>
           .
         </p>
-      </section>
+      </Bloque>
     </div>
   )
 }

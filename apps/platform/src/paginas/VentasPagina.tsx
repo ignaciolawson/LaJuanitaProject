@@ -11,6 +11,7 @@ import {
 } from '../api/tiposAdmin'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -320,71 +321,29 @@ function FormularioVenta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Registrar venta</h3>
+    <Bloque titulo="Registrar venta" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            etiqueta="Modelo"
+            value={datos.modeloEquipo}
+            onChange={cambiar('modeloEquipo')}
+            error={errores.modeloEquipo}
+            ayuda="Lo único obligatorio del equipo: sin esto la fila no dice qué se vendió."
+          />
+          <Campo etiqueta="Marca" value={datos.marca} onChange={cambiar('marca')} />
+          <Campo
+            etiqueta="Categoría"
+            value={datos.categoria}
+            onChange={cambiar('categoria')}
+            ayuda="Controladora, bandeja, mixer, monitores…"
+          />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Modelo"
-          value={datos.modeloEquipo}
-          onChange={cambiar('modeloEquipo')}
-          error={errores.modeloEquipo}
-          ayuda="Lo único obligatorio del equipo: sin esto la fila no dice qué se vendió."
-        />
-        <Campo etiqueta="Marca" value={datos.marca} onChange={cambiar('marca')} />
-        <Campo
-          etiqueta="Categoría"
-          value={datos.categoria}
-          onChange={cambiar('categoria')}
-          ayuda="Controladora, bandeja, mixer, monitores…"
-        />
-
-        <CampoSelect
-          etiqueta="Vendió"
-          value={datos.idUsuarioVendedor}
-          onChange={cambiar('idUsuarioVendedor')}
-          error={errores.idUsuarioVendedor}
-        >
-          <option value="">Elegí a la persona</option>
-          {personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.apellido}, {p.nombre}
-            </option>
-          ))}
-        </CampoSelect>
-
-        {/* -- El comprador ------------------------------------------------- */}
-        <div className="sm:col-span-2">
-          <span className="text-xs font-semibold text-tenue">Comprador</span>
-          <div className="mt-2 flex gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="comprador"
-                checked={conCuenta}
-                onChange={() => setConCuenta(true)}
-              />
-              Tiene cuenta
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="comprador"
-                checked={!conCuenta}
-                onChange={() => setConCuenta(false)}
-              />
-              No tiene cuenta
-            </label>
-          </div>
-        </div>
-
-        {conCuenta ? (
           <CampoSelect
-            etiqueta="Quién compró"
-            value={datos.idUsuarioComprador}
-            onChange={cambiar('idUsuarioComprador')}
-            error={errores.compradorIdentificado}
-            className="sm:col-span-2"
+            etiqueta="Vendió"
+            value={datos.idUsuarioVendedor}
+            onChange={cambiar('idUsuarioVendedor')}
+            error={errores.idUsuarioVendedor}
           >
             <option value="">Elegí a la persona</option>
             {personas.map((p) => (
@@ -393,113 +352,155 @@ function FormularioVenta({
               </option>
             ))}
           </CampoSelect>
-        ) : (
-          <>
-            <Campo
-              etiqueta="Nombre del comprador"
-              value={datos.nombreCompradorExterno}
-              onChange={cambiar('nombreCompradorExterno')}
+
+          {/* -- El comprador ------------------------------------------------- */}
+          <div className="sm:col-span-2">
+            <span className="text-xs font-semibold text-tenue">Comprador</span>
+            <div className="mt-2 flex gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="comprador"
+                  checked={conCuenta}
+                  onChange={() => setConCuenta(true)}
+                />
+                Tiene cuenta
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="comprador"
+                  checked={!conCuenta}
+                  onChange={() => setConCuenta(false)}
+                />
+                No tiene cuenta
+              </label>
+            </div>
+          </div>
+
+          {conCuenta ? (
+            <CampoSelect
+              etiqueta="Quién compró"
+              value={datos.idUsuarioComprador}
+              onChange={cambiar('idUsuarioComprador')}
               error={errores.compradorIdentificado}
-            />
-            <Campo
-              etiqueta="Contacto"
-              value={datos.contactoCompradorExterno}
-              onChange={cambiar('contactoCompradorExterno')}
-              ayuda="Un teléfono o mail: es lo único que va a quedar para ubicarlo."
-            />
-          </>
-        )}
+              className="sm:col-span-2"
+            >
+              <option value="">Elegí a la persona</option>
+              {personas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.apellido}, {p.nombre}
+                </option>
+              ))}
+            </CampoSelect>
+          ) : (
+            <>
+              <Campo
+                etiqueta="Nombre del comprador"
+                value={datos.nombreCompradorExterno}
+                onChange={cambiar('nombreCompradorExterno')}
+                error={errores.compradorIdentificado}
+              />
+              <Campo
+                etiqueta="Contacto"
+                value={datos.contactoCompradorExterno}
+                onChange={cambiar('contactoCompradorExterno')}
+                ayuda="Un teléfono o mail: es lo único que va a quedar para ubicarlo."
+              />
+            </>
+          )}
 
-        {/* -- La plata ------------------------------------------------------ */}
-        <Campo
-          etiqueta="Precio"
-          type="number"
-          step="0.01"
-          value={datos.precio}
-          onChange={cambiar('precio')}
-          error={errores.precio}
-        />
-
-        <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-          <option value="ARS">Pesos</option>
-          <option value="USD">Dólares</option>
-        </CampoSelect>
-
-        {datos.moneda === 'USD' && (
+          {/* -- La plata ------------------------------------------------------ */}
           <Campo
-            etiqueta="Cotización del dólar"
+            etiqueta="Precio"
             type="number"
             step="0.01"
-            value={datos.cotizacionDolar}
-            onChange={cambiar('cotizacionDolar')}
-            ayuda="Sin esto el importe no se puede reconstruir después."
-            error={errores.cotizacionPresenteSiEsUsd}
-            className="sm:col-span-2"
+            value={datos.precio}
+            onChange={cambiar('precio')}
+            error={errores.precio}
           />
-        )}
 
-        <Campo
-          etiqueta="Fecha de la venta"
-          type="date"
-          value={datos.fechaVenta}
-          onChange={cambiar('fechaVenta')}
-        />
-
-        <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} />
-
-        {/* El cobro. Se registra en la misma transacción que la venta -- es el
-            caso normal: se vendió y se cobró.
-
-            **Ya no depende de que el comprador tenga cuenta.** Hasta `V19`,
-            `pago.id_usuario` era NOT NULL y este checkbox estaba deshabilitado
-            para el comprador externo, con un texto que explicaba por qué: o sea
-            que una venta a alguien que compra por el acuerdo con Pioneer **no se
-            podía cobrar nunca**. Era el hallazgo #1 de `docs/mejoras.md`. */}
-        <div className="sm:col-span-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={datos.cobrada}
-              onChange={(e) => setDatos((previo) => ({ ...previo, cobrada: e.target.checked }))}
-            />
-            Ya se cobró
-          </label>
-        </div>
-
-        {datos.cobrada && (
-          <CampoSelect
-            etiqueta="Cómo pagó"
-            value={datos.medioPago}
-            onChange={cambiar('medioPago')}
-            className="sm:col-span-2"
-          >
-            {MEDIOS_DE_PAGO.map((m) => (
-              <option key={m} value={m}>
-                {NOMBRE_DE_MEDIO[m]}
-              </option>
-            ))}
+          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+            <option value="ARS">Pesos</option>
+            <option value="USD">Dólares</option>
           </CampoSelect>
-        )}
-      </div>
 
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+          {datos.moneda === 'USD' && (
+            <Campo
+              etiqueta="Cotización del dólar"
+              type="number"
+              step="0.01"
+              value={datos.cotizacionDolar}
+              onChange={cambiar('cotizacionDolar')}
+              ayuda="Sin esto el importe no se puede reconstruir después."
+              error={errores.cotizacionPresenteSiEsUsd}
+              className="sm:col-span-2"
+            />
+          )}
+
+          <Campo
+            etiqueta="Fecha de la venta"
+            type="date"
+            value={datos.fechaVenta}
+            onChange={cambiar('fechaVenta')}
+          />
+
+          <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} />
+
+          {/* El cobro. Se registra en la misma transacción que la venta -- es el
+              caso normal: se vendió y se cobró.
+
+              **Ya no depende de que el comprador tenga cuenta.** Hasta `V19`,
+              `pago.id_usuario` era NOT NULL y este checkbox estaba deshabilitado
+              para el comprador externo, con un texto que explicaba por qué: o sea
+              que una venta a alguien que compra por el acuerdo con Pioneer **no se
+              podía cobrar nunca**. Era el hallazgo #1 de `docs/mejoras.md`. */}
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={datos.cobrada}
+                onChange={(e) => setDatos((previo) => ({ ...previo, cobrada: e.target.checked }))}
+              />
+              Ya se cobró
+            </label>
+          </div>
+
+          {datos.cobrada && (
+            <CampoSelect
+              etiqueta="Cómo pagó"
+              value={datos.medioPago}
+              onChange={cambiar('medioPago')}
+              className="sm:col-span-2"
+            >
+              {MEDIOS_DE_PAGO.map((m) => (
+                <option key={m} value={m}>
+                  {NOMBRE_DE_MEDIO[m]}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        {/* "Registrar" y no "Registrar venta": el botón de la cabecera ya se
-            llama así y dos botones con el mismo nombre accesible son ambiguos
-            para quien navega por lectores de pantalla, además de para los tests.
-            Es la misma etiqueta que usa el alta de egresos. */}
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Registrar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          {/* "Registrar" y no "Registrar venta": el botón de la cabecera ya se
+              llama así y dos botones con el mismo nombre accesible son ambiguos
+              para quien navega por lectores de pantalla, además de para los tests.
+              Es la misma etiqueta que usa el alta de egresos. */}
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Registrar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }

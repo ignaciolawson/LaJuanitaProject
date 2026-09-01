@@ -16,6 +16,7 @@ import {
   type SolicitanteResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { CampoSelect } from '../componentes/Campo'
 import { EstadoVacio } from '../componentes/EstadoVacio'
@@ -254,10 +255,7 @@ function CuentaLista({
   const quien = `${resultado.usuario.nombre} ${resultado.usuario.apellido}`
 
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion">
-        {resultado.cuentaNueva ? `Cuenta creada para ${quien}` : `${quien} ya tenía cuenta`}
-      </h3>
+    <Bloque titulo={resultado.cuentaNueva ? `Cuenta creada para ${quien}` : `${quien} ya tenía cuenta`} className="mb-6">
 
       {resultado.cuentaNueva && resultado.passwordTemporal ? (
         <>
@@ -267,9 +265,9 @@ function CuentaLista({
             <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
             generar otra desde Personas.
           </p>
-          <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
+          <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
-          </p>
+          </Hueco>
         </>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-tenue">
@@ -295,6 +293,6 @@ function CuentaLista({
       <Boton className="mt-4" onClick={onCerrar}>
         Listo
       </Boton>
-    </div>
+    </Bloque>
   )
 }

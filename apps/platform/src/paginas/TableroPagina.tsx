@@ -29,6 +29,7 @@ import {
 import { capitalizar, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
 import { puedeVerElTableroCompleto } from '../layout/menu'
+import { Grupo } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
@@ -424,20 +425,19 @@ function Seccion({
   children: React.ReactNode
 }) {
   return (
-    <section className="mb-8">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <div>
-          <h3 className="t-seccion">{titulo}</h3>
-          {aclaracion && <p className="text-xs text-tenue">{aclaracion}</p>}
-        </div>
-        {detalle && (
+    <Grupo
+      titulo={titulo}
+      aclaracion={aclaracion}
+      accion={
+        detalle && (
           <Link to={detalle} className="whitespace-nowrap text-sm text-acento hover:underline">
             Ver detalle
           </Link>
-        )}
-      </div>
+        )
+      }
+    >
       {children}
-    </section>
+    </Grupo>
   )
 }
 

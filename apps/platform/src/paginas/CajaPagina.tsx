@@ -7,6 +7,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
 import { hoy, sumarDias } from '../componentes/semana'
+import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
@@ -115,9 +116,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
   const sinMovimientos = caja.cantidadDePagos === 0 && caja.cantidadDeEgresos === 0
 
   return (
-    <div className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion">{caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}</h3>
-
+    <Bloque titulo={caja.moneda === 'USD' ? 'Dólares' : 'Pesos'}>
       {sinMovimientos ? (
         // No se omite la moneda: "en dólares no entró nada este mes" es un dato,
         // y una tarjeta que falta se lee como que el sistema la perdió.
@@ -171,7 +170,7 @@ function TarjetaDeCaja({ caja }: { caja: CajaDelPeriodo }) {
           )}
         </>
       )}
-    </div>
+    </Bloque>
   )
 }
 

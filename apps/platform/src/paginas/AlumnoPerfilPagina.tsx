@@ -25,6 +25,7 @@ import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { hoy, sumarDias } from '../componentes/semana'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { Etiqueta } from '../componentes/Etiqueta'
+import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -208,15 +209,6 @@ function Volver() {
     >
       ← Volver a Alumnos
     </Link>
-  )
-}
-
-function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-3">{titulo}</h3>
-      {children}
-    </section>
   )
 }
 

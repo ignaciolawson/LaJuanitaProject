@@ -11,6 +11,7 @@ import { ApiError } from '../api/cliente'
 import type { Rol } from '../api/tipos'
 import type { UsuarioResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Bloque, Hueco } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { useUsuario } from '../auth/contexto'
@@ -245,21 +246,20 @@ function PasswordNueva({
   onCerrar: () => void
 }) {
   return (
-    <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion">Contraseña de {de}</h3>
+    <Bloque titulo={<>Contraseña de {de}</>} className="mb-6">
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
         <strong className="text-ink">vence a los 7 días</strong> si no la usa.{' '}
         <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
         generar otra.
       </p>
-      <p className="mt-3 rounded-md border border-linea bg-superficie-2 px-4 py-3 font-mono text-lg tracking-wider">
+      <Hueco className="mt-3 font-mono text-lg tracking-wider">
         {valor}
-      </p>
+      </Hueco>
       <Boton className="mt-4" onClick={onCerrar}>
         Listo
       </Boton>
-    </div>
+    </Bloque>
   )
 }
 
@@ -327,66 +327,66 @@ function FormularioCuenta({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">Nueva cuenta</h3>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Nombre"
-          value={datos.nombre}
-          onChange={cambiar('nombre')}
-          error={errores.nombre}
-          required
-          autoFocus
-        />
-        <Campo
-          etiqueta="Apellido"
-          value={datos.apellido}
-          onChange={cambiar('apellido')}
-          error={errores.apellido}
-          required
-        />
-        <Campo
-          etiqueta="Email"
-          type="email"
-          value={datos.email}
-          onChange={cambiar('email')}
-          error={errores.email}
-          required
-        />
-        <Campo
-          etiqueta="Teléfono"
-          type="tel"
-          value={datos.telefono}
-          onChange={cambiar('telefono')}
-          error={errores.telefono}
-        />
-        {puedeAsignarRol && (
-          <CampoSelect etiqueta="Rol" value={datos.rol} onChange={cambiar('rol')}>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {NOMBRE_DE_ROL[r]}
-              </option>
-            ))}
-          </CampoSelect>
-        )}
-      </div>
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+    <Bloque titulo="Nueva cuenta" className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            etiqueta="Nombre"
+            value={datos.nombre}
+            onChange={cambiar('nombre')}
+            error={errores.nombre}
+            required
+            autoFocus
+          />
+          <Campo
+            etiqueta="Apellido"
+            value={datos.apellido}
+            onChange={cambiar('apellido')}
+            error={errores.apellido}
+            required
+          />
+          <Campo
+            etiqueta="Email"
+            type="email"
+            value={datos.email}
+            onChange={cambiar('email')}
+            error={errores.email}
+            required
+          />
+          <Campo
+            etiqueta="Teléfono"
+            type="tel"
+            value={datos.telefono}
+            onChange={cambiar('telefono')}
+            error={errores.telefono}
+          />
+          {puedeAsignarRol && (
+            <CampoSelect etiqueta="Rol" value={datos.rol} onChange={cambiar('rol')}>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {NOMBRE_DE_ROL[r]}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Creando…' : 'Crear cuenta'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Creando…' : 'Crear cuenta'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
 
@@ -447,82 +447,80 @@ function FormularioEdicion({
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-      <h3 className="t-seccion mb-4">
-        Editar a {usuario.nombre} {usuario.apellido}
-      </h3>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
-          etiqueta="Nombre"
-          value={datos.nombre}
-          onChange={cambiar('nombre')}
-          error={errores.nombre}
-          required
-          autoFocus
-        />
-        <Campo
-          etiqueta="Apellido"
-          value={datos.apellido}
-          onChange={cambiar('apellido')}
-          error={errores.apellido}
-          required
-        />
-        <Campo
-          etiqueta="Email"
-          type="email"
-          value={datos.email}
-          onChange={cambiar('email')}
-          error={errores.email}
-          required
-        />
-        <Campo
-          etiqueta="Teléfono"
-          type="tel"
-          value={datos.telefono}
-          onChange={cambiar('telefono')}
-          error={errores.telefono}
-        />
-        {puedeAsignarRol && (
-          <CampoSelect
-            etiqueta="Rol"
-            value={datos.rol}
-            onChange={cambiar('rol')}
-            // Cambiarse el rol a uno mismo deja al sistema sin administrador si
-            // sos el único ADMIN: el backend lo rechaza, y acá el campo queda
-            // bloqueado para que el clic distraído no exista.
-            disabled={esUnoMismo}
-          >
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {NOMBRE_DE_ROL[r]}
-              </option>
-            ))}
-          </CampoSelect>
-        )}
-      </div>
-
-      {esUnoMismo && puedeAsignarRol && (
-        <p className="mt-3 text-xs text-apagado">
-          No podés cambiarte el rol a vos mismo: si sos el único administrador, el sistema
-          quedaría sin nadie que pueda administrarlo.
-        </p>
-      )}
-
-      {errorGeneral && (
-        <div className="mt-4">
-          <Aviso>{errorGeneral}</Aviso>
+    <Bloque titulo={<>Editar a {usuario.nombre} {usuario.apellido}</>} className="mb-6">
+      <form onSubmit={onSubmit} noValidate>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Campo
+            etiqueta="Nombre"
+            value={datos.nombre}
+            onChange={cambiar('nombre')}
+            error={errores.nombre}
+            required
+            autoFocus
+          />
+          <Campo
+            etiqueta="Apellido"
+            value={datos.apellido}
+            onChange={cambiar('apellido')}
+            error={errores.apellido}
+            required
+          />
+          <Campo
+            etiqueta="Email"
+            type="email"
+            value={datos.email}
+            onChange={cambiar('email')}
+            error={errores.email}
+            required
+          />
+          <Campo
+            etiqueta="Teléfono"
+            type="tel"
+            value={datos.telefono}
+            onChange={cambiar('telefono')}
+            error={errores.telefono}
+          />
+          {puedeAsignarRol && (
+            <CampoSelect
+              etiqueta="Rol"
+              value={datos.rol}
+              onChange={cambiar('rol')}
+              // Cambiarse el rol a uno mismo deja al sistema sin administrador si
+              // sos el único ADMIN: el backend lo rechaza, y acá el campo queda
+              // bloqueado para que el clic distraído no exista.
+              disabled={esUnoMismo}
+            >
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {NOMBRE_DE_ROL[r]}
+                </option>
+              ))}
+            </CampoSelect>
+          )}
         </div>
-      )}
 
-      <div className="mt-5 flex gap-3">
-        <Boton type="submit" disabled={enviando}>
-          {enviando ? 'Guardando…' : 'Guardar'}
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={onCerrar}>
-          Cancelar
-        </Boton>
-      </div>
-    </form>
+        {esUnoMismo && puedeAsignarRol && (
+          <p className="mt-3 text-xs text-apagado">
+            No podés cambiarte el rol a vos mismo: si sos el único administrador, el sistema
+            quedaría sin nadie que pueda administrarlo.
+          </p>
+        )}
+
+        {errorGeneral && (
+          <div className="mt-4">
+            <Aviso>{errorGeneral}</Aviso>
+          </div>
+        )}
+
+        <div className="mt-5 flex gap-3">
+          <Boton type="submit" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Guardar'}
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={onCerrar}>
+            Cancelar
+          </Boton>
+        </div>
+          </form>
+    </Bloque>
   )
 }
