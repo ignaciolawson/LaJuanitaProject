@@ -52,8 +52,17 @@ describe('el progreso', () => {
     montar()
 
     expect(await screen.findByText('5')).toBeDefined()
-    expect(screen.getByText(/tomaste 3 de 8/)).toBeDefined()
+    expect(screen.getByText(/Tomaste 3 de 8/)).toBeDefined()
     expect(screen.getByText(/con Ghezz Pérez/)).toBeDefined()
+  })
+
+  it('la fila de pasos dice lo mismo que el texto, para quien no la ve', async () => {
+    // Los ocho pasos van `aria-hidden` bajo un solo `role="img"` con su
+    // etiqueta: sin eso serían ocho elementos sin nombre, que es peor que no
+    // dibujar nada.
+    montar()
+
+    expect(await screen.findByRole('img', { name: '3 de 8 clases tomadas' })).toBeDefined()
   })
 
   /**

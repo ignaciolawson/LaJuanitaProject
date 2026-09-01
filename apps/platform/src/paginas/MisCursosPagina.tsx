@@ -9,6 +9,7 @@ import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { Progreso } from '../componentes/Progreso'
 
 /**
  * Módulo 4 — mi progreso.
@@ -61,42 +62,38 @@ export function MisCursosPagina() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {cursos.map((c) => (
-          <article key={c.idInscripcion} className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
-            <header className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="t-seccion">{NOMBRE_DE_DISCIPLINA[c.disciplina]}</h3>
-                <p className="text-xs text-tenue">
-                  {c.nivel ? capitalizar(c.nivel) : 'Sin nivel asignado'}
-                  {c.profesor && ` · con ${c.profesor}`}
-                </p>
-              </div>
-              {c.estado !== 'ACTIVA' && (
-                <span className="rounded-full border border-linea px-2 py-0.5 text-xs text-tenue">
-                  {capitalizar(c.estado)}
-                </span>
-              )}
-            </header>
-
-            <p className="mt-5 t-dato">
-              {c.clasesRestantes}
-            </p>
-            <p className="text-xs text-tenue">
-              {c.clasesRestantes === 1 ? 'clase por delante' : 'clases por delante'} · tomaste{' '}
-              {c.clasesConsumidas} de {c.clasesContratadas}
+          <Bloque
+            key={c.idInscripcion}
+            titulo={NOMBRE_DE_DISCIPLINA[c.disciplina]}
+            accion={
+              c.estado !== 'ACTIVA' ? (
+                <span className="t-mono text-tenue">{capitalizar(c.estado)}</span>
+              ) : undefined
+            }
+          >
+            {/* El número grande es LO QUE FALTA y no lo que se hizo: la
+                pregunta con la que un alumno entra acá es "¿cuánto me queda?".
+                Lo tomado va abajo, chico, porque es el contexto de esa cifra. */}
+            <p className="t-dato">{c.clasesRestantes}</p>
+            <p className="mt-1 text-sm text-tenue">
+              {c.clasesRestantes === 1 ? 'clase por delante' : 'clases por delante'}
             </p>
 
-            <div
-              className="mt-4 h-1.5 overflow-hidden rounded-full bg-linea"
-              role="presentation"
-            >
-              <div
-                className="h-full bg-ink"
-                style={{
-                  width: `${Math.round((c.clasesConsumidas / c.clasesContratadas) * 100)}%`,
-                }}
-              />
-            </div>
-          </article>
+            <Progreso
+              className="mt-5"
+              hechas={c.clasesConsumidas}
+              total={c.clasesContratadas}
+            />
+
+            <p className="mt-2.5 text-xs text-tenue">
+              Tomaste {c.clasesConsumidas} de {c.clasesContratadas}
+            </p>
+
+            <p className="mt-4 border-t border-linea pt-3 text-xs text-tenue">
+              {c.nivel ? capitalizar(c.nivel) : 'Sin nivel asignado'}
+              {c.profesor && ` · con ${c.profesor}`}
+            </p>
+          </Bloque>
         ))}
       </div>
 
@@ -104,7 +101,8 @@ export function MisCursosPagina() {
           nombrado. Llegó el Módulo 5 y ahora apunta a la pantalla real: el
           cartel se reemplaza por el camino, no se borra —el alumno que lo leyó
           alguna vez sigue buscando sus materiales acá. */}
-      <Bloque titulo={"Materiales de clase"} className="mt-8">        <p className="mt-1 text-sm text-tenue">
+      <Bloque titulo="Materiales de clase" className="mt-8">
+        <p className="text-sm text-tenue">
           Los que subieron tus profesores están en{' '}
           <Link to="/mis-materiales" className="underline underline-offset-2 hover:text-acento">
             Mis materiales

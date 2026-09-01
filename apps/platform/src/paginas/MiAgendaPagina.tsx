@@ -11,6 +11,7 @@ import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { Proxima } from '../componentes/Proxima'
 
 /**
  * Módulo 5, pantallas 1 y 5 — mi agenda y mis clases dictadas.
@@ -32,7 +33,9 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
  * botón es `PedirOtroDia`, el mismo componente que dibuja Mis reservas.
  */
 export function MiAgendaPagina() {
-  const [desde, setDesde] = useState(() => lunesDe(hoy()))
+  // Ver la nota de `MisReservasPagina`: el día se fija una vez.
+  const [ahora] = useState(hoy)
+  const [desde, setDesde] = useState(() => lunesDe(ahora))
   const [clases, setClases] = useState<ReservaResumen[]>([])
   const [dictadas, setDictadas] = useState<ClasesDictadas | null>(null)
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
@@ -76,8 +79,15 @@ export function MiAgendaPagina() {
     if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
   }
 
+  const proxima = clases
+    .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
+    .filter((r) => r.fecha >= ahora)
+    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))[0]
+
   return (
     <div>
+      {/* La primera que sigue en pie y todavía no pasó. Una cancelada o
+          reprogramada no es "la próxima" aunque figure primera. */}
       <CabeceraDePagina
         titulo="Mi agenda"
         aclaracion={<>{cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}</>}
@@ -91,7 +101,7 @@ export function MiAgendaPagina() {
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -7))}>
             ← Anterior
           </Boton>
-          <Boton variante="secundario" onClick={() => setDesde(lunesDe(hoy()))}>
+          <Boton variante="secundario" onClick={() => setDesde(lunesDe(ahora))}>
             Esta semana
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 7))}>
@@ -107,6 +117,21 @@ export function MiAgendaPagina() {
 
       {!cargando && ordenadas.length === 0 && (
         <EstadoVacio titulo="No tenés clases en esta semana." />
+      )}
+
+      {/* La misma pieza que ve el alumno en "Mis reservas", del lado de quien
+          da la clase: lo que un profesor viene a saber es cuándo tiene la
+          próxima y con quién, no a leer la grilla entera de la semana. */}
+      {proxima && (
+        <Proxima
+          className="mb-6"
+          hoy={ahora}
+          fecha={proxima.fecha}
+          horaInicio={proxima.horaInicio}
+          horaFin={proxima.horaFin}
+          titulo={proxima.tipoUso}
+          detalle={proxima.sala}
+        />
       )}
 
       {/* Con nombre: el tipo de uso —"Clase de DJ"— aparece también en el

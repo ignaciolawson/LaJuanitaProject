@@ -132,6 +132,61 @@ describe('el saludo', () => {
   })
 })
 
+describe('el orden de los grupos', () => {
+  /** Los títulos de grupo que hay en pantalla, en el orden en que están. */
+  async function orden() {
+    await screen.findByText('Lo mío')
+    return screen
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent ?? '')
+  }
+
+  it('quien opera ve primero el trabajo con otra gente, y lo suyo al final', async () => {
+    // ⚠️ El orden estaba fijo y era el de construcción de los módulos: Micaela
+    // abría el Inicio y lo primero era SU próxima reserva y SU deuda, mientras
+    // que a quién hay que cobrarle —lo único que viene a buscar— quedaba cuarto.
+    montar('STAFF')
+    const titulos = await orden()
+
+    expect(titulos.indexOf('Operación')).toBeLessThan(titulos.indexOf('Lo mío'))
+    expect(titulos[0]).toBe('Operación')
+  })
+
+  it('un DIRECTIVO arranca por los números', async () => {
+    // No opera, así que "Operación" no existe para él: lo primero tiene que ser
+    // lo único que esa persona entra a mirar.
+    montar('DIRECTIVO')
+    const titulos = await orden()
+
+    expect(titulos[0]).toBe('Los números del mes')
+  })
+
+  it('un profesor arranca por sus clases', async () => {
+    montar('USUARIO', { esProfesor: true })
+    const titulos = await orden()
+
+    expect(titulos[0]).toBe('Mis clases')
+  })
+
+  it('ningún perfil pierde un grupo por un olvido en el orden', async () => {
+    // ⚠️ Este caso existe por un bug real: la primera versión escribía la lista
+    // de orden entera a mano y un DIRECTIVO **perdía el bloque de números
+    // completo**. La pantalla se veía perfecta y le faltaba todo.
+    montar('ADMIN', { esAlumno: true, esProfesor: true })
+    const titulos = await orden()
+
+    for (const grupo of [
+      'Operación',
+      'Los números del mes',
+      'Mis clases',
+      'Mi formación',
+      'Lo mío',
+    ]) {
+      expect(titulos).toContain(grupo)
+    }
+  })
+})
+
 describe('qué ve cada perfil', () => {
   it('un USUARIO puro ve lo suyo y nada de administración', async () => {
     montar('USUARIO')

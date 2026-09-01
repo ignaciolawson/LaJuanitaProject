@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -52,10 +52,23 @@ describe('el listado', () => {
   it('muestra qué, cuándo, dónde y con quién', async () => {
     render(<MisReservasPagina />)
 
-    expect(await screen.findByText('Clase de DJ')).toBeDefined()
-    expect(screen.getByText('10:00 a 11:30')).toBeDefined()
-    expect(screen.getByText(/Sala 1/)).toBeDefined()
-    expect(screen.getByText(/con Ghezz Pérez/)).toBeDefined()
+    // ⚠️ Las búsquedas van acotadas a la LISTA, no a la pantalla: arriba está
+    // la pieza de "Lo próximo", que muestra la misma reserva en otro formato.
+    // Ese duplicado es deliberado —la fila lleva los controles y la pieza no—
+    // y está explicado en `MisReservasPagina`.
+    const lista = within(await screen.findByRole('list'))
+
+    expect(lista.getByText('Clase de DJ')).toBeDefined()
+    expect(lista.getByText('10:00 a 11:30')).toBeDefined()
+    expect(lista.getByText(/Sala 1/)).toBeDefined()
+    expect(lista.getByText(/con Ghezz Pérez/)).toBeDefined()
+  })
+
+  it('destaca la próxima arriba, en palabras', async () => {
+    // "El lunes" se lee sin pensar; "07/09" obliga a acordarse de qué día es hoy.
+    render(<MisReservasPagina />)
+
+    expect(await screen.findByText('Lo próximo')).toBeDefined()
   })
 
   it('avisa cuando no hay nada agendado', async () => {
@@ -72,6 +85,7 @@ describe('lo que pasó con cada una', () => {
     render(<MisReservasPagina />)
 
     expect(await screen.findByText('Cancelada')).toBeDefined()
+    // Una cancelada NO es "lo próximo": no sale de la lista y no se destaca.
     expect(screen.getByText('Clase de DJ')).toBeDefined()
   })
 
@@ -93,7 +107,9 @@ describe('lo que pasó con cada una', () => {
     ])
     render(<MisReservasPagina />)
 
-    expect(await screen.findByText('Alquiler de cabina')).toBeDefined()
+    const lista = within(await screen.findByRole('list'))
+
+    expect(lista.getByText('Alquiler de cabina')).toBeDefined()
     expect(screen.queryByText('Asististe')).toBeNull()
     expect(screen.queryByText('Faltaste')).toBeNull()
   })

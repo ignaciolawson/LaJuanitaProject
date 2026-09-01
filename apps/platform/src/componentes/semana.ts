@@ -110,3 +110,42 @@ export function filasDeHoras(reservas: { horaInicio: string; horaFin: string }[]
 
   return Array.from({ length: hasta - desde }, (_, i) => desde + i)
 }
+
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+const MESES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/**
+ * ⚠️ Las fechas se parsean a mano y NO con `new Date(iso)`.
+ *
+ * `new Date('2026-09-03')` se interpreta como medianoche **UTC**, y leído en
+ * Buenos Aires (UTC−3) cae el día anterior: toda clase se anunciaría un día
+ * antes de cuando es. Es el mismo error que la landing documentó para las
+ * fechas de sus notas, del otro lado del repositorio.
+ */
+function partesDeFecha(iso: string) {
+  const [a, m, d] = iso.split('-').map(Number)
+  return { a, m, d, fecha: new Date(a, m - 1, d) }
+}
+
+export function cuandoEnPalabras(iso: string, hoy: string): string {
+  const uno = partesDeFecha(iso).fecha
+  const otro = partesDeFecha(hoy).fecha
+  const dias = Math.round((uno.getTime() - otro.getTime()) / 86_400_000)
+
+  if (dias === 0) return 'Hoy'
+  if (dias === 1) return 'Mañana'
+  // Más allá de una semana "en 12 días" ya no ayuda a ubicarse: a esa distancia
+  // lo que se usa es el día del mes, que es lo que dice la línea de abajo.
+  if (dias > 1 && dias < 7) return `El ${DIAS[uno.getDay()]}`
+  if (dias === -1) return 'Ayer'
+  if (dias < 0) return 'Ya pasó'
+  return `En ${dias} días`
+}
+
+export function fechaLarga(iso: string): string {
+  const { d, m } = partesDeFecha(iso)
+  return `${d} de ${MESES[m - 1]}`
+}

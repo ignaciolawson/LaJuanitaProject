@@ -78,7 +78,7 @@ export function MisTrabajosPagina() {
           return (
             <li
               key={t.idTrabajo}
-              className={`rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 ${
+              className={`rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 transition-colors hover:border-tenue ${
                 caido ? 'text-apagado' : ''
               }`}
             >

@@ -66,7 +66,7 @@ export function MisMaterialesPagina() {
         {materiales.map((m) => (
           <li
             key={m.idMaterial}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 transition-colors hover:border-tenue"
           >
             <div className="min-w-40 grow">
               <div className="font-medium">{m.titulo}</div>

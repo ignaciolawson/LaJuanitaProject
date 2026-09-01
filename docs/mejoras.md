@@ -1255,8 +1255,8 @@ Ordenadas por cuánto cambian lo que se ve, no por dificultad.
 | 1 | **La base y la costura** — barra de scroll propia, el borde shell↔lienzo, grano, `color-scheme`, y el tema oscuro entero | ✅ **hecha** |
 | 2 | **Las puertas** — login, registro y cambio obligatorio de contraseña, partidas en dos con foto y marca | ✅ **hecha** |
 | 3 | **El sistema de bloques** — los "rectángulos que dicen la sección" y la jerarquía de tarjetas | ✅ **hecha** |
-| 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | parcial: la frase del día ya está |
-| 5 | **El portal (alumno y profesor)** — la mitad linda | pendiente |
+| 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | ✅ **hecha** |
+| 5 | **El portal (alumno y profesor)** — la mitad linda | ✅ **hecha** |
 | 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | pendiente |
 | 7 | **Notificaciones, los 30 filtros y la recorrida por rol (3.3)** | pendiente |
 
@@ -1420,6 +1420,161 @@ que sí funcionó fue el mismo script con **balanceo de etiquetas por profundida
 (no regex para encontrar el cierre) y **títulos literales o marcados como
 expresión**, revisando el diff de cada archivo. El balanceo nunca falló; el
 patrón del título, tres veces.
+
+##### Etapa 4 · El Inicio redistribuido — construida el 2026-09-01
+
+Dos cambios, y **el segundo es el que importa aunque no se vea tanto**.
+
+###### El saludo y la frase pasan a ser una sola pieza
+
+Estaban apilados: un título chico sobre papel y debajo una banda de tinta con la
+frase. Junta, la tinta abre la pantalla y le da a la marca el único lugar del
+sistema donde puede ocupar espacio sin competirle a un dato — **acá todavía nadie
+vino a leer nada**. El abanico entra como marca de agua recortada por el borde y
+el `<h1>` sube de escala.
+
+`InicioPagina` deja de usar `CabeceraDePagina`, que es correcto: no es una
+pantalla de listado con título y acciones, es una portada. El `<h1>` sigue siendo
+"Hola, X" y el caso que lo fija sigue verde.
+
+###### ⚠️ El orden de los grupos estaba fijo, y era el orden de construcción de los módulos
+
+**Es exactamente el mismo defecto que tenía "Administración" en el menú con sus
+18 ítems corridos, repetido en el Inicio sin que nadie lo viera** — y encima
+después de haberlo diagnosticado y arreglado del otro lado.
+
+La consecuencia concreta: **Micaela abría el Inicio y lo primero era *su propia*
+próxima reserva y *su propia* deuda**, mientras que a quién hay que cobrarle —lo
+único que viene a buscar— quedaba cuarto, abajo del pliegue.
+
+Ahora el orden sale del perfil, con la misma cadena de prioridad que elige la
+tarjeta destacada y por la misma razón: **primero el trabajo que tenés con otra
+gente, lo tuyo al final.**
+
+| Perfil | Arranca por |
+|---|---|
+| Opera (ADMIN · STAFF) | **Operación**, después los números |
+| DIRECTIVO | **Los números del mes** — no opera, así que "Operación" no existe para él |
+| Profesor | **Mis clases** |
+| Alumno / USUARIO puro | **Mi formación** / **Lo mío** |
+
+"Lo mío" está siempre y siempre al final: es el único grupo que no depende de
+ninguna relación ni de ningún rol.
+
+###### ⚠️ Un grupo puede cambiar de lugar; no puede desaparecer
+
+**La primera versión escribía la lista de orden entera a mano, y un `DIRECTIVO`
+perdía el bloque de números completo** — que es justo lo único que esa persona
+entra a ver. `veLosNumeros` es verdadero para él y `opera` es falso, así que la
+clave `numeros` no estaba en ninguna de las tres listas.
+
+Lo agarró **un caso que ya existía** de la 3.2. Sin él, la pantalla se veía
+perfecta y le faltaba todo: no hay error, no hay hueco, no hay nada que mirar —
+simplemente un bloque que no está.
+
+El arreglo no es corregir la lista, es hacer que el error no se pueda cometer:
+**la prioridad se COMPLETA con las claves que no nombra**, en vez de ser la lista
+final.
+
+```ts
+const ORDEN = [...prioridad, ...CLAVES.filter((c) => !prioridad.includes(c))]
+```
+
+Cualquier permutación parcial sigue mostrando los cinco. Es la misma familia de
+decisión que "las tarjetas vacías se muestran, no se esconden": **lo que no se
+puede permitir es que falte algo sin que nadie se entere.**
+
+Cuatro casos nuevos lo fijan, incluido uno que monta un ADMIN que además es
+alumno y profesor —las cinco claves a la vez— y verifica que estén los cinco
+grupos.
+
+##### Etapa 5 · El portal — construida el 2026-09-01
+
+La mitad que se mira cinco minutos y tiene que dar ganas de volver. **Dos piezas
+nuevas, las dos compartidas entre el portal del alumno y el del profesor**, y
+las dos de puro CSS: no entró ninguna librería de animación (decisión de
+Ignacio, 2026-09-01).
+
+###### `Progreso` — el avance del curso, en pasos y no en barra
+
+Los cursos de esta academia son de **8 clases (DJ) y 16 (Producción)**: números
+chicos y contables. Una barra al 62% obliga a hacer la cuenta para saber cuántas
+clases quedan, que es *la* pregunta con la que un alumno entra; **ocho
+cuadraditos con cinco llenos se leen sin contar**. Arriba de 24 pasos vuelve a
+ser barra, porque ahí los pasos ya no se distinguen — ningún curso del catálogo
+llega, así que el tope es una red y no un caso.
+
+Y de paso se parece a la fila de pasos de un secuenciador, que es lo que esta
+gente mira todo el día. No es un chiste visual: **la forma ya significa "avance
+por unidades" para quien entra acá.**
+
+Dos cosas que arregló al escribirse:
+
+- ⚠️ **`total` en cero daba `width: NaN%`**, que el navegador descarta sin decir
+  nada: **un curso sin clases contratadas se veía igual que uno recién
+  empezado**. Ahora lo dice con todas las letras.
+- **Los pasos van `aria-hidden` bajo un solo `role="img"` con su etiqueta**
+  ("3 de 8 clases tomadas"). Sin eso serían ocho elementos sin nombre, que para
+  un lector de pantalla es peor que no dibujar nada.
+
+La tarjeta además invierte la jerarquía: **el número grande es lo que FALTA**, no
+lo que se hizo. Lo tomado va abajo y chico, porque es el contexto de esa cifra.
+
+###### `Proxima` — lo que viene, como pieza y no como renglón
+
+Un alumno abre "Mis reservas" para saber *cuándo es la próxima*, no para leer
+catorce filas ordenadas por fecha donde todas pesan igual. Ahora la respuesta
+está antes que la lista, en tinta, y **lo más grande es cuándo en palabras**:
+"Mañana" se lee sin pensar, "03/09" obliga a acordarse de qué día es hoy. La
+fecha exacta va abajo, chica, porque es la confirmación y no la respuesta.
+
+La misma pieza sirve del otro lado: en **Mi agenda** el profesor ve cuándo es su
+próxima clase y dónde.
+
+⚠️ **`hoy` entra por parámetro y la pieza no lee el reloj.** Es la lección de
+`CajaPagina`: una pantalla que consulta la fecha mientras dibuja tiene un caso
+que sólo falla algunos días del año. De paso, las dos pantallas que la usan
+pasaron a fijar el día una sola vez con `useState(hoy)` en vez de llamar `hoy()`
+en cada render.
+
+⚠️ **Las fechas se parsean a mano y NO con `new Date(iso)`.**
+`new Date('2026-09-03')` es medianoche **UTC** y, leída en Buenos Aires (UTC−3),
+cae el día anterior: **toda clase se anunciaría un día antes de cuando es**. Es
+el mismo error que la landing ya documentó para las fechas de sus notas, del otro
+lado del repositorio. Hay casos que lo fijan, incluidos los cruces de fin de mes
+y de año.
+
+###### ⚠️ El hallazgo de la etapa: la fila lleva los controles
+
+Al poner la pieza arriba, la próxima reserva quedaba dibujada **dos veces** —qué,
+cuándo, dónde y con quién, una pegada a la otra—. La reacción obvia fue sacarla
+de la lista y dejar la pieza como su reemplazo.
+
+**Eso rompió seis casos, todos por la misma causa: los controles viven en el
+renglón.** "Pedir otro día", el estado de ese pedido y la asistencia están en la
+fila, no en la pieza. Sacar la fila destacada **le sacaba a la persona el botón
+para pedir que muevan justo la clase que tiene más cerca** — que es la única
+sobre la que alguien lo pide de verdad.
+
+Así que la pieza es un **resumen y no un reemplazo**, y el duplicado es el precio
+elegido. Los casos de la lista pasaron a acotar sus búsquedas con `within(lista)`
+en vez de a la pantalla entera, que además es lo que estaban queriendo decir.
+
+**La lección general: antes de sacar algo de una lista por estar destacado
+arriba, fijate qué acciones cuelgan de esa fila.** Un resumen puede mostrar los
+mismos datos; lo que no puede es heredar los botones sin que alguien los ponga
+ahí.
+
+###### Lo chico
+
+Las filas del portal ganaron respuesta al pasar por encima (`hover:border-tenue`,
+transición CSS). En una lista de quince renglones es lo que evita saltar de
+renglón — la misma razón por la que las filas de tabla ya la tenían.
+
+Y **`cuandoEnPalabras` y `fechaLarga` viven en `semana.ts`**, no en el archivo
+del componente: es donde están los helpers de fecha, evita el warning de
+`only-export-components` y, sobre todo, el próximo que necesite "cuándo, en
+palabras" lo busca ahí.
 
 ##### ⚠️ Una trampa de TypeScript que produce un bug silencioso
 

@@ -8,6 +8,7 @@ import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { Proxima } from '../componentes/Proxima'
 
 /**
  * Módulo 4 — mis clases y mis cabinas.
@@ -27,7 +28,12 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
  * es lo único que lo hace entendible — ver `PedirOtroDia`.
  */
 export function MisReservasPagina() {
-  const [desde, setDesde] = useState(() => lunesDe(hoy()))
+  // ⚠️ El día se fija UNA vez y no se relee en cada render. Es la lección de
+  // `CajaPagina`: una pantalla que consulta el reloj mientras dibuja tiene un
+  // caso que sólo falla algunos días del año, y no hay forma de escribirle una
+  // prueba estable.
+  const [ahora] = useState(hoy)
+  const [desde, setDesde] = useState(() => lunesDe(ahora))
   const [reservas, setReservas] = useState<ReservaDelPortal[]>([])
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
@@ -68,6 +74,32 @@ export function MisReservasPagina() {
     if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
   }
 
+  /**
+   * La primera que todavía no pasó y que sigue en pie.
+   *
+   * Una cancelada o reprogramada **no** es la próxima aunque figure primera en
+   * la lista: la lista las muestra porque son historia de la persona, y esta
+   * pieza contesta otra pregunta.
+   */
+  const proxima = reservas
+    .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
+    .filter((r) => r.fecha >= ahora)
+    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))[0]
+
+  /*
+   * ⚠️ **La reserva destacada SIGUE en la lista, y el duplicado es el precio.**
+   *
+   * Se probó sacarla —la pieza arriba, la lista con el resto— y rompía seis
+   * casos por la misma causa: **la fila lleva los controles**. "Pedir otro
+   * día", el estado de ese pedido y la asistencia viven en el renglón, no en la
+   * pieza. Sacar la fila destacada le sacaba a la persona el botón para pedir
+   * que muevan justo la clase que tiene más cerca, que es la única sobre la que
+   * alguien lo pide de verdad.
+   *
+   * Así que la pieza es un resumen y no un reemplazo: contesta "¿cuándo es?" de
+   * un vistazo y la lista sigue siendo el registro completo del período.
+   */
+
   return (
     <div>
       <CabeceraDePagina
@@ -76,7 +108,7 @@ export function MisReservasPagina() {
         acciones={<><Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -28))}>
             ← Anterior
           </Boton>
-          <Boton variante="secundario" onClick={() => setDesde(lunesDe(hoy()))}>
+          <Boton variante="secundario" onClick={() => setDesde(lunesDe(ahora))}>
             Hoy
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 28))}>
@@ -94,6 +126,23 @@ export function MisReservasPagina() {
         <EstadoVacio titulo="No tenés nada agendado en estas cuatro semanas." />
       )}
 
+      {/* La respuesta va ANTES que la lista. Ver `Proxima`: quien abre esta
+          pantalla quiere saber cuándo es la próxima, no leer catorce filas
+          ordenadas por fecha con todas pesando lo mismo. */}
+      {proxima && (
+        <Proxima
+          className="mb-6"
+          hoy={ahora}
+          fecha={proxima.fecha}
+          horaInicio={proxima.horaInicio}
+          horaFin={proxima.horaFin}
+          titulo={proxima.tipoUso}
+          detalle={[proxima.sala, proxima.profesor && `con ${proxima.profesor}`]
+            .filter(Boolean)
+            .join(' · ')}
+        />
+      )}
+
       <ul className="space-y-3">
         {reservas.map((r) => {
           const caida = r.estado === 'CANCELADA' || r.estado === 'REPROGRAMADA'
@@ -101,7 +150,7 @@ export function MisReservasPagina() {
           return (
             <li
               key={r.idReserva}
-              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 ${
+              className={`flex flex-wrap items-center gap-4 rounded-lg border border-linea bg-superficie shadow-tarjeta px-5 py-4 transition-colors hover:border-tenue ${
                 caida ? 'text-apagado' : ''
               }`}
             >

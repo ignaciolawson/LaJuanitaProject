@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import { agenda, listarDeudores, listarSolicitantes } from '../api/administracion'
@@ -16,7 +16,6 @@ import { resumenFinanciero } from '../api/tablero'
 import { useUsuario } from '../auth/contexto'
 import { Abanico } from '../componentes/Abanico'
 import { Bloque, Grupo } from '../componentes/Bloque'
-import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
@@ -106,34 +105,26 @@ export function InicioPagina() {
     .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
     .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))
 
-  return (
-    <div>
-      {/* El saludo dice quién sos Y qué sos. Es el lugar natural donde la pantalla
-          te dice que sos admin, y con eso cierra §9.5. */}
-      <CabeceraDePagina
-        titulo={'Hola, ' + usuario.nombre}
-        aclaracion={
-          <>
-            {NOMBRE_DE_ROL[usuario.rol]} · lo que necesita tu atención hoy.
-            {veLosNumeros && (
-              <>
-                {' '}
-                Los números del negocio, por período, están en el{' '}
-                <Link
-                  to="/admin/tablero"
-                  className="underline underline-offset-2 hover:text-acento"
-                >
-                  Tablero
-                </Link>
-                .
-              </>
-            )}
-          </>
-        }
-      />
-
-      <FraseDelDia fecha={rango.hoy} />
-
+  /**
+   * Los grupos del Inicio, y **en qué orden los ve cada perfil**.
+   *
+   * ⚠️ **El orden estaba fijo, y era el orden en que se construyeron los
+   * módulos** — exactamente el mismo defecto que tenía "Administración" en el
+   * menú con sus 18 ítems corridos, repetido acá sin que nadie lo viera. La
+   * consecuencia concreta: Micaela abría el Inicio y lo primero era *su propia*
+   * próxima reserva y *su propia* deuda, mientras que a quién hay que cobrarle
+   * —lo único que viene a buscar— quedaba cuarto, abajo del pliegue.
+   *
+   * La prioridad es la misma cadena que elige la tarjeta destacada, y por la
+   * misma razón: **lo primero es el trabajo que tenés con otra gente; lo tuyo
+   * va último.** Quien opera arranca por Operación; quien da clase, por sus
+   * clases; el resto, por lo suyo, que en su caso es todo lo que hay.
+   *
+   * "Lo mío" está siempre y siempre al final: es el único grupo que no depende
+   * de ninguna relación ni de ningún rol.
+   */
+  const GRUPOS: Record<string, ReactNode> = {
+    mio: (
       <Grupo titulo="Lo mío">
         <Tarjeta
           titulo="Mi próxima reserva"
@@ -189,8 +180,8 @@ export function InicioPagina() {
           }}
         </Tarjeta>
       </Grupo>
-
-      {usuario.esAlumno && (
+    ),
+    formacion: usuario.esAlumno ? (
         <Grupo titulo="Mi formación">
           {/* La cifra que este sistema existe para llevar: `V9` §5 lo dice con
               todas las letras —"¿cuántas clases le quedan a Juan?"—. Si el alumno
@@ -258,9 +249,8 @@ export function InicioPagina() {
             }}
           </Tarjeta>
         </Grupo>
-      )}
-
-      {usuario.esProfesor && (
+    ) : null,
+    clases: usuario.esProfesor ? (
         <Grupo titulo="Mis clases">
           <Tarjeta
             titulo="Clases de hoy"
@@ -308,9 +298,8 @@ export function InicioPagina() {
             }}
           </Tarjeta>
         </Grupo>
-      )}
-
-      {opera && (
+    ) : null,
+    operacion: opera ? (
         <Grupo titulo="Operación">
           <Tarjeta
             titulo="La agenda de hoy"
@@ -392,9 +381,8 @@ export function InicioPagina() {
             }}
           </Tarjeta>
         </Grupo>
-      )}
-
-      {veLosNumeros && (
+    ) : null,
+    numeros: veLosNumeros ? (
         <Grupo titulo="Los números del mes">
           <Tarjeta
             titulo="Caja del mes"
@@ -445,7 +433,71 @@ export function InicioPagina() {
             }
           </Tarjeta>
         </Grupo>
-      )}
+    ) : null,
+  }
+
+  /**
+   * ⚠️ **Un grupo puede cambiar de lugar; no puede desaparecer.** Por eso la
+   * prioridad se COMPLETA con las claves que no nombra, en vez de ser la lista
+   * final: cualquier permutación parcial sigue mostrando los cinco.
+   *
+   * No es precaución teórica. La primera versión escribía la lista entera a
+   * mano y un `DIRECTIVO` —que ve los números pero no opera— **perdía el
+   * bloque de números completo**, que es justo lo único que esa persona entra a
+   * ver. Lo agarró un caso que ya existía; con un olvido en el orden y sin ese
+   * caso, la pantalla se veía perfecta y le faltaba todo.
+   */
+  const CLAVES = ['operacion', 'numeros', 'clases', 'formacion', 'mio']
+
+  const prioridad = opera
+    ? ['operacion', 'numeros']
+    : veLosNumeros
+      ? ['numeros']
+      : usuario.esProfesor
+        ? ['clases']
+        : ['formacion']
+
+  const ORDEN = [...prioridad, ...CLAVES.filter((c) => !prioridad.includes(c))]
+
+  return (
+    <div>
+      {/* EL SALUDO Y LA FRASE SON UNA SOLA PIEZA.
+          Estaban apilados —título chico sobre papel, después una banda— y eso
+          desperdiciaba lo único que esta pantalla puede permitirse: acá nadie
+          vino a leer un dato todavía. Junta, la tinta abre la pantalla y le da
+          a la marca el lugar que en el resto del sistema no puede tener. */}
+      <section className="grano-shell relative mb-9 overflow-hidden rounded-lg bg-shell px-6 py-7 text-shell-texto sm:px-8">
+        <span aria-hidden className="pointer-events-none absolute -top-10 -right-10">
+          <Abanico className="h-52 w-auto text-red/12" />
+        </span>
+
+        <div className="relative">
+          {/* El saludo dice quién sos Y qué sos: es el lugar natural donde la
+              pantalla te dice que sos admin, y con eso cierra §9.5. */}
+          <h1 className="t-titulo text-3xl">Hola, {usuario.nombre}</h1>
+          <p className="t-mono mt-2.5 text-shell-tenue">
+            {NOMBRE_DE_ROL[usuario.rol]} · lo que necesita tu atención hoy
+          </p>
+          {veLosNumeros && (
+            <p className="mt-2 text-sm text-shell-tenue">
+              Los números del negocio, por período, están en el{' '}
+              <Link
+                to="/admin/tablero"
+                className="underline underline-offset-2 transition-colors hover:text-shell-texto"
+              >
+                Tablero
+              </Link>
+              .
+            </p>
+          )}
+
+          <FraseDelDia fecha={rango.hoy} />
+        </div>
+      </section>
+
+      {ORDEN.map((clave) => (
+        <Fragment key={clave}>{GRUPOS[clave]}</Fragment>
+      ))}
     </div>
   )
 }
