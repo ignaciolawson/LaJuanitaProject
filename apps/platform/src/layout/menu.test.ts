@@ -213,3 +213,84 @@ describe('los dos predicados que comparte toda la SPA', () => {
     expect(etiquetas(futuro)).not.toContain('Alumnos')
   })
 })
+
+/**
+ * La recorrida por rol (Fase 3.3), como caso y no como una mirada.
+ *
+ * **Se recorrió a mano contra el sistema andando el 2026-09-01** —los seis
+ * perfiles, con los usuarios de demostración de `sistema-gestion-plan.md` §6d— y
+ * el backend contestó exactamente lo que tenía que contestar. Esto es la mitad
+ * que queda escrita: una recorrida a mano se hace una vez y se vence sola; lo
+ * que sigue valiendo dentro de seis meses es esto.
+ *
+ * ⚠️ **"El diseño del perfil X" no existe**, y es lo que estos casos muestran:
+ * el menú se arma por TRES reglas —sección siempre visible, sección por
+ * relación, sección por rol— que se combinan distinto según quién entra. Ghezz
+ * es STAFF *y* profesor *y* puede alquilarse una cabina, y las tres cosas valen
+ * a la vez.
+ */
+describe('la recorrida por rol', () => {
+  /** Cuántos ítems ve cada perfil, por grupo. */
+  function inventario(u: UsuarioActual) {
+    const grupos = menuPara(u)
+    return {
+      total: grupos.reduce((n, g) => n + g.items.length, 0),
+      grupos: grupos.map((g) => g.titulo),
+    }
+  }
+
+  it('un USUARIO puro ve su cuenta y nada más', () => {
+    const { total, grupos } = inventario(usuario())
+
+    expect(total).toBe(8)
+    expect(grupos).toEqual(['Mi cuenta'])
+  })
+
+  it('la relación suma, y suma distinto según cuál sea', () => {
+    // El alumno ve dos ítems de formación y el profesor tres: no es "la
+    // sección de formación", es cada ítem preguntando por su relación.
+    expect(inventario(usuario({ esAlumno: true })).total).toBe(8 + 2)
+    expect(inventario(usuario({ esProfesor: true })).total).toBe(8 + 3)
+    expect(inventario(usuario({ esAlumno: true, esProfesor: true })).total).toBe(8 + 5)
+  })
+
+  it('los tres perfiles que administran ven los mismos cinco dominios', () => {
+    // ⚠️ Lo que separa a DIRECTIVO de los otros dos NO es qué pantallas ve
+    // —ve todas— sino que no tiene botones de escritura adentro. Si alguna
+    // vez alguien "arregla" el menú escondiéndole secciones, este caso cae.
+    const dominios = [
+      'Mi cuenta',
+      'Personas',
+      'Salas y agenda',
+      'Dinero',
+      'Sello y mastering',
+      'Dirección',
+    ]
+
+    for (const rol of ['ADMIN', 'DIRECTIVO', 'STAFF'] as Rol[]) {
+      const { total, grupos } = inventario(usuario({ rol }))
+      expect(grupos).toEqual(dominios)
+      expect(total).toBe(8 + 18)
+    }
+  })
+
+  it('los grupos van en orden de negocio y no de construcción de los módulos', () => {
+    // Era el defecto que tenía "Administración" con sus 18 ítems corridos:
+    // nadie navega "el módulo 6", navega "necesito cobrar".
+    const { grupos } = inventario(usuario({ rol: 'ADMIN' }))
+
+    expect(grupos.indexOf('Personas')).toBeLessThan(grupos.indexOf('Dinero'))
+    expect(grupos.indexOf('Dinero')).toBeLessThan(grupos.indexOf('Dirección'))
+  })
+
+  it('las combinaciones reales son las que hay que mirar, no los roles sueltos', () => {
+    // Ghezz: STAFF, profesor, y además se alquila una cabina.
+    const ghezz = usuario({ rol: 'STAFF', esProfesor: true })
+    const { total, grupos } = inventario(ghezz)
+
+    expect(total).toBe(8 + 3 + 18)
+    expect(grupos).toContain('Mi formación')
+    expect(grupos).toContain('Dinero')
+  })
+})
+

@@ -1246,9 +1246,17 @@ piezas de un trabajo que no existía.
    usa** — y además evita sumarle una dependencia y peso de bundle a una
    aplicación que se abre todos los días.
 
-##### El plan, en siete etapas
+##### El plan, en siete etapas — ✅ **LAS SIETE CERRADAS el 2026-09-01**
 
 Ordenadas por cuánto cambian lo que se ve, no por dificultad.
+
+> **Lo que sigue es la barrida de correcciones**, que es la metodología que
+> Ignacio fijó al arrancar: primero las siete etapas, después la pasada de
+> ajustes sobre el conjunto ya armado. Lo que quedó anotado a propósito para esa
+> barrida está al final de cada etapa; lo más concreto son las **36 tarjetas sin
+> título** que no se migraron a `Bloque` (contenedores donde la franja no aplica,
+> valor de centralización y no visual) y los `t-seccion` que sobrevivieron
+> usados como escala tipográfica y no como título de tarjeta.
 
 | # | Etapa | Estado |
 |---|---|---|
@@ -1258,7 +1266,7 @@ Ordenadas por cuánto cambian lo que se ve, no por dificultad.
 | 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | ✅ **hecha** |
 | 5 | **El portal (alumno y profesor)** — la mitad linda | ✅ **hecha** |
 | 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | ✅ **hecha** |
-| 7 | **Notificaciones y la recorrida por rol (3.3)** — *los 30 filtros se adelantaron a la etapa 6, que es donde estaba el problema* | pendiente |
+| 7 | **Notificaciones y la recorrida por rol (3.3)** — *los 30 filtros se adelantaron a la etapa 6, que es donde estaba el problema* | ✅ **hecha** |
 
 ##### Etapas 1 y 2, construidas — lo que decidieron
 
@@ -1657,6 +1665,89 @@ que la migración fue en dos pasos: **el contenedor se cambió por componente
 —seguro, sólo toca la apertura y el cierre— y los controles conservaron su
 handler tal cual, cambiando sólo la clase.** Reescribir handlers con regex es
 cirugía sobre JSX, que ya salió mal una vez en la etapa 3.
+
+##### Etapa 7 · Notificaciones y la recorrida por rol — construida el 2026-09-01
+
+**Con esto las siete etapas están cerradas.**
+
+###### Las notificaciones: el mensaje estaba tipografiado como metadato
+
+Ignacio lo dijo como *"los msj se ven chicos"* y era literal. El cuerpo del aviso
+—`a.contenido`— era `text-sm text-tenue`: **más chico y más gris que el título**.
+O sea que lo único que hay que leer estaba dibujado como un dato al margen.
+
+**Y acá pesa más que en cualquier otra pantalla, por una razón del sistema:
+esto no es una notificación que se entrega.** No hay mail ni WhatsApp — es un
+buzón adentro del sistema, así que el texto tiene que sostenerse solo. Los avisos
+automáticos están escritos justamente así (*"Juan debe $50.000 desde hace 12
+días"*, no *"tenés una deuda para revisar"*), y el título es apenas de qué clase
+de aviso se trata.
+
+Así que la jerarquía se dio vuelta: **el título pasa a ser un rótulo mono** —lo
+que es— y el mensaje pasa a `text-base` con interlineado de lectura. Leído, se
+apaga a `--superficie-2` y `text-tenue`; sin leer, queda en la superficie que se
+lee, con su sombra.
+
+⚠️ **El punto rojo es la única excepción a "un rojo por pantalla", y lo que la
+sostiene es el tamaño: seis píxeles.** Acá el marcador es por ítem por naturaleza
+—hay diez sin leer o ninguno— y a esa escala una columna de puntos se lee como
+una lista de marcas, no como diez alarmas. Cualquier cosa más grande (el borde
+negro que había, un fondo) sí rompería la regla. Antes el "sin leer" era
+`border-ink`: un borde negro completo, que es exactamente el tipo de marca que a
+diez ítems grita.
+
+###### La recorrida por rol (3.3), hecha contra el sistema andando
+
+**Se recorrieron los seis perfiles con los usuarios de demostración de
+`sistema-gestion-plan.md` §6d, con el backend, la base y el front levantados**, y
+la matriz de permisos contestó exactamente lo que tenía que contestar:
+
+| Perfil | Lee administración | Escribe | Tablero completo |
+|---|:--:|:--:|:--:|
+| ADMIN | 200 | 400¹ | 200 |
+| DIRECTIVO | 200 | **403** | 200 |
+| STAFF | 200 | 400¹ | **403** |
+| USUARIO / alumna / profesor | **403** | **403** | **403** |
+
+¹ 400 y no 200 porque el pedido iba con cuerpo vacío: **pasó el permiso y falló
+la validación**, que es la respuesta correcta.
+
+Y el portal, que se autoriza por identidad y no por rol: `/me/cursos` abre para
+los tres, y `/me/profesor/agenda` **sólo** para quien tiene la relación de
+profesor.
+
+###### Pero la recorrida a mano se vence sola, así que quedó escrita
+
+Una mirada se hace una vez; lo que sigue valiendo dentro de seis meses es un
+caso. `menu.test.ts` gana **cinco** que fijan el inventario real:
+
+| Perfil | Mi cuenta | Mi formación | Administración |
+|---|:--:|:--:|:--:|
+| USUARIO puro | 8 | — | — |
+| + alumno | 8 | 2 | — |
+| + profesor | 8 | 3 | — |
+| + las dos | 8 | 5 | — |
+| STAFF · DIRECTIVO · ADMIN | 8 | según relación | **18** en 5 dominios |
+
+⚠️ **Uno de esos casos verifica que los tres perfiles que administran vean los
+MISMOS cinco dominios.** Lo que separa a `DIRECTIVO` de los otros dos no es qué
+pantallas ve —ve todas— sino que no tiene botones de escritura adentro. Si alguna
+vez alguien "arregla" el menú escondiéndole secciones, ese caso cae.
+
+Otro fija que los grupos vayan **en orden de negocio y no de construcción de los
+módulos** (Personas antes que Dinero, Dinero antes que Dirección), que es el
+defecto que ya apareció dos veces en esta fase: en el menú y en el Inicio.
+
+Y otro monta a Ghezz —**STAFF *y* profesor *y* alquila cabina**— porque es lo que
+muestra que *"el diseño del perfil X" no existe*: el menú se arma por tres reglas
+que se combinan, no por rol.
+
+###### Cobertura que ya estaba y conviene saber que está
+
+**Catorce pantallas de administración ya tenían caso de `DIRECTIVO`** de fases
+anteriores, o sea que la variante de sólo lectura —la riesgosa, la que
+`SoloLectura.tsx` diagnostica en su header— está cubierta pantalla por pantalla.
+La recorrida no encontró ninguna sin su par.
 
 ##### ⚠️ Una trampa de TypeScript que produce un bug silencioso
 

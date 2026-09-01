@@ -44,10 +44,20 @@
 > `/api`, todo detrás de un proxy. El circuito completo está probado contra
 > `:3000`, que es lo único que podía probarlo.
 >
-> **Lo que queda de la Fase 3, en orden**: el componente que le falta a los 30
-> controles de filtro, dónde entra el rojo fuera de los errores, la config del
-> proxy en `operacion.md` §3, y la 3.3 (la recorrida por rol). El detalle exacto
-> está en `mejoras.md` §10 · *Sesión del 2026-08-31 (noche)*. **Empezar por ahí.**
+> **✅ Al 2026-09-01 la Fase 3 ESTÁ CERRADA: las siete etapas del rediseño están
+> hechas.** Base y costura (barra de scroll, el borde shell↔lienzo, grano, tema
+> claro/oscuro con interruptor y default por perfil) · las puertas · el sistema de
+> bloques · el Inicio redistribuido · el portal · administración · notificaciones y
+> la recorrida por rol. **Suites: 470 de front**, typecheck, los dos linters y el
+> build limpios. El detalle de cada etapa —y lo que decidió cada una— está en
+> `mejoras.md` §10 · *Sesión del 2026-09-01*.
+>
+> **Lo que sigue es la barrida de correcciones** sobre el conjunto ya armado, que
+> es la metodología que Ignacio fijó: las siete etapas primero, los ajustes
+> después. Lo anotado a propósito para esa barrida está al final de cada etapa.
+>
+> Y lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config
+> del reverse proxy), `CORS_ORIGENES`, y el deploy con su migración `V22`.
 >
 > **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO: 3.1 y 3.2 cerradas, queda la 3.3.**
 > Ignacio adelantó el rediseño y canceló lo que quedaba del testeo, así que **el

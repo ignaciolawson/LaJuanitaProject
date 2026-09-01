@@ -87,40 +87,64 @@ export function NotificacionesPagina() {
         {avisos.map((a) => (
           <li
             key={a.idNotificacion}
-            className={`rounded-lg border bg-superficie px-5 py-4 ${
-              a.leida ? 'border-linea' : 'border-ink'
+            className={`rounded-lg border border-linea px-5 py-4 transition-colors ${
+              a.leida ? 'bg-superficie-2' : 'bg-superficie shadow-tarjeta'
             }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                {a.titulo && (
-                  <h3 className={a.leida ? 'font-medium text-tenue' : 'font-semibold'}>
-                    {a.titulo}
-                  </h3>
-                )}
-                <p className="mt-0.5 text-sm text-tenue">{a.contenido}</p>
-                {a.urlDestino && (
-                  <Link
-                    to={a.urlDestino}
-                    className="mt-2 inline-block text-sm underline underline-offset-2 hover:text-acento"
-                  >
-                    Ver
-                  </Link>
-                )}
-              </div>
-
-              <div className="shrink-0 text-right">
-                <div className="text-xs text-apagado">{cuando(a.fechaCreacion)}</div>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="t-mono flex min-w-0 items-baseline gap-2 text-tenue">
+                {/* ⚠️ El punto rojo es la única excepción a "un rojo por
+                    pantalla", y lo que la sostiene es el tamaño: seis píxeles.
+                    Acá el marcador es por ítem por naturaleza —hay diez sin leer o
+                    ninguno— y a esa escala una columna de puntos se lee como una
+                    lista de marcas, no como diez alarmas. Cualquier cosa más
+                    grande (un borde, un fondo) sí rompería la regla. */}
                 {!a.leida && (
-                  <Boton variante="enlace"
-                    type="button"
-                    onClick={() => {
-                      void marcarLeida(a.idNotificacion).then(cargar)
-                    }} className="mt-2">
-                    Marcar leída
-                  </Boton>
+                  <span
+                    aria-hidden
+                    className="h-1.5 w-1.5 shrink-0 self-center rounded-full bg-red"
+                  />
                 )}
-              </div>
+                <span className="truncate">{a.titulo ?? 'Aviso'}</span>
+                {!a.leida && <span className="sr-only">(sin leer)</span>}
+              </p>
+
+              <span className="t-mono shrink-0 text-apagado">{cuando(a.fechaCreacion)}</span>
+            </div>
+
+            {/* EL MENSAJE ES EL PROTAGONISTA, y antes estaba al revés.
+                Era `text-sm text-tenue` —más chico y más gris que el título—,
+                o sea: lo único que hay que leer, tipografiado como metadato.
+                Y acá pesa más que en otras pantallas porque **esto no es una
+                notificación que se entrega**: no hay mail ni WhatsApp, es un
+                buzón adentro del sistema, así que el texto tiene que sostenerse
+                solo. Los avisos automáticos están escritos justamente así
+                —"Juan debe $50.000 desde hace 12 días"— y el título es apenas de
+                qué clase de aviso se trata. */}
+            <p className={`mt-2 text-base leading-relaxed ${a.leida ? 'text-tenue' : ''}`}>
+              {a.contenido}
+            </p>
+
+            <div className="mt-3 flex items-center gap-4">
+              {a.urlDestino && (
+                <Link
+                  to={a.urlDestino}
+                  className="text-sm font-medium underline underline-offset-2 transition-colors hover:text-acento"
+                >
+                  Ver
+                </Link>
+              )}
+              {!a.leida && (
+                <Boton
+                  variante="enlace"
+                  type="button"
+                  onClick={() => {
+                    void marcarLeida(a.idNotificacion).then(cargar)
+                  }}
+                >
+                  Marcar leída
+                </Boton>
+              )}
             </div>
           </li>
         ))}
