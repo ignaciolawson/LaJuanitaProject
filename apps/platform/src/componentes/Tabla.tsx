@@ -40,7 +40,11 @@ export function Tabla({
 }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta">
-      <table className="w-full text-sm">
+      {/* `hover:bg-superficie-2` en las filas: en una tabla de treinta filas y
+          seis columnas, seguir una fila con la vista de punta a punta es el
+          movimiento que mas se repite, y es donde se salta de renglon sin
+          darse cuenta. */}
+      <table className="w-full text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-superficie-2">
         <thead>
           <tr className="border-b border-linea text-left text-tenue">
             {columnas.map((columna) => {

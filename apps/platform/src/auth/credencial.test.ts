@@ -79,6 +79,49 @@ describe('leerCredencial', () => {
   })
 })
 
+/**
+ * El contrato con la landing.
+ *
+ * Desde el 2026-08-31 el login se hace en la landing y le entrega la sesión a
+ * esta app escribiendo **esta misma clave con esta misma forma**
+ * (`apps/landing/src/lib/sesion.ts`). Puede hacerlo porque comparten origen.
+ *
+ * **Son dos builds separados: nada más que estos casos los mantiene juntos.**
+ * Sin ellos, renombrar la clave o cambiar el formato deja el login de la landing
+ * devolviendo 200, guardando algo y redirigiendo — y a la persona rebotando al
+ * login sin un solo error visible, con un síntoma idéntico a "puse mal la
+ * contraseña". Es el modo de falla silencioso que los comentarios de los dos
+ * archivos describen; esto es lo que lo vuelve ruidoso.
+ *
+ * Si un cambio rompe estos dos casos, **la corrección no es actualizarlos: es
+ * actualizar también la landing** y después actualizarlos.
+ */
+describe('lo que la landing escribe de este lado', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('la clave del storage es exactamente la que escribe la landing', () => {
+    guardarCredencial({ token: 'abc', expiraEn: dentroDe(8) })
+
+    // El literal va escrito a mano y no importado: importarlo haría que el caso
+    // siguiera pasando después de renombrar la constante, que es justo lo que
+    // tiene que detectar.
+    expect(localStorage.getItem('lajuanita.credencial')).not.toBeNull()
+  })
+
+  it('lee una credencial escrita a mano con la forma de la landing', () => {
+    const expiraEn = dentroDe(8)
+
+    // Esto es, literalmente, lo que hace `iniciarSesion` en la landing: dos
+    // campos, sin envoltorio y sin versión.
+    localStorage.setItem(
+      'lajuanita.credencial',
+      JSON.stringify({ token: 'token-de-la-landing', expiraEn }),
+    )
+
+    expect(leerCredencial()).toEqual({ token: 'token-de-la-landing', expiraEn })
+  })
+})
+
 describe('borrarCredencial', () => {
   it('deja el storage sin nada', () => {
     guardarCredencial({ token: 'x', expiraEn: dentroDe(8) })

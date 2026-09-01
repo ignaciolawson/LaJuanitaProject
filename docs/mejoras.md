@@ -1012,8 +1012,31 @@ esa apuesta, tomada.
 
 ##### ⚠️ LO QUE QUEDA — por acá se retoma
 
-1. **El formulario de login en la landing.** Es lo único que falta del circuito.
-   Lo que tiene que hacer, exacto:
+1. ~~**El formulario de login en la landing.**~~ ✅ **CERRADO el 2026-09-01.**
+   `apps/landing/src/lib/sesion.ts` + `AccesoAlCampus` ahora es un formulario de
+   verdad. **Probado de punta a punta contra `:3000`**, que es lo único que podía
+   probarlo: `POST /api/auth/login` por el mismo origen devuelve el token, se
+   guarda en `lajuanita.credencial` y `location.assign('/app')` entra.
+
+   Tres cosas que decidió al construirse:
+
+   - **El acoplamiento entre las dos apps ahora tiene una red**, no sólo
+     comentarios. `credencial.test.ts` gana dos casos —*"lo que la landing
+     escribe de este lado"*— que escriben la clave **a mano, sin importar la
+     constante**: importarla haría que el caso siguiera pasando después de
+     renombrarla, que es justo lo que tiene que detectar. Sin eso, cambiar el
+     formato dejaba el login devolviendo 200 y a la persona rebotando al login
+     **sin un solo error visible**.
+   - **`location.assign` y no el router de Next**, con su `eslint-disable`
+     explicado: `/app` no es una página de Next sino otra aplicación servida por
+     el proxy. Si alguien "arregla" ese warning con `useRouter().push()`, la
+     plataforma deja de cargar.
+   - **`enviando` NO se baja en el camino feliz**, y sí en el `catch`. Al salir
+     bien el navegador ya está yendo a `/app` y el botón tiene que quedar
+     deshabilitado hasta que la página desaparezca; bajarlo abriría una ventana
+     para mandar el formulario dos veces. Es §8.1 leído al derecho.
+
+   El contrato original, para referencia:
    - `POST` a `/api/auth/login` (relativo, mismo origen) con `{ email, password }`.
    - La respuesta es `LoginResponse` = `{ token, expiraEn, usuario }`.
    - Escribir en `localStorage` la clave **`lajuanita.credencial`** con
@@ -1035,10 +1058,28 @@ esa apuesta, tomada.
    espera.
 3. **`CORS_ORIGENES` del backend** deja de ejercerse en producción. Queda como red
    de seguridad; revisar que el default de desarrollo no confunda.
-4. **La pincelada del lienzo, que es lo que Ignacio pidió y todavía NO está
-   hecho.** El shell ya tiene marca y profundidad, pero **las 36 pantallas por
-   dentro siguen igual**: falta revisar formularios, tablas y tarjetas contra el
-   contraste nuevo, y decidir dónde más entra el acento.
+4. **La pincelada del lienzo — primera pasada hecha el 2026-09-01, falta el
+   resto.** Lo que se hizo: **los campos dejaron de ser cajas y pasaron a ser
+   líneas**, el mismo lenguaje que la landing (*"más cerca de una planilla de
+   estudio que de un formulario de SaaS"*). En una pantalla de carga la caja pesa
+   de más: veinte bordes redondeados compiten con los datos que uno vino a leer.
+   Y las filas de tabla ganaron `hover`, que es lo que evita saltar de renglón en
+   una tabla de treinta filas por seis columnas.
+
+   ⚠️ **Y eso destapó un bug real, no estético: `outline-none` estaba en 31
+   lugares.** `index.css` cierra con una regla escrita con todas las letras —*"el
+   foco visible no se saca nunca: esto lo van a usar personas que cargan datos con
+   el teclado todo el día"*— y define un `:focus-visible` de 2px. `Campo` lo
+   anulaba, y **30 inputs escritos a mano lo habían copiado**: navegando con
+   teclado, saber en qué campo estabas dependía de notar que una línea de 1px
+   había cambiado de tono. Es el mismo defecto que la landing ya había encontrado
+   y corregido en su `Fields.tsx`; acá había sobrevivido en 16 pantallas. Los 31
+   están arreglados (los 30 inputs más una celda del calendario).
+
+   **Lo que todavía falta de la pincelada**: los 30 controles de filtro siguen
+   siendo marcado a mano —son el mismo control repetido y les falta su
+   componente, igual que le faltaba a `Tabla` antes de la 3.1—, y falta decidir
+   dónde más entra el acento rojo fuera de los errores.
 5. **La 3.3, la recorrida por rol**, que sigue pendiente desde la sesión anterior.
 
 #### El orden

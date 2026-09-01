@@ -110,7 +110,7 @@ export function VentasPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por equipo, marca o comprador…"
-          className="w-full rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         />
       </div>
 

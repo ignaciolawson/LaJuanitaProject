@@ -60,7 +60,7 @@ export function LoginPagina() {
               autoComplete="username"
               required
               autoFocus
-              className="mt-1.5 w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+              className="mt-1.5 w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
             />
           </label>
 
@@ -75,7 +75,7 @@ export function LoginPagina() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               required
-              className="mt-1.5 w-full rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none transition-colors focus:border-red"
+              className="mt-1.5 w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
             />
           </label>
 

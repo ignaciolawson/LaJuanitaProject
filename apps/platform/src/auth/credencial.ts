@@ -8,6 +8,22 @@
  * `httpOnly`, y el cambio es de este archivo y del CORS del backend.
  */
 
+/**
+ * ⚠️ **ESTA CLAVE Y ESTE FORMATO LOS ESCRIBE TAMBIÉN LA LANDING.**
+ *
+ * Desde el 2026-08-31 el login se hace en la landing (`apps/landing/src/lib/
+ * sesion.ts`) y le entrega la sesión a esta app. Puede hacerlo porque comparten
+ * origen —landing en `/`, esta app en `/app`, detrás de un proxy— y
+ * `localStorage` es por origen, no por path.
+ *
+ * Son dos builds separados: **no hay compilador, ni test, ni tipo compartido que
+ * los mantenga sincronizados.** Si cambiás la clave o la forma de `Credencial`,
+ * el login de la landing sigue devolviendo 200, sigue guardando algo, sigue
+ * redirigiendo — y la persona aterriza en `/app/login` **sin un solo error en
+ * ningún lado**, con un síntoma idéntico a "puse mal la contraseña".
+ *
+ * Si tocás esto, tocá el otro archivo. La advertencia gemela está allá.
+ */
 const CLAVE = 'lajuanita.credencial'
 
 export type Credencial = {

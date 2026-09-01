@@ -258,7 +258,7 @@ export function CalendarioPagina() {
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -402,7 +402,7 @@ export function CalendarioPagina() {
                           })
                         }
                         aria-label={`Cargar reserva el ${diaYMes(dia)} a las ${String(hora).padStart(2, '0')}:00`}
-                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-superficie-2 hover:text-apagado focus:bg-superficie-2 focus:text-apagado focus:outline-none"
+                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-superficie-2 hover:text-apagado focus:bg-superficie-2 focus:text-apagado"
                       >
                         + reservar
                       </button>
@@ -544,7 +544,7 @@ function Detalle({
                   value={p.estadoAsistencia}
                   onChange={(e) => onAsistencia(p.idParticipacion, e.target.value as EstadoAsistencia)}
                   aria-label={`Asistencia de ${p.nombre} ${p.apellido}`}
-                  className="rounded border border-linea bg-superficie px-2 py-1 text-xs outline-none focus:border-red"
+                  className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-xs transition-colors focus:border-red"
                 >
                   {ASISTENCIAS.map((a) => (
                     <option key={a} value={a}>

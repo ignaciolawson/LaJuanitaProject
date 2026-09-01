@@ -1,59 +1,120 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
+import { Field } from "./Fields";
+import { iniciarSesion } from "@/lib/sesion";
+
 /**
- * La puerta al campus. **No es un formulario, y esa es la decisión.**
+ * La puerta al campus. **Ahora sí es un formulario, y eso cambió el 2026-08-31.**
  *
- * Acá había un formulario de login que no autenticaba nada, con el `onSubmit`
- * marcado como *"el único punto a tocar cuando exista el backend"*. El backend
- * existe desde hace semanas, y al ir a conectarlo apareció el problema de fondo:
- * **una sesión iniciada acá no se le puede entregar a la plataforma.**
- *
- * Son dos aplicaciones en orígenes distintos —este sitio y el sistema— y
- * `localStorage` no se comparte entre orígenes: el token quedaría guardado de
- * este lado, donde no hay ninguna pantalla que lo use, y la plataforma seguiría
- * pidiendo entrar. Las dos salidas conocidas son peores que el problema:
+ * Durante meses acá hubo dos links, y era la decisión correcta con la
+ * información de entonces. El problema no era escribir el formulario: era que
+ * **una sesión iniciada acá no se le podía entregar a la plataforma.** Son dos
+ * aplicaciones, y `localStorage` no se comparte entre orígenes distintos: el
+ * token quedaba guardado de este lado, donde no hay ninguna pantalla que lo use,
+ * y la plataforma seguía pidiendo entrar. Las dos salidas conocidas eran peores
+ * que el problema:
  *
  * - **Pasar el token por la URL** al redirigir. Queda en el historial del
  *   navegador, en el `Referer` y en cualquier extensión instalada. Es el patrón
  *   que la industria abandonó, y este proyecto se toma el trabajo de que las tres
  *   formas de fallar un login tarden lo mismo — no es coherente regalar la
  *   credencial en una barra de direcciones.
- * - **Apostar a que las dos apps queden en el mismo dominio.** Podría pasar, pero
- *   es exactamente la decisión de hosting que todavía no está tomada, y ataría
- *   este sitio a una forma de deploy que nadie eligió.
+ * - **Apostar a que las dos apps queden en el mismo dominio**, que era la
+ *   decisión de hosting que faltaba tomar.
  *
- * **Un link funciona con cualquiera de las dos.** Y si algún día se decide mismo
- * origen, convertir esto en un formulario de verdad es un cambio chico — al
- * revés, desarmar un login mal entregado no lo es.
+ * **Se tomó la segunda, y dejó de ser una apuesta**: landing en `/`, plataforma
+ * en `/app`, backend en `/api`, todo detrás de un proxy. Con un solo origen
+ * `localStorage` se comparte y la entrega es directa, sin token en la URL. El
+ * mecanismo está en `@/lib/sesion`, con la advertencia de acoplamiento que hay
+ * que leer antes de tocarlo.
  *
- * Lo que sí se ganó: *"olvidé mi contraseña"* ya no está. No existe y no puede
- * existir —no hay infraestructura de correo—, así que ofrecerlo mandaba a la
- * persona a una puerta que no abre. La salida real es escribir, y es la que está.
+ * Lo que NO volvió: *"olvidé mi contraseña"*. No existe y no puede existir —no
+ * hay infraestructura de correo—, así que ofrecerlo mandaba a la persona a una
+ * puerta que no abre. La salida real es escribir, y es la que está abajo.
  */
+
 /**
- * Dónde vive la plataforma. **Ahora es una ruta del mismo origen y no una URL.**
+ * Dónde vive la plataforma. **Es una ruta del mismo origen, no una URL.**
  *
- * El 2026-08-31 se cerró la decisión de hosting que este archivo daba por
- * abierta: landing en `/`, plataforma en `/app`, backend en `/api`, todo detrás
- * de un proxy. Eso desbloquea justamente lo que el comentario de arriba decía
- * que no se podía hacer — con un solo origen, `localStorage` se comparte y una
- * sesión iniciada acá SÍ se le puede entregar a la plataforma.
- *
- * ⚠️ **Esto todavía son dos links, no el formulario.** El formulario es lo que
- * queda por construir; está anotado en `docs/mejoras.md` §10. Mientras tanto los
- * links siguen funcionando y ya apuntan al lugar definitivo.
+ * Sólo la usa "Crear mi cuenta": el registro sigue siendo una pantalla de la
+ * plataforma y no se duplica acá. Un login es un campo y una contraseña; un alta
+ * tiene validaciones, mensajes de error por campo y la regla de que el mail
+ * duplicado se avisa — mantener dos copias de eso es cómo se desincronizan.
  */
 const PLATAFORMA = process.env.NEXT_PUBLIC_PLATFORM_URL ?? "/app";
 
 export function AccesoAlCampus() {
+  const [error, setError] = useState<string | null>(null);
+  const [entrando, setEntrando] = useState(false);
+
   return (
     <div className="grid gap-7">
-      <a href={`${PLATAFORMA}/login`} className="btn btn--solid justify-center" data-cursor="ENTRAR">
-        Iniciar sesión
-        <span aria-hidden className="text-[1.25em] leading-none">
-          ↗
-        </span>
-      </a>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const datos = new FormData(e.currentTarget);
+          setEntrando(true);
+          setError(null);
+
+          try {
+            await iniciarSesion(
+              String(datos.get("email") ?? ""),
+              String(datos.get("password") ?? ""),
+            );
+            // No se baja `entrando` acá: si salió bien, el navegador ya está
+            // yendo a `/app` y el botón tiene que quedar deshabilitado hasta que
+            // esta página desaparezca. Bajarlo abriría una ventana para mandar
+            // el formulario dos veces mientras redirige.
+          } catch (fallo) {
+            setError(fallo instanceof Error ? fallo.message : "No pudimos entrar.");
+            // Y acá SÍ, siempre. Es el error que costó tres días en la
+            // plataforma (`mejoras.md` §8.1): un botón que se queda en
+            // "Entrando…" para siempre porque el reset vivía en un solo camino.
+            setEntrando(false);
+          }
+        }}
+        className="grid gap-6"
+      >
+        <Field
+          label="Mail"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="vos@ejemplo.com"
+        />
+        <Field
+          label="Contraseña"
+          name="password"
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+
+        {error && (
+          <p
+            role="alert"
+            className="t-body border border-red/40 bg-red-tint p-4 text-sm text-[color:var(--page-fg)]"
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={entrando}
+          className="btn btn--solid justify-center disabled:opacity-60"
+          data-cursor="ENTRAR"
+        >
+          {entrando ? "Entrando…" : "Entrar"}
+          <span aria-hidden className="text-[1.25em] leading-none">
+            ↗
+          </span>
+        </button>
+      </form>
 
       <a href={`${PLATAFORMA}/registro`} className="btn justify-center">
         Crear mi cuenta

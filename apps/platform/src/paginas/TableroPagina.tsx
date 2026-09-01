@@ -162,7 +162,7 @@ export function TableroPagina() {
             value={idSala}
             onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
             aria-label="Filtrar la ocupación por sala"
-            className="rounded-md border border-linea bg-superficie px-3 py-2.5 text-sm outline-none focus:border-red"
+            className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
           >
             <option value="">Todas las salas</option>
             {salas.map((s) => (

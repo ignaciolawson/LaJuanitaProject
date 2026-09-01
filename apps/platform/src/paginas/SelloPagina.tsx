@@ -153,7 +153,7 @@ export function SelloPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por código, nombre o artista…"
-          className="min-w-60 grow rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-60 grow border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         />
         <select
           aria-label="Estado"
@@ -162,7 +162,7 @@ export function SelloPagina() {
             setEstado(e.target.value as EstadoRelease | '')
             setPagina(0)
           }}
-          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (

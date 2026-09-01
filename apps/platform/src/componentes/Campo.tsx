@@ -7,12 +7,36 @@ import type { InputHTMLAttributes, ReactNode } from 'react'
  * marcado, y sobre todo para que el error de un campo se muestre SIEMPRE
  * pegado a su input. El backend devuelve los errores como un mapa
  * campo → mensaje justamente para poder hacer esto.
+ *
+ * **El campo es una línea, no una caja** (Fase 3.1). Era una caja redondeada con
+ * borde —el formulario genérico de cualquier panel— y ahora es el mismo lenguaje
+ * que la landing: una línea inferior que se enciende en rojo al enfocarse, más
+ * cerca de una planilla de estudio que de un formulario de SaaS. En una pantalla
+ * de carga la caja además pesa de más: veinte bordes redondeados compiten con los
+ * datos que uno vino a leer.
  */
 type Props = InputHTMLAttributes<HTMLInputElement> & {
   etiqueta: string
   error?: string
   ayuda?: ReactNode
 }
+
+/**
+ * ⚠️ **Acá NO va `outline-none`, y antes iba.**
+ *
+ * `index.css` cierra con una regla escrita con todas las letras — *"el foco
+ * visible no se saca nunca: esto lo van a usar personas que cargan datos con el
+ * teclado todo el día"*— y define un `:focus-visible` de 2px. `outline-none` lo
+ * anulaba y lo dejaba reemplazado por `focus:border-red`: navegando con teclado,
+ * saber en qué campo estabas dependía de notar que una línea de 1px había
+ * cambiado de tono.
+ *
+ * Es exactamente el mismo defecto que la landing ya había encontrado y corregido
+ * en `Fields.tsx`; acá había sobrevivido. El cambio de borde se conserva, pero
+ * como refuerzo del outline y no en su lugar.
+ */
+const BASE =
+  'mt-1.5 w-full border-0 border-b bg-transparent px-0 py-2 text-sm transition-colors focus:border-red'
 
 export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
   return (
@@ -25,9 +49,7 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
       <input
         {...input}
         aria-invalid={error ? true : undefined}
-        className={`mt-1.5 w-full rounded-md border bg-superficie px-3 py-2.5 text-sm outline-none transition-colors ${
-          error ? 'border-red' : 'border-linea focus:border-red'
-        }`}
+        className={`${BASE} ${error ? 'border-red' : 'border-linea'}`}
       />
 
       {error && (
@@ -56,9 +78,8 @@ export function CampoSelect({
       <span className="t-mono text-tenue">{etiqueta}</span>
       <select
         {...select}
-        className={`mt-1.5 w-full rounded-md border bg-superficie px-3 py-2.5 text-sm outline-none transition-colors ${
-          error ? 'border-red' : 'border-linea focus:border-red'
-        }`}
+        aria-invalid={error ? true : undefined}
+        className={`${BASE} ${error ? 'border-red' : 'border-linea'}`}
       >
         {children}
       </select>

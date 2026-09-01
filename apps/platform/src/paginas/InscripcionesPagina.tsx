@@ -125,13 +125,13 @@ export function InscripcionesPagina() {
           value={buscar}
           onChange={(e) => filtrar(setBuscar)(e.target.value)}
           placeholder="Buscar por nombre, apellido o email del alumno…"
-          className="min-w-64 flex-1 rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="min-w-64 flex-1 border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         />
         <select
           value={disciplina}
           onChange={(e) => filtrar(setDisciplina)(e.target.value as Disciplina | '')}
           aria-label="Filtrar por disciplina"
-          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         >
           <option value="">Todas las disciplinas</option>
           {DISCIPLINAS.map((d) => (
@@ -144,7 +144,7 @@ export function InscripcionesPagina() {
           value={estado}
           onChange={(e) => filtrar(setEstado)(e.target.value as EstadoInscripcion | '')}
           aria-label="Filtrar por estado"
-          className="rounded-md border border-linea bg-superficie px-3 py-2 text-sm outline-none focus:border-red"
+          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -229,7 +229,7 @@ export function InscripcionesPagina() {
                           void cambiarEstado(i, e.target.value as EstadoInscripcion)
                         }
                         aria-label={`Cambiar estado de la inscripción de ${i.nombre} ${i.apellido}`}
-                        className="rounded border border-linea bg-superficie px-2 py-1 text-xs outline-none focus:border-red"
+                        className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-xs transition-colors focus:border-red"
                       >
                         {ESTADOS.map((e) => (
                           <option key={e} value={e}>
