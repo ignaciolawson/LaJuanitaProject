@@ -12,6 +12,7 @@ import {
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -111,7 +112,7 @@ export function VentasPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por equipo, marca o comprador…"
-          className="w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={`w-full ${CONTROL_DE_FILTRO}`}
         />
       </div>
 

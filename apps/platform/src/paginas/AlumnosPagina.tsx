@@ -16,6 +16,8 @@ import type {
   NivelIngreso,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
@@ -119,19 +121,18 @@ export function AlumnosPagina() {
 
       <AvisoSoloLectura />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input
+      <Filtros>        <input
           type="search"
           value={buscar}
           onChange={(e) => cambiarBusqueda(e.target.value)}
           placeholder="Buscar por nombre, apellido o email…"
-          className="min-w-64 flex-1 border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         />
         <select
           value={estado}
           onChange={(e) => filtrar(setEstado)(e.target.value as EstadoAlumno | '')}
           aria-label="Filtrar por estado"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -147,7 +148,7 @@ export function AlumnosPagina() {
           value={disciplina}
           onChange={(e) => filtrar(setDisciplina)(e.target.value as Disciplina | '')}
           aria-label="Filtrar por disciplina"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todas las disciplinas</option>
           {DISCIPLINAS.map((d) => (
@@ -160,7 +161,7 @@ export function AlumnosPagina() {
           value={nivelCurso}
           onChange={(e) => filtrar(setNivelCurso)(e.target.value as Nivel | '')}
           aria-label="Filtrar por nivel del curso"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todos los niveles del curso</option>
           {NIVELES.map((n) => (
@@ -169,7 +170,7 @@ export function AlumnosPagina() {
             </option>
           ))}
         </select>
-      </div>
+      </Filtros>
 
       {error && (
         <div className="mb-4">
@@ -243,7 +244,7 @@ export function AlumnosPagina() {
                         value={a.estadoAlumno}
                         onChange={(e) => void cambiarEstado(a, e.target.value as EstadoAlumno)}
                         aria-label={`Cambiar estado de ${a.nombre} ${a.apellido}`}
-                        className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-xs transition-colors focus:border-red"
+                        className={CONTROL_DE_FILTRO}
                       >
                         {ESTADOS.map((e) => (
                           <option key={e} value={e}>

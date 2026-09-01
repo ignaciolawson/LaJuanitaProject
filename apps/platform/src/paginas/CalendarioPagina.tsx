@@ -32,6 +32,7 @@ import {
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import {
@@ -259,7 +260,7 @@ export function CalendarioPagina() {
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -553,7 +554,7 @@ function Detalle({
                   value={p.estadoAsistencia}
                   onChange={(e) => onAsistencia(p.idParticipacion, e.target.value as EstadoAsistencia)}
                   aria-label={`Asistencia de ${p.nombre} ${p.apellido}`}
-                  className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-xs transition-colors focus:border-red"
+                  className={CONTROL_DE_FILTRO}
                 >
                   {ASISTENCIAS.map((a) => (
                     <option key={a} value={a}>

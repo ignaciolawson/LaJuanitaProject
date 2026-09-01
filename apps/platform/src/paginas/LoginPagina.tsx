@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
 import { useAuth } from '../auth/contexto'
+import { CONTROL_DE_FORMULARIO } from '../componentes/controles'
 import { Boton } from '../componentes/Boton'
 import { Puerta } from '../componentes/Puerta'
 
@@ -70,7 +71,7 @@ export function LoginPagina() {
             autoComplete="username"
             required
             autoFocus
-            className="mt-1.5 w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+            className={`mt-1.5 ${CONTROL_DE_FORMULARIO}`}
           />
         </label>
 
@@ -83,7 +84,7 @@ export function LoginPagina() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
-            className="mt-1.5 w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+            className={`mt-1.5 ${CONTROL_DE_FORMULARIO}`}
           />
         </label>
 

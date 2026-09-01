@@ -1257,8 +1257,8 @@ Ordenadas por cuánto cambian lo que se ve, no por dificultad.
 | 3 | **El sistema de bloques** — los "rectángulos que dicen la sección" y la jerarquía de tarjetas | ✅ **hecha** |
 | 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | ✅ **hecha** |
 | 5 | **El portal (alumno y profesor)** — la mitad linda | ✅ **hecha** |
-| 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | pendiente |
-| 7 | **Notificaciones, los 30 filtros y la recorrida por rol (3.3)** | pendiente |
+| 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | ✅ **hecha** |
+| 7 | **Notificaciones y la recorrida por rol (3.3)** — *los 30 filtros se adelantaron a la etapa 6, que es donde estaba el problema* | pendiente |
 
 ##### Etapas 1 y 2, construidas — lo que decidieron
 
@@ -1575,6 +1575,88 @@ Y **`cuandoEnPalabras` y `fechaLarga` viven en `semana.ts`**, no en el archivo
 del componente: es donde están los helpers de fecha, evita el warning de
 `only-export-components` y, sobre todo, el próximo que necesite "cuándo, en
 palabras" lo busca ahí.
+
+##### Etapa 6 · Administración — construida el 2026-09-01
+
+La mitad de Micaela: ocho horas por día cargando datos. **Identidad sin ruido,
+densidad alta y cero animación** — se ve de la misma familia que el portal, no
+de la misma fiesta.
+
+###### La franja de `--superficie-2` pasa a ser el idioma del sistema
+
+Es lo que unifica la etapa y no se ve como "un cambio": en toda la plataforma,
+**una franja de ese tono significa *"esto califica lo que sigue"***. La usan el
+título de un `Bloque`, el encabezado de una `Tabla` y ahora la barra de filtros.
+Antes cada una tenía su propio tratamiento — tres idiomas para la misma idea.
+
+###### El encabezado de la tabla se pega arriba
+
+**Es la mejora que más se nota de la etapa y cuesta dos clases.** En una tabla
+de treinta filas por seis columnas, a la fila diez ya no se ve qué columna es
+cuál, y quien carga datos ocho horas por día hace ese scroll cien veces al día.
+
+⚠️ `sticky` se ancla al ancestro que scrollea, que acá es el **documento** —el
+`overflow-x-auto` del envoltorio no scrollea en vertical—. La aplicación no tiene
+barra superior, así que `top-0` es el borde de la ventana: **si alguna vez vuelve
+una barra fija arriba, ese `top-0` hay que correrlo** o el encabezado se mete
+abajo de ella.
+
+Y la fila bajó de `py-3` a `py-2.5`: son 4px por fila, o sea dos filas más de las
+treinta que entran en pantalla.
+
+###### La barra de filtros, que era lo que más se leía como "default"
+
+Tres controles colgados en el aire arriba de una tabla, **sin nada que los
+contenga ni ninguna señal de que fueran lo que la filtra**. Ahora es un `Filtros`
+con la franja del sistema.
+
+Y adentro estaban **30 controles escritos a mano en 16 pantallas**, la misma
+cadena de clases copiada carácter por carácter. Hoy: **cero.**
+
+| | Antes | Ahora |
+|---|---|---|
+| Controles de línea escritos a mano | 30 | **0** |
+| Pantallas con barra de filtros propia | 0 | **7** |
+| Definiciones de "el control de línea" | 2 | **1** |
+
+###### ⚠️ Había DOS definiciones del mismo control y no se sabía
+
+`Campo` tenía su `BASE` para los formularios y los filtros llevaban la cadena
+copiada, con otro relleno. Es la deuda que este proyecto ya paga en la base
+(`contarClasesConsumidas` contra `V9` §5) y no hacía falta sumarle una en el CSS.
+
+Ahora hay una sola base en `componentes/controles.ts` y dos variantes que sólo
+difieren en el relleno: `CONTROL_DE_FORMULARIO` respira más porque abajo lleva su
+mensaje de error; `CONTROL_DE_FILTRO` va apretado porque son tres en una fila.
+**Un caso compara las dos ignorando el `py-` y falla si empiezan a diferir en
+otra cosa** — o sea, si vuelven a ser dos definiciones de la misma cosa.
+
+###### ⚠️ Una trampa de Windows que en Linux no existe
+
+El módulo iba a llamarse `filtros.ts`, que era el nombre obvio al lado de
+`Filtros.tsx`. **En Windows el sistema de archivos no distingue mayúsculas, así
+que para la resolución de módulos son el mismo archivo.** TypeScript lo dice con
+todas las letras —*"differs from file name only in casing"*— pero recién al
+compilar, y **en Linux (o sea, en CI y en el deploy) el mismo código andaría**:
+es un error que aparece o no según la máquina. Se llama `controles.ts`.
+
+###### Lo que la migración conservó, y por qué no hubo que tocar un caso
+
+Los 34 casos de `PagosPagina` pasaron sin una sola edición porque **los
+`aria-label` viajaron con el control**. En pantalla el nombre de un filtro lo
+dice la opción elegida ("Todos los estados"), que es por lo que no lleva rótulo
+visible; para un lector de pantalla eso no alcanza, y es lo que esos casos
+sostienen. `FiltroFecha` es la excepción y sí lleva rótulo: **una lista muestra
+su opción elegida, una fecha vacía no muestra nada**, y con dos al lado la única
+forma de saber cuál es "desde" sería probando.
+
+###### Un apunte de método
+
+Los handlers de los filtros son bloques de varias líneas en cuatro pantallas, así
+que la migración fue en dos pasos: **el contenedor se cambió por componente
+—seguro, sólo toca la apertura y el cierre— y los controles conservaron su
+handler tal cual, cambiando sólo la clase.** Reescribir handlers con regex es
+cirugía sobre JSX, que ya salió mal una vez en la etapa 3.
 
 ##### ⚠️ Una trampa de TypeScript que produce un bug silencioso
 

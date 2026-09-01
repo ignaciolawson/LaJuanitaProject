@@ -29,6 +29,8 @@ import {
   type TipoRelease,
 } from '../api/tiposSello'
 import { Aviso, Boton } from '../componentes/Boton'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -145,8 +147,7 @@ export function SelloPagina() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input
+      <Filtros>        <input
           type="search"
           value={buscar}
           onChange={(e) => {
@@ -154,7 +155,7 @@ export function SelloPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por código, nombre o artista…"
-          className="min-w-60 grow border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={`min-w-60 grow ${CONTROL_DE_FILTRO}`}
         />
         <select
           aria-label="Estado"
@@ -163,7 +164,7 @@ export function SelloPagina() {
             setEstado(e.target.value as EstadoRelease | '')
             setPagina(0)
           }}
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -172,7 +173,7 @@ export function SelloPagina() {
             </option>
           ))}
         </select>
-      </div>
+      </Filtros>
 
       {error && (
         <div className="mb-4">

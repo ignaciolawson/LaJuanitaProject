@@ -36,6 +36,7 @@ import {
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
+import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
 import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -175,19 +176,17 @@ export function PagosPagina() {
 
       <AvisoSoloLectura />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input
-          type="search"
-          value={buscar}
-          onChange={(e) => filtrar(setBuscar)(e.target.value)}
+      <Filtros>
+        <FiltroTexto
+          etiqueta="Buscar"
+          valor={buscar}
+          onCambio={filtrar(setBuscar)}
           placeholder="Buscar por nombre, apellido o email…"
-          className="min-w-64 flex-1 border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
         />
-        <select
-          value={estado}
-          onChange={(e) => filtrar(setEstado)(e.target.value as EstadoPago | '')}
-          aria-label="Filtrar por estado"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+        <FiltroSelect
+          etiqueta="Filtrar por estado"
+          valor={estado}
+          onCambio={(v: string) => filtrar(setEstado)(v as EstadoPago | '')}
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -195,18 +194,17 @@ export function PagosPagina() {
               {NOMBRE_DE_ESTADO_PAGO[e]}
             </option>
           ))}
-        </select>
-        <select
-          value={moneda}
-          onChange={(e) => filtrar(setMoneda)(e.target.value as Moneda | '')}
-          aria-label="Filtrar por moneda"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+        </FiltroSelect>
+        <FiltroSelect
+          etiqueta="Filtrar por moneda"
+          valor={moneda}
+          onCambio={(v: string) => filtrar(setMoneda)(v as Moneda | '')}
         >
           <option value="">Las dos monedas</option>
           <option value="ARS">Pesos</option>
           <option value="USD">Dólares</option>
-        </select>
-      </div>
+        </FiltroSelect>
+      </Filtros>
 
       {error && (
         <div className="mb-4">

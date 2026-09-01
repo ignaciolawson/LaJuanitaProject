@@ -26,6 +26,8 @@ import {
 } from '../api/tiposMastering'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -118,8 +120,7 @@ export function MixMasteringPagina() {
 
       <AvisoSoloLectura />
 
-      <div className="mb-4 flex flex-wrap gap-3">
-        <input
+      <Filtros>        <input
           type="search"
           value={buscar}
           onChange={(e) => {
@@ -127,7 +128,7 @@ export function MixMasteringPagina() {
             setPagina(0)
           }}
           placeholder="Buscar por track o cliente…"
-          className="min-w-60 grow border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={`min-w-60 grow ${CONTROL_DE_FILTRO}`}
         />
         <select
           aria-label="Estado"
@@ -136,7 +137,7 @@ export function MixMasteringPagina() {
             setEstado(e.target.value as EstadoTrabajo | '')
             setPagina(0)
           }}
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todos los estados</option>
           {ESTADOS.map((e) => (
@@ -145,7 +146,7 @@ export function MixMasteringPagina() {
             </option>
           ))}
         </select>
-      </div>
+      </Filtros>
 
       {error && (
         <div className="mb-4">

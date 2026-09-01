@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from 'react'
+import { CONTROL_DE_FORMULARIO } from './controles'
 
 /**
  * Un campo de formulario con su etiqueta y su error.
@@ -35,8 +36,7 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
  * en `Fields.tsx`; acá había sobrevivido. El cambio de borde se conserva, pero
  * como refuerzo del outline y no en su lugar.
  */
-const BASE =
-  'mt-1.5 w-full border-0 border-b bg-transparent px-0 py-2 text-sm transition-colors focus:border-red'
+const BASE = `mt-1.5 ${CONTROL_DE_FORMULARIO}`
 
 export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
   return (

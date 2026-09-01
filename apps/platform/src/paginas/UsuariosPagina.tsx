@@ -12,6 +12,7 @@ import type { Rol } from '../api/tipos'
 import type { UsuarioResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque, Hueco } from '../componentes/Bloque'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { useUsuario } from '../auth/contexto'
@@ -116,7 +117,7 @@ export function UsuariosPagina() {
         value={buscar}
         onChange={(e) => cambiarBusqueda(e.target.value)}
         placeholder="Buscar por nombre, apellido o email…"
-        className="mb-4 w-full max-w-md border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+        className={`mb-4 w-full max-w-md ${CONTROL_DE_FILTRO}`}
       />
 
       {error && (

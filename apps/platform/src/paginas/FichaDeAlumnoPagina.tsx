@@ -21,6 +21,7 @@ import {
   type NotaResumen,
 } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { CampoSelect } from '../componentes/Campo'
 import { Semaforo } from '../componentes/Semaforo'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
@@ -265,7 +266,7 @@ function Seguimiento({
             }}
             rows={2}
             placeholder="Por qué. Es lo que hace útil un requiere atención."
-            className="mt-1.5 w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+            className={`mt-1.5 w-full ${CONTROL_DE_FILTRO}`}
           />
         </label>
       </div>
@@ -372,7 +373,7 @@ function Notas({
           rows={3}
           placeholder="Qué pasó en la clase, qué practicar, cómo viene."
           aria-label="Nota"
-          className="w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={`w-full ${CONTROL_DE_FILTRO}`}
         />
 
         <div className="flex flex-wrap items-end gap-3">
@@ -443,7 +444,7 @@ function Notas({
                     onChange={(e) => setTextoEditado(e.target.value)}
                     rows={3}
                     aria-label="Corregir la nota"
-                    className="w-full border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+                    className={`w-full ${CONTROL_DE_FILTRO}`}
                   />
                   <div className="flex gap-2">
                     <Boton

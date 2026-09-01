@@ -4,6 +4,8 @@ import { listarSalas, usoDeSalas } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { SalaResumen, UsoDeSala } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { Filtros } from '../componentes/Filtros'
 import { Campo } from '../componentes/Campo'
 import { hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -70,8 +72,7 @@ export function UsoDeSalasPagina() {
             : `${horas(totalDeHoras)} en total, del ${legible(desde)} al ${legible(hasta)}`}</>}
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Campo
+      <Filtros>        <Campo
           etiqueta="Desde"
           type="date"
           value={desde}
@@ -89,7 +90,7 @@ export function UsoDeSalasPagina() {
           value={idSala}
           onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
           aria-label="Filtrar por sala"
-          className="border-0 border-b border-linea bg-transparent px-0 py-1.5 text-sm transition-colors focus:border-red"
+          className={CONTROL_DE_FILTRO}
         >
           <option value="">Todas las salas</option>
           {salas.map((s) => (
@@ -107,7 +108,7 @@ export function UsoDeSalasPagina() {
             90 días
           </Boton>
         </div>
-      </div>
+      </Filtros>
 
       {error && (
         <div className="mb-4">

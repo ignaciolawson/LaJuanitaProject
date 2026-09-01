@@ -4,6 +4,7 @@ import { caja } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { NOMBRE_DE_MEDIO, type CajaDelPeriodo } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { Filtros } from '../componentes/Filtros'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
 import { hoy, sumarDias } from '../componentes/semana'
@@ -58,8 +59,7 @@ export function CajaPagina() {
         aclaracion={<>{cargando ? 'Cargando…' : `Del ${legible(desde)} al ${legible(hasta)}`}</>}
       />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Campo
+      <Filtros>        <Campo
           etiqueta="Desde"
           type="date"
           value={desde}
@@ -93,7 +93,7 @@ export function CajaPagina() {
             Este mes
           </Boton>
         </div>
-      </div>
+      </Filtros>
 
       {error && (
         <div className="mb-4">

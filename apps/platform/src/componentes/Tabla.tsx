@@ -15,6 +15,22 @@ import type { ReactNode } from 'react'
  *
  * **El `overflow-x-auto` no es opcional.** Una tabla ancha sin él empuja el
  * scroll horizontal al body y rompe la pantalla entera, no sólo la tabla.
+ *
+ * **El encabezado es la MISMA franja que la de `Bloque`** (`--superficie-2` con
+ * una línea abajo), y eso es el sistema y no una coincidencia: en toda la
+ * plataforma, una franja de ese tono significa *"esto nombra lo que sigue"*. Un
+ * `thead` con su propio tratamiento sería un segundo idioma para la misma idea.
+ *
+ * **Y el encabezado se pega arriba al scrollear.** En una tabla de treinta
+ * filas por seis columnas, a la fila diez ya no se ve qué columna es cuál, y
+ * quien carga datos ocho horas por día hace ese scroll cien veces al día. Es la
+ * mejora que más se nota de esta etapa y cuesta dos clases.
+ *
+ * ⚠️ `sticky` se ancla al ancestro que scrollea. Acá ese es el DOCUMENTO —el
+ * `overflow-x-auto` del envoltorio no scrollea en vertical— y la aplicación no
+ * tiene barra superior, así que `top-0` es el borde de la ventana. Si alguna vez
+ * vuelve una barra fija arriba, este `top-0` hay que correrlo o el encabezado se
+ * va a meter abajo de ella.
  */
 
 export type Columna = {
@@ -45,15 +61,15 @@ export function Tabla({
           movimiento que mas se repite, y es donde se salta de renglon sin
           darse cuenta. */}
       <table className="w-full text-sm [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-superficie-2">
-        <thead>
-          <tr className="border-b border-linea text-left text-tenue">
+        <thead className="sticky top-0 z-10">
+          <tr className="border-b border-linea bg-superficie-2 text-left text-tenue">
             {columnas.map((columna) => {
               const c: Columna = typeof columna === 'string' ? { etiqueta: columna } : columna
               return (
                 <th
                   key={c.etiqueta}
                   scope="col"
-                  className={`t-mono px-4 py-3 font-normal ${
+                  className={`t-mono px-4 py-2.5 font-normal ${
                     c.alineacion === 'derecha' ? 'text-right' : ''
                   } ${c.className ?? ''}`}
                 >
@@ -87,7 +103,7 @@ export function Celda({
 }) {
   return (
     <td
-      className={`px-4 py-3 ${numerica ? 't-cifra text-right' : ''} ${className ?? ''}`}
+      className={`px-4 py-2.5 ${numerica ? 't-cifra text-right' : ''} ${className ?? ''}`}
     >
       {children}
     </td>
