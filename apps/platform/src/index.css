@@ -39,8 +39,60 @@
 
   --papel: #f4f1ea;
   --linea: rgba(10, 10, 11, 0.12);
-  --tenue: rgba(10, 10, 11, 0.56);
-  --apagado: rgba(10, 10, 11, 0.3);
+
+  /* EL COLOR DE LO QUE SE LEE, y es un token porque el tema lo cambia.
+     Antes no existía: `body` escribía `--ink` y el tema oscuro lo pisaba con
+     una regla aparte. Funcionaba mientras nadie necesitara nombrarlo — hasta
+     que doce lugares necesitaron poner ese color explícito (un `<strong>`, la
+     etiqueta de un estado activo, el botón secundario) y escribieron
+     `text-ink`, que es una TINTA DE MARCA y no sigue al tema. En oscuro esos
+     doce miden **1,11:1**: negro sobre casi negro. Es la mitad de lo que
+     Ignacio vio como *"botones o palabras que no se notan bien"*. */
+  --texto: var(--ink);
+
+  /* LOS DOS GRISES DE TEXTO, MEDIDOS Y NO ESTIMADOS (§12 · A3).
+
+     Los dos estaban por debajo del piso, y `--apagado` **estaba peor en claro
+     que en oscuro** — que es lo que la barrida no esperaba encontrar:
+
+       --tenue    ink@0,56 → 4,39:1 sobre el papel   (no llega a AA)
+       --apagado  ink@0,30 → 2,01:1 sobre el papel   (no llega ni a 3)
+
+     ⚠️ Y `--apagado` **no es decorativo**: son cien usos y dicen *"Sin
+     comprobante"*, *"A acordar"*, *"Sin asignar"*, *"no descuenta clases"*, la
+     ayuda de un campo y la fila vacía de una tabla. Es texto que hay que leer,
+     con nombre de texto que no. Así que sube al piso de lectura en vez de
+     quedarse en el de la decoración:
+
+       --tenue    ink@0,66 → 6,20:1 papel · 6,58:1 superficie
+       --apagado  ink@0,58 → 4,72:1 papel · 4,85:1 superficie
+
+     Siguen siendo tres escalones perceptibles (18,9 · 6,2 · 4,7) y ahora los
+     tres se leen. El que quiera un cuarto nivel más apagado que esto no lo va
+     a conseguir con gris: lo que queda abajo de 4,5 no es jerarquía, es texto
+     que alguien no puede leer. */
+  --tenue: rgba(10, 10, 11, 0.66);
+  --apagado: rgba(10, 10, 11, 0.58);
+
+  /* EL BORDE DE UN CONTROL NO ES EL BORDE DE UNA TARJETA.
+
+     `--linea` mide 1,30:1 y está bien: separa superficies, no informa nada. Un
+     campo de este sistema es una LÍNEA —no una caja—, así que ese borde de 1px
+     es toda la señal de que ahí se escribe, y WCAG pide 3:1 para eso. Lo mismo
+     el borde del botón secundario, que es su única forma.
+
+     0,46 da 3,27:1 en claro y 3,85:1 en oscuro. */
+  --linea-control: rgba(10, 10, 11, 0.46);
+
+  /* EL BOTÓN PRINCIPAL SE INVIERTE CON EL TEMA.
+
+     Era `bg-ink text-bone` fijo. En oscuro eso es tinta sobre una tarjeta
+     #17171a: **1,11:1**, o sea el botón principal de cada pantalla no tenía
+     forma — se leía su texto flotando en el aire. La acción principal es la
+     máxima inversión disponible contra el lienzo, y cuál es depende del tema:
+     tinta sobre claro, hueso sobre oscuro. */
+  --accion: var(--ink);
+  --accion-texto: var(--bone);
 
   /* LAS DOS SUPERFICIES QUE VAN ENCIMA DEL PAPEL.
 
@@ -64,29 +116,46 @@
      no era el color, era el nombre. Sigue siendo una paleta de tres tintas. */
   --superficie-2: var(--papel);
 
-  /* EL SHELL VA EN TINTA Y EL TRABAJO EN PAPEL.
+  /* EL SHELL ES LA OTRA SUPERFICIE, Y SIGUE AL TEMA.
 
-     La decisión de arriba —claro y denso porque se mira ocho horas por día—
-     vale para la SUPERFICIE DE TRABAJO, que es donde se leen tablas de treinta
-     filas y se cargan formularios. **No vale para la navegación, que no se lee:
-     se recorre.**
+     La navegación y el lienzo son dos superficies distintas a propósito: la
+     primera no se lee, se recorre, y partirlas es lo que separa de un vistazo
+     "dónde estoy" de "qué estoy mirando". Eso no cambió.
 
-     Partirlo en dos resuelve las dos cosas que estaban en conflicto: la marca
-     entra por el shell —oscuro y teatral, como la landing— y el lienzo se queda
-     claro, que es lo que no cansa cargando datos. De paso hace lo que el borde
-     de 1px no lograba: separar de un vistazo "dónde estoy" de "qué estoy
-     mirando".
+     Lo que cambió —decisión de Ignacio, 2026-09-01 (`mejoras.md` §12 · A4)— es
+     que **el shell acompaña al tema en vez de quedarse en tinta siempre**. Un
+     sidebar #0a0a0b al lado de un lienzo claro es la mitad de la pantalla
+     ignorando el interruptor que la otra mitad acaba de obedecer.
 
-     Los tonos sobre tinta salen de la misma medición que la landing (QA-06):
-     0,56 de hueso sobre #0a0a0b da 4,9:1 y pasa AA; por debajo de 0,52 no. Y
-     como allá, **la jerarquía la lleva la tipografía y no una escala de grises**
-     —mono en versalita contra texto corrido—, así que hay UN solo tono apagado
-     y no tres casi iguales. */
-  --shell: var(--ink);
-  --shell-texto: var(--bone);
-  --shell-tenue: rgba(232, 225, 212, 0.56);
-  --shell-linea: rgba(232, 225, 212, 0.12);
-  --shell-activo: rgba(232, 225, 212, 0.08);
+     **La marca no se pierde al hacerlo, porque el shell claro es hueso.**
+     `--bone-2` es una de las tres tintas de la marca, no un gris nuevo: sigue
+     siendo una paleta de tres tintas y el shell sigue siendo la superficie que
+     la lleva. La jerarquía de profundidades se conserva invertida — en claro
+     el shell es el tono más SATURADO contra un papel casi blanco; en oscuro,
+     el más hondo.
+
+     Los tonos de cada tema están medidos, no elegidos a ojo:
+
+       claro   texto ink sobre #d9d0be     12,93:1
+               shell-tenue ink@0,66         5,49:1
+       oscuro  texto bone sobre #08080a    14,9:1
+               shell-tenue bone@0,56        5,22:1
+
+     ⚠️ **El rojo del shell es un token propio y no `--red`.** Sobre hueso el
+     rojo de marca mide 2,98:1 y la barra del ítem activo es un indicador de
+     estado, o sea información: pide 3:1. Es exactamente la partición que este
+     archivo ya declara arriba para el rojo —superficie contra texto—, aplicada
+     al tercer fondo del sistema. */
+  --shell: var(--bone-2);
+  --shell-texto: var(--ink);
+  --shell-tenue: rgba(10, 10, 11, 0.66);
+  --shell-linea: rgba(10, 10, 11, 0.16);
+  --shell-activo: rgba(10, 10, 11, 0.07);
+  --shell-acento: var(--acento);
+
+  /* El grano tiene que pesar distinto en cada tema: es ruido NEGRO, así que lo
+     que sobre tinta es textura, sobre hueso es suciedad. */
+  --grano-opacidad: 0.16;
 
   /* La profundidad del lienzo. Es deliberadamente casi imperceptible: alcanza
      para que una tarjeta se despegue del papel, y no tanto como para que
@@ -154,19 +223,38 @@ html[data-tema="oscuro"] {
      es más claro que el del sidebar. */
   --tenue: rgba(232, 225, 212, 0.56);
   --linea: rgba(232, 225, 212, 0.12);
-  --apagado: rgba(232, 225, 212, 0.34);
+  /* bone@0,34 medía 2,64:1 y no se leía. 0,52 da 4,56:1 sobre la superficie y
+     4,63:1 sobre el papel. Ver el comentario largo del token en `:root`. */
+  --apagado: rgba(232, 225, 212, 0.52);
 
   /* Ver el punto 2 del comentario de arriba. */
   --acento: var(--red-hover);
+
+  --texto: var(--bone);
+  --tenue: rgba(232, 225, 212, 0.66);
+  --linea-control: rgba(232, 225, 212, 0.46);
+
+  /* La acción principal, invertida: sobre lienzo oscuro el máximo contraste
+     disponible es el hueso. Ver el comentario del token en `:root`. */
+  --accion: var(--bone);
+  --accion-texto: var(--ink);
+
+  /* El shell en tinta — que hasta la §12 · A4 era el de los dos temas. Acá el
+     rojo de marca sí rinde sobre el fondo (3,9:1) y `--shell-acento` toma el
+     `--red` en vez del acento oscuro. */
+  --shell: #08080a;
+  --shell-texto: var(--bone);
+  --shell-tenue: rgba(232, 225, 212, 0.56);
+  --shell-linea: rgba(232, 225, 212, 0.12);
+  --shell-activo: rgba(232, 225, 212, 0.08);
+  --shell-acento: var(--red);
+
+  --grano-opacidad: 0.5;
 
   --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.5);
   --sombra-flotante:
     0 1px 2px rgba(0, 0, 0, 0.6),
     0 16px 40px rgba(0, 0, 0, 0.55);
-}
-
-html[data-tema="oscuro"] body {
-  color: var(--bone);
 }
 
 @theme inline {
@@ -179,7 +267,11 @@ html[data-tema="oscuro"] body {
   --color-acento: var(--acento);
   --color-papel: var(--papel);
   --color-linea: var(--linea);
+  --color-linea-control: var(--linea-control);
+  --color-texto: var(--texto);
   --color-tenue: var(--tenue);
+  --color-accion: var(--accion);
+  --color-accion-texto: var(--accion-texto);
   --color-apagado: var(--apagado);
   --color-superficie: var(--superficie);
   --color-superficie-2: var(--superficie-2);
@@ -189,6 +281,7 @@ html[data-tema="oscuro"] body {
   --color-shell-tenue: var(--shell-tenue);
   --color-shell-linea: var(--shell-linea);
   --color-shell-activo: var(--shell-activo);
+  --color-shell-acento: var(--shell-acento);
 
   --shadow-flotante: var(--sombra-flotante);
   --shadow-tarjeta: var(--sombra-tarjeta);
@@ -206,7 +299,7 @@ body,
 
 body {
   background: var(--papel);
-  color: var(--ink);
+  color: var(--texto);
   font-family: var(--fuente-titulo);
   font-synthesis-weight: none;
   -webkit-font-smoothing: antialiased;
@@ -292,10 +385,51 @@ body {
 }
 
 /* El foco visible no se saca nunca: esto lo van a usar personas que cargan
-   datos con el teclado todo el día. */
+   datos con el teclado todo el día.
+
+   ⚠️ Va en `--acento` y no en `--red`: el anillo tiene que rendir 3:1 contra
+   CUALQUIERA de las tres superficies, y sobre el shell claro el rojo de marca
+   mide 2,98:1. `--acento` es el rojo que ya está calibrado por tema — 6,55:1
+   sobre papel, 4,28:1 sobre el shell claro, 5,03:1 sobre la superficie
+   oscura. */
 :focus-visible {
-  outline: 2px solid var(--red);
+  outline: 2px solid var(--acento);
   outline-offset: 2px;
+}
+
+/* EL CURSOR DE LO QUE SE PUEDE APRETAR (§12 · A9).
+
+   ⚠️ **Tailwind v4 sacó del preflight el `cursor: pointer` de los botones** y
+   nada avisa: la hoja del navegador les da `cursor: default`, así que cada
+   `<button>` de las 36 pantallas dejó de decir que se puede apretar. Es
+   literalmente lo que Ignacio describió — *"en artistas, al apretar el nombre
+   se abre su info pero el cursor no está pointer"*—, y esa tarjeta **ya era un
+   `<button>`**: no faltaba semántica, faltaba esta regla.
+
+   La otra mitad de su diagnóstico —*"probablemente ese elemento debería ser un
+   `<button>`"*— se fue a buscar y no hay ninguno: en este repo no existe un
+   solo `onClick` sobre un `<div>`, un `<td>` ni un `<li>`. Todo lo clickeable
+   ya es `<button>` o `<a>`, así que nada de esto se está tapando con una
+   clase.
+
+   `:disabled` queda afuera: lo que no se puede apretar no debe decir que sí, y
+   `Boton` ya le pone `cursor-not-allowed`. */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+/* LOS `<option>` DE UN DESPLEGABLE.
+
+   `color-scheme` orienta al navegador, pero el popup de un `<select>` hereda
+   el `background-color` del control — y los de este sistema son
+   `bg-transparent`, porque el campo es una línea. Con eso, Chrome en Windows
+   abre la lista sobre el color de sistema y no sobre el nuestro. Pintarlos es
+   una regla de dos líneas y saca del medio al primer sospechoso de A3. */
+option {
+  background-color: var(--superficie);
+  color: var(--texto);
 }
 
 
@@ -327,10 +461,14 @@ html[data-tema="oscuro"] {
 /* La barra de scroll del lienzo. `scrollbar-gutter: stable` reserva el lugar
    siempre: sin eso, una tabla que crece y empieza a scrollear corre el
    contenido 15px hacia la izquierda de golpe. */
+/* ⚠️ El pulgar va en `--linea-control` y no en `--linea` (§12 · A3): a 1,3:1 la
+   barra existía y no se veía, que es el mismo defecto que tenían los campos —y
+   por la misma razón, porque una barra de scroll es un control y no una
+   separación entre superficies. */
 html {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: var(--linea) transparent;
+  scrollbar-color: var(--linea-control) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -343,7 +481,7 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--linea);
+  background: var(--linea-control);
   border: 3px solid transparent;
   background-clip: content-box;
   border-radius: 999px;
@@ -357,16 +495,16 @@ html {
 /* Sobre el shell la barra va con la paleta del shell y no con la del lienzo:
    la columna es `h-screen` y con treinta y un ítems scrollea de verdad. */
 .zona-shell {
-  scrollbar-color: var(--shell-linea) transparent;
+  scrollbar-color: var(--shell-tenue) transparent;
 }
 
 .zona-shell::-webkit-scrollbar-thumb {
-  background: var(--shell-linea);
+  background: var(--shell-tenue);
   background-clip: content-box;
 }
 
 .zona-shell::-webkit-scrollbar-thumb:hover {
-  background: var(--shell-tenue);
+  background: var(--shell-texto);
   background-clip: content-box;
 }
 
@@ -396,7 +534,7 @@ html {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: var(--grano-opacidad);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
 }
 

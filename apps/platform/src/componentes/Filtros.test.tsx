@@ -60,9 +60,24 @@ describe('el control de línea', () => {
     const sinRelleno = (c: string) =>
       c
         .split(' ')
-        .filter((clase) => !clase.startsWith('py-') && clase !== 'border-linea')
+        .filter((clase) => !clase.startsWith('py-') && clase !== 'border-linea-control')
         .join(' ')
 
     expect(sinRelleno(CONTROL_DE_FILTRO)).toBe(sinRelleno(CONTROL_DE_FORMULARIO))
+  })
+
+  it('⚠️ el borde de un control no es el de una tarjeta', () => {
+    // §12 · A3. `--linea` mide 1,3:1 y separa superficies; el borde de un campo
+    // es la ÚNICA señal de que ahí se escribe —estos campos son líneas, no
+    // cajas—, así que es un control y WCAG le pide 3:1. `--linea-control` da
+    // 3,3:1 en claro y 3,9:1 en oscuro.
+    //
+    // Se afirma sobre la palabra exacta a propósito: `border-linea` es prefijo
+    // de `border-linea-control`, así que un `toContain` pasaría con el token
+    // equivocado puesto.
+    for (const clase of [CONTROL_DE_FILTRO, CONTROL_DE_FORMULARIO]) {
+      expect(clase.split(' ')).not.toContain('border-linea')
+    }
+    expect(CONTROL_DE_FILTRO.split(' ')).toContain('border-linea-control')
   })
 })

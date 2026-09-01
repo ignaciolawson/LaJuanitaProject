@@ -243,7 +243,7 @@ function EtiquetaEstado({ estado }: { estado: EstadoTrabajo }) {
     estado === 'DEBE'
       ? 'border-red/40 text-acento'
       : estado === 'PAGADO'
-        ? 'border-ink/20 text-ink'
+        ? 'border-texto/20 text-texto'
         : estado === 'CANCELADO'
           ? 'border-linea text-apagado'
           : 'border-linea text-tenue'

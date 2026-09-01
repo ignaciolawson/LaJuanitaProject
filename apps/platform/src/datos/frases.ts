@@ -21,6 +21,19 @@
  * - `casa` — voz de La Juanita. No lleva autor porque no lo necesita: es la
  *   casa hablando. ⚠️ Estas son **placeholder** hasta que las confirme el
  *   cliente, igual que el resto de la copia larga de la landing.
+ *
+ * ⚠️ **Estado de §12 · A5, para que nadie lo dé por cerrado.** Ignacio pidió
+ * volumen —*"armarnos un lugar en el repo para almacenar muchas e ir
+ * poniéndolas"*—; el lugar ya existía y lo que faltaba eran frases. Son
+ * catorce: **doce de la casa y sólo dos citas**, y esa proporción es el punto.
+ * Las de la casa se pueden escribir acá porque la casa es el cliente y él las
+ * confirma o las cambia; **una cita no se puede escribir, se tiene que ir a
+ * buscar** — autor real, dicho real, y una URL donde verificarlo. Ése es el
+ * cuello de botella que el §12 anticipó y sigue abierto: cada cita nueva es
+ * trabajo de búsqueda, no de programación.
+ *
+ * Con catorce la rotación ya se nota (antes eran cuatro y la frase volvía cada
+ * cuatro días). El techo no es el código: `fraseDelDia` no tiene tope.
  */
 export type Frase =
   | { tipo: 'cita'; texto: string; autor: string; fuente: string }
@@ -51,6 +64,46 @@ export const FRASES: Frase[] = [
   {
     tipo: 'casa',
     texto: 'El set que te sale sin pensar es el que ensayaste cincuenta veces.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Nadie se acuerda de la mezcla perfecta. Se acuerdan de cómo los dejaste.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'La pista te contesta enseguida: si mirás para abajo, la perdiste.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Antes de agregar otra capa, fijate qué le sacarías.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Un tema termina cuando lo escuchás en el auto y no querés tocar nada.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'El equipo caro no arregla una selección floja.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Guardá el proyecto con fecha. Tu yo de la semana que viene te lo agradece.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Escuchá el tema entero antes de meterlo en el set: el final también existe.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Bajá el volumen. Si sigue sonando bien, está bien mezclado.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'Se aprende a mezclar mezclando mal, muchas veces, con alguien al lado.',
+  },
+  {
+    tipo: 'casa',
+    texto: 'El silencio también es un recurso, y es el que menos se usa.',
   },
 ]
 

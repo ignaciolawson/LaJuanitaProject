@@ -261,8 +261,8 @@ function CuentaLista({
         <>
           <p className="mt-2 text-sm leading-relaxed text-tenue">
             Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
-            <strong className="text-ink">vence a los 7 días</strong> si no la usa.{' '}
-            <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
+            <strong className="text-texto">vence a los 7 días</strong> si no la usa.{' '}
+            <strong className="text-texto">No se puede volver a ver:</strong> si se pierde, hay que
             generar otra desde Personas.
           </p>
           <Hueco className="mt-3 font-mono text-lg tracking-wider">

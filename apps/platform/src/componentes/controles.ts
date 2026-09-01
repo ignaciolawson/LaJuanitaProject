@@ -12,6 +12,11 @@
  * base de datos con `contarClasesConsumidas` contra `V9` §5; no hacía falta
  * sumarle una en el CSS.
  *
+ * ⚠️ **El borde va en `--linea-control` y no en `--linea`.** Un campo de este
+ * sistema es una línea, así que ese borde de 1px es toda la señal de que ahí se
+ * escribe — o sea es un control, y WCAG le pide 3:1. `--linea` mide 1,3:1:
+ * separa superficies, que es otra cosa. (§12 · A3.)
+ *
  * ⚠️ **El `focus:border-red` no se saca, y el `outline` tampoco.** Los 30
  * controles a mano llevaban `outline-none` copiado y ninguno lo reemplazaba por
  * nada: navegando con teclado, saber en qué campo estabas dependía de notar que
@@ -39,4 +44,4 @@ export const CONTROL_DE_FORMULARIO = `${LINEA} py-2`
  * El de una barra de filtros. Va más apretado: son tres o cuatro en una fila y
  * la barra no puede ocupar el alto de una tarjeta.
  */
-export const CONTROL_DE_FILTRO = `${LINEA} border-linea py-1.5`
+export const CONTROL_DE_FILTRO = `${LINEA} border-linea-control py-1.5`

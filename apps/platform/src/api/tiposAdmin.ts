@@ -308,6 +308,28 @@ export type EstadoPago = 'SENADO' | 'PAGADO' | 'DEBE' | 'VENCIDO' | 'ANULADO'
 /** Los cuatro destinos posibles. Un pago salda uno, exactamente. */
 export type DestinoDePago = 'INSCRIPCION' | 'RESERVA' | 'TRABAJO_MASTERING' | 'VENTA_EQUIPO'
 
+/**
+ * La línea de negocio de un pago. Espeja el enum `LineaDeNegocio` del backend.
+ *
+ * ⚠️ **No es `DestinoDePago` con otros nombres**, y la diferencia es el motivo de
+ * que exista: el destino es *a qué apunta* el pago; la línea cruza además el tipo
+ * de uso de la reserva. **La seña de una clase apunta a una `RESERVA` y es plata
+ * de `CURSOS`.**
+ *
+ * **La calcula el servidor y acá sólo se nombra.** Derivarla en el front sería
+ * una segunda definición de algo que ya vive en un solo lugar
+ * (`LineaDeNegocio.EXPRESION`, la misma que usa el Tablero) — y entonces el mismo
+ * pago podría caer en un negocio en esta pantalla y en otro en el Tablero, sin
+ * que nada fallara.
+ */
+export type LineaDeNegocio =
+  | 'CURSOS'
+  | 'ALQUILER_CABINA'
+  | 'GRABACION_SET'
+  | 'MIX_MASTERING'
+  | 'VENTA_EQUIPOS'
+  | 'OTRO'
+
 /** Una fila del listado de pagos. Espeja `PagoResumen`. */
 /**
  * Un comprobante adjunto a un pago (`V21`).
@@ -351,6 +373,13 @@ export type PagoResumen = {
   idDestino: number
   /** Ya legible, resuelto en el servidor: "DJ · INICIAL", "Sala 2 · 14/08 10:00". */
   queSalda: string
+  /**
+   * A qué negocio pertenece esta plata. Ver `LineaDeNegocio`.
+   *
+   * Null sólo en las respuestas que devuelven el pago recién tocado —el alta, la
+   * anulación—, donde la pantalla que las recibe no muestra esta columna.
+   */
+  lineaDeNegocio: LineaDeNegocio | null
   concepto: string | null
   monto: number
   moneda: Moneda
@@ -488,6 +517,44 @@ export type VentaResumen = {
   anulada: boolean
   motivoAnulacion: string | null
   fechaAnulacion: string | null
+}
+
+/**
+ * A qué apunta un pago, con las palabras del negocio (`mejoras.md` §12 · B1).
+ *
+ * Es lo que divide la pantalla de Pagos por dentro. Ignacio lo pidió como
+ * *"pagos de equipos, de servicios, de programas"*; son los cuatro destinos que
+ * el sistema ya tenía, dichos como se los nombra en el estudio.
+ *
+ * ⚠️ **El filtro va por acá y no por la línea de negocio**, y no es lo mismo: el
+ * destino es un hecho de la fila —cuatro columnas, una sola con valor— y la
+ * línea cruza además el tipo de uso de la reserva. Filtrar por línea obligaría a
+ * escribir esa deducción una segunda vez, que es justo lo que §12 pidió evitar.
+ * La línea se muestra en cada fila con `NOMBRE_DE_LINEA`.
+ */
+export const NOMBRE_DE_DESTINO: Record<DestinoDePago, string> = {
+  INSCRIPCION: 'Programas',
+  RESERVA: 'Salas y cabina',
+  TRABAJO_MASTERING: 'Mix & Mastering',
+  VENTA_EQUIPO: 'Equipos',
+}
+
+/**
+ * La línea de negocio de un pago, como se la nombra en pantalla.
+ *
+ * ⚠️ **`OTRO` se dice y no se esconde.** Es un pago que no apunta a nada — la
+ * tabla lo permite, los cuatro destinos son nullable— y es plata que entró: si
+ * la fila no dijera nada, la única forma de encontrarla para corregirla sería
+ * que alguien la busque de casualidad. Es el mismo criterio que el Tablero
+ * escribe en `LineaDeNegocio.OTRO`.
+ */
+export const NOMBRE_DE_LINEA: Record<LineaDeNegocio, string> = {
+  CURSOS: 'Cursos',
+  ALQUILER_CABINA: 'Alquiler de cabina',
+  GRABACION_SET: 'Grabación de set',
+  MIX_MASTERING: 'Mix & Mastering',
+  VENTA_EQUIPOS: 'Venta de equipos',
+  OTRO: 'Sin línea asignada',
 }
 
 /** A partir de acá una deuda está vencida (§6). Espeja `DIAS_PARA_VENCER`. */

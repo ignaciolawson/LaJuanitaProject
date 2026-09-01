@@ -77,12 +77,20 @@ public class PagoController {
             @RequestParam(required = false) Long idUsuario,
             @RequestParam(required = false) EstadoPago estado,
             @RequestParam(required = false) Moneda moneda,
+            // A qué apunta el pago: INSCRIPCION, RESERVA, TRABAJO_MASTERING o
+            // VENTA_EQUIPO. Es la división por dentro que pidió §12 · B1.
+            //
+            // Viaja como String y no como enum porque no hay ningún enum de
+            // destinos en el sistema: son cuatro columnas nullable de `pago` y el
+            // nombre lo arma `PagoResumen.destinoDe`. Un valor desconocido no
+            // rompe nada — no coincide con ninguna rama y devuelve vacío.
+            @RequestParam(required = false) String destino,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        return pagos.listar(buscar, idUsuario, estado, moneda, desde, hasta, pagina, tamanio);
+        return pagos.listar(buscar, idUsuario, estado, moneda, destino, desde, hasta, pagina, tamanio);
     }
 
     /**

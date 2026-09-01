@@ -279,7 +279,7 @@ export function AlumnosPagina() {
 
 function Etiqueta({ estado }: { estado: EstadoAlumno }) {
   const estilo = {
-    ACTIVO: 'border-ink/20 text-ink',
+    ACTIVO: 'border-texto/20 text-texto',
     INACTIVO: 'border-linea text-apagado',
     SUSPENDIDO: 'border-red/40 text-acento',
   }[estado]
@@ -458,7 +458,7 @@ function FormularioAlta({
       <Bloque titulo="Alumno creado" className="mb-6">
         <p className="mt-2 text-sm leading-relaxed text-tenue">
           Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
-          cambie cuando entre. <strong className="text-ink">No se puede volver a ver:</strong>{' '}
+          cambie cuando entre. <strong className="text-texto">No se puede volver a ver:</strong>{' '}
           si se pierde, hay que generar una nueva.
         </p>
         <Hueco className="mt-3 font-mono text-lg tracking-wider">

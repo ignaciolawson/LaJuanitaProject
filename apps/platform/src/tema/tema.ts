@@ -19,10 +19,14 @@ import { puedeAdministrar } from '../layout/menu'
  *    alguien toca el interruptor, esa es su preferencia y el perfil deja de
  *    opinar — incluso si después cambia de rol.
  *
- * ⚠️ **El shell NO cambia con el tema.** El sidebar es tinta en los dos, y esa
- * es la identidad: lo que el interruptor cambia es el lienzo. En oscuro el
- * shell se hunde un tono más para que "dónde estoy" y "qué estoy mirando"
- * sigan siendo dos superficies distintas (ver `index.css`).
+ * ⚠️ **El shell cambia con el tema, igual que el lienzo** (§12 · A4, decisión de
+ * Ignacio del 2026-09-01). El interruptor cambia la pantalla entera: en claro el
+ * sidebar es hueso, en oscuro tinta. Lo que NO cambia es que sean dos
+ * superficies distintas — es lo que separa "dónde estoy" de "qué estoy mirando"
+ * —, y eso se sostiene en los dos temas (ver `index.css`).
+ *
+ * La única superficie que se queda en tinta pase lo que pase es la mitad de foto
+ * de `Puerta`: ahí la tinta no es una superficie de trabajo, es la marca.
  */
 export type Tema = 'claro' | 'oscuro'
 

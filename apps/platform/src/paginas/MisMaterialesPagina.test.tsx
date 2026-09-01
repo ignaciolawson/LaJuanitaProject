@@ -71,6 +71,37 @@ describe('el listado', () => {
   })
 })
 
+describe('la división por dentro (§12 · B1)', () => {
+  it('agrupa por quién lo subió y cuenta cuántos hay de cada uno', async () => {
+    vi.mocked(misMateriales).mockResolvedValue([
+      material({ idMaterial: 1, titulo: 'Pack A', profesor: 'Ghezz Pérez' }),
+      material({ idMaterial: 2, titulo: 'Pack B', profesor: 'Ghezz Pérez' }),
+      material({ idMaterial: 3, titulo: 'Guía de mezcla', profesor: 'Najles' }),
+    ])
+    render(<MisMaterialesPagina />)
+
+    expect(await screen.findByRole('heading', { name: 'Ghezz Pérez' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Najles' })).toBeDefined()
+    expect(screen.getByText('2 materiales')).toBeDefined()
+    expect(screen.getByText('1 material')).toBeDefined()
+  })
+
+  it('⚠️ el grupo con lo más reciente va primero, no el primero del abecedario', async () => {
+    // Alfabético haría que quien no sube nada hace tres meses encabece la
+    // pantalla por llamarse Álvarez.
+    vi.mocked(misMateriales).mockResolvedValue([
+      material({ idMaterial: 1, profesor: 'Álvarez', fechaSubida: '2026-06-01T10:00:00Z' }),
+      material({ idMaterial: 2, profesor: 'Zabala', fechaSubida: '2026-08-30T10:00:00Z' }),
+    ])
+    render(<MisMaterialesPagina />)
+
+    await screen.findByRole('heading', { name: 'Zabala' })
+    const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+
+    expect(titulos).toEqual(['Zabala', 'Álvarez'])
+  })
+})
+
 describe('lo que el alumno no puede hacer', () => {
   it('no hay interruptor de visibilidad', async () => {
     render(<MisMaterialesPagina />)

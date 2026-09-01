@@ -397,6 +397,95 @@ class PagoTest {
                 .andExpect(jsonPath("$.contenido[0].pagador").value("Aparezco Igual"));
     }
 
+    // -- Dividir la pantalla por dentro (`mejoras.md` §12 · B1) ---------------
+
+    /**
+     * El filtro por destino, que es lo que Ignacio pidió como <i>"dividir esa
+     * sección por dentro: pagos de equipos, de servicios, de programas"</i>.
+     *
+     * <p>Filtra <b>en el servidor</b> y no en la pantalla, y ese es el punto: el
+     * listado pagina de a veinte, así que filtrar la página ya traída mostraría
+     * un subconjunto de veinte filas como si fuera el total. Es el mismo defecto
+     * que este proyecto ya corrigió una vez —buscar desde la página 3 devolvía
+     * vacío— y que la pantalla resuelve volviendo a la página 0.
+     */
+    @Test
+    void el_listado_se_divide_por_destino() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+
+        mvc.perform(pagar("""
+                {"nombrePagadorExterno":"Compra Equipos","idVentaEquipo":%d,
+                 "monto":50000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(ventaNueva())))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/pagos").param("destino", "VENTA_EQUIPO")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.destino != 'VENTA_EQUIPO')]").isEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.pagador == 'Compra Equipos')]").isNotEmpty());
+
+        // Y el corte es real en las dos direcciones: sin esto, un filtro que no
+        // filtra nada pasaría la mitad de arriba sin que nadie se entere.
+        mvc.perform(get("/api/pagos").param("destino", "INSCRIPCION")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.pagador == 'Compra Equipos')]").isEmpty());
+    }
+
+    /**
+     * ⚠️ <b>La línea de negocio NO es el destino con otro nombre</b>, y este caso
+     * es el que sostiene la diferencia: la seña de una clase apunta a una
+     * {@code RESERVA} y es plata de {@code CURSOS}.
+     *
+     * <p>Sin ese cruce —el tipo de uso de la reserva— todas las señas caerían en
+     * la bolsa del alquiler y la pantalla diría que el estudio cobró por alquilar
+     * lo que cobró por enseñar. Es la misma definición que usa el tablero, pegada
+     * de {@link com.lajuanita.backend.tablero.LineaDeNegocio#EXPRESION}: <b>si las
+     * dos discreparan, un mismo pago caería en un negocio en el listado y en otro
+     * en el tablero</b>, y nada fallaría.
+     */
+    @Test
+    void la_linea_de_negocio_cruza_el_tipo_de_uso_y_no_se_queda_en_el_destino() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+
+        mvc.perform(get("/api/pagos").param("destino", "INSCRIPCION")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[0].lineaDeNegocio").value("CURSOS"));
+
+        // Una venta de equipos es su propia línea, y llega por el otro camino del
+        // CASE: el destino explícito, antes de mirar ninguna reserva.
+        mvc.perform(pagar("""
+                {"nombrePagadorExterno":"Compra Equipos","idVentaEquipo":%d,
+                 "monto":50000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                """.formatted(ventaNueva())))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/pagos").param("destino", "VENTA_EQUIPO")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[0].lineaDeNegocio").value("VENTA_EQUIPOS"));
+    }
+
+    /**
+     * Una página vacía no consulta las líneas, y no es una optimización: un
+     * {@code IN ()} sin elementos es un error de sintaxis en Postgres. Filtrar
+     * por algo que no tiene filas es lo más común del mundo.
+     */
+    @Test
+    void filtrar_por_un_destino_sin_filas_devuelve_vacio_y_no_revienta() throws Exception {
+        mvc.perform(get("/api/pagos").param("destino", "TRABAJO_MASTERING")
+                .param("buscar", "nadie con este nombre")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido").isEmpty());
+    }
+
     // -- La edición (`V19` §2) ------------------------------------------------
 
     /** Corregir un pago mal cargado, que hasta `V19` solo se podía anular. */

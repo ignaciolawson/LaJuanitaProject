@@ -9,14 +9,17 @@ import { useTema } from '../tema/useTema'
 import { menuPara } from './menu'
 
 /**
- * El armazón de la aplicación: navegación en tinta, trabajo en papel.
+ * El armazón de la aplicación: la navegación y el trabajo, en dos superficies.
  *
  * **Las dos superficies son distintas a propósito** (Fase 3.1, `index.css`). La
  * decisión vieja —todo claro porque se mira ocho horas por día— era correcta
  * para la superficie donde se leen tablas de treinta filas, y equivocada para la
  * navegación, que no se lee: se recorre. Partirlo deja entrar la marca por el
- * shell, que es donde no le compite a ningún dato, y deja el lienzo claro, que es
- * lo que no cansa cargando alumnos.
+ * shell, que es donde no le compite a ningún dato.
+ *
+ * **Y el shell sigue al tema** (§12 · A4, decisión de Ignacio): en claro es
+ * hueso, en oscuro tinta. Los colores no están acá sino en los tokens
+ * `--shell-*`, así que esta columna no sabe que existen dos temas.
  *
  * **NO hay barra superior**, y también es una decisión. Contenía sólo "Hola, X" y
  * el chip de rol: una franja fija en las 36 pantallas para dos datos que nadie
@@ -37,10 +40,12 @@ export function Layout() {
           la lista; la marca y la identidad no se van de la vista. */}
       <aside className="costura-shell grano-shell sticky top-0 z-10 flex h-screen w-60 shrink-0 flex-col overflow-hidden bg-shell text-shell-texto">
         {/* La marca, que en el resto del sistema no aparece: el abanico está
-            reservado para login, vacíos y acá. Sobre tinta el rojo es gráfico y
-            no texto, así que va el rojo de marca y no `--acento`. */}
+            reservado para login, vacíos y acá. ⚠️ El rojo va en
+            `--shell-acento`, que es el que está calibrado contra el fondo del
+            shell de cada tema: sobre el hueso del claro, `--red` mide 2,98:1 y
+            la barra del ítem activo es información, no adorno. */}
         <div className="flex items-center gap-3 border-b border-shell-linea px-5 py-5">
-          <Abanico className="h-9 w-auto shrink-0 text-red" />
+          <Abanico className="h-9 w-auto shrink-0 text-shell-acento" />
           <div className="min-w-0">
             <p className="t-mono text-shell-texto">La Juanita</p>
             <p className="t-mono text-shell-tenue">Gestión</p>
@@ -68,7 +73,7 @@ export function Layout() {
                           // correría dos píxeles cada vez que navegás.
                           `flex border-l-2 py-1.5 pr-3 pl-3.5 text-sm transition-colors ${
                             isActive
-                              ? 'border-red bg-shell-activo font-medium text-shell-texto'
+                              ? 'border-shell-acento bg-shell-activo font-medium text-shell-texto'
                               : 'border-transparent text-shell-tenue hover:bg-shell-activo hover:text-shell-texto'
                           }`
                         }
@@ -115,7 +120,7 @@ export function Layout() {
             <button
               type="button"
               onClick={cerrarSesion}
-              className="self-start text-xs font-medium text-shell-tenue underline underline-offset-2 transition-colors hover:text-red"
+              className="self-start text-xs font-medium text-shell-tenue underline underline-offset-2 transition-colors hover:text-shell-acento"
             >
               Cerrar sesión
             </button>

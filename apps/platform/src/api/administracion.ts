@@ -14,6 +14,7 @@ import type {
   EstadoPago,
   EstadoSolicitante,
   MedioPago,
+  DestinoDePago,
   PagoResumen,
   Disciplina,
   EstadoAlumno,
@@ -515,6 +516,15 @@ export function listarPagos(opciones: {
   idUsuario?: number
   estado?: EstadoPago | ''
   moneda?: Moneda | ''
+  /**
+   * Divide la sección por dentro (`mejoras.md` §12 · B1): programas, salas,
+   * mastering o equipos.
+   *
+   * ⚠️ **Filtra el servidor, no la pantalla.** El listado pagina de a veinte, así
+   * que filtrar lo ya traído mostraría un subconjunto de esas veinte filas como
+   * si fuera el total — el mismo defecto que buscar desde la página 3.
+   */
+  destino?: DestinoDePago | ''
   desde?: string
   hasta?: string
   pagina?: number

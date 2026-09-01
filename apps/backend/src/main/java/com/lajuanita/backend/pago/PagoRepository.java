@@ -11,6 +11,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.lajuanita.backend.pago.dto.PagoResumen;
+import com.lajuanita.backend.tablero.LineaDeNegocio;
+
 public interface PagoRepository extends JpaRepository<Pago, Long> {
 
     /**
@@ -31,6 +34,19 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
      * error</b> — el modo de falla que `mejoras.md` §9.1 anota como el verdadero
      * riesgo de esta migración. La pantalla anda, el total miente.
      *
+     * <p><b>El filtro por destino divide la pantalla por dentro</b> (`mejoras.md`
+     * §12 · B1). Filtra por <i>a qué apunta el pago</i>, que es un dato de la
+     * fila —cuatro columnas nullable, una sola con valor— y no por la línea de
+     * negocio, que es otra cosa: la línea cruza el tipo de uso de la reserva, así
+     * que una seña de clase apunta a una RESERVA y es plata de CURSOS. Las dos
+     * conviven en la pantalla y no compiten: acá se filtra por el hecho, y la
+     * línea viaja en cada fila como {@link PagoResumen#lineaDeNegocio}.
+     *
+     * <p>⚠️ <b>Y por eso no se puede filtrar por línea sin duplicar la
+     * definición</b>: vive en SQL nativo ({@link LineaDeNegocio#EXPRESION}) y
+     * ésta es una consulta JPQL. Escribir el {@code CASE} otra vez acá sería
+     * exactamente lo que §12 pidió no hacer.
+     *
      * <p>Y la búsqueda mira también el nombre del pagador externo: sin eso, buscar
      * a quien compró un CDJ no lo encuentra nunca. El {@code COALESCE} deja la
      * expresión definida cuando el pago sí tiene cuenta — un NULL en una cadena de
@@ -48,6 +64,11 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
               AND (:moneda    IS NULL OR p.moneda = :moneda)
               AND (:desde     IS NULL OR p.fechaPago >= :desde)
               AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
+              AND (:destino IS NULL
+                OR (:destino = 'INSCRIPCION'       AND p.inscripcion        IS NOT NULL)
+                OR (:destino = 'RESERVA'           AND p.reserva            IS NOT NULL)
+                OR (:destino = 'TRABAJO_MASTERING' AND p.idTrabajoMastering IS NOT NULL)
+                OR (:destino = 'VENTA_EQUIPO'      AND p.idVentaEquipo      IS NOT NULL))
               AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
                 OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
                 OR LOWER(COALESCE(u.email, ''))    LIKE :patron
@@ -61,6 +82,11 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
               AND (:moneda    IS NULL OR p.moneda = :moneda)
               AND (:desde     IS NULL OR p.fechaPago >= :desde)
               AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
+              AND (:destino IS NULL
+                OR (:destino = 'INSCRIPCION'       AND p.inscripcion        IS NOT NULL)
+                OR (:destino = 'RESERVA'           AND p.reserva            IS NOT NULL)
+                OR (:destino = 'TRABAJO_MASTERING' AND p.idTrabajoMastering IS NOT NULL)
+                OR (:destino = 'VENTA_EQUIPO'      AND p.idVentaEquipo      IS NOT NULL))
               AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
                 OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
                 OR LOWER(COALESCE(u.email, ''))    LIKE :patron
@@ -69,10 +95,31 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     Page<Pago> listar(@Param("idUsuario") Long idUsuario,
             @Param("estado") EstadoPago estado,
             @Param("moneda") String moneda,
+            @Param("destino") String destino,
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta,
             @Param("patron") String patron,
             Pageable paginado);
+
+    /**
+     * La línea de negocio de cada uno de estos pagos (`mejoras.md` §12 · B1).
+     *
+     * <p><b>Una sola consulta para la página entera</b>, no una por fila: con
+     * veinte pagos por página lo segundo son veinte viajes para pintar una
+     * etiqueta. Es el mismo criterio que {@code ventasConPago}.
+     *
+     * <p>La definición no está acá: se pega de {@link LineaDeNegocio#EXPRESION},
+     * que es la misma que usa el tablero para sumar los ingresos del período. Ese
+     * es el punto entero de §12 · B1 — <i>"hay que reusarla, no escribir una
+     * segunda"</i>—, y lo que lo hace verificable es que si las dos discreparan,
+     * el mismo pago caería en un negocio en el listado y en otro en el tablero.
+     *
+     * @return filas {@code [id_pago, linea]}
+     */
+    @Query(value = "SELECT p.id_pago, " + LineaDeNegocio.EXPRESION
+            + " FROM pago p " + LineaDeNegocio.JOINS + " "
+            + "WHERE p.id_pago IN (:ids)", nativeQuery = true)
+    List<Object[]> lineasDe(@Param("ids") List<Long> ids);
 
     /** Todos los pagos de una persona, del más nuevo al más viejo. Es su estado de cuenta. */
     @Query("""

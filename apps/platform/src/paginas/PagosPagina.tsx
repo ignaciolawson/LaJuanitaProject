@@ -19,7 +19,9 @@ import { ApiError } from '../api/cliente'
 import { listarTrabajos } from '../api/mastering'
 import type { TrabajoResumen } from '../api/tiposMastering'
 import {
+  NOMBRE_DE_DESTINO,
   NOMBRE_DE_ESTADO_PAGO,
+  NOMBRE_DE_LINEA,
   NOMBRE_DE_MEDIO,
   type AlumnoResumen,
   type ComprobanteResumen,
@@ -75,6 +77,8 @@ export function PagosPagina() {
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoPago | ''>('')
   const [moneda, setMoneda] = useState<Moneda | ''>('')
+  /** La división por dentro de §12 · B1. Ver `NOMBRE_DE_DESTINO`. */
+  const [destino, setDestino] = useState<DestinoDePago | ''>('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
@@ -96,7 +100,7 @@ export function PagosPagina() {
     setCargando(true)
     setError(null)
     try {
-      const resultado = await listarPagos({ buscar, estado, moneda, pagina })
+      const resultado = await listarPagos({ buscar, estado, moneda, destino, pagina })
       setPagos(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -105,7 +109,7 @@ export function PagosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, moneda, pagina])
+  }, [buscar, estado, moneda, destino, pagina])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)
@@ -196,6 +200,18 @@ export function PagosPagina() {
           ))}
         </FiltroSelect>
         <FiltroSelect
+          etiqueta="Filtrar por tipo de pago"
+          valor={destino}
+          onCambio={(v: string) => filtrar(setDestino)(v as DestinoDePago | '')}
+        >
+          <option value="">Todo lo que entró</option>
+          {DESTINOS_DEL_FILTRO.map((d) => (
+            <option key={d} value={d}>
+              {NOMBRE_DE_DESTINO[d]}
+            </option>
+          ))}
+        </FiltroSelect>
+        <FiltroSelect
           etiqueta="Filtrar por moneda"
           valor={moneda}
           onCambio={(v: string) => filtrar(setMoneda)(v as Moneda | '')}
@@ -279,6 +295,14 @@ export function PagosPagina() {
                 </Celda>
                 <Celda>
                   <div>{p.queSalda}</div>
+                  {/* La línea de negocio, no el destino: una seña de clase apunta
+                      a una reserva y es plata de cursos. La resuelve el servidor
+                      con la misma expresión que usa el Tablero. */}
+                  {p.lineaDeNegocio && (
+                    <div className="t-mono mt-0.5 text-tenue">
+                      {NOMBRE_DE_LINEA[p.lineaDeNegocio]}
+                    </div>
+                  )}
                   {p.concepto && <div className="text-xs text-tenue">{p.concepto}</div>}
                 </Celda>
                 <Celda className="whitespace-nowrap">
@@ -608,6 +632,19 @@ function FormularioCorreccion({
   )
 }
 /** Los cuatro destinos, con el nombre que usa quien carga y no el del esquema. */
+/**
+ * Los cuatro destinos, para el filtro que divide la pantalla (§12 · B1).
+ *
+ * Sale de las claves de `NOMBRE_DE_DESTINO` y no de una lista escrita al lado,
+ * por lo mismo que `UsuariosPagina` hace con los roles: la lista y los nombres
+ * no se pueden despegar, así que un destino nuevo aparece en el filtro solo.
+ *
+ * ⚠️ Se llama distinto que el `DESTINOS` de más abajo **porque son dos cosas**:
+ * aquél es el del formulario de alta, donde la frase es "este pago salda…" y
+ * cada opción se dice con otras palabras ("Un curso", "Una reserva de sala").
+ */
+const DESTINOS_DEL_FILTRO = Object.keys(NOMBRE_DE_DESTINO) as DestinoDePago[]
+
 const DESTINOS = [
   { valor: 'INSCRIPCION', etiqueta: 'Un curso' },
   { valor: 'RESERVA', etiqueta: 'Una reserva de sala' },

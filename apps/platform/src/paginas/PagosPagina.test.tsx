@@ -62,6 +62,7 @@ function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
     pagador: 'Camila Ríos',
     pagadorSinCuenta: false,
     destino: 'INSCRIPCION',
+    lineaDeNegocio: 'CURSOS',
     idDestino: 5,
     queSalda: 'DJ · INICIAL',
     concepto: 'Seña del curso',
@@ -221,6 +222,65 @@ describe('el listado', () => {
  * <b>En este esquema la plata no se borra</b> (`V6`), y el comprobante tampoco
  * (§6). Los dos caminos de reversa piden motivo, y el autor lo pone el servidor.
  */
+describe('dividir la sección por dentro (§12 · B1)', () => {
+  it('la fila dice a qué negocio pertenece esa plata', async () => {
+    // Y dice la LÍNEA, no el destino: la seña de una clase apunta a una reserva
+    // y es plata de cursos. La resuelve el servidor con la misma expresión que
+    // usa el Tablero, así que acá sólo se comprueba que se muestre.
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([pago({ destino: 'RESERVA', queSalda: 'Sala 2 · 14/08 10:00', lineaDeNegocio: 'CURSOS' })]),
+    )
+
+    montar()
+
+    expect(await screen.findByText('Cursos')).toBeDefined()
+  })
+
+  it('un pago sin línea lo dice, no lo esconde', async () => {
+    // Es plata que entró y no apunta a nada. Si la fila no dijera nada, la única
+    // forma de encontrarla para corregirla sería dar con ella de casualidad.
+    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ lineaDeNegocio: 'OTRO' })]))
+
+    montar()
+
+    expect(await screen.findByText('Sin línea asignada')).toBeDefined()
+  })
+
+  it('⚠️ filtrar por tipo de pago le pide al servidor, no recorta lo ya traído', async () => {
+    // **Es la decisión entera del punto.** El listado pagina de a veinte: filtrar
+    // en la pantalla mostraría un subconjunto de esas veinte como si fuera el
+    // total. Es el mismo defecto que buscar desde la página 3 —que este proyecto
+    // ya corrigió una vez— y no falla: la pantalla anda y el número miente.
+    const user = userEvent.setup()
+    montar()
+    await screen.findByText('DJ · INICIAL')
+
+    await elegir(user, 'Filtrar por tipo de pago', 'VENTA_EQUIPO')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarPagos)).toHaveBeenCalledWith(
+        expect.objectContaining({ destino: 'VENTA_EQUIPO' }),
+      ),
+    )
+  })
+
+  it('al filtrar se vuelve a la primera página', async () => {
+    // Sin esto, filtrar estando en la página 3 devuelve vacío y se lee como que
+    // no hay pagos de ese tipo.
+    const user = userEvent.setup()
+    montar()
+    await screen.findByText('DJ · INICIAL')
+
+    await elegir(user, 'Filtrar por tipo de pago', 'INSCRIPCION')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarPagos)).toHaveBeenCalledWith(
+        expect.objectContaining({ destino: 'INSCRIPCION', pagina: 0 }),
+      ),
+    )
+  })
+})
+
 describe('las dos operaciones de reversa', () => {
   it('no ofrece borrar un pago: ofrece anularlo', async () => {
     montar()

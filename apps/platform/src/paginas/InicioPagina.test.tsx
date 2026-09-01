@@ -322,3 +322,42 @@ describe('un bloque que falla', () => {
     expect(screen.queryByText('No hay deudas anotadas. Todo al día.')).toBeNull()
   })
 })
+
+describe('la distribución (§12 · A1)', () => {
+  it('⚠️ la portada dibuja UNA sola banda de tinta, no dos anidadas', async () => {
+    // La regresión que Ignacio vio como *"los rectángulos están como
+    // superpuestos"* era literal: la frase del día seguía siendo una pieza con
+    // su propia banda `bg-shell`, su abanico y su grano, y la etapa 4 la metió
+    // adentro de una portada que tiene exactamente lo mismo.
+    //
+    // La lección que este caso sostiene: **cuando se fusionan dos piezas, una
+    // de las dos tiene que dejar de ser una pieza.** Volver a anidarlas no
+    // rompe nada que falle — se ve mal y compila.
+    const { container } = montar('ADMIN')
+    await screen.findByRole('heading', { name: 'Hola, Micaela' })
+
+    expect(container.querySelectorAll('.bg-shell')).toHaveLength(1)
+    expect(container.querySelectorAll('.grano-shell')).toHaveLength(1)
+  })
+
+  it('las tarjetas de un grupo van en grilla y no apiladas', async () => {
+    // No había ninguna: cada `Bloque` es un `<section>` de ancho completo, así
+    // que un ADMIN que además da clase abría el Inicio con doce rectángulos en
+    // una sola columna y una cifra de 30px sola en mil píxeles de ancho.
+    const { container } = montar('ADMIN', { esProfesor: true, esAlumno: true })
+    await screen.findByRole('heading', { name: 'Hola, Micaela' })
+
+    // Se filtra por `className` y no con un selector: los dos puntos de
+    // `sm:grid-cols-2` hay que escaparlos en el selector CSS y otra vez en el
+    // string de JS, y un escape mal puesto no falla — devuelve cero.
+    //
+    // Y se busca `sm:grid-cols-2` y no `grid-cols-`, porque la portada también
+    // es una grilla (saludo | frase) y no es una grilla de tarjetas.
+    const grillas = [...container.querySelectorAll('div')].filter((d) =>
+      d.className.includes('sm:grid-cols-2'),
+    )
+    // Los cinco grupos: operación, números, clases, formación y lo mío.
+    expect(grillas).toHaveLength(5)
+    for (const g of grillas) expect(g.children.length).toBeGreaterThan(1)
+  })
+})

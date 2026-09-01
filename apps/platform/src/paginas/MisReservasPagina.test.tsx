@@ -214,3 +214,49 @@ describe('pedir otro día', () => {
     expect(screen.getByText(/Esa semana no hay sala libre/)).toBeDefined()
   })
 })
+
+describe('la división por dentro (§12 · B1)', () => {
+  it('las clases y las salas van en dos listas', async () => {
+    vi.mocked(misReservas).mockResolvedValue([
+      reserva({ idReserva: 1, esClase: true, tipoUso: 'Clase de DJ' }),
+      reserva({ idReserva: 2, esClase: false, tipoUso: 'Alquiler de cabina', profesor: null }),
+    ])
+    render(<MisReservasPagina />)
+
+    expect(await screen.findByRole('heading', { name: 'Mis clases' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Salas y cabina' })).toBeDefined()
+  })
+
+  it('⚠️ un grupo sin filas no se dibuja', async () => {
+    // Es lo contrario de la regla del Inicio, y por un motivo: allá el vacío
+    // dice "no tenés nada pendiente", que es información. Acá sería el título de
+    // un servicio que esta persona no contrató.
+    vi.mocked(misReservas).mockResolvedValue([reserva({ esClase: true })])
+    render(<MisReservasPagina />)
+
+    await screen.findByRole('heading', { name: 'Mis clases' })
+    expect(screen.queryByRole('heading', { name: 'Salas y cabina' })).toBeNull()
+  })
+
+  it('⚠️ la próxima sigue siendo una sola y mira las dos listas', async () => {
+    // La pregunta que contesta es "cuándo tengo que venir al estudio", y venir a
+    // una clase o a la cabina que reservaste es venir igual. Con dos próximas
+    // habría que comparar dos fechas para saber cuál es antes, que es el trabajo
+    // que esa pieza vino a ahorrar.
+    vi.mocked(misReservas).mockResolvedValue([
+      reserva({ idReserva: 1, esClase: true, fecha: '2026-09-20', tipoUso: 'Clase de DJ' }),
+      reserva({
+        idReserva: 2,
+        esClase: false,
+        fecha: '2026-09-08',
+        tipoUso: 'Alquiler de cabina',
+        profesor: null,
+      }),
+    ])
+    render(<MisReservasPagina />)
+
+    await screen.findByRole('heading', { name: 'Mis clases' })
+    // La cabina es antes, así que es la destacada aunque no sea una clase.
+    expect(screen.getAllByText(/Alquiler de cabina/).length).toBeGreaterThan(1)
+  })
+})

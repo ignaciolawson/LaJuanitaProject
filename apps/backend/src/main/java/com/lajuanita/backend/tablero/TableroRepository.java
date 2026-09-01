@@ -73,17 +73,17 @@ public interface TableroRepository extends Repository<Pago, Long> {
     /**
      * Lo que entró en el período, por moneda y por línea de negocio.
      *
-     * <p><b>Acá vive la única definición de "línea de negocio" del sistema.</b>
-     * Ver {@link LineaDeNegocio}: sale de a qué apunta el pago, y en el caso de
+     * <p>La única definición de "línea de negocio" del sistema es
+     * {@link LineaDeNegocio#EXPRESION}, y esta consulta la pega. Desde
+     * `mejoras.md` §12 · B1 tiene un segundo consumidor —el listado de pagos—,
+     * así que el {@code CASE} salió de acá en vez de copiarse allá. Sale de a qué apunta el pago, y en el caso de
      * una reserva, del tipo de uso de esa reserva — la seña de una clase es plata
      * del curso, no del alquiler de cabina. Sin ese cruce, todas las señas caerían
      * en la misma bolsa y el tablero diría que el estudio factura por alquiler lo
      * que en realidad cobró por enseñar.
      *
-     * <p>El orden del {@code CASE} no es alfabético y importa: los destinos
-     * explícitos van antes que la reserva, porque un pago de mastering puede
-     * apuntar al trabajo <i>y</i> a la sala donde se hizo. Manda el destino más
-     * específico.
+     * <p>El {@code GROUP BY 2} agrupa por la segunda columna del SELECT, que es
+     * la expresión: sin el ordinal habría que pegar el {@code CASE} otra vez.
      *
      * <p>{@code ENTRARON} es {@code SENADO + PAGADO}: lo que de verdad está en la
      * caja. Una deuda anotada no es un ingreso, y escribir ese conjunto por lo que
@@ -92,23 +92,9 @@ public interface TableroRepository extends Repository<Pago, Long> {
      *
      * @return filas {@code [moneda, linea, monto, cantidad]}
      */
-    @Query(value = """
-            SELECT p.moneda,
-                   CASE
-                       WHEN p.id_inscripcion       IS NOT NULL THEN 'CURSOS'
-                       WHEN p.id_trabajo_mastering IS NOT NULL THEN 'MIX_MASTERING'
-                       WHEN p.id_venta_equipo      IS NOT NULL THEN 'VENTA_EQUIPOS'
-                       WHEN tu.codigo = 'ALQUILER_CABINA'      THEN 'ALQUILER_CABINA'
-                       WHEN tu.codigo = 'GRABACION_SET'        THEN 'GRABACION_SET'
-                       WHEN tu.codigo = 'MIX_MASTERING'        THEN 'MIX_MASTERING'
-                       WHEN tu.codigo IS NOT NULL              THEN 'CURSOS'
-                       ELSE 'OTRO'
-                   END                                    AS linea,
-                   sum(p.monto)                           AS monto,
-                   count(*)                               AS cantidad
-            FROM pago p
-            LEFT JOIN reserva  r  ON r.id_reserva   = p.id_reserva
-            LEFT JOIN tipo_uso tu ON tu.id_tipo_uso = r.id_tipo_uso
+    @Query(value = "SELECT p.moneda, " + LineaDeNegocio.EXPRESION + " AS linea,"
+            + " sum(p.monto) AS monto, count(*) AS cantidad"
+            + " FROM pago p " + LineaDeNegocio.JOINS + " " + """
             WHERE p.fecha_pago BETWEEN :desde AND :hasta
               AND p.estado_pago IN (:entraron)
             GROUP BY p.moneda, 2

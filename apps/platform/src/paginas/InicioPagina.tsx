@@ -126,312 +126,322 @@ export function InicioPagina() {
   const GRUPOS: Record<string, ReactNode> = {
     mio: (
       <Grupo titulo="Lo mío">
-        <Tarjeta
-          titulo="Mi próxima reserva"
-          destacado={destacada === 'reserva'}
-          estado={reservas}
-          enlace={['/mis-reservas', 'Ver mis reservas']}
-        >
-          {() =>
-            proximas.length === 0 ? (
-              <Nada>No tenés nada agendado.</Nada>
-            ) : (
-              <Cuando reserva={proximas[0]} />
-            )
-          }
-        </Tarjeta>
+        <Tarjetas>
+          <Tarjeta
+            titulo="Mi próxima reserva"
+            destacado={destacada === 'reserva'}
+            estado={reservas}
+            enlace={['/mis-reservas', 'Ver mis reservas']}
+          >
+            {() =>
+              proximas.length === 0 ? (
+                <Nada>No tenés nada agendado.</Nada>
+              ) : (
+                <Cuando reserva={proximas[0]} />
+              )
+            }
+          </Tarjeta>
 
-        <Tarjeta
-          titulo="Mis pedidos"
-          estado={pedidos}
-          enlace={['/mis-solicitudes', 'Ver mis pedidos']}
-        >
-          {(lista) => {
-            const esperando = lista.filter((p) => p.estado === 'PENDIENTE')
-            return esperando.length === 0 ? (
-              <Nada>Ningún pedido esperando respuesta.</Nada>
-            ) : (
-              <>
-                <p className="t-dato">{esperando.length}</p>
-                <p className="mt-1 text-sm text-tenue">
-                  {esperando.length === 1
-                    ? 'pedido esperando respuesta'
-                    : 'pedidos esperando respuesta'}
-                </p>
-              </>
-            )
-          }}
-        </Tarjeta>
+          <Tarjeta
+            titulo="Mis pedidos"
+            estado={pedidos}
+            enlace={['/mis-solicitudes', 'Ver mis pedidos']}
+          >
+            {(lista) => {
+              const esperando = lista.filter((p) => p.estado === 'PENDIENTE')
+              return esperando.length === 0 ? (
+                <Nada>Ningún pedido esperando respuesta.</Nada>
+              ) : (
+                <>
+                  <p className="t-dato">{esperando.length}</p>
+                  <p className="mt-1 text-sm text-tenue">
+                    {esperando.length === 1
+                      ? 'pedido esperando respuesta'
+                      : 'pedidos esperando respuesta'}
+                  </p>
+                </>
+              )
+            }}
+          </Tarjeta>
 
-        <Tarjeta titulo="Lo que debo" estado={cuenta} enlace={['/mis-pagos', 'Ver mi cuenta']}>
-          {(c) => {
-            const debe = c.saldos.filter((s) => s.adeudado > 0)
-            return debe.length === 0 ? (
-              <Nada>Estás al día.</Nada>
-            ) : (
-              <ul>
-                {debe.map((s) => (
-                  <li key={s.moneda} className="t-dato text-acento">
-                    {importe(s.adeudado, s.moneda)}
-                  </li>
-                ))}
-              </ul>
-            )
-          }}
-        </Tarjeta>
+          <Tarjeta titulo="Lo que debo" estado={cuenta} enlace={['/mis-pagos', 'Ver mi cuenta']}>
+            {(c) => {
+              const debe = c.saldos.filter((s) => s.adeudado > 0)
+              return debe.length === 0 ? (
+                <Nada>Estás al día.</Nada>
+              ) : (
+                <ul>
+                  {debe.map((s) => (
+                    <li key={s.moneda} className="t-dato text-acento">
+                      {importe(s.adeudado, s.moneda)}
+                    </li>
+                  ))}
+                </ul>
+              )
+            }}
+          </Tarjeta>
+        </Tarjetas>
       </Grupo>
     ),
     formacion: usuario.esAlumno ? (
         <Grupo titulo="Mi formación">
-          {/* La cifra que este sistema existe para llevar: `V9` §5 lo dice con
-              todas las letras —"¿cuántas clases le quedan a Juan?"—. Si el alumno
-              entra y no la ve, el Inicio no sirve. */}
-          <Tarjeta
-            titulo="Clases que me quedan"
-            estado={cursos}
-            enlace={['/mis-cursos', 'Ver mis cursos']}
-          >
-            {(lista) => {
-              const vigentes = lista.filter(
-                (c) => c.estado === 'ACTIVA' || c.estado === 'PAUSADA',
-              )
-              return vigentes.length === 0 ? (
-                <Nada>No tenés ningún curso vigente.</Nada>
-              ) : (
-                <ul className="space-y-2">
-                  {vigentes.map((c) => (
-                    <li key={c.idInscripcion} className="flex items-baseline gap-2">
-                      <span className="t-dato">{c.clasesRestantes}</span>
-                      <span className="text-sm text-tenue">
-                        de {NOMBRE_DE_DISCIPLINA[c.disciplina]}
-                        {c.estado === 'PAUSADA' && ' · en pausa'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }}
-          </Tarjeta>
+          <Tarjetas>
+            {/* La cifra que este sistema existe para llevar: `V9` §5 lo dice con
+                todas las letras —"¿cuántas clases le quedan a Juan?"—. Si el alumno
+                entra y no la ve, el Inicio no sirve. */}
+            <Tarjeta
+              titulo="Clases que me quedan"
+              estado={cursos}
+              enlace={['/mis-cursos', 'Ver mis cursos']}
+            >
+              {(lista) => {
+                const vigentes = lista.filter(
+                  (c) => c.estado === 'ACTIVA' || c.estado === 'PAUSADA',
+                )
+                return vigentes.length === 0 ? (
+                  <Nada>No tenés ningún curso vigente.</Nada>
+                ) : (
+                  <ul className="space-y-2">
+                    {vigentes.map((c) => (
+                      <li key={c.idInscripcion} className="flex items-baseline gap-2">
+                        <span className="t-dato">{c.clasesRestantes}</span>
+                        <span className="text-sm text-tenue">
+                          de {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+                          {c.estado === 'PAUSADA' && ' · en pausa'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }}
+            </Tarjeta>
 
-          <Tarjeta
-            titulo="Mi próxima clase"
-            estado={reservas}
-            enlace={['/mis-reservas', 'Ver mis reservas']}
-          >
-            {() => {
-              const clase = proximas.find((r) => r.esClase)
-              return clase ? <Cuando reserva={clase} /> : <Nada>No tenés clases agendadas.</Nada>
-            }}
-          </Tarjeta>
+            <Tarjeta
+              titulo="Mi próxima clase"
+              estado={reservas}
+              enlace={['/mis-reservas', 'Ver mis reservas']}
+            >
+              {() => {
+                const clase = proximas.find((r) => r.esClase)
+                return clase ? <Cuando reserva={clase} /> : <Nada>No tenés clases agendadas.</Nada>
+              }}
+            </Tarjeta>
 
-          {/* Se llama "el último" y no "material nuevo": no hay marca de leído en
-              ningún lado, así que decir "nuevo" sería afirmar algo que el sistema
-              no sabe. */}
-          <Tarjeta
-            titulo="Mi último material"
-            estado={materiales}
-            enlace={['/mis-materiales', 'Ver mis materiales']}
-          >
-            {(lista) => {
-              const ultimo = [...lista].sort((a, b) =>
-                b.fechaSubida.localeCompare(a.fechaSubida),
-              )[0]
-              return ultimo ? (
-                <>
-                  <p className="t-seccion">{ultimo.titulo}</p>
-                  <p className="mt-1 text-sm text-tenue">
-                    {ultimo.profesor} · {diaYMes(ultimo.fechaSubida.slice(0, 10))}
-                  </p>
-                </>
-              ) : (
-                <Nada>Todavía no tenés materiales.</Nada>
-              )
-            }}
-          </Tarjeta>
+            {/* Se llama "el último" y no "material nuevo": no hay marca de leído en
+                ningún lado, así que decir "nuevo" sería afirmar algo que el sistema
+                no sabe. */}
+            <Tarjeta
+              titulo="Mi último material"
+              estado={materiales}
+              enlace={['/mis-materiales', 'Ver mis materiales']}
+            >
+              {(lista) => {
+                const ultimo = [...lista].sort((a, b) =>
+                  b.fechaSubida.localeCompare(a.fechaSubida),
+                )[0]
+                return ultimo ? (
+                  <>
+                    <p className="t-seccion">{ultimo.titulo}</p>
+                    <p className="mt-1 text-sm text-tenue">
+                      {ultimo.profesor} · {diaYMes(ultimo.fechaSubida.slice(0, 10))}
+                    </p>
+                  </>
+                ) : (
+                  <Nada>Todavía no tenés materiales.</Nada>
+                )
+              }}
+            </Tarjeta>
+          </Tarjetas>
         </Grupo>
     ) : null,
     clases: usuario.esProfesor ? (
         <Grupo titulo="Mis clases">
-          <Tarjeta
-            titulo="Clases de hoy"
-            destacado={destacada === 'clases'}
-            estado={clasesDeHoy} enlace={['/mi-agenda', 'Ver mi agenda']}>
-            {(lista) => {
-              const dando = lista.filter(
-                (r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA',
-              )
-              return dando.length === 0 ? (
-                <Nada>Hoy no tenés clases.</Nada>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {dando.map((r) => (
-                    <li key={r.idReserva}>
-                      <span className="t-cifra font-medium">{hhmm(r.horaInicio)}</span> · {r.sala}{' '}
-                      · <span className="text-tenue">{r.tipoUso}</span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }}
-          </Tarjeta>
+          <Tarjetas>
+            <Tarjeta
+              titulo="Clases de hoy"
+              destacado={destacada === 'clases'}
+              estado={clasesDeHoy} enlace={['/mi-agenda', 'Ver mi agenda']}>
+              {(lista) => {
+                const dando = lista.filter(
+                  (r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA',
+                )
+                return dando.length === 0 ? (
+                  <Nada>Hoy no tenés clases.</Nada>
+                ) : (
+                  <ul className="space-y-1 text-sm">
+                    {dando.map((r) => (
+                      <li key={r.idReserva}>
+                        <span className="t-cifra font-medium">{hhmm(r.horaInicio)}</span> · {r.sala}{' '}
+                        · <span className="text-tenue">{r.tipoUso}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }}
+            </Tarjeta>
 
-          {/* El semáforo gris del Módulo 5: `null` no es `VA_BIEN`. Encontrar a los
-              alumnos que nadie miró es para lo que se abre esa lista, así que el
-              Inicio es el mejor lugar para que aparezcan solos. */}
-          <Tarjeta
-            titulo="Alumnos sin marcar"
-            estado={alumnos}
-            enlace={['/mis-alumnos', 'Ver mis alumnos']}
-          >
-            {(lista) => {
-              const sinMarcar = lista.filter((a) => a.estadoSeguimiento === null)
-              return sinMarcar.length === 0 ? (
-                <Nada>Todos tus alumnos tienen seguimiento.</Nada>
-              ) : (
-                <>
-                  <p className="t-dato">{sinMarcar.length}</p>
-                  <p className="mt-1 text-sm text-tenue">
-                    {sinMarcar.length === 1 ? 'alumno sin mirar' : 'alumnos sin mirar'}
-                  </p>
-                </>
-              )
-            }}
-          </Tarjeta>
+            {/* El semáforo gris del Módulo 5: `null` no es `VA_BIEN`. Encontrar a los
+                alumnos que nadie miró es para lo que se abre esa lista, así que el
+                Inicio es el mejor lugar para que aparezcan solos. */}
+            <Tarjeta
+              titulo="Alumnos sin marcar"
+              estado={alumnos}
+              enlace={['/mis-alumnos', 'Ver mis alumnos']}
+            >
+              {(lista) => {
+                const sinMarcar = lista.filter((a) => a.estadoSeguimiento === null)
+                return sinMarcar.length === 0 ? (
+                  <Nada>Todos tus alumnos tienen seguimiento.</Nada>
+                ) : (
+                  <>
+                    <p className="t-dato">{sinMarcar.length}</p>
+                    <p className="mt-1 text-sm text-tenue">
+                      {sinMarcar.length === 1 ? 'alumno sin mirar' : 'alumnos sin mirar'}
+                    </p>
+                  </>
+                )
+              }}
+            </Tarjeta>
+          </Tarjetas>
         </Grupo>
     ) : null,
     operacion: opera ? (
         <Grupo titulo="Operación">
-          <Tarjeta
-            titulo="La agenda de hoy"
-            estado={agendaDeHoy}
-            enlace={['/admin/reservas', 'Abrir el calendario']}
-          >
-            {(lista) => {
-              const vivas = lista.filter(
-                (r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA',
-              )
-              return vivas.length === 0 ? (
-                <Nada>Hoy no hay nada reservado.</Nada>
-              ) : (
-                <>
-                  <p className="t-dato">{vivas.length}</p>
-                  <p className="mt-1 text-sm text-tenue">
-                    {vivas.length === 1 ? 'reserva hoy' : 'reservas hoy'} · desde las{' '}
-                    {hhmm(vivas.map((r) => r.horaInicio).sort()[0])}
-                  </p>
-                </>
-              )
-            }}
-          </Tarjeta>
+          <Tarjetas>
+            <Tarjeta
+              titulo="La agenda de hoy"
+              estado={agendaDeHoy}
+              enlace={['/admin/reservas', 'Abrir el calendario']}
+            >
+              {(lista) => {
+                const vivas = lista.filter(
+                  (r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA',
+                )
+                return vivas.length === 0 ? (
+                  <Nada>Hoy no hay nada reservado.</Nada>
+                ) : (
+                  <>
+                    <p className="t-dato">{vivas.length}</p>
+                    <p className="mt-1 text-sm text-tenue">
+                      {vivas.length === 1 ? 'reserva hoy' : 'reservas hoy'} · desde las{' '}
+                      {hhmm(vivas.map((r) => r.horaInicio).sort()[0])}
+                    </p>
+                  </>
+                )
+              }}
+            </Tarjeta>
 
-          <Tarjeta
-            titulo="Pedidos de sala"
-            estado={pedidosDeSala}
-            enlace={['/admin/solicitudes', 'Abrir la bandeja']}
-          >
-            {(pagina) =>
-              pagina.totalElementos === 0 ? (
-                <Nada>No hay pedidos esperando respuesta.</Nada>
-              ) : (
-                <>
-                  <p className="t-dato">{pagina.totalElementos}</p>
-                  <p className="mt-1 text-sm text-tenue">sin responder</p>
-                </>
-              )
-            }
-          </Tarjeta>
+            <Tarjeta
+              titulo="Pedidos de sala"
+              estado={pedidosDeSala}
+              enlace={['/admin/solicitudes', 'Abrir la bandeja']}
+            >
+              {(pagina) =>
+                pagina.totalElementos === 0 ? (
+                  <Nada>No hay pedidos esperando respuesta.</Nada>
+                ) : (
+                  <>
+                    <p className="t-dato">{pagina.totalElementos}</p>
+                    <p className="mt-1 text-sm text-tenue">sin responder</p>
+                  </>
+                )
+              }
+            </Tarjeta>
 
-          <Tarjeta
-            titulo="Solicitantes nuevos"
-            estado={solicitantes}
-            enlace={['/admin/buzon', 'Abrir el buzón']}
-          >
-            {(pagina) =>
-              pagina.totalElementos === 0 ? (
-                <Nada>Nadie escribió desde la web.</Nada>
-              ) : (
-                <>
-                  <p className="t-dato">{pagina.totalElementos}</p>
-                  <p className="mt-1 text-sm text-tenue">sin atender</p>
-                </>
-              )
-            }
-          </Tarjeta>
+            <Tarjeta
+              titulo="Solicitantes nuevos"
+              estado={solicitantes}
+              enlace={['/admin/buzon', 'Abrir el buzón']}
+            >
+              {(pagina) =>
+                pagina.totalElementos === 0 ? (
+                  <Nada>Nadie escribió desde la web.</Nada>
+                ) : (
+                  <>
+                    <p className="t-dato">{pagina.totalElementos}</p>
+                    <p className="mt-1 text-sm text-tenue">sin atender</p>
+                  </>
+                )
+              }
+            </Tarjeta>
 
-          <Tarjeta
-            titulo="Deudores"
-            destacado={destacada === 'deudores'}
-            estado={deudores}
-            enlace={['/admin/deudores', 'Ver los deudores']}
-          >
-            {(lista) => {
-              const vencidos = lista.filter((d) => d.vencido).length
-              return lista.length === 0 ? (
-                <Nada>No hay deudas anotadas. Todo al día.</Nada>
-              ) : (
-                <>
-                  <p className="t-dato">{lista.length}</p>
-                  <p className="mt-1 text-sm text-tenue">
-                    {vencidos > 0
-                      ? vencidos + ' con más de 7 días'
-                      : 'ninguna pasó los 7 días todavía'}
-                  </p>
-                </>
-              )
-            }}
-          </Tarjeta>
+            <Tarjeta
+              titulo="Deudores"
+              destacado={destacada === 'deudores'}
+              estado={deudores}
+              enlace={['/admin/deudores', 'Ver los deudores']}
+            >
+              {(lista) => {
+                const vencidos = lista.filter((d) => d.vencido).length
+                return lista.length === 0 ? (
+                  <Nada>No hay deudas anotadas. Todo al día.</Nada>
+                ) : (
+                  <>
+                    <p className="t-dato">{lista.length}</p>
+                    <p className="mt-1 text-sm text-tenue">
+                      {vencidos > 0
+                        ? vencidos + ' con más de 7 días'
+                        : 'ninguna pasó los 7 días todavía'}
+                    </p>
+                  </>
+                )
+              }}
+            </Tarjeta>
+          </Tarjetas>
         </Grupo>
     ) : null,
     numeros: veLosNumeros ? (
         <Grupo titulo="Los números del mes">
-          <Tarjeta
-            titulo="Caja del mes"
-            estado={numeros}
-            enlace={['/admin/tablero', 'Abrir el tablero']}
-          >
-            {(resumen) =>
-              resumen.caja.length === 0 ? (
-                <Nada>Todavía no hubo movimientos este mes.</Nada>
-              ) : (
-                <ul className="space-y-2">
-                  {resumen.caja.map((c) => (
-                    <li key={c.moneda}>
-                      <span className="t-dato">{importe(c.neto, c.moneda)}</span>
-                      <span className="ml-2 text-sm text-tenue">neto</span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          </Tarjeta>
+          <Tarjetas>
+            <Tarjeta
+              titulo="Caja del mes"
+              estado={numeros}
+              enlace={['/admin/tablero', 'Abrir el tablero']}
+            >
+              {(resumen) =>
+                resumen.caja.length === 0 ? (
+                  <Nada>Todavía no hubo movimientos este mes.</Nada>
+                ) : (
+                  <ul className="space-y-2">
+                    {resumen.caja.map((c) => (
+                      <li key={c.moneda}>
+                        <span className="t-dato">{importe(c.neto, c.moneda)}</span>
+                        <span className="ml-2 text-sm text-tenue">neto</span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+            </Tarjeta>
 
-          <Tarjeta
-            titulo="Pendiente de cobro"
-            estado={numeros}
-            enlace={['/admin/deudores', 'Ver los deudores']}
-          >
-            {(resumen) =>
-              resumen.pendientes.length === 0 ? (
-                <Nada>No queda nada por cobrar.</Nada>
-              ) : (
-                <ul className="space-y-2">
-                  {resumen.pendientes.map((p) => (
-                    <li key={p.moneda}>
-                      <span className="t-dato text-acento">{importe(p.monto, p.moneda)}</span>
-                      {/* Lo vencido va aparte y no sumado: una deuda de ayer y una
-                          de hace tres meses no se reclaman igual, y es la
-                          distinción que el aviso automático de §6 usa. */}
-                      <span className="ml-2 text-sm text-tenue">
-                        {p.vencido > 0
-                          ? importe(p.vencido, p.moneda) + ' pasó los 7 días'
-                          : 'nada vencido'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          </Tarjeta>
+            <Tarjeta
+              titulo="Pendiente de cobro"
+              estado={numeros}
+              enlace={['/admin/deudores', 'Ver los deudores']}
+            >
+              {(resumen) =>
+                resumen.pendientes.length === 0 ? (
+                  <Nada>No queda nada por cobrar.</Nada>
+                ) : (
+                  <ul className="space-y-2">
+                    {resumen.pendientes.map((p) => (
+                      <li key={p.moneda}>
+                        <span className="t-dato text-acento">{importe(p.monto, p.moneda)}</span>
+                        {/* Lo vencido va aparte y no sumado: una deuda de ayer y una
+                            de hace tres meses no se reclaman igual, y es la
+                            distinción que el aviso automático de §6 usa. */}
+                        <span className="ml-2 text-sm text-tenue">
+                          {p.vencido > 0
+                            ? importe(p.vencido, p.moneda) + ' pasó los 7 días'
+                            : 'nada vencido'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )
+              }
+            </Tarjeta>
+          </Tarjetas>
         </Grupo>
     ) : null,
   }
@@ -461,35 +471,44 @@ export function InicioPagina() {
 
   return (
     <div>
-      {/* EL SALUDO Y LA FRASE SON UNA SOLA PIEZA.
+      {/* EL SALUDO Y LA FRASE SON UNA SOLA PIEZA, Y VAN UNO AL LADO DEL OTRO.
           Estaban apilados —título chico sobre papel, después una banda— y eso
           desperdiciaba lo único que esta pantalla puede permitirse: acá nadie
           vino a leer un dato todavía. Junta, la tinta abre la pantalla y le da
-          a la marca el lugar que en el resto del sistema no puede tener. */}
-      <section className="grano-shell relative mb-9 overflow-hidden rounded-lg bg-shell px-6 py-7 text-shell-texto sm:px-8">
-        <span aria-hidden className="pointer-events-none absolute -top-10 -right-10">
-          <Abanico className="h-52 w-auto text-red/12" />
+          a la marca el lugar que en el resto del sistema no puede tener.
+
+          ⚠️ **En dos columnas, y esa es la corrección de A1.** Apilados —saludo,
+          rol, link, y recién abajo la frase en serif a 24px— la portada medía
+          casi un tercio del alto útil, así que la primera tarjeta empezaba
+          abajo del pliegue: el Inicio abría con una cita y no con el trabajo.
+          Al costado, la frase ocupa el ancho que igual estaba vacío a la
+          derecha del saludo y la portada mide la mitad. */}
+      <section className="grano-shell relative mb-8 overflow-hidden rounded-lg bg-shell text-shell-texto">
+        <span aria-hidden className="pointer-events-none absolute -top-12 -right-10">
+          <Abanico className="h-48 w-auto text-shell-acento/12" />
         </span>
 
-        <div className="relative">
-          {/* El saludo dice quién sos Y qué sos: es el lugar natural donde la
-              pantalla te dice que sos admin, y con eso cierra §9.5. */}
-          <h1 className="t-titulo text-3xl">Hola, {usuario.nombre}</h1>
-          <p className="t-mono mt-2.5 text-shell-tenue">
-            {NOMBRE_DE_ROL[usuario.rol]} · lo que necesita tu atención hoy
-          </p>
-          {veLosNumeros && (
-            <p className="mt-2 text-sm text-shell-tenue">
-              Los números del negocio, por período, están en el{' '}
-              <Link
-                to="/admin/tablero"
-                className="underline underline-offset-2 transition-colors hover:text-shell-texto"
-              >
-                Tablero
-              </Link>
-              .
+        <div className="relative grid gap-6 px-6 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-center lg:gap-10">
+          <div>
+            {/* El saludo dice quién sos Y qué sos: es el lugar natural donde la
+                pantalla te dice que sos admin, y con eso cierra §9.5. */}
+            <h1 className="t-titulo text-3xl">Hola, {usuario.nombre}</h1>
+            <p className="t-mono mt-2.5 text-shell-tenue">
+              {NOMBRE_DE_ROL[usuario.rol]} · lo que necesita tu atención hoy
             </p>
-          )}
+            {veLosNumeros && (
+              <p className="mt-2 text-sm text-shell-tenue">
+                Los números del negocio, por período, están en el{' '}
+                <Link
+                  to="/admin/tablero"
+                  className="underline underline-offset-2 transition-colors hover:text-shell-texto"
+                >
+                  Tablero
+                </Link>
+                .
+              </p>
+            )}
+          </div>
 
           <FraseDelDia fecha={rango.hoy} />
         </div>
@@ -529,8 +548,8 @@ function FraseDelDia({ fecha }: { fecha: string }) {
   const frase = fraseDelDia(fecha)
 
   return (
-    <blockquote className="mt-6 max-w-2xl border-t border-shell-linea pt-5">
-      <p className="t-serif text-xl leading-snug sm:text-2xl">{frase.texto}</p>
+    <blockquote className="border-t border-shell-linea pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-10">
+      <p className="t-serif text-xl leading-snug">{frase.texto}</p>
 
       {frase.tipo === 'cita' && (
         <footer className="t-mono mt-2.5 text-shell-tenue">
@@ -599,6 +618,29 @@ function Tarjeta<T>({
       </Link>
     </Bloque>
   )
+}
+
+/**
+ * La grilla de tarjetas de un grupo.
+ *
+ * ⚠️ **No había ninguna, y eso era el resto de A1.** Cada `Bloque` es un
+ * `<section>` de ancho completo, así que las tarjetas se apilaban una abajo de
+ * la otra: un ADMIN que además da clase abría el Inicio con **doce rectángulos
+ * en una sola columna** y una cifra de 30px sola en el medio de mil píxeles de
+ * ancho. El Tablero —la otra pantalla hecha de tarjetas— siempre tuvo su
+ * grilla; a ésta le faltó.
+ *
+ * **Tres columnas y no cuatro**, y el caso que lo decide es "Operación", que
+ * tiene cuatro tarjetas: en cuatro columnas entra justo, y la cuarta es
+ * *Deudores*, la destacada. Quedaría la línea roja escondida al final de una
+ * fila pareja en vez de abriendo la suya. En tres, sobra sola y con su acento,
+ * que es exactamente lo que la cadena de prioridad quiso decir.
+ *
+ * Va acá y no en `Grupo` porque la grilla no es del grupo: el Tablero mete seis
+ * grillas distintas dentro de los suyos, según lo que cada bloque muestre.
+ */
+function Tarjetas({ children }: { children: ReactNode }) {
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
 }
 
 /** El vacío de una tarjeta. Se muestra, no se esconde. */

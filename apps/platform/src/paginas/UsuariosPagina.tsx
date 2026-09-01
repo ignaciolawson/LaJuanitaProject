@@ -179,7 +179,7 @@ export function UsuariosPagina() {
                 <Celda>
                   <span
                     className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${
-                      u.activo ? 'border-ink/20 text-ink' : 'border-linea text-apagado'
+                      u.activo ? 'border-texto/20 text-texto' : 'border-linea text-apagado'
                     }`}
                   >
                     {u.activo ? 'Activa' : 'Desactivada'}
@@ -250,8 +250,8 @@ function PasswordNueva({
     <Bloque titulo={<>Contraseña de {de}</>} className="mb-6">
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
-        <strong className="text-ink">vence a los 7 días</strong> si no la usa.{' '}
-        <strong className="text-ink">No se puede volver a ver:</strong> si se pierde, hay que
+        <strong className="text-texto">vence a los 7 días</strong> si no la usa.{' '}
+        <strong className="text-texto">No se puede volver a ver:</strong> si se pierde, hay que
         generar otra.
       </p>
       <Hueco className="mt-3 font-mono text-lg tracking-wider">

@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 
 import cabina from '../assets/cabina.jpg'
 import wordmark from '../assets/wordmark.png'
+import { SelectorDeTema } from '../tema/SelectorDeTema'
+import { useTema } from '../tema/useTema'
 import { Abanico } from './Abanico'
 
 /**
@@ -24,9 +26,18 @@ import { Abanico } from './Abanico'
  *   del resto del sistema. Que la puerta sea vistosa no la vuelve un lugar
  *   distinto para tipear.
  *
- * ⚠️ **La mitad de tinta NO sigue al tema.** Es marca, no superficie de
- * trabajo: el sidebar tampoco lo sigue, por la misma razón. Lo que cambia con
- * el tema es la mitad donde se escribe.
+ * ⚠️ **La mitad de tinta NO sigue al tema, y es la única que no lo hace.** El
+ * sidebar sí lo sigue desde §12 · A4; acá la tinta no es una superficie de
+ * trabajo sino la marca —la foto de la cabina va sobre negro y el wordmark es
+ * hueso—, así que darla vuelta sería apagar la única imagen del sistema. Lo que
+ * cambia con el tema es la mitad donde se escribe.
+ *
+ * ⚠️ **El interruptor de tema vive acá** (§12 · A6), en la mitad de papel, y
+ * `useTema(null)` es lo que lo hace posible sin sesión: `temaPorDefecto(null)`
+ * ya contesta "claro" para quien todavía no entró. Escribe la misma clave
+ * `lajuanita.tema` que el del sidebar —es la misma función—, así que el tema
+ * elegido en la puerta es el que se encuentra adentro. Con dos claves, alguien
+ * elegiría oscuro para entrar y la aplicación le cambiaría el tema sola.
  *
  * ⚠️ **Abajo de `lg` la foto no se muestra**, y no es que "se acomoda": se
  * saca. En un teléfono apoyada arriba del formulario empuja los campos abajo
@@ -46,6 +57,10 @@ export function Puerta({
   /** Links de abajo del formulario: crear cuenta, volver, la aclaración. */
   pie?: ReactNode
 }) {
+  // Sin sesión todavía: el default de `temaPorDefecto(null)` es el claro, y lo
+  // guardado le gana igual que adentro.
+  const { tema, alternar } = useTema(null)
+
   return (
     <main className="flex min-h-full">
       {/* ── La mitad de marca ── */}
@@ -87,7 +102,13 @@ export function Puerta({
       </aside>
 
       {/* ── La mitad donde se escribe ── */}
-      <div className="flex min-w-0 flex-1 items-center justify-center px-6 py-12">
+      <div className="relative flex min-w-0 flex-1 items-center justify-center px-6 py-12">
+        {/* Arriba a la derecha y fuera de la columna del formulario: es una
+            preferencia de la pantalla, no un paso de entrar. */}
+        <div className="absolute top-6 right-6">
+          <SelectorDeTema tema={tema} alternar={alternar} tono="lienzo" />
+        </div>
+
         <div className="w-full max-w-sm">
           {/* La marca compacta, sólo cuando la foto no está. Sin esto, en un
               teléfono la puerta vuelve a ser un formulario sin dueño. */}

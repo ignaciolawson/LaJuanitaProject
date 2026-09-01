@@ -10,6 +10,7 @@ import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.MedioPago;
 import com.lajuanita.backend.pago.Pago;
+import com.lajuanita.backend.tablero.LineaDeNegocio;
 
 /**
  * Una fila del listado de pagos.
@@ -45,6 +46,23 @@ public record PagoResumen(
         Long idDestino,
         /** Ya legible: "DJ · inicial", "Sala 2 · 14/08 10:00". */
         String queSalda,
+
+        /**
+         * La línea de negocio de este pago (`mejoras.md` §12 · B1).
+         *
+         * <p><b>No es el destino con otro nombre</b>, y la diferencia es el motivo
+         * de que exista: el destino es a qué apunta el pago —un hecho de la fila—
+         * y la línea cruza el tipo de uso de la reserva. <b>La seña de una clase
+         * apunta a una RESERVA y es plata de CURSOS</b>; sin ese cruce, la
+         * pantalla diría que el estudio cobró por alquilar lo que cobró por
+         * enseñar, que es exactamente lo que {@link LineaDeNegocio} explica.
+         *
+         * <p>La calcula el servidor con {@link LineaDeNegocio#EXPRESION}, la misma
+         * expresión que usa el tablero. Derivarla en el front sería una segunda
+         * definición, y entonces un mismo pago podría caer en un negocio en el
+         * listado y en otro en el tablero, sin que nada fallara.
+         */
+        String lineaDeNegocio,
 
         String concepto,
         BigDecimal monto,
@@ -86,6 +104,16 @@ public record PagoResumen(
      * muestra, y por eso no hay una fila que diga "sin datos".
      */
     public static PagoResumen de(Pago pago) {
+        return de(pago, null);
+    }
+
+    /**
+     * @param linea la que resolvió {@link LineaDeNegocio#EXPRESION}, o null
+     *              cuando quien arma el DTO no la consultó — el alta y la
+     *              anulación devuelven el pago que acaban de tocar y la pantalla
+     *              que los llama no muestra esa columna.
+     */
+    public static PagoResumen de(Pago pago, String linea) {
         var persona = pago.getUsuario();
 
         return new PagoResumen(
@@ -99,6 +127,7 @@ public record PagoResumen(
                 destinoDe(pago),
                 idDestinoDe(pago),
                 queSaldaDe(pago),
+                linea,
                 pago.getConcepto(),
                 Importe.normalizar(pago.getMonto()),
                 pago.getMoneda(),

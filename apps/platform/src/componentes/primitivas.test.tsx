@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
+import { Boton } from './Boton'
 import { CabeceraDePagina } from './CabeceraDePagina'
 import { EstadoVacio } from './EstadoVacio'
 import { Etiqueta } from './Etiqueta'
@@ -193,5 +194,34 @@ describe('AvisoSoloLectura', () => {
     montarComo(rol, <AvisoSoloLectura />)
 
     expect(screen.queryByText(/solo lectura/)).toBeNull()
+  })
+})
+
+describe('Boton (§12 · A3)', () => {
+  it('⚠️ la acción principal se invierte con el tema en vez de ser tinta fija', () => {
+    // Era `bg-ink text-bone` fijo. En oscuro eso es tinta sobre una tarjeta
+    // #17171a: **1,11:1**. El botón principal de cada pantalla no tenía forma
+    // —se leía su texto flotando en el aire—, y es la mitad de lo que Ignacio
+    // describió como *"botones que no se notan bien"*.
+    //
+    // Se afirma sobre los tokens y no sobre un color porque el color es
+    // justamente lo que depende del tema: lo que este caso cuida es que la
+    // decisión sea un token y no una tinta.
+    render(<Boton>Guardar</Boton>)
+
+    const clases = screen.getByRole('button', { name: 'Guardar' }).className.split(' ')
+    expect(clases).toContain('bg-accion')
+    expect(clases).toContain('text-accion-texto')
+    expect(clases).not.toContain('bg-ink')
+  })
+
+  it('el borde del secundario es un control, no una separación', () => {
+    // El borde es toda la forma de este botón. `--linea` mide 1,3:1 y separa
+    // superficies; un control pide 3:1.
+    render(<Boton variante="secundario">Cancelar</Boton>)
+
+    const clases = screen.getByRole('button', { name: 'Cancelar' }).className.split(' ')
+    expect(clases).toContain('border-linea-control')
+    expect(clases).not.toContain('border-linea')
   })
 })

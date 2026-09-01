@@ -121,7 +121,7 @@ export function MisSolicitudesPagina() {
 function Estado({ estado }: { estado: SolicitudResumen['estado'] }) {
   const estilo =
     estado === 'APROBADA'
-      ? 'border-linea text-ink'
+      ? 'border-linea text-texto'
       : estado === 'RECHAZADA'
         ? 'border-red/30 text-acento'
         : 'border-linea text-tenue'

@@ -266,7 +266,7 @@ export function InscripcionesPagina() {
 
 function Etiqueta({ estado }: { estado: EstadoInscripcion }) {
   const estilo = {
-    ACTIVA: 'border-ink/20 text-ink',
+    ACTIVA: 'border-texto/20 text-texto',
     COMPLETADA: 'border-linea text-apagado',
     PAUSADA: 'border-linea text-apagado',
     CANCELADA: 'border-red/40 text-acento',

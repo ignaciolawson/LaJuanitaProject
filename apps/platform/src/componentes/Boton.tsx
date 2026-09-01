@@ -41,9 +41,17 @@ export function Boton({
 }: Props) {
   const estilo =
     variante === 'principal'
-      ? `bg-ink text-bone hover:bg-red ${CAJA[tamaño]}`
+      ? // ⚠️ `bg-accion`, no `bg-ink`: la acción principal es la máxima
+        // inversión contra el LIENZO, y cuál es depende del tema. En tinta fija
+        // el botón medía 1,11:1 sobre una tarjeta oscura — se leía su texto
+        // flotando, sin forma. El texto del hover se fija en hueso porque el
+        // fondo pasa a ser rojo en los dos temas.
+        `bg-accion text-accion-texto hover:bg-red hover:text-bone ${CAJA[tamaño]}`
       : variante === 'secundario'
-        ? `border border-linea bg-superficie text-ink hover:border-red hover:text-acento ${CAJA[tamaño]}`
+        ? // El borde es la única forma de este botón, así que es un control y
+          // no una separación: va `--linea-control` (3,3:1) y no `--linea`
+          // (1,3:1). Ver el token en `index.css`.
+          `border border-linea-control bg-superficie text-texto hover:border-red hover:text-acento ${CAJA[tamaño]}`
         : // La acción en línea. Sin caja, sin relleno: el subrayado es todo el
           // affordance, y alcanza porque vive pegada al dato sobre el que actúa.
           'text-xs text-tenue underline underline-offset-2 hover:text-acento'

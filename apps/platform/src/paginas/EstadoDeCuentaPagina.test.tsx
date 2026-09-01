@@ -242,6 +242,7 @@ describe('los comprobantes', () => {
             pagador: 'Camila Ríos',
             pagadorSinCuenta: false,
             destino: 'INSCRIPCION',
+            lineaDeNegocio: 'CURSOS',
             idDestino: 5,
             queSalda: 'DJ · INICIAL',
             concepto: null,

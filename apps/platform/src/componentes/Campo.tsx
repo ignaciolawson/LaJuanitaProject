@@ -49,7 +49,7 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
       <input
         {...input}
         aria-invalid={error ? true : undefined}
-        className={`${BASE} ${error ? 'border-red' : 'border-linea'}`}
+        className={`${BASE} ${error ? 'border-red' : 'border-linea-control'}`}
       />
 
       {error && (
@@ -79,7 +79,7 @@ export function CampoSelect({
       <select
         {...select}
         aria-invalid={error ? true : undefined}
-        className={`${BASE} ${error ? 'border-red' : 'border-linea'}`}
+        className={`${BASE} ${error ? 'border-red' : 'border-linea-control'}`}
       >
         {children}
       </select>

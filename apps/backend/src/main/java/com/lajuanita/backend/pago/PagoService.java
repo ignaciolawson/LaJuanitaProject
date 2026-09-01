@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -92,22 +93,52 @@ public class PagoService {
 
     // == Listado y alta =======================================================
 
+    /**
+     * El listado, con sus filtros.
+     *
+     * <p><b>{@code destino} divide la pantalla por dentro</b> (`mejoras.md` §12 ·
+     * B1): programas, salas, mastering o equipos. Filtra por a qué apunta el pago
+     * y no por su línea de negocio — ver {@link PagoRepository#listar}, donde está
+     * la diferencia y por qué importa.
+     */
     @Transactional(readOnly = true)
     public Pagina<PagoResumen> listar(String buscar, Long idUsuario, EstadoPago estado,
-            Moneda moneda, LocalDate desde, LocalDate hasta, int pagina, int tamanio) {
+            Moneda moneda, String destino, LocalDate desde, LocalDate hasta,
+            int pagina, int tamanio) {
 
         Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio),
                 Sort.by(Sort.Direction.DESC, "fechaPago").and(Sort.by(Sort.Direction.DESC, "id")));
 
-        return Pagina.de(pagos.listar(idUsuario, estado,
+        Page<Pago> encontrados = pagos.listar(idUsuario, estado,
                 moneda == null ? null : moneda.name(),
-                desde, hasta, Busqueda.patron(buscar), paginado)
-                .map(PagoResumen::de));
+                destino, desde, hasta, Busqueda.patron(buscar), paginado);
+
+        Map<Long, String> lineas = lineasDe(encontrados.getContent().stream().map(Pago::getId).toList());
+
+        return Pagina.de(encontrados.map(pago -> PagoResumen.de(pago, lineas.get(pago.getId()))));
     }
 
     @Transactional(readOnly = true)
     public PagoResumen porId(Long id) {
-        return PagoResumen.de(buscar(id));
+        Pago pago = buscar(id);
+        return PagoResumen.de(pago, lineasDe(List.of(id)).get(id));
+    }
+
+    /**
+     * La línea de negocio de un puñado de pagos, en una sola consulta.
+     *
+     * <p>Con la lista vacía <b>no consulta</b>: un {@code IN ()} sin elementos es
+     * un error de sintaxis en Postgres, y una página vacía es lo más común del
+     * mundo apenas alguien filtra por algo que no tiene filas.
+     */
+    private Map<Long, String> lineasDe(List<Long> ids) {
+        if (ids.isEmpty()) return Map.of();
+
+        Map<Long, String> lineas = new HashMap<>();
+        for (Object[] fila : pagos.lineasDe(ids)) {
+            lineas.put(((Number) fila[0]).longValue(), (String) fila[1]);
+        }
+        return lineas;
     }
 
     @Transactional

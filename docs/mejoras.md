@@ -1888,11 +1888,11 @@ ningún desarrollo de backend.**
 
 ### El triage, con los grupos de §4
 
-| Grupo | Qué significa | Cuántos |
-|---|---|---|
-| 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **8** |
-| 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **1** |
-| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1** |
+| Grupo | Qué significa | Cuántos | Estado |
+|---|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **8** | ✅ cerrado el 2026-09-01 |
+| 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **1** | ✅ cerrado el 2026-09-01, salvo lo que se mudó a C |
+| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1 → 3** | C1 desbloqueado (§17); C2 y C3 los trajo B1 |
 
 **Orden de ejecución: A → B → C.** Dentro de A, primero el Inicio (que ya tiene su causa
 encontrada) y después el bloque de tema y contraste, porque **cuatro de los puntos de
@@ -1901,6 +1901,33 @@ Ignacio se resuelven en una sola pasada sobre la paleta** (A3, A4, A6 y parte de
 ---
 
 ### 🟢 Grupo A — pantalla y estilo
+
+> ✅ **CERRADO el 2026-09-01, los ocho puntos.** Suite en **479** (eran 470): los
+> nueve casos nuevos están donde una decisión de este grupo se puede deshacer sin
+> que nada falle.
+>
+> **Lo que la barrida encontró y no estaba en la lista de Ignacio** —tres cosas, y
+> las tres explican más de un punto suyo a la vez:
+>
+> 1. ⚠️ **Faltaba el token del color del texto.** `body` escribía `--ink` y el
+>    tema oscuro lo pisaba con una regla aparte; los doce lugares que necesitaron
+>    nombrar ese color escribieron `text-ink`, que es una **tinta de marca** y no
+>    sigue al tema. En oscuro esos doce miden **1,11:1** — negro sobre casi
+>    negro—, e incluyen `Boton variante="secundario"`, o sea todos los botones
+>    secundarios del sistema. Es literalmente *"botones o palabras que no se
+>    notan bien"*. Se resolvió con `--texto`, que es lo que faltaba.
+> 2. ⚠️ **`--apagado` no era decorativo y estaba PEOR en claro que en oscuro.**
+>    §12 lo señalaba sólo en oscuro (2,64:1); en claro medía **2,01:1**. Y son
+>    cien usos que dicen *"Sin comprobante"*, *"A acordar"*, *"Sin asignar"*, la
+>    ayuda de un campo y la fila vacía de una tabla: **es texto que hay que leer,
+>    con nombre de texto que no.**
+> 3. ⚠️ **A9 no era falta de semántica: Tailwind v4 sacó `cursor: pointer` del
+>    preflight.** Ver el punto.
+>
+> **Y la regla de método que dejó**: los contrastes se **midieron**, no se
+> estimaron — como QA-06 en la landing. Tres de los valores que "se veían bien"
+> estaban debajo del piso y uno que parecía el peor (`--linea`) está bien donde
+> está. A ojo no se distingue 2,0:1 de 4,5:1 sobre fondo claro; con un número sí.
 
 #### A7 · El mojibake — ✅ **RESUELTO el 2026-09-01**
 
@@ -1944,8 +1971,32 @@ dentro de la portada. **La lección para la próxima fusión de dos piezas: una 
 tiene que dejar de ser una pieza.** Anidar dos contenedores que se dibujan igual no
 compone nada — los superpone.
 
-**Lo que falta** es lo otro que pidió: repensar la distribución del Inicio ahora que el
-solapamiento no la tapa.
+✅ **La distribución nueva se hizo el 2026-09-01, y encontró la otra mitad del
+problema: el Inicio no tenía grilla.** Cada `Bloque` es un `<section>` de ancho
+completo, así que las tarjetas se apilaban una abajo de la otra — un ADMIN que
+además da clase abría la pantalla con **doce rectángulos en una sola columna** y
+una cifra de 30 px sola en el medio de mil píxeles de ancho. El Tablero, la otra
+pantalla hecha de tarjetas, siempre tuvo la suya; a ésta le faltó desde el
+principio y el solapamiento la tapaba.
+
+Dos cambios, los dos de distribución y ninguno de color:
+
+- **Grilla de tarjetas por grupo** (`sm:grid-cols-2 xl:grid-cols-3`). **Tres
+  columnas y no cuatro**, y el caso que lo decide es "Operación", que tiene
+  cuatro tarjetas: en cuatro entra justo y la cuarta es *Deudores*, la
+  destacada — la línea roja quedaría escondida al final de una fila pareja en
+  vez de abriendo la suya. La definición vive en la pantalla y no en `Grupo`,
+  porque la grilla no es del grupo: el Tablero mete seis grillas distintas
+  dentro de los suyos.
+- **La portada, en dos columnas**: el saludo a la izquierda, la frase al lado.
+  Apilada —saludo, rol, link, y recién abajo la frase en serif a 24 px— medía
+  casi un tercio del alto útil, así que la primera tarjeta empezaba **abajo del
+  pliegue**: el Inicio abría con una cita y no con el trabajo. Al costado, la
+  frase ocupa el ancho que igual estaba vacío y la portada mide la mitad.
+
+Dos casos lo sostienen, y el primero es el que importa: **la portada dibuja UNA
+sola banda de tinta**. Volver a anidar dos piezas que se dibujan igual no falla,
+se ve mal y compila.
 
 #### A4 · El sidebar sigue al tema
 
@@ -1956,21 +2007,70 @@ solapamiento no la tapa.
 argumento era que la navegación no se lee, se recorre, y que la tinta permanente es lo
 que deja entrar la marca.
 
-**Ignacio decidió lo contrario y es su llamada.** Al implementarlo hay que **borrar ese
-argumento de los dos archivos, no dejarlo al lado del código nuevo** — es la regla del
-proyecto para cuando una decisión cambia (`sistema-gestion-plan.md`: *"si una decisión
-cambia, editá ese archivo; no dejes la vieja al lado de la nueva"*).
+**Ignacio decidió lo contrario y es su llamada.**
+
+✅ **Hecho el 2026-09-01**, y el argumento viejo está **borrado** de `index.css` y
+`tema.ts` — no puesto al lado del nuevo, que es la regla del proyecto para cuando
+una decisión cambia.
+
+**La marca no se pierde, y eso es lo que hizo que la decisión fuera barata: el
+shell claro es hueso.** `--bone-2` es una de las tres tintas de la marca, no un
+gris nuevo, así que sigue siendo una paleta de tres tintas y el shell sigue
+siendo la superficie que la lleva. Lo que se conserva de la decisión vieja es lo
+único que valía: que la navegación y el lienzo sean **dos** superficies, que es
+lo que separa de un vistazo "dónde estoy" de "qué estoy mirando".
+
+⚠️ **Y obligó a partir el rojo por tercera vez.** Sobre el hueso del shell claro,
+`--red` mide **2,98:1** — y la barra del ítem activo es un indicador de estado, o
+sea información, que pide 3:1. Existe `--shell-acento`: `--acento` en claro
+(4,28:1), `--red` en oscuro. Es exactamente la partición que `index.css` ya
+declaraba para el rojo entre superficie y texto, aplicada al tercer fondo del
+sistema. Por lo mismo, **el anillo de foco pasó de `--red` a `--acento`**: tiene
+que rendir contra las tres superficies y contra el shell claro no rendía.
+
+**La única superficie que se queda en tinta pase lo que pase es la mitad de foto
+de `Puerta`**, y está escrito ahí: no es una superficie de trabajo, es la marca.
 
 #### A3 · Contraste en oscuro
 
 *"Al poner el fondo negro hay botones o palabras en menúes desplegables y en otras
 secciones que no se notan bien, recorrer todo y mejorar el contraste."*
 
-Recorrida completa sobre el tema oscuro. **Sospechosos principales, para arrancar por
-ahí**: los `<option>` de los `<select>` (los pinta el sistema operativo y `color-scheme`
-sólo los orienta), los `Boton` con `variante="secundario"` y `variante="enlace"`, las
-`Etiqueta` de estado, y el texto `--apagado`, que en oscuro mide 2,64:1 — pasa para lo
-decorativo y no para nada que haya que leer.
+✅ **Hecho el 2026-09-01, con todo medido.** La lista de sospechosos era correcta
+y **la causa era una sola y estaba más abajo**: faltaban tokens. Los cinco
+cambios, con los números:
+
+| Qué | Antes | Ahora |
+|---|---|---|
+| `--texto` (nuevo) | no existía; doce lugares escribían `text-ink` → **1,11:1** en oscuro | sigue al tema |
+| `--tenue` | ink@0,56 → 4,39:1 sobre el papel | ink@0,66 → **6,20:1** · bone@0,66 → **6,56:1** |
+| `--apagado` | ink@0,30 → **2,01:1** · bone@0,34 → 2,64:1 | ink@0,58 → **4,72:1** · bone@0,52 → **4,56:1** |
+| `--linea-control` (nuevo) | los campos usaban `--linea` → **1,30:1** | 0,46 → **3,27:1** claro · **3,85:1** oscuro |
+| `--accion` / `--accion-texto` (nuevos) | `bg-ink` fijo → **1,11:1** en oscuro | se invierte con el tema |
+
+Cuatro cosas que la recorrida decidió y conviene no deshacer:
+
+- ⚠️ **`--apagado` sube al piso de lectura, no al de la decoración.** Son cien
+  usos y dicen *"Sin comprobante"*, *"A acordar"*, *"Sin asignar"*, *"no
+  descuenta clases"*, la ayuda de un campo y la fila vacía de una tabla. Siguen
+  siendo tres escalones perceptibles (18,9 · 6,2 · 4,7) y ahora los tres se leen.
+  **Quien quiera un cuarto nivel más apagado que esto no lo va a conseguir con
+  gris**: lo que queda abajo de 4,5 no es jerarquía, es texto que alguien no
+  puede leer.
+- ⚠️ **El borde de un control no es el borde de una tarjeta.** `--linea` mide
+  1,30:1 y está bien donde está: separa superficies, no informa nada. Pero un
+  campo de este sistema **es una línea**, así que ese borde de 1px es toda la
+  señal de que ahí se escribe — es un control, y pide 3:1. Lo mismo el borde del
+  botón secundario, que es su única forma, y **el pulgar de la barra de scroll**,
+  que la etapa 1 se acordó de pintar con la paleta propia y no de que se viera.
+- **Los `<option>` se pintan explícitamente.** `color-scheme` orienta al
+  navegador, pero el popup de un `<select>` hereda el `background-color` del
+  control — y los de este sistema son `bg-transparent`, porque el campo es una
+  línea. Son dos declaraciones y sacan del medio al primer sospechoso.
+- **`Etiqueta` y `Boton variante="enlace"` no necesitaron nada propio**: los dos
+  se apoyaban en `--tenue` / `--apagado` y se arreglaron solos al arreglarse los
+  tokens. Es la prueba de que la 3.1 valió: **la corrección de contraste de toda
+  la aplicación fue editar una paleta, no treinta y seis pantallas.**
 
 #### A6 · Interruptor de tema en el login
 
@@ -1980,6 +2080,26 @@ Va en la mitad de papel de `Puerta`, no en la de tinta —esa es marca y no camb
 **tiene que escribir la misma clave `lajuanita.tema`** que usa `useTema`, o alguien elige
 el tema en la puerta y al entrar le cambia solo.
 
+✅ **Hecho el 2026-09-01**, y salió más barato de lo previsto: `useTema(null)` ya
+andaba sin sesión, porque `temaPorDefecto(null)` contesta claro para quien
+todavía no entró. Es la misma función, así que la clave es la misma por
+construcción y no por acordarse.
+
+Dos cosas que decidió:
+
+- **`SelectorDeTema` ahora tiene dos tonos**, shell y lienzo. Es la partición que
+  `Boton` documenta —sus variantes están calibradas contra el papel y sobre el
+  shell no se ven—, con la diferencia de que acá son dos juegos de **un solo
+  control** y no la promesa de duplicar cada variante futura.
+- **Va arriba a la derecha, fuera de la columna del formulario**: es una
+  preferencia de la pantalla, no un paso de entrar. Entre los campos se leería
+  como parte del formulario, y hay un caso que lo sostiene.
+
+⚠️ **El caso que importa escribe `'lajuanita.tema'` a mano en vez de importar la
+constante**, por la misma razón que los dos de `credencial.test.ts`: importándola,
+el caso seguiría en verde después de un renombre — que es exactamente lo que
+existe para agarrar.
+
 #### A8 · El favicon
 
 *"Cambiar el ícono del sistema, ahora tiene un rayito violeta, ponele el abanico u otra
@@ -1988,8 +2108,18 @@ cosa de identidad."*
 Es el `favicon.svg` que vino con la plantilla de Vite. Va el abanico, que ya existe
 dibujado en SVG (`componentes/Abanico.tsx`) y **no se puede importar desde ahí**: el
 favicon es un archivo estático que pide el navegador antes de que corra un solo módulo.
-Hay que exportarlo a `public/favicon.svg` a mano y **asumir que son dos copias del mismo
-dibujo**, igual que el abanico ya está duplicado entre la landing y la plataforma.
+
+✅ **Hecho el 2026-09-01.** Se generó con **el mismo algoritmo** del componente
+—mismo pivote, misma apertura de 156°, mismas varillas del medio un poco más
+largas—, así que es la tercera copia del dibujo y está escrito en el archivo:
+`Abanico.tsx` ya era copia del `Fan.tsx` de la landing, y ésta no puede salir de
+ninguna de las dos. Si el dibujo de la marca cambia, cambia en los **tres** lados.
+
+Dos adaptaciones al tamaño, las dos deliberadas: **nueve varillas y no trece**
+(a 16 px, trece se empastan en una mancha) y el arco interior afuera. Y va sobre
+un cuadrado de tinta y no suelto — **una pestaña puede ser clara u oscura y el
+rojo de marca no rinde contra las dos**, que es el mismo problema que A4 acaba de
+resolver del otro lado.
 
 #### A9 · El cursor
 
@@ -2002,6 +2132,22 @@ a nadie que se puede tocar. Y el diagnóstico de Ignacio apunta a algo más prof
 hace falta `cursor-pointer`, probablemente ese elemento debería ser un `<button>` o un
 `<a>`**, que además lo hace alcanzable con teclado. La recorrida tiene que distinguir los
 dos casos y no tapar el segundo con una clase.
+
+✅ **Hecho el 2026-09-01, y la causa era una sola línea que nadie escribió.**
+
+⚠️ **Tailwind v4 sacó del preflight el `cursor: pointer` de los botones**, y nada
+avisa: la hoja del navegador les da `cursor: default`, así que **todos los
+`<button>` de las 36 pantallas** dejaron de decir que se pueden apretar. El
+ejemplo de Ignacio lo prueba desde el otro lado: la tarjeta de artista **ya era un
+`<button>`** — no faltaba semántica, faltaba la regla. Son cuatro líneas en
+`index.css` y arreglan el sistema entero de una vez.
+
+**La segunda mitad de su diagnóstico se fue a buscar y no había nada que
+arreglar**: en todo el repo no existe un solo `onClick` sobre un `<div>`, un
+`<td>` ni un `<li>` — todo lo clickeable ya es `<button>` o `<a>`. O sea que
+**nada se está tapando con una clase**, que era el riesgo real del punto. Vale la
+pena dejarlo dicho: la próxima recorrida no tiene que volver a barrer eso, tiene
+que cuidar que siga siendo cierto.
 
 #### A5 · Las frases
 
@@ -2018,6 +2164,18 @@ que la rotación se nota poco.
 proyecto ya tiene abierto el problema de las seis notas del blog firmadas con los nombres
 reales de los profesores. Cada cita nueva es trabajo de búsqueda y verificación, no de
 programación.
+
+✅ **Volumen cargado el 2026-09-01: de 4 frases a 14.** La rotación ya se nota
+—antes la frase volvía cada cuatro días— y `fraseDelDia` no tiene tope, así que el
+techo no es el código.
+
+⚠️ **Pero mirá la proporción, que es el punto que queda abierto: doce de la casa y
+siguen siendo sólo dos citas.** Las de la casa se pueden escribir porque la casa
+es el cliente y él las confirma o las cambia (van marcadas como placeholder,
+igual que el resto de la copia larga). **Una cita no se puede escribir, se tiene
+que ir a buscar**: autor real, dicho real, y una URL donde verificarlo. Ese
+trabajo sigue pendiente y es de búsqueda, no de programación — está anotado en el
+encabezado del propio archivo para que nadie lo dé por cerrado al ver catorce.
 
 ---
 
@@ -2047,7 +2205,91 @@ distinta naturaleza en una sola lista.
 
 ---
 
+✅ **Hecho el 2026-09-01 — dos de las tres partes. Y la tercera no es B.**
+
+#### Pagos ✅
+
+La pantalla gana **un filtro por tipo de pago** —Programas · Salas y cabina · Mix &
+Mastering · Equipos— y **cada fila dice a qué negocio pertenece esa plata**.
+
+⚠️ **El filtro es por DESTINO y la etiqueta es por LÍNEA, y no son lo mismo.** Vale
+la pena entender la diferencia antes de "unificarlos":
+
+- El **destino** es a qué apunta el pago: cuatro columnas de `pago`, una sola con
+  valor. Es un hecho de la fila.
+- La **línea** cruza además el tipo de uso de la reserva. **La seña de una clase
+  apunta a una RESERVA y es plata de CURSOS.** Sin ese cruce la pantalla diría que
+  el estudio cobró por alquilar lo que cobró por enseñar.
+
+El filtro va por el destino **porque filtrar por línea obligaría a escribir la
+deducción una segunda vez**: el listado es una consulta JPQL y la definición vive
+en SQL nativo. O sea, exactamente lo que este punto pedía no hacer.
+
+⚠️ **Y reusar la definición costó más que escribirla, que era el punto.** Estaba
+adentro de la consulta del tablero, agregada con `GROUP BY`. Se intentó primero
+pasar las dos a JPQL —para compartir el texto— y **no se puede: Hibernate 7 no
+acepta un `CASE` dentro de un `GROUP BY`** (*"mismatched input 'WHEN'"*). Así que
+el `CASE` salió a `LineaDeNegocio.EXPRESION`, en SQL nativo, y las dos consultas lo
+pegan. Lo que hace verificable que sigan siendo una sola: **si discreparan, el
+mismo pago caería en un negocio en el listado y en otro en el Tablero**, y nada
+fallaría.
+
+#### Materiales ⚠️ **La premisa de este documento era falsa**
+
+Arriba dice que *"`material` cuelga de la inscripción y puede colgar de una clase,
+así que agrupar por curso y por clase sale del dato"*. **No es cierto, y se
+verificó contra la base y no contra el modelo**: `material` tiene `id_profesor` e
+`id_alumno`, y **ninguna columna de inscripción ni de reserva** — `V1` la creó así
+y sólo `V14` la volvió a tocar, sin agregarlas.
+
+**Entonces la mitad "materiales" de B1 no es grupo B: es grupo C.** Dividir por
+programa o por clase necesita columnas nuevas en `material`, o sea una migración,
+o sea el grupo que no se apura. Queda anotado abajo, en C.
+
+Lo que sí se hizo, porque sale del dato: **los materiales del alumno se agrupan por
+quién los subió**, con la cantidad de cada uno y **el grupo más reciente primero**
+(alfabético haría que quien no sube nada hace tres meses encabece la pantalla por
+llamarse Álvarez). El encabezado dice **el nombre de la persona y no el de un
+programa**: es exactamente lo que se sabe, ni más ni menos.
+
+#### La parte abierta: *"quizás hay más"* ✅ recorrida
+
+De las pantallas de listado, la que más mezclaba cosas de distinta naturaleza no
+era ninguna de las dos que Ignacio nombró:
+
+- ✅ **`/mis-reservas`** — una clase de DJ y una cabina alquilada para practicar
+  **no se cancelan igual, no se pagan igual y no descuentan lo mismo**, y estaban
+  en una sola lista por fecha donde la única forma de distinguirlas era leer el
+  nombre del tipo de uso. Ahora son dos listas. El dato ya estaba (`esClase`).
+  ⚠️ **`Proxima` sigue siendo una sola y mira las dos**: la pregunta que contesta
+  es "cuándo tengo que venir al estudio", y venir a una clase o a la cabina que
+  reservaste es venir igual.
+- 🔴 **`/admin/egresos`** — mezcla sueldos de profesores con gastos del estudio y
+  **no tiene con qué separarlos**: `egreso` tiene `concepto` (texto libre) y
+  `destinatario`, sin rubro. Mismo caso que materiales: es C, no B. Anotado abajo.
+- Las demás ya venían divididas por donde correspondía: inscripciones filtra por
+  disciplina y nivel, el buzón por interés, ventas por categoría.
+
+---
+
 ### 🔴 Grupo C — toca una regla del negocio
+
+> ⚠️ **B1 le dejó dos puntos a este grupo el 2026-09-01**, y los dos por el mismo
+> motivo: **el dato para dividir no existe**. No son cambios de pantalla mal
+> triados — son columnas que hay que agregar, o sea migraciones, o sea el grupo
+> que no se apura.
+>
+> - **C2 · Materiales por programa y por clase.** `material` cuelga de `profesor`
+>   y de `alumno`, y no tiene `id_inscripcion` ni `id_reserva`. Antes de escribir
+>   la migración hay una pregunta de negocio: **¿un material puede pertenecer a
+>   dos cursos?** Si no, la columna va en `material`; si sí, es una tabla puente.
+>   Y una segunda: al subir material para todo el curso, **¿qué curso**, si el
+>   profesor le da dos disciplinas a la misma persona? Hoy la pantalla no lo
+>   pregunta porque no tiene dónde guardarlo.
+> - **C3 · Egresos por rubro.** `egreso` tiene `concepto` en texto libre y
+>   `destinatario`. Dividir sueldos de gastos necesita una columna de rubro, y
+>   antes que la columna, **la lista de rubros, que la decide el cliente** — es el
+>   tipo de dato que si se inventa, se usa mal para siempre.
 
 #### C1 · Que la clase se descuente sola
 

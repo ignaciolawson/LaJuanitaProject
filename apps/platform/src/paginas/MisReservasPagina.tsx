@@ -23,6 +23,20 @@ import { Proxima } from '../componentes/Proxima'
  * explique nada, y enterarse de que se cayó una clase es justamente para lo que
  * el alumno abre esto.
  *
+ * ⚠️ **Las clases y las salas van en dos listas** (`mejoras.md` §12 · B1). Es
+ * la misma pantalla que Ignacio describió del otro lado —*"hacer divisiones por
+ * donde se pueda"*— y acá el corte es el más fuerte del sistema: una clase de DJ
+ * y una cabina alquilada para practicar **no se cancelan igual, no se pagan
+ * igual y no descuentan lo mismo**. Mezcladas en una lista por fecha, la única
+ * forma de saber cuál es cuál era leer el nombre del tipo de uso en la fila.
+ *
+ * El dato ya existía: `esClase` viaja en `ReservaDelPortal` desde el Módulo 4, y
+ * es el mismo `tipo_uso.es_clase` que usa el resto del sistema. **Un grupo vacío
+ * no se dibuja** —quien nunca alquiló una cabina no tiene por qué ver un título
+ * que le habla de algo que no hizo—, que es lo contrario de la regla del Inicio
+ * y por un motivo: allá el vacío es "no tenés nada pendiente", que es
+ * información; acá sería el nombre de un servicio que no compró.
+ *
  * **Y es la pantalla donde se pide mover una clase** (Fase 2.4). No hay una
  * "mis pedidos de cambio": el pedido se hace y se sigue acá, sobre la clase, que
  * es lo único que lo hace entendible — ver `PedirOtroDia`.
@@ -86,6 +100,25 @@ export function MisReservasPagina() {
     .filter((r) => r.fecha >= ahora)
     .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))[0]
 
+  /**
+   * Las dos listas (§12 · B1): las clases y lo que alquilaste.
+   *
+   * ⚠️ **`Proxima` sigue siendo UNA sola y mira las dos**, y eso es a propósito:
+   * la pregunta que contesta es "cuándo tengo que venir al estudio", y venir a
+   * una clase o venir a la cabina que reservaste es venir igual. Partirla en dos
+   * próximas obligaría a comparar dos fechas para saber cuál es antes, que es
+   * exactamente el trabajo que esa pieza vino a ahorrar.
+   *
+   * **Un grupo sin filas no se dibuja**: quien nunca alquiló una cabina no tiene
+   * por qué leer un título sobre algo que no hizo.
+   */
+  const grupos = (
+    [
+      ['Mis clases', reservas.filter((r) => r.esClase)],
+      ['Salas y cabina', reservas.filter((r) => !r.esClase)],
+    ] as [string, ReservaDelPortal[]][]
+  ).filter(([, suyas]) => suyas.length > 0)
+
   /*
    * ⚠️ **La reserva destacada SIGUE en la lista, y el duplicado es el precio.**
    *
@@ -143,8 +176,15 @@ export function MisReservasPagina() {
         />
       )}
 
-      <ul className="space-y-3">
-        {reservas.map((r) => {
+      {grupos.map(([titulo, suyas]) => (
+        <section key={titulo} className="mb-8 last:mb-0">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="t-mono shrink-0 text-tenue">{titulo}</h2>
+            <span aria-hidden className="h-px grow bg-linea" />
+          </div>
+
+          <ul className="space-y-3">
+        {suyas.map((r) => {
           const caida = r.estado === 'CANCELADA' || r.estado === 'REPROGRAMADA'
 
           return (
@@ -195,7 +235,9 @@ export function MisReservasPagina() {
             </li>
           )
         })}
-      </ul>
+          </ul>
+        </section>
+      ))}
     </div>
   )
 }
