@@ -14,10 +14,12 @@ import {
 } from '../api/portal'
 import { resumenFinanciero } from '../api/tablero'
 import { useUsuario } from '../auth/contexto'
+import { Abanico } from '../componentes/Abanico'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { fraseDelDia } from '../datos/frases'
 import { puedeOperar, puedeVerElTableroCompleto } from '../layout/menu'
 
 /**
@@ -113,6 +115,8 @@ export function InicioPagina() {
           </>
         }
       />
+
+      <FraseDelDia fecha={rango.hoy} />
 
       <Grupo titulo="Lo mío">
         <Tarjeta
@@ -426,6 +430,61 @@ export function InicioPagina() {
 }
 
 // == Las piezas ==============================================================
+
+/**
+ * La frase del día.
+ *
+ * **Es el único lugar de las 36 pantallas donde el sistema no dice un dato**, y
+ * es a propósito que sea acá: el Inicio es la única pantalla donde alguien
+ * todavía no vino a hacer nada. En cualquier otra sería ruido encima de lo que
+ * la persona vino a leer.
+ *
+ * También es el primer uso de `.t-serif` en toda la plataforma. La familia
+ * estaba cargada en el `index.html` desde el principio y no la usaba ni una
+ * pantalla: la itálica es el único acento humano de esta marca y estaba
+ * declarada, paga y sin estrenar.
+ *
+ * ⚠️ **La atribución es un link a la fuente y no un nombre suelto.** Es la
+ * misma regla que `datos/frases.ts` sostiene con el tipo: si la frase es de
+ * alguien, se tiene que poder ir a chequear que la dijo.
+ */
+function FraseDelDia({ fecha }: { fecha: string }) {
+  const frase = fraseDelDia(fecha)
+
+  return (
+    <section className="relative mb-8 overflow-hidden rounded-lg bg-shell px-6 py-6 text-shell-texto sm:px-8">
+      {/* El abanico como marca de agua. Va recortado por el borde de la banda
+          —no entero y centrado— porque así es un gesto de marca y no un dibujo:
+          entero pediría ser mirado, y lo que hay que leer acá es la frase. */}
+      {/* ⚠️ El `aria-hidden` va en este `<span>` y no en el `<Abanico>`, aunque
+          ahí compile: TypeScript exime del chequeo de props a los atributos con
+          guion, así que `aria-hidden` sobre un componente propio pasa el
+          typecheck **y se descarta en silencio** — `Abanico` no lo reenvía al
+          SVG. Compila, se ve igual, y el lector de pantalla lee el dibujo. */}
+      <span aria-hidden className="pointer-events-none absolute -top-6 -right-8">
+        <Abanico className="h-40 w-auto text-red/12" />
+      </span>
+      <div aria-hidden className="grano-shell absolute inset-0" />
+
+      <blockquote className="relative max-w-2xl">
+        <p className="t-serif text-xl leading-snug sm:text-2xl">{frase.texto}</p>
+
+        {frase.tipo === 'cita' && (
+          <footer className="t-mono mt-3 text-shell-tenue">
+            <a
+              href={frase.fuente}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4 transition-colors hover:text-shell-texto"
+            >
+              {frase.autor}
+            </a>
+          </footer>
+        )}
+      </blockquote>
+    </section>
+  )
+}
 
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (

@@ -4,6 +4,7 @@ import { cambiarMiPassword } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
+import { Puerta } from '../componentes/Puerta'
 import { useAuth, useUsuario } from './contexto'
 
 /**
@@ -57,22 +58,22 @@ export function CambioPasswordObligatorio() {
   }
 
   return (
-    <main className="grid min-h-full place-items-center px-6 py-12">
-      <div className="w-full max-w-sm">
-        <header className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
-            Un paso más
+    <Puerta
+      titulo="Elegí tu contraseña"
+      bajada={`Hola ${usuario.nombre}. Un paso y entrás.`}
+      pie={
+        <>
+          <p className="text-sm leading-relaxed text-tenue">
+            Entraste con una contraseña que te dio administración. Elegí una
+            propia para seguir: esa la conoce alguien más.
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-            Elegí tu contraseña
-          </h1>
-          <p className="mt-2 text-sm leading-relaxed text-tenue">
-            Hola {usuario.nombre}. Entraste con una contraseña que te dio
-            administración. Elegí una propia para seguir: esa la conoce alguien
-            más.
-          </p>
-        </header>
 
+          <Boton variante="enlace" type="button" onClick={cerrarSesion} className="mt-5">
+            Cerrar sesión
+          </Boton>
+        </>
+      }
+    >
         <form onSubmit={onSubmit} noValidate>
           <Campo
             etiqueta="Contraseña que te dieron"
@@ -119,12 +120,6 @@ export function CambioPasswordObligatorio() {
           </Boton>
         </form>
 
-        <Boton variante="enlace"
-          type="button"
-          onClick={cerrarSesion} className="mt-6">
-          Cerrar sesión
-        </Boton>
-      </div>
-    </main>
+    </Puerta>
   )
 }

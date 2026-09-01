@@ -1194,6 +1194,155 @@ Para recorrerlo hay usuarios de demostración de cada perfil, todos con la
 contraseña de desarrollo, en [`sistema-gestion-plan.md`](sistema-gestion-plan.md)
 §6d.
 
+#### 🔄 Sesión del 2026-09-01 — el rediseño de verdad, replanteado
+
+> **Ignacio vio el sistema entero y el veredicto fue más duro que el anterior:**
+> *"el sidebar está bueno, pero todo en conjunto es horrible — el contraste entre
+> el negro puro del sidebar, la barra de scroll default del navegador y la
+> pantalla blanca es un asco"*. Y la frase que ordena la etapa: *"da bronca
+> porque el backend está flama y la persistencia está épica, pero estamos
+> fallando en el user experience"*.
+>
+> **Y una corrección de rumbo explícita: se levanta la regla de "no rediseñar dos
+> veces".** Estaba escrita para no arrancar con media lista de testeo; el testeo
+> se canceló, así que la regla ya no protege nada y estaba frenando lo único que
+> falta. Lo que se asume es el costo, no la duda.
+
+##### Por qué "van tres veces y no queda": las tres pasadas no fueron de diseño
+
+Es la lectura que faltaba y explica el resto de esta sección. La **3.1** adoptó el
+sistema (11 tablas a mano → un componente): infraestructura. La **3.2** armó el
+Inicio contra §11: contenido. La sesión del **31/08** pintó **el shell** — esa sí
+fue diseño, y es exactamente la mitad que a Ignacio le gusta. **El lienzo, o sea
+las 36 pantallas, nunca tuvo una pasada de diseño propia**, y la lista que lo
+describía como "los 30 filtros y dónde entra el rojo" lo subestimaba: eran dos
+piezas de un trabajo que no existía.
+
+##### Lo que el diagnóstico encontró, todo verificado contra el código
+
+| Síntoma | Causa real |
+|---|---|
+| El contraste negro/blanco | La costura no existía: shell `#0a0a0b` y lienzo `#f4f1ea` pegados, sin transición. **Y la barra de scroll nunca se estilizó** — gris del sistema, corriendo al lado del negro |
+| "Falta identidad" | **La serif de la marca tenía CERO usos.** `.t-serif` estaba definida, la familia se descargaba en cada carga y no la usaba ni una pantalla. El eje de ancho de Archivo sí estaba activo (vía `CabeceraDePagina`) |
+| "Faltan rectángulos que digan la sección" | Literal: las secciones se separaban con un `.t-mono` de 11px y nada más |
+| "Los mensajes se ven chicos" | En Notificaciones el cuerpo es `text-sm text-tenue`: **más chico y más gris que el título**, o sea lo que hay que leer tipografiado como metadato |
+| "El login es horrible y no tiene el logo" | Se salteaba el sistema entero: `<form>` centrado sobre blanco, sin marca, con "La Juanita" en 11px |
+| — | **Cero de los assets de marca estaba en la plataforma**: ni el wordmark ni una sola foto del local, de las salas o del equipo |
+
+##### Las decisiones que tomó Ignacio
+
+1. **Tema claro/oscuro con interruptor real, y default por perfil.** No es
+   cosmética: son dos públicos con dos usos. Micaela mira esto ocho horas
+   cargando datos; un alumno entra cinco minutos. La decisión vieja —todo claro
+   porque se mira ocho horas por día— era correcta para la primera y **nunca se
+   le preguntó nada a la segunda**.
+2. **Identidad para todos los perfiles**, no sólo el portal. Sobria en las
+   pantallas de administración, linda en las del alumno — *misma familia, no
+   misma fiesta*.
+3. **Las frases de inspiración van, y son reales o no van.**
+4. **Las fotos reales del estudio entran.**
+5. ⚠️ **Nada de GSAP, cursor propio ni animación pesada** (explicitado por
+   Ignacio). Sólo transiciones CSS. **La landing es teatral porque vende; esto se
+   usa** — y además evita sumarle una dependencia y peso de bundle a una
+   aplicación que se abre todos los días.
+
+##### El plan, en siete etapas
+
+Ordenadas por cuánto cambian lo que se ve, no por dificultad.
+
+| # | Etapa | Estado |
+|---|---|---|
+| 1 | **La base y la costura** — barra de scroll propia, el borde shell↔lienzo, grano, `color-scheme`, y el tema oscuro entero | ✅ **hecha** |
+| 2 | **Las puertas** — login, registro y cambio obligatorio de contraseña, partidas en dos con foto y marca | ✅ **hecha** |
+| 3 | **El sistema de bloques** — los "rectángulos que dicen la sección" y la jerarquía de tarjetas | pendiente |
+| 4 | **El Inicio, redistribuido** — tarjetas por urgencia y no por módulo | parcial: la frase del día ya está |
+| 5 | **El portal (alumno y profesor)** — la mitad linda | pendiente |
+| 6 | **Administración** — identidad sin ruido, densidad alta, cero animación | pendiente |
+| 7 | **Notificaciones, los 30 filtros y la recorrida por rol (3.3)** | pendiente |
+
+##### Etapas 1 y 2, construidas — lo que decidieron
+
+**El tema** (`src/tema/`, `index.css`):
+
+- **El shell NO sigue al tema, y eso es la identidad.** El sidebar es tinta en
+  los dos. Lo que el interruptor cambia es el lienzo. En oscuro el shell se hunde
+  un tono más (`#08080a` contra `#101012`) para que *dónde estoy* y *qué estoy
+  mirando* sigan siendo dos superficies distintas — si comparten el negro, la
+  pantalla vuelve a ser un solo bloque y el shell deja de hacer lo que vino a
+  hacer.
+- **El rojo cambia de valor por tema**, medido: `#e52328` sobre `#101012` da
+  4,17:1 — pasa como superficie y **no** como texto; `#ff3a30` da 5,34:1. Es la
+  misma partición que ya existía en claro, con los valores al revés, y es
+  exactamente lo que la landing resuelve interpolando por tema (QA-06).
+- **El default sale del perfil y la elección de la persona le gana siempre.** Se
+  guarda al alternar y **no** al calcular el default: guardar el default
+  convertiría *"todavía no elegí"* en *"elegí esto"*, y el perfil dejaría de
+  decidir para alguien que nunca tocó nada.
+- ⚠️ **`lajuanita.tema` es una clave distinta de `lajuanita.credencial` a
+  propósito**: el tema sobrevive a cerrar sesión —es de la persona y de este
+  navegador, no de la sesión— mientras que la credencial se borra.
+- ⚠️ **El tema se aplica con un script bloqueante en `index.html`, no en un
+  efecto de React.** Si se aplicara al montar, quien eligió oscuro vería un flash
+  blanco a pantalla completa en cada carga. Es el único JavaScript de ese archivo,
+  y **la clave está escrita dos veces** (ahí no hay módulos todavía): si cambia,
+  cambia en los dos lados.
+
+**La costura** — las tres cosas que hacían que el conjunto se viera roto aunque
+cada mitad estuviera bien:
+
+- **`color-scheme`**, que es lo que hace que los controles nativos sigan al tema.
+  Sin eso, en oscuro el calendario de un `<input type="date">` y el desplegable de
+  un `<select>` se abren en blanco. **Acá pesa más que en otras aplicaciones: hay
+  treinta controles de fecha y selección repartidos en dieciséis pantallas.**
+- **Barra de scroll propia, en dos paletas** (`.zona-shell` para el menú), con
+  `scrollbar-gutter: stable` — sin eso, una tabla que crece y empieza a scrollear
+  corre el contenido 15px de golpe.
+- **La costura como sombra proyectada y no como borde**, para que el shell se lea
+  como una capa por encima del lienzo. Va como sombra y no como degradado en el
+  lienzo **porque el lienzo scrollea y el shell no**: un degradado pintado en el
+  contenido se iría con él.
+- **El grano va sólo sobre el shell.** Sobre el lienzo ensuciaría justo lo que hay
+  que leer.
+
+**Las puertas** (`componentes/Puerta.tsx`, usada por las tres):
+
+- **La mitad de tinta no sigue al tema**: es marca, no superficie de trabajo — el
+  mismo criterio que el shell.
+- ⚠️ **Abajo de `lg` la foto no se acomoda: se saca.** Apoyada arriba del
+  formulario en un teléfono empuja los campos abajo del pliegue, y una puerta
+  donde no se ve dónde escribir es peor puerta que una sin foto.
+- El velo sobre la foto **carga hacia abajo**, que es donde está el texto: sin él
+  el wordmark cae sobre el brillo del jog y desaparece.
+
+**Las frases** (`datos/frases.ts`):
+
+- ⚠️ **La regla la sostiene el TIPO, no la memoria de quien edite.** Una cita
+  atribuida exige `fuente`, así que **agregar una sin link no compila**. Es la
+  misma regla de `data/business.ts` en la landing —sólo entra lo verificado— y
+  existe porque este proyecto **ya tiene ese problema abierto**: las seis notas
+  del blog están firmadas con los nombres de Ghezz, Najles y Chapa Castelo y
+  figuran en `pendientes.md` como bloqueante para publicar.
+- **Rota por FECHA y no al azar.** Con `Math.random` la frase cambia en cada
+  render —al navegar y volver al Inicio— y una frase que parpadea deja de leerse:
+  pasa a ser un elemento que se mueve. Por fecha es la misma para toda la gente
+  todo el día, que además es lo que la vuelve algo de lo que se puede hablar. Y
+  así es testeable.
+- **Van dos citas verificadas** (Frankie Knuckles y Jeff Mills, cada una con su
+  URL) **y dos de la casa**, que son placeholder hasta que las confirme el
+  cliente. ⚠️ **Sumar citas es trabajo de búsqueda, no de código**: el mecanismo
+  no acepta una frase atribuida sin fuente.
+- Es **el primer uso de `.t-serif` en toda la plataforma**. La familia estaba
+  declarada, se descargaba en cada carga y no la usaba ni una pantalla.
+
+##### ⚠️ Una trampa de TypeScript que produce un bug silencioso
+
+**`aria-hidden` sobre un componente propio compila y no hace nada.** TypeScript
+exime del chequeo de props a los atributos con guión, así que
+`<Abanico aria-hidden />` pasa el typecheck **y se descarta**: `Abanico` no lo
+reenvía al SVG. Compila, se ve igual, y el lector de pantalla lee el dibujo
+decorativo. Va en un `<span aria-hidden>` que lo envuelve. Vale para cualquier
+`aria-*` y `data-*` sobre un componente de este repo.
+
 ### En paralelo, sin frenar nada
 
 **La landing.** Va por carril separado: está fuera del rediseño ("la landing no

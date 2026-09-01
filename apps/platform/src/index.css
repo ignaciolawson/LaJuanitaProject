@@ -108,6 +108,67 @@
   --fuente-mono: "Space Mono", ui-monospace, monospace;
 }
 
+/* ════════════════════════════════════════════════════════════════════
+   EL TEMA OSCURO
+
+   No es "el mismo diseño con los colores dados vuelta": es la misma
+   ESTRUCTURA con otra paleta. Todo lo que sigue redefine tokens y nada más
+   — ninguna pantalla sabe que existen dos temas, que es exactamente lo que
+   la adopción de la 3.1 compró. Sin ella esto serían 122 ediciones a mano.
+
+   Tres cosas que decidió:
+
+   1. **El shell sigue siendo más oscuro que el lienzo, no igual.** En claro
+      la jerarquía es tinta contra papel; en oscuro, si el sidebar y el
+      lienzo comparten el negro, la pantalla se vuelve un solo bloque y se
+      pierde el "dónde estoy" que el shell vino a resolver. Por eso hay tres
+      profundidades: shell (lo más hondo) → papel → superficie.
+
+   2. **El rojo cambia de valor, y no es un capricho.** #e52328 sobre #101012
+      mide 4,17:1 — pasa como superficie (3:1) y NO como texto (4,5:1).
+      #ff3a30 mide 5,34:1 y sí pasa. Es la misma partición que ya existe en
+      claro, con los valores al revés: acá `--acento` toma el rojo brillante.
+      Es lo mismo que la landing resuelve interpolando por tema.
+
+   3. **La sombra no funciona sobre tinta y la reemplaza la línea.** Una
+      sombra negra sobre fondo negro no separa nada. En oscuro las tarjetas se
+      despegan por su propia superficie —más clara que el papel— y por el
+      borde, así que la sombra baja a casi nada en vez de quedar puesta sin
+      hacer efecto.
+   ════════════════════════════════════════════════════════════════════ */
+
+html[data-tema="oscuro"] {
+  /* Tres profundidades, de lo más hondo a lo que se lee. */
+  --shell: #08080a;
+  --papel: #101012;
+  --superficie: #17171a;
+
+  /* Acá `--superficie-2` NO puede ser el papel como en claro: el hueco
+     hundido dentro de una tarjeta oscura tiene que verse, y sobre tinta un
+     hueco más oscuro se lee como agujero. Es un tono propio, apenas por
+     debajo de la superficie. */
+  --superficie-2: #0d0d0f;
+
+  /* 0,56 de hueso sobre #101012 mide 5,18:1 — el mismo piso medido para el
+     shell (QA-06), que sobre el papel oscuro rinde algo mejor porque el fondo
+     es más claro que el del sidebar. */
+  --tenue: rgba(232, 225, 212, 0.56);
+  --linea: rgba(232, 225, 212, 0.12);
+  --apagado: rgba(232, 225, 212, 0.34);
+
+  /* Ver el punto 2 del comentario de arriba. */
+  --acento: var(--red-hover);
+
+  --sombra-tarjeta: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --sombra-flotante:
+    0 1px 2px rgba(0, 0, 0, 0.6),
+    0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+html[data-tema="oscuro"] body {
+  color: var(--bone);
+}
+
 @theme inline {
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
@@ -235,4 +296,130 @@ body {
 :focus-visible {
   outline: 2px solid var(--red);
   outline-offset: 2px;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   LA COSTURA: barra de scroll, el borde shell↔lienzo y el grano
+
+   Las tres cosas que hacían que el conjunto se viera roto aunque cada
+   mitad estuviera bien. La más cara de las tres es la que no se había
+   tocado nunca: **la barra de scroll era la del navegador**, gris de
+   sistema, corriendo justo al lado de un sidebar #0a0a0b. No importa
+   cuánto se cuide la paleta si el elemento más alto de la pantalla es
+   de otro sistema de diseño.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* `color-scheme` es lo que hace que los controles nativos —el calendario de
+   un <input type="date">, el desplegable de un <select>, el autocompletado—
+   sigan al tema. Sin esto, en oscuro se abren en blanco: es el mismo defecto
+   de la barra de scroll, un pedazo de otro sistema de diseño encima del
+   nuestro. Y en esta plataforma pesa más que en otras, porque hay treinta
+   controles de fecha y selección repartidos en dieciséis pantallas. */
+:root {
+  color-scheme: light;
+}
+
+html[data-tema="oscuro"] {
+  color-scheme: dark;
+}
+
+/* La barra de scroll del lienzo. `scrollbar-gutter: stable` reserva el lugar
+   siempre: sin eso, una tabla que crece y empieza a scrollear corre el
+   contenido 15px hacia la izquierda de golpe. */
+html {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--linea) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--linea);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tenue);
+  background-clip: content-box;
+}
+
+/* Sobre el shell la barra va con la paleta del shell y no con la del lienzo:
+   la columna es `h-screen` y con treinta y un ítems scrollea de verdad. */
+.zona-shell {
+  scrollbar-color: var(--shell-linea) transparent;
+}
+
+.zona-shell::-webkit-scrollbar-thumb {
+  background: var(--shell-linea);
+  background-clip: content-box;
+}
+
+.zona-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--shell-tenue);
+  background-clip: content-box;
+}
+
+/* EL BORDE ENTRE LA TINTA Y EL PAPEL.
+
+   Estaban pegados a hueso, sin transición: dos rectangulos de máximo
+   contraste tocandose en una línea recta. La sombra proyectada hacia la
+   derecha hace que el shell se lea como una capa POR ENCIMA del lienzo en
+   vez de como la otra mitad de la misma hoja, que es lo que corta el
+   choque sin bajarle contraste a ninguno de los dos.
+
+   Va como sombra y no como degradado en el lienzo porque el lienzo scrollea
+   y el shell no: un degradado pintado en el contenido se iría con él. */
+.costura-shell {
+  box-shadow:
+    1px 0 0 var(--shell-linea),
+    6px 0 16px -8px rgba(10, 10, 11, 0.45);
+}
+
+/* El grano. Va SOLO sobre el shell, y esa es toda la decisión: es la textura
+   que la landing usa para que la tinta no sea un plano muerto, y sobre el
+   lienzo ensuciaría justo lo que hay que leer. Es un SVG inline —no hay
+   pedido de red— y `pointer-events: none` para que no se coma los clicks del
+   menú. */
+.grano-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+}
+
+/* El cambio de tema, para que no sea un parpadeo. Se limita a las dos
+   propiedades que cambian de verdad: transicionar `all` en un árbol de
+   treinta y seis pantallas es la forma más barata de hacer que todo se
+   sienta lento. */
+body,
+.transicion-tema {
+  transition:
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+/* Y no se anima para quien pidió que no se anime. Es la única regla de
+   movimiento del sistema y vale para todo lo que venga después. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

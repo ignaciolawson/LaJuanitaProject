@@ -4,6 +4,8 @@ import { nombreCompleto } from '../api/tipos'
 import { useAuth, useUsuario } from '../auth/contexto'
 import { Abanico } from '../componentes/Abanico'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
+import { SelectorDeTema } from '../tema/SelectorDeTema'
+import { useTema } from '../tema/useTema'
 import { menuPara } from './menu'
 
 /**
@@ -26,13 +28,14 @@ export function Layout() {
   const { cerrarSesion } = useAuth()
   const usuario = useUsuario()
   const grupos = menuPara(usuario)
+  const { tema, alternar } = useTema(usuario)
 
   return (
     <div className="flex min-h-full">
       {/* `h-screen` + `sticky`: con siete grupos y treinta y un ítems, un ADMIN
           tiene más menú que pantalla. La columna se queda quieta y scrollea sólo
           la lista; la marca y la identidad no se van de la vista. */}
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-shell text-shell-texto">
+      <aside className="costura-shell grano-shell sticky top-0 z-10 flex h-screen w-60 shrink-0 flex-col overflow-hidden bg-shell text-shell-texto">
         {/* La marca, que en el resto del sistema no aparece: el abanico está
             reservado para login, vacíos y acá. Sobre tinta el rojo es gráfico y
             no texto, así que va el rojo de marca y no `--acento`. */}
@@ -44,7 +47,7 @@ export function Layout() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-5">
+        <nav className="zona-shell flex-1 overflow-y-auto py-5">
           {grupos.map((grupo) => (
             <div key={grupo.titulo} className="mb-6 last:mb-0">
               {/* Título de dominio y etiqueta de ítem comparten color: lo que los
@@ -107,13 +110,16 @@ export function Layout() {
               Darle a `Boton` un juego de colores para el shell obligaría a que
               cada variante futura tenga su gemela oscura, para un solo control.
               El shell tiene una paleta propia y este es su único botón. */}
-          <button
-            type="button"
-            onClick={cerrarSesion}
-            className="mt-3 text-xs font-medium text-shell-tenue underline underline-offset-2 transition-colors hover:text-red"
-          >
-            Cerrar sesión
-          </button>
+          <div className="mt-3 flex flex-col gap-2.5">
+            <SelectorDeTema tema={tema} alternar={alternar} />
+            <button
+              type="button"
+              onClick={cerrarSesion}
+              className="self-start text-xs font-medium text-shell-tenue underline underline-offset-2 transition-colors hover:text-red"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </aside>
 

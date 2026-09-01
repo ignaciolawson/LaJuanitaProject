@@ -6,6 +6,7 @@ import type { RegistroRequest } from '../api/tipos'
 import { useAuth } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo } from '../componentes/Campo'
+import { Puerta } from '../componentes/Puerta'
 
 /**
  * Crear cuenta. Público.
@@ -61,19 +62,21 @@ export function RegistroPagina() {
   }
 
   return (
-    <main className="grid min-h-full place-items-center px-6 py-12">
-      <div className="w-full max-w-sm">
-        <header className="mb-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-acento">
-            La Juanita
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Crear cuenta</h1>
-          <p className="mt-2 text-sm leading-relaxed text-tenue">
-            Con tu cuenta reservás cabina, seguís tus pagos y, si cursás, ves tus
-            clases.
-          </p>
-        </header>
-
+    <Puerta
+      titulo="Crear cuenta"
+      bajada="Reservá cabina, seguí tus pagos y, si cursás, mirá tus clases."
+      pie={
+        <p className="text-sm text-tenue">
+          ¿Ya tenés cuenta?{' '}
+          <Link
+            to="/login"
+            className="font-medium underline underline-offset-2 hover:text-acento"
+          >
+            Iniciá sesión
+          </Link>
+        </p>
+      }
+    >
         <form onSubmit={onSubmit} noValidate>
           <div className="grid grid-cols-2 gap-3">
             <Campo
@@ -140,13 +143,6 @@ export function RegistroPagina() {
           </Boton>
         </form>
 
-        <p className="mt-8 text-sm text-tenue">
-          ¿Ya tenés cuenta?{' '}
-          <Link to="/login" className="text-ink underline underline-offset-2 hover:text-acento">
-            Iniciá sesión
-          </Link>
-        </p>
-      </div>
-    </main>
+    </Puerta>
   )
 }

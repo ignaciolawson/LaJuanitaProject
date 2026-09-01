@@ -26,6 +26,30 @@
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Instrument+Serif:ital@0;1&family=Space+Mono:wght@400;700&display=swap"
     />
 
+    <!--
+      El tema, ANTES de que React monte.
+
+      ⚠️ Tiene que ser un script bloqueante en el <head> y no un efecto de
+      React: si el tema se aplicara al montar, quien eligió oscuro vería un
+      flash blanco a pantalla completa en cada carga. Es la única razón por
+      la que hay JavaScript en este archivo.
+
+      Lee la misma clave que `src/tema/tema.ts` y no puede importarla —acá
+      no hay módulos todavía—, así que el string está escrito dos veces.
+      Si cambia, cambia en los dos lados.
+
+      Sin nada guardado no adivina: deja el claro del CSS y el default por
+      perfil lo resuelve `useTema` cuando ya sabe quién entró.
+    -->
+    <script>
+      try {
+        var t = localStorage.getItem('lajuanita.tema')
+        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t
+      } catch (e) {
+        /* modo privado o cookies bloqueadas: se usa el claro por defecto */
+      }
+    </script>
+
     <title>La Juanita — Gestión</title>
   </head>
   <body>
