@@ -773,11 +773,13 @@ De más barato a más caro:
 > comprobantes— también. **No falta backend, ni infraestructura, ni decisiones de
 > negocio**: lo que sigue es diseño.
 >
-> ⚠️ **Arranca cuando se congele la lista (~2026-09-11), no antes.** El argumento
-> es de §6 y no cambió: un rediseño hecho dos veces es el caro. Si el testeo trae
-> hallazgos de grupo B o C, **esos van primero**, porque cambian *qué hay* en la
-> pantalla y el diseño cambia *cómo se ve* — en ese orden cada pantalla se toca una
-> vez.
+> ⚠️ **Esto decía "arranca cuando se congele la lista (~2026-09-11), no antes", y
+> quedó superado el 2026-08-31**: Ignacio adelantó el rediseño y canceló lo que
+> quedaba del testeo, así que **ese corte no va a existir**. Se conserva escrito
+> porque el argumento sigue en pie y es el costo que se asumió: un rediseño hecho
+> dos veces es el caro, y si más adelante aparece un hallazgo de grupo B o C sobre
+> una pantalla ya rediseñada, esa pantalla se toca de nuevo. **Es una deuda
+> aceptada, no un olvido.**
 
 #### Lo que hay hoy, contado de verdad
 
@@ -978,7 +980,7 @@ errores, así que el sistema no tenía acento — tenía alarmas.
   oscura**, para un solo control. El shell tiene paleta propia y ése es su único
   botón.
 
-##### Mismo origen: hecho lo difícil, falta el formulario
+##### Mismo origen — cerrado entero (el formulario se hizo el 2026-09-01)
 
 **La decisión de hosting de octubre se adelantó a hoy**, porque es lo único que
 destraba el login en la landing. `AccesoAlCampus` ya decía que las dos salidas
@@ -1011,6 +1013,28 @@ esa apuesta, tomada.
   links, pero ya al lugar definitivo.
 
 ##### ⚠️ LO QUE QUEDA — por acá se retoma
+
+> **Actualizado el 2026-09-01.** De las tres decisiones de Ignacio, **las tres
+> están construidas**: shell oscuro, menú en 5 dominios y login en la landing.
+> Lo que sigue abierto, en orden de lo que más cambia lo que se ve:
+>
+> | # | Qué | Tamaño |
+> |---|---|---|
+> | 1 | **El componente que le falta a los filtros.** Hay **30 controles de filtro escritos a mano** en 16 pantallas: es el mismo control repetido, exactamente lo que le pasaba a `Tabla` antes de la 3.1. Ya comparten estilo (se unificaron al arreglar el `outline-none`), pero no componente — así que el próximo cambio de estilo vuelve a ser 30 ediciones | mediano, mecánico |
+> | 2 | **Dónde entra el rojo fuera de los errores.** Hoy el acento sólo aparece en fallas, así que el sistema no tiene acento: tiene alarmas. Es la tercera de las tres razones por las que se veía "default" y la única que sigue sin resolverse | decisión + chico |
+> | 3 | **La 3.3, la recorrida por rol.** Nunca se hizo. El inventario está más abajo en esta misma sección; hay usuarios de demostración de cada perfil en `sistema-gestion-plan.md` §6d | mediano |
+> | 4 | **`operacion.md` §3, la config del reverse proxy.** Las tres rutas ya están decididas y probadas en desarrollo; falta escribirlas para producción | chico |
+> | 5 | **`CORS_ORIGENES`**: deja de ejercerse en producción. Revisar que el default de desarrollo no confunda | chico |
+>
+> **Lo que NO hay que hacer**: empezar el diseño de nuevo. La adopción de la 3.1
+> es lo que hace que cada cambio de estilo toque un archivo en vez de treinta, y
+> es la única razón por la que esta fase es barata.
+>
+> **Cómo mirarlo**: `docker compose up -d`, `mvn spring-boot:run`,
+> `npm run dev:platform` **desde la raíz**, `npm run dev:landing`. Después
+> **http://localhost:3000/ingresar** para el circuito entero (login incluido) y
+> **http://localhost:5173/app/** para desarrollar la plataforma con HMR.
+
 
 1. ~~**El formulario de login en la landing.**~~ ✅ **CERRADO el 2026-09-01.**
    `apps/landing/src/lib/sesion.ts` + `AccesoAlCampus` ahora es un formulario de

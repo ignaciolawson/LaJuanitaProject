@@ -21,8 +21,9 @@
 > (`V19`) y Fase 2 también** — el buzón de solicitantes (`V20`, §9.10),
 > solicitar reprogramación (§9.11) y los formularios de la landing (§9.12).
 > **Los siete hallazgos de su §8 que eran construibles están construidos.**
-> Lo que queda es la Fase 3: el rediseño, que espera el corte de la lista
-> (~11/09).
+> Lo que queda es la Fase 3: el rediseño. *(Este párrafo decía que esperaba el
+> corte de la lista del ~11/09; ese corte se canceló el 2026-08-31 — ver el aviso
+> del 2026-09-01 más abajo.)*
 >
 > **Al 2026-08-30 se cerró además la deuda más vieja del Módulo 3**, que no venía
 > de la lista sino del punto 3.3 de acá: los comprobantes (`V21`, `mejoras.md`
@@ -33,15 +34,20 @@
 > techos de tiempo, no un test) y el botón trabado en "Anotando…" (§8.1 — estaba en
 > el código, no hacía falta reproducirlo).
 >
-> **⚠️ Al 2026-08-31 (noche) la Fase 3 está EN CURSO y el rediseño de verdad
-> arrancó.** Ignacio vio el sistema andando, dijo que sigue viéndose *"re
-> default"*, y tomó tres decisiones: **shell oscuro sobre lienzo claro**, **menú
-> agrupado en 5 dominios** y **login en la landing**. Las dos primeras están
-> construidas. La tercera **adelantó a hoy la decisión de hosting de octubre**
-> (punto 1.3 de este documento): un solo origen, landing en `/`, plataforma en
-> `/app`, backend en `/api`. Lo difícil está hecho; **falta el formulario**.
-> El detalle exacto de lo que queda está en `mejoras.md` §10 ·
-> *Sesión del 2026-08-31 (noche)*. **Empezar por ahí.**
+> **⚠️ Al 2026-09-01 la Fase 3 está EN CURSO y el rediseño de verdad arrancó.**
+> Ignacio vio el sistema andando, dijo que sigue viéndose *"re default"*, y tomó
+> tres decisiones: **shell oscuro sobre lienzo claro**, **menú agrupado en 5
+> dominios** y **login en la landing**. **Las tres están construidas.**
+>
+> La tercera **adelantó la decisión de hosting de octubre** (punto 1.3 de este
+> documento): un solo origen, landing en `/`, plataforma en `/app`, backend en
+> `/api`, todo detrás de un proxy. El circuito completo está probado contra
+> `:3000`, que es lo único que podía probarlo.
+>
+> **Lo que queda de la Fase 3, en orden**: el componente que le falta a los 30
+> controles de filtro, dónde entra el rojo fuera de los errores, la config del
+> proxy en `operacion.md` §3, y la 3.3 (la recorrida por rol). El detalle exacto
+> está en `mejoras.md` §10 · *Sesión del 2026-08-31 (noche)*. **Empezar por ahí.**
 >
 > **⚠️ Al 2026-08-31 la Fase 3 está EN CURSO: 3.1 y 3.2 cerradas, queda la 3.3.**
 > Ignacio adelantó el rediseño y canceló lo que quedaba del testeo, así que **el
@@ -165,7 +171,8 @@ confirmar el cliente:
 
 | Qué | Dónde | Por qué importa |
 |---|---|---|
-| ~~**Conectar los formularios**~~ | `components/forms/Fields.tsx` | ✅ **HECHO el 2026-08-30** (`mejoras.md` §9.12). Y `/ingresar` quedó como puerta a la plataforma: un login acá no puede entregarle la sesión |
+| ~~**Conectar los formularios**~~ | `components/forms/Fields.tsx` | ✅ **HECHO el 2026-08-30** (`mejoras.md` §9.12) |
+| ~~**`/ingresar` era una puerta, no un login**~~ | `components/forms/AccesoAlCampus.tsx` | ✅ **DEJÓ DE SERLO el 2026-09-01.** Era cierto que *"un login acá no puede entregarle la sesión"* mientras las dos apps vivieran en orígenes distintos. Con el mismo origen decidido, `localStorage` se comparte y la entrega es directa. **Es la única línea de este documento que se volvió falsa por una decisión y no por un bug** |
 | ⚠️ **Los precios inventados** | `data/services.ts` | Son **números sobre los que un cliente decide**. Es el ítem de más riesgo de toda la landing |
 | ⚠️ **P34 — la duración de los cursos no coincide** | landing vs. relevamiento | Landing: DJ 6 meses / 2 clases semanales. Confirmado: DJ 8 clases, 1 por semana. **Alguno de los dos está mal** |
 | ⚠️ **Mix & Mastering aparece como programa de 3 meses** | landing | **No existe como programa** (P31): es un servicio. Lo inventó la landing |
