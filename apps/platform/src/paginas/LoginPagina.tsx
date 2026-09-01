@@ -36,26 +36,26 @@ export function LoginPagina() {
 
   return (
     <Puerta
-      titulo="Sistema de gestiÃ³n"
-      // La Ãºnica frase con voz de toda la plataforma, y va acÃ¡ porque acÃ¡
-      // no hay nada que hacer todavÃ­a. Adentro, en una pantalla de carga de
-      // datos, una lÃ­nea asÃ­ serÃ­a ruido.
+      titulo="Sistema de gestión"
+      // La única frase con voz de toda la plataforma, y va acá porque acá
+      // no hay nada que hacer todavía. Adentro, en una pantalla de carga de
+      // datos, una línea así sería ruido.
       bajada="Tus clases, tus salas y tus pagos, en un solo lugar."
       pie={
         <>
           <p className="text-sm text-tenue">
-            Â¿No tenÃ©s cuenta?{' '}
+            ¿No tenés cuenta?{' '}
             <Link
               to="/registro"
               className="font-medium underline underline-offset-2 hover:text-acento"
             >
-              CreÃ¡ una
+              Creá una
             </Link>
           </p>
 
           <p className="mt-4 text-xs leading-relaxed text-apagado">
-            Â¿Olvidaste la contraseÃ±a? Pedile a administraciÃ³n que te la resetee:
-            las contraseÃ±as se guardan encriptadas y no se pueden recuperar.
+            ¿Olvidaste la contraseña? Pedile a administración que te la resetee:
+            las contraseñas se guardan encriptadas y no se pueden recuperar.
           </p>
         </>
       }
@@ -76,7 +76,7 @@ export function LoginPagina() {
         </label>
 
         <label className="mt-5 block">
-          <span className="t-mono text-tenue">ContraseÃ±a</span>
+          <span className="t-mono text-tenue">Contraseña</span>
           <input
             type="password"
             name="password"
@@ -100,7 +100,7 @@ export function LoginPagina() {
         )}
 
         <Boton type="submit" disabled={enviando} className="mt-7 w-full">
-          {enviando ? 'Entrandoâ¦' : 'Entrar'}
+          {enviando ? 'Entrando…' : 'Entrar'}
         </Boton>
       </form>
     </Puerta>
