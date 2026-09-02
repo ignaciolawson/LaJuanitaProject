@@ -36,13 +36,20 @@ public class EgresoService {
     }
 
     @Transactional(readOnly = true)
+    /**
+     * El listado, con sus filtros.
+     *
+     * <p><b>{@code destino} divide la sección por dentro</b> (`mejoras.md` §12 ·
+     * C3): {@code PROFESOR} son los sueldos, {@code OTRO} el resto de los gastos.
+     * Ver {@link EgresoRepository#listar}, donde está por qué el corte es ése.
+     */
     public Pagina<EgresoResumen> listar(String buscar, LocalDate desde, LocalDate hasta,
-            int pagina, int tamanio) {
+            String destino, int pagina, int tamanio) {
 
         Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio),
                 Sort.by(Sort.Direction.DESC, "fechaEgreso").and(Sort.by(Sort.Direction.DESC, "id")));
 
-        return Pagina.de(egresos.listar(desde, hasta, Busqueda.patron(buscar), paginado)
+        return Pagina.de(egresos.listar(desde, hasta, Busqueda.patron(buscar), destino, paginado)
                 .map(EgresoResumen::de));
     }
 

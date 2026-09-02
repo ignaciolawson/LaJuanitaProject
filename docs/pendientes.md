@@ -62,17 +62,18 @@
 > cierra, es un modo de trabajo** — no hay que esperar a tenerla completa para
 > empezar, y cada punto conviene cerrarlo por su cuenta.
 >
-> **⚠️ ESTADO AL 2026-09-01, cerrado el mismo día que se abrió: los ocho puntos
-> del grupo A, el único de B, y C1.** Suites en **558 backend · 489 front · 212 +
-> 56 SQL**; build y linters limpios. La migración `V22` es de esa barrida.
+> **⚠️ ESTADO: de los once puntos quedan uno.** El 2026-09-01 se cerraron los ocho
+> del grupo A, el único de B y C1; el 2026-09-02, C3. Suites en **560 backend ·
+> 491 front · 212 + 56 SQL**; build y linters limpios. La migración `V22` es de
+> esa barrida.
 >
-> **Lo que queda son dos puntos, los dos contestados y ninguno empezado**, y el
-> orden está en el bloque *"DÓNDE RETOMAR"* con el que abre `mejoras.md` §12:
+> **Y el 2026-09-02 se cerró C3** (egresos divididos en pagos a profesores y otros
+> gastos), que **no necesitó migración**: salió de `egreso.id_usuario_destino`.
 >
-> 1. **C3 · egresos, pagos a profesores vs. otros gastos** — **no toca el esquema**
->    (sale de `egreso.id_usuario_destino`, que existe desde `V1` y no usa ninguna
->    pantalla). Es lo próximo y es corto.
-> 2. **C2 · materiales por programa y por clase** — sería **`V23`**.
+> **Queda UN punto de la barrida, contestado y sin empezar**, y el detalle está en
+> el bloque *"DÓNDE RETOMAR"* con el que abre `mejoras.md` §12:
+>
+> - **C2 · materiales por programa y por clase** — sería **`V23`**.
 >
 > **Las preguntas de negocio de los tres están contestadas**: `platform.md` §17
 > (P39 y P40, el descuento automático) y **§18 (P41 y P42, materiales y egresos,

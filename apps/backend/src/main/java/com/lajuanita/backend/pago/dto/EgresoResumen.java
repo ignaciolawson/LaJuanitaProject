@@ -19,6 +19,16 @@ public record EgresoResumen(
         /** El nombre de la cuenta si la hay; si no, el texto libre. */
         String destinatario,
         Long idUsuarioDestino,
+        /**
+         * Si esta plata es un sueldo (`mejoras.md` §12 · C3).
+         *
+         * <p>Es {@code idUsuarioDestino != null} con nombre: la fila tiene que
+         * poder decir de qué lado del corte está sin que la pantalla vuelva a
+         * deducirlo, que es la forma en que dos lugares terminan contando
+         * distinto. Ver {@link com.lajuanita.backend.pago.EgresoRepository#listar}
+         * para por qué el corte es ése y no la relación de profesor.
+         */
+        boolean esPagoAProfesor,
         String comprobantePath,
         LocalDate fechaEgreso,
         OffsetDateTime fechaRegistro,
@@ -46,6 +56,7 @@ public record EgresoResumen(
                         ? destino.getNombre() + " " + destino.getApellido()
                         : egreso.getDestinatario(),
                 destino == null ? null : destino.getId(),
+                destino != null,
                 egreso.getComprobantePath(),
                 egreso.getFechaEgreso(),
                 egreso.getFechaRegistro(),

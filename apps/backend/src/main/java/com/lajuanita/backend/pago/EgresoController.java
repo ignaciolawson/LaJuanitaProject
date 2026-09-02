@@ -49,10 +49,16 @@ public class EgresoController {
             @RequestParam(required = false) String buscar,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            // De qué lado del corte: `PROFESOR` son los sueldos, `OTRO` el resto
+            // de los gastos (§12 · C3). Viaja como String y no como enum porque no
+            // hay ningún enum de esto: es una columna nullable de `egreso` con dos
+            // lecturas. Un valor desconocido no rompe nada — no coincide con
+            // ninguna rama y devuelve vacío.
+            @RequestParam(required = false) String destino,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        return egresos.listar(buscar, desde, hasta, pagina, tamanio);
+        return egresos.listar(buscar, desde, hasta, destino, pagina, tamanio);
     }
 
     @PostMapping

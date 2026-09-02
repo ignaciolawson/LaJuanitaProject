@@ -11,6 +11,34 @@ import org.springframework.data.repository.query.Param;
 
 public interface EgresoRepository extends JpaRepository<Egreso, Long> {
 
+    /**
+     * El listado, con los filtros de la pantalla.
+     *
+     * <p><b>{@code destino} divide la sección por dentro</b> (`mejoras.md` §12 ·
+     * C3, `platform.md` §18 · P42): los pagos a profesores por un lado y el resto
+     * de los gastos por el otro. Es el corte grande —sueldos contra gastos— y
+     * <b>no necesitó una columna nueva</b>: sale de {@code id_usuario_destino},
+     * que existe desde `V1` con su comentario escrito (<i>"si el egreso es un pago
+     * a un profesor, queda vinculado"</i>) y que hasta hoy no usaba ninguna
+     * pantalla.
+     *
+     * <p>⚠️ <b>El corte es "tiene destinatario con cuenta", no "esa cuenta tiene
+     * relación de profesor"</b>, y la diferencia importa el día que alguien la
+     * cambie. Se eligió así por dos razones: la única pantalla que escribe esta
+     * columna ofrece <b>solo profesores</b> (el alta de egresos la llena desde
+     * {@code listarProfesores}), y sobre todo porque <b>es estable en el
+     * tiempo</b> — mirar la relación haría que un sueldo pagado en marzo dejara de
+     * contar como sueldo el día que esa persona deje de dar clases, y la historia
+     * de la plata no puede cambiar hacia atrás. Es el mismo criterio por el que en
+     * este esquema nada se borra.
+     *
+     * <p>Si algún día el alta permite apuntar el egreso a alguien que no es
+     * profesor, este corte pasa a decir otra cosa y hay que revisarlo acá.
+     *
+     * <p><b>Filtra el servidor y no la pantalla</b>: el listado pagina de a
+     * veinte, así que recortar lo ya traído mostraría un subconjunto de esas
+     * veinte filas como si fuera el total.
+     */
     @Query(value = """
             SELECT e FROM Egreso e
             LEFT JOIN FETCH e.usuarioDestino
@@ -18,6 +46,9 @@ public interface EgresoRepository extends JpaRepository<Egreso, Long> {
               AND (:hasta IS NULL OR e.fechaEgreso <= :hasta)
               AND (LOWER(e.concepto) LIKE :patron
                 OR LOWER(COALESCE(e.destinatario, '')) LIKE :patron)
+              AND (:destino IS NULL
+                OR (:destino = 'PROFESOR' AND e.usuarioDestino IS NOT NULL)
+                OR (:destino = 'OTRO'     AND e.usuarioDestino IS NULL))
             """,
             countQuery = """
             SELECT count(e) FROM Egreso e
@@ -25,10 +56,14 @@ public interface EgresoRepository extends JpaRepository<Egreso, Long> {
               AND (:hasta IS NULL OR e.fechaEgreso <= :hasta)
               AND (LOWER(e.concepto) LIKE :patron
                 OR LOWER(COALESCE(e.destinatario, '')) LIKE :patron)
+              AND (:destino IS NULL
+                OR (:destino = 'PROFESOR' AND e.usuarioDestino IS NOT NULL)
+                OR (:destino = 'OTRO'     AND e.usuarioDestino IS NULL))
             """)
     Page<Egreso> listar(@Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta,
             @Param("patron") String patron,
+            @Param("destino") String destino,
             Pageable paginado);
 
     /**

@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import type { EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
+import type { DestinoDeEgreso, EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
+import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
@@ -35,6 +35,8 @@ export function EgresosPagina() {
   const [totalPaginas, setTotalPaginas] = useState(0)
   const [pagina, setPagina] = useState(0)
   const [buscar, setBuscar] = useState('')
+  /** La división por dentro de §12 · C3: sueldos o el resto de los gastos. */
+  const [destino, setDestino] = useState<DestinoDeEgreso | ''>('')
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
@@ -44,7 +46,7 @@ export function EgresosPagina() {
     setCargando(true)
     setError(null)
     try {
-      const resultado = await listarEgresos({ buscar, pagina })
+      const resultado = await listarEgresos({ buscar, destino, pagina })
       setEgresos(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -53,7 +55,7 @@ export function EgresosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, pagina])
+  }, [buscar, destino, pagina])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)
@@ -85,18 +87,33 @@ export function EgresosPagina() {
 
       <AvisoSoloLectura />
 
-      <div className="mb-4">
-        <input
-          type="search"
-          value={buscar}
-          onChange={(e) => {
-            setBuscar(e.target.value)
+      <Filtros>
+        <FiltroTexto
+          etiqueta="Buscar"
+          valor={buscar}
+          onCambio={(v: string) => {
+            setBuscar(v)
             setPagina(0)
           }}
           placeholder="Buscar por concepto o destinatario…"
-          className={`w-full ${CONTROL_DE_FILTRO}`}
         />
-      </div>
+        {/* §12 · C3. Los rubros de verdad —alquiler, servicios, equipamiento—
+            necesitan una columna nueva y la lista confirmada con el cliente
+            (`platform.md` §18 · P42); este corte es el grande y sale del dato
+            que ya existe. */}
+        <FiltroSelect
+          etiqueta="Filtrar por tipo de gasto"
+          valor={destino}
+          onCambio={(v: string) => {
+            setDestino(v as DestinoDeEgreso | '')
+            setPagina(0)
+          }}
+        >
+          <option value="">Todo lo que salió</option>
+          <option value="PROFESOR">Pagos a profesores</option>
+          <option value="OTRO">Otros gastos</option>
+        </FiltroSelect>
+      </Filtros>
 
       {error && (
         <div className="mb-4">
@@ -137,10 +154,12 @@ export function EgresosPagina() {
                 </Celda>
                 <Celda className="text-tenue">
                   {e.destinatario ?? <span className="text-apagado">—</span>}
-                  {/* Vale distinguirlo: un egreso a alguien con cuenta se puede
-                      cruzar contra sus clases; uno a texto libre, no. */}
-                  {e.idUsuarioDestino && (
-                    <div className="text-xs text-apagado">tiene cuenta en el sistema</div>
+                  {/* La misma palabra que el filtro, para que la fila y el
+                      desplegable no nombren distinto la misma cosa. Antes decía
+                      "tiene cuenta en el sistema", que es el dato técnico y no
+                      lo que significa. */}
+                  {e.esPagoAProfesor && (
+                    <div className="text-xs text-tenue">Pago a profesor</div>
                   )}
                 </Celda>
                 <Celda numerica className="whitespace-nowrap font-medium">

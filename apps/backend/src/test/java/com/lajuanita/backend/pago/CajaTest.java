@@ -190,6 +190,71 @@ class CajaTest {
         caja().andExpect(jsonPath("$[?(@.moneda == 'ARS')].egresos").value(0.00));
     }
 
+    // == Dividir los egresos por dentro (`mejoras.md` §12 · C3) ===============
+
+    /**
+     * El corte que pidió Ignacio: <i>"profesores vs. resto, ya"</i>.
+     *
+     * <p><b>No necesitó una columna nueva</b>: sale de {@code id_usuario_destino},
+     * que existe desde `V1` con su comentario escrito y que hasta ahora no usaba
+     * ninguna pantalla. Por eso este punto, que la barrida había triado como C,
+     * terminó siendo B.
+     *
+     * <p>Filtra <b>en el servidor</b>: el listado pagina de a veinte, así que
+     * recortar lo ya traído mostraría un subconjunto como si fuera el total.
+     */
+    @Test
+    void los_egresos_se_dividen_en_sueldos_y_otros_gastos() throws Exception {
+        Usuario profe = crear(Rol.USUARIO);
+
+        mvc.perform(cargarEgreso("""
+                {"monto":420000,"moneda":"ARS","concepto":"Honorarios de agosto",
+                 "idUsuarioDestino":%d,"fechaEgreso":"%s"}
+                """.formatted(profe.getId(), DIA))).andExpect(status().isCreated());
+
+        mvc.perform(cargarEgreso("""
+                {"monto":200000,"moneda":"ARS","concepto":"Alquiler del local",
+                 "fechaEgreso":"%s"}
+                """.formatted(DIA))).andExpect(status().isCreated());
+
+        // Los sueldos: todas las filas apuntan a una persona.
+        mvc.perform(get("/api/egresos").param("destino", "PROFESOR")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.esPagoAProfesor == false)]").isEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.concepto == 'Honorarios de agosto')]").isNotEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.concepto == 'Alquiler del local')]").isEmpty());
+
+        // Y el otro lado, que es lo que prueba que el filtro corta de verdad: sin
+        // este caso, un filtro que no filtra nada pasaría la mitad de arriba.
+        mvc.perform(get("/api/egresos").param("destino", "OTRO")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.esPagoAProfesor == true)]").isEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.concepto == 'Alquiler del local')]").isNotEmpty());
+    }
+
+    /** Sin filtro se ven los dos: dividir no es esconder la mitad. */
+    @Test
+    void sin_filtro_el_listado_trae_las_dos_clases_de_egreso() throws Exception {
+        Usuario profe = crear(Rol.USUARIO);
+
+        mvc.perform(cargarEgreso("""
+                {"monto":420000,"moneda":"ARS","concepto":"Honorarios sin filtro",
+                 "idUsuarioDestino":%d,"fechaEgreso":"%s"}
+                """.formatted(profe.getId(), DIA))).andExpect(status().isCreated());
+
+        mvc.perform(cargarEgreso("""
+                {"monto":200000,"moneda":"ARS","concepto":"Alquiler sin filtro",
+                 "fechaEgreso":"%s"}
+                """.formatted(DIA))).andExpect(status().isCreated());
+
+        mvc.perform(get("/api/egresos").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.concepto == 'Honorarios sin filtro')]").isNotEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.concepto == 'Alquiler sin filtro')]").isNotEmpty());
+    }
+
     /** La segunda anulación pisaría el autor y el motivo de la primera. */
     @Test
     void un_egreso_no_se_anula_dos_veces() throws Exception {
@@ -544,6 +609,14 @@ class CajaTest {
         inscripcion.setPrecioTotal(new BigDecimal(precio));
         inscripcion.setMoneda(Moneda.ARS);
         return inscripciones.save(inscripcion);
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cargarEgreso(
+            String cuerpo) {
+        return post("/api/egresos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo);
     }
 
     private String comoStaff() {

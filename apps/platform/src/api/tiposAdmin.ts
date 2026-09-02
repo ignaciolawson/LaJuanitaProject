@@ -482,6 +482,16 @@ export type Deudor = {
 }
 
 /** Espeja `EgresoResumen`. */
+/**
+ * De qué lado del corte está un egreso (`mejoras.md` §12 · C3).
+ *
+ * `PROFESOR` son los sueldos —el egreso apunta a una cuenta— y `OTRO` el resto
+ * de los gastos del estudio. **Los rubros de verdad** (alquiler, servicios,
+ * equipamiento) **no existen todavía**: necesitan la lista confirmada con el
+ * cliente y una columna nueva. Ver `platform.md` §18 · P42.
+ */
+export type DestinoDeEgreso = 'PROFESOR' | 'OTRO'
+
 export type EgresoResumen = {
   idEgreso: number
   monto: number
@@ -490,6 +500,13 @@ export type EgresoResumen = {
   concepto: string
   destinatario: string | null
   idUsuarioDestino: number | null
+  /**
+   * Si esta plata es un sueldo. Lo decide el servidor, no la pantalla.
+   *
+   * Es `idUsuarioDestino !== null` con nombre: que la fila lo diga evita que dos
+   * lugares vuelvan a deducirlo y terminen contando distinto.
+   */
+  esPagoAProfesor: boolean
   comprobantePath: string | null
   fechaEgreso: string
   fechaRegistro: string

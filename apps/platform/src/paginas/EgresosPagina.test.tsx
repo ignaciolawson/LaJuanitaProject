@@ -33,6 +33,7 @@ function egreso(cambios: Partial<EgresoResumen> = {}): EgresoResumen {
     concepto: 'Clases de marzo',
     destinatario: 'Tomás Ghezzi',
     idUsuarioDestino: 20,
+    esPagoAProfesor: true,
     comprobantePath: null,
     fechaEgreso: '2026-08-16',
     fechaRegistro: '2026-08-16T14:00:00Z',
@@ -147,22 +148,70 @@ describe('el listado', () => {
     expect(screen.getByText('$ 150.000,00')).toBeDefined()
   })
 
-  /** Un egreso a alguien con cuenta se puede cruzar contra sus clases; uno libre, no. */
-  it('distingue al destinatario que tiene cuenta', async () => {
+  /**
+   * La fila dice de qué lado del corte está (`mejoras.md` §12 · C3).
+   *
+   * Antes decía *"tiene cuenta en el sistema"*, que es el dato técnico y no lo
+   * que significa. **Usa la misma palabra que el filtro**, para que el
+   * desplegable y la fila no nombren distinto la misma cosa.
+   */
+  it('marca los pagos a profesores', async () => {
     montar()
 
-    expect(await screen.findByText('tiene cuenta en el sistema')).toBeDefined()
+    expect(await screen.findByText('Pago a profesor')).toBeDefined()
   })
 
-  it('un egreso a un proveedor no lo dice', async () => {
+  it('un gasto a un proveedor no lleva esa marca', async () => {
     vi.mocked(listarEgresos).mockResolvedValue(
-      pagina([egreso({ destinatario: 'Inmobiliaria Pilar', idUsuarioDestino: null })]),
+      pagina([
+        egreso({
+          destinatario: 'Inmobiliaria Pilar',
+          idUsuarioDestino: null,
+          esPagoAProfesor: false,
+        }),
+      ]),
     )
 
     montar()
 
     expect(await screen.findByText('Inmobiliaria Pilar')).toBeDefined()
-    expect(screen.queryByText('tiene cuenta en el sistema')).toBeNull()
+    expect(screen.queryByText('Pago a profesor')).toBeNull()
+  })
+})
+
+describe('dividir los egresos por dentro (§12 · C3)', () => {
+  it('⚠️ filtrar por tipo de gasto le pide al servidor, no recorta lo ya traído', async () => {
+    // Es la decisión del punto. El listado pagina de a veinte: filtrar en la
+    // pantalla mostraría un subconjunto de esas veinte como si fuera el total,
+    // que es el mismo defecto que B1 evitó en Pagos y no falla nunca — la
+    // pantalla anda y el número miente.
+    const user = userEvent.setup()
+    montar()
+    await screen.findByText('Clases de marzo')
+
+    await elegir(user, 'Filtrar por tipo de gasto', 'PROFESOR')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarEgresos)).toHaveBeenCalledWith(
+        expect.objectContaining({ destino: 'PROFESOR' }),
+      ),
+    )
+  })
+
+  it('al filtrar se vuelve a la primera página', async () => {
+    // Sin esto, filtrar estando en la página 3 devuelve vacío y se lee como que
+    // no hay gastos de ese tipo.
+    const user = userEvent.setup()
+    montar()
+    await screen.findByText('Clases de marzo')
+
+    await elegir(user, 'Filtrar por tipo de gasto', 'OTRO')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarEgresos)).toHaveBeenCalledWith(
+        expect.objectContaining({ destino: 'OTRO', pagina: 0 }),
+      ),
+    )
   })
 })
 

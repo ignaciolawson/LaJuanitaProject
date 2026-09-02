@@ -1890,20 +1890,16 @@ ningún desarrollo de backend.**
 
 **Lo que sigue, en orden, es esto:**
 
-1. **C3 · Egresos: "pagos a profesores" vs. "otros gastos".** Contestado
-   (`platform.md` §18 · P42), **sin migración**, sin empezar. Es corto: un filtro
-   por destino en `EgresoRepository.listar` —**en el servidor**, que la pantalla
-   pagina— más la marca en la fila. Es el mismo trabajo que B1 hizo en Pagos, y
-   conviene mirar cómo quedó allá antes de escribirlo.
-2. **C2 · Materiales por programa y por clase.** Contestado y **listo para
+1. **C2 · Materiales por programa y por clase.** Contestado y **listo para
    construir**: `platform.md` §18 · P41 tiene la forma completa y las dos cosas que
-   hay que decidir al escribir la migración. Sería **`V23`**.
-3. Después: desactivar el admin sembrado por `V3` (una migración propia), y el
+   hay que decidir al escribir la migración. Sería **`V23`**. **Es lo único que
+   queda de la barrida.**
+2. Después: desactivar el admin sembrado por `V3` (una migración propia), y el
    deploy de octubre.
 
-**Lo que quedó cerrado el 2026-09-01**: los ocho puntos del grupo A, B1, y C1
-(`V22`). **Suites: 558 backend · 489 front · 212 + 56 SQL**, build y linters
-limpios. Nada quedó a medias en el árbol.
+**Lo que quedó cerrado**: los ocho puntos del grupo A, B1 y C1 (`V22`) el
+2026-09-01; **C3 el 2026-09-02**. **Suites: 560 backend · 491 front · 212 + 56
+SQL**, build y linters limpios. Nada quedó a medias en el árbol.
 
 ⚠️ **Y las dos advertencias de método que costaron tiempo esta sesión**, las dos
 anotadas también en `CLAUDE.md`:
@@ -2340,17 +2336,27 @@ era ninguna de las dos que Ignacio nombró:
 >   incluidas las dos cosas que hay que decidir al escribirla: qué pasa con
 >   `es_grupal` —que cambia de significado— y **qué se hace con las filas que ya
 >   existen y no tienen programa** (el precedente es `V21` §2: no se inventan).
-> - **C3 · Egresos** — ✅ **contestado el 2026-09-01**: ***profesores vs. resto,
->   ya***. **Y eso NO necesita migración**: sale de `egreso.id_usuario_destino`,
->   que existe desde `V1` y hoy no lo usa ninguna pantalla. O sea que C3, tal como
->   quedó contestado, **es grupo B y no C** — vuelve a la lista de lo que se hace
->   sin tocar el esquema. Ver `platform.md` §18 · P42.
+> - **C3 · Egresos** — ✅ **HECHO el 2026-09-02.** Contestado como ***profesores
+>   vs. resto, ya***, y **sin migración**: salió de `egreso.id_usuario_destino`,
+>   que existe desde `V1` con su comentario escrito y que **no usaba ninguna
+>   pantalla**. O sea que este punto, triado como C, terminó siendo B. Ver
+>   `platform.md` §18 · P42.
 >
->   ⚠️ **Es lo próximo a construir y está sin empezar** (se cortó la sesión antes
->   de escribir una línea; no hay nada a medias en el árbol). El corte es por si el
->   egreso apunta a alguien con relación `profesor`, filtrado **en el servidor** —
->   `EgresosPagina` pagina, así que filtrar lo ya traído mostraría un subconjunto
->   como si fuera el total, que es el mismo defecto que B1 evitó en Pagos.
+>   La pantalla gana un filtro *Pagos a profesores / Otros gastos*, filtrado **en
+>   el servidor** —`EgresosPagina` pagina, así que recortar lo ya traído mostraría
+>   un subconjunto como si fuera el total—, y cada fila dice de qué lado está.
+>
+>   ⚠️ **El corte es "tiene destinatario con cuenta", NO "esa cuenta tiene
+>   relación de profesor"**, y la diferencia es deliberada: mirar la relación
+>   haría que **un sueldo pagado en marzo dejara de contar como sueldo el día que
+>   esa persona deje de dar clases**. La historia de la plata no puede cambiar
+>   hacia atrás — es el mismo criterio por el que en este esquema nada se borra.
+>   Hoy las dos lecturas dan igual porque el alta sólo ofrece profesores; si eso
+>   cambia, el corte hay que revisarlo (está anotado en la consulta).
+>
+>   **De paso, la pantalla adoptó la barra `Filtros`** del sistema de diseño: era
+>   una de las que se había quedado con un `<input type="search">` suelto de antes
+>   de la 3.1.
 >
 >   Los rubros de verdad (alquiler, servicios, equipamiento) quedan afuera por
 >   ahora: necesitan la lista confirmada con el cliente, y es el tipo de dato que

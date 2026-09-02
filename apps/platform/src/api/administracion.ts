@@ -14,6 +14,7 @@ import type {
   EstadoPago,
   EstadoSolicitante,
   MedioPago,
+  DestinoDeEgreso,
   DestinoDePago,
   PagoResumen,
   Disciplina,
@@ -663,6 +664,14 @@ export function listarEgresos(opciones: {
   buscar?: string
   desde?: string
   hasta?: string
+  /**
+   * Divide la sección por dentro (`mejoras.md` §12 · C3): los sueldos por un
+   * lado y el resto de los gastos por el otro.
+   *
+   * ⚠️ **Filtra el servidor, no la pantalla.** El listado pagina de a veinte, así
+   * que recortar lo ya traído mostraría un subconjunto como si fuera el total.
+   */
+  destino?: DestinoDeEgreso | ''
   pagina?: number
 }) {
   return pedir<Pagina<EgresoResumen>>(`/api/egresos${query({ ...opciones })}`)

@@ -1629,6 +1629,22 @@ desde `V1` —*"si el egreso es un pago a un profesor, queda vinculado"*— y qu
 **no lo usa ninguna pantalla**. Así que este punto, tal como quedó contestado,
 **es grupo B y no C**.
 
+✅ **Construido el 2026-09-02.** Una decisión que quedó tomada al hacerlo, y que
+conviene no revertir sin leer esto:
+
+⚠️ **El corte es "el egreso tiene destinatario con cuenta", NO "esa cuenta tiene
+relación de profesor".** Parece más preciso mirar la relación y es peor: **un
+sueldo pagado en marzo dejaría de contar como sueldo el día que esa persona deje
+de dar clases**, porque la relación se puede quitar. La historia de la plata no
+puede cambiar hacia atrás — es el mismo criterio por el que en este esquema no se
+borra nada y se anula con firma.
+
+Hoy las dos lecturas dan idéntico, porque la única pantalla que escribe esa
+columna la llena desde el selector de profesores. **Si algún día el alta permite
+apuntar el egreso a alguien que no es profesor** —una devolución a un alumno, por
+ejemplo— el corte pasa a decir otra cosa y hay que revisarlo; queda anotado en
+`EgresoRepository.listar`.
+
 **Los rubros de verdad quedan afuera por ahora** (alquiler, servicios,
 equipamiento, marketing). Necesitan la lista confirmada con el cliente antes de la
 columna: es el tipo de dato que si se inventa se usa mal para siempre, y una lista
