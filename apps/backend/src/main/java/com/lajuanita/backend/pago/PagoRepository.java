@@ -324,6 +324,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                    p.moneda, SUM(p.monto), COUNT(p), MIN(p.fechaPago)
             FROM Pago p LEFT JOIN p.usuario u
             WHERE p.estadoPago IN :adeudados
+              AND """ + DeudaCobrable.JPQL + """
             GROUP BY u.id, p.nombrePagadorExterno, p.moneda
             ORDER BY MIN(p.fechaPago)
             """)

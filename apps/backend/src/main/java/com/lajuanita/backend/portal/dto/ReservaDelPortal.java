@@ -2,6 +2,7 @@ package com.lajuanita.backend.portal.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 
 import com.lajuanita.backend.reserva.EstadoAsistencia;
 import com.lajuanita.backend.reserva.EstadoReserva;
@@ -41,6 +42,16 @@ public record ReservaDelPortal(
         LocalTime horaFin,
         EstadoReserva estado,
         /**
+         * Hasta cuándo está apartado este horario sin pagar (`V24`).
+         *
+         * <p><b>Es lo único de la prereserva que el portal necesita, y no puede
+         * faltar:</b> sin el plazo, el estado PRECONFIRMADA se lee como "está
+         * reservada" y la persona se entera de que no lo estaba cuando el horario
+         * ya se liberó. Null en cualquier otro estado, y eso lo garantiza un CHECK
+         * de la base.
+         */
+        OffsetDateTime venceEn,
+        /**
          * Cómo quedó registrada mi asistencia.
          *
          * <p>Null cuando esta reserva es mía por haberla pagado y no por estar
@@ -64,6 +75,7 @@ public record ReservaDelPortal(
                 reserva.getHoraInicio(),
                 reserva.getHoraFin(),
                 reserva.getEstado(),
+                reserva.getVencePreconfirmacion(),
                 miAsistencia);
     }
 }

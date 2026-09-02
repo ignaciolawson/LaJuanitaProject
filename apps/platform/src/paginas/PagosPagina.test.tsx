@@ -34,6 +34,7 @@ vi.mock('../api/administracion', () => ({
   listarUsuarios: vi.fn(),
   listarVentas: vi.fn(),
   totalesPorLinea: vi.fn(),
+  cobrarPago: vi.fn(),
 }))
 
 vi.mock('../api/mastering', () => ({ listarTrabajos: vi.fn() }))
@@ -51,6 +52,7 @@ const {
   listarVentas,
   registrarPago,
   totalesPorLinea,
+  cobrarPago,
 } = await import('../api/administracion')
 const { listarTrabajos } = await import('../api/mastering')
 
@@ -839,5 +841,47 @@ describe('los comprobantes', () => {
     expect(await screen.findByRole('button', { name: 'transferencia.pdf' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Invalidar' })).toBeNull()
     expect(screen.queryByLabelText('Adjuntar')).toBeNull()
+  })
+})
+
+/**
+ * Cobrar una deuda anotada (`mejoras.md` §13 · C1).
+ *
+ * **Esta acción no existía**, y la prereserva la puso en evidencia: el estado de
+ * un pago no se edita —y por buenos motivos— así que el único camino para una fila
+ * en DEBE era anularla y volver a cargarla. Con la deuda de una prereserva eso no
+ * puede funcionar: anularla la dejaría sin nada detrás y la base la rechaza.
+ */
+describe('cobrar una deuda (§13 · C1)', () => {
+  it('sólo se ofrece sobre lo que está anotado como deuda', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ estadoPago: 'DEBE', entro: false })]))
+    montar()
+
+    expect(await screen.findByRole('button', { name: 'Cobrar' })).toBeDefined()
+  })
+
+  it('no se ofrece sobre un pago que ya entró', async () => {
+    // Corregir un pago cobrado es anularlo, que deja la explicación escrita. Un
+    // "Cobrar" sobre algo ya cobrado sería un segundo camino a la misma
+    // transición, con menos exigencia — que es como se termina cobrando dos veces.
+    montar()
+
+    await screen.findByText('DJ · INICIAL')
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
+  })
+
+  it('cobrar manda el pedido y vuelve a traer la lista', async () => {
+    // Se recarga entera y no se parchea la fila: si esa deuda sostenía una
+    // prereserva, el backend además confirmó la reserva, así que lo que cambió no
+    // es sólo este renglón.
+    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ estadoPago: 'DEBE', entro: false })]))
+    vi.mocked(cobrarPago).mockResolvedValue(pago({ estadoPago: 'PAGADO' }))
+
+    const user = userEvent.setup()
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Cobrar' }))
+
+    await waitFor(() => expect(cobrarPago).toHaveBeenCalledWith(1))
+    expect(vi.mocked(listarPagos).mock.calls.length).toBeGreaterThan(1)
   })
 })

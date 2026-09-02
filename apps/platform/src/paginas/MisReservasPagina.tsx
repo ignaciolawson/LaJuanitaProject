@@ -8,6 +8,7 @@ import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { cuando } from '../componentes/presentacion'
 import { Proxima } from '../componentes/Proxima'
 
 /**
@@ -222,6 +223,8 @@ export function MisReservasPagina() {
                   <span className="font-medium text-acento">
                     {r.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}
                   </span>
+                ) : r.estado === 'PRECONFIRMADA' ? (
+                  <Apartada venceEn={r.venceEn} />
                 ) : (
                   <Asistencia estado={r.miAsistencia} />
                 )}
@@ -258,4 +261,31 @@ function Asistencia({ estado }: { estado: ReservaDelPortal['miAsistencia'] }) {
     return <span className="text-tenue">Falta justificada</span>
 
   return <span className="text-apagado">Diste de baja</span>
+}
+
+/**
+ * El horario está apartado y falta abonarlo (`mejoras.md` §13 · C1).
+ *
+ * **Dice el plazo con la hora y no sólo el día**, y no es un detalle: el plazo es
+ * el menor entre 24 horas y el inicio de la franja, así que puede vencer esta
+ * misma tarde. "Vence el 03/09" sobre algo que se cae a las 10 de la mañana es
+ * información que hace perder el horario.
+ *
+ * ⚠️ **Va en rojo a propósito.** En el resto del sistema el acento es un bisturí,
+ * pero acá lo que se está diciendo es *tenés algo que hacer y hay un reloj
+ * corriendo*: es exactamente el caso para el que ese color existe. Sin esto, una
+ * prereserva se lee igual que una reserva confirmada y la persona se entera de que
+ * no lo estaba cuando el horario ya se liberó.
+ */
+function Apartada({ venceEn }: { venceEn: string | null }) {
+  return (
+    <span className="font-medium text-acento">
+      Falta abonarla
+      {venceEn && (
+        <span className="block font-normal text-tenue">
+          Vence el {cuando(venceEn)}
+        </span>
+      )}
+    </span>
+  )
 }

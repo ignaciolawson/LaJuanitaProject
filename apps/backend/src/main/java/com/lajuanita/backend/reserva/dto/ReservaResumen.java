@@ -2,6 +2,7 @@ package com.lajuanita.backend.reserva.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.lajuanita.backend.profesor.Profesor;
@@ -30,6 +31,15 @@ public record ReservaResumen(
         LocalTime horaInicio,
         LocalTime horaFin,
         EstadoReserva estado,
+        /**
+         * Hasta cuándo está apartado el horario sin pagar (`V24`).
+         *
+         * <p><b>Null en todo lo que no esté PRECONFIRMADA</b>, y eso lo garantiza el
+         * CHECK de la base y no esta clase. Acá viaja porque el calendario tiene que
+         * poder decir cuánto le queda a una prereserva: una celda que sólo dijera
+         * "apartada" obliga a abrirla para saber si se cae hoy o mañana.
+         */
+        OffsetDateTime venceEn,
         String notas,
         Long idReservaRecupera,
         String motivoReprogramacion,
@@ -56,6 +66,7 @@ public record ReservaResumen(
                 reserva.getHoraInicio(),
                 reserva.getHoraFin(),
                 reserva.getEstado(),
+                reserva.getVencePreconfirmacion(),
                 reserva.getNotas(),
                 recupera == null ? null : recupera.getId(),
                 reserva.getMotivoReprogramacion(),

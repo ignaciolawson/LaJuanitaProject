@@ -56,6 +56,28 @@ public enum TipoNotificacion {
     RESERVA_MOVIDA,
 
     /**
+     * Le apartamos la sala y falta que la abone (`V24`, `mejoras.md` §13 · C1).
+     *
+     * <p><b>Va a quien pidió, y su texto tiene que decir qué hacer y hasta
+     * cuándo.</b> Es la diferencia entera con {@link #SOLICITUD_APROBADA}: un
+     * <i>"está confirmado"</i> sobre un horario que se cae en 24hs deja tranquila a
+     * la persona equivocada, y el estudio pierde la venta y el horario. Como no hay
+     * mail ni WhatsApp, esta notificación <b>es</b> el canal.
+     */
+    RESERVA_PRECONFIRMADA,
+
+    /**
+     * Se cumplió el plazo y el horario se liberó (`V24`).
+     *
+     * <p><b>Va a las dos partes, y por motivos distintos.</b> A quien pidió, porque
+     * creía tener una reserva y ya no la tiene — enterarse al llegar al estudio es
+     * el peor final posible. A administración, porque el horario volvió a estar
+     * libre y porque es un dato comercial: alguien pidió, se le ofreció un precio y
+     * no pagó.
+     */
+    PRERESERVA_VENCIDA,
+
+    /**
      * Alguien lleva más de {@code PagoService.DIAS_PARA_VENCER} días debiendo.
      *
      * <p>Es la regla dura de §6, y <b>le llega a administración, no a quien

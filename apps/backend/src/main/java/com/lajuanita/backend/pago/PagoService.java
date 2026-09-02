@@ -336,6 +336,76 @@ public class PagoService {
         return PagoResumen.de(pagos.saveAndFlush(pago));
     }
 
+    /**
+     * Entró la plata que estaba anotada como deuda (`mejoras.md` §13 · C1).
+     *
+     * <p><b>Este endpoint faltaba, y la prereserva lo puso en evidencia.</b> Hasta
+     * hoy una fila en {@code DEBE} no tenía forma de pasar a cobrada:
+     * {@code estadoPago} no se edita —y por buenos motivos, ver
+     * {@link EdicionPagoRequest}— así que el único camino era anularla y cargar
+     * otra. Con una deuda de inscripción eso alcanza; con la de una prereserva
+     * <b>no puede funcionar</b>, porque anularla la dejaría sin nada detrás y el
+     * trigger de `V24` la rechaza. El circuito entero —apartar el horario y
+     * cobrarlo después— depende de que esta transición exista.
+     *
+     * <p><b>Es su propio endpoint y no un campo de la edición</b>, por lo mismo que
+     * la anulación: son transiciones con reglas propias, y dos caminos hacia la
+     * misma transición con distinta exigencia es como se termina cobrando algo que
+     * nadie miró.
+     *
+     * <p>Sólo va de {@link EstadoPago#ADEUDADOS} a {@link EstadoPago#ENTRARON}: no
+     * es un editor de estados. Un pago ya cobrado que se quiere corregir se anula,
+     * que es el camino que ya existe y que deja la explicación escrita.
+     */
+    @Transactional
+    public PagoResumen cobrar(Long id, EstadoPago comoEntro, Long idAutor) {
+        Pago pago = buscar(id);
+
+        if (!EstadoPago.ADEUDADOS.contains(pago.getEstadoPago())) {
+            throw new SolicitudInvalidaException(
+                    "Ese pago no está anotado como deuda (está " + pago.getEstadoPago()
+                            + "), así que no hay nada que cobrar.");
+        }
+        if (!comoEntro.entro()) {
+            throw new SolicitudInvalidaException(
+                    "Cobrar deja el pago en SENADO o en PAGADO, no en " + comoEntro + ".");
+        }
+
+        pago.setEstadoPago(comoEntro);
+        pago.firmarEdicion(idAutor);
+
+        // ⚠️ El flush no es decorativo: el trigger de `V11` que vigila la plata
+        // detrás de una reserva es INMEDIATO, y abajo hay que leer la reserva ya
+        // con el pago adentro. Sin esto, el UPDATE viaja recién en el commit y la
+        // confirmación de la prereserva se decidiría sobre datos viejos.
+        pagos.saveAndFlush(pago);
+
+        confirmarLaPrereserva(pago, idAutor);
+
+        return PagoResumen.de(pago);
+    }
+
+    /**
+     * Si esta plata sostenía una prereserva, la reserva queda confirmada.
+     *
+     * <p><b>Es un acto y no dos.</b> Cobrar y confirmar separados dejan reservas
+     * pagas que nadie confirmó, esperando que alguien se acuerde de apretar un
+     * segundo botón — y mientras tanto el vencimiento sigue corriendo sobre algo ya
+     * abonado, así que el horario se cae igual.
+     *
+     * <p>Vive acá y no en un trigger a propósito: cambiar el estado de otra tabla
+     * desde la base esconde la mitad del circuito en un lugar donde nadie la busca,
+     * y este sistema ya eligió que las reglas <i>entre</i> módulos vivan en Java
+     * cuando la base no las necesita para defenderse.
+     */
+    private void confirmarLaPrereserva(Pago pago, Long idAutor) {
+        Reserva reserva = pago.getReserva();
+        if (reserva != null && reserva.estaPreconfirmada()) {
+            reserva.confirmar(idAutor);
+            reservas.saveAndFlush(reserva);
+        }
+    }
+
     // == Las dos excepciones ==================================================
 
     /**

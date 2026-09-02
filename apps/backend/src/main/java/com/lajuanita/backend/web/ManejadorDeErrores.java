@@ -80,6 +80,11 @@ public class ManejadorDeErrores {
             Map.entry("reserva_no_se_recupera_a_si_misma",
                     "Una reserva no puede ser la recuperación de sí misma."),
             Map.entry("reserva_uso_permitido_en_sala", "Esa sala no se usa para ese tipo de actividad."),
+            // `V24`: el vencimiento y el estado van juntos, en los dos sentidos. Sin
+            // esta línea el CHECK sale como un 409 sin texto y quien lo recibe no
+            // tiene con qué entender que le falta (o le sobra) la fecha del plazo.
+            Map.entry("reserva_preconfirmada_vence",
+                    "Una reserva apartada necesita su fecha de vencimiento, y ninguna otra puede tenerla."),
             Map.entry("reserva_horas_validas", "La hora de fin tiene que ser posterior a la de inicio."),
             Map.entry("bloqueo_sin_solapamiento", "Ya hay un bloqueo cargado para esa sala en ese período."),
             Map.entry("bloqueo_rango_fechas_valido", "La fecha de fin no puede ser anterior a la de inicio."),

@@ -1,5 +1,6 @@
 package com.lajuanita.backend.solicitud;
 
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -14,6 +15,7 @@ import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.reserva.ReservaRepository;
 import com.lajuanita.backend.reserva.ReservaService;
 import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
+import com.lajuanita.backend.reserva.dto.AltaPreconfirmacionRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
 import com.lajuanita.backend.reserva.dto.ReservaCreada;
@@ -63,6 +65,16 @@ public class SolicitudReservaService {
     public static final int DIAS_MAXIMOS_DE_ANTICIPACION = 62;
 
     private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /**
+     * El vencimiento de una prereserva se dice <b>con la hora</b>.
+     *
+     * <p>El plazo puede ser de menos de un día —es el menor entre 24hs y el inicio
+     * de la franja (P44)—, así que "vence el 03/09" sobre algo que se cae a las
+     * 10 de la mañana es información que hace perder el horario.
+     */
+    private static final DateTimeFormatter DIA_Y_HORA =
+            DateTimeFormatter.ofPattern("dd/MM 'a las' HH:mm");
 
     private final SolicitudReservaRepository solicitudes;
     private final UsuarioRepository usuarios;
@@ -193,24 +205,57 @@ public class SolicitudReservaService {
                 null,
                 List.of(new AltaParticipanteRequest(quienPidio.getId(), null)),
                 // Quién paga lo pone el servidor: es el que pidió. Ver AprobacionRequest.
-                new AltaSenaRequest(quienPidio.getId(),
-                        aprobacion.monto(),
-                        aprobacion.moneda(),
-                        aprobacion.cotizacionDolar(),
-                        aprobacion.medioPago())),
+                //
+                // Los dos caminos son excluyentes y lo dice `AltaReservaRequest`: o
+                // se cobra ahora (el de siempre), o se aparta el horario con la
+                // deuda anotada y su plazo (`V24`).
+                aprobacion.esPreconfirmacion() ? null
+                        : new AltaSenaRequest(quienPidio.getId(),
+                                aprobacion.monto(),
+                                aprobacion.moneda(),
+                                aprobacion.cotizacionDolar(),
+                                aprobacion.medioPago()),
+                aprobacion.esPreconfirmacion()
+                        ? new AltaPreconfirmacionRequest(quienPidio.getId(),
+                                aprobacion.monto(),
+                                aprobacion.moneda(),
+                                aprobacion.cotizacionDolar(),
+                                aprobacion.medioPago(),
+                                normalizar(aprobacion.respuesta()))
+                        : null),
                 idAutor);
 
         Reserva reserva = reservas.getReferenceById(creada.reserva().idReserva());
         solicitud.aprobar(reserva, buscarUsuario(idAutor), normalizar(aprobacion.respuesta()));
 
-        avisos.avisar(quienPidio,
-                TipoNotificacion.SOLICITUD_APROBADA,
-                "Te confirmamos la sala",
-                "Tu pedido de " + solicitud.getTipoUso().getNombre().toLowerCase()
-                        + " en " + solicitud.getSala().getNombreSala() + " para el "
-                        + solicitud.getFecha().format(DIA) + " a las " + solicitud.getHoraInicio()
-                        + " está confirmado.",
-                "/mis-reservas");
+        // ⚠️ El aviso dice cosas distintas y no es cosmética: en la prereserva, la
+        // persona TIENE QUE HACER ALGO y tiene hasta cuándo. Un "está confirmado"
+        // sobre un horario que se cae en 24hs es la peor forma de perder una venta,
+        // porque el que lo lee se queda tranquilo. Y como no hay mail ni WhatsApp,
+        // esta notificación ES el canal: el texto tiene que aguantar solo.
+        if (reserva.estaPreconfirmada()) {
+            avisos.avisar(quienPidio,
+                    TipoNotificacion.RESERVA_PRECONFIRMADA,
+                    "Te apartamos la sala: falta abonarla",
+                    "Te reservamos " + solicitud.getSala().getNombreSala() + " para el "
+                            + solicitud.getFecha().format(DIA) + " a las " + solicitud.getHoraInicio()
+                            + ". Para confirmarla hay que abonar "
+                            + aprobacion.moneda() + " "
+                            + aprobacion.monto().setScale(2, RoundingMode.HALF_UP).toPlainString()
+                            + " antes del " + reserva.getVencePreconfirmacion().format(DIA_Y_HORA)
+                            + ". Pasado ese plazo el horario se libera."
+                            + textoExtra(aprobacion.respuesta()),
+                    "/mis-reservas");
+        } else {
+            avisos.avisar(quienPidio,
+                    TipoNotificacion.SOLICITUD_APROBADA,
+                    "Te confirmamos la sala",
+                    "Tu pedido de " + solicitud.getTipoUso().getNombre().toLowerCase()
+                            + " en " + solicitud.getSala().getNombreSala() + " para el "
+                            + solicitud.getFecha().format(DIA) + " a las " + solicitud.getHoraInicio()
+                            + " está confirmado.",
+                    "/mis-reservas");
+        }
 
         // El id de la seña vuelve con la solicitud para que la pantalla le adjunte
         // el comprobante que quien aprueba está mirando. Ver `AprobacionRealizada`.
@@ -306,5 +351,17 @@ public class SolicitudReservaService {
         }
         String limpio = texto.trim();
         return limpio.isEmpty() ? null : limpio;
+    }
+
+    /**
+     * Lo que administración quiso agregarle al aviso, si escribió algo.
+     *
+     * <p>Va <b>adentro del texto</b> de la notificación y no como un campo aparte
+     * por lo mismo que el motivo de un rechazo: acá no hay mail ni WhatsApp, la
+     * notificación es el canal, y lo que no entre en ese texto no llega.
+     */
+    private String textoExtra(String respuesta) {
+        String limpio = normalizar(respuesta);
+        return limpio == null ? "" : " " + limpio;
     }
 }

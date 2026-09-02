@@ -92,7 +92,29 @@ public record AltaReservaRequest(
          * apuntando a esta reserva, y tiene que entrar en la misma transacción
          * porque no puede apuntar a algo que todavía no existe.
          */
-        @Valid AltaSenaRequest sena) {
+        @Valid AltaSenaRequest sena,
+
+        /**
+         * La otra forma de que la reserva nazca: <b>apartada, con la deuda
+         * anotada</b> (`mejoras.md` §13 · C1).
+         *
+         * <p>Excluyente con {@link #sena()}: o la plata entró, o quedó anotada con
+         * su plazo. Ver {@link AltaPreconfirmacionRequest}.
+         */
+        @Valid AltaPreconfirmacionRequest preconfirmacion) {
+
+    /**
+     * <b>O se cobra, o se aparta. Nunca las dos.</b>
+     *
+     * <p>Con las dos, la reserva nacería PRECONFIRMADA <i>y</i> con plata adentro:
+     * un plazo corriendo sobre algo ya pagado, que es lo que el CHECK
+     * {@code reserva_preconfirmada_vence} existe para que no pase. La base lo
+     * rechazaría igual; esto lo dice antes y señalando el campo.
+     */
+    @AssertTrue(message = "Una reserva se cobra o se aparta con la deuda anotada, no las dos cosas.")
+    public boolean isCobradaOApartada() {
+        return sena == null || preconfirmacion == null;
+    }
 
     /**
      * <b>Esta es la regla DB-11</b>, y por eso está acá y no en la base.

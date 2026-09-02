@@ -93,6 +93,21 @@ public class Reserva {
     @Column(name = "estado", nullable = false, length = 20)
     private EstadoReserva estado = EstadoReserva.CONFIRMADA;
 
+    /**
+     * Hasta cuándo está apartado el horario sin pagar (`V24`).
+     *
+     * <p>⚠️ <b>Va con el estado, en los dos sentidos.</b> El CHECK
+     * {@code reserva_preconfirmada_vence} exige que esté cuando el estado es
+     * {@link EstadoReserva#PRECONFIRMADA} <b>y que no esté en ningún otro caso</b>:
+     * un vencimiento que sobreviva a la confirmación le diría a quien mire la
+     * pantalla <i>"vence en 3hs"</i> sobre una reserva ya paga.
+     *
+     * <p>Por eso no se toca suelto: {@link #preconfirmar} y {@link #confirmar} lo
+     * escriben junto con el estado.
+     */
+    @Column(name = "vence_preconfirmacion")
+    private OffsetDateTime vencePreconfirmacion;
+
     @Column(name = "notas", columnDefinition = "text")
     private String notas;
 
@@ -134,4 +149,33 @@ public class Reserva {
      */
     @Column(name = "fecha_modificacion", insertable = false, updatable = false)
     private OffsetDateTime fechaModificacion;
+
+    /**
+     * Nace apartada, con su plazo (`V24`).
+     *
+     * <p>Los dos campos se escriben juntos y por acá, nunca sueltos: el CHECK
+     * {@code reserva_preconfirmada_vence} los exige de a pares, y separar las dos
+     * asignaciones deja que alguien escriba una sola.
+     */
+    public void preconfirmar(OffsetDateTime vence) {
+        this.estado = EstadoReserva.PRECONFIRMADA;
+        this.vencePreconfirmacion = vence;
+    }
+
+    /**
+     * Entró la plata: queda confirmada y el plazo se borra.
+     *
+     * <p>Borrar el vencimiento no es limpieza: si quedara, la pantalla mostraría
+     * un plazo vivo sobre una reserva ya paga, y el CHECK lo rechaza.
+     */
+    public void confirmar(Long idAutor) {
+        this.estado = EstadoReserva.CONFIRMADA;
+        this.vencePreconfirmacion = null;
+        this.idUsuarioModifico = idAutor;
+    }
+
+    /** ¿Está esperando que entre la plata? */
+    public boolean estaPreconfirmada() {
+        return estado == EstadoReserva.PRECONFIRMADA;
+    }
 }

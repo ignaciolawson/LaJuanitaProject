@@ -67,6 +67,14 @@ export type AltaAlumnoResultado = {
 // -- Salas y calendario -----------------------------------------------------
 
 export type EstadoReserva =
+  /**
+   * El horario apartado con la deuda anotada y su plazo (`V24`, §13 · C1).
+   *
+   * ⚠️ **Ocupa la franja**, igual que una confirmada: ése es el punto entero, que
+   * el que pidió primero se quede con el horario. Lo que la separa es que tiene
+   * fecha de vencimiento, y al cumplirse se cancela sola.
+   */
+  | 'PRECONFIRMADA'
   | 'CONFIRMADA'
   | 'MODIFICADA'
   | 'CANCELADA'
@@ -157,6 +165,14 @@ export type ReservaResumen = {
   horaInicio: string
   horaFin: string
   estado: EstadoReserva
+  /**
+   * Hasta cuándo está apartado el horario sin pagar (`V24`).
+   *
+   * **Null en todo lo que no esté `PRECONFIRMADA`**, y eso lo garantiza un CHECK
+   * de la base: un plazo vivo sobre una reserva ya paga le diría a quien mire la
+   * pantalla "vence en 3hs".
+   */
+  venceEn: string | null
   notas: string | null
   idReservaRecupera: number | null
   motivoReprogramacion: string | null

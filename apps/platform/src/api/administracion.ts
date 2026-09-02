@@ -603,6 +603,22 @@ export function anularPago(id: number, motivo: string) {
   return pedir<PagoResumen>(`/api/pagos/${id}/anulacion`, { metodo: 'PATCH', cuerpo: { motivo } })
 }
 
+/**
+ * Entró la plata que estaba anotada como deuda (`mejoras.md` §13 · C1).
+ *
+ * **Esta transición no existía**, y la prereserva la puso en evidencia: el estado
+ * de un pago no se edita —y por buenos motivos— así que el único camino era anular
+ * y volver a cargar. Con la deuda de una prereserva eso no puede funcionar, porque
+ * anularla la dejaría sin nada detrás y la base la rechaza.
+ *
+ * **Si esa deuda sostenía una prereserva, la reserva queda confirmada en el mismo
+ * movimiento**: separarlo deja reservas pagas que nadie confirmó, con el
+ * vencimiento corriendo igual.
+ */
+export function cobrarPago(id: number, comoEntro: 'PAGADO' | 'SENADO' = 'PAGADO') {
+  return pedir<PagoResumen>(`/api/pagos/${id}/cobro?comoEntro=${comoEntro}`, { metodo: 'PATCH' })
+}
+
 // -- Los comprobantes de un pago (`V21`) --------------------------------------
 //
 // Hasta esta tanda el comprobante era un campo de texto de este mismo formulario:

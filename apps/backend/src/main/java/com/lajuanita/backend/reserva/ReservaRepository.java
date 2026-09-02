@@ -1,6 +1,7 @@
 package com.lajuanita.backend.reserva;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -180,4 +181,25 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("idUsuario") Long idUsuario,
             @Param("cancelada") EstadoAsistencia cancelada,
             @Param("entraron") Iterable<EstadoPago> entraron);
+
+    /**
+     * Las prereservas cuyo plazo ya se cumplió (`V24`, P43).
+     *
+     * <p>Trae la sala y el tipo de uso porque el aviso los nombra: quien pidió la
+     * cabina tiene que poder leer <b>cuál</b> horario se le cayó sin abrir otra
+     * pantalla.
+     *
+     * <p>El corte es estricto (<code>&lt;</code>): al instante exacto del
+     * vencimiento la persona todavía está en plazo, y una prereserva que se cae en
+     * el mismo segundo que vence es una que se cayó un segundo antes.
+     */
+    @Query("""
+            SELECT r FROM Reserva r
+            JOIN FETCH r.sala
+            JOIN FETCH r.tipoUso
+            WHERE r.estado = :preconfirmada
+              AND r.vencePreconfirmacion < :ahora
+            """)
+    List<Reserva> prereservasVencidas(@Param("preconfirmada") EstadoReserva preconfirmada,
+            @Param("ahora") OffsetDateTime ahora);
 }

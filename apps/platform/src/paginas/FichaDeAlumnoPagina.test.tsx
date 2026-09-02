@@ -86,6 +86,7 @@ function clase(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
     horaInicio: '10:00:00',
     horaFin: '11:30:00',
     estado: 'FINALIZADA',
+    venceEn: null,
     notas: null,
     idReservaRecupera: null,
     motivoReprogramacion: null,

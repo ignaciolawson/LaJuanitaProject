@@ -94,17 +94,22 @@
 > lectura de Ignacio sobre esta tanda: *"cada vez encuentro menos, vamos por el
 > camino correcto"*.
 >
-> Cuatro puntos, y **tres ya están cerrados** (2026-09-02): **A1** las frases
-> reales de DJ (de 14 a 29, con 17 citas verificadas de diez personas), **B1** los
-> contadores de pendientes en el sidebar (`GET /api/pendientes`) y **B2** los pagos
-> divididos en solapas por línea de negocio.
+> ✅ **Los cuatro puntos están cerrados** (2026-09-02): **A1** las frases reales de
+> DJ (de 14 a 29, con 17 citas verificadas de diez personas), **B1** los contadores
+> de pendientes en el sidebar (`GET /api/pendientes`), **B2** los pagos divididos
+> en solapas por línea de negocio, y **C1 la prereserva** (`V24`), con sus cinco
+> respuestas de negocio en `platform.md` §19 (P43–P47).
 >
-> 🔴 **Queda C1: la prereserva**, y es lo único abierto de la barrida. Toca una
-> regla que hoy sostienen tres triggers, así que **lleva migración: es `V24`**. Sus
-> cinco respuestas de negocio están en `platform.md` §19 (P43–P47), contestadas
-> antes de escribir código.
+> **Suites: 584 backend · 515 front · 226 + 56 SQL**, sobre 24 migraciones.
 >
 > ⚠️ **Por eso desactivar el admin sembrado se corre a `V25`.**
+>
+> ⚠️ **Y C1 dejó una decisión abierta a propósito, anotada acá para que no se
+> pierda**: el vencimiento automático de una prereserva firma la cancelación con
+> **quien preconfirmó**, porque `V7` exige autor y acá el autor es un reloj. Está
+> argumentado —esa persona puso el plazo y su consecuencia— pero **si algún día
+> este sistema necesita una identidad para actos automáticos, éste es el primer
+> lugar donde mirar**.
 
 ---
 

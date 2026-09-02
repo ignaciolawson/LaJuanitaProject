@@ -123,9 +123,10 @@ describe('aprobar es cobrar', () => {
    * cómo ponerla. Si esto alguna vez se convierte en un botón suelto, el alta
    * de la reserva se cae al cerrar la transacción.
    */
-  it('confirmar pide la seña antes de crear la reserva', async () => {
+  it('confirmar cobrando pide la seña antes de crear la reserva', async () => {
     montar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
 
     expect(screen.getByText(/no se aparta un horario sin pago por adelantado/i)).toBeDefined()
     expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
@@ -146,7 +147,8 @@ describe('aprobar es cobrar', () => {
     const archivo = new File(['%PDF-1.4'], 'transferencia.pdf', { type: 'application/pdf' })
 
     montar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
     await userEvent.upload(screen.getByLabelText('Comprobante'), archivo)
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
@@ -159,7 +161,8 @@ describe('aprobar es cobrar', () => {
     vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
 
     montar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
@@ -169,7 +172,8 @@ describe('aprobar es cobrar', () => {
 
   it('no deja confirmar sin monto', async () => {
     montar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     expect(screen.getByRole('alert').textContent).toContain('Poné el monto de la seña')
@@ -179,7 +183,8 @@ describe('aprobar es cobrar', () => {
   /** Espeja `pago_usd_con_cotizacion`: sin ella el importe no se reconstruye. */
   it('un pago en dólares exige la cotización', async () => {
     montar()
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '100')
     await elegir(userEvent, 'Moneda', 'USD')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
@@ -197,7 +202,8 @@ describe('aprobar es cobrar', () => {
     vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar y cobrar' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
     await userEvent.type(screen.getByLabelText(/Monto de la seña/), '15000')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
@@ -208,6 +214,7 @@ describe('aprobar es cobrar', () => {
       moneda: 'ARS',
       cotizacionDolar: undefined,
       medioPago: 'TRANSFERENCIA',
+      preconfirmar: false,
       respuesta: undefined,
     })
     expect(sena).not.toHaveProperty('idUsuario')
@@ -245,7 +252,67 @@ describe('permisos', () => {
     montar('DIRECTIVO')
 
     expect(await screen.findByText('Ríos, Camila')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Confirmar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Confirmar el pedido' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Rechazar' })).toBeNull()
+  })
+})
+
+/**
+ * La prereserva (`mejoras.md` §13 · C1).
+ *
+ * El problema que resuelve, en las palabras de Ignacio: *"el admin está obligado
+ * a tener ya el cobro de la reserva para ponerle 'confirmar y cobrar', entonces va
+ * a tener eso ahí en pendiente"*. Apartar el horario saca el pedido de la bandeja
+ * sin obligar a cobrar en ese momento.
+ */
+describe('apartar el horario sin cobrar (§13 · C1)', () => {
+  it('⚠️ apartar es lo que ofrece primero, no cobrar', async () => {
+    // **Es la respuesta al problema, no una preferencia de orden.** Si cobrar
+    // fuera el default, el admin seguiría teniendo que tener la plata en la mano
+    // para sacar el pedido de la bandeja — que es exactamente lo que se pidió
+    // cambiar.
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+
+    expect(screen.getByRole('radio', { name: 'Apartar el horario' }).getAttribute('aria-checked'))
+      .toBe('true')
+    expect(screen.getByRole('button', { name: 'Apartar el horario' })).toBeDefined()
+  })
+
+  it('apartando manda preconfirmar y no adjunta ningún comprobante', async () => {
+    vi.mocked(aprobarSolicitud).mockResolvedValue(aprobada())
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+    await userEvent.type(screen.getByLabelText(/Monto a abonar/), '45000')
+    await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
+
+    await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
+    const [, sena] = vi.mocked(aprobarSolicitud).mock.calls[0]
+    expect(sena.preconfirmar).toBe(true)
+    expect(adjuntarComprobante).not.toHaveBeenCalled()
+  })
+
+  it('⚠️ apartando no hay campo de comprobante, porque no existe', async () => {
+    // No es que sea opcional: nadie pagó todavía. Un campo para adjuntarlo invita
+    // a subir cualquier cosa contra una deuda, que es el defecto que el hallazgo
+    // #5 vino a cerrar del otro lado.
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+
+    expect(screen.queryByLabelText('Comprobante')).toBeNull()
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
+    expect(screen.getByLabelText('Comprobante')).toBeDefined()
+  })
+
+  it('dice el plazo y qué pasa si no se abona', async () => {
+    // La persona del otro lado tiene que saber que hay un reloj corriendo, y quien
+    // aparta también: sin esto, "apartar" se lee como una reserva más.
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
+
+    expect(screen.getByText(/24 horas/)).toBeDefined()
+    expect(screen.getByText(/el horario se libera solo/)).toBeDefined()
   })
 })

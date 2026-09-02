@@ -187,6 +187,24 @@ public class PagoController {
     }
 
     /** Anular un pago ya cargado. No se borra nunca (P15). */
+    /**
+     * Entró la plata que estaba anotada como deuda (`mejoras.md` §13 · C1).
+     *
+     * <p>Es su propio endpoint por lo mismo que la anulación: son transiciones con
+     * regla propia, y meterlas en el PUT de edición sería dos caminos hacia la misma
+     * transición con distinta exigencia.
+     *
+     * <p><b>Si esa deuda sostenía una prereserva, la reserva queda confirmada en el
+     * mismo movimiento.</b> Ver {@code PagoService.cobrar}.
+     */
+    @PatchMapping("/{id}/cobro")
+    @PuedeOperar
+    public PagoResumen cobrar(@PathVariable Long id,
+            @RequestParam(defaultValue = "PAGADO") EstadoPago comoEntro,
+            Authentication quienPide) {
+        return pagos.cobrar(id, comoEntro, Autoridades.idDe(quienPide));
+    }
+
     @PatchMapping("/{id}/anulacion")
     @PuedeOperar
     public PagoResumen anular(@PathVariable Long id,

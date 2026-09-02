@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,7 @@ import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
+import com.lajuanita.backend.reserva.dto.AltaPreconfirmacionRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
 import com.lajuanita.backend.reserva.dto.ReservaCreada;
@@ -42,6 +46,7 @@ import com.lajuanita.backend.sala.TipoUso;
 import com.lajuanita.backend.sala.TipoUsoRepository;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -245,6 +250,15 @@ public class ReservaService {
         reserva.setMotivoReprogramacion(normalizar(solicitud.motivoReprogramacion()));
         reserva.setIdUsuarioCreo(idAutor);
 
+        // ⚠️ ANTES del save, y esto costó nueve casos rojos. La escalera de `V24`
+        // §5 prohíbe que un UPDATE ponga PRECONFIRMADA —a la prereserva se entra
+        // sólo al nacer—, así que insertar la reserva y marcarla apartada después
+        // es exactamente el esquive que ese trigger existe para cerrar. Tiene que
+        // nacer apartada, no pasar a estarlo.
+        if (solicitud.preconfirmacion() != null) {
+            reserva.preconfirmar(venceLaPreconfirmacion(reserva));
+        }
+
         if (solicitud.idReservaRecupera() != null) {
             Reserva original = buscar(solicitud.idReservaRecupera());
             reserva.setReservaRecupera(original);
@@ -288,6 +302,14 @@ public class ReservaService {
                 ? null
                 : registrarLaSena(solicitud.sena(), guardada.getId(), idAutor);
 
+        // El otro nacimiento posible (`V24`): el horario queda apartado con la
+        // deuda anotada. La deuda va en la MISMA transacción por lo mismo que la
+        // seña -- el chequeo diferido corre al COMMIT y no le importa el orden en
+        // que Hibernate escriba, pero sí que las dos filas estén.
+        if (solicitud.preconfirmacion() != null) {
+            idPagoSena = anotarLaDeuda(solicitud.preconfirmacion(), guardada.getId(), idAutor);
+        }
+
         // El id de la seña vuelve para que la pantalla pueda adjuntarle el
         // comprobante enseguida: desde `V21` el archivo va por su propio endpoint y
         // no cabe en este JSON. Ver `ReservaCreada`.
@@ -304,6 +326,7 @@ public class ReservaService {
      * <p>{@code SENADO}, no {@code PAGADO}: es plata que entró contra un total que
      * todavía no se completó.
      */
+
     private Long registrarLaSena(AltaSenaRequest sena, Long idReserva, Long idAutor) {
         return pagos.registrar(new AltaPagoRequest(
                 sena.idUsuario(),
@@ -326,6 +349,61 @@ public class ReservaService {
                 // desde `V21` es un archivo con su propia firma, y se adjunta contra
                 // este id apenas la reserva existe.
                 .idPago();
+    }
+
+    /**
+     * Hasta cuándo se aguanta un horario sin cobrarlo (P43/P44).
+     *
+     * <p>Es configurable por si el estudio quiere apretar o aflojar el plazo, y
+     * tiene un default porque una regla de negocio que sólo existe en un archivo de
+     * configuración es una regla que nadie encuentra.
+     */
+    @Value("${lajuanita.prereserva.horas:24}")
+    private long horasDePrereserva;
+
+    /**
+     * Cuándo se vence esta prereserva: <b>el menor entre el plazo y el inicio de la
+     * reserva</b> (P44).
+     *
+     * <p>El caso que obliga a la segunda mitad, y que con 24hs planas no se ve: se
+     * preconfirma hoy a las 15 una cabina de mañana a las 10. Con el plazo entero,
+     * el vencimiento cae mañana a las 15 — <b>cinco horas después de que la franja
+     * pasó</b>. O sea, se usa la cabina sin pagar y el sistema se entera al otro
+     * día.
+     */
+    private OffsetDateTime venceLaPreconfirmacion(Reserva reserva) {
+        OffsetDateTime porPlazo = OffsetDateTime.now().plusHours(horasDePrereserva);
+        OffsetDateTime empiezaLaFranja = reserva.getFecha()
+                .atTime(reserva.getHoraInicio())
+                .atZone(ZoneId.systemDefault())
+                .toOffsetDateTime();
+
+        return porPlazo.isBefore(empiezaLaFranja) ? porPlazo : empiezaLaFranja;
+    }
+
+    /**
+     * La deuda que sostiene una prereserva (`V24`).
+     *
+     * <p>Gemela de {@link #registrarLaSena} y con una sola diferencia, que es toda
+     * la funcionalidad: el pago nace en {@code DEBE} en vez de {@code SENADO}. Eso
+     * es lo que lo manda a la pantalla de deudores y lo que hace que la base acepte
+     * el horario apartado — <b>mientras el estado sea PRECONFIRMADA y sólo
+     * entonces</b>.
+     */
+    private Long anotarLaDeuda(AltaPreconfirmacionRequest pedido, Long idReserva, Long idAutor) {
+        return pagos.registrar(new AltaPagoRequest(
+                pedido.idUsuario(),
+                null, null,
+                null, idReserva, null, null,
+                "Seña de la reserva (a cobrar)",
+                pedido.monto(),
+                pedido.moneda(),
+                pedido.cotizacionDolar(),
+                pedido.medioPago(),
+                null, null,
+                EstadoPago.DEBE,
+                null),
+                idAutor).idPago();
     }
 
     @Transactional
@@ -440,6 +518,79 @@ public class ReservaService {
         // consulta ajena.
         reservas.flush();
         return conParticipantes(reserva);
+    }
+
+    /**
+     * Se cumplió el plazo: la prereserva se cancela sola y libera el horario
+     * (`V24`, P43).
+     *
+     * <p><b>Es lo único que sostiene "el primero que pide es el primero que
+     * reserva".</b> Si nadie liberara, el horario quedaría tomado por alguien que
+     * no pagó y el que sí iba a pagar no lo podría pedir — o sea, la prereserva
+     * empeoraría exactamente lo que vino a mejorar.
+     *
+     * <p>⚠️ <b>QUIÉN FIRMA LA CANCELACIÓN, que es la parte discutible y hay que
+     * poder defenderla.</b> `V7` exige {@code id_usuario_modifico} para cambiar el
+     * estado de una reserva, y acá no hay nadie apretando un botón. Se firma con
+     * <b>quien preconfirmó</b>, y el argumento es que <i>esto no es una decisión
+     * nueva</i>: esa persona puso el plazo y su consecuencia, y la cancelación es
+     * esa firma cumpliéndose. Es distinto de inventar un autor para una anulación
+     * de pago —lo que P46 rechazó— porque allá el acto era ajeno a lo que el admin
+     * había decidido, y acá es literalmente lo que decidió.
+     *
+     * <p>El pago <b>no se toca</b> (P46): la deuda queda anotada como historia y
+     * deja de ser cobrable porque su reserva está cancelada. Anularla exigiría un
+     * autor que tampoco existe, y esta vez sí sería inventarlo.
+     *
+     * <p>Avisa a las dos partes y por motivos distintos: a quien pidió, porque
+     * creía tener una reserva —enterarse al llegar al estudio es el peor final
+     * posible—; a administración, porque el horario volvió a estar libre y porque
+     * es un dato comercial.
+     *
+     * @return cuántas se vencieron
+     */
+    @Transactional
+    public int vencerLasPrereservas() {
+        List<Reserva> vencidas = reservas.prereservasVencidas(
+                EstadoReserva.PRECONFIRMADA, OffsetDateTime.now());
+
+        for (Reserva reserva : vencidas) {
+            reserva.setEstado(EstadoReserva.CANCELADA);
+            reserva.setVencePreconfirmacion(null);
+            reserva.setIdUsuarioModifico(reserva.getIdUsuarioCreo());
+
+            avisarQueSeVencio(reserva);
+        }
+
+        // El trigger de la escalera (`V24` §5) y el de la seña son inmediatos: sin
+        // el flush, el UPDATE viaja al commit y un rechazo llegaría como un 500
+        // desde afuera del método, o sea sin ningún lugar donde explicarlo.
+        reservas.flush();
+        return vencidas.size();
+    }
+
+    private void avisarQueSeVencio(Reserva reserva) {
+        String cuando = reserva.getFecha().format(DIA) + " a las " + reserva.getHoraInicio();
+        String donde = reserva.getSala().getNombreSala();
+
+        for (Usuario quien : aQuienesLesCambia(reserva)) {
+            avisos.avisar(quien,
+                    TipoNotificacion.PRERESERVA_VENCIDA,
+                    "Se liberó la sala que te habíamos apartado",
+                    "Pasó el plazo para abonar " + donde + " del " + cuando
+                            + ", así que el horario volvió a quedar libre. "
+                            + "Si todavía lo querés, pedilo de nuevo.",
+                    "/mis-reservas");
+        }
+
+        for (Usuario admin : usuarios.activosConRol(List.of(Rol.ADMIN, Rol.STAFF))) {
+            avisos.avisar(admin,
+                    TipoNotificacion.PRERESERVA_VENCIDA,
+                    "Prereserva vencida: " + donde,
+                    "Se venció sin abonar la prereserva de " + donde + " del " + cuando
+                            + ". El horario quedó libre.",
+                    "/admin/reservas");
+        }
     }
 
     // == Participantes =======================================================

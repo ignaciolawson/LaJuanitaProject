@@ -37,6 +37,7 @@ function reserva(cambios: Partial<ReservaDelPortal> = {}): ReservaDelPortal {
     horaInicio: '10:00:00',
     horaFin: '11:30:00',
     estado: 'CONFIRMADA',
+    venceEn: null,
     miAsistencia: 'PENDIENTE',
     ...cambios,
   }
@@ -258,5 +259,35 @@ describe('la división por dentro (§12 · B1)', () => {
     await screen.findByRole('heading', { name: 'Mis clases' })
     // La cabina es antes, así que es la destacada aunque no sea una clase.
     expect(screen.getAllByText(/Alquiler de cabina/).length).toBeGreaterThan(1)
+  })
+})
+
+/**
+ * La prereserva vista desde el portal (`mejoras.md` §13 · C1).
+ *
+ * **Lo que se cuida acá es que no se lea como una reserva más.** Una
+ * `PRECONFIRMADA` ocupa el horario igual que una confirmada, así que si la fila no
+ * dijera nada, la persona se enteraría de que no estaba reservada cuando el
+ * horario ya se liberó — que es el peor final posible para esta funcionalidad.
+ */
+describe('una reserva apartada (§13 · C1)', () => {
+  it('dice que falta abonarla y hasta cuándo', async () => {
+    vi.mocked(misReservas).mockResolvedValue([
+      reserva({ estado: 'PRECONFIRMADA', venceEn: '2026-09-11T18:30:00-03:00' }),
+    ])
+
+    render(<MisReservasPagina />)
+
+    expect(await screen.findByText('Falta abonarla')).toBeDefined()
+    // Con la hora, no sólo el día: el plazo es el menor entre 24hs y el inicio de
+    // la franja, así que puede vencer esta misma tarde.
+    expect(screen.getByText(/Vence el .*18:30/)).toBeDefined()
+  })
+
+  it('una confirmada no dice nada de eso', async () => {
+    render(<MisReservasPagina />)
+
+    await screen.findAllByText('Clase de DJ')
+    expect(screen.queryByText('Falta abonarla')).toBeNull()
   })
 })

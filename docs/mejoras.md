@@ -2454,50 +2454,57 @@ mismo texto que devolvería el backend.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-02)
 
-**Estado: A1, B1 y B2 cerrados. Queda C1, que es la prereserva y lleva `V24`.**
+✅ **LA SEGUNDA BARRIDA ESTÁ CERRADA: cuatro de cuatro.** A1 (las frases), B1 (los
+contadores del sidebar), B2 (las solapas de pagos) y **C1 (la prereserva, `V24`)**.
 
-| | Punto | Estado |
-|---|---|---|
-| 🟢 **A1** | Frases reales de DJ, con autor | ✅ **cerrado** |
-| 🟡 **B1** | Contadores de pendientes en el sidebar | ✅ **cerrado** |
-| 🟡 **B2** | Pagos subdividido en solapas por línea | ✅ **cerrado** |
-| 🔴 **C1** | La prereserva con vencimiento a 24hs | ⬜ **lo único que queda — es `V24`** |
+**Suites: 584 backend · 515 front · 226 + 56 SQL**, sobre **24 migraciones**.
+`tsc -b` y los dos linters limpios. Nada quedó a medias en el árbol.
 
-**Suites: 573 backend · 506 front · 216 + 56 SQL**, sobre 23 migraciones. `tsc -b`
-y los dos linters, limpios. Nada quedó a medias en el árbol.
+**Lo que sigue no es de esta barrida:**
 
-⚠️ **`V24` es la prereserva. Desactivar el admin sembrado por `V3` —que era lo
-anotado como próximo— pasa a `V25`.**
+1. **Desactivar el admin sembrado por `V3`** — ahora es **`V25`**, porque `V24` se
+   la llevó la prereserva.
+2. **El deploy de octubre** (`operacion.md` §3).
+3. **Y la próxima barrida.** Ya van dos, y la lectura de Ignacio sobre ésta fue
+   *"cada vez encuentro menos, vamos por el camino correcto"* — que es lo que se
+   espera cuando las reglas viven en la base: lo que se arregla no se vuelve a
+   romper por el costado. Lo que cambia de tanda en tanda es el **tamaño** de lo
+   que aparece.
 
-**Lo que falta hacer, en orden:**
-
-1. **C1**, con todo su detalle más abajo. Es lo único abierto de esta barrida.
-2. El deploy de octubre (`operacion.md` §3).
-3. La próxima barrida, cuando Ignacio vuelva a usar el sistema.
+⚠️ **Y una cosa que esta barrida dejó abierta a propósito**: el vencimiento de una
+prereserva firma la cancelación con **quien preconfirmó**, porque `V7` exige autor
+y acá el autor es un reloj. Está argumentado —esa persona puso el plazo y su
+consecuencia— pero es la clase de decisión que alguien va a querer revisar. Si
+algún día este sistema necesita una identidad para actos automáticos, **éste es el
+primer lugar donde mirar**.
 
 ---
 
-### Las tres advertencias de método de esta sesión
+### Las advertencias de método de esta barrida
 
-Las tres costaron tiempo y las tres se repiten solas si nadie las anota:
+Las cinco costaron tiempo y las cinco se repiten solas si nadie las anota:
 
 - ⚠️ **Una consulta derivada por nombre no la valida el compilador.** Los tres
   `countByEstado` de B1 los valida Spring al armar el contexto: `mvn clean compile`
-  en verde no prueba nada sobre ellos. Hay que correr algo que arranque la
-  aplicación. Es el primo del `mvn compile` que mintió en §12.
+  en verde no prueba nada sobre ellos. Es el primo del `mvn compile` que mintió
+  en §12.
 - ⚠️ **El nombre accesible de un elemento concatena sin espacios.** Una solapa que
-  dice "Servicios" con una pastilla "7" al lado se llama **`Servicios7`**, no
-  `Servicios 7` — el `gap` es CSS y no un nodo de texto. Cuatro casos de B2
-  fallaron por eso y el error (*"Unable to find role=tab and name…"*) no lo dice.
-  Van con expresión regular.
+  dice "Servicios" con una pastilla "7" al lado se llama **`Servicios7`** — el
+  `gap` es CSS y no un nodo de texto. Cuatro casos de B2 fallaron por eso y el
+  error no lo dice. Van con expresión regular.
 - ⚠️ **Un importe nuevo en pantalla rompe los casos que buscaban el viejo por
-  texto.** La barra de solapas muestra un total, y el caso que verificaba el
-  importe de la fila pasó a encontrar dos. Se acota con `within(la tabla)`, no se
-  afloja la aserción — y cuando el que se busca es el de la barra, el fixture usa
-  **un número distinto del de la fila** para que la aserción no pueda pasar
-  mirando el equivocado.
-
----
+  texto.** Se acota con `within(la tabla)`, no se afloja la aserción — y cuando el
+  que se busca es el nuevo, el fixture usa **un número distinto** del de la fila,
+  para que la aserción no pueda pasar mirando el equivocado.
+- ⚠️ **Navegar una relación en JPQL genera un INNER JOIN implícito.**
+  `p.reserva.estado` descartó todas las deudas sin reserva —o sea casi todas— y
+  costó siete casos rojos. La consulta anda y la lista viene corta: **es el modo de
+  falla que `V19` documentó**, ahora puesto por el ORM en vez de escrito a mano.
+- ⚠️ **Un trigger nuevo puede rechazar tu propio código, y eso es lo que tiene que
+  pasar.** La escalera de `V24` §5 rechazó nueve casos porque el servicio insertaba
+  la reserva y la marcaba apartada **después**. La regla es que tiene que **nacer**
+  apartada; el trigger se escribió contra un esquive malicioso y atajó un error
+  honesto el mismo día.
 
 ### El triage, con los grupos de §4
 
@@ -2701,6 +2708,134 @@ desaparezca de `entraron`.
 ---
 
 ### 🔴 C1 — La prereserva
+
+> ✅ **CERRADO el 2026-09-02**, con `V24__la_prereserva.sql`. Suites SQL en
+> **226 + 56** (eran 216 + 56), backend en **584** y front en **515**.
+
+**Lo que quedó construido**, en el orden en que pasa:
+
+1. **Llega el pedido** (portal) o **el admin carga la reserva** (calendario, P45).
+2. **Apartar el horario**, que es lo que la pantalla ofrece **primero**: monto,
+   moneda, cómo se va a cobrar y un mensaje. Nace la reserva en `PRECONFIRMADA`
+   con su vencimiento, y un `pago` en `DEBE` apuntándole. **La sala queda tomada.**
+3. La persona lo ve en *Mis reservas* —*"Falta abonarla · Vence el …"*, en rojo— y
+   le llega una notificación con el monto y el plazo. Administración lo ve en
+   **Deudores**.
+4. **Se cobra** desde `/admin/pagos` con el botón *Cobrar*, que sólo aparece sobre
+   una deuda. **La reserva pasa a CONFIRMADA sola**, en el mismo movimiento.
+5. **O se vence**: cada diez minutos una tarea la cancela, libera el horario y
+   avisa a las dos partes.
+
+---
+
+#### Lo que la migración decidió
+
+`V24` hace cinco cosas y ninguna sobra:
+
+1. El estado `PRECONFIRMADA`.
+2. `reserva.vence_preconfirmacion`.
+3. Un CHECK **bidireccional**: el estado es `PRECONFIRMADA` si y sólo si hay
+   vencimiento. La mitad obvia es que una prereserva no se quede sin plazo; **la
+   que importa es la otra**, que un plazo vivo no sobreviva en una reserva ya
+   paga, donde le diría a quien mire la pantalla *"vence en 3hs"*.
+4. `reserva_sin_plata_detras()` reescrita — es su cuarta versión (`V10` la
+   escribió, `V11` la extrajo, `V12` le corrigió la lista de estados).
+5. **La escalera**: a `PRECONFIRMADA` se entra sólo al nacer y se sale sólo a
+   `CONFIRMADA` o `CANCELADA`.
+
+⚠️ **El punto 5 es el que hace que los otros cuatro valgan algo.** Sin él queda
+abierto el rodeo *confirmar → volver a preconfirmada → anular el pago*: sala
+tomada, cero plata, y ningún trigger se queja — porque al volver, la condición
+vuelve a aceptar una deuda. **Es el mismo agujero que `V18` §1b encontró en el
+sello**, y es la segunda vez que este proyecto lo aprende: desde adentro de *"a la
+prereserva se entra al nacer"* no se ve que la salida también hay que cerrarla.
+
+⚠️ **Y del lado SQL no hubo que tocar NADA para que la prereserva ocupe la
+franja**, que es el punto entero de la funcionalidad. Es un regalo de cómo `V1`
+escribió la definición canónica —por lo que queda **afuera**— y así la repiten el
+EXCLUDE de solapamiento, los dos triggers de bloqueo y los dos usos de `V9`: un
+estado nuevo que ocupa entra solo en los cinco. Del lado de Java sí hubo que
+editarlo, porque `EstadoReserva.OCUPAN_LA_SALA` está escrito por enumeración.
+
+---
+
+#### Las cuatro cosas que aparecieron construyéndolo
+
+Ninguna estaba en el plan, y las cuatro son de las que se repiten si nadie las
+anota.
+
+⚠️ **1. Una deuda anotada no se podía cobrar, y el circuito entero dependía de
+eso.** `estadoPago` no es editable —y por buenos motivos, están escritos en
+`EdicionPagoRequest`— así que el único camino para una fila en `DEBE` era anularla
+y volver a cargarla. Con una inscripción eso alcanza; **con una prereserva no puede
+funcionar**, porque anular su deuda la deja sin nada detrás y `V24` la rechaza. Va
+como `PATCH /api/pagos/{id}/cobro`, su propio endpoint —igual que la anulación,
+porque son transiciones con regla propia— y **confirma la reserva en el mismo
+movimiento**: separarlo deja reservas pagas que nadie confirmó, con el vencimiento
+corriendo igual.
+
+⚠️ **2. El vencimiento automático choca con `V7`, que exige autor.** Cambiar el
+estado de una reserva pide `id_usuario_modifico`, y acá el autor es un reloj.
+**Firma quien preconfirmó**, y el argumento hay que poder darlo: *no es una
+decisión nueva* — esa persona puso el plazo y su consecuencia, y la cancelación es
+esa firma cumpliéndose. Es distinto de inventar un autor para anular un pago, que
+es lo que P46 rechazó: allá el acto era ajeno a lo que el admin había decidido, y
+acá es literalmente lo que decidió.
+
+⚠️ **3. Un INNER JOIN implícito de JPQL, que costó siete casos rojos.** Para sacar
+de Deudores las deudas de reservas canceladas (P46) se escribió lo obvio —
+`p.reserva.estado <> CANCELADA`— y **Hibernate agrega un join que descarta todas
+las filas sin reserva**, o sea casi todas las deudas, que son de inscripción. La
+consulta anda y la lista viene corta: **es el modo de falla que `V19` documentó**,
+con la diferencia de que ahí el INNER estaba escrito y acá lo pone el ORM solo. Va
+como subconsulta, y las dos redacciones —JPQL y SQL, porque el tablero es nativo—
+viven juntas en `DeudaCobrable`.
+
+⚠️ **4. El trigger de la escalera encontró un bug en el propio servicio, y ésa es
+la mejor noticia de la tanda.** `ReservaService.alta` insertaba la reserva y
+**después** la marcaba apartada, así que el UPDATE entraba como *"volver a
+preconfirmar"* y `V24` §5 lo rechazaba: nueve casos en rojo. La regla es que **tiene
+que nacer apartada, no pasar a estarlo**, y el estado se escribe antes del `save`.
+Vale anotarlo porque el trigger no se escribió para eso: se escribió contra un
+esquive malicioso y atajó un error honesto el mismo día.
+
+---
+
+#### Decisiones de pantalla
+
+- **Apartar es lo que se ofrece primero, y eso es la respuesta al problema.** Si
+  cobrar fuera el default, el admin seguiría necesitando la plata en la mano para
+  sacar el pedido de la bandeja — que es exactamente lo que se pidió cambiar.
+  **Cobrar en el momento no se sacó**: quien ya transfirió antes de que le
+  contesten no tiene por qué pasar por un plazo que no necesita.
+- **Son dos opciones y no una casilla de "ya pagó"**, porque no son un campo del
+  pago sino **dos actos distintos**: uno crea una reserva confirmada y el otro
+  aparta un horario con un reloj corriendo. Una casilla entre los campos deja que
+  alguien apriete confirmar creyendo que cobró.
+- ⚠️ **Apartando no hay campo de comprobante, y no es que sea opcional: no
+  existe.** Nadie pagó todavía, así que ofrecerlo invita a subir cualquier cosa
+  contra una deuda — el defecto que el hallazgo #5 cerró del otro lado.
+- **En el portal la prereserva va en rojo.** En el resto del sistema el acento es
+  un bisturí, pero acá lo que se dice es *tenés algo que hacer y hay un reloj*: es
+  el caso para el que ese color existe. Sin eso, una prereserva se lee igual que
+  una confirmada y la persona se entera de que no lo estaba cuando el horario ya
+  se liberó.
+- **El plazo se dice con la hora**, no sólo con el día: es el menor entre 24hs y el
+  inicio de la franja, así que puede vencer esta misma tarde.
+
+---
+
+#### Y una advertencia para cuando se toque
+
+⚠️ **El aviso de la aprobación dice cosas distintas según el camino, y no es
+cosmética.** Un *"está confirmado"* sobre un horario que se cae en 24hs deja
+tranquila a la persona equivocada: el estudio pierde la venta y el horario. Como
+no hay mail ni WhatsApp, **la notificación es el canal** y su texto tiene que
+aguantar solo.
+
+---
+
+#### El planteo original y el detalle técnico
 
 **El hallazgo más grande desde que cerró el MVP, y el único de esta tanda que
 toca el esquema.** El planteo completo de Ignacio, la regla nueva y las cuatro

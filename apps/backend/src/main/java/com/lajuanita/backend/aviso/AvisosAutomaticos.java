@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.lajuanita.backend.aviso.dto.ResumenDeAvisos;
+import com.lajuanita.backend.reserva.ReservaService;
 
 /**
  * El reloj. Todo lo que decide está en {@link AvisoService}.
@@ -40,8 +41,12 @@ public class AvisosAutomaticos {
 
     private final AvisoService avisos;
 
-    public AvisosAutomaticos(AvisoService avisos) {
+    /** Para el vencimiento de las prereservas. Ver {@link #vencerPrereservas()}. */
+    private final ReservaService reservas;
+
+    public AvisosAutomaticos(AvisoService avisos, ReservaService reservas) {
         this.avisos = avisos;
+        this.reservas = reservas;
     }
 
     /**
@@ -66,6 +71,41 @@ public class AvisosAutomaticos {
         } catch (RuntimeException e) {
             log.error("La corrida de avisos automáticos falló. No se reintenta hoy: "
                     + "mañana rehace lo mismo, que es idempotente.", e);
+        }
+    }
+
+    /**
+     * El vencimiento de las prereservas (`V24`, P43).
+     *
+     * <p><b>Va cada diez minutos y no con la corrida diaria, y ésa es la
+     * decisión.</b> Los otros tres avisos se miden en días —7 de deuda, 7 desde la
+     * entrega, 7 antes del lanzamiento— así que mirarlos una vez por día no
+     * atrasa nada. Este plazo se mide en horas: con la corrida de las 8, una
+     * prereserva que vence a las 8:05 <b>sigue ocupando el horario hasta el día
+     * siguiente</b>, o sea casi 24hs más de las que se prometieron. El plazo
+     * dejaría de ser el plazo.
+     *
+     * <p>Y a diferencia de los avisos, <b>esto cambia estado</b>: cancela reservas
+     * y libera salas. Por eso no comparte método con la corrida diaria — una
+     * excepción escribiendo notificaciones no puede impedir que se liberen los
+     * horarios, ni al revés.
+     *
+     * <p>Se traga la excepción por lo mismo que la otra: una tarea que revienta
+     * deja de reprogramarse en algunos ejecutores, y el modo de falla sería que las
+     * prereservas no se venzan nunca sin que ninguna pantalla lo muestre. La
+     * corrida siguiente rehace lo mismo — es idempotente, porque lo que decide es
+     * el reloj contra una fecha guardada.
+     */
+    @Scheduled(cron = "${lajuanita.prereserva.cron:0 */10 * * * *}", zone = "${lajuanita.avisos.zona:America/Argentina/Buenos_Aires}")
+    public void vencerPrereservas() {
+        try {
+            int vencidas = reservas.vencerLasPrereservas();
+            if (vencidas > 0) {
+                log.info("Prereservas vencidas: {} horarios liberados.", vencidas);
+            }
+        } catch (RuntimeException e) {
+            log.error("El vencimiento de prereservas falló. Se reintenta en la próxima "
+                    + "corrida: lo que decide es el reloj contra una fecha guardada.", e);
         }
     }
 }

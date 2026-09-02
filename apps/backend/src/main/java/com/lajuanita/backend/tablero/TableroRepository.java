@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
+import com.lajuanita.backend.pago.DeudaCobrable;
 import com.lajuanita.backend.pago.Pago;
 
 /**
@@ -163,6 +164,7 @@ public interface TableroRepository extends Repository<Pago, Long> {
                    count(*) FILTER (WHERE p.estado_pago = 'VENCIDO')                 AS cantidad_vencida
             FROM pago p
             WHERE p.estado_pago IN (:adeudados)
+              AND """ + DeudaCobrable.SQL + """
             GROUP BY p.moneda
             ORDER BY p.moneda
             """, nativeQuery = true)

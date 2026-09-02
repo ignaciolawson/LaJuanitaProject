@@ -56,8 +56,32 @@ public record AprobacionRequest(
         @NotNull(message = "Decí cómo se pagó.")
         MedioPago medioPago,
 
+        /**
+         * Si la plata <b>todavía no entró</b> (`mejoras.md` §13 · C1).
+         *
+         * <p>Con {@code true} la reserva nace <b>apartada</b>: el horario queda
+         * tomado, la deuda se anota y la persona tiene un plazo para pagar. Es el
+         * camino que pidió Ignacio y el que la pantalla ofrece primero, porque es
+         * el que saca el pedido de la bandeja sin obligar a cobrar en ese momento.
+         *
+         * <p>Con {@code false} o ausente sigue el camino de siempre: se cobra ahí y
+         * la reserva queda confirmada. <b>No se sacó</b> — quien ya transfirió antes
+         * de que le contesten no tiene por qué pasar por un plazo que no necesita.
+         *
+         * <p>⚠️ Es {@code Boolean} y no {@code boolean}: Jackson no puede completar
+         * el constructor canónico de un record cuando la propiedad viene ausente, y
+         * un formulario que no manda el campo —lo normal cuando está en false—
+         * recibiría un 400 que no explica nada. Es la regla que `V18` dejó escrita.
+         */
+        Boolean preconfirmar,
+
         /** Opcional: la respuesta de una aprobación es la reserva misma. */
         String respuesta) {
+
+    /** Se aparta el horario en vez de cobrarlo ahora. */
+    public boolean esPreconfirmacion() {
+        return Boolean.TRUE.equals(preconfirmar);
+    }
 
     /** Espeja {@code pago_usd_con_cotizacion}: sin ella el importe no se reconstruye. */
     @AssertTrue(message = "Un pago en dólares necesita la cotización del día.")

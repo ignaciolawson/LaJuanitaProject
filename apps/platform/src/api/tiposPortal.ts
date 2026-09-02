@@ -41,6 +41,14 @@ export type ReservaDelPortal = {
   horaInicio: string
   horaFin: string
   estado: EstadoReserva
+  /**
+   * Hasta cuándo está apartado este horario sin pagar (`V24`).
+   *
+   * **Es lo único de la prereserva que el portal necesita, y no puede faltar:**
+   * sin el plazo, `PRECONFIRMADA` se lee como "está reservada" y la persona se
+   * entera de que no lo estaba cuando el horario ya se liberó.
+   */
+  venceEn: string | null
   /** Null cuando la reserva es mía por haberla pagado y no por estar anotado. */
   miAsistencia: EstadoAsistencia | null
 }
@@ -129,6 +137,18 @@ export type Aprobacion = {
   moneda: Moneda
   cotizacionDolar?: number
   medioPago: MedioPago
+  /**
+   * Si la plata **todavía no entró** (`mejoras.md` §13 · C1).
+   *
+   * Con `true` la reserva nace **apartada**: el horario queda tomado, la deuda se
+   * anota y la persona tiene un plazo para pagar. Es el camino que saca el pedido
+   * de la bandeja sin obligar a cobrar en ese momento.
+   *
+   * Con `false` sigue el camino de siempre — se cobra ahí y queda confirmada—, y
+   * **no se sacó**: quien ya transfirió antes de que le contesten no tiene por qué
+   * pasar por un plazo que no necesita.
+   */
+  preconfirmar?: boolean
   respuesta?: string
 }
 

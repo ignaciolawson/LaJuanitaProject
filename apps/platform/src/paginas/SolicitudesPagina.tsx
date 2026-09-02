@@ -134,7 +134,7 @@ export function SolicitudesPagina() {
                     <Boton
                       onClick={() => setAbriendo({ id: s.idSolicitud, accion: 'aprobar' })}
                     >
-                      Confirmar y cobrar
+                      Confirmar el pedido
                     </Boton>
                     <Boton
                       variante="secundario"
@@ -214,6 +214,7 @@ function FormularioDeSena({
       moneda: Moneda
       cotizacionDolar?: number
       medioPago: MedioPago
+      preconfirmar: boolean
       respuesta?: string
     },
     /**
@@ -231,18 +232,52 @@ function FormularioDeSena({
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [respuesta, setRespuesta] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Si la plata todavía no entró (`mejoras.md` §13 · C1).
+   *
+   * ⚠️ **Arranca en `true`, y eso es la respuesta al problema que se planteó.** El
+   * admin estaba obligado a tener el cobro en la mano para sacar el pedido de la
+   * bandeja, así que los pedidos se le acumulaban. Apartar es el camino normal;
+   * cobrar en el momento es el caso especial de quien ya transfirió.
+   */
+  const [apartando, setApartando] = useState(true)
 
   return (
     <div>
       <h3 className="t-seccion mb-1">Confirmar el pedido</h3>
+
+      {/* Las dos formas de decir que sí, y la diferencia es una sola: si la plata
+          ya entró. Va arriba de todo porque cambia lo que significan los campos de
+          abajo —el medio de pago pasa de "cómo pagó" a "cómo va a pagar"— y porque
+          es la decisión, no un detalle del formulario. */}
+      <div className="mb-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Cómo se resuelve">
+        <ComoResolver activa={apartando} onClick={() => setApartando(true)}>
+          Apartar el horario
+        </ComoResolver>
+        <ComoResolver activa={!apartando} onClick={() => setApartando(false)}>
+          Ya pagó: cobrar ahora
+        </ComoResolver>
+      </div>
+
       <p className="mb-4 text-sm text-tenue">
-        La reserva se crea con esta seña adentro. Sin ella la base no la acepta —
-        no se aparta un horario sin pago por adelantado.
+        {apartando ? (
+          <>
+            El horario queda tomado y la deuda anotada: la persona lo ve en sus
+            reservas y aparece en <strong>Deudores</strong> hasta que cobres. Tiene{' '}
+            <strong>24 horas</strong> para abonar —o hasta que empiece la franja, lo
+            que pase antes— y si no, el horario se libera solo.
+          </>
+        ) : (
+          <>
+            La reserva se crea con esta seña adentro. Sin ella la base no la acepta —
+            no se aparta un horario sin pago por adelantado.
+          </>
+        )}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
-          etiqueta="Monto de la seña"
+          etiqueta={apartando ? 'Monto a abonar' : 'Monto de la seña'}
           type="number"
           min="1"
           step="0.01"
@@ -271,7 +306,7 @@ function FormularioDeSena({
         )}
 
         <CampoSelect
-          etiqueta="Cómo pagó"
+          etiqueta={apartando ? 'Cómo va a pagar' : 'Cómo pagó'}
           value={medioPago}
           onChange={(e) => setMedioPago(e.target.value as MedioPago)}
         >
@@ -289,21 +324,28 @@ function FormularioDeSena({
           respaldo se perdía en el momento mismo en que existía (hallazgo #5);
           desde `V21` lo que se guarda es el archivo y no una ruta escrita.
           Opcional a propósito: en efectivo no hay ninguno. */}
-      <div className="mt-4">
-        <span className="mb-1 block text-xs font-medium text-tenue">
-          Comprobante (opcional)
-        </span>
-        <input
-          type="file"
-          accept=".pdf,.png,.jpg,.jpeg"
-          aria-label="Comprobante"
-          onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
-          className="w-full text-sm text-tenue"
-        />
-        <p className="mt-1 text-xs text-apagado">
-          Si te transfirieron, adjuntá la captura o el PDF. En efectivo no hace falta.
-        </p>
-      </div>
+      {/* ⚠️ Apartando NO hay comprobante, y no es que sea opcional: **no existe**.
+          Nadie pagó todavía, así que un campo para adjuntarlo invita a subir
+          cualquier cosa contra una deuda — que es justo el defecto que el hallazgo
+          #5 vino a cerrar del otro lado. El archivo se sube cuando se cobra, desde
+          la pantalla de Pagos. */}
+      {!apartando && (
+        <div className="mt-4">
+          <span className="mb-1 block text-xs font-medium text-tenue">
+            Comprobante (opcional)
+          </span>
+          <input
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            aria-label="Comprobante"
+            onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
+            className="w-full text-sm text-tenue"
+          />
+          <p className="mt-1 text-xs text-apagado">
+            Si te transfirieron, adjuntá la captura o el PDF. En efectivo no hace falta.
+          </p>
+        </div>
+      )}
 
       <Campo
         etiqueta="Mensaje (opcional)"
@@ -324,7 +366,7 @@ function FormularioDeSena({
           type="button"
           onClick={() => {
             if (!monto || Number(monto) <= 0) {
-              setError('Poné el monto de la seña.')
+              setError(apartando ? 'Poné el monto a abonar.' : 'Poné el monto de la seña.')
               return
             }
             if (moneda === 'USD' && !cotizacion) {
@@ -337,18 +379,53 @@ function FormularioDeSena({
                 moneda,
                 cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
                 medioPago,
+                preconfirmar: apartando,
                 respuesta: respuesta.trim() || undefined,
               },
-              comprobante,
+              apartando ? null : comprobante,
             )
           }}
         >
-          Confirmar y crear la reserva
+          {apartando ? 'Apartar el horario' : 'Confirmar y crear la reserva'}
         </Boton>
         <Boton type="button" variante="secundario" onClick={onCancelar}>
           Cancelar
         </Boton>
       </div>
     </div>
+  )
+}
+
+/**
+ * Las dos formas de decir que sí (`mejoras.md` §13 · C1).
+ *
+ * Es un control de dos opciones y no una casilla de "ya pagó" porque **no son un
+ * campo del pago, son dos actos distintos**: uno crea una reserva confirmada y el
+ * otro aparta un horario con un plazo corriendo. Una casilla escondida entre los
+ * campos deja que alguien apriete "confirmar" creyendo que cobró.
+ */
+function ComoResolver({
+  activa,
+  onClick,
+  children,
+}: {
+  activa: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={activa}
+      onClick={onClick}
+      className={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+        activa
+          ? 'border-acento bg-superficie-2 font-medium text-texto'
+          : 'border-linea text-tenue hover:text-texto'
+      }`}
+    >
+      {children}
+    </button>
   )
 }

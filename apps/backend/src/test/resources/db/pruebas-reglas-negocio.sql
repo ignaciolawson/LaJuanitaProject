@@ -1714,6 +1714,126 @@ SELECT probar_mensaje('199','mover el material al curso de otro','no es de ese c
 SELECT probar('200','el material sin clase se puede dejar sin clase','ANDA',
  $q$UPDATE material SET id_reserva = NULL WHERE titulo = 'Guia de armonicos'$q$);
 
+
+-- =============================================================================
+-- LA PRERESERVA  (V24, `mejoras.md` §13 · C1)
+--
+-- La regla nueva: **toda reserva que ocupa su franja tiene plata detrás, cobrada
+-- o anotada con vencimiento mientras esté preconfirmada.**
+--
+-- Lo que esta sección tiene que sostener son las dos mitades, porque por
+-- separado ninguna sirve:
+--
+--   · Que la prereserva **exista y ocupe** el horario con sólo una deuda — que
+--     es lo que `V12` prohibía, y lo que la hace legítima es el plazo.
+--   · Que el plazo **no se pueda esquivar**: ni quedándose sin fecha, ni
+--     anulando la deuda, ni saliendo y volviendo a entrar al estado.
+--
+-- Los casos que sobreviven al COMMIT usan `SET CONSTRAINTS reserva_con_sena
+-- IMMEDIATE` por lo mismo que la sección de la seña: el chequeo es diferido y
+-- afuera de `probar()` no se lo puede contar.
+-- =============================================================================
+
+-- Como `sena()`, pero deja la plata DEBIDA en vez de cobrada. Es la fila que
+-- hace legítima a la prereserva y la que la manda a la pantalla de deudores.
+CREATE OR REPLACE FUNCTION deuda(p_id_reserva BIGINT) RETURNS BIGINT AS $$
+    INSERT INTO pago (id_usuario, id_reserva, monto, medio_pago, concepto, estado_pago)
+    SELECT (SELECT u_mica FROM v), p_id_reserva, 45000, 'TRANSFERENCIA',
+           'sena de la prereserva', 'DEBE'
+    RETURNING id_reserva;
+$$ LANGUAGE sql;
+
+
+SELECT probar('201','una prereserva sin fecha de vencimiento','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,estado)
+    SELECT sala1,u_alquiler,'2029-07-01','10:00','11:00','PRECONFIRMADA' FROM v$q$);
+
+-- La otra dirección del mismo CHECK, y es la que se olvida: un vencimiento vivo
+-- en una reserva ya paga le diría a quien mire la pantalla "vence en 3hs".
+SELECT probar('202','una reserva confirmada que igual guarda vencimiento','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,
+                         estado,vence_preconfirmacion)
+    SELECT sala1,u_alquiler,'2029-07-02','10:00','11:00',
+           'CONFIRMADA',now()+interval '24 hours' FROM v$q$);
+
+-- El caso central: el horario queda apartado con la deuda anotada. Esto es
+-- exactamente lo que `V12` rechazaba, y lo que lo cambia es la fecha de arriba.
+SELECT probar('203','prereserva: horario apartado con la deuda y su plazo','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,
+                                        estado,vence_preconfirmacion)
+    SELECT sala1,u_alquiler,'2029-07-03','10:00','11:00',
+           'PRECONFIRMADA',now()+interval '24 hours' FROM v RETURNING id_reserva)
+    SELECT deuda(id_reserva) FROM nueva;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE;
+    SELECT 1 FROM reserva WHERE fecha='2029-07-03'$q$);
+
+-- Y el límite: preconfirmar no es gratis. Sin ni siquiera la deuda anotada, el
+-- horario se estaría apartando a cambio de nada.
+SELECT probar('204','prereserva sin ninguna fila de pago detras','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,
+                         estado,vence_preconfirmacion)
+    SELECT sala2,u_alquiler,'2029-07-04','10:00','11:00',
+           'PRECONFIRMADA',now()+interval '24 hours' FROM v;
+    SET CONSTRAINTS reserva_con_sena IMMEDIATE$q$);
+
+-- ⚠️ EL PUNTO ENTERO DE LA FUNCIONALIDAD: la prereserva OCUPA. Si no ocupara, el
+-- que pidió primero no se quedaría con el horario y todo esto no serviría para
+-- nada. No hace falta tocar el EXCLUDE para que valga —`V1` lo escribió por lo
+-- que queda afuera— y este caso es el que lo verifica.
+SELECT probar('205','otra reserva sobre la franja que una prereserva ocupa','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin)
+    SELECT sala1,u_alquiler,'2029-07-03','10:00','11:00' FROM v$q$);
+
+-- Anular la deuda deja a la prereserva sin nada detrás: ni plata ni compromiso.
+-- Es el agujero de `V12` otra vez, ahora sin el plazo que lo justificaba.
+SELECT probar('206','ESQUIVE: anular la deuda que sostiene la prereserva','FALLA',
+ $q$UPDATE pago SET estado_pago='ANULADO',
+                 id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
+                 motivo_anulacion='Asi me quedo el horario gratis'
+    WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-07-03')$q$);
+
+-- El camino feliz: entra la plata y la reserva se confirma. El vencimiento se
+-- borra en el mismo movimiento, que es lo que el CHECK del caso 202 exige.
+SELECT probar('207','cobrar la prereserva la confirma','ANDA',
+ $q$UPDATE pago SET estado_pago='PAGADO'
+    WHERE id_reserva=(SELECT id_reserva FROM reserva WHERE fecha='2029-07-03');
+    UPDATE reserva SET estado='CONFIRMADA', vence_preconfirmacion=NULL,
+                       id_usuario_modifico=(SELECT u_mica FROM v)
+     WHERE fecha='2029-07-03'$q$);
+
+-- ⚠️ El esquive que `V18` §1b ya había encontrado en el sello, con otra ropa:
+-- confirmar, volver a preconfirmada, anular el pago. Sala tomada, cero plata, y
+-- ningún trigger se queja — porque al volver, §4 vuelve a aceptar una deuda.
+SELECT probar_mensaje('208','ESQUIVE: volver a preconfirmar algo ya confirmado',
+ 'se entra solo al crearla',
+ $q$UPDATE reserva SET estado='PRECONFIRMADA',
+                      vence_preconfirmacion=now()+interval '24 hours',
+                      id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2029-07-03'$q$);
+
+-- Una prereserva viva para los dos últimos casos. Entra con su deuda en la misma
+-- sentencia: suelta, el chequeo diferido la rechazaría al COMMIT y **el caso no
+-- fallaría, desaparecería del resumen**.
+WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,
+                                    estado,vence_preconfirmacion)
+SELECT sala2,u_alquiler,'2029-07-06','10:00','11:00',
+       'PRECONFIRMADA',now()+interval '24 hours' FROM v RETURNING id_reserva)
+SELECT deuda(id_reserva) FROM nueva;
+
+-- Y la otra salida del plazo: dar la clase por dictada sin haberla cobrado.
+SELECT probar_mensaje('209','ESQUIVE: pasar una prereserva a FINALIZADA',
+ 'solo puede confirmarse',
+ $q$UPDATE reserva SET estado='FINALIZADA',
+                      id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2029-07-06'$q$);
+
+-- Cancelar sí, que es lo que hace el vencimiento automático y lo que puede hacer
+-- administración antes de que el plazo se cumpla.
+SELECT probar('210','cancelar una prereserva libera el horario','ANDA',
+ $q$UPDATE reserva SET estado='CANCELADA', vence_preconfirmacion=NULL,
+                    id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE fecha='2029-07-06'$q$);
+
 -- =============================================================================
 -- RESUMEN
 -- =============================================================================

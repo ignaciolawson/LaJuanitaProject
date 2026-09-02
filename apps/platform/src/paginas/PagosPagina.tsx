@@ -6,6 +6,7 @@ import {
   adjuntarComprobante,
   agenda,
   anularPago,
+  cobrarPago,
   editarPago,
   invalidarComprobante,
   listarAlumnos,
@@ -192,6 +193,24 @@ export function PagosPagina() {
     }
   }
 
+  /**
+   * Entró la plata que estaba anotada (`mejoras.md` §13 · C1).
+   *
+   * **Sin confirmación previa**, a diferencia de anular: cobrar no deshace nada y
+   * lo que hace se ve enseguida en la fila. Y si esa deuda sostenía una prereserva,
+   * el backend además confirma la reserva — por eso se recarga la lista y no se
+   * parchea la fila en memoria: lo que cambió no es sólo este renglón.
+   */
+  async function cobrar(pago: PagoResumen) {
+    try {
+      await cobrarPago(pago.idPago)
+      await cargar()
+      await cargarTotales()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo registrar el cobro.')
+    }
+  }
+
   async function abrir(idPago: number, comprobante: ComprobanteResumen) {
     try {
       await abrirComprobante(idPago, comprobante.idComprobante)
@@ -375,6 +394,19 @@ export function PagosPagina() {
                           anularlo y volver a cargarlo; ahora corregir el monto o la
                           fecha es una edición común. Anular queda para lo que de
                           verdad es una baja, no para arreglar un tipeo. */}
+                      {/* **Cobrar sólo aparece sobre una deuda**, y es la acción
+                          que faltaba: hasta §13 · C1 una fila en DEBE no tenía
+                          forma de pasar a cobrada — el estado de un pago no se
+                          edita— así que el único camino era anular y recargar. Va
+                          primero porque es lo que se viene a hacer a esta fila.
+
+                          ⚠️ Si esa deuda sostiene una prereserva, esto además
+                          **confirma la reserva**: son un acto y no dos. */}
+                      {(p.estadoPago === 'DEBE' || p.estadoPago === 'VENCIDO') && (
+                        <Boton variante="enlace" type="button" onClick={() => void cobrar(p)}>
+                          Cobrar
+                        </Boton>
+                      )}
                       <Boton variante="enlace"
                         type="button"
                         onClick={() => setEditando(p)}>
