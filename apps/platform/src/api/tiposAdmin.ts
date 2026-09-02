@@ -341,6 +341,39 @@ export type LineaDeNegocio =
   | 'VENTA_EQUIPOS'
   | 'OTRO'
 
+/**
+ * La solapa de la pantalla de pagos (`mejoras.md` §13 · B2). Espeja
+ * `LineaDeNegocio.Grupo`.
+ *
+ * **Son cuatro y no las tres que se pidieron.** `SIN_DESTINO` no se puede
+ * esconder: un pago que no apunta a nada es plata que entró, y filtrarlo haría
+ * que la suma de las solapas deje de dar la caja sin que nadie pueda ver por qué.
+ * La pantalla dibuja esa solapa sólo cuando tiene filas.
+ *
+ * ⚠️ **Qué líneas caen en cada grupo lo decide el servidor**, y viene resuelto en
+ * cada fila de `TotalDeLinea`. Escribir el mapa acá sería tenerlo dos veces, y el
+ * modo de falla es concreto: la solapa mostraría un número que no coincide con lo
+ * que lista, porque contaría con un mapa y filtraría con el otro.
+ */
+export type GrupoDePago = 'PROGRAMAS' | 'SERVICIOS' | 'EQUIPOS' | 'SIN_DESTINO'
+
+/**
+ * Cuántos pagos y cuánta plata hay en una línea, con los filtros puestos.
+ * Espeja `TotalDeLinea`.
+ *
+ * ⚠️ **`cantidad` y `entraron` son cosas distintas y no se pueden fusionar**:
+ * la primera son las filas que el listado va a mostrar, la segunda es —de ésas—
+ * la plata que efectivamente entró. Una deuda anotada y un pago anulado cuentan
+ * en la primera y no en la segunda.
+ */
+export type TotalDeLinea = {
+  linea: LineaDeNegocio
+  grupo: GrupoDePago
+  moneda: Moneda
+  cantidad: number
+  entraron: number
+}
+
 /** Una fila del listado de pagos. Espeja `PagoResumen`. */
 /**
  * Un comprobante adjunto a un pago (`V21`).
@@ -547,25 +580,17 @@ export type VentaResumen = {
   fechaAnulacion: string | null
 }
 
-/**
- * A qué apunta un pago, con las palabras del negocio (`mejoras.md` §12 · B1).
+/*
+ * ⚠️ Acá vivía `NOMBRE_DE_DESTINO`, que nombraba los cuatro destinos para el
+ * filtro de §12 · B1. **§13 · B2 lo dejó sin uso y por eso no está**: la pantalla
+ * pasó a dividirse por línea de negocio, que es lo que además muestra cada fila.
+ * Convivían dos vocabularios sobre el mismo renglón —el filtro decía "Reserva de
+ * sala" y la fila decía "Cursos"— y quedarse con el mapa muerto, con su comentario
+ * afirmando que el filtro va por ahí, era peor que borrarlo.
  *
- * Es lo que divide la pantalla de Pagos por dentro. Ignacio lo pidió como
- * *"pagos de equipos, de servicios, de programas"*; son los cuatro destinos que
- * el sistema ya tenía, dichos como se los nombra en el estudio.
- *
- * ⚠️ **El filtro va por acá y no por la línea de negocio**, y no es lo mismo: el
- * destino es un hecho de la fila —cuatro columnas, una sola con valor— y la
- * línea cruza además el tipo de uso de la reserva. Filtrar por línea obligaría a
- * escribir esa deducción una segunda vez, que es justo lo que §12 pidió evitar.
- * La línea se muestra en cada fila con `NOMBRE_DE_LINEA`.
+ * El tipo `DestinoDePago` sigue vivo: lo usa el formulario de alta, donde la
+ * frase es "este pago salda…" y cada opción se dice con otras palabras.
  */
-export const NOMBRE_DE_DESTINO: Record<DestinoDePago, string> = {
-  INSCRIPCION: 'Programas',
-  RESERVA: 'Salas y cabina',
-  TRABAJO_MASTERING: 'Mix & Mastering',
-  VENTA_EQUIPO: 'Equipos',
-}
 
 /**
  * La línea de negocio de un pago, como se la nombra en pantalla.
@@ -576,6 +601,20 @@ export const NOMBRE_DE_DESTINO: Record<DestinoDePago, string> = {
  * que alguien la busque de casualidad. Es el mismo criterio que el Tablero
  * escribe en `LineaDeNegocio.OTRO`.
  */
+/**
+ * Las solapas de la pantalla de pagos, en orden (`mejoras.md` §13 · B2).
+ *
+ * El orden es el del negocio y no el alfabético: los programas son la mayor
+ * parte de lo que entra, y `SIN_DESTINO` va última porque es la excepción que
+ * hay que ir a corregir, no una línea del negocio.
+ */
+export const NOMBRE_DE_GRUPO: Record<GrupoDePago, string> = {
+  PROGRAMAS: 'Programas',
+  SERVICIOS: 'Servicios',
+  EQUIPOS: 'Venta de equipos',
+  SIN_DESTINO: 'Sin destino',
+}
+
 export const NOMBRE_DE_LINEA: Record<LineaDeNegocio, string> = {
   CURSOS: 'Cursos',
   ALQUILER_CABINA: 'Alquiler de cabina',
@@ -681,4 +720,18 @@ export type ConversionRealizada = {
   usuario: UsuarioResumen
   passwordTemporal: string | null
   cuentaNueva: boolean
+}
+
+/**
+ * Cuántas cosas esperan en cada bandeja de administración. Espeja `Pendientes`
+ * del backend (`GET /api/pendientes`).
+ *
+ * **No trae las notificaciones**, que son de cada persona y tienen su propio
+ * endpoint en el portal. La separación es la misma que el sistema sostiene desde
+ * el Módulo 4: ningún endpoint cambia de significado según quién lo llame.
+ */
+export type Pendientes = {
+  pedidosDeSala: number
+  pedidosDeCambio: number
+  buzon: number
 }

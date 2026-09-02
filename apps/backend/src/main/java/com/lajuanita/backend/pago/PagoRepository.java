@@ -1,6 +1,7 @@
 package com.lajuanita.backend.pago;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,89 +18,143 @@ import com.lajuanita.backend.tablero.LineaDeNegocio;
 public interface PagoRepository extends JpaRepository<Pago, Long> {
 
     /**
-     * El listado, con los filtros de la pantalla.
+     * Los filtros de la pantalla de pagos, sin el de la solapa.
      *
-     * <p><b>Pagina</b>, a diferencia de la agenda: esta lista crece con el
-     * negocio y no hay ninguna vista que la necesite entera. Con ~80 alumnos y un
-     * cuatrimestre adentro son miles de filas.
+     * <p>Vive como constante porque lo comparten tres consultas —la página, su
+     * conteo y los totales por línea— y porque el día que se agregue un filtro,
+     * tiene que entrar en las tres o la barra de solapas empieza a contar sobre un
+     * universo distinto del que muestra la lista.
      *
-     * <p>Los {@code JOIN FETCH} traen lo que la fila dibuja. El de la inscripción
-     * y el de la reserva van {@code LEFT} porque un pago salda <b>una</b> de las
-     * cuatro cosas: exigirlos dejaría afuera justamente a los otros dos destinos.
+     * <p>⚠️ <b>Los parámetros que pueden venir en null van con CAST.</b> Sin el
+     * cast el driver no puede inferir el tipo de un null y Postgres falla con un
+     * mensaje que habla de {@code bytea} — el mismo pozo que {@code Busqueda.patron}
+     * documenta del lado del {@code LIKE}.
+     *
+     * <p>El {@code LEFT JOIN} a {@code usuario} es el de `V19` y sigue siendo la
+     * mitad del trabajo de esa migración: con un INNER, <b>todo pago sin cuenta
+     * desaparecía del listado sin ningún error</b>. La búsqueda mira también el
+     * nombre del pagador externo, con {@code COALESCE} para que un NULL no corte la
+     * cadena de OR.
      */
+    String DESDE_Y_FILTROS = "FROM pago p "
+            + "LEFT JOIN usuario u ON u.id_usuario = p.id_usuario "
+            + LineaDeNegocio.JOINS + " "
+            + """
+            WHERE (CAST(:idUsuario AS bigint)  IS NULL OR p.id_usuario  = :idUsuario)
+              AND (CAST(:estado    AS varchar) IS NULL OR p.estado_pago = :estado)
+              AND (CAST(:moneda    AS varchar) IS NULL OR p.moneda      = :moneda)
+              AND (CAST(:desde     AS date)    IS NULL OR p.fecha_pago >= :desde)
+              AND (CAST(:hasta     AS date)    IS NULL OR p.fecha_pago <= :hasta)
+              AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
+                OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
+                OR LOWER(COALESCE(u.email, ''))    LIKE :patron
+                OR LOWER(COALESCE(p.nombre_pagador_externo, '')) LIKE :patron)""";
+
+    /** Lo mismo, más la solapa elegida. */
+    String DESDE_Y_FILTROS_CON_LINEA =
+            DESDE_Y_FILTROS + " AND (" + LineaDeNegocio.EXPRESION + ") IN (:lineas)";
+
     /**
-     * ⚠️ <b>El JOIN a `usuario` es LEFT desde `V19`, y ese cambio es la mitad del
-     * trabajo de esa migración.</b> Era `JOIN FETCH`, o sea un INNER: con la
-     * columna nullable, <b>todo pago sin cuenta desaparecía del listado sin ningún
-     * error</b> — el modo de falla que `mejoras.md` §9.1 anota como el verdadero
-     * riesgo de esta migración. La pantalla anda, el total miente.
+     * Los ids de la página, con los filtros de la pantalla.
      *
-     * <p><b>El filtro por destino divide la pantalla por dentro</b> (`mejoras.md`
-     * §12 · B1). Filtra por <i>a qué apunta el pago</i>, que es un dato de la
-     * fila —cuatro columnas nullable, una sola con valor— y no por la línea de
-     * negocio, que es otra cosa: la línea cruza el tipo de uso de la reserva, así
-     * que una seña de clase apunta a una RESERVA y es plata de CURSOS. Las dos
-     * conviven en la pantalla y no compiten: acá se filtra por el hecho, y la
-     * línea viaja en cada fila como {@link PagoResumen#lineaDeNegocio}.
+     * <p><b>Devuelve ids, y es nativa. Las dos cosas son la misma decisión</b>
+     * (`mejoras.md` §13 · B2). Hasta acá era JPQL y su javadoc anotaba el techo con
+     * todas las letras: <i>"no se puede filtrar por línea sin duplicar la
+     * definición"</i>, porque {@link LineaDeNegocio#EXPRESION} vive en SQL. Las
+     * solapas de §13 · B2 filtran justamente por línea, así que había que elegir
+     * entre reescribir el {@code CASE} en JPQL —la copia que §12 · B1 vino a
+     * evitar, y que se desincroniza sin que nada falle: el mismo pago caería en una
+     * solapa en el listado y en otra línea en el tablero— o traer la consulta al
+     * dialecto donde la definición ya existe. Se hizo lo segundo.
      *
-     * <p>⚠️ <b>Y por eso no se puede filtrar por línea sin duplicar la
-     * definición</b>: vive en SQL nativo ({@link LineaDeNegocio#EXPRESION}) y
-     * ésta es una consulta JPQL. Escribir el {@code CASE} otra vez acá sería
-     * exactamente lo que §12 pidió no hacer.
+     * <p><b>Y por eso devuelve ids</b>: una consulta nativa no puede
+     * {@code JOIN FETCH}, así que mapear a entidades acá dejaría las asociaciones
+     * perezosas y pintar veinte filas costaría decenas de viajes — exactamente lo
+     * que {@link #lineasDe} y {@code ventasConPago} existen para no hacer. El
+     * detalle lo trae {@link #porIdsConDetalle} en una consulta más.
      *
-     * <p>Y la búsqueda mira también el nombre del pagador externo: sin eso, buscar
-     * a quien compró un CDJ no lo encuentra nunca. El {@code COALESCE} deja la
-     * expresión definida cuando el pago sí tiene cuenta — un NULL en una cadena de
-     * OR no es FALSE, y ese es un pozo en el que este proyecto ya se cayó con los
-     * CHECK de `V7`.
+     * <p>⚠️ <b>{@code :lineas} SIEMPRE llega con elementos.</b> Cuando no hay
+     * solapa elegida se le pasan las seis líneas, no una lista vacía: un
+     * {@code IN ()} vacío es un error de sintaxis en Postgres, y sobre una
+     * colección no se puede escribir el {@code IS NULL} que usan los otros
+     * filtros. Con la lista completa la condición es verdadera para todos y no
+     * queda un caso especial que mantener.
+     *
+     * <p>El orden va escrito acá y el {@code Pageable} viaja sin {@code Sort}: en
+     * una consulta nativa Spring pegaría el orden usando nombres de propiedad de la
+     * entidad, que no son los de las columnas.
      */
-    @Query(value = """
-            SELECT p FROM Pago p
-            LEFT JOIN FETCH p.usuario u
-            LEFT JOIN FETCH p.inscripcion i
-            LEFT JOIN FETCH p.reserva r
-            LEFT JOIN FETCH r.sala
-            WHERE (:idUsuario IS NULL OR u.id = :idUsuario)
-              AND (:estado    IS NULL OR p.estadoPago = :estado)
-              AND (:moneda    IS NULL OR p.moneda = :moneda)
-              AND (:desde     IS NULL OR p.fechaPago >= :desde)
-              AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
-              AND (:destino IS NULL
-                OR (:destino = 'INSCRIPCION'       AND p.inscripcion        IS NOT NULL)
-                OR (:destino = 'RESERVA'           AND p.reserva            IS NOT NULL)
-                OR (:destino = 'TRABAJO_MASTERING' AND p.idTrabajoMastering IS NOT NULL)
-                OR (:destino = 'VENTA_EQUIPO'      AND p.idVentaEquipo      IS NOT NULL))
-              AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
-                OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
-                OR LOWER(COALESCE(u.email, ''))    LIKE :patron
-                OR LOWER(COALESCE(p.nombrePagadorExterno, '')) LIKE :patron)
-            """,
-            countQuery = """
-            SELECT count(p) FROM Pago p
-            LEFT JOIN p.usuario u
-            WHERE (:idUsuario IS NULL OR u.id = :idUsuario)
-              AND (:estado    IS NULL OR p.estadoPago = :estado)
-              AND (:moneda    IS NULL OR p.moneda = :moneda)
-              AND (:desde     IS NULL OR p.fechaPago >= :desde)
-              AND (:hasta     IS NULL OR p.fechaPago <= :hasta)
-              AND (:destino IS NULL
-                OR (:destino = 'INSCRIPCION'       AND p.inscripcion        IS NOT NULL)
-                OR (:destino = 'RESERVA'           AND p.reserva            IS NOT NULL)
-                OR (:destino = 'TRABAJO_MASTERING' AND p.idTrabajoMastering IS NOT NULL)
-                OR (:destino = 'VENTA_EQUIPO'      AND p.idVentaEquipo      IS NOT NULL))
-              AND (LOWER(COALESCE(u.nombre, ''))   LIKE :patron
-                OR LOWER(COALESCE(u.apellido, '')) LIKE :patron
-                OR LOWER(COALESCE(u.email, ''))    LIKE :patron
-                OR LOWER(COALESCE(p.nombrePagadorExterno, '')) LIKE :patron)
-            """)
-    Page<Pago> listar(@Param("idUsuario") Long idUsuario,
-            @Param("estado") EstadoPago estado,
+    @Query(value = "SELECT p.id_pago " + DESDE_Y_FILTROS_CON_LINEA
+            + " ORDER BY p.fecha_pago DESC, p.id_pago DESC",
+            countQuery = "SELECT count(*) " + DESDE_Y_FILTROS_CON_LINEA,
+            nativeQuery = true)
+    Page<Long> idsListados(@Param("idUsuario") Long idUsuario,
+            @Param("estado") String estado,
             @Param("moneda") String moneda,
-            @Param("destino") String destino,
+            @Param("lineas") Collection<String> lineas,
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta,
             @Param("patron") String patron,
             Pageable paginado);
+
+    /**
+     * El detalle de una página de pagos, en una sola consulta.
+     *
+     * <p>Es la segunda mitad de {@link #idsListados}: acá viven los
+     * {@code JOIN FETCH} que la nativa no puede tener. Todos {@code LEFT}, por lo
+     * mismo de siempre — un pago salda <b>una</b> de las cuatro cosas, y desde
+     * `V19` puede además no tener cuenta.
+     *
+     * <p><b>No ordena.</b> El orden lo decidió la consulta de ids y lo repone el
+     * servicio; pedirlo otra vez acá sería una segunda definición del orden de la
+     * pantalla, y la que se olvidaría de cambiar el día que el orden cambie.
+     */
+    @Query("""
+            SELECT p FROM Pago p
+            LEFT JOIN FETCH p.usuario
+            LEFT JOIN FETCH p.inscripcion
+            LEFT JOIN FETCH p.reserva r
+            LEFT JOIN FETCH r.sala
+            WHERE p.id IN :ids
+            """)
+    List<Pago> porIdsConDetalle(@Param("ids") List<Long> ids);
+
+    /**
+     * Cuántos pagos y cuánta plata hay en cada línea, con los filtros de la
+     * pantalla puestos (`mejoras.md` §13 · B2).
+     *
+     * <p>Es lo que alimenta la barra de solapas, y <b>se calcula sobre TODAS las
+     * líneas a la vez</b>: cada solapa muestra su número sin que haya que entrar a
+     * verla, que es lo que Ignacio pedía cuando dijo que estaba <i>"todo en la
+     * misma bolsa"</i>. Por eso usa {@link #DESDE_Y_FILTROS} y no la variante con
+     * línea.
+     *
+     * <p><b>Dos números por fila, y son distintos a propósito.</b> {@code cantidad}
+     * cuenta las filas que el listado va a mostrar con esos filtros; el importe
+     * suma <b>sólo lo que entró</b>. Sumar la columna entera mezclaría deuda
+     * anotada y plata anulada con plata real, que es exactamente lo que
+     * {@code EstadoPago.ENTRARON} existe para evitar — y la caja de este sistema ya
+     * pagó una vez por esa confusión, en {@code EgresoRepository.porMoneda}.
+     *
+     * <p>El {@code GROUP BY} repite el {@code CASE} y eso está bien: es la misma
+     * constante, pegada dos veces en la misma consulta, no una segunda definición.
+     * En SQL nativo se puede; en JPQL, Hibernate 7 lo rechaza — está anotado en
+     * {@link LineaDeNegocio}.
+     *
+     * @return filas {@code [linea, moneda, cantidad, entraron]}
+     */
+    @Query(value = "SELECT " + LineaDeNegocio.EXPRESION + " AS linea, p.moneda, count(*), "
+            + "COALESCE(SUM(CASE WHEN p.estado_pago IN (:entraron) THEN p.monto ELSE 0 END), 0) "
+            + DESDE_Y_FILTROS
+            + " GROUP BY " + LineaDeNegocio.EXPRESION + ", p.moneda",
+            nativeQuery = true)
+    List<Object[]> totalesPorLinea(@Param("idUsuario") Long idUsuario,
+            @Param("estado") String estado,
+            @Param("moneda") String moneda,
+            @Param("desde") LocalDate desde,
+            @Param("hasta") LocalDate hasta,
+            @Param("patron") String patron,
+            @Param("entraron") Collection<String> entraron);
 
     /**
      * La línea de negocio de cada uno de estos pagos (`mejoras.md` §12 · B1).

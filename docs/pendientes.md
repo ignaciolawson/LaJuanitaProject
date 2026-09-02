@@ -85,9 +85,26 @@
 >
 > Lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config del
 > reverse proxy), `CORS_ORIGENES`, y el deploy con su migración para desactivar el
-> admin sembrado — que ahora es **`V24`**: `V22` se usó para
-> `tipo_uso.disciplina` y `V23` para los materiales, las dos de la primera
-> barrida.
+> admin sembrado.
+>
+> ---
+>
+> ⚠️ **Y HAY UNA SEGUNDA BARRIDA, abierta el 2026-09-01** (`mejoras.md` §13). Es
+> la prueba de que §12 era un modo de trabajo y no una lista que cierra. La
+> lectura de Ignacio sobre esta tanda: *"cada vez encuentro menos, vamos por el
+> camino correcto"*.
+>
+> Cuatro puntos, y **tres ya están cerrados** (2026-09-02): **A1** las frases
+> reales de DJ (de 14 a 29, con 17 citas verificadas de diez personas), **B1** los
+> contadores de pendientes en el sidebar (`GET /api/pendientes`) y **B2** los pagos
+> divididos en solapas por línea de negocio.
+>
+> 🔴 **Queda C1: la prereserva**, y es lo único abierto de la barrida. Toca una
+> regla que hoy sostienen tres triggers, así que **lleva migración: es `V24`**. Sus
+> cinco respuestas de negocio están en `platform.md` §19 (P43–P47), contestadas
+> antes de escribir código.
+>
+> ⚠️ **Por eso desactivar el admin sembrado se corre a `V25`.**
 
 ---
 
@@ -180,7 +197,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva: **`V24`**. Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes, **`V22`** para `tipo_uso.disciplina` (§12 · C1) y **`V23`** para el material por curso y por clase (§12 · C2), las dos últimas del 2026-09-01/02.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva, y **desde el 2026-09-02 esa migración es `V25`, no `V24`** — `V24` quedó tomada por la prereserva (`mejoras.md` §13 · C1). Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes, **`V22`** para `tipo_uso.disciplina` (§12 · C1) y **`V23`** para el material por curso y por clase (§12 · C2), las dos últimas del 2026-09-01/02.
 
 ---
 

@@ -6,7 +6,10 @@ import { Abanico } from '../componentes/Abanico'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { SelectorDeTema } from '../tema/SelectorDeTema'
 import { useTema } from '../tema/useTema'
+import type { ItemMenu } from './menu'
 import { menuPara } from './menu'
+import type { Contadores } from './usePendientes'
+import { usePendientes } from './usePendientes'
 
 /**
  * El armazón de la aplicación: la navegación y el trabajo, en dos superficies.
@@ -32,6 +35,7 @@ export function Layout() {
   const usuario = useUsuario()
   const grupos = menuPara(usuario)
   const { tema, alternar } = useTema(usuario)
+  const { contadores } = usePendientes(usuario)
 
   return (
     <div className="flex min-h-full">
@@ -71,14 +75,15 @@ export function Layout() {
                           // El borde va siempre, transparente cuando no está
                           // activo: si apareciera sólo al activarse, el texto se
                           // correría dos píxeles cada vez que navegás.
-                          `flex border-l-2 py-1.5 pr-3 pl-3.5 text-sm transition-colors ${
+                          `flex items-center justify-between gap-2 border-l-2 py-1.5 pr-3 pl-3.5 text-sm transition-colors ${
                             isActive
                               ? 'border-shell-acento bg-shell-activo font-medium text-shell-texto'
                               : 'border-transparent text-shell-tenue hover:bg-shell-activo hover:text-shell-texto'
                           }`
                         }
                       >
-                        {item.etiqueta}
+                        <span className="truncate">{item.etiqueta}</span>
+                        <Pastilla item={item} contadores={contadores} />
                       </NavLink>
                     ) : (
                       // El módulo todavía no existe. Se muestra apagado en vez
@@ -132,5 +137,41 @@ export function Layout() {
         <Outlet />
       </main>
     </div>
+  )
+}
+
+/**
+ * El número al lado de un ítem del menú (`mejoras.md` §13 · B1).
+ *
+ * ⚠️ **Cero no se dibuja, y tampoco se dibuja lo que no vino.** Son dos motivos
+ * distintos para no mostrar nada y los dos importan:
+ *
+ * - Un `(0)` fijo en cuatro ítems, en las 36 pantallas, es ruido permanente que
+ *   además entrena a no mirar el lugar donde después aparece el número que sí
+ *   importa. La ausencia de pastilla ya dice "no hay nada".
+ * - Un contador que no llegó —el pedido falló— queda en `undefined` y el ítem se
+ *   dibuja como se dibujaba antes de que esto existiera. Inventar un cero ahí
+ *   sería afirmar que la bandeja está vacía sin haberla podido mirar.
+ *
+ * Y **no usa el rojo de la marca**, que en este sistema es un bisturí: un acento
+ * por pantalla. Cuatro pastillas rojas fijas en la columna se comerían al único
+ * rojo que tiene que resaltar. Va en el color activo del shell, que es el mismo
+ * con el que la columna marca dónde estás parado.
+ */
+function Pastilla({ item, contadores }: { item: ItemMenu; contadores: Contadores }) {
+  if (!item.contador) return null
+
+  const cuantos = contadores[item.contador]
+  if (cuantos === undefined || cuantos === 0) return null
+
+  return (
+    <span
+      className="t-mono shrink-0 rounded-full bg-shell-activo px-1.5 py-0.5 text-[10px] text-shell-texto tabular-nums"
+      // El número solo no dice de qué es cuando se lo lee fuera de contexto, que
+      // es exactamente cómo lo lee un lector de pantalla al recorrer la lista.
+      aria-label={`${cuantos} sin resolver`}
+    >
+      {cuantos}
+    </span>
   )
 }

@@ -397,20 +397,26 @@ class PagoTest {
                 .andExpect(jsonPath("$.contenido[0].pagador").value("Aparezco Igual"));
     }
 
-    // -- Dividir la pantalla por dentro (`mejoras.md` §12 · B1) ---------------
+    // -- Dividir la pantalla por dentro (`mejoras.md` §13 · B2) ---------------
 
     /**
-     * El filtro por destino, que es lo que Ignacio pidió como <i>"dividir esa
-     * sección por dentro: pagos de equipos, de servicios, de programas"</i>.
+     * Las solapas, que es lo que Ignacio pidió como <i>"subdividir en grupos:
+     * programas, servicios y venta de equipos; siento que está todo en la misma
+     * bolsa"</i>.
+     *
+     * <p><b>Este caso reemplaza al del filtro por {@code destino} de §12 · B1</b>,
+     * y el cambio es deliberado: aquél filtraba por <i>a qué apunta el pago</i>
+     * mientras la etiqueta de esa misma fila mostraba la <i>línea de negocio</i>,
+     * así que el filtro decía "Reserva de sala" y la fila decía "Cursos". Dos
+     * vocabularios sobre el mismo renglón. Ahora las dos cosas salen de
+     * {@code LineaDeNegocio}.
      *
      * <p>Filtra <b>en el servidor</b> y no en la pantalla, y ese es el punto: el
      * listado pagina de a veinte, así que filtrar la página ya traída mostraría
-     * un subconjunto de veinte filas como si fuera el total. Es el mismo defecto
-     * que este proyecto ya corrigió una vez —buscar desde la página 3 devolvía
-     * vacío— y que la pantalla resuelve volviendo a la página 0.
+     * un subconjunto de veinte filas como si fuera el total.
      */
     @Test
-    void el_listado_se_divide_por_destino() throws Exception {
+    void el_listado_se_divide_en_solapas() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
         mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
@@ -421,18 +427,111 @@ class PagoTest {
                 """.formatted(ventaNueva())))
                 .andExpect(status().isCreated());
 
-        mvc.perform(get("/api/pagos").param("destino", "VENTA_EQUIPO")
+        mvc.perform(get("/api/pagos").param("grupo", "EQUIPOS")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.contenido[?(@.destino != 'VENTA_EQUIPO')]").isEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.lineaDeNegocio != 'VENTA_EQUIPOS')]").isEmpty())
                 .andExpect(jsonPath("$.contenido[?(@.pagador == 'Compra Equipos')]").isNotEmpty());
 
         // Y el corte es real en las dos direcciones: sin esto, un filtro que no
         // filtra nada pasaría la mitad de arriba sin que nadie se entere.
-        mvc.perform(get("/api/pagos").param("destino", "INSCRIPCION")
+        mvc.perform(get("/api/pagos").param("grupo", "PROGRAMAS")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.lineaDeNegocio != 'CURSOS')]").isEmpty())
                 .andExpect(jsonPath("$.contenido[?(@.pagador == 'Compra Equipos')]").isEmpty());
+    }
+
+    /**
+     * <b>La solapa de servicios junta tres líneas</b>, y ése es el único grupo
+     * donde el mapa de {@code LineaDeNegocio.Grupo} hace algo que no es la
+     * identidad. Si alguien lo achicara a una sola línea, el alquiler de cabina
+     * dejaría de aparecer en su propia solapa sin que ninguna otra prueba se
+     * queje.
+     */
+    @Test
+    void la_solapa_de_servicios_junta_alquiler_grabacion_y_mastering() throws Exception {
+        mvc.perform(get("/api/pagos").param("grupo", "SERVICIOS")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.contenido[?(@.lineaDeNegocio != 'ALQUILER_CABINA'"
+                                + " && @.lineaDeNegocio != 'GRABACION_SET'"
+                                + " && @.lineaDeNegocio != 'MIX_MASTERING')]")
+                        .isEmpty());
+    }
+
+    /**
+     * Sin solapa elegida vienen todas las líneas.
+     *
+     * <p>Parece trivial y no lo es: el filtro se escribe como un {@code IN} y con
+     * la lista vacía sería un error de sintaxis en Postgres, así que sin grupo se
+     * le pasan <b>las seis líneas</b>. Si alguien "simplificara" eso a null o a una
+     * lista vacía, el listado entero deja de andar — o peor, vuelve vacío.
+     */
+    @Test
+    void sin_solapa_elegida_vienen_todos_los_pagos() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+
+        mvc.perform(get("/api/pagos").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido.length()").value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.totalElementos").value(org.hamcrest.Matchers.greaterThan(0)));
+    }
+
+    // -- La barra de solapas (`mejoras.md` §13 · B2) --------------------------
+
+    /**
+     * Los números de la barra: cuántos pagos y cuánto entró, por línea.
+     *
+     * <p><b>Los dos números son distintos a propósito</b>: {@code cantidad} son las
+     * filas que el listado va a mostrar y {@code entraron} es, de ésas, la plata
+     * que efectivamente entró. Un pago anulado cuenta en el primero y no en el
+     * segundo — que es la confusión por la que la caja de este sistema ya pagó una
+     * vez, en {@code EgresoRepository.porMoneda}.
+     */
+    @Test
+    void la_barra_de_solapas_cuenta_las_filas_y_suma_solo_lo_que_entro() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        String buscar = alumno.getUsuario().getApellido();
+
+        long idPago = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+                .andExpect(status().isCreated()));
+
+        // El apellido es único por caso, así que la barra tiene exactamente una
+        // fila: la de CURSOS en pesos. Afirmar sobre esa fila —y sobre que sea la
+        // única— es más fuerte que filtrar por línea: si el agrupamiento se
+        // rompiera y saliera una fila de más, un filtro por línea no lo vería.
+        mvc.perform(get("/api/pagos/por-linea").param("buscar", buscar)
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].linea").value("CURSOS"))
+                .andExpect(jsonPath("$[0].moneda").value("ARS"))
+                .andExpect(jsonPath("$[0].cantidad").value(1))
+                .andExpect(jsonPath("$[0].entraron").value(90000.00));
+
+        mvc.perform(anular(idPago, "El monto era otro")).andExpect(status().isOk());
+
+        // La fila sigue estando —nada se borra en este esquema— pero la plata ya
+        // no está adentro. Si `entraron` sumara la columna entera, esto seguiría
+        // dando 90000 y la barra diría que entró plata que se dio de baja.
+        mvc.perform(get("/api/pagos/por-linea").param("buscar", buscar)
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].cantidad").value(1))
+                .andExpect(jsonPath("$[0].entraron").value(0));
+    }
+
+    @Test
+    void un_usuario_comun_no_ve_la_barra_de_solapas() throws Exception {
+        mvc.perform(get("/api/pagos/por-linea")
+                .header("Authorization", credencialPara(crear(Rol.USUARIO))))
+                .andExpect(status().isForbidden());
     }
 
     /**

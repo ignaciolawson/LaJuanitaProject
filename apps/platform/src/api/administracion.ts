@@ -15,7 +15,7 @@ import type {
   EstadoSolicitante,
   MedioPago,
   DestinoDeEgreso,
-  DestinoDePago,
+  GrupoDePago,
   PagoResumen,
   Disciplina,
   EstadoAlumno,
@@ -28,11 +28,13 @@ import type {
   NivelIngreso,
   Pagina,
   ParticipanteResumen,
+  Pendientes,
   ProfesorResumen,
   ReservaResumen,
   SalaResumen,
   SolicitanteResumen,
   TipoUsoResumen,
+  TotalDeLinea,
   UsoDeSala,
   UsuarioCreado,
   UsuarioResumen,
@@ -518,19 +520,42 @@ export function listarPagos(opciones: {
   estado?: EstadoPago | ''
   moneda?: Moneda | ''
   /**
-   * Divide la sección por dentro (`mejoras.md` §12 · B1): programas, salas,
-   * mastering o equipos.
+   * La solapa (`mejoras.md` §13 · B2): programas, servicios, equipos o sin
+   * destino.
+   *
+   * ⚠️ **Reemplaza al viejo `destino` de §12 · B1, y no es el mismo con otro
+   * nombre.** Aquél filtraba por *a qué apunta* el pago mientras la etiqueta de
+   * esa misma fila mostraba la *línea de negocio*: el filtro decía "Reserva de
+   * sala" y la fila decía "Cursos". Dos vocabularios sobre el mismo renglón.
    *
    * ⚠️ **Filtra el servidor, no la pantalla.** El listado pagina de a veinte, así
    * que filtrar lo ya traído mostraría un subconjunto de esas veinte filas como
    * si fuera el total — el mismo defecto que buscar desde la página 3.
    */
-  destino?: DestinoDePago | ''
+  grupo?: GrupoDePago | ''
   desde?: string
   hasta?: string
   pagina?: number
 }) {
   return pedir<Pagina<PagoResumen>>(`/api/pagos${query({ ...opciones })}`)
+}
+
+/**
+ * Los números de la barra de solapas (`mejoras.md` §13 · B2).
+ *
+ * **Toma los mismos filtros que el listado menos la solapa**, que es justamente
+ * lo que la barra deja elegir: así cada solapa muestra su número sin que haya
+ * que entrar a verla.
+ */
+export function totalesPorLinea(opciones: {
+  buscar?: string
+  idUsuario?: number
+  estado?: EstadoPago | ''
+  moneda?: Moneda | ''
+  desde?: string
+  hasta?: string
+}) {
+  return pedir<TotalDeLinea[]>(`/api/pagos/por-linea${query({ ...opciones })}`)
 }
 
 export function registrarPago(datos: AltaPago) {
@@ -811,4 +836,15 @@ export function descartarSolicitante(id: number, motivo: string) {
     metodo: 'PATCH',
     cuerpo: { motivo },
   })
+}
+
+/**
+ * Los contadores del menú de administración (`mejoras.md` §13 · B1).
+ *
+ * Sólo lo llama quien administra: para un `USUARIO` contesta 403, y por eso el
+ * sidebar lo pide detrás de `puedeAdministrar`. Lo suyo —las notificaciones sin
+ * leer— sale de `notificacionesSinLeer`, en `api/portal.ts`.
+ */
+export function pendientes() {
+  return pedir<Pendientes>('/api/pendientes')
 }

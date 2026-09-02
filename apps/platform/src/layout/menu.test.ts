@@ -294,3 +294,40 @@ describe('la recorrida por rol', () => {
   })
 })
 
+
+describe('los contadores del menú (§13 · B1)', () => {
+  /**
+   * El menú dice QUÉ se cuenta, no cuánto. Lo segundo lo trae `usePendientes` y
+   * lo dibuja `Layout`: si el número viviera acá, `menuPara` dejaría de ser una
+   * función pura y pasaría a depender de que dos pedidos hayan vuelto.
+   */
+  it('los cuatro ítems con bandeja declaran su clave, y ningún otro', () => {
+    const conContador = menuPara(usuario({ rol: 'ADMIN' }))
+      .flatMap((grupo) => grupo.items)
+      .filter((item) => item.contador !== undefined)
+
+    expect(conContador.map((item) => item.etiqueta)).toEqual([
+      'Notificaciones',
+      'Buzón de la web',
+      'Pedidos de sala',
+      'Pedidos de cambio',
+    ])
+    expect(conContador.map((item) => item.contador)).toEqual([
+      'notificaciones',
+      'buzon',
+      'pedidosDeSala',
+      'pedidosDeCambio',
+    ])
+  })
+
+  it('a quien no administra le queda un solo contador: el suyo', () => {
+    // Las tres bandejas son de administración y salen de un endpoint que a un
+    // USUARIO le contesta 403. Si el menú se las declarara igual, el sidebar
+    // pediría algo que va a ser rechazado.
+    const conContador = menuPara(usuario({ rol: 'USUARIO' }))
+      .flatMap((grupo) => grupo.items)
+      .filter((item) => item.contador !== undefined)
+
+    expect(conContador.map((item) => item.contador)).toEqual(['notificaciones'])
+  })
+})

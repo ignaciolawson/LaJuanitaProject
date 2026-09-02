@@ -1,5 +1,8 @@
 package com.lajuanita.backend.tablero;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * A qué línea de negocio pertenece una plata que entró.
  *
@@ -117,4 +120,73 @@ public enum LineaDeNegocio {
     public static final String JOINS = """
             LEFT JOIN reserva  r  ON r.id_reserva   = p.id_reserva
             LEFT JOIN tipo_uso tu ON tu.id_tipo_uso = r.id_tipo_uso""";
+
+    /**
+     * Cómo se agrupan las líneas en las solapas de {@code /admin/pagos}
+     * (`mejoras.md` §13 · B2, P47).
+     *
+     * <p>Ignacio pidió tres —programas, servicios y venta de equipos— y son
+     * <b>cuatro</b>. La cuarta es {@link #SIN_DESTINO} y <b>no se puede
+     * esconder</b>: un pago que no apunta a nada es plata que entró, y filtrarlo
+     * haría que la suma de las solapas no dé la caja, sin que nadie pueda ver por
+     * qué. Es el mismo argumento que ya está escrito en {@link LineaDeNegocio#OTRO}
+     * para el tablero. La pantalla la dibuja sólo cuando tiene filas.
+     *
+     * <p><b>Esto es lo ÚNICO nuevo de §13 · B2 del lado de la deducción.</b> La
+     * línea de cada pago la sigue decidiendo {@link #EXPRESION}, que es la misma
+     * que usa el tablero; acá sólo se dice qué líneas viajan juntas. Escribir el
+     * agrupamiento como una segunda deducción —"programas es inscripción o una
+     * reserva que no sea alquiler ni grabación"— sería la copia que §12 · B1 vino
+     * a evitar, y la que después se desincroniza sin que nada falle: el mismo pago
+     * caería en una solapa en el listado y en otra línea en el tablero.
+     */
+    public enum Grupo {
+
+        PROGRAMAS(CURSOS),
+        SERVICIOS(ALQUILER_CABINA, GRABACION_SET, MIX_MASTERING),
+        EQUIPOS(VENTA_EQUIPOS),
+        SIN_DESTINO(OTRO);
+
+        private final List<String> lineas;
+
+        Grupo(LineaDeNegocio... lineas) {
+            List<String> nombres = new ArrayList<>();
+            for (LineaDeNegocio linea : lineas) {
+                nombres.add(linea.name());
+            }
+            this.lineas = List.copyOf(nombres);
+        }
+
+        /**
+         * Los nombres de las líneas de este grupo, para el {@code IN} de la
+         * consulta. Son {@code String} y no el enum porque del otro lado está
+         * {@link #EXPRESION}, que devuelve texto.
+         */
+        public List<String> lineas() {
+            return lineas;
+        }
+
+        /**
+         * En qué solapa cae una línea.
+         *
+         * <p><b>Existe para que la pantalla no tenga que saber el agrupamiento.</b>
+         * La barra de solapas recibe una fila por línea y tiene que sumarlas por
+         * grupo; si el mapa viviera también en el front, sería la misma copia que
+         * §12 · B1 vino a evitar, con una consecuencia concreta y silenciosa: una
+         * solapa mostrando un número que no coincide con lo que lista, porque
+         * cuenta con un mapa y filtra con el otro.
+         *
+         * <p>Una línea que no esté en ningún grupo cae en {@link #SIN_DESTINO}, que
+         * es lo mismo que hace {@link #EXPRESION} con un pago que no apunta a nada.
+         * Es el default correcto: aparece en algún lado en vez de desaparecer.
+         */
+        public static Grupo de(String linea) {
+            for (Grupo grupo : values()) {
+                if (grupo.lineas.contains(linea)) {
+                    return grupo;
+                }
+            }
+            return SIN_DESTINO;
+        }
+    }
 }

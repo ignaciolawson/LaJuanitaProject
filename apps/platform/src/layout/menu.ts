@@ -27,11 +27,34 @@ import type { Rol, UsuarioActual } from '../api/tipos'
  * Nada de esto está hardcodeado por usuario: todo sale de `UsuarioActual`.
  */
 
+/**
+ * Las cuatro cosas que pueden estar esperando que alguien las mire, y que el
+ * sidebar dibuja como un número al lado del ítem (`mejoras.md` §13 · B1).
+ *
+ * `notificaciones` es de cada persona; las otras tres son bandejas de
+ * administración y vienen de otro endpoint. Ver `usePendientes`.
+ */
+export type ClaveDePendiente =
+  | 'notificaciones'
+  | 'pedidosDeSala'
+  | 'pedidosDeCambio'
+  | 'buzon'
+
 export type ItemMenu = {
   etiqueta: string
   ruta: string
   /** Sin predicado = visible siempre (regla 1). */
   visible?: (usuario: UsuarioActual) => boolean
+  /**
+   * Qué contador le corresponde, si le corresponde alguno.
+   *
+   * ⚠️ **Es una CLAVE y no un número**, y esa es toda la decisión. Este módulo
+   * es una función pura de `UsuarioActual` —sin red, sin estado, testeable de
+   * un plumazo— y meterle el número lo volvería asincrónico: `menuPara` pasaría
+   * a depender de que dos pedidos hayan vuelto. El menú dice *qué* se cuenta;
+   * cuánto es, lo trae `usePendientes` y lo dibuja `Layout`.
+   */
+  contador?: ClaveDePendiente
   /**
    * `false` mientras el módulo no exista. Se dibuja apagado y no navega, en
    * vez de mandar a una pantalla vacía que parece un error. Se pone en `true`
@@ -62,7 +85,12 @@ const MENU: GrupoMenu[] = [
       // diciendo Mix & Mastering, que es como el cliente conoce el servicio.
       { etiqueta: 'Mis trabajos', ruta: '/mix-mastering', disponible: true },
       { etiqueta: 'Mis pagos', ruta: '/mis-pagos', disponible: true },
-      { etiqueta: 'Notificaciones', ruta: '/notificaciones', disponible: true },
+      {
+        etiqueta: 'Notificaciones',
+        ruta: '/notificaciones',
+        contador: 'notificaciones',
+        disponible: true,
+      },
       { etiqueta: 'Mi perfil', ruta: '/mi-perfil', disponible: true },
     ],
   },
@@ -105,6 +133,7 @@ const MENU: GrupoMenu[] = [
         etiqueta: 'Buzón de la web',
         ruta: '/admin/buzon',
         visible: puedeAdministrar,
+        contador: 'buzon',
         disponible: true,
       },
       { etiqueta: 'Alumnos', ruta: '/admin/alumnos', visible: puedeAdministrar, disponible: true },
@@ -127,6 +156,7 @@ const MENU: GrupoMenu[] = [
         etiqueta: 'Pedidos de sala',
         ruta: '/admin/solicitudes',
         visible: puedeAdministrar,
+        contador: 'pedidosDeSala',
         disponible: true,
       },
       {
@@ -137,6 +167,7 @@ const MENU: GrupoMenu[] = [
         etiqueta: 'Pedidos de cambio',
         ruta: '/admin/reprogramaciones',
         visible: puedeAdministrar,
+        contador: 'pedidosDeCambio',
         disponible: true,
       },
       {

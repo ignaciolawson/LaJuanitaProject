@@ -2452,55 +2452,50 @@ mismo texto que devolvería el backend.
 > que aparece — esta trajo tres cosas de pantalla y **un cambio de regla de
 > negocio**, que es el hallazgo más grande desde que se cerró el MVP.
 
-### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-01)
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-02)
 
-**Estado: A1 cerrado, B1 a mitad, B2 y C1 sin empezar.**
+**Estado: A1, B1 y B2 cerrados. Queda C1, que es la prereserva y lleva `V24`.**
 
 | | Punto | Estado |
 |---|---|---|
 | 🟢 **A1** | Frases reales de DJ, con autor | ✅ **cerrado** |
-| 🟡 **B1** | Contadores de pendientes en el sidebar | 🟨 **backend hecho, front sin empezar** |
-| 🟡 **B2** | Pagos subdividido por línea de negocio | ⬜ sin empezar |
-| 🔴 **C1** | La prereserva con vencimiento a 24hs | ⬜ sin empezar — **es `V24`** |
+| 🟡 **B1** | Contadores de pendientes en el sidebar | ✅ **cerrado** |
+| 🟡 **B2** | Pagos subdividido en solapas por línea | ✅ **cerrado** |
+| 🔴 **C1** | La prereserva con vencimiento a 24hs | ⬜ **lo único que queda — es `V24`** |
 
-**Lo que hay en el árbol ahora mismo**, todo verde y todo compilando:
+**Suites: 573 backend · 506 front · 216 + 56 SQL**, sobre 23 migraciones. `tsc -b`
+y los dos linters, limpios. Nada quedó a medias en el árbol.
 
-- **A1 completo**: `apps/platform/src/datos/frases.ts` pasó de 14 frases a 29, y
-  las citas de 2 a 17, de diez personas distintas. Suite del front en **493**
-  (eran 492): el caso nuevo es el del orden — ver abajo. `npx tsc -b` y el linter,
-  limpios.
-- **La mitad de backend de B1**: el paquete `com.lajuanita.backend.bandeja`
-  (`BandejaController`, `BandejaService`, `dto/Pendientes`) sirviendo
-  `GET /api/pendientes` con `@PuedeLeerAdministracion`, más un `countByEstado` en
-  cada uno de los tres repositorios de bandeja. `mvn clean compile` verde, y **un
-  test de contexto (`SolicitanteTest`) corrido a propósito**: las consultas
-  derivadas por nombre no las valida el compilador sino el arranque de Spring, así
-  que compilar no alcanzaba para creerles.
+⚠️ **`V24` es la prereserva. Desactivar el admin sembrado por `V3` —que era lo
+anotado como próximo— pasa a `V25`.**
 
-**Lo que le falta a B1, que es todo el front:**
+**Lo que falta hacer, en orden:**
 
-1. `layout/menu.ts` — `ItemMenu` gana un `contador` opcional, con la clave de la
-   bandeja (notificaciones, pedidos de sala, pedidos de cambio, buzón).
-   ⚠️ **Una clave, no un número**: el menú tiene que seguir siendo una función
-   pura de `UsuarioActual` y no pasar a depender de la red.
-2. `layout/usePendientes.ts` (nuevo) — pide `GET /api/me/notificaciones/sin-leer`
-   (que **ya existe** desde el Módulo 4) y, sólo si `puedeAdministrar`,
-   `GET /api/pendientes`. **Al montar y en cada cambio de ruta**: eso es lo que
-   hace honesto el *"cuando se marque como leída, baja"* sin cablear cuatro
-   pantallas, porque navegar es exactamente lo que pasa después de resolver algo.
-3. `layout/Layout.tsx` — la pastilla al lado de la etiqueta. **Cero es ausencia de
-   pastilla, no un cero dibujado**: un `(0)` fijo es ruido en las 36 pantallas. Y
-   un error al traer los contadores no rompe nada — sin número, el ítem se dibuja
-   como hoy, el mismo criterio que el Inicio con un bloque caído.
-4. Pruebas: `menu.test.ts` (que los cuatro ítems declaren su clave y ningún otro),
-   un caso de `Layout`, y `BandejaTest` del lado backend (403 para `USUARIO`, y
-   que los tres números cuenten sólo lo pendiente).
+1. **C1**, con todo su detalle más abajo. Es lo único abierto de esta barrida.
+2. El deploy de octubre (`operacion.md` §3).
+3. La próxima barrida, cuando Ignacio vuelva a usar el sistema.
 
-**Después**: B2, y recién al final C1 con su migración. **`V24` se escribe última
-a propósito** — una migración es inmutable y se acumula, así que no se apura.
+---
 
-⚠️ **`V24` queda para la prereserva. Desactivar el admin sembrado por `V3` —que
-era lo anotado como próximo— pasa a `V25`.**
+### Las tres advertencias de método de esta sesión
+
+Las tres costaron tiempo y las tres se repiten solas si nadie las anota:
+
+- ⚠️ **Una consulta derivada por nombre no la valida el compilador.** Los tres
+  `countByEstado` de B1 los valida Spring al armar el contexto: `mvn clean compile`
+  en verde no prueba nada sobre ellos. Hay que correr algo que arranque la
+  aplicación. Es el primo del `mvn compile` que mintió en §12.
+- ⚠️ **El nombre accesible de un elemento concatena sin espacios.** Una solapa que
+  dice "Servicios" con una pastilla "7" al lado se llama **`Servicios7`**, no
+  `Servicios 7` — el `gap` es CSS y no un nodo de texto. Cuatro casos de B2
+  fallaron por eso y el error (*"Unable to find role=tab and name…"*) no lo dice.
+  Van con expresión regular.
+- ⚠️ **Un importe nuevo en pantalla rompe los casos que buscaban el viejo por
+  texto.** La barra de solapas muestra un total, y el caso que verificaba el
+  importe de la fila pasó a encontrar dos. Se acota con `within(la tabla)`, no se
+  afloja la aserción — y cuando el que se busca es el de la barra, el fixture usa
+  **un número distinto del de la fila** para que la aserción no pueda pasar
+  mirando el equivocado.
 
 ---
 
@@ -2567,6 +2562,9 @@ igual que el resto de la copia larga.
 
 ### 🟡 B1 — Contadores de pendientes en el sidebar
 
+> ✅ **CERRADO el 2026-09-02.** Backend en **569** (eran 564) y front en **500**
+> (eran 493).
+
 Ignacio: *"cuando tengas una notificación que diga (1) pero en el sidebar (…) en
 caso de admin aparte de eso, también en lo que es pedidos de sala, pedidos de
 cambio, buzón de la web, todo lo que sea notificación; obviamente cuando se marque
@@ -2592,9 +2590,35 @@ Un `mvn clean compile` verde no prueba nada sobre estos tres métodos; hay que
 correr algo que arranque la aplicación. Es el primo del `mvn compile` que mintió
 en §12.
 
+**Cómo quedó construido**, y las tres decisiones de forma que conviene no
+deshacer:
+
+- **`ItemMenu.contador` guarda una CLAVE, no un número.** `menu.ts` sigue siendo
+  una función pura de `UsuarioActual` —sin red, sin estado, testeable de un
+  plumazo—; el número lo trae `usePendientes` y lo dibuja `Layout`. Meterle el
+  número volvería asincrónico al módulo del que este proyecto está más orgulloso.
+- **Se refresca al montar y en cada cambio de ruta**, y eso es lo que hace honesto
+  el *"cuando se marque como leída, baja"* sin cablear cuatro pantallas para que
+  avisen: **navegar es justo lo que pasa después de resolver algo** —se aprueba un
+  pedido de sala y se vuelve al calendario, se atiende una ficha del buzón y se va
+  a crear la inscripción—. Para el caso que eso no cubre (resolver y quedarse
+  quieto) el hook expone `refrescar`.
+- **Cero no se dibuja, y lo que no llegó tampoco.** Son dos motivos distintos y
+  los dos importan: un `(0)` fijo en cuatro ítems de las 36 pantallas es ruido
+  permanente que enseña a no mirar ese lugar; y un contador que no volvió —el
+  pedido falló— queda sin pastilla en vez de inventar un cero, que sería afirmar
+  que la bandeja está vacía sin haberla podido mirar. Un error acá **no rompe el
+  menú**: es el mismo criterio del Inicio, donde un bloque caído no vacía la
+  pantalla.
+- **La pastilla no usa el rojo de la marca.** En este sistema el rojo es un
+  bisturí —un acento por pantalla— y cuatro pastillas rojas fijas en la columna se
+  comerían al único rojo que tiene que resaltar.
+
 ---
 
 ### 🟡 B2 — Pagos, subdividido por línea de negocio
+
+> ✅ **CERRADO el 2026-09-02.** Backend en **573** y front en **506**.
 
 Ignacio: *"no basta con saber de qué sección es, tener todo en una lista gigante
 para abajo, más allá de los filtros; estaría bueno subdividir en grupos de alguna
@@ -2624,14 +2648,55 @@ tienen, compartida con el tablero, y §12 · B1 lo pidió con todas las letras:
 *"hay que reusarla, no escribir una segunda"*. Lo único nuevo es el mapa
 grupo → líneas, en Java.
 
-⚠️ **La trampa técnica que hay que resolver primero**: `PagoRepository.listar` es
-JPQL y `EXPRESION` es SQL. Hay que intentar el `CASE` dentro del `WHERE` —que es
-distinto del `GROUP BY` que Hibernate 7 rechazó, y está documentado en la clase— y
-si lo rechaza, pasar la consulta a nativa con su `countQuery`, **conservando el
-patrón de `lineasDe`** para no caer en N+1 al perder los `JOIN FETCH`.
+⚠️ **La trampa técnica, y cómo se resolvió.** `PagoRepository.listar` era JPQL y
+`EXPRESION` es SQL, así que **no se podía filtrar por línea sin duplicar la
+definición** — el javadoc de esa consulta ya lo tenía anotado con todas las letras
+desde §12 · B1. Las dos salidas eran reescribir el `CASE` en JPQL (la copia que
+§12 vino a evitar, y que **se desincroniza sin que nada falle**: el mismo pago
+caería en una solapa en el listado y en otra línea en el tablero) o traer la
+consulta al dialecto donde la definición ya existe. **Se hizo lo segundo, y eso
+partió la consulta en dos:**
+
+- **`idsListados` es nativa y devuelve ids.** Las dos cosas son la misma decisión:
+  una consulta nativa no puede `JOIN FETCH`, así que mapear a entidades ahí dejaría
+  las asociaciones perezosas y **pintar veinte filas costaría decenas de viajes** —
+  exactamente lo que `lineasDe` y `ventasConPago` existen para no hacer.
+- **`porIdsConDetalle` es JPQL y trae el detalle** con sus `JOIN FETCH`, en una
+  consulta más. **No ordena a propósito**: el orden lo decidió la consulta de ids y
+  lo repone el servicio, porque pedirlo dos veces sería una segunda definición del
+  orden de la pantalla — y la que nadie se acordaría de cambiar.
+- ⚠️ **`:lineas` siempre llega con elementos.** Sin solapa elegida se le pasan las
+  seis líneas, no `null` ni una lista vacía: un `IN ()` vacío es un error de
+  sintaxis en Postgres y sobre una colección no se puede escribir el `IS NULL` que
+  usan los demás filtros. Hay un caso que lo cuida, porque "simplificarlo" rompe el
+  listado entero o —peor— lo devuelve vacío.
+- ⚠️ **Los parámetros que pueden venir en null van con `CAST`.** Sin el cast el
+  driver no puede inferir el tipo de un null y Postgres falla con un mensaje que
+  habla de `bytea`: el mismo pozo que `Busqueda.patron` documenta del lado del
+  `LIKE`.
+
+⚠️ **Y una decisión que se tomó al revés primero: el grupo de cada línea lo dice
+el servidor.** La primera versión devolvía sólo la línea y dejaba que la pantalla
+agrupara — con el argumento de que agrupar es presentación. **Es falso, y el modo
+de falla es concreto**: el mapa línea→solapa quedaría escrito dos veces, y una
+solapa terminaría mostrando un número que no coincide con lo que lista, porque
+cuenta con un mapa y filtra con el otro. `TotalDeLinea` viaja con su `grupo` ya
+resuelto por `Grupo.de(...)`, que es el mismo que arma el filtro.
 
 **Y el total de cada solapa es lo que ENTRÓ**, no la suma de la columna: sumar
-todo mezclaría deuda anotada y plata anulada con plata real.
+todo mezclaría deuda anotada y plata anulada con plata real. Hay un caso que
+carga un pago, lo anula, y verifica que la fila siga contando en `cantidad` y
+desaparezca de `entraron`.
+
+**En la pantalla**, dos cosas más:
+
+- **La barra se pide aparte del listado y no depende de la solapa ni de la
+  página.** De la solapa porque muestra **todas** —cada una con su número, sin que
+  haya que entrar a verla, que es lo que se pidió—; de la página porque un total
+  que cambia al pasar de página no es un total.
+- **Si los números no vuelven, la pantalla sigue andando.** La barra es un dato de
+  más, no el contenido: un endpoint caído no puede dejar sin listado justo a la
+  pantalla donde se ve la plata.
 
 ---
 

@@ -34,6 +34,8 @@ import com.lajuanita.backend.pago.dto.EdicionPagoRequest;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.pago.dto.PagoResumen;
+import com.lajuanita.backend.pago.dto.TotalDeLinea;
+import com.lajuanita.backend.tablero.LineaDeNegocio.Grupo;
 import com.lajuanita.backend.usuario.dto.Pagina;
 
 import jakarta.validation.Valid;
@@ -77,20 +79,49 @@ public class PagoController {
             @RequestParam(required = false) Long idUsuario,
             @RequestParam(required = false) EstadoPago estado,
             @RequestParam(required = false) Moneda moneda,
-            // A qué apunta el pago: INSCRIPCION, RESERVA, TRABAJO_MASTERING o
-            // VENTA_EQUIPO. Es la división por dentro que pidió §12 · B1.
+            // La solapa: PROGRAMAS, SERVICIOS, EQUIPOS o SIN_DESTINO
+            // (`mejoras.md` §13 · B2). Sin valor, vienen todas.
             //
-            // Viaja como String y no como enum porque no hay ningún enum de
-            // destinos en el sistema: son cuatro columnas nullable de `pago` y el
-            // nombre lo arma `PagoResumen.destinoDe`. Un valor desconocido no
-            // rompe nada — no coincide con ninguna rama y devuelve vacío.
-            @RequestParam(required = false) String destino,
+            // ⚠️ Reemplaza al viejo `destino`, y no es lo mismo con otro nombre.
+            // `destino` filtraba por a qué apunta el pago —cuatro columnas
+            // nullable— y la etiqueta de cada fila mostraba la LÍNEA DE NEGOCIO,
+            // que cruza el tipo de uso de la reserva. Los dos vocabularios sobre
+            // la misma fila: el filtro decía "Reserva de sala" y la etiqueta de esa
+            // fila, "Cursos". Ahora las dos cosas salen de LineaDeNegocio.
+            @RequestParam(required = false) Grupo grupo,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        return pagos.listar(buscar, idUsuario, estado, moneda, destino, desde, hasta, pagina, tamanio);
+        return pagos.listar(buscar, idUsuario, estado, moneda, grupo, desde, hasta, pagina, tamanio);
+    }
+
+    /**
+     * Lo que va en la barra de solapas: cuántos pagos y cuánto entró en cada
+     * línea, con los filtros de la pantalla puestos (`mejoras.md` §13 · B2).
+     *
+     * <p><b>Es un endpoint aparte y no un campo del listado</b>, por dos motivos.
+     * Uno: la respuesta del listado es {@code Pagina<T>}, un genérico con forma
+     * estable que se usa en todos los listados del sistema, y meterle un campo de
+     * una pantalla lo dejaría de ser. Dos: <b>cubre TODAS las líneas, no la
+     * elegida</b> — cada solapa muestra su número sin que haya que entrar a verla,
+     * que es lo que se pidió cuando estaba <i>"todo en la misma bolsa"</i>.
+     *
+     * <p>Toma los mismos filtros que el listado <b>menos {@code grupo}</b>, que es
+     * justamente el que la barra deja elegir.
+     */
+    @GetMapping("/por-linea")
+    @PuedeLeerAdministracion
+    public List<TotalDeLinea> porLinea(
+            @RequestParam(required = false) String buscar,
+            @RequestParam(required = false) Long idUsuario,
+            @RequestParam(required = false) EstadoPago estado,
+            @RequestParam(required = false) Moneda moneda,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+
+        return pagos.totalesPorLinea(buscar, idUsuario, estado, moneda, desde, hasta);
     }
 
     /**

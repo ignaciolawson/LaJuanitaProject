@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 
-import type { ComprobanteResumen, PagoResumen } from '../api/tiposAdmin'
+import type { ComprobanteResumen, PagoResumen, TotalDeLinea } from '../api/tiposAdmin'
 import type { UsuarioActual as Actual } from '../api/tipos'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { PagosPagina } from './PagosPagina'
@@ -33,6 +33,7 @@ vi.mock('../api/administracion', () => ({
   agenda: vi.fn(),
   listarUsuarios: vi.fn(),
   listarVentas: vi.fn(),
+  totalesPorLinea: vi.fn(),
 }))
 
 vi.mock('../api/mastering', () => ({ listarTrabajos: vi.fn() }))
@@ -49,6 +50,7 @@ const {
   listarUsuarios,
   listarVentas,
   registrarPago,
+  totalesPorLinea,
 } = await import('../api/administracion')
 const { listarTrabajos } = await import('../api/mastering')
 
@@ -135,8 +137,21 @@ function montar(rol: Actual['rol'] = 'STAFF') {
   )
 }
 
+/** Una fila de la barra de solapas. Espeja `TotalDeLinea`. */
+function total(cambios: Partial<TotalDeLinea> = {}): TotalDeLinea {
+  return {
+    linea: 'CURSOS',
+    grupo: 'PROGRAMAS',
+    moneda: 'ARS',
+    cantidad: 1,
+    entraron: 90000,
+    ...cambios,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(totalesPorLinea).mockResolvedValue([total()])
   vi.mocked(listarPagos).mockResolvedValue(pagina([pago()]))
   vi.mocked(listarAlumnos).mockResolvedValue(
     pagina([]) as never,
@@ -154,7 +169,9 @@ describe('el listado', () => {
     montar()
 
     expect(await screen.findByText('DJ · INICIAL')).toBeDefined()
-    expect(screen.getByText('$ 90.000,00')).toBeDefined()
+    // Acotado a la tabla: desde §13 · B2 la barra de solapas también muestra un
+    // importe, y sin acotar esto encuentra dos.
+    expect(within(screen.getByRole('table')).getByText('$ 90.000,00')).toBeDefined()
     expect(within(screen.getByRole('table')).getByText('Señado')).toBeDefined()
   })
 
@@ -246,7 +263,7 @@ describe('dividir la sección por dentro (§12 · B1)', () => {
     expect(await screen.findByText('Sin línea asignada')).toBeDefined()
   })
 
-  it('⚠️ filtrar por tipo de pago le pide al servidor, no recorta lo ya traído', async () => {
+  it('⚠️ elegir una solapa le pide al servidor, no recorta lo ya traído', async () => {
     // **Es la decisión entera del punto.** El listado pagina de a veinte: filtrar
     // en la pantalla mostraría un subconjunto de esas veinte como si fuera el
     // total. Es el mismo defecto que buscar desde la página 3 —que este proyecto
@@ -255,29 +272,122 @@ describe('dividir la sección por dentro (§12 · B1)', () => {
     montar()
     await screen.findByText('DJ · INICIAL')
 
-    await elegir(user, 'Filtrar por tipo de pago', 'VENTA_EQUIPO')
+    await user.click(await screen.findByRole('tab', { name: /Venta de equipos/ }))
 
     await waitFor(() =>
       expect(vi.mocked(listarPagos)).toHaveBeenCalledWith(
-        expect.objectContaining({ destino: 'VENTA_EQUIPO' }),
+        expect.objectContaining({ grupo: 'EQUIPOS' }),
       ),
     )
   })
 
-  it('al filtrar se vuelve a la primera página', async () => {
+  it('al elegir una solapa se vuelve a la primera página', async () => {
     // Sin esto, filtrar estando en la página 3 devuelve vacío y se lee como que
     // no hay pagos de ese tipo.
     const user = userEvent.setup()
     montar()
     await screen.findByText('DJ · INICIAL')
 
-    await elegir(user, 'Filtrar por tipo de pago', 'INSCRIPCION')
+    await user.click(await screen.findByRole('tab', { name: /Servicios/ }))
 
     await waitFor(() =>
       expect(vi.mocked(listarPagos)).toHaveBeenCalledWith(
-        expect.objectContaining({ destino: 'INSCRIPCION', pagina: 0 }),
+        expect.objectContaining({ grupo: 'SERVICIOS', pagina: 0 }),
       ),
     )
+  })
+})
+
+describe('la barra de solapas (§13 · B2)', () => {
+  it('cada solapa trae su número sin que haya que entrar a verla', async () => {
+    // Es lo que se pidió: *"siento que está todo en la misma bolsa"*. Un número
+    // que sólo apareciera al elegir la solapa no resolvería eso.
+    vi.mocked(totalesPorLinea).mockResolvedValue([
+      total({ linea: 'CURSOS', grupo: 'PROGRAMAS', cantidad: 12 }),
+      total({ linea: 'ALQUILER_CABINA', grupo: 'SERVICIOS', cantidad: 5, entraron: 20000 }),
+      total({ linea: 'GRABACION_SET', grupo: 'SERVICIOS', cantidad: 2, entraron: 8000 }),
+    ])
+
+    montar()
+
+    // Servicios junta dos líneas: 5 + 2. Si el agrupamiento se perdiera, esta
+    // solapa diría 5 y listaría 7.
+    expect(await screen.findByRole('tab', { name: /Servicios\s*7/ })).toBeDefined()
+    expect(screen.getByRole('tab', { name: /Programas\s*12/ })).toBeDefined()
+  })
+
+  it('"Sin destino" no se dibuja cuando no hay ninguno', async () => {
+    // Es la solapa que no se puede esconder cuando existe —un pago que no apunta
+    // a nada es plata que entró— y que no tiene por qué estar cuando no existe:
+    // una solapa permanente en cero enseña a no mirar la barra.
+    montar()
+
+    await screen.findByRole('tab', { name: /Programas/ })
+    expect(screen.queryByRole('tab', { name: /Sin destino/ })).toBeNull()
+  })
+
+  it('⚠️ "Sin destino" SÍ se dibuja cuando hay pagos que no apuntan a nada', async () => {
+    // Si se filtrara, la suma de las solapas dejaría de dar la caja y nadie
+    // podría ver por qué. Es el mismo criterio que `LineaDeNegocio.OTRO`.
+    vi.mocked(totalesPorLinea).mockResolvedValue([
+      total(),
+      total({ linea: 'OTRO', grupo: 'SIN_DESTINO', cantidad: 3, entraron: 1000 }),
+    ])
+
+    montar()
+
+    expect(await screen.findByRole('tab', { name: /Sin destino\s*3/ })).toBeDefined()
+  })
+
+  it('⚠️ el total dice lo que ENTRÓ, no la suma de la columna', async () => {
+    // Dos filas por la misma cantidad de pagos: una con plata adentro y otra sin
+    // nada, que es lo que pasa con una deuda anotada o un pago anulado. Si el
+    // total sumara la columna, diría que entró plata que no entró.
+    // El importe es distinto del de la fila a propósito: si fuera el mismo, la
+    // aserción encontraría dos y no distinguiría cuál de los dos números miró.
+    vi.mocked(totalesPorLinea).mockResolvedValue([
+      total({ cantidad: 2, entraron: 123456 }),
+      total({ linea: 'VENTA_EQUIPOS', grupo: 'EQUIPOS', cantidad: 4, entraron: 0 }),
+    ])
+
+    montar()
+
+    expect(await screen.findByText(/123\.456/)).toBeDefined()
+    expect(screen.getByRole('tab', { name: /Venta de equipos\s*4/ })).toBeDefined()
+  })
+
+  it('los números no se piden de nuevo al cambiar de solapa', async () => {
+    // La barra muestra TODAS las solapas: si dependiera de la elegida, elegir una
+    // dejaría a las otras en cero y la barra dejaría de servir para decidir a
+    // cuál entrar.
+    const user = userEvent.setup()
+    montar()
+    await screen.findByRole('tab', { name: /Programas/ })
+
+    // Esperar a que los números hayan llegado una vez: la barra se dibuja antes
+    // que ellos, así que sin esto el conteo de partida sería cero y la aserción
+    // pasaría por el motivo equivocado.
+    await waitFor(() => expect(vi.mocked(totalesPorLinea)).toHaveBeenCalled())
+    const pedidosAntes = vi.mocked(totalesPorLinea).mock.calls.length
+    await user.click(screen.getByRole('tab', { name: /Programas/ }))
+
+    await waitFor(() =>
+      expect(vi.mocked(listarPagos)).toHaveBeenCalledWith(
+        expect.objectContaining({ grupo: 'PROGRAMAS' }),
+      ),
+    )
+    expect(vi.mocked(totalesPorLinea).mock.calls.length).toBe(pedidosAntes)
+  })
+
+  it('si los números no vuelven, la pantalla sigue andando', async () => {
+    // La barra es un dato de más, no el contenido: un endpoint caído no puede
+    // dejar sin listado a la pantalla donde se ve la plata.
+    vi.mocked(totalesPorLinea).mockRejectedValue(new Error('se cayó'))
+
+    montar()
+
+    expect(await screen.findByText('DJ · INICIAL')).toBeDefined()
+    expect(screen.getByRole('tab', { name: 'Todos' })).toBeDefined()
   })
 })
 

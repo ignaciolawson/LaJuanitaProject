@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 
 import {
@@ -14,24 +14,27 @@ import {
   listarUsuarios,
   listarVentas,
   registrarPago,
+  totalesPorLinea,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { listarTrabajos } from '../api/mastering'
 import type { TrabajoResumen } from '../api/tiposMastering'
 import {
-  NOMBRE_DE_DESTINO,
+  NOMBRE_DE_GRUPO,
   NOMBRE_DE_ESTADO_PAGO,
   NOMBRE_DE_LINEA,
   NOMBRE_DE_MEDIO,
   type AlumnoResumen,
   type ComprobanteResumen,
   type DestinoDePago,
+  type GrupoDePago,
   type EstadoPago,
   type InscripcionResumen,
   type MedioPago,
   type Moneda,
   type PagoResumen,
   type ReservaResumen,
+  type TotalDeLinea,
   type UsuarioResumen,
   type VentaResumen,
 } from '../api/tiposAdmin'
@@ -77,8 +80,10 @@ export function PagosPagina() {
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoPago | ''>('')
   const [moneda, setMoneda] = useState<Moneda | ''>('')
-  /** La división por dentro de §12 · B1. Ver `NOMBRE_DE_DESTINO`. */
-  const [destino, setDestino] = useState<DestinoDePago | ''>('')
+  /** La solapa elegida (§13 · B2). Vacío = todas. */
+  const [grupo, setGrupo] = useState<GrupoDePago | ''>('')
+  /** Los números de la barra de solapas. Vacío mientras no vuelvan. */
+  const [totales, setTotales] = useState<TotalDeLinea[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
@@ -100,7 +105,7 @@ export function PagosPagina() {
     setCargando(true)
     setError(null)
     try {
-      const resultado = await listarPagos({ buscar, estado, moneda, destino, pagina })
+      const resultado = await listarPagos({ buscar, estado, moneda, grupo, pagina })
       setPagos(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -109,12 +114,37 @@ export function PagosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, moneda, destino, pagina])
+  }, [buscar, estado, moneda, grupo, pagina])
+
+  /**
+   * Los números de la barra, en un pedido aparte del listado.
+   *
+   * **No depende de `grupo` ni de `pagina`, y las dos ausencias son la decisión.**
+   * De la solapa, porque la barra muestra TODAS —cada una con su número, sin que
+   * haya que entrar a verla, que es lo que se pidió cuando estaba *"todo en la
+   * misma bolsa"*—; de la página, porque un total que cambiara al pasar de página
+   * no sería un total.
+   *
+   * Si falla, la barra queda sin números y las solapas siguen funcionando: es un
+   * dato de más, no el contenido de la pantalla.
+   */
+  const cargarTotales = useCallback(async () => {
+    try {
+      setTotales(await totalesPorLinea({ buscar, estado, moneda }))
+    } catch {
+      setTotales([])
+    }
+  }, [buscar, estado, moneda])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  useEffect(() => {
+    const id = setTimeout(cargarTotales, 250)
+    return () => clearTimeout(id)
+  }, [cargarTotales])
 
   function filtrar<T>(set: (valor: T) => void) {
     return (valor: T) => {
@@ -200,18 +230,6 @@ export function PagosPagina() {
           ))}
         </FiltroSelect>
         <FiltroSelect
-          etiqueta="Filtrar por tipo de pago"
-          valor={destino}
-          onCambio={(v: string) => filtrar(setDestino)(v as DestinoDePago | '')}
-        >
-          <option value="">Todo lo que entró</option>
-          {DESTINOS_DEL_FILTRO.map((d) => (
-            <option key={d} value={d}>
-              {NOMBRE_DE_DESTINO[d]}
-            </option>
-          ))}
-        </FiltroSelect>
-        <FiltroSelect
           etiqueta="Filtrar por moneda"
           valor={moneda}
           onCambio={(v: string) => filtrar(setMoneda)(v as Moneda | '')}
@@ -221,6 +239,12 @@ export function PagosPagina() {
           <option value="USD">Dólares</option>
         </FiltroSelect>
       </Filtros>
+
+      <SolapasDeLinea
+        elegida={grupo}
+        totales={totales}
+        onElegir={(g) => filtrar(setGrupo)(g)}
+      />
 
       {error && (
         <div className="mb-4">
@@ -631,19 +655,132 @@ function FormularioCorreccion({
     </Bloque>
   )
 }
-/** Los cuatro destinos, con el nombre que usa quien carga y no el del esquema. */
 /**
- * Los cuatro destinos, para el filtro que divide la pantalla (§12 · B1).
+ * La barra de solapas de la pantalla (`mejoras.md` §13 · B2).
  *
- * Sale de las claves de `NOMBRE_DE_DESTINO` y no de una lista escrita al lado,
- * por lo mismo que `UsuariosPagina` hace con los roles: la lista y los nombres
- * no se pueden despegar, así que un destino nuevo aparece en el filtro solo.
+ * Ignacio: *"no basta con saber de qué sección es, tener todo en una lista
+ * gigante para abajo (…) siento que está todo en la misma bolsa"*.
  *
- * ⚠️ Se llama distinto que el `DESTINOS` de más abajo **porque son dos cosas**:
- * aquél es el del formulario de alta, donde la frase es "este pago salda…" y
- * cada opción se dice con otras palabras ("Un curso", "Una reserva de sala").
+ * ─────────────────────────────────────────────────────────────────────────
+ * **POR QUÉ SOLAPAS Y NO GRUPOS ADENTRO DE LA LISTA.** El listado pagina de a
+ * veinte. Con encabezados por grupo dentro de la misma lista, la página 2
+ * empieza a la mitad de un grupo, los encabezados se repiten y **el total de un
+ * grupo no se puede calcular con lo que hay en pantalla**. La solapa filtra
+ * contra el servidor, así que lo que se ve es el grupo entero.
+ *
+ * **CUATRO SOLAPAS Y NO LAS TRES QUE SE PIDIERON.** La cuarta —"Sin destino"—
+ * son los pagos que no apuntan a nada, y no se puede esconder: es plata que
+ * entró, y filtrarla haría que la suma de las solapas deje de dar la caja sin
+ * que nadie pueda ver por qué. **Aparece sólo cuando tiene filas**, así que en
+ * una base sana no se ve nunca.
+ *
+ * **LOS DOS NÚMEROS SON DISTINTOS Y ESO ES EL PUNTO.** El de la solapa es
+ * *cuántos pagos* hay; abajo, en la elegida, va *cuánto entró* — que no es lo
+ * mismo, porque una deuda anotada y un pago anulado cuentan en el primero y no
+ * en el segundo. Y va por moneda, nunca sumadas: un contrato en pesos con un
+ * pago en dólares son dos cajas.
+ *
+ * **QUÉ LÍNEA CAE EN QUÉ SOLAPA LO DICE EL SERVIDOR**, en cada fila. Tener el
+ * mapa acá sería tenerlo dos veces, y el modo de falla es concreto: la solapa
+ * mostraría un número que no coincide con lo que lista.
+ * ─────────────────────────────────────────────────────────────────────────
  */
-const DESTINOS_DEL_FILTRO = Object.keys(NOMBRE_DE_DESTINO) as DestinoDePago[]
+function SolapasDeLinea({
+  elegida,
+  totales,
+  onElegir,
+}: {
+  elegida: GrupoDePago | ''
+  totales: TotalDeLinea[]
+  onElegir: (grupo: GrupoDePago | '') => void
+}) {
+  const cuantos = (grupo: GrupoDePago) =>
+    totales.filter((t) => t.grupo === grupo).reduce((suma, t) => suma + t.cantidad, 0)
+
+  // "Sin destino" sólo si tiene filas: en una base sana no existe, y una solapa
+  // permanente en cero enseña a no mirar la barra.
+  const solapas = (Object.keys(NOMBRE_DE_GRUPO) as GrupoDePago[]).filter(
+    (g) => g !== 'SIN_DESTINO' || cuantos('SIN_DESTINO') > 0,
+  )
+
+  const entraron = totales.filter((t) => elegida === '' || t.grupo === elegida)
+  const porMoneda = MONEDAS.map((moneda) => ({
+    moneda,
+    total: entraron
+      .filter((t) => t.moneda === moneda)
+      .reduce((suma, t) => suma + t.entraron, 0),
+  })).filter((m) => m.total > 0)
+
+  return (
+    <div className="mb-4">
+      <div className="flex flex-wrap gap-1 border-b border-linea" role="tablist">
+        <Solapa activa={elegida === ''} onClick={() => onElegir('')}>
+          Todos
+          <Cuantos n={totales.reduce((suma, t) => suma + t.cantidad, 0)} />
+        </Solapa>
+        {solapas.map((g) => (
+          <Solapa key={g} activa={elegida === g} onClick={() => onElegir(g)}>
+            {NOMBRE_DE_GRUPO[g]}
+            <Cuantos n={cuantos(g)} />
+          </Solapa>
+        ))}
+      </div>
+
+      {/* Si no entró nada con estos filtros no se dibuja la línea, en vez de
+          escribir "$ 0": un cero acá se lee como un error de carga, y lo que
+          pasa es que lo que hay son deudas o anulaciones. */}
+      {porMoneda.length > 0 && (
+        <p className="mt-2 text-sm text-tenue">
+          Entraron{' '}
+          {porMoneda.map((m, i) => (
+            <span key={m.moneda}>
+              {i > 0 && ' · '}
+              <strong className="text-texto tabular-nums">{importe(m.total, m.moneda)}</strong>
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function Solapa({
+  activa,
+  onClick,
+  children,
+}: {
+  activa: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={activa}
+      onClick={onClick}
+      className={`-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors ${
+        activa
+          ? 'border-acento font-medium text-texto'
+          : 'border-transparent text-tenue hover:text-texto'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** El número al lado del nombre de la solapa. Cero no se dibuja. */
+function Cuantos({ n }: { n: number }) {
+  if (n === 0) return null
+  return (
+    <span className="t-mono rounded-full bg-superficie-2 px-1.5 py-0.5 text-[10px] tabular-nums">
+      {n}
+    </span>
+  )
+}
+
+const MONEDAS: Moneda[] = ['ARS', 'USD']
 
 const DESTINOS = [
   { valor: 'INSCRIPCION', etiqueta: 'Un curso' },

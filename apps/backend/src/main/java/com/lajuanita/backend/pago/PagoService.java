@@ -4,15 +4,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +30,11 @@ import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta.ContratoDelAlumno;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta.SaldoPorMoneda;
 import com.lajuanita.backend.pago.dto.PagoResumen;
+import com.lajuanita.backend.pago.dto.TotalDeLinea;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.reserva.ReservaRepository;
+import com.lajuanita.backend.tablero.LineaDeNegocio;
+import com.lajuanita.backend.tablero.LineaDeNegocio.Grupo;
 import com.lajuanita.backend.usuario.Busqueda;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
@@ -96,27 +100,117 @@ public class PagoService {
     /**
      * El listado, con sus filtros.
      *
-     * <p><b>{@code destino} divide la pantalla por dentro</b> (`mejoras.md` §12 ·
-     * B1): programas, salas, mastering o equipos. Filtra por a qué apunta el pago
-     * y no por su línea de negocio — ver {@link PagoRepository#listar}, donde está
-     * la diferencia y por qué importa.
+     * <p><b>{@code grupo} es la solapa</b> (`mejoras.md` §13 · B2): programas,
+     * servicios, equipos o sin destino. Reemplaza al viejo filtro por
+     * {@code destino} de §12 · B1, y no es el mismo con otro nombre: aquél
+     * filtraba por <i>a qué apunta el pago</i> mientras la etiqueta de esa misma
+     * fila mostraba la <i>línea de negocio</i>, así que el filtro decía "Reserva de
+     * sala" y la fila decía "Cursos". Ahora las dos cosas salen de
+     * {@link LineaDeNegocio}.
      */
     @Transactional(readOnly = true)
     public Pagina<PagoResumen> listar(String buscar, Long idUsuario, EstadoPago estado,
-            Moneda moneda, String destino, LocalDate desde, LocalDate hasta,
+            Moneda moneda, Grupo grupo, LocalDate desde, LocalDate hasta,
             int pagina, int tamanio) {
 
-        Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio),
-                Sort.by(Sort.Direction.DESC, "fechaPago").and(Sort.by(Sort.Direction.DESC, "id")));
+        // Sin `Sort`: la consulta es nativa y trae su propio ORDER BY. Un Sort acá
+        // haría que Spring pegue el orden con nombres de propiedad de la entidad,
+        // que no son los de las columnas.
+        Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio));
 
-        Page<Pago> encontrados = pagos.listar(idUsuario, estado,
+        Page<Long> ids = pagos.idsListados(idUsuario,
+                estado == null ? null : estado.name(),
                 moneda == null ? null : moneda.name(),
-                destino, desde, hasta, Busqueda.patron(buscar), paginado);
+                grupo == null ? TODAS_LAS_LINEAS : grupo.lineas(),
+                desde, hasta, Busqueda.patron(buscar), paginado);
 
-        Map<Long, String> lineas = lineasDe(encontrados.getContent().stream().map(Pago::getId).toList());
+        Map<Long, String> lineas = lineasDe(ids.getContent());
 
-        return Pagina.de(encontrados.map(pago -> PagoResumen.de(pago, lineas.get(pago.getId()))));
+        List<PagoResumen> filas = enElOrdenPedido(ids.getContent()).stream()
+                .map(pago -> PagoResumen.de(pago, lineas.get(pago.getId())))
+                .toList();
+
+        return Pagina.de(new PageImpl<>(filas, paginado, ids.getTotalElements()));
     }
+
+    /**
+     * Cuántos pagos y cuánta plata hay en cada solapa, con los filtros puestos
+     * (`mejoras.md` §13 · B2).
+     *
+     * <p><b>Devuelve una fila por línea, y cada una dice a qué solapa pertenece.</b>
+     * Agrupar en SQL obligaría a meter el mapa de {@link Grupo} adentro de la
+     * consulta; dejar que agrupe la pantalla sería tener el mapa dos veces, y una
+     * solapa terminaría mostrando un número que no coincide con lo que lista. Así,
+     * la suma la hace el front y el criterio lo pone {@link Grupo#de(String)}, que
+     * es el mismo que arma el filtro.
+     */
+    @Transactional(readOnly = true)
+    public List<TotalDeLinea> totalesPorLinea(String buscar, Long idUsuario, EstadoPago estado,
+            Moneda moneda, LocalDate desde, LocalDate hasta) {
+
+        List<TotalDeLinea> totales = new ArrayList<>();
+
+        for (Object[] fila : pagos.totalesPorLinea(idUsuario,
+                estado == null ? null : estado.name(),
+                moneda == null ? null : moneda.name(),
+                desde, hasta, Busqueda.patron(buscar), nombresDe(EstadoPago.ENTRARON))) {
+
+            String linea = (String) fila[0];
+            totales.add(new TotalDeLinea(
+                    linea,
+                    Grupo.de(linea),
+                    Moneda.valueOf((String) fila[1]),
+                    ((Number) fila[2]).longValue(),
+                    (BigDecimal) fila[3]));
+        }
+        return totales;
+    }
+
+    /**
+     * El detalle de la página, en el orden que decidió la consulta de ids.
+     *
+     * <p>La consulta con los {@code JOIN FETCH} no ordena a propósito —sería una
+     * segunda definición del orden de la pantalla—, así que el orden se repone acá
+     * contra la lista de ids, que es la única que lo sabe.
+     *
+     * <p>Con la lista vacía <b>no consulta</b>: un {@code IN} sin elementos es un
+     * error de sintaxis en Postgres, y una página vacía es lo más común del mundo
+     * apenas alguien filtra por algo que no tiene filas. Es el mismo cuidado que
+     * ya tenía {@link #lineasDe}.
+     */
+    private List<Pago> enElOrdenPedido(List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+
+        Map<Long, Pago> porId = new HashMap<>();
+        for (Pago pago : pagos.porIdsConDetalle(ids)) {
+            porId.put(pago.getId(), pago);
+        }
+
+        List<Pago> ordenados = new ArrayList<>(ids.size());
+        for (Long id : ids) {
+            Pago pago = porId.get(id);
+            if (pago != null) ordenados.add(pago);
+        }
+        return ordenados;
+    }
+
+    /** Los estados como texto, que es lo que espera una consulta nativa. */
+    private static List<String> nombresDe(Collection<EstadoPago> estados) {
+        List<String> nombres = new ArrayList<>();
+        for (EstadoPago estado : estados) {
+            nombres.add(estado.name());
+        }
+        return nombres;
+    }
+
+    /**
+     * Todas las líneas, para cuando no hay solapa elegida.
+     *
+     * <p>⚠️ No es {@code null} ni una lista vacía: el {@code IN} de la consulta
+     * necesita elementos siempre. Ver {@code PagoRepository.idsListados}.
+     */
+    private static final List<String> TODAS_LAS_LINEAS =
+            java.util.Arrays.stream(LineaDeNegocio.values()).map(LineaDeNegocio::name).toList();
 
     @Transactional(readOnly = true)
     public PagoResumen porId(Long id) {
