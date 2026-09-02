@@ -667,71 +667,82 @@ Tres cosas para ese momento:
 > No estaba enlazada desde ningún lado, y por eso el informe pasó un día listando
 > como *"bloqueado por una decisión"* diez hallazgos que ya estaban decididos.
 
-### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-08-30
+### ⏭️ SI ESTÁS RETOMANDO, EMPEZÁ ACÁ — al 2026-09-02
 
-## ✅ LAS FASES 0, 1 Y 2 ESTÁN CERRADAS · LO ÚNICO QUE QUEDA ES EL REDISEÑO
+## ✅ EL MVP Y EL REDISEÑO ESTÁN CERRADOS · LO QUE GOBIERNA AHORA SON LAS BARRIDAS
 
-**Suites: 549 backend · 419 front · 205 + 56 SQL, sobre 21 migraciones.**
+**Suites: 584 backend · 515 front · 226 + 56 SQL, sobre 24 migraciones.**
 
-Ya no se construyen módulos: **estamos en la etapa de mejoras**, y el plan de fases
-vive en [`docs/mejoras.md` §10](mejoras.md). Estado al cierre de esta tanda:
+Ya no se construyen módulos ni fases: **el plan de este documento está cumplido.**
+Lo que gobierna el trabajo es [`docs/mejoras.md`](mejoras.md), y adentro de eso,
+**las barridas de correcciones** — Ignacio usa el sistema, trae hallazgos, se
+triagean en A/B/C y se ejecutan en ese orden.
 
-| Fase | Estado |
+| Etapa | Estado |
 |---|---|
-| **0 · Congelar** | ✅ **CERRADA ENTERA el 2026-08-30.** Corte de la lista fijado (~2026-09-11), decisiones de negocio cerradas, **el test flaky resuelto** (`mejoras.md` §9.6: eran dos techos de tiempo, no un test) y **el bug #8 también** (§8.1: no hacía falta reproducirlo, estaba en el código — el camino feliz nunca reseteaba `enviando`) |
-| **1 · `V19`** | ✅ **CERRADA** — migración, backend y front |
-| **2 · Backend sin esquema** | ✅ **CERRADA ENTERA.** Buzón de solicitantes (`V20`), solicitar reprogramación, y el 2026-08-30 los formularios de la landing — que cerraron el circuito de punta a punta |
-| **3 · Diseño** | **Es lo único que queda del plan.** Bloqueada hasta que se congele la lista (~11/09); el contenido del Inicio ya está decidido en `mejoras.md` §11 y no falta ningún endpoint |
+| **Módulos 1 a 8** | ✅ **CERRADOS** (2026-08-20). Ocho de ocho |
+| **Fases 0, 1 y 2** de mejoras | ✅ **CERRADAS** (2026-08-30) |
+| **Fase 3 · El rediseño del front** | ✅ **CERRADA** (2026-09-01), sus siete etapas — `mejoras.md` §10 |
+| **§12 · Primera barrida** | ✅ **CERRADA**: once de once (2026-09-02) |
+| **§13 · Segunda barrida** | ✅ **CERRADA**: cuatro de cuatro (2026-09-02) |
 
-**Y el 2026-08-30 se cerró algo que no venía del plan sino de
-[`pendientes.md`](pendientes.md) §3.3: los comprobantes** — la deuda más vieja del
-Módulo 3, abierta desde agosto. Ver abajo.
+**Lo único que queda antes de entregar no es código de producto:**
 
-### ▶️ ARRANCAR LA FASE 3 (EL REDISEÑO)
+1. **`V25`** — desactivar el admin sembrado por `V3`. Antes del deploy.
+2. **El deploy de octubre** — [`operacion.md`](operacion.md) §3, que espera la
+   decisión de hosting. Ojo: ahora necesita **disco persistente** (contratos y
+   comprobantes viven en archivos) y el backup son **dos artefactos**, no sólo el
+   `pg_dump`.
+3. **Lo que bloquea publicar la landing, que no es código**: precios inventados,
+   las seis notas de blog inventadas firmadas con nombres reales, y los perfiles
+   reales de Instagram y YouTube. Todo en [`pendientes.md`](pendientes.md).
+4. **Y la próxima barrida**, cuando Ignacio vuelva a usar el sistema. Van dos y su
+   lectura de la segunda fue *"cada vez encuentro menos, vamos por el camino
+   correcto"*. **No es una lista que se cierra, es un modo de trabajo.**
 
-**El briefing completo está en [`docs/mejoras.md` §10 · Fase 3](mejoras.md)** —
-inventario contado, el orden, las cinco cosas que no se pueden romper y cómo saber
-que no rompiste nada. Y **el contenido del Inicio ya está decidido en §11**, con los
-once endpoints verificados: es armado, no desarrollo.
-
-Lo mínimo para no arrancar torcido:
-
-1. ⚠️ **Esperá el corte de la lista (~2026-09-11).** Si el testeo trae hallazgos de
-   grupo B o C, **van primero**: cambian *qué hay* en la pantalla, y el diseño
-   cambia *cómo se ve*. En ese orden cada pantalla se toca una vez.
-2. **Primero el sistema, después las pantallas.** Son **22 componentes en 15
-   archivos** contra **36 pantallas** que se arman casi enteramente con ellos.
-3. **`index.css` ya tiene los tokens y la decisión**: la plataforma es clara y densa
-   porque se mira ocho horas por día. ⚠️ Y adentro está la trampa del rojo —
-   `bg-red`/`border-red` para superficie, `text-acento` para texto; `text-red` no
-   existe en este repo.
-4. **Los tests se van a romper a propósito y eso está bien**: preguntan por texto
-   visible porque prueban decisiones. Se actualiza el caso; **nunca** se esquiva con
-   `data-testid` ni se afloja la aserción. Desde el 2026-08-30 la suite es confiable
-   para eso (`mejoras.md` §9.6), así que **un rojo hoy significa algo**.
-5. **Nada de esto puede romper una regla de negocio**: viven en la base. Es
-   exactamente lo que hace afordable rediseñar todo de una.
+⚠️ **Para todo lo que sea una DECISIÓN, la autoridad es
+[`docs/requirements/platform.md`](requirements/platform.md) §13 a §19**, y **gana
+la más nueva**. Son siete tandas de preguntas cerradas, la última (§19, del
+2026-09-01) es la de la prereserva. Este documento es el plan; ésas son las
+respuestas.
 
 ### 🟢 PARA ARRANCAR EN VERDE
 
 ```
-docker compose up -d                     # Postgres
-cd apps/backend  && mvn spring-boot:run  # :8080
-cd apps/platform && npm run dev          # :5173  → admin@lajuanita.local / lajuanita2026
-cd apps/landing  && npm run dev          # :3000  (sólo si vas a tocar la landing)
+docker compose up -d                       # Postgres
+cd apps/backend && mvn spring-boot:run     # :8080
+npm run dev:platform                       # :5173  ⚠️ DESDE LA RAÍZ del repo
+npm run dev:landing                        # :3000
 ```
 
-**Las tres apps ya se hablan.** La plataforma usa el proxy de Vite; la landing habla
-por HTTP contra `:8080`, y eso depende de tres cosas que tienen que coincidir —
-`NEXT_PUBLIC_API_URL`, el `connect-src` de la CSP en `next.config.ts`, y
-`CORS_ORIGENES` del backend—. **Si un formulario de la landing no responde, mirá esas
-tres antes que el código**: una CSP desalineada no muestra ningún error en la página.
+⚠️ **Tres cosas que se equivocan solas y están medidas:**
 
-Para ver el circuito nuevo entero: completá un formulario en `:3000/servicios#reservar`
-y abrí `/admin/buzon` en la plataforma. **Ya hay dos fichas de prueba cargadas** el
-2026-08-30 (*Prueba Humo* y *Prueba Acento*) — no se borran, se descartan con motivo.
+- **La plataforma vive en `http://localhost:5173/app/`, no en la raíz de :5173.**
+  Desde 2026-08-31 comparte origen con la landing (`base: '/app/'` en
+  `vite.config.ts` más el `basename` del router).
+- **`npm run dev:platform` se corre DESDE LA RAÍZ**, no desde `apps/platform`: ese
+  script vive en el `package.json` de la raíz y adentro del workspace falla con
+  *"Missing script"*.
+- **Con la landing levantada, `:3000` sirve el circuito entero** — `/` la landing,
+  `/app` la plataforma, `/api` el backend—, que es la forma exacta que va a tener
+  producción. **Usá :3000 para probar cualquier cosa que cruce entre las dos apps**
+  (el login sobre todo) y :5173/app/ para desarrollar la plataforma, porque **el
+  HMR no viaja por los rewrites de Next**.
 
-### 🔨 LO ÚLTIMO QUE SE HIZO: LOS DOS ÍTEMS QUE CERRARON LA FASE 0
+Entrás con **`admin@lajuanita.local` / `lajuanita2026`** — credencial de
+desarrollo, sembrada por `V3`, agendada para desactivarse en `V25`.
+
+**Las tres apps ya se hablan.** La landing habla contra el backend y eso depende de
+tres cosas que tienen que coincidir — `NEXT_PUBLIC_API_URL`, el `connect-src` de la
+CSP en `next.config.ts`, y `CORS_ORIGENES` del backend—. **Si un formulario de la
+landing no responde, mirá esas tres antes que el código**: una CSP desalineada no
+muestra ningún error en la página.
+
+Para ver el circuito entero: completá un formulario en `:3000/servicios#reservar` y
+abrí `/admin/buzon` en la plataforma. **Ya hay fichas de prueba cargadas** (*Prueba
+Humo* y *Prueba Acento*) — no se borran, se descartan con motivo.
+
+### 📚 PARA CONSULTA: LOS DOS ÍTEMS QUE CERRARON LA FASE 0
 
 **El 2026-08-30, después de los comprobantes.** Los dos estaban anotados como
 *"esperando que pase"* y ninguno lo necesitaba:
@@ -944,9 +955,10 @@ adentro.
 
 ### ⏭️ LO PRÓXIMO, EN ORDEN
 
-1. **El rediseño** — **lo único que queda del plan**, cuando se congele la lista
-   (~11/09). El contenido del Inicio por perfil ya está decidido en `mejoras.md` §11 y
-   **no falta ningún endpoint**: es armado, no desarrollo.
+⚠️ **Esta lista quedó cumplida.** El rediseño que decía acá se cerró el 2026-09-01
+con sus siete etapas, y después vinieron dos barridas de correcciones. **Lo que
+sigue está arriba, en el bloque "SI ESTÁS RETOMANDO"**: `V25`, el deploy de
+octubre, lo que bloquea publicar la landing, y la próxima barrida.
 
 ### 🔑 Usuarios de demostración, creados el 2026-08-20
 

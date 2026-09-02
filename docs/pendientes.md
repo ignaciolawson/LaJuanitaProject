@@ -1,10 +1,41 @@
 # Lo que queda abierto
 
+## ⚡ ESTADO AL 2026-09-02 — leé esto y después, si hace falta, el resto
+
+**No queda nada de producto por construir.** Los ocho módulos, el rediseño del
+front y las dos barridas de correcciones están cerrados.
+
+**Suites: 584 backend · 515 front · 226 + 56 SQL, sobre 24 migraciones.**
+
+Lo que sigue abierto son **cuatro cosas y ninguna es código de producto**:
+
+| | Qué | Dónde vive el detalle |
+|---|---|---|
+| 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
+| 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
+| 🟡 3 | **`V25`** — desactivar el admin sembrado por `V3`, antes del deploy | §1 de acá |
+| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §13 |
+
+⚠️ **Van dos barridas y va a haber más.** No es una lista que se cierra, es un modo
+de trabajo. La lectura de Ignacio sobre la segunda: *"cada vez encuentro menos,
+vamos por el camino correcto"*.
+
+⚠️ **`V24` se la llevó la prereserva**, así que la migración del admin sembrado es
+**`V25`**. Y esa decisión dejó una puerta abierta a propósito, anotada en §13: el
+vencimiento automático firma con **quien preconfirmó**, porque `V7` exige autor y
+acá el autor es un reloj.
+
+---
+
 > **Abierto el 2026-08-20, al cerrar el Módulo 7.** Es el inventario de todo lo
 > pendiente del proyecto en un solo lugar: hasta hoy estaba repartido en cinco
 > documentos, y eso ya costó una vez —el informe de auditoría pasó un día listando
 > como *"bloqueado por una decisión"* diez hallazgos que ya estaban decididos, solo
 > porque la sección que los contestaba no estaba enlazada desde ningún lado.
+>
+> ⚠️ **Lo que sigue es la cronología, de lo más viejo a lo más nuevo.** Sirve para
+> entender cómo se llegó acá; para saber qué hacer, alcanza con el bloque de
+> arriba.
 >
 > **Este archivo no reemplaza a los otros: los indexa.** Cada punto dice dónde vive
 > el detalle. Si algo se cierra, se tacha acá **y** se corrige donde vive.
@@ -77,11 +108,15 @@
 > (P39 y P40, el descuento automático) y **§18 (P41 y P42, materiales y egresos,
 > nueva y posterior)**.
 >
-> ⚠️ **Y B1 dejó dicho algo que hay que leer antes de tocar materiales**: `material`
-> **no cuelga de la inscripción ni de la clase** —esta lista afirmaba que sí, y era
-> falso—, y hoy un material *"para todos"* le llega a **todos los alumnos del
-> estudio**, con tres pantallas diciendo tres cosas distintas y ninguna de ellas
-> ésa. El detalle, en §18 · P41.
+> ⚠️ **Lo de los materiales quedó resuelto por `V23`, y el párrafo que había acá ya
+> no aplica.** Decía —correctamente, en su momento— que `material` **no** colgaba de
+> la inscripción ni de la clase, y que un material *"para todos"* le llegaba a
+> **todos los alumnos del estudio**, con tres pantallas diciendo tres cosas
+> distintas y ninguna de ellas ésa. **Desde `V23` cuelga de la inscripción (NOT
+> NULL) y opcionalmente de una reserva**, y `id_alumno`/`es_grupal` no existen más.
+> Se deja anotado el recorrido porque es el quinto caso de una regla de negocio que
+> no vivía en ninguna capa — y el primero en que además las capas se contradecían
+> entre sí. Detalle en `platform.md` §18 · P41 y en el diagrama de `docs/db/`.
 >
 > Lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config del
 > reverse proxy), `CORS_ORIGENES`, y el deploy con su migración para desactivar el
@@ -269,25 +304,29 @@ módulos, de a uno.** No se hacen mientras se espera nada.
 5. **No poder pedir un horario ya tomado** → la maquinaria ya está. **Avisar, no
    bloquear**, y es un pre-chequeo, nunca la autoridad.
 
-### 3.2 · El rediseño del front entero
+### 3.2 · ~~El rediseño del front entero~~ — **CERRADO el 2026-09-01**
 
-**En una sola pasada, al final, con los ocho módulos cerrados.** Es afordable
-**solo porque las reglas de negocio viven en la base y no en las pantallas**: un
-rediseño no puede romper que una reserva necesite seña. La landing no se toca.
+**En una sola pasada, al final, con los ocho módulos cerrados**, que es como estaba
+planeado. Fue afordable **sólo porque las reglas de negocio viven en la base y no en
+las pantallas**: un rediseño no podía romper que una reserva necesite seña. La
+landing no se tocó.
 
-> ⚠️ **No arranca con media lista** (2026-08-20). Un rediseño hecho dos veces es el
-> caro. Espera a que el testeo cierre — con fecha de corte, porque una lista sin corte
-> crece para siempre. Ver [`mejoras.md`](mejoras.md) §6.
+Las siete etapas y lo que decidió cada una están en [`mejoras.md`](mejoras.md) §10 ·
+*Sesión del 2026-09-01*.
+
+> ⚠️ **Dos cosas que dejó y conviene no perder.**
 >
-> ✅ **Al 2026-08-30 es lo único que queda de todo el plan, y ya no espera nada más
-> que esa fecha**: no falta backend, ni infraestructura, ni decisiones. El briefing
-> —inventario contado, orden, las cinco cosas que no se pueden romper— está en
-> `mejoras.md` §10 · Fase 3, y el contenido del Inicio en §11.
+> **La primera: el sistema de diseño estaba escrito y nunca se había adoptado.**
+> `Tabla`, `Celda` y `FilaVacia` tenían **cero** usos contra 11 tablas hechas a mano;
+> `usePuedeEscribir`, cero contra 12 repeticiones del predicado. Cada componente
+> decía en su propio docstring *"esto hoy se repite a mano en diez pantallas"* y la
+> migración nunca había pasado. Por eso el rediseño fue una sola pasada: cambiar
+> `Tabla` una vez cambia once tablas.
 >
-> **Y hay una distinción que sostener mientras se junta la lista: "aburrido" y "poco
-> intuitivo" no son el mismo problema.** Lo primero es una pasada de diseño; lo segundo
-> puede destapar funcionalidad faltante, y mezclados hacen que la pasada de diseño se
-> coma meses sin resolver el segundo.
+> **La segunda: "aburrido" y "poco intuitivo" no son el mismo problema.** Lo primero
+> es una pasada de diseño; lo segundo destapa funcionalidad faltante. Mantener la
+> distinción es lo que evitó que el rediseño se comiera meses sin resolver el
+> segundo — y de hecho lo "poco intuitivo" se resolvió después, en las barridas.
 
 ### 3.3 · ~~La descarga de comprobantes (Módulo 3)~~ — **CERRADA el 2026-08-30**
 

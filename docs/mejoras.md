@@ -1898,12 +1898,14 @@ Build y linters limpios. Nada quedó a medias en el árbol.
 
 **Lo que sigue no es de esta barrida:**
 
-1. **Desactivar el admin sembrado por `V3`** — una migración propia, **`V24`**,
-   antes del deploy.
+1. **Desactivar el admin sembrado por `V3`** — una migración propia, antes del
+   deploy. *(Decía `V24`; **desde el 2026-09-02 es `V25`**, porque `V24` se la
+   llevó la prereserva de §13 · C1.)*
 2. **El deploy de octubre** (`operacion.md` §3).
 3. **Y la próxima barrida**, cuando Ignacio vuelva a usar el sistema: §12 es *"la
    PRIMERA"* y él lo dijo con todas las letras — *"pueden haber más conforme pase
    el tiempo"*. **No es una lista que se cierra, es un modo de trabajo.**
+   *(Efectivamente vino la segunda, §13, y también está cerrada.)*
 
 ⚠️ **Y las dos advertencias de método que costaron tiempo esta sesión**, las dos
 anotadas también en `CLAUDE.md`:

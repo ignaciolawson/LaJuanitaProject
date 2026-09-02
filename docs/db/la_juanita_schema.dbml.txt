@@ -1,32 +1,48 @@
 // ============================================================================
-// LA JUANITA STUDIO / MUSIC — Modelo de datos (v3)
+// LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// Generado a partir del esquema real, migraciones V1..V14.
-// (V14 no agrega tablas ni columnas: es un trigger sobre `seguimiento_alumno`.)
+// ✅ AL DÍA AL 2026-09-02, migraciones V1..V24.
 //
-// ⚠️ AL 2026-08-30 EL DIAGRAMA QUEDÓ ATRÁS, Y CONVIENE SABER DE QUÉ.
-// Lo que sigue abajo describe el esquema hasta V14. Desde entonces entraron
-// siete migraciones y el diagrama no las tiene:
+// **Verificado contra el catálogo de una base con las 24 migraciones
+// aplicadas**, no contra las migraciones leídas de memoria: son 26 tablas y
+// coinciden columna por columna. Es la regla que este proyecto aprendió a los
+// golpes y que está escrita en `CLAUDE.md` — *revisá el esquema, no la frase
+// sobre el esquema*.
 //
+// La versión anterior (v3) describía el esquema hasta V14 y llevaba una nota
+// diciendo de qué se había quedado atrás. Esa nota decía algo que conviene
+// conservar aunque ya no aplique: **una cabecera que dice algo falso sobre el
+// diagrama es peor que el diagrama viejo**, porque invita a "corregirlo" hacia
+// atrás. La fuente de verdad son las migraciones; esto es un dibujo para mirar
+// el modelo de un vistazo.
+//
+// ⚠️ Y por eso, si volvés a dejarlo atrás: **anotalo, no lo arregles a medias.**
+//
+// ----------------------------------------------------------------------------
+// LO QUE ENTRÓ DESPUÉS DE V14, y dónde mirarlo en este archivo
+//
+//     V15  saca el techo de revisiones de `trabajo_mastering` (sin columnas:
+//          era un CHECK que hacía imposible la alerta que el alcance pedía)
+//     V16  arregla un trigger de V6 (sin columnas)
 //     V17  `notificacion.clave_evento` + su UNIQUE parcial
-//     V18  la tabla `aparicion_release`, y `release`/`contrato_sello` con las
-//          columnas de la publicación sin contrato
+//     V18  la tabla `aparicion_release`; `release` gana las tres columnas de la
+//          publicación sin contrato y el estado CANCELADO
 //     V19  `pago.id_usuario` pasa a NULLABLE, + `nombre_pagador_externo`,
 //          `contacto_pagador_externo` y la firma de la edición
 //     V20  la tabla `solicitante` (el buzón de la web)
 //     V21  la tabla `comprobante_pago`, y `pago` PIERDE sus cinco columnas de
 //          comprobante (`comprobante_path`, `comprobante_invalido` y las tres
 //          de la invalidación)
+//     V22  `tipo_uso.disciplina` — lo que hace que una clase se descuente sola
+//     V23  `material` cuelga de la INSCRIPCIÓN y opcionalmente de una RESERVA;
+//          PIERDE `id_alumno` y `es_grupal`
+//     V24  `reserva.vence_preconfirmacion` y el estado PRECONFIRMADA
 //
-// Se anota en vez de arreglarse a medias por la razón que esta misma cabecera
-// aprendió una vez: **una cabecera que dice algo falso sobre el diagrama es peor
-// que el diagrama viejo**, porque invita a "corregirlo" hacia atrás. La fuente de
-// verdad son las migraciones; esto es un dibujo para mirar el modelo de un
-// vistazo. Ponerlo al día es una tarea propia, no un renglón de otra.
+// Historia de las tablas: eran 23 al 2026-08-19 y son 26 desde V21. Las tres que
+// entraron son `aparicion_release` (V18), `solicitante` (V20) y
+// `comprobante_pago` (V21), y están al final del archivo.
 //
-// Al 2026-08-19 el diagrama estaba AL DÍA: comparado tabla por tabla y columna
-// por columna contra el catálogo de una base con las migraciones aplicadas,
-// coinciden las 23 tablas y todas sus columnas. La número 23 es
+// La número 23 fue
 // `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal
 // puede crear, porque una reserva necesita plata detrás y un USUARIO no tiene
 // cómo ponerla. V13 también le agregó a `tipo_uso` la marca
@@ -79,9 +95,29 @@
 //   9. (V6) El pago que respalda un premaster liberado no se puede anular ni
 //      borrar sin marcar antes el trabajo como liberado_sin_pago.
 //  10. (V6) No se borran filas de `pago` ni de `trabajo_mastering`: se anulan.
+//  11. (V10/V11/V12/V24) NINGUNA RESERVA QUE OCUPA SU FRANJA EXISTE SIN PLATA
+//      DETRÁS. Es la regla que más veces se reescribió, y cada vuelta corrigió
+//      algo real: V10 la estableció al nacer, V11 cerró el agujero de romperla
+//      después anulando el pago, V12 corrigió QUÉ cuenta como plata (`<> ANULADO`
+//      NO es lo mismo que SENADO/PAGADO -- una deuda anotada conseguía el
+//      horario) y V24 le agregó el único camino nuevo: la prereserva, que vale
+//      con la deuda anotada **mientras tenga plazo**.
+//  12. (V24) A PRECONFIRMADA se entra sólo al nacer y se sale sólo a CONFIRMADA
+//      o CANCELADA. Sin eso, confirmar y volver atrás deja la sala tomada sin
+//      plata.
+//  13. (V22) Un tipo de uso que es clase tiene disciplina, y uno que no lo es no
+//      puede tenerla. Las dos direcciones.
+//  14. (V23) El material de una inscripción sólo puede colgar de una clase a la
+//      que esa inscripción asistió. Sin eso las dos columnas son válidas por
+//      separado y la fila miente igual.
+//  15. (V13) Una solicitud resuelta no vuelve a pendiente. El rodeo que cierra:
+//      aprobar -- que crea reserva y seña --, volver atrás, aprobar de nuevo.
+//  16. (V21) Un comprobante no se borra, no se le cambia el archivo y no se le
+//      desmarca la invalidación.
 //
-// El detalle y el porqué de cada una está comentado en V1__baseline.sql y en
-// V6__integridad_auditoria.sql.
+// El detalle y el porqué de cada una está comentado en la migración que la trajo.
+// Las más densas: V1__baseline.sql, V6__integridad_auditoria.sql y
+// V24__la_prereserva.sql.
 //
 // OJO con la regla 2: solo se garantiza bajo READ COMMITTED. En REPEATABLE
 // READ y en SERIALIZABLE el trigger lee un snapshot viejo y la reserva entraría
@@ -190,8 +226,20 @@ Table tipo_uso {
   color        varchar(20)  [note: 'Color en el calendario']
   activo       boolean      [not null, default: true]
   solicitable_por_usuario boolean [not null, default: false, note: 'V13/P17: si el portal lo puede pedir sin que administración lo arme. TRUE en ALQUILER_CABINA y GRABACION_SET.']
+  disciplina   varchar(20)  [note: 'V22: DE QUÉ CURSO descuenta esta clase. NULL si no es clase.']
 
-  Note: 'CLASE_DJ, PRODUCCION_MUSICAL, MENTORIA, MIX_MASTERING, ALQUILER_CABINA, GRABACION_SET.'
+  Note: '''
+  CLASE_DJ, PRODUCCION_MUSICAL, MENTORIA, MIX_MASTERING, ALQUILER_CABINA, GRABACION_SET.
+
+  V22 -- `disciplina` es lo que hace que una clase se descuente SOLA. Antes el
+  alta traía un `<select>` "descuenta de", o sea que quien cargaba elegía a mano
+  de qué curso salía la clase; ahora sale del catálogo.
+
+  Su CHECK corre en los DOS SENTIDOS a propósito: un alquiler no puede tener
+  disciplina, y **una clase no puede quedarse sin ella**. La segunda mitad es la
+  que importa: un tipo de uso nuevo con `es_clase = TRUE` y la columna en NULL no
+  fallaría nunca y produciría clases fantasma que no descuentan de ningún lado.
+  '''
 }
 
 Table sala_tipo_uso {
@@ -289,7 +337,8 @@ Table reserva {
   fecha                 date        [not null]
   hora_inicio           time        [not null]
   hora_fin              time        [not null]
-  estado                varchar(20) [not null, default: 'CONFIRMADA', note: 'CONFIRMADA / MODIFICADA / CANCELADA / REPROGRAMADA / FINALIZADA']
+  estado                varchar(20) [not null, default: 'CONFIRMADA', note: 'PRECONFIRMADA / CONFIRMADA / MODIFICADA / CANCELADA / REPROGRAMADA / FINALIZADA']
+  vence_preconfirmacion timestamptz [note: 'V24: hasta cuándo está apartado el horario sin pagar. NULL en todo lo que no sea PRECONFIRMADA, y viceversa.']
   notas                 text
   id_reserva_recupera   bigint      [ref: > reserva.id_reserva, note: 'A qué clase reemplaza esta']
   motivo_reprogramacion text
@@ -309,10 +358,33 @@ Table reserva {
   UNA RESERVA OCUPA SU FRANJA salvo que esté CANCELADA o REPROGRAMADA. Esa
   definición es única y la usan los tres mecanismos que la necesitan.
 
+  ⚠️ Y está escrita POR LO QUE QUEDA AFUERA, que resultó valer oro: cuando V24
+  agregó PRECONFIRMADA -- un estado nuevo que SÍ ocupa -- no hubo que tocar
+  ninguna de las cinco copias de esa condición. Un estado nuevo que ocupa entra
+  solo. (Del lado de Java sí hubo que editarlo: `EstadoReserva.OCUPAN_LA_SALA`
+  está escrito por enumeración.)
+
   La regla más importante del sistema -- nunca dos reservas solapadas en la
   misma sala -- va como constraint EXCLUDE y no como validación en el código,
   porque es la única forma de que aguante a dos personas reservando en el mismo
   instante.
+
+  ⚠️ V24 -- LA PRERESERVA. `PRECONFIRMADA` es el horario apartado con la deuda
+  anotada: ocupa la franja igual que una confirmada, y lo que la hace legítima es
+  que TIENE PLAZO. La base obliga a fechar `vence_preconfirmacion` y un CHECK lo
+  exige en los dos sentidos: una preconfirmada no puede quedarse sin vencimiento,
+  y **ningún otro estado puede tenerlo** -- un plazo vivo sobre una reserva ya
+  paga le diría a quien mire la pantalla "vence en 3hs".
+
+  Reabre a propósito, y con límite, el agujero que cerró V12 ("se conseguía un
+  horario anotando una deuda"): la diferencia es que aquella deuda no vencía
+  nunca y ésta muere en 24hs.
+
+  Y un TRIGGER de escalera es lo que hace que todo eso valga algo: a
+  PRECONFIRMADA se entra SOLO al nacer, y se sale SOLO a CONFIRMADA (entró la
+  plata) o CANCELADA (se venció, o administración la dio de baja). Sin él queda
+  abierto confirmar -> volver a preconfirmada -> anular el pago: sala tomada,
+  cero plata, y ningún trigger se queja.
   '''
 }
 
@@ -365,8 +437,8 @@ Table seguimiento_alumno {
 Table material {
   id_material     bigint       [pk, increment]
   id_profesor     bigint       [ref: > profesor.id_profesor, not null]
-  id_alumno       bigint       [ref: > alumno.id_alumno, note: 'Vacío si es grupal']
-  es_grupal       boolean      [not null, default: false]
+  id_inscripcion  bigint       [ref: > inscripcion.id_inscripcion, not null, note: 'V23: DE QUIÉN y DE QUÉ CURSO es este material']
+  id_reserva      bigint       [ref: > reserva.id_reserva, note: 'V23: de qué clase, si es de una clase puntual']
   titulo          varchar(200) [not null]
   tipo            varchar(50)
   archivo_path    varchar(500)
@@ -374,7 +446,30 @@ Table material {
   visible_alumno  boolean      [not null, default: true]
   fecha_subida    timestamptz  [not null]
 
-  Note: 'O es para un alumno concreto, o es grupal -- nunca las dos ni ninguna. Y siempre tiene archivo o link. Los archivos pesados no se guardan: se guarda el link.'
+  Note: '''
+  Siempre tiene archivo o link. Los archivos pesados no se guardan: se guarda el link.
+
+  ⚠️ V23 REEMPLAZÓ EL DESTINATARIO, y es el cambio más grande que tuvo esta tabla.
+  Tenía `id_alumno` (vacío si era grupal) y `es_grupal`, y las dos se fueron: la
+  inscripción reemplaza a las dos juntas, porque define al alumno Y al curso.
+  Dejar las tres habría sido tener dos definiciones de lo mismo.
+
+  Lo que lo destapó: "material para todos" **le llegaba a todos los alumnos del
+  estudio**, incluida gente que nunca tuvo a ese profesor -- la consulta no
+  filtraba ni por profesor ni por curso -- mientras las tres pantallas decían
+  tres cosas distintas y ninguna era ésa. Nadie mintió a propósito: nadie había
+  decidido nunca qué significaba.
+
+  ⚠️ "El curso" NO es una entidad compartida en este esquema: una `inscripcion`
+  es el contrato de UN alumno, así que "material para todo el curso" quiere decir
+  *todo el curso de ese alumno*.
+
+  ⚠️ Y el TRIGGER es la mitad que hace que las columnas valgan algo: sin él, el
+  material de la inscripción de Juan puede colgar de una clase de Ana -- las dos
+  columnas válidas por separado y la fila mintiendo igual. Pide UNA condición
+  (que exista la participación de esa inscripción en esa reserva), que garantiza
+  alumno y curso de una sola vez.
+  '''
 }
 
 Table solicitud_reprogramacion {
@@ -425,7 +520,9 @@ Table solicitud_reserva {
 
 Table pago {
   id_pago              bigint        [pk, increment]
-  id_usuario           bigint        [ref: > usuario.id_usuario, not null, note: 'Quién paga']
+  id_usuario           bigint        [ref: > usuario.id_usuario, note: 'Quién paga, CUANDO TIENE CUENTA. NULLABLE desde V19.']
+  nombre_pagador_externo   varchar(150) [note: 'V19: la otra mitad -- quien paga y no tiene cuenta']
+  contacto_pagador_externo varchar(150)
   id_usuario_registra  bigint        [ref: > usuario.id_usuario]
   id_inscripcion       bigint        [ref: > inscripcion.id_inscripcion]
   id_reserva           bigint        [ref: > reserva.id_reserva]
@@ -439,16 +536,13 @@ Table pago {
   descuento_porcentaje decimal(5,2)  [not null, default: 0, note: 'PORCENTAJE 0-100, no un importe']
   motivo_descuento     text
   estado_pago          varchar(20)   [not null, default: 'PAGADO', note: 'SENADO / PAGADO / DEBE / VENCIDO / ANULADO']
-  comprobante_path     varchar(500)
-  comprobante_invalido boolean       [not null, default: false]
   fecha_pago           date          [not null]
   fecha_registro       timestamptz   [not null]
   id_usuario_anula     bigint        [ref: > usuario.id_usuario, note: 'Obligatorio si estado_pago = ANULADO (V7)']
   fecha_anulacion      timestamptz   [note: 'Obligatoria si estado_pago = ANULADO (V7)']
   motivo_anulacion     text          [note: 'Obligatorio y no vacío si estado_pago = ANULADO (V7)']
-  id_usuario_invalida  bigint        [ref: > usuario.id_usuario, note: 'Obligatorio si comprobante_invalido (V7)']
-  fecha_invalidacion   timestamptz   [note: 'Obligatoria si comprobante_invalido (V7)']
-  motivo_invalidacion  text          [note: 'Obligatorio y no vacío si comprobante_invalido (V7)']
+  id_usuario_modifico  bigint        [ref: > usuario.id_usuario, note: 'V19: obligatorio para editar un pago']
+  fecha_modificacion   timestamptz   [note: 'La pone la base al editar, no quien edita (V19 reusa el trigger de V7)']
 
   Note: '''
   Un pago salda UNA cosa, exactamente una: una inscripción, una reserva, un
@@ -460,12 +554,26 @@ Table pago {
   aplicado, así la caja es la suma de `monto` sin recalcular nada. Todo
   descuento exige justificación escrita.
 
-  Los comprobantes no se borran: se marcan como inválidos.
+  ⚠️ V21 -- LOS COMPROBANTES SE FUERON A SU PROPIA TABLA, y esta perdió las cinco
+  columnas que los guardaban. El motivo es el que la columna única no podía
+  contestar: la regla dura es que un comprobante no se borra, se marca inválido
+  -- y con UNA sola columna, cargar el correcto obliga a pisar el anterior, o sea
+  que **el mecanismo que existe para dejar rastro es el que lo destruye**. Ver
+  `comprobante_pago`.
 
-  Y ni anular un pago ni invalidar un comprobante son gratis: las dos
-  operaciones exigen autor, fecha y motivo (V7). Anular tiene, para el balance,
-  el mismo efecto que borrar -- el monto deja de contar --, así que era la
-  única excepción del esquema que no pedía explicación.
+  ⚠️ V19 -- QUIÉN PAGA PUEDE NO TENER CUENTA. `id_usuario` pasó a nullable detrás
+  de `pago_pagador_identificado` (cuenta O nombre escrito), la misma forma de dos
+  caminos que ya tenían la venta de equipos y la seña. **Hacer nullable una
+  columna nunca es sólo la columna**: hubo que revisar cada JOIN y cada GROUP BY
+  sobre ella -- dos consultas agrupaban por el dueño y un NULL junta a todos los
+  externos en un solo grupo, con un total que no es de nadie.
+
+  Anular un pago no es gratis: exige autor, fecha y motivo (V7). Tiene, para el
+  balance, el mismo efecto que borrar -- el monto deja de contar --, así que era
+  la única excepción del esquema que no pedía explicación.
+
+  Y desde V19 EDITAR tampoco: `id_usuario_modifico` es obligatorio, reusando el
+  mismo trigger que V7 escribió para el historial de clases.
   '''
 }
 
@@ -588,12 +696,31 @@ Table release {
   portada_path    varchar(500)
   fecha_estimada  date
   fecha_real      date
-  estado          varchar(20)  [not null, default: 'A_CONFIRMAR', note: 'A_CONFIRMAR / CONFIRMADO / EN_DISTRIBUCION / PUBLICADO']
+  estado          varchar(20)  [not null, default: 'A_CONFIRMAR', note: 'A_CONFIRMAR / CONFIRMADO / EN_DISTRIBUCION / PUBLICADO / CANCELADO (V18)']
   sistema_promo   boolean      [not null, default: false, note: 'Enviado a la red internacional de DJs']
   notas           text
   fecha_creacion  timestamptz  [not null]
+  publicado_sin_contrato boolean [not null, default: false, note: 'V18: la excepción registrada']
+  motivo_publicacion     text     [note: 'V18: obligatorio si se publicó sin contrato']
+  id_usuario_publica     bigint   [ref: > usuario.id_usuario, note: 'V18: quién firmó la excepción']
 
-  Note: 'El código es único y correlativo. El estado solo avanza, nunca retrocede (trigger).'
+  Note: '''
+  El código es único y correlativo. El estado solo avanza, nunca retrocede.
+
+  ⚠️ V18 -- NINGÚN RELEASE SE PUBLICA SIN SU CONTRATO ADJUNTO. Era una regla dura
+  del alcance, confirmada con el cliente, y **no existía en ninguna capa**: ni
+  CHECK, ni trigger, ni chequeo de servicio, ni pantalla. Una regla que nadie
+  implementa no tiene nada que fallar, así que ninguna suite podía avisar.
+
+  La excepción está registrada, no prohibida: se puede publicar sin contrato con
+  motivo escrito y firmado por su autor -- las tres columnas de arriba.
+
+  ⚠️ V18 también agregó CANCELADO, porque un lanzamiento se puede caer y no tenía
+  dónde anotarse. Va FUERA de la escalera (se cancela desde cualquier estado) y
+  **de cancelado no se sale**: esa segunda mitad faltaba y la encontró un caso.
+  Al no tener número de orden, CANCELADO caía en el ELSE 0 y cualquier estado le
+  ganaba, así que salir de él no se leía como un paso atrás.
+  '''
 }
 
 Table contrato_sello {
@@ -620,6 +747,126 @@ Table notificacion {
   url_destino        varchar(300)
   leida              boolean     [not null, default: false]
   fecha_creacion     timestamptz [not null]
+  clave_evento       varchar(200) [note: 'V17: qué HECHO anuncia este aviso. NULL en los que escribe una persona.']
 
-  Note: 'Internas al sistema. La integración con WhatsApp quedó explícitamente fuera del alcance de esta versión.'
+  Note: '''
+  Internas al sistema. La integración con WhatsApp quedó explícitamente fuera del
+  alcance de esta versión, así que esta tabla ES el canal: lo que no entre en el
+  texto de un aviso, no llega.
+
+  ⚠️ V17 -- `clave_evento` describe el HECHO, nunca la corrida
+  ("DEUDA:u=42:ARS:desde=2026-08-01"), y un UNIQUE PARCIAL sobre
+  (id_usuario_destino, clave_evento) es lo que garantiza uno por hecho. Eso
+  compra las dos propiedades a la vez: el disparador puede correr diez veces hoy
+  y escribe uno solo, y si la deuda se salda y vuelve en tres meses el `desde`
+  cambia y el aviso vuelve a salir.
+
+  Es PARCIAL porque los avisos que escribe una PERSONA no llevan clave y no deben:
+  dos pedidos parecidos aprobados son dos avisos y los dos tienen que llegar.
+  '''
+}
+
+// ============================================================================
+// LAS TRES TABLAS QUE ENTRARON DESPUÉS (V18, V20, V21)
+// ============================================================================
+
+Table aparicion_release {
+  id_aparicion     bigint       [pk, increment]
+  id_release       bigint       [ref: > release.id_release, not null]
+  tipo_aparicion   varchar(20)  [not null, note: 'RADIO / SET / PLAYLIST / OTRO']
+  donde            varchar(200) [not null]
+  quien            varchar(150)
+  fecha            date
+  url              varchar(500)
+  notas            text
+  id_usuario_carga bigint       [ref: > usuario.id_usuario]
+  fecha_creacion   timestamptz  [not null]
+  orden_relevancia smallint     [note: 'COLUMNA GENERADA a partir del tipo: radio > set > playlist > otro']
+
+  Note: '''
+  V18 / P25 -- dónde sonó un release, cargado A MANO. No hay ninguna integración
+  con plataformas y eso se preguntó en la misma frase para que la respuesta no
+  pudiera significar dos cosas.
+
+  El orden es una JERARQUÍA FIJA por tipo de aparición y no un alcance estimado a
+  mano, que es un número que después nadie puede defender. Va como columna
+  generada para que el tablero lea el mismo criterio en vez de escribir un
+  segundo CASE.
+
+  Y la sección puede quedar vacía: "si en el futuro no lo usan, que no lo usen y
+  fue". La pantalla tiene que leerse bien con cero filas.
+  '''
+}
+
+Table solicitante {
+  id_solicitante      bigint       [pk, increment]
+  nombre              varchar(80)  [not null]
+  apellido            varchar(80)  [not null]
+  email               varchar(150) [not null]
+  telefono            varchar(40)  [not null, note: 'Obligatorio: la contraseña temporal se pasa por WhatsApp']
+  interes             varchar(30)  [not null, note: 'CURSO / ALQUILER_CABINA / GRABACION_SET / EQUIPOS']
+  detalle             text
+  mensaje             text
+  estado              varchar(20)  [not null, default: 'PENDIENTE', note: 'PENDIENTE / CONVERTIDO / DESCARTADO']
+  id_usuario_resuelve bigint       [ref: > usuario.id_usuario]
+  id_usuario          bigint       [ref: > usuario.id_usuario, note: 'La cuenta que salió de esta ficha']
+  respuesta           text
+  fecha_resolucion    timestamptz
+  fecha_creacion      timestamptz  [not null]
+
+  Note: '''
+  V20 -- el buzón de los formularios de la landing. Durante meses esas cuatro
+  pantallas contestaban "listo, lo recibimos" sin que el pedido llegara a nadie.
+
+  ES UNA TABLA Y NO UNA NOTIFICACIÓN, y ésa es la corrección de diseño: una
+  notificación se lee y se va; un solicitante es una ficha con ciclo de vida, y lo
+  que el buzón tiene que garantizar es que **la lista de a quién nadie contestó
+  siga existiendo**.
+
+  UN SOLO BUZÓN y no uno por servicio: los flujos son idénticos hasta el último
+  paso, y `interes` es lo único que cambia -- la pantalla lo convierte en el link
+  a la página correcta.
+
+  ⚠️ `POST /api/solicitantes` es la primera escritura PÚBLICA fuera de auth, y el
+  matcher es por MÉTODO: abrir la ruta entera publicaría el GET, que es el buzón
+  con el teléfono y el mail de todo el que escribió.
+
+  Nombre y apellido en DOS columnas: es la lección de V4 aplicada a tiempo -- allá
+  hubo que partir una sola adivinando dónde terminaba el nombre.
+  '''
+}
+
+Table comprobante_pago {
+  id_comprobante      bigint       [pk, increment]
+  id_pago             bigint       [ref: > pago.id_pago, not null]
+  archivo_path        varchar(500) [not null]
+  nombre_original     varchar(255) [not null]
+  id_usuario_carga    bigint       [ref: > usuario.id_usuario, not null]
+  fecha_creacion      timestamptz  [not null]
+  invalido            boolean      [not null, default: false]
+  id_usuario_invalida bigint       [ref: > usuario.id_usuario, note: 'Obligatorio si invalido']
+  fecha_invalidacion  timestamptz  [note: 'Obligatoria si invalido']
+  motivo_invalidacion text         [note: 'Obligatorio y no vacío si invalido']
+
+  Note: '''
+  V21 -- el respaldo de un pago pasó a ser un ARCHIVO de verdad. Antes era
+  `pago.comprobante_path`, un texto que alguien tipeaba: el sistema mostraba
+  respaldo donde no había ninguno.
+
+  POR QUÉ SON MUCHOS Y NO UNO. La regla dura es que un comprobante no se borra,
+  se marca inválido -- y con una sola columna, cargar el correcto obliga a pisar
+  el que está, **y pisarlo borra la firma que V7 exigió** (quién dijo que no
+  servía, y por qué). O sea: el mecanismo que existe para dejar rastro es el que
+  lo destruye. Ahora el equivocado queda listado como inválido con su firma y el
+  correcto se agrega al lado.
+
+  ⚠️ Y LA FILA TAMPOCO SE EDITA. Cambiar `archivo_path` es pisar la columna con
+  pasos de más, y desmarcar `invalido` deshace un acto firmado sin dejar rastro.
+  Desde adentro de "no se borra, se marca" no se ve que la marca tampoco se
+  borra.
+
+  El `Content-Type` al servirlo sale DEL ARCHIVO y no de una constante: la mitad
+  de estos comprobantes son fotos de una transferencia, y servirlas como PDF le
+  entrega al alumno un archivo que no abre nada.
+  '''
 }
