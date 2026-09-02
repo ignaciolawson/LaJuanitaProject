@@ -76,9 +76,12 @@ export function MisAlumnosPagina() {
                   {a.nombre} {a.apellido}
                 </div>
                 <div className="text-xs text-tenue">
-                  {a.disciplinas.length === 0
+                  {/* Sale de `cursos`, que desde `V23` trae el id de cada
+                      inscripción además de su disciplina: es el mismo dato que
+                      antes viajaba suelto como `disciplinas`. */}
+                  {a.cursos.length === 0
                     ? 'Sin curso vigente'
-                    : a.disciplinas.map((d) => NOMBRE_DE_DISCIPLINA[d]).join(' · ')}
+                    : a.cursos.map((c) => NOMBRE_DE_DISCIPLINA[c.disciplina]).join(' · ')}
                 </div>
               </div>
 

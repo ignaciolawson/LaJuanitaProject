@@ -630,17 +630,20 @@ SELECT probar('60','rol inexistente','FALLA',
  $q$INSERT INTO usuario (nombre,apellido,email,password_hash,rol)
     VALUES ('X','Prueba','x@test.local','x','JEFE')$q$);
 
-SELECT probar('61','material marcado grupal pero con alumno','FALLA',
- $q$INSERT INTO material (id_profesor,id_alumno,es_grupal,titulo,url_externa)
-    SELECT prof,al_juan,TRUE,'Guia','http://x' FROM v$q$);
+-- V23 reescribio estos tres. El 61 y el 63 probaban `es_grupal`, que era la
+-- forma vieja de decir "sin destinatario" -- y que en los hechos significaba
+-- "para todos los alumnos del estudio". Ahora todo material es de un curso.
+SELECT probar('61','material sin curso','FALLA',
+ $q$INSERT INTO material (id_profesor,titulo,url_externa)
+    SELECT prof,'Guia','http://x' FROM v$q$);
 
 SELECT probar('62','material sin archivo ni link','FALLA',
- $q$INSERT INTO material (id_profesor,id_alumno,titulo)
-    SELECT prof,al_juan,'Vacio' FROM v$q$);
+ $q$INSERT INTO material (id_profesor,id_inscripcion,titulo)
+    SELECT prof,ins_juan,'Vacio' FROM v$q$);
 
-SELECT probar('63','material grupal correcto','ANDA',
- $q$INSERT INTO material (id_profesor,es_grupal,titulo,url_externa)
-    SELECT prof,TRUE,'Guia de armonicos','http://x' FROM v$q$);
+SELECT probar('63','material de todo un curso, sin clase','ANDA',
+ $q$INSERT INTO material (id_profesor,id_inscripcion,titulo,url_externa)
+    SELECT prof,ins_juan,'Guia de armonicos','http://x' FROM v$q$);
 
 SELECT probar('64','venta sin comprador identificado','FALLA',
  $q$INSERT INTO venta_equipo (id_usuario_vendedor,modelo_equipo,precio)
@@ -1661,6 +1664,55 @@ SELECT probar('196','un uso puede pasar a ser clase con su disciplina','ANDA',
  $q$UPDATE tipo_uso SET es_clase=TRUE, disciplina='MENTORIA'
     WHERE codigo='ALQUILER_CABINA'$q$);
 
+
+-- =============================================================================
+-- V23 - EL MATERIAL ES DE UN CURSO, Y PUEDE SER DE UNA CLASE
+--
+-- La regla que V23 agrega es la del trigger: si el material dice de que clase
+-- es, esa clase tiene que ser una en la que el alumno del curso participo CON
+-- ESE CURSO. Sin ella las dos columnas serian validas por separado y la fila
+-- mentiria igual -- el mismo agujero que V1 §8.2 cierra del otro lado.
+-- =============================================================================
+
+-- ⚠️ LA CLASE TIENE QUE SER UNA DONDE ANA NO ESTE, y esto costo dos vueltas.
+--
+-- La primera version tomaba "la primera clase de Juan" y el caso 198 pasaba
+-- cuando tenia que fallar. El trigger estaba bien: JUAN Y ANA COMPARTEN UNA
+-- CLASE GRUPAL, asi que colgar el material del curso de Ana sobre esa clase es
+-- legitimo -- Ana tambien la curso. El caso estaba mal escrito, no la regla.
+--
+-- Por eso los tres casos de abajo se paran sobre una clase de Juan en la que Ana
+-- NO participo. Si no existiera ninguna, el 197 falla ruidosamente por la regla
+-- 2 de la cabecera ('ANDA' sin filas es falso positivo) en vez de dejar a los
+-- otros dos pasando en el aire.
+SELECT probar('197','material colgado de una clase propia','ANDA',
+ $q$INSERT INTO material (id_profesor,id_inscripcion,id_reserva,titulo,url_externa)
+    SELECT v.prof, v.ins_juan, rp.id_reserva, 'De esa clase', 'http://x'
+      FROM v JOIN reserva_participante rp ON rp.id_inscripcion = v.ins_juan
+     WHERE NOT EXISTS (SELECT 1 FROM reserva_participante x
+                        WHERE x.id_reserva = rp.id_reserva
+                          AND x.id_inscripcion = v.ins_ana)
+     LIMIT 1$q$);
+
+-- EL CASO QUE JUSTIFICA EL TRIGGER: el curso de Ana sobre una clase que Ana no
+-- curso.
+SELECT probar_mensaje('198','material del curso de otro sobre esta clase','no es de ese curso',
+ $q$INSERT INTO material (id_profesor,id_inscripcion,id_reserva,titulo,url_externa)
+    SELECT v.prof, v.ins_ana, rp.id_reserva, 'Clase ajena', 'http://x'
+      FROM v JOIN reserva_participante rp ON rp.id_inscripcion = v.ins_juan
+     WHERE NOT EXISTS (SELECT 1 FROM reserva_participante x
+                        WHERE x.id_reserva = rp.id_reserva
+                          AND x.id_inscripcion = v.ins_ana)
+     LIMIT 1$q$);
+
+-- Y no alcanza con crearlo bien: cambiarlo despues tiene que fallar igual. Sin
+-- el UPDATE en el trigger, la regla se salta en dos pasos.
+SELECT probar_mensaje('199','mover el material al curso de otro','no es de ese curso',
+ $q$UPDATE material SET id_inscripcion = (SELECT ins_ana FROM v)
+    WHERE titulo = 'De esa clase'$q$);
+
+SELECT probar('200','el material sin clase se puede dejar sin clase','ANDA',
+ $q$UPDATE material SET id_reserva = NULL WHERE titulo = 'Guia de armonicos'$q$);
 
 -- =============================================================================
 -- RESUMEN

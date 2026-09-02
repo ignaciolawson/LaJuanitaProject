@@ -1,4 +1,4 @@
-import type { Disciplina } from './tiposAdmin'
+import type { Disciplina, Nivel } from './tiposAdmin'
 
 /**
  * Contratos del Módulo 5 — el portal del profesor.
@@ -37,12 +37,26 @@ export const NOMBRE_DE_SEGUIMIENTO: Record<EstadoSeguimiento, string> = {
  * puso miente sobre un alumno que nadie miró. Pintarlo gris o vacío, nunca
  * verde.
  */
+/** Un curso vigente de un alumno. Espeja `CursoDelAlumno`. */
+export type CursoDelAlumno = {
+  idInscripcion: number
+  disciplina: Disciplina
+  /** Null en mentoría y en los cursos sin nivel cargado. */
+  nivel: Nivel | null
+  clasesRestantes: number
+}
+
 export type AlumnoDelProfesor = {
   idAlumno: number
   idUsuario: number
   nombre: string
   apellido: string
-  disciplinas: Disciplina[]
+  /**
+   * Lo que cursa hoy, con su id: es lo que permite elegir **a qué curso** se le
+   * sube un material (`V23`). Antes era una lista de disciplinas — el mismo dato
+   * sin el id.
+   */
+  cursos: CursoDelAlumno[]
   estadoSeguimiento: EstadoSeguimiento | null
   observaciones: string | null
   /** Suma de lo que le queda en sus inscripciones vigentes. */
@@ -117,10 +131,27 @@ export type MaterialResumen = {
   idMaterial: number
   idProfesor: number
   profesor: string
-  /** Null si es grupal. */
-  idAlumno: number | null
-  alumno: string | null
-  esGrupal: boolean
+  idAlumno: number
+  alumno: string
+
+  /**
+   * De qué curso es (`V23`, `mejoras.md` §12 · C2). **Nunca null.**
+   *
+   * ⚠️ Reemplaza al par `idAlumno` + `esGrupal`. Aquel `esGrupal` significaba
+   * "sin destinatario", y **no filtraba por nada**: el material le llegaba a
+   * todos los alumnos del estudio, incluidos los que nunca tuvieron a ese
+   * profesor. Las tres pantallas lo llamaban de tres formas distintas y ninguna
+   * era ésa.
+   */
+  idInscripcion: number
+  /** Ya legible: "DJ · INICIAL". Es por lo que agrupa la pantalla del alumno. */
+  curso: string
+
+  /** De qué clase es. **Null = de todo el curso**, que §18 · P41 admite. */
+  idReserva: number | null
+  /** Ya escrita por el servidor: "2026-08-12 10:00". */
+  clase: string | null
+
   titulo: string
   tipo: string | null
   /** Hoy siempre un link: `archivo_path` espera al StorageService de §2.4. */
@@ -132,16 +163,22 @@ export type MaterialResumen = {
 /**
  * Espeja `AltaMaterialRequest`.
  *
- * ⚠️ **Sin `idAlumno` el material es GRUPAL.** Esa traducción la hace el
- * backend, así que el formulario tiene que tener un solo control ("¿para quién?
- * → todos / un alumno") y no dos que se puedan contradecir: la base no acepta
- * las dos cosas ni ninguna.
+ * ⚠️ **Lleva `idInscripcion` y ya no `idAlumno`** (`mejoras.md` §12 · C2). El
+ * material es de un curso: eso dice a la vez de quién es y de qué programa.
+ * Antes, no elegir alumno lo dejaba "grupal", que en los hechos era mandárselo a
+ * todo el estudio.
+ *
+ * `idReserva` es opcional: **vacío significa de todo el curso**, no de una clase
+ * puntual. No es libre — el backend exige que esa clase sea una en la que ese
+ * alumno cursó con esa inscripción, y lo sostiene un trigger.
  *
  * El link tiene que empezar con `http://` o `https://` — lo valida el DTO y
  * vuelve como 400.
  */
 export type AltaMaterial = {
-  idAlumno?: number
+  idInscripcion: number
+  /** Vacío = de todo el curso. */
+  idReserva?: number
   titulo: string
   tipo?: string
   urlExterna: string

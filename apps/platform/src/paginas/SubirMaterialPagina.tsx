@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
-import { cambiarVisibilidad, misAlumnos, misMaterialesSubidos, subirMaterial } from '../api/docencia'
+import {
+  cambiarVisibilidad,
+  miAgenda,
+  misAlumnos,
+  misMaterialesSubidos,
+  subirMaterial,
+} from '../api/docencia'
+import type { ReservaResumen } from '../api/tiposAdmin'
 import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
-import { cuando } from '../componentes/presentacion'
+import { cuando, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
+import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -18,28 +26,46 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
  * archivos — que el Módulo 6 va a tener que construir igual para retener el
  * premaster. Cuando esté, esta pantalla gana una alternativa, no cambia.
  *
- * ⚠️ **Un solo control de destinatario, y es la decisión de forma del módulo.**
- * "¿Para quién? → todos / un alumno" es un `select`, no un checkbox más un
- * buscador: mandar los dos campos por separado permite armar un pedido
- * contradictorio —para todos Y para Juan— que la base rechaza y que el
- * formulario no debería haber dejado escribir.
+ * ⚠️ **El material se sube A UN CURSO, y opcionalmente a una clase de ese
+ * curso** (`V23`, `mejoras.md` §12 · C2).
+ *
+ * Antes el control decía *"¿Para quién? → Todos mis alumnos / un alumno"*, y
+ * ese "todos" **no filtraba por nada**: el material le llegaba a todos los
+ * alumnos del estudio, incluidos los que nunca tuvieron a este profesor. La
+ * pantalla del alumno lo mostraba como *"para todo el curso"* y la lista de acá
+ * como *"Para todos"*: tres textos para una cosa que nadie había decidido.
+ *
+ * **La lista de clases sale del curso elegido**, no de un pedido nuevo: son las
+ * clases que ese alumno cursó con esa inscripción, que es la misma condición que
+ * el backend exige. Elegir el curso primero es lo que hace que la segunda lista
+ * no pueda ofrecer una clase ajena.
  *
  * **Se ve todo lo subido, publicado o no.** Es la diferencia con la pantalla del
  * alumno: el profesor necesita ver qué tiene preparado, y el interruptor es la
  * regla dura *"el alumno lo ve solo si el profesor lo habilitó"*.
  */
+/** Ventana de clases que se ofrecen, igual que la de las notas y por lo mismo. */
+const DIAS_DE_HISTORIAL = 60
+
 export function SubirMaterialPagina() {
   const [alumnos, setAlumnos] = useState<AlumnoDelProfesor[]>([])
   const [materiales, setMateriales] = useState<MaterialResumen[]>([])
+  const [clases, setClases] = useState<ReservaResumen[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
     try {
-      const [mios, subidos] = await Promise.all([misAlumnos(), misMaterialesSubidos()])
+      const hasta = hoy()
+      const [mios, subidos, dictadas] = await Promise.all([
+        misAlumnos(),
+        misMaterialesSubidos(),
+        miAgenda(sumarDias(hasta, -DIAS_DE_HISTORIAL), hasta),
+      ])
       setAlumnos(mios)
       setMateriales(subidos)
+      setClases(dictadas)
       setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cargar tu material.')
@@ -68,6 +94,7 @@ export function SubirMaterialPagina() {
 
       <Formulario
         alumnos={alumnos}
+        clases={clases}
         alSubir={(nuevo) => setMateriales([nuevo, ...materiales])}
       />
 
@@ -100,15 +127,19 @@ export function SubirMaterialPagina() {
 
 function Formulario({
   alumnos,
+  clases,
   alSubir,
 }: {
   alumnos: AlumnoDelProfesor[]
+  /** Las clases que di en los últimos 60 días, para elegir de cuál es. */
+  clases: ReservaResumen[]
   alSubir: (material: MaterialResumen) => void
 }) {
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState('')
   const [urlExterna, setUrlExterna] = useState('')
-  const [destinatario, setDestinatario] = useState('')
+  const [curso, setCurso] = useState('')
+  const [clase, setClase] = useState('')
   const [publicar, setPublicar] = useState(true)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -121,9 +152,9 @@ function Formulario({
     setErrores({})
     try {
       const nuevo = await subirMaterial({
-        // Vacío es grupal: esa traducción la hace el backend, y por eso el
-        // formulario tiene un solo control.
-        idAlumno: destinatario === '' ? undefined : Number(destinatario),
+        idInscripcion: Number(curso),
+        // Vacío = de todo el curso, que es material del programa y no de un día.
+        idReserva: clase === '' ? undefined : Number(clase),
         titulo: titulo.trim(),
         tipo: tipo.trim() === '' ? undefined : tipo.trim(),
         urlExterna: urlExterna.trim(),
@@ -133,6 +164,10 @@ function Formulario({
       setTitulo('')
       setTipo('')
       setUrlExterna('')
+      // El curso NO se limpia: subir tres materiales seguidos al mismo curso es
+      // lo normal, y volver a elegirlo cada vez es trabajo que la pantalla puede
+      // ahorrar. La clase sí, porque es lo que cambia entre uno y otro.
+      setClase('')
     } catch (e) {
       if (e instanceof ApiError) {
         setError(e.message)
@@ -174,16 +209,44 @@ function Formulario({
           className="sm:col-span-2"
         />
 
+        {/* El curso dice a la vez de quién es el material y de qué programa:
+            una inscripción es el contrato de un alumno. */}
         <CampoSelect
-          etiqueta="¿Para quién?"
-          value={destinatario}
-          onChange={(e) => setDestinatario(e.target.value)}
-          className="sm:col-span-2"
+          etiqueta="¿Para qué curso?"
+          required
+          value={curso}
+          onChange={(e) => {
+            setCurso(e.target.value)
+            // La clase elegida pertenece al curso anterior: dejarla puesta arma
+            // un pedido que el backend rechaza y que nadie escribió a propósito.
+            setClase('')
+          }}
+          error={errores.idInscripcion}
         >
-          <option value="">Todos mis alumnos</option>
-          {alumnos.map((a) => (
-            <option key={a.idAlumno} value={a.idAlumno}>
-              {a.nombre} {a.apellido}
+          <option value="">Elegí un curso</option>
+          {alumnos.flatMap((a) =>
+            a.cursos.map((c) => (
+              <option key={c.idInscripcion} value={c.idInscripcion}>
+                {a.nombre} {a.apellido} · {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+                {c.nivel && ` ${c.nivel.toLowerCase()}`}
+              </option>
+            )),
+          )}
+        </CampoSelect>
+
+        <CampoSelect
+          etiqueta="¿De qué clase?"
+          value={clase}
+          onChange={(e) => setClase(e.target.value)}
+          error={errores.idReserva}
+          disabled={curso === ''}
+        >
+          {/* El vacío es una opción válida y no un "elegí algo": material de todo
+              el curso —la bibliografía, el programa— no es de ningún día. */}
+          <option value="">De todo el curso</option>
+          {clasesDe(clases, curso).map((r) => (
+            <option key={r.idReserva} value={r.idReserva}>
+              {diaYMes(r.fecha)} {hhmm(r.horaInicio)} · {r.tipoUso}
             </option>
           ))}
         </CampoSelect>
@@ -240,7 +303,8 @@ function Fila({
         <div className="min-w-40 grow">
           <div className="text-sm font-medium">{material.titulo}</div>
           <div className="text-xs text-tenue">
-            {material.esGrupal ? 'Para todos' : `Para ${material.alumno ?? 'un alumno'}`}
+            {material.alumno} · {material.curso}
+            {material.clase && ` · clase del ${material.clase.slice(0, 10)}`}
             {material.tipo && ` · ${material.tipo}`} · {cuando(material.fechaSubida)}
             {material.urlExterna && (
               <>
@@ -280,4 +344,21 @@ function Fila({
       )}
     </li>
   )
+}
+
+/**
+ * Las clases de un curso, de la más nueva a la más vieja.
+ *
+ * ⚠️ **Se filtra por la inscripción del participante y no por el alumno**, y es
+ * la misma condición que exige el backend: una clase es de este curso sólo si ese
+ * alumno la cursó *con esta inscripción*. Filtrar por alumno ofrecería sus clases
+ * de DJ cuando el material es de producción — que es exactamente la mezcla que
+ * `V22` acaba de eliminar del otro lado.
+ */
+function clasesDe(clases: ReservaResumen[], idInscripcion: string): ReservaResumen[] {
+  if (idInscripcion === '') return []
+
+  return clases
+    .filter((r) => r.participantes.some((p) => p.idInscripcion === Number(idInscripcion)))
+    .sort((a, b) => (b.fecha + b.horaInicio).localeCompare(a.fecha + a.horaInicio))
 }

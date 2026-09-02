@@ -127,9 +127,9 @@ export function FichaDeAlumnoPagina() {
 
       <CabeceraDePagina
         titulo={`${alumno.nombre} ${alumno.apellido}`}
-        aclaracion={<>{alumno.disciplinas.length === 0
+        aclaracion={<>{alumno.cursos.length === 0
             ? 'Sin curso vigente'
-            : alumno.disciplinas.map((d) => NOMBRE_DE_DISCIPLINA[d]).join(' · ')}
+            : alumno.cursos.map((c) => NOMBRE_DE_DISCIPLINA[c.disciplina]).join(' · ')}
           {' · '}
           {alumno.clasesRestantes}{' '}
           {alumno.clasesRestantes === 1 ? 'clase restante' : 'clases restantes'}</>}

@@ -19,6 +19,7 @@ import com.lajuanita.backend.docencia.dto.AltaMaterialRequest;
 import com.lajuanita.backend.docencia.dto.AltaNotaRequest;
 import com.lajuanita.backend.docencia.dto.AlumnoDelProfesor;
 import com.lajuanita.backend.docencia.dto.ClasesDictadas;
+import com.lajuanita.backend.docencia.dto.CursoDelAlumno;
 import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.docencia.dto.NotaResumen;
 import com.lajuanita.backend.docencia.dto.SeguimientoRequest;
@@ -184,24 +185,19 @@ public class DocenciaService {
 
         List<Long> ids = mios.stream().map(Alumno::getId).toList();
 
-        Map<Long, List<Disciplina>> disciplinas = new HashMap<>();
-        for (Object[] fila : alumnos.disciplinasVigentes(ids, EstadoInscripcion.VIGENTES)) {
-            disciplinas.computeIfAbsent(((Number) fila[0]).longValue(), id -> new ArrayList<>())
-                    .add((Disciplina) fila[1]);
-        }
-
         Map<Long, SeguimientoResumen> semaforo = new HashMap<>();
         for (SeguimientoAlumno s : seguimientos.delProfesorPara(yo.getId(), ids)) {
             semaforo.put(s.getAlumno().getId(), SeguimientoResumen.de(s));
         }
 
-        Map<Long, Integer> restantes = clasesRestantesPorAlumno(ids);
+        Map<Long, List<CursoDelAlumno>> cursosPorAlumno = cursosVigentesPorAlumno(ids);
 
         return mios.stream()
-                .map(a -> AlumnoDelProfesor.de(a,
-                        disciplinas.getOrDefault(a.getId(), List.of()),
-                        semaforo.get(a.getId()),
-                        restantes.getOrDefault(a.getId(), 0)))
+                .map(a -> {
+                    List<CursoDelAlumno> suyos = cursosPorAlumno.getOrDefault(a.getId(), List.of());
+                    int restantes = suyos.stream().mapToInt(CursoDelAlumno::clasesRestantes).sum();
+                    return AlumnoDelProfesor.de(a, suyos, semaforo.get(a.getId()), restantes);
+                })
                 .toList();
     }
 
@@ -278,32 +274,67 @@ public class DocenciaService {
     }
 
     /**
-     * Subir material: hoy, un link.
+     * Subir material.
      *
-     * <p><b>Sin {@code idAlumno} el material es grupal</b>, y esa traducción se
-     * hace acá y no en el formulario: la base no acepta las dos cosas ni ninguna
-     * ({@code material_destinatario_definido}), así que dejar que el cliente mande
-     * los dos campos por separado es dejar que los mande contradictorios.
+     * <p>⚠️ <b>El material es de un curso, y puede ser de una clase</b> (`V23`,
+     * `mejoras.md` §12 · C2). Antes se elegía un alumno y, si no se elegía
+     * ninguno, el material quedaba "grupal" — y grupal <b>no filtraba por
+     * nada</b>: le llegaba a todos los alumnos del estudio, incluidos los que
+     * nunca tuvieron a este profesor.
+     *
+     * <p>Los dos chequeos que hace, y ninguno sobra:
+     *
+     * <ol>
+     *   <li><b>Que la inscripción sea de un alumno mío.</b> Es
+     *       {@link #verificarQueEsMiAlumno} otra vez, y entra por el alumno de la
+     *       inscripción: sin esto se le podría subir material a cualquiera con
+     *       sólo saber el id de su curso.</li>
+     *   <li><b>Que la clase sea de ese curso</b>, si viene. Acá se chequea para
+     *       dar un mensaje; quien lo garantiza es el trigger de `V23` §5, que
+     *       exige que ese alumno haya participado de esa reserva <i>con esa
+     *       inscripción</i>.</li>
+     * </ol>
      */
     @Transactional
     public MaterialResumen subirMaterial(Long idUsuario, AltaMaterialRequest solicitud) {
         Profesor yo = miDocencia(idUsuario);
 
+        Inscripcion curso = inscripciones.findById(solicitud.idInscripcion())
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existe ese curso (" + solicitud.idInscripcion() + ")."));
+        verificarQueEsMiAlumno(yo, curso.getAlumno().getId());
+
         Material material = new Material();
         material.setProfesor(yo);
+        material.setInscripcion(curso);
         material.setTitulo(solicitud.titulo().trim());
         material.setTipo(normalizar(solicitud.tipo()));
         material.setUrlExterna(solicitud.urlExterna().trim());
         material.setVisibleAlumno(solicitud.visibleAlumno() == null || solicitud.visibleAlumno());
 
-        if (solicitud.idAlumno() == null) {
-            material.setEsGrupal(true);
-        } else {
-            material.setEsGrupal(false);
-            material.setAlumno(verificarQueEsMiAlumno(yo, solicitud.idAlumno()));
+        if (solicitud.idReserva() != null) {
+            material.setReserva(claseDeEseCurso(solicitud.idReserva(), curso));
         }
 
         return MaterialResumen.de(materiales.save(material));
+    }
+
+    /**
+     * La clase tiene que ser una en la que ese alumno cursó <b>con ese curso</b>.
+     *
+     * <p>El pre-chequeo existe para el mensaje, igual que en otros lados de este
+     * proyecto: lo que sostiene la regla es el trigger de `V23` §5. Sin él se
+     * podría colgar material de la inscripción de Juan sobre una clase de Ana —las
+     * dos columnas serían válidas por separado y la fila mentiría igual—, que es
+     * el mismo agujero que `V1` §8.2 cierra del otro lado.
+     */
+    private Reserva claseDeEseCurso(Long idReserva, Inscripcion curso) {
+        return participantes.deLaInscripcionEnLaReserva(idReserva, curso.getId())
+                .map(ReservaParticipante::getReserva)
+                .orElseThrow(() -> new SolicitudInvalidaException(
+                        "Esa clase no es de ese curso: el alumno no cursó esa clase con esta"
+                                + " inscripción. Elegí una de sus clases o dejalo sin clase,"
+                                + " para todo el curso."));
     }
 
     /** Publicar o esconder un material propio. Es la regla dura "solo si lo habilitó". */
@@ -385,8 +416,15 @@ public class DocenciaService {
                         "No existe ese alumno entre los tuyos (" + idAlumno + ")."));
     }
 
-    /** Cuántas clases le quedan a cada alumno, sumando sus inscripciones vigentes. */
-    private Map<Long, Integer> clasesRestantesPorAlumno(List<Long> idsAlumno) {
+    /**
+     * Los cursos vigentes de cada alumno, con lo que le queda en cada uno.
+     *
+     * <p>Antes devolvía sólo la suma por alumno y las disciplinas salían de una
+     * segunda consulta ({@code disciplinasVigentes}). Son la misma pregunta hecha
+     * dos veces, y desde `V23` hace falta el <b>id</b> de cada curso: un material
+     * se sube a uno.
+     */
+    private Map<Long, List<CursoDelAlumno>> cursosVigentesPorAlumno(List<Long> idsAlumno) {
         List<Inscripcion> vigentes = inscripciones.vigentesDeLosAlumnos(
                 idsAlumno, EstadoInscripcion.VIGENTES);
         if (vigentes.isEmpty()) {
@@ -398,11 +436,12 @@ public class DocenciaService {
         // dice un número que la base no reconoce.
         Map<Long, Integer> consumidas = cursos.clasesConsumidas(vigentes);
 
-        Map<Long, Integer> porAlumno = new HashMap<>();
+        Map<Long, List<CursoDelAlumno>> porAlumno = new HashMap<>();
         for (Inscripcion i : vigentes) {
             int restan = Math.max(
                     i.getClasesContratadas() - consumidas.getOrDefault(i.getId(), 0), 0);
-            porAlumno.merge(i.getAlumno().getId(), restan, Integer::sum);
+            porAlumno.computeIfAbsent(i.getAlumno().getId(), id -> new ArrayList<>())
+                    .add(CursoDelAlumno.de(i, restan));
         }
         return porAlumno;
     }

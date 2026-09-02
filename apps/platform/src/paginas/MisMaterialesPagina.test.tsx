@@ -27,7 +27,10 @@ function material(cambios: Partial<MaterialResumen> = {}): MaterialResumen {
     profesor: 'Ghezz Pérez',
     idAlumno: 7,
     alumno: 'Juan Pérez',
-    esGrupal: false,
+    idInscripcion: 7,
+    curso: 'DJ · INICIAL',
+    idReserva: null,
+    clase: null,
     titulo: 'Pack de samples',
     tipo: 'sample pack',
     urlExterna: 'https://drive.example/pack',
@@ -53,14 +56,15 @@ describe('el listado', () => {
     )
   })
 
-  /** Saber que algo es para todo el curso y no para uno cambia cómo se lee. */
-  it('dice cuándo el material es para todo el curso', async () => {
-    vi.mocked(misMateriales).mockResolvedValue([
-      material({ esGrupal: true, idAlumno: null, alumno: null }),
-    ])
+  /**
+   * Material del programa y no de un día: §18 · P41 lo admite explícitamente
+   * (*"puede ser del curso entero"*), y la pantalla lo dice con esas palabras.
+   */
+  it('el material sin clase se agrupa como de todo el curso', async () => {
+    vi.mocked(misMateriales).mockResolvedValue([material({ idReserva: null, clase: null })])
     render(<MisMaterialesPagina />)
 
-    expect(await screen.findByText(/para todo el curso/)).toBeDefined()
+    expect(await screen.findByText('De todo el curso')).toBeDefined()
   })
 
   it('sin materiales explica que los sube el profesor', async () => {
@@ -71,34 +75,67 @@ describe('el listado', () => {
   })
 })
 
-describe('la división por dentro (§12 · B1)', () => {
-  it('agrupa por quién lo subió y cuenta cuántos hay de cada uno', async () => {
+describe('la división por dentro (§12 · C2)', () => {
+  it('agrupa por curso y, dentro, por clase', async () => {
     vi.mocked(misMateriales).mockResolvedValue([
-      material({ idMaterial: 1, titulo: 'Pack A', profesor: 'Ghezz Pérez' }),
-      material({ idMaterial: 2, titulo: 'Pack B', profesor: 'Ghezz Pérez' }),
-      material({ idMaterial: 3, titulo: 'Guía de mezcla', profesor: 'Najles' }),
+      material({
+        idMaterial: 1,
+        titulo: 'Pack A',
+        curso: 'DJ · INICIAL',
+        idReserva: 50,
+        clase: '2026-08-12 10:00',
+      }),
+      material({
+        idMaterial: 2,
+        titulo: 'Pack B',
+        curso: 'DJ · INICIAL',
+        idReserva: 51,
+        clase: '2026-08-19 10:00',
+      }),
+      material({
+        idMaterial: 3,
+        titulo: 'Plantilla',
+        curso: 'PRODUCCION',
+        idReserva: null,
+        clase: null,
+      }),
     ])
     render(<MisMaterialesPagina />)
 
-    expect(await screen.findByRole('heading', { name: 'Ghezz Pérez' })).toBeDefined()
-    expect(screen.getByRole('heading', { name: 'Najles' })).toBeDefined()
+    expect(await screen.findByRole('heading', { name: 'DJ · INICIAL' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'PRODUCCION' })).toBeDefined()
+    expect(screen.getByText('Clase del 2026-08-12')).toBeDefined()
+    expect(screen.getByText('Clase del 2026-08-19')).toBeDefined()
     expect(screen.getByText('2 materiales')).toBeDefined()
-    expect(screen.getByText('1 material')).toBeDefined()
   })
 
-  it('⚠️ el grupo con lo más reciente va primero, no el primero del abecedario', async () => {
-    // Alfabético haría que quien no sube nada hace tres meses encabece la
-    // pantalla por llamarse Álvarez.
+  it('⚠️ "De todo el curso" va al final, aunque su material sea el más nuevo', async () => {
+    // No es un día: es el material que vale para el programa entero. Ordenado por
+    // fecha entre las clases quedaría escondido entre ellas.
     vi.mocked(misMateriales).mockResolvedValue([
-      material({ idMaterial: 1, profesor: 'Álvarez', fechaSubida: '2026-06-01T10:00:00Z' }),
-      material({ idMaterial: 2, profesor: 'Zabala', fechaSubida: '2026-08-30T10:00:00Z' }),
+      material({
+        idMaterial: 1,
+        titulo: 'De una clase vieja',
+        idReserva: 50,
+        clase: '2026-06-01 10:00',
+        fechaSubida: '2026-06-01T10:00:00Z',
+      }),
+      material({
+        idMaterial: 2,
+        titulo: 'Bibliografia',
+        idReserva: null,
+        clase: null,
+        fechaSubida: '2026-08-30T10:00:00Z',
+      }),
     ])
     render(<MisMaterialesPagina />)
 
-    await screen.findByRole('heading', { name: 'Zabala' })
-    const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)
+    await screen.findByText('De todo el curso')
+    const franjas = screen
+      .getAllByText(/^(Clase del|De todo el curso)/)
+      .map((e) => e.textContent)
 
-    expect(titulos).toEqual(['Zabala', 'Álvarez'])
+    expect(franjas[franjas.length - 1]).toBe('De todo el curso')
   })
 })
 

@@ -1,6 +1,7 @@
 package com.lajuanita.backend.docencia;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -322,16 +323,134 @@ class DocenciaTest {
 
     // == Material ============================================================
 
+    /**
+     * ⚠️ <b>Este caso reemplaza a {@code subir_sin_alumno_lo_marca_grupal}, que
+     * defendía el agujero</b> (`mejoras.md` §12 · C2).
+     *
+     * <p>Aquél afirmaba que un material sin alumno quedaba "grupal", y grupal
+     * <b>no filtraba por nada</b>: le llegaba a todos los alumnos del estudio,
+     * incluidos los que nunca tuvieron a ese profesor. Estaba en verde y era
+     * correcto respecto de lo que el código hacía — lo que faltaba era que alguien
+     * decidiera qué tenía que hacer.
+     *
+     * <p>Ahora <b>todo material es de un curso</b>: sin {@code idInscripcion} el
+     * alta se rechaza en vez de inventar un destinatario.
+     */
     @Test
-    void subir_sin_alumno_lo_marca_grupal() throws Exception {
-        mvc.perform(subir(profesorNuevo(), """
-                {"titulo":"Sample pack de la clase 3","urlExterna":"https://drive.google.com/x"}
-                """))
+    void el_material_es_de_un_curso_y_sin_curso_no_entra() throws Exception {
+        Profesor yo = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, yo);
+
+        mvc.perform(subir(yo, """
+                {"idInscripcion":%d,"titulo":"Sample pack del curso",
+                 "urlExterna":"https://drive.google.com/x"}
+                """.formatted(curso.getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.esGrupal").value(true))
-                .andExpect(jsonPath("$.idAlumno").doesNotExist())
+                .andExpect(jsonPath("$.idInscripcion").value(curso.getId().intValue()))
+                .andExpect(jsonPath("$.idAlumno").value(alumno.getId().intValue()))
+                // Sin clase: es material de todo el curso, que §18 · P41 admite.
+                .andExpect(jsonPath("$.idReserva").doesNotExist())
                 .andExpect(jsonPath("$.visibleAlumno").value(true))
                 .andExpect(jsonPath("$.fechaSubida").isNotEmpty());
+
+        mvc.perform(subir(yo, """
+                {"titulo":"Sin curso","urlExterna":"https://drive.google.com/y"}
+                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * <b>No se le puede subir material al curso de un alumno ajeno.</b> Con el
+     * modelo viejo esto ni siquiera se podía preguntar: el material grupal no
+     * tenía destinatario, así que no había a quién no pertenecer.
+     */
+    @Test
+    void no_puedo_subir_material_al_curso_de_un_alumno_que_no_es_mio() throws Exception {
+        Profesor yo = profesorNuevo();
+        Profesor otro = profesorNuevo();
+        Alumno suyo = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(suyo, otro);
+
+        mvc.perform(subir(yo, """
+                {"idInscripcion":%d,"titulo":"No es mi alumno",
+                 "urlExterna":"https://drive.google.com/z"}
+                """.formatted(curso.getId())))
+                .andExpect(status().isNotFound());
+    }
+
+    /**
+     * <b>El material de una clase concreta</b> (§18 · P41: <i>"de esa clase"</i>).
+     *
+     * <p>El profesor elige la clase y el sistema deriva el resto —de qué curso es
+     * y para quién—, que es la misma forma que estrenó `V22` con el descuento.
+     */
+    @Test
+    void el_material_puede_colgar_de_la_clase_que_fue() throws Exception {
+        Profesor yo = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, yo);
+        long clase = idDeReserva(cargarClase(yo, alumno, curso, sala1, "10:00", "11:30"));
+
+        mvc.perform(subir(yo, """
+                {"idInscripcion":%d,"idReserva":%d,"titulo":"Grabacion de la sesion",
+                 "urlExterna":"https://drive.google.com/x"}
+                """.formatted(curso.getId(), clase)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idReserva").value((int) clase))
+                .andExpect(jsonPath("$.clase").isNotEmpty())
+                .andExpect(jsonPath("$.curso").value("DJ"));
+    }
+
+    /**
+     * ⚠️ <b>La regla que hace que las dos columnas sirvan de algo.</b> Sin ella se
+     * puede colgar material de la inscripción de Juan sobre una clase de Ana: las
+     * dos columnas serían válidas por separado y la fila mentiría igual. Es el
+     * mismo agujero que `V1` §8.2 cierra del otro lado.
+     */
+    @Test
+    void una_clase_de_otro_alumno_no_es_de_este_curso() throws Exception {
+        Profesor yo = profesorNuevo();
+        Alumno juan = alumnoNuevo();
+        Alumno ana = alumnoNuevo();
+        Inscripcion deJuan = inscripcionDe(juan, yo);
+        Inscripcion deAna = inscripcionDe(ana, yo);
+
+        cargarClase(yo, juan, deJuan, sala1, "12:00", "13:30");
+        long claseDeAna = idDeReserva(cargarClase(yo, ana, deAna, sala2, "14:00", "15:30"));
+
+        mvc.perform(subir(yo, """
+                {"idInscripcion":%d,"idReserva":%d,"titulo":"No es de esta clase",
+                 "urlExterna":"https://drive.google.com/x"}
+                """.formatted(deJuan.getId(), claseDeAna)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("no es de ese curso")));
+    }
+
+    /**
+     * <b>Y el trigger de `V23` §5 es el que sostiene la regla</b>, no el
+     * pre-chequeo del servicio. Se lo ataca con SQL crudo por lo mismo que en
+     * `ReservaTest`: si mañana alguien afloja el servicio, esto sigue rechazando.
+     */
+    @Test
+    void el_trigger_rechaza_la_clase_ajena_aunque_se_escriba_a_mano() throws Exception {
+        Profesor yo = profesorNuevo();
+        Alumno juan = alumnoNuevo();
+        Alumno ana = alumnoNuevo();
+        Inscripcion deJuan = inscripcionDe(juan, yo);
+        Inscripcion deAna = inscripcionDe(ana, yo);
+
+        cargarClase(yo, juan, deJuan, sala1, "12:00", "13:30");
+        long claseDeAna = idDeReserva(cargarClase(yo, ana, deAna, sala2, "14:00", "15:30"));
+
+        long material = idDe(mvc.perform(subir(yo, """
+                {"idInscripcion":%d,"titulo":"Del curso","urlExterna":"https://drive.google.com/x"}
+                """.formatted(deJuan.getId()))), "\"idMaterial\":");
+
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE material SET id_reserva = ? WHERE id_material = ?", claseDeAna, material))
+                .hasMessageContaining("no es de ese curso");
     }
 
     /** Ataja el error real: pegar el nombre del archivo en vez de su URL. */
@@ -343,29 +462,43 @@ class DocenciaTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * ⚠️ <b>Antes se llamaba "ve lo suyo Y LO GRUPAL", y ese "y lo grupal" era el
+     * agujero</b>: el material sin destinatario llegaba a todos los alumnos del
+     * estudio. Este caso lo ataca desde el lado que más importa —<b>el material de
+     * un profesor que no es suyo</b>— porque es el que nadie miraba.
+     */
     @Test
-    void el_alumno_ve_lo_suyo_y_lo_grupal_y_nada_mas() throws Exception {
+    void el_alumno_ve_lo_de_sus_cursos_y_nada_mas() throws Exception {
         Profesor yo = profesorNuevo();
+        Profesor ajeno = profesorNuevo();
         Alumno alumno = alumnoNuevo();
         Alumno companiero = alumnoNuevo();
-        inscripcionDe(alumno, yo);
-        inscripcionDe(companiero, yo);
+        Alumno deOtroProfe = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, yo);
+        Inscripcion delCompaniero = inscripcionDe(companiero, yo);
+        Inscripcion ajena = inscripcionDe(deOtroProfe, ajeno);
 
         mvc.perform(subir(yo, """
-                {"titulo":"Para todos","urlExterna":"https://drive.google.com/g"}
-                """)).andExpect(status().isCreated());
+                {"idInscripcion":%d,"titulo":"Tu correccion","urlExterna":"https://drive.google.com/a"}
+                """.formatted(curso.getId()))).andExpect(status().isCreated());
         mvc.perform(subir(yo, """
-                {"idAlumno":%d,"titulo":"Tu correccion","urlExterna":"https://drive.google.com/a"}
-                """.formatted(alumno.getId()))).andExpect(status().isCreated());
-        mvc.perform(subir(yo, """
-                {"idAlumno":%d,"titulo":"La del companiero","urlExterna":"https://drive.google.com/b"}
-                """.formatted(companiero.getId()))).andExpect(status().isCreated());
+                {"idInscripcion":%d,"titulo":"La del companiero","urlExterna":"https://drive.google.com/b"}
+                """.formatted(delCompaniero.getId()))).andExpect(status().isCreated());
+        // El que antes se colaba: material de un profesor que este alumno no tuvo
+        // nunca. Con `es_grupal` no hacía falta ni que fuera de otro profesor para
+        // que llegara — bastaba con no elegir alumno.
+        mvc.perform(subir(ajeno, """
+                {"idInscripcion":%d,"titulo":"De un profe ajeno","urlExterna":"https://drive.google.com/g"}
+                """.formatted(ajena.getId()))).andExpect(status().isCreated());
 
         mvc.perform(get("/api/me/materiales")
                 .header("Authorization", credencialPara(alumno.getUsuario())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[?(@.titulo=='La del companiero')]").isEmpty());
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].titulo").value("Tu correccion"))
+                .andExpect(jsonPath("$[?(@.titulo=='La del companiero')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.titulo=='De un profe ajeno')]").isEmpty());
     }
 
     /** La regla dura: el material se ve solo si el profesor lo habilitó. */
@@ -373,12 +506,12 @@ class DocenciaTest {
     void lo_que_el_profesor_no_publico_no_lo_ve_el_alumno() throws Exception {
         Profesor yo = profesorNuevo();
         Alumno alumno = alumnoNuevo();
-        inscripcionDe(alumno, yo);
+        Inscripcion curso = inscripcionDe(alumno, yo);
 
         mvc.perform(subir(yo, """
-                {"idAlumno":%d,"titulo":"Todavia no","urlExterna":"https://drive.google.com/x",
+                {"idInscripcion":%d,"titulo":"Todavia no","urlExterna":"https://drive.google.com/x",
                  "visibleAlumno":false}
-                """.formatted(alumno.getId()))).andExpect(status().isCreated());
+                """.formatted(curso.getId()))).andExpect(status().isCreated());
 
         // El profesor sí lo ve: necesita saber qué tiene preparado.
         mvc.perform(get("/api/me/profesor/materiales").header("Authorization", credencialPara(yo)))
@@ -394,12 +527,12 @@ class DocenciaTest {
     void publicarlo_despues_lo_hace_visible() throws Exception {
         Profesor yo = profesorNuevo();
         Alumno alumno = alumnoNuevo();
-        inscripcionDe(alumno, yo);
+        Inscripcion curso = inscripcionDe(alumno, yo);
 
         long id = idDe(mvc.perform(subir(yo, """
-                {"idAlumno":%d,"titulo":"Listo para el martes","urlExterna":"https://drive.google.com/x",
+                {"idInscripcion":%d,"titulo":"Listo para el martes","urlExterna":"https://drive.google.com/x",
                  "visibleAlumno":false}
-                """.formatted(alumno.getId()))), "\"idMaterial\":");
+                """.formatted(curso.getId()))), "\"idMaterial\":");
 
         mvc.perform(patch("/api/me/profesor/materiales/" + id + "/visibilidad?visible=true")
                 .header("Authorization", credencialPara(yo)))
@@ -578,12 +711,12 @@ class DocenciaTest {
     void administracion_ve_el_material_todavia_no_publicado() throws Exception {
         Profesor profe = profesorNuevo();
         Alumno alumno = alumnoNuevo();
-        inscripcionDe(alumno, profe);
+        Inscripcion curso = inscripcionDe(alumno, profe);
 
         mvc.perform(subir(profe, """
-                {"idAlumno":%d,"titulo":"Proyecto para la clase 4",
+                {"idInscripcion":%d,"titulo":"Proyecto para la clase 4",
                  "urlExterna":"https://drive.google.com/x","visibleAlumno":false}
-                """.formatted(alumno.getId())))
+                """.formatted(curso.getId())))
                 .andExpect(status().isCreated());
 
         mvc.perform(get("/api/alumnos/" + alumno.getId() + "/materiales")
@@ -606,6 +739,11 @@ class DocenciaTest {
 
     // =========================================================================
 
+    /**
+     * ⚠️ La inscripción ya no viaja en el pedido —desde §12 · C1 la deriva el
+     * servidor del tipo de uso—, pero el parámetro se queda: es lo que obliga a
+     * que el curso exista antes de cargar la clase, que es lo que §17 · P39 pide.
+     */
     private ResultActions cargarClase(Profesor profesor, Alumno alumno, Inscripcion inscripcion,
             Long idSala, String desde, String hasta) throws Exception {
 
@@ -615,10 +753,14 @@ class DocenciaTest {
                 .content("""
                         {"idSala":%d,"idTipoUso":%d,"idProfesor":%d,"fecha":"%s",
                          "horaInicio":"%s","horaFin":"%s",
-                         "participantes":[{"idUsuario":%d,"idInscripcion":%d}]}
+                         "participantes":[{"idUsuario":%d}]}
                         """.formatted(idSala, claseDj, profesor.getId(), CLASE, desde, hasta,
-                        alumno.getUsuario().getId(), inscripcion.getId())))
+                        alumno.getUsuario().getId())))
                 .andExpect(status().isCreated());
+    }
+
+    private long idDeReserva(ResultActions resultado) throws Exception {
+        return idDe(resultado, "\"idReserva\":");
     }
 
     private ResultActions fijarSeguimiento(Profesor profesor, Alumno alumno,

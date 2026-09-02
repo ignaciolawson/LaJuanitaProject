@@ -62,18 +62,16 @@
 > cierra, es un modo de trabajo** — no hay que esperar a tenerla completa para
 > empezar, y cada punto conviene cerrarlo por su cuenta.
 >
-> **⚠️ ESTADO: de los once puntos quedan uno.** El 2026-09-01 se cerraron los ocho
-> del grupo A, el único de B y C1; el 2026-09-02, C3. Suites en **560 backend ·
-> 491 front · 212 + 56 SQL**; build y linters limpios. La migración `V22` es de
-> esa barrida.
+> **⚠️ ESTADO: los once puntos cerrados.** El 2026-09-01, los ocho del grupo A, el
+> único de B y C1 (`V22`); el 2026-09-02, C3 y C2 (`V23`). Suites en **564 backend
+> · 492 front · 216 + 56 SQL** sobre **23 migraciones**; build y linters limpios.
 >
-> **Y el 2026-09-02 se cerró C3** (egresos divididos en pagos a profesores y otros
-> gastos), que **no necesitó migración**: salió de `egreso.id_usuario_destino`.
+> **Y el 2026-09-02 se cerraron los dos que quedaban**: C3 (egresos divididos en
+> pagos a profesores y otros gastos, **sin migración**: salió de
+> `egreso.id_usuario_destino`) y **C2** (materiales por curso y por clase,
+> `V23__el_material_es_de_un_curso.sql`).
 >
-> **Queda UN punto de la barrida, contestado y sin empezar**, y el detalle está en
-> el bloque *"DÓNDE RETOMAR"* con el que abre `mejoras.md` §12:
->
-> - **C2 · materiales por programa y por clase** — sería **`V23`**.
+> ✅ **La primera barrida está cerrada: once de once.**
 >
 > **Las preguntas de negocio de los tres están contestadas**: `platform.md` §17
 > (P39 y P40, el descuento automático) y **§18 (P41 y P42, materiales y egresos,
@@ -87,9 +85,9 @@
 >
 > Lo que queda **fuera** del rediseño sigue igual: `operacion.md` §3 (la config del
 > reverse proxy), `CORS_ORIGENES`, y el deploy con su migración para desactivar el
-> admin sembrado — que va **detrás de lo que tome C2**: `V22` ya se usó para
-> `tipo_uso.disciplina` (aplicada el 2026-09-01) y `V23` está apalabrada para los
-> materiales.
+> admin sembrado — que ahora es **`V24`**: `V22` se usó para
+> `tipo_uso.disciplina` y `V23` para los materiales, las dos de la primera
+> barrida.
 
 ---
 
@@ -182,7 +180,7 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva, **y detrás de lo que tome C2**. Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes y **`V22`** para `tipo_uso.disciplina` (`mejoras.md` §12 · C1, aplicada el 2026-09-01). **`V23`** está apalabrada para los materiales.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva: **`V24`**. Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes, **`V22`** para `tipo_uso.disciplina` (§12 · C1) y **`V23`** para el material por curso y por clase (§12 · C2), las dos últimas del 2026-09-01/02.
 
 ---
 

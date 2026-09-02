@@ -1618,6 +1618,26 @@ Es la misma corrección que C1, aplicada a otra pantalla.
   columnas tipeadas a mano en vez de migrar valores que habrían fabricado un
   respaldo inexistente, e imprimió un NOTICE con los ids afectados.
 
+✅ **Construido el 2026-09-02 como `V23__el_material_es_de_un_curso.sql`.** Las
+tres decisiones que se tomaron al escribirlo:
+
+- **`id_inscripcion` NOT NULL y `id_reserva` nullable**, como anticipaba esta
+  sección. **`id_alumno` y `es_grupal` se fueron**: eran el par que definía el
+  destinatario y la inscripción los reemplaza a los dos — mantener los tres sería
+  tener dos definiciones de lo mismo.
+- **Las filas viejas se migran sólo si no hay que adivinar** (el alumno tiene
+  exactamente una inscripción) y **el resto se borra con un NOTICE que las
+  nombra**. Dejarlas con la columna en NULL habría obligado a que la regla naciera
+  floja para siempre; `material` no es de las tablas que este esquema protege
+  contra el borrado, que son las de la plata y las de las clases dictadas.
+- ⚠️ **El trigger es la mitad que hace que las columnas sirvan.** Sin él se puede
+  colgar material de la inscripción de Juan sobre una clase de Ana: las dos
+  columnas serían válidas por separado y la fila mentiría igual. Se pide **una
+  sola condición** —que exista la participación de esa inscripción en esa
+  reserva—, y eso garantiza de una vez que la clase sea de ese alumno **y** de ese
+  curso, porque desde `V22` la inscripción de una participación es la que sale del
+  tipo de uso.
+
 ### ✅ P42 — Los egresos se dividen en pagos a profesores y el resto
 
 *"¿Rubros de verdad, o alcanza con profesores vs. resto?"*

@@ -23,16 +23,17 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
  *
  * **No hay interruptores acá**: el alumno recibe material, no lo administra.
  *
- * ⚠️ **Se divide por profesor, y no por programa** (`mejoras.md` §12 · B1). El
- * pedido era *"dividirlo por programa, por clase"* y **ese dato no existe**:
- * `material` cuelga de `profesor` y de `alumno`, y no tiene `id_inscripcion` ni
- * `id_reserva` — se verificó contra la base, no contra el modelo. Agregarlos es
- * una migración, o sea grupo C, y está anotado en §12 como lo que le falta a
- * este punto.
+ * **Se divide por curso y, dentro, por clase** — que es exactamente lo que pidió
+ * Ignacio (`mejoras.md` §12 · C2: *"dividirlo por programa, por clase"*).
  *
- * Lo que sí sale del dato es el profesor, que en la práctica es de quién es cada
- * curso, y **el encabezado dice el nombre de la persona en vez de inventar el
- * nombre de un programa**: es exactamente lo que se sabe, ni más ni menos.
+ * ⚠️ **Cuando lo pidió, ese dato no existía.** `material` colgaba de `profesor` y
+ * de `alumno`, sin ninguna columna de curso ni de clase, así que la primera
+ * versión de esta pantalla agrupó por profesor —lo único que se sabía— y el punto
+ * se movió al grupo C. `V23` agregó las dos columnas; esto es la otra mitad.
+ *
+ * **El material sin clase va último y junto**, bajo "De todo el curso": es
+ * material del programa y no de un día, y ordenarlo por fecha entre las clases lo
+ * escondería entre ellas.
  */
 export function MisMaterialesPagina() {
   const [materiales, setMateriales] = useState<MaterialResumen[]>([])
@@ -75,49 +76,52 @@ export function MisMaterialesPagina() {
       )}
 
       <div className="space-y-5">
-        {porProfesor(materiales).map(([profesor, suyos]) => (
+        {porCursoYClase(materiales).map((grupo) => (
           <Bloque
-            key={profesor}
-            titulo={profesor}
+            key={grupo.curso}
+            titulo={grupo.curso}
             relleno="ninguno"
             accion={
               <span className="t-mono text-tenue">
-                {suyos.length === 1 ? '1 material' : `${suyos.length} materiales`}
+                {contar(grupo)} {contar(grupo) === 1 ? 'material' : 'materiales'}
               </span>
             }
           >
-            <ul className="divide-y divide-linea">
-              {suyos.map((m) => (
-                <li
-                  key={m.idMaterial}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
-                >
-                  <div className="min-w-40 grow">
-                    <div className="font-medium">{m.titulo}</div>
-                    <div className="text-xs text-tenue">
-                      {/* El profesor ya lo dice el encabezado del bloque: acá
-                          repetirlo en cada fila es ruido. */}
-                      {m.tipo && `${m.tipo} · `}
-                      {cuando(m.fechaSubida)}
-                      {/* Lo grupal se dice: saber que algo es para todo el curso
-                          y no para uno cambia cómo se lee. */}
-                      {m.esGrupal && ' · para todo el curso'}
-                    </div>
-                  </div>
+            {grupo.clases.map(([clase, suyos]) => (
+              <div key={clase} className="border-b border-linea last:border-0">
+                <p className="t-mono bg-superficie-2 px-5 py-1.5 text-tenue">{clase}</p>
 
-                  {m.urlExterna && (
-                    <a
-                      href={m.urlExterna}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm underline underline-offset-2 hover:text-acento"
+                <ul className="divide-y divide-linea">
+                  {suyos.map((m) => (
+                    <li
+                      key={m.idMaterial}
+                      className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
                     >
-                      Abrir
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
+                      <div className="min-w-40 grow">
+                        <div className="font-medium">{m.titulo}</div>
+                        <div className="text-xs text-tenue">
+                          {/* El curso ya lo dice el bloque y la clase la franja:
+                              acá va lo que no está dicho todavía. */}
+                          {m.profesor}
+                          {m.tipo && ` · ${m.tipo}`} · {cuando(m.fechaSubida)}
+                        </div>
+                      </div>
+
+                      {m.urlExterna && (
+                        <a
+                          href={m.urlExterna}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm underline underline-offset-2 hover:text-acento"
+                        >
+                          Abrir
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </Bloque>
         ))}
       </div>
@@ -126,20 +130,45 @@ export function MisMaterialesPagina() {
 }
 
 /**
- * Los materiales agrupados por quién los subió, cada grupo del más nuevo al más
- * viejo.
+ * Los materiales agrupados por curso y, dentro de cada uno, por clase.
  *
- * **El orden de los grupos es el del material más reciente de cada uno**, y no
- * alfabético: quien te dio algo ayer va primero. Alfabético haría que el
- * profesor que no sube nada hace tres meses encabece la pantalla por llamarse
- * Álvarez.
+ * **El orden de los cursos es el del material más reciente de cada uno**, y no
+ * alfabético: el curso en el que te dieron algo ayer va primero. Dentro, las
+ * clases van de la más nueva a la más vieja y **"De todo el curso" va última**,
+ * porque no es un día — es el material que vale para el programa entero.
  */
-function porProfesor(materiales: MaterialResumen[]): [string, MaterialResumen[]][] {
-  const grupos = new Map<string, MaterialResumen[]>()
-  for (const m of [...materiales].sort((a, b) => b.fechaSubida.localeCompare(a.fechaSubida))) {
-    const suyos = grupos.get(m.profesor)
-    if (suyos) suyos.push(m)
-    else grupos.set(m.profesor, [m])
+type Grupo = { curso: string; clases: [string, MaterialResumen[]][] }
+
+const SIN_CLASE = 'De todo el curso'
+
+function porCursoYClase(materiales: MaterialResumen[]): Grupo[] {
+  const nuevoPrimero = [...materiales].sort((a, b) =>
+    b.fechaSubida.localeCompare(a.fechaSubida),
+  )
+
+  const cursos = new Map<string, Map<string, MaterialResumen[]>>()
+  for (const m of nuevoPrimero) {
+    const clases = cursos.get(m.curso) ?? new Map<string, MaterialResumen[]>()
+    cursos.set(m.curso, clases)
+
+    const clave = m.clase ? `Clase del ${m.clase.slice(0, 10)}` : SIN_CLASE
+    clases.set(clave, [...(clases.get(clave) ?? []), m])
   }
-  return [...grupos.entries()]
+
+  return [...cursos.entries()].map(([curso, clases]) => ({
+    curso,
+    // Se ordenan las claves y no el Map: la inserción ya vino por fecha, pero
+    // "De todo el curso" tiene que caer al final aunque su material sea el más
+    // nuevo de todos.
+    clases: [...clases.entries()].sort(([a], [b]) => {
+      if (a === SIN_CLASE) return 1
+      if (b === SIN_CLASE) return -1
+      return 0
+    }),
+  }))
+}
+
+/** Cuántos materiales tiene un curso, sumando sus clases. */
+function contar(grupo: Grupo): number {
+  return grupo.clases.reduce((total, [, suyos]) => total + suyos.length, 0)
 }

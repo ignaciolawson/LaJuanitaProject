@@ -1890,16 +1890,20 @@ ningún desarrollo de backend.**
 
 **Lo que sigue, en orden, es esto:**
 
-1. **C2 · Materiales por programa y por clase.** Contestado y **listo para
-   construir**: `platform.md` §18 · P41 tiene la forma completa y las dos cosas que
-   hay que decidir al escribir la migración. Sería **`V23`**. **Es lo único que
-   queda de la barrida.**
-2. Después: desactivar el admin sembrado por `V3` (una migración propia), y el
-   deploy de octubre.
+✅ **LA PRIMERA BARRIDA ESTÁ CERRADA: once de once.** Grupo A (8 puntos), B1 y C1
+(`V22`) el 2026-09-01; C3 y C2 (`V23`) el 2026-09-02.
 
-**Lo que quedó cerrado**: los ocho puntos del grupo A, B1 y C1 (`V22`) el
-2026-09-01; **C3 el 2026-09-02**. **Suites: 560 backend · 491 front · 212 + 56
-SQL**, build y linters limpios. Nada quedó a medias en el árbol.
+**Suites: 564 backend · 492 front · 216 + 56 SQL**, sobre **23 migraciones**.
+Build y linters limpios. Nada quedó a medias en el árbol.
+
+**Lo que sigue no es de esta barrida:**
+
+1. **Desactivar el admin sembrado por `V3`** — una migración propia, **`V24`**,
+   antes del deploy.
+2. **El deploy de octubre** (`operacion.md` §3).
+3. **Y la próxima barrida**, cuando Ignacio vuelva a usar el sistema: §12 es *"la
+   PRIMERA"* y él lo dijo con todas las letras — *"pueden haber más conforme pase
+   el tiempo"*. **No es una lista que se cierra, es un modo de trabajo.**
 
 ⚠️ **Y las dos advertencias de método que costaron tiempo esta sesión**, las dos
 anotadas también en `CLAUDE.md`:
@@ -1919,7 +1923,7 @@ anotadas también en `CLAUDE.md`:
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **8** | ✅ cerrado el 2026-09-01 |
 | 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **1** | ✅ cerrado el 2026-09-01, salvo lo que se mudó a C |
-| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1 → 3** | ✅ C1 hecho (`V22`); C2 y C3 los trajo B1, con sus preguntas ya contestadas |
+| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1 → 3** | ✅ los tres cerrados: C1 (`V22`) el 09-01, C3 y C2 (`V23`) el 09-02 |
 
 **Orden de ejecución: A → B → C.** Dentro de A, primero el Inicio (que ya tiene su causa
 encontrada) y después el bloque de tema y contraste, porque **cuatro de los puntos de
@@ -2306,36 +2310,23 @@ era ninguna de las dos que Ignacio nombró:
 > triados — son columnas que hay que agregar, o sea migraciones, o sea el grupo
 > que no se apura.
 >
-> - **C2 · Materiales por programa y por clase** — ✅ **contestado el 2026-09-01,
->   listo para construir.** Ignacio: ***"el profe sube el material para su alumno
->   de su programa de esa clase, punto"***, más un sí explícito a colgarlo de la
->   clase concreta.
+> - **C2 · Materiales por programa y por clase** — ✅ **HECHO el 2026-09-02**,
+>   con `V23__el_material_es_de_un_curso.sql`. Contestado en `platform.md` §18 ·
+>   P41: *"el profe sube el material para su alumno de su programa de esa clase,
+>   punto"*, y **sí puede ser del curso entero**.
 >
->   ⚠️ **Eso no es "agregar dos columnas": borra el material grupal tal como
->   existe hoy.** Y lo que existe hoy es peor de lo que decía la lista — la
->   consulta no filtra ni por profesor ni por curso, así que **un material "para
->   todos" le llega a todos los alumnos del estudio**, incluidos los que nunca
->   tuvieron a ese profesor. Las tres pantallas dicen tres cosas distintas y
->   ninguna es ésa: *"Todos mis alumnos"* al subirlo, *"Para todos"* en la lista
->   del profesor, *"para todo el curso"* en la del alumno. **Ninguna miente a
->   propósito: nadie decidió nunca qué significaba.**
+>   **El material ahora cuelga de la inscripción** (obligatoria: dice el programa
+>   Y el alumno, porque una inscripción es el contrato de un alumno) **y
+>   opcionalmente de una reserva** (la clase). `id_alumno` y `es_grupal` se
+>   fueron: eran el par que definía el destinatario, y la inscripción los
+>   reemplaza a los dos.
 >
->   La forma que la respuesta pide es la misma que `V22` acaba de estrenar: **el
->   profesor elige la clase y el sistema deriva el resto** —el programa sale de la
->   inscripción del participante, los destinatarios de quiénes estuvieron—, en vez
->   de un control que deja elegir mal.
+>   ⚠️ **Lo que había era peor que "falta una columna", y conviene que quede
+>   escrito**: el material "grupal" **no se filtraba por nada** —le llegaba a
+>   todos los alumnos del estudio, incluidos los que nunca tuvieron a ese
+>   profesor— y las tres pantallas lo llamaban de tres formas distintas. Nadie
+>   mintió: **nadie lo había decidido nunca.**
 >
->   ✅ **Y la última pregunta también está contestada** (2026-09-01): **sí, un
->   material puede ser del curso entero**, sin clase puntual. O sea
->   **`id_inscripcion` NOT NULL** (todo material pertenece a un programa) y
->   **`id_reserva` NULLABLE** (puede ser de una clase o de todo el curso). Sin esa
->   respuesta la migración quedaba escrita al revés, y una migración no se corrige
->   editándola.
->
->   **Está listo para construir. El detalle completo, en `platform.md` §18 · P41**,
->   incluidas las dos cosas que hay que decidir al escribirla: qué pasa con
->   `es_grupal` —que cambia de significado— y **qué se hace con las filas que ya
->   existen y no tienen programa** (el precedente es `V21` §2: no se inventan).
 > - **C3 · Egresos** — ✅ **HECHO el 2026-09-02.** Contestado como ***profesores
 >   vs. resto, ya***, y **sin migración**: salió de `egreso.id_usuario_destino`,
 >   que existe desde `V1` con su comentario escrito y que **no usaba ninguna

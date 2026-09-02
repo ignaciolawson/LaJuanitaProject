@@ -326,8 +326,10 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
                   >
                     <div className="text-sm font-medium">{m.titulo}</div>
                     <div className="text-xs text-tenue">
-                      {m.profesor}
-                      {m.esGrupal && ' · para todo el curso'}
+                      {m.profesor} · {m.curso}
+                      {/* De qué clase es, si es de una: null significa que es
+                          material de todo el curso (`V23`, §18 · P41). */}
+                      {m.clase && ` · clase del ${m.clase.slice(0, 10)}`}
                       {/* Lo no publicado se muestra dicho: el alumno todavía no
                           lo tiene, y una ficha que lo liste sin aclararlo hace
                           creer que ya se lo entregaron. */}

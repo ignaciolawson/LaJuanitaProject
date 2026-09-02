@@ -2,6 +2,7 @@ package com.lajuanita.backend.docencia.dto;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -14,15 +15,24 @@ import jakarta.validation.constraints.Size;
  * esa pieza se construya (la necesita el Módulo 6 para retener el premaster), se
  * agrega el campo y esta clase gana una alternativa, no cambia.
  *
- * <p>{@code idAlumno} vacío significa <b>grupal</b>. La base no acepta las dos
- * cosas ni ninguna ({@code material_destinatario_definido}), así que el servicio
- * traduce esa ausencia en {@code esGrupal = true} — es lo que hace que el
- * formulario tenga un solo control en vez de dos que se pueden contradecir.
+ * <p>⚠️ <b>Ya no lleva {@code idAlumno} sino {@code idInscripcion}</b>, y ése es
+ * todo el punto de `mejoras.md` §12 · C2. Antes, {@code idAlumno} vacío
+ * significaba "grupal", y grupal <b>no filtraba por nada</b>: el material le
+ * llegaba a todos los alumnos del estudio, incluidos los que nunca tuvieron a ese
+ * profesor. Ahora el destinatario y el programa son el mismo dato — una
+ * inscripción es el contrato de un alumno.
+ *
+ * <p>{@code idReserva} es opcional y significa <b>de qué clase</b> es. Vacío = del
+ * curso entero (§18 · P41). No es libre: `V23` §5 exige que esa clase sea una en
+ * la que ese alumno participó con esa inscripción.
  */
 public record AltaMaterialRequest(
 
-        /** Vacío = para todos. Ver la cabecera. */
-        Long idAlumno,
+        @NotNull(message = "Elegí para qué curso es el material.")
+        Long idInscripcion,
+
+        /** Vacío = del curso entero, no de una clase puntual. */
+        Long idReserva,
 
         @NotBlank(message = "Poné un título.")
         @Size(max = 200)

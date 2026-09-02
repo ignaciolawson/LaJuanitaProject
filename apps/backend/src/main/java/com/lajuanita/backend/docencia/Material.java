@@ -5,8 +5,9 @@ import java.time.OffsetDateTime;
 import org.hibernate.annotations.Generated;
 import org.hibernate.generator.EventType;
 
-import com.lajuanita.backend.alumno.Alumno;
+import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.profesor.Profesor;
+import com.lajuanita.backend.reserva.Reserva;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -57,13 +58,34 @@ public class Material {
     @JoinColumn(name = "id_profesor", nullable = false)
     private Profesor profesor;
 
-    /** Null cuando es grupal. Lo impone {@code material_destinatario_definido}. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_alumno")
-    private Alumno alumno;
+    /**
+     * De qué curso es este material — <b>dice el programa Y el alumno</b> (`V23`).
+     *
+     * <p>Una {@code inscripcion} es el contrato de un alumno (alumno +
+     * disciplina + nivel), así que con esta sola columna el material tiene
+     * destinatario y programa. Reemplaza al par {@code id_alumno} +
+     * {@code es_grupal}, que definía el destinatario entre los dos y dejaba una
+     * tercera posibilidad —"grupal"— que no filtraba por nada: el material iba a
+     * TODOS los alumnos del estudio.
+     */
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_inscripcion", nullable = false)
+    private Inscripcion inscripcion;
 
-    @Column(name = "es_grupal", nullable = false)
-    private boolean esGrupal = false;
+    /**
+     * De qué clase es, si es de una. {@code null} = del curso entero (`V23`,
+     * §18 · P41: <i>"puede ser del curso entero"</i>).
+     *
+     * <p>⚠️ <b>No es libre</b>: `V23` §5 exige con un trigger que esa clase sea
+     * una en la que el alumno de {@link #inscripcion} participó <i>con esa
+     * inscripción</i>. Sin esa regla se podría colgar material de la inscripción
+     * de Juan sobre una clase de Ana —las dos columnas serían válidas por
+     * separado y la fila mentiría igual—, que es el mismo agujero que `V1` §8.2
+     * cierra del otro lado.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_reserva")
+    private Reserva reserva;
 
     @Column(name = "titulo", nullable = false, length = 200)
     private String titulo;

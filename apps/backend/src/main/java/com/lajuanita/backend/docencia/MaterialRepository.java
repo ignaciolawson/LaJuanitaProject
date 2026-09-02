@@ -12,8 +12,10 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
     /** Lo que subió un profesor, lo último primero. Ve lo suyo, oculto incluido. */
     @Query("""
             SELECT m FROM Material m
-            LEFT JOIN FETCH m.alumno a
-            LEFT JOIN FETCH a.usuario
+            JOIN FETCH m.inscripcion i
+            JOIN FETCH i.alumno a
+            JOIN FETCH a.usuario
+            LEFT JOIN FETCH m.reserva
             WHERE m.profesor.id = :idProfesor
               AND (:idAlumno IS NULL OR a.id = :idAlumno)
             ORDER BY m.fechaSubida DESC, m.id DESC
@@ -25,20 +27,27 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
      * Lo que un alumno puede ver. <b>Es la regla dura de §8 escrita como consulta:
      * el material se ve solo si el profesor lo habilitó.</b>
      *
-     * <p>Trae lo suyo <b>y lo grupal</b>, que es la otra mitad de la decisión: un
-     * material grupal no tiene destinatario, así que si la consulta pidiera
-     * {@code id_alumno = :id} no lo vería nadie nunca.
+     * <p>⚠️ <b>Acá vivía el agujero que `V23` cerró</b>, y conviene saber cómo se
+     * veía: la condición era {@code esGrupal = TRUE OR alumno.id = :idAlumno}, y
+     * lo grupal no se filtraba por nada — <b>un material "para todos" le llegaba a
+     * todos los alumnos del estudio</b>, incluidos los que nunca tuvieron a ese
+     * profesor. El comentario que estaba acá lo decía con todas las letras y lo
+     * defendía ("es material del estudio para quien curse"), mientras las tres
+     * pantallas decían otra cosa cada una. Nadie mintió: nadie lo había decidido.
      *
-     * <p><b>Lo grupal no se filtra por profesor</b>, y es deliberado: es material
-     * del estudio para quien curse. Filtrarlo por los profesores del alumno haría
-     * que un apunte general desaparezca al terminar un curso.
+     * <p>Ahora es una sola condición y no tiene rama suelta: el material es del
+     * alumno de su inscripción.
      */
     @Query("""
             SELECT m FROM Material m
             JOIN FETCH m.profesor p
             JOIN FETCH p.usuario
+            JOIN FETCH m.inscripcion i
+            JOIN FETCH i.alumno a
+            JOIN FETCH a.usuario
+            LEFT JOIN FETCH m.reserva
             WHERE m.visibleAlumno = TRUE
-              AND (m.esGrupal = TRUE OR m.alumno.id = :idAlumno)
+              AND a.id = :idAlumno
             ORDER BY m.fechaSubida DESC, m.id DESC
             """)
     List<Material> paraElAlumno(@Param("idAlumno") Long idAlumno);
@@ -51,17 +60,19 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
      * dice. Que el alumno no lo vea es una decisión del profesor sobre cuándo
      * entregarlo, no un secreto contra el estudio.
      *
-     * <p>Incluye lo grupal por la misma razón que aquella: un material sin
-     * destinatario le llega igual, y una ficha que no lo muestre dice que el
-     * alumno recibió menos de lo que recibió.
+     * <p>Desde `V23` la condición es una sola —el alumno de la inscripción— y ya
+     * no incluye una rama de "grupal" que en realidad traía material de cualquier
+     * profesor para cualquiera.
      */
     @Query("""
             SELECT m FROM Material m
             JOIN FETCH m.profesor p
             JOIN FETCH p.usuario
-            LEFT JOIN FETCH m.alumno a
-            LEFT JOIN FETCH a.usuario
-            WHERE m.esGrupal = TRUE OR m.alumno.id = :idAlumno
+            JOIN FETCH m.inscripcion i
+            JOIN FETCH i.alumno a
+            JOIN FETCH a.usuario
+            LEFT JOIN FETCH m.reserva
+            WHERE a.id = :idAlumno
             ORDER BY m.fechaSubida DESC, m.id DESC
             """)
     List<Material> todoLoDelAlumno(@Param("idAlumno") Long idAlumno);

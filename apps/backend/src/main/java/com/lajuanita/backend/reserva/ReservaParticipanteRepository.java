@@ -3,6 +3,7 @@ package com.lajuanita.backend.reserva;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -50,4 +51,25 @@ public interface ReservaParticipanteRepository extends JpaRepository<ReservaPart
     List<ReservaParticipante> deLaPersona(@Param("idUsuario") Long idUsuario,
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta);
+
+    /**
+     * La participación de una inscripción en una reserva, si existe (`V23`).
+     *
+     * <p>Es la pregunta que contesta si <b>una clase es de un curso</b>: existe
+     * sólo si el alumno de esa inscripción cursó esa clase <i>con ella</i>. Con
+     * una sola condición queda garantizado que la clase sea de ese alumno Y de ese
+     * programa, porque desde `V22` la inscripción de una participación es la que
+     * sale del tipo de uso de la reserva.
+     *
+     * <p>La usa el alta de material para dar un mensaje; quien sostiene la regla
+     * es el trigger de `V23` §5.
+     */
+    @Query("""
+            SELECT rp FROM ReservaParticipante rp
+            JOIN FETCH rp.reserva
+            WHERE rp.reserva.id = :idReserva AND rp.inscripcion.id = :idInscripcion
+            """)
+    Optional<ReservaParticipante> deLaInscripcionEnLaReserva(
+            @Param("idReserva") Long idReserva,
+            @Param("idInscripcion") Long idInscripcion);
 }

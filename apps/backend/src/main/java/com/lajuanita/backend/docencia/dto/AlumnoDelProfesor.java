@@ -4,7 +4,6 @@ import java.util.List;
 
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.docencia.EstadoSeguimiento;
-import com.lajuanita.backend.inscripcion.Disciplina;
 
 /**
  * Una fila de "Mis alumnos".
@@ -25,15 +24,21 @@ public record AlumnoDelProfesor(
         Long idUsuario,
         String nombre,
         String apellido,
-        /** Lo que cursa hoy conmigo o con otro: sirve para ubicarlo. */
-        List<Disciplina> disciplinas,
+        /**
+         * Lo que cursa hoy, conmigo o con otro: sirve para ubicarlo <b>y para
+         * elegir a qué curso se le sube un material</b> (`V23`).
+         *
+         * <p>Antes era una {@code List<Disciplina>} — el mismo dato sin el id, que
+         * es lo único que hacía falta agregar.
+         */
+        List<CursoDelAlumno> cursos,
         /** Null = sin marcar. Ver la cabecera. */
         EstadoSeguimiento estadoSeguimiento,
         String observaciones,
         int clasesRestantes) {
 
     public static AlumnoDelProfesor de(Alumno alumno,
-            List<Disciplina> disciplinas,
+            List<CursoDelAlumno> cursos,
             SeguimientoResumen seguimiento,
             int clasesRestantes) {
 
@@ -44,7 +49,7 @@ public record AlumnoDelProfesor(
                 usuario.getId(),
                 usuario.getNombre(),
                 usuario.getApellido(),
-                disciplinas,
+                cursos,
                 seguimiento == null ? null : seguimiento.estado(),
                 seguimiento == null ? null : seguimiento.observaciones(),
                 clasesRestantes);
