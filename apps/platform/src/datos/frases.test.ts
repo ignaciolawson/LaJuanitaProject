@@ -16,6 +16,25 @@ describe('las frases del Inicio', () => {
     }
   })
 
+  it('no hay dos citas seguidas del mismo autor', () => {
+    // `fraseDelDia` avanza de a una por día, así que dos frases pegadas en el
+    // arreglo son DOS DÍAS SEGUIDOS. Con tres citas de Kerri Chandler y tres de
+    // Cattáneo, agruparlas por autor —que es como salen de buscarlas— pondría a
+    // la misma persona tres días en fila, que es justo lo contrario de la
+    // variedad que se pidió. El arreglo está intercalado a mano y esto es lo
+    // único que lo sostiene: sin este caso, agregar una cita al final junto a
+    // otra del mismo autor no rompe nada y nadie se entera hasta verlo en
+    // pantalla, dos días después.
+    for (let i = 0; i < FRASES.length; i++) {
+      const actual = FRASES[i]
+      const siguiente = FRASES[(i + 1) % FRASES.length]
+
+      if (actual.tipo === 'cita' && siguiente.tipo === 'cita') {
+        expect(actual.autor, `posición ${i}`).not.toBe(siguiente.autor)
+      }
+    }
+  })
+
   it('la misma fecha da siempre la misma frase', () => {
     // Lo que se fija acá es que NO sea al azar. Con `Math.random` la frase
     // cambiaría en cada render —al navegar a otra pantalla y volver al Inicio—

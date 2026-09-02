@@ -42,4 +42,7 @@ public interface SolicitanteRepository extends JpaRepository<Solicitante, Long> 
             WHERE s.id = :id
             """)
     Optional<Solicitante> porIdConDetalle(@Param("id") Long id);
+
+    /** Cuántas fichas del buzón no atendió nadie todavía. El contador del menú. */
+    long countByEstado(EstadoSolicitante estado);
 }

@@ -59,4 +59,14 @@ public interface SolicitudReservaRepository extends JpaRepository<SolicitudReser
             WHERE s.id = :id
             """)
     Optional<SolicitudReserva> porIdConDetalle(@Param("id") Long id);
+
+    /**
+     * Cuántos pedidos están esperando respuesta. Es el contador del menú
+     * (`mejoras.md` §13 · B1).
+     *
+     * <p>Derivada por nombre a propósito: es un COUNT sobre la columna que ya
+     * tiene su índice, y escribirla como {@code @Query} sería una consulta más
+     * para mantener sin ganar nada.
+     */
+    long countByEstado(EstadoSolicitud estado);
 }

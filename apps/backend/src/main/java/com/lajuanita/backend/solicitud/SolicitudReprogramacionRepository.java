@@ -78,4 +78,7 @@ public interface SolicitudReprogramacionRepository extends JpaRepository<Solicit
      * se reabra: eso lo sostiene el trigger de `V13`.
      */
     boolean existsByReservaIdAndEstado(Long idReserva, EstadoReprogramacion estado);
+
+    /** Cuántos pedidos de cambio esperan respuesta. El contador del menú. */
+    long countByEstado(EstadoReprogramacion estado);
 }

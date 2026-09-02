@@ -1670,3 +1670,110 @@ equipamiento, marketing). Necesitan la lista confirmada con el cliente antes de 
 columna: es el tipo de dato que si se inventa se usa mal para siempre, y una lista
 de rubros mal elegida se corrige con otra migración encima.
 
+
+---
+
+## 19. Decisiones cerradas el 2026-09-01 (tercera tanda) — la prereserva y los pagos
+
+> Las cinco preguntas que abrió la **segunda barrida** (`docs/mejoras.md` §13).
+> Las cuatro primeras son del mismo hallazgo —el más grande de la tanda— y hay
+> que leerlas juntas: sueltas, cada una parece un detalle.
+>
+> ⚠️ **Estas respuestas se contestaron ANTES de escribir una línea de código**,
+> que es la cuarta vez que ese orden paga en este proyecto. Lo que destraban toca
+> una regla que hoy sostienen tres triggers, así que equivocarlas cuesta una
+> migración encima de otra.
+
+### El problema, en las palabras de Ignacio
+
+> *"Cuando alguien manda para reservar una sala o cabina, al admin le llega esa
+> solicitud. Pero el admin está obligado a tener ya el cobro de la reserva para
+> ponerle 'confirmar y cobrar', entonces va a tener eso ahí en pendiente. Lo que
+> se me ocurrió es que cuando le llegue la solicitud ponga confirmar sala, el
+> monto, todo, pero que no sea ahí cuando se cobra. Como que 'preconfirma' la
+> reserva. Como ese usuario todavía no pagó iría a la pestaña de DEUDORES hasta
+> que el admin sí cobre. El usuario se 'prereserva': tiene 24hs para abonar o
+> hasta que el admin lo cancele, y ahí sí se confirma del todo."*
+
+**Lo que gana**: al admin no se le acumulan pedidos sin resolver, y el que pidió
+primero se queda con el horario mientras consigue la plata.
+
+⚠️ **Lo que rompe, y por eso es grupo C**: hoy la base exige que **toda reserva
+que ocupa su franja tenga plata que ENTRÓ** (`SENADO`/`PAGADO`), y eso lo
+sostienen `V10`, `V11` y `V12`. **`V12` cerró exactamente este agujero el
+2026-08-17** — *"se conseguía un horario anotando una deuda"*, verificado contra
+el esquema corriendo. La prereserva es, literalmente, eso. **La diferencia que la
+hace legítima es que aquella deuda no vencía nunca y ésta vence en 24hs**, con
+monto, moneda, dueño y una fecha que la base obliga a poner.
+
+La regla nueva, en una línea:
+
+> **Toda reserva que ocupa su franja tiene plata detrás: cobrada, o anotada con
+> vencimiento mientras esté preconfirmada.**
+
+### ✅ P43 — Al vencerse, la prereserva se cancela sola y libera la sala
+
+No queda marcada en rojo esperando que alguien la mire. **Es lo único que sostiene
+"el primero que pide es el primero que reserva"**: si nadie libera, el horario
+queda tomado por alguien que no pagó, y el que sí iba a pagar no lo puede pedir.
+
+Deja de ser cierto lo contrario, además: si hubiera que cancelarla a mano, el
+trabajo que se le sacó al admin en la bandeja de pedidos le vuelve por la ventana
+en la de deudores.
+
+### ✅ P44 — El plazo es el MENOR entre 24hs y el inicio de la reserva
+
+El caso que lo obliga: se preconfirma hoy a las 15 una cabina para mañana a las
+10. Con 24hs planas, el vencimiento cae mañana a las 15 — **cinco horas después
+de que la franja pasó**. O sea: se usa la cabina sin pagar y el sistema se entera
+al otro día.
+
+Es la misma clase de error que la landing ya documentó con las fechas: un plazo
+que no mira contra qué corre.
+
+### ✅ P45 — También se preconfirma desde el calendario, no sólo desde el portal
+
+Ignacio lo pidió explícitamente. Cubre el caso más común del negocio, que es el
+que no pasa por el portal: **el que arregla por WhatsApp y paga después**.
+
+⚠️ **Es la respuesta que más agranda el trabajo**, y conviene saberlo antes de
+empezar: el alta de reservas es el camino con más triggers encima del sistema
+—el EXCLUDE de solapamiento, los dos de bloqueo, el diferido de la seña, el de
+`V22`— y hasta hoy exigía el pago en la misma transacción.
+
+### ✅ P46 — La deuda de una prereserva vencida queda anotada, pero deja de ser cobrable
+
+La fila del `pago` **sobrevive** como historia —*"se le ofreció este monto y no
+pagó"*, que además es información comercial— y **sale de Deudores y de la deuda
+viva del tablero**.
+
+Es el espejo exacto de una regla que ya existe: **`V11` decidió que una reserva
+cancelada no debe seña**. Si la reserva no existe, la deuda no se le puede cobrar
+a nadie.
+
+**No se anula, y el motivo es de esquema**: `V7` exige autor, fecha y motivo
+firmados para anular un pago, y acá el autor sería un reloj. Las dos salidas eran
+firmarlo con el nombre del admin que preconfirmó —una mentira sobre quién hizo
+qué, en la única tabla del sistema que existe para que eso no pase— o crear un
+usuario "sistema", que es una identidad de login falsa. **Ninguna de las dos vale
+lo que ahorra.**
+
+⚠️ **Lo que esto obliga**: "deuda cobrable" pasa a ser una definición y hay que
+escribirla **una sola vez**. Hoy hay tres lugares que leen `EstadoPago.ADEUDADOS`
+y tendrían que leerla — `/admin/deudores`, la deuda viva del tablero y el aviso
+automático de los 7 días. El estado de cuenta **sí la sigue mostrando**, marcada:
+ahí la fila es historia y esconderla sería perder el dato.
+
+### ✅ P47 — Pagos se divide en solapas por línea de negocio, con su total
+
+Ignacio: *"siento que está todo en la misma bolsa"*. Programas · Servicios ·
+Venta de equipos.
+
+**Son cuatro solapas y no tres, y la cuarta no se puede esconder**: un pago que
+no apunta a nada es plata que entró, y si se filtrara, la suma de las solapas
+dejaría de dar la caja y nadie sabría por qué. Ya está escrito así en el javadoc
+de `LineaDeNegocio.OTRO`. Aparece sólo cuando tiene filas.
+
+**El total de cada solapa es lo que ENTRÓ**, no la suma de la columna: sumar todo
+mezclaría deuda anotada y plata anulada con plata real, que es justo lo que
+`EstadoPago.ENTRARON` existe para evitar.

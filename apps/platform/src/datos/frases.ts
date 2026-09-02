@@ -22,24 +22,126 @@
  *   casa hablando. ⚠️ Estas son **placeholder** hasta que las confirme el
  *   cliente, igual que el resto de la copia larga de la landing.
  *
- * ⚠️ **Estado de §12 · A5, para que nadie lo dé por cerrado.** Ignacio pidió
- * volumen —*"armarnos un lugar en el repo para almacenar muchas e ir
- * poniéndolas"*—; el lugar ya existía y lo que faltaba eran frases. Son
- * catorce: **doce de la casa y sólo dos citas**, y esa proporción es el punto.
- * Las de la casa se pueden escribir acá porque la casa es el cliente y él las
- * confirma o las cambia; **una cita no se puede escribir, se tiene que ir a
- * buscar** — autor real, dicho real, y una URL donde verificarlo. Ése es el
- * cuello de botella que el §12 anticipó y sigue abierto: cada cita nueva es
- * trabajo de búsqueda, no de programación.
+ * ⚠️ **Las traducciones son nuestras.** Cuando el original es en inglés, el
+ * texto que se muestra es una traducción de la casa y el sentido es literal: la
+ * `fuente` lleva al original para que cualquiera pueda comparar. Las tres de
+ * Hernán Cattáneo no se traducen — las dijo en castellano.
  *
- * Con catorce la rotación ya se nota (antes eran cuatro y la frase volvía cada
- * cuatro días). El techo no es el código: `fraseDelDia` no tiene tope.
+ * ⚠️ **EL ORDEN NO ES DECORATIVO.** `fraseDelDia` avanza de a una por día, así
+ * que **dos frases pegadas en este arreglo son dos días seguidos**: si las tres
+ * de Kerri Chandler estuvieran juntas, el Inicio mostraría al mismo tipo tres
+ * días en fila, que es exactamente lo contrario de la variedad que se buscaba.
+ * Están intercaladas para que ningún autor aparezca dos veces seguidas. **Si
+ * agregás una cita, fijate dónde la ponés** — no la pegues al final junto a otra
+ * del mismo autor.
+ *
+ * ⚠️ **Estado de §13 · A1 (2026-09-01).** Ignacio pidió *"muchas frases reales
+ * de dj y poner quién lo dijo, tampoco tener 365"*. Se pasó de **14 frases a
+ * 29**: las citas fueron de **2 a 17**, de **diez personas distintas**.
+ *
+ * **Lo que sigue siendo cierto es de dónde salen**: una cita no se puede
+ * escribir, hay que ir a buscarla. Cada una de estas se leyó en su página —no en
+ * el resumen del buscador, que parafrasea— y se copió palabra por palabra. Ése
+ * es el cuello de botella del que hablaba §12 · A5, y no lo destraba el código:
+ * agregar la número dieciocho es trabajo de búsqueda.
+ *
+ * El techo no es el código: `fraseDelDia` no tiene tope.
  */
 export type Frase =
   | { tipo: 'cita'; texto: string; autor: string; fuente: string }
   | { tipo: 'casa'; texto: string }
 
+const DJMAG_CHANDLER =
+  'https://djmag.com/content/kerri-chandler-i%E2%80%99ve-never-tried-copy-anyone%E2%80%99s-style-never-tried-be-anyone-else-me'
+const DJMAG_HONEY =
+  'https://djmag.com/features/honey-dijon-i-want-people-feel-they-stepped-another-world'
+const EL_DIARIO_CATTANEO =
+  'https://www.eldiarioar.com/sociedad/hernan-cattaneo-identidad-antialgoritmo_130_8077539.html'
+const DJTECHTOOLS_ALLIEN =
+  'https://djtechtools.com/2020/11/13/interview-ellen-allien-shares-a-great-dj-mixes-the-people-into-a-dream/'
+
 export const FRASES: Frase[] = [
+  {
+    tipo: 'cita',
+    texto:
+      'Siempre me mantuve curioso. Me divierto mucho. Escucho mucho. No actúo como si supiera todo, porque no lo sé.',
+    autor: 'Kerri Chandler',
+    fuente: DJMAG_CHANDLER,
+  },
+  {
+    tipo: 'cita',
+    texto: 'Trato de liderar, no de seguir. Trato de no ceder.',
+    autor: 'Carl Cox',
+    fuente: 'https://djmag.com/news/carl-cox-speaks-out-how-make-it-dj',
+  },
+  {
+    tipo: 'cita',
+    // Las tres de Cattáneo van sin traducir: las dijo así.
+    texto: 'Pasar música sin gente es como jugar al tenis solo.',
+    autor: 'Hernán Cattáneo',
+    fuente: EL_DIARIO_CATTANEO,
+  },
+  {
+    tipo: 'cita',
+    texto:
+      'Para mí se trata de contar una historia, de emoción, de tensión. No tocás igual a las dos que a las seis.',
+    autor: 'Honey Dijon',
+    fuente: DJMAG_HONEY,
+  },
+  {
+    tipo: 'cita',
+    // La que mejor le queda a una escuela: el que sabe no se guarda nada.
+    texto:
+      'A los que vienen atrás les muestro cómo hago muchas de las cosas que hago. No tengo ningún problema en pasar lo que sé.',
+    autor: 'Kerri Chandler',
+    fuente: DJMAG_CHANDLER,
+  },
+  {
+    tipo: 'cita',
+    texto: 'Un gran DJ es más creativo: mezcla a la gente adentro de un sueño.',
+    autor: 'Ellen Allien',
+    fuente: DJTECHTOOLS_ALLIEN,
+  },
+  {
+    tipo: 'cita',
+    texto: 'Lo que me salvó fue la pasión y ser cabeza dura.',
+    autor: 'Hernán Cattáneo',
+    fuente:
+      'https://www.lanacion.com.ar/espectaculos/musica/hernan-cattaneo-su-regreso-a-buenos-aires-la-frase-historica-de-pappo-sobre-los-dj-y-la-pasion-que-nid18032026/',
+  },
+  {
+    tipo: 'cita',
+    texto:
+      'Cuando ves a un DJ tocando sin sonreír, no está cómodo y está pensando de más. Está tratando de armar el set perfecto, y el set perfecto no existe.',
+    autor: 'Carl Cox',
+    fuente:
+      'https://6amgroup.com/articles/all/in-interview-chef-carl-cox-cooks-up-industry-wisdom-and-dj-advice',
+  },
+  {
+    tipo: 'cita',
+    texto:
+      'El día que no lo disfrute como la primera vez que puse un disco en una bandeja, tengo que parar.',
+    autor: 'Kerri Chandler',
+    fuente: DJMAG_CHANDLER,
+  },
+  {
+    tipo: 'cita',
+    texto: 'Si hay algo que puedo aprender de Larry Levan es a conocer tu equipo y el sonido.',
+    autor: 'Honey Dijon',
+    fuente: DJMAG_HONEY,
+  },
+  {
+    tipo: 'cita',
+    texto: 'La identidad es antialgoritmo.',
+    autor: 'Hernán Cattáneo',
+    fuente: EL_DIARIO_CATTANEO,
+  },
+  {
+    tipo: 'cita',
+    texto: 'Lo importante es encontrar tu estilo y sostenerlo bien alto. No copies la copia.',
+    autor: 'Ellen Allien',
+    fuente: DJTECHTOOLS_ALLIEN,
+  },
   {
     tipo: 'cita',
     texto: 'El house es la venganza de la disco.',
@@ -48,14 +150,33 @@ export const FRASES: Frase[] = [
   },
   {
     tipo: 'cita',
-    // La traducción es nuestra y el sentido es literal. Es la mejor frase que
-    // puede leer alguien que está aprendiendo a mezclar: la dice uno de los
-    // mejores del mundo y dice que se equivoca todas las noches.
+    // Es la mejor frase que puede leer alguien que está aprendiendo a mezclar:
+    // la dice uno de los mejores del mundo y dice que se equivoca todas las
+    // noches.
     texto:
       'Me equivoco mezclando casi todas las noches. Con el tiempo uno se vuelve mejor para resolverlo y seguir, y que nadie se dé cuenta.',
     autor: 'Jeff Mills',
     fuente:
       'https://www.hkclubbing.com/articles/interviews/jeff-mills-interview-i-make-mixing-mistakes-almost-every-night.html',
+  },
+  {
+    tipo: 'cita',
+    texto: 'Si sólo tocara clásicos, me sentiría una máquina de discos.',
+    autor: 'Laurent Garnier',
+    fuente: 'https://mixmag.asia/feature/laurent-garnier-interview-dj-film-off-the-record-france',
+  },
+  {
+    tipo: 'cita',
+    texto: 'Pasar música te recorre desde la punta de los pies hasta la cabeza.',
+    autor: 'Jackmaster',
+    fuente: 'https://djmag.com/content/jackmaster-djing-gives-you-rush-tip-your-toes-right-your-head',
+  },
+  {
+    tipo: 'cita',
+    texto:
+      'Si tratás de sonar como otro, vas a estar persiguiéndote la cola y sintiendo que no alcanzás.',
+    autor: 'Jayda G',
+    fuente: 'https://musictech.com/features/interviews/jayda-g-studio-interview-guy/',
   },
   {
     tipo: 'casa',

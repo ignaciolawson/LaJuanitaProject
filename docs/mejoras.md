@@ -2435,3 +2435,289 @@ quiere, una decisión explícita y no un NULL que alguien se olvidó.
 dato que dice contra qué curso va a descontar, con cuántas clases le quedan — y
 cuando el alumno no tiene ese curso, **lo avisa antes de mandar el pedido**, con el
 mismo texto que devolvería el backend.
+
+---
+
+## 13. La SEGUNDA barrida de correcciones — abierta el 2026-09-01
+
+> §12 era *"la PRIMERA"* y quedó dicho que iban a venir más. Vino la segunda, y
+> lo primero que hay que anotar es lo que Ignacio dijo al traerla:
+>
+> *"Hallazgos nuevos, cada vez encuentro menos, vamos por el camino correcto,
+> todo empezó a tomar forma de manera descomunal."*
+>
+> **Que cada barrida encuentre menos es el resultado esperado**, y vale saber por
+> qué: las reglas viven en la base, así que lo que se arregla no se vuelve a
+> romper por el costado. Lo que sí cambia de tanda en tanda es el **tamaño** de lo
+> que aparece — esta trajo tres cosas de pantalla y **un cambio de regla de
+> negocio**, que es el hallazgo más grande desde que se cerró el MVP.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-01)
+
+**Estado: A1 cerrado, B1 a mitad, B2 y C1 sin empezar.**
+
+| | Punto | Estado |
+|---|---|---|
+| 🟢 **A1** | Frases reales de DJ, con autor | ✅ **cerrado** |
+| 🟡 **B1** | Contadores de pendientes en el sidebar | 🟨 **backend hecho, front sin empezar** |
+| 🟡 **B2** | Pagos subdividido por línea de negocio | ⬜ sin empezar |
+| 🔴 **C1** | La prereserva con vencimiento a 24hs | ⬜ sin empezar — **es `V24`** |
+
+**Lo que hay en el árbol ahora mismo**, todo verde y todo compilando:
+
+- **A1 completo**: `apps/platform/src/datos/frases.ts` pasó de 14 frases a 29, y
+  las citas de 2 a 17, de diez personas distintas. Suite del front en **493**
+  (eran 492): el caso nuevo es el del orden — ver abajo. `npx tsc -b` y el linter,
+  limpios.
+- **La mitad de backend de B1**: el paquete `com.lajuanita.backend.bandeja`
+  (`BandejaController`, `BandejaService`, `dto/Pendientes`) sirviendo
+  `GET /api/pendientes` con `@PuedeLeerAdministracion`, más un `countByEstado` en
+  cada uno de los tres repositorios de bandeja. `mvn clean compile` verde, y **un
+  test de contexto (`SolicitanteTest`) corrido a propósito**: las consultas
+  derivadas por nombre no las valida el compilador sino el arranque de Spring, así
+  que compilar no alcanzaba para creerles.
+
+**Lo que le falta a B1, que es todo el front:**
+
+1. `layout/menu.ts` — `ItemMenu` gana un `contador` opcional, con la clave de la
+   bandeja (notificaciones, pedidos de sala, pedidos de cambio, buzón).
+   ⚠️ **Una clave, no un número**: el menú tiene que seguir siendo una función
+   pura de `UsuarioActual` y no pasar a depender de la red.
+2. `layout/usePendientes.ts` (nuevo) — pide `GET /api/me/notificaciones/sin-leer`
+   (que **ya existe** desde el Módulo 4) y, sólo si `puedeAdministrar`,
+   `GET /api/pendientes`. **Al montar y en cada cambio de ruta**: eso es lo que
+   hace honesto el *"cuando se marque como leída, baja"* sin cablear cuatro
+   pantallas, porque navegar es exactamente lo que pasa después de resolver algo.
+3. `layout/Layout.tsx` — la pastilla al lado de la etiqueta. **Cero es ausencia de
+   pastilla, no un cero dibujado**: un `(0)` fijo es ruido en las 36 pantallas. Y
+   un error al traer los contadores no rompe nada — sin número, el ítem se dibuja
+   como hoy, el mismo criterio que el Inicio con un bloque caído.
+4. Pruebas: `menu.test.ts` (que los cuatro ítems declaren su clave y ningún otro),
+   un caso de `Layout`, y `BandejaTest` del lado backend (403 para `USUARIO`, y
+   que los tres números cuenten sólo lo pendiente).
+
+**Después**: B2, y recién al final C1 con su migración. **`V24` se escribe última
+a propósito** — una migración es inmutable y se acumula, así que no se apura.
+
+⚠️ **`V24` queda para la prereserva. Desactivar el admin sembrado por `V3` —que
+era lo anotado como próximo— pasa a `V25`.**
+
+---
+
+### El triage, con los grupos de §4
+
+| Grupo | Qué significa | Cuántos |
+|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo. No toca reglas ni schema | **1** |
+| 🟡 **B** | Funcionalidad nueva o cambiada, sin tocar el schema | **2** |
+| 🔴 **C** | Toca una regla del negocio o el schema. **No se apura** | **1** |
+
+**Orden de ejecución: A → B → C**, el mismo de siempre.
+
+**Las cinco preguntas de negocio que abrió esta tanda se contestaron antes de
+codear** y están en `docs/requirements/platform.md` §19 (P43 a P47). Es la cuarta
+vez que ese orden paga.
+
+---
+
+### 🟢 A1 — Frases reales de DJ, con autor
+
+> ✅ **CERRADO el 2026-09-01.** De 14 frases a 29; de 2 citas a 17.
+
+Ignacio: *"tener muchas frases reales de dj y poner quién lo dijo, poner 1 por
+día, tampoco tener 365 frases, tener muchas y vamos variándolas"*.
+
+**El mecanismo ya existía y no se tocó** — `fraseDelDia(fecha)` rota por fecha y
+no al azar, y el Inicio ya dibujaba el autor **como link a la fuente**. Lo que
+faltaba eran las citas, que es exactamente lo que §12 · A5 había dejado anotado:
+*"una cita no se puede escribir, se tiene que ir a buscar"*.
+
+Las diecisiete son de **diez personas**: Frankie Knuckles, Jeff Mills, Carl Cox,
+Laurent Garnier, Honey Dijon, Kerri Chandler, Jackmaster, **Hernán Cattáneo**,
+Jayda G y Ellen Allien.
+
+**Tres cosas que este punto decidió y conviene no deshacer:**
+
+⚠️ **1. Las tres de Cattáneo no se traducen, y valen doble.** Las dijo en
+castellano, en medios argentinos. *"Pasar música sin gente es como jugar al tenis
+solo"* no necesita nota al pie en un estudio de Pilar.
+
+⚠️ **2. El buscador parafrasea; cada cita se leyó en su página.** Los resúmenes de
+búsqueda devolvieron frases *casi* textuales — y "casi" acá es todo el problema,
+porque lo que se firma es el nombre de una persona real. Las diecisiete se
+verificaron abriendo la nota y copiando palabra por palabra. Dos medios (Mixmag
+entre ellos) contestan **403 a un fetch** y hubo que ir por el espejo de
+`mixmag.asia`; si una fuente no se puede abrir, la frase no entra.
+
+⚠️ **3. EL ORDEN DEL ARREGLO ES UNA DECISIÓN, y tiene su prueba.** `fraseDelDia`
+avanza de a una por día, así que **dos frases pegadas en el arreglo son dos días
+seguidos**. Las citas salen de la búsqueda agrupadas por autor —tres de Chandler,
+tres de Cattáneo, dos de Cox, dos de Honey Dijon, dos de Allien— y así ordenadas
+el Inicio mostraría a la misma persona **tres días en fila**, que es lo contrario
+exacto de la variedad que se pidió. Están intercaladas a mano, y el caso
+"no hay dos citas seguidas del mismo autor" es lo único que lo sostiene: sin él,
+agregar la número dieciocho al final junto a otra del mismo autor **no rompe nada
+y nadie se entera hasta verlo en pantalla, dos días después**.
+
+**Lo que sigue abierto**: el techo no es el código. `fraseDelDia` no tiene tope y
+las frases de la casa siguen siendo placeholder hasta que las confirme el cliente,
+igual que el resto de la copia larga.
+
+---
+
+### 🟡 B1 — Contadores de pendientes en el sidebar
+
+Ignacio: *"cuando tengas una notificación que diga (1) pero en el sidebar (…) en
+caso de admin aparte de eso, también en lo que es pedidos de sala, pedidos de
+cambio, buzón de la web, todo lo que sea notificación; obviamente cuando se marque
+como leída, baja"*.
+
+**Son cuatro contadores y dos endpoints, no uno.** Las notificaciones son de cada
+persona y **su endpoint ya existía** (`GET /api/me/notificaciones/sin-leer`, del
+Módulo 4). Las tres bandejas son de administración y son el endpoint nuevo.
+
+⚠️ **Dos endpoints y no uno que conteste distinto según quién llame.** Es la misma
+decisión que tomó el Módulo 8 con el tablero y la propiedad que se impuso el
+Módulo 4: *ningún endpoint de este sistema cambia de significado según quién lo
+llama*. Con uno solo, un `USUARIO` —que no tiene ninguna de las tres bandejas—
+tendría que llamar a un endpoint de administración para saber cuántos avisos
+tiene.
+
+**Lo ve también `DIRECTIVO`**: son las mismas pantallas que ya ve. Esconderle el
+número de una sección que sí puede abrir sería mentirle sobre lo que hay adentro.
+
+⚠️ **Y una que casi se escribe mal: `countByEstado` es una consulta derivada por
+nombre, y el compilador no la valida.** La valida Spring al levantar el contexto.
+Un `mvn clean compile` verde no prueba nada sobre estos tres métodos; hay que
+correr algo que arranque la aplicación. Es el primo del `mvn compile` que mintió
+en §12.
+
+---
+
+### 🟡 B2 — Pagos, subdividido por línea de negocio
+
+Ignacio: *"no basta con saber de qué sección es, tener todo en una lista gigante
+para abajo, más allá de los filtros; estaría bueno subdividir en grupos de alguna
+forma — programas, servicios y venta de equipos. Siento que está todo en la misma
+bolsa"*.
+
+**El diagnóstico que la barrida agrega, y no estaba en su lista**: hoy la pantalla
+habla **dos vocabularios sobre la misma fila**. El filtro es por `destino` —las
+cuatro columnas nullable de `pago`— y la etiqueta de cada fila es por **línea de
+negocio**, que sale de `LineaDeNegocio.EXPRESION`. Así, el filtro dice *"Reserva de
+sala"* y la etiqueta de esa misma fila dice *"Cursos"*. **Unificar en la línea
+arregla eso de paso**, y es lo correcto además porque la línea es la que sabe que
+la seña de una clase es plata del curso y no del alquiler.
+
+Las solapas, y **son cuatro y no las tres que pidió** (P47):
+
+| Solapa | Líneas |
+|---|---|
+| Todos | — |
+| **Programas** | `CURSOS` |
+| **Servicios** | `ALQUILER_CABINA`, `GRABACION_SET`, `MIX_MASTERING` |
+| **Venta de equipos** | `VENTA_EQUIPOS` |
+| **Sin destino** | `OTRO` — sólo si tiene filas |
+
+⚠️ **La deducción NO se reescribe.** `LineaDeNegocio.EXPRESION` + `JOINS` ya la
+tienen, compartida con el tablero, y §12 · B1 lo pidió con todas las letras:
+*"hay que reusarla, no escribir una segunda"*. Lo único nuevo es el mapa
+grupo → líneas, en Java.
+
+⚠️ **La trampa técnica que hay que resolver primero**: `PagoRepository.listar` es
+JPQL y `EXPRESION` es SQL. Hay que intentar el `CASE` dentro del `WHERE` —que es
+distinto del `GROUP BY` que Hibernate 7 rechazó, y está documentado en la clase— y
+si lo rechaza, pasar la consulta a nativa con su `countQuery`, **conservando el
+patrón de `lineasDe`** para no caer en N+1 al perder los `JOIN FETCH`.
+
+**Y el total de cada solapa es lo que ENTRÓ**, no la suma de la columna: sumar
+todo mezclaría deuda anotada y plata anulada con plata real.
+
+---
+
+### 🔴 C1 — La prereserva
+
+**El hallazgo más grande desde que cerró el MVP, y el único de esta tanda que
+toca el esquema.** El planteo completo de Ignacio, la regla nueva y las cuatro
+respuestas que lo destraban están en `docs/requirements/platform.md` §19
+(P43–P46). Acá va sólo lo que hay que tener a mano para construirlo.
+
+⚠️ **Lo primero: esto reabre, a propósito y con límites, el agujero que cerró
+`V12`.** El 2026-08-17 se verificó contra el esquema corriendo que *"se conseguía
+un horario anotando una deuda"* —un alquiler cuyo único `pago` estaba en `DEBE`
+pasaba el chequeo— y se cerró. La prereserva **es** eso. Lo que la hace legítima
+es que aquella deuda no vencía nunca y ésta vence en 24hs, con una fecha que la
+base obliga a poner. **Quien retome esto tiene que poder defender esa
+diferencia**, porque el próximo que lea `V12` va a preguntar.
+
+#### `V24__la_prereserva.sql`
+
+1. `reserva_estado_valido` acepta `PRECONFIRMADA`.
+2. Columna `reserva.vence_preconfirmacion TIMESTAMPTZ NULL`.
+3. CHECK **bidireccional** `reserva_preconfirmada_vence`: el estado es
+   `PRECONFIRMADA` si y sólo si hay vencimiento. Las dos direcciones a propósito,
+   como el CHECK de `V22`: que una preconfirmada no se quede sin vencimiento es la
+   mitad obvia; la que importa es que un vencimiento no sobreviva en una reserva
+   ya confirmada, donde leería como un plazo vivo que no lo es.
+4. **`reserva_sin_plata_detras()` reescrita**: si el estado es `PRECONFIRMADA`,
+   alcanza un `pago` apuntando a la reserva que no esté anulado; en cualquier otro
+   estado, sigue exigiendo `EstadoPago.ENTRARON` como hasta hoy.
+   ⚠️ **Sí, es una excepción por estado, y hay que argumentarla en la cabecera.**
+   §13 de `platform.md` rechazó las excepciones *inventadas para una regla*
+   (*"salvo que esté vacía"*, *"salvo que sea una clase"*). `PRECONFIRMADA` no es
+   eso: es un estado del ciclo de vida de la propia reserva, **que se vence solo**
+   y que la base obliga a fechar. **La excepción tiene plazo, no criterio.**
+5. **Trigger de escalera**: a `PRECONFIRMADA` sólo se entra al nacer, y de ahí se
+   sale sólo a `CONFIRMADA` o `CANCELADA`. Sin esto queda abierto el rodeo que
+   `V18` §1b ya encontró en el sello: confirmar, volver a preconfirmada, anular el
+   pago → sala tomada y cero plata. **Desde adentro de "no se puede deshacer" no
+   se ve que la marca tampoco se puede deshacer.**
+
+⚠️ **6. `PRECONFIRMADA` ocupa la franja, y del lado SQL no hay NADA que tocar.**
+Vale anotar por qué, porque es un regalo de cómo `V1` escribió la definición
+canónica: está por **lo que queda afuera** (una reserva ocupa salvo que esté
+cancelada o reprogramada) y así la repiten el EXCLUDE de solapamiento, los dos
+triggers de bloqueo y los dos usos de `V9`. **Un estado nuevo que ocupa entra solo
+en los cinco.** Del lado de Java sí hay que tocarlo: `EstadoReserva.OCUPAN_LA_SALA`
+está escrito por enumeración.
+
+#### El vencimiento automático
+
+`AvisosAutomaticos` ya existe, con `@EnableScheduling` y cron diario a las 08:00.
+**Esto necesita otra cadencia** —cada 10 minutos, en un `@Scheduled` propio con su
+propia propiedad—, porque un plazo de 24hs verificado una vez por día se vence
+hasta 24hs tarde. Cancela la reserva, **no toca el pago** (P46) y escribe dos
+avisos: al que pidió y a administración.
+
+#### Lo que se toca
+
+**Backend**: `EstadoReserva` · `ReservaService.alta` (`AltaReservaRequest` acepta
+**o** seña **o** preconfirmación, excluyentes) y `cambiarEstado` ·
+`SolicitudReservaService.aprobar` (gana modo: preconfirmar, el nuevo y primero, o
+cobrar ahora, el de hoy, que se conserva para quien ya pagó) · `PagoService` (al
+entrar un pago de una reserva preconfirmada, confirmarla — **es un acto y no dos**)
+· `AvisosAutomaticos` · `TipoNotificacion` · **`ManejadorDeErrores`, sin el cual
+los triggers nuevos salen 500 en vez de 409** · `ReservaResumen` y
+`ReservaDelPortal`.
+
+**Front**: rótulos y colores del estado nuevo · `SolicitudesPagina` ·
+`ReservasPagina` (el calendario, por P45) · `MisReservasPagina` · el tipo
+`EstadoReserva` de TypeScript.
+
+**Y la definición nueva de "deuda cobrable"** (P46), escrita **una sola vez** y
+usada en los tres lugares que hoy leen `EstadoPago.ADEUDADOS`: `/admin/deudores`,
+la deuda viva del tablero y el aviso de los 7 días.
+
+#### Las dos trampas de prueba que este punto reactiva
+
+⚠️ **El trigger de `V10` es diferido, así que no se dispara en una transacción que
+revierte.** `ReservaTest` es `@Transactional`: hay que forzarlo con
+`SET CONSTRAINTS ... IMMEDIATE` **después de un `em.flush()`**, o la suite queda
+verde sin haber verificado nada.
+
+⚠️ **Las suites SQL tienen el problema espejo**: psql está en autocommit, así que
+un rechazo diferido salta afuera del `EXCEPTION` de `probar()` y el caso **no
+falla: desaparece del resumen**. Las reservas que sobreviven al COMMIT entran con
+su pago en un CTE. Y todo caso de rechazo contra un trigger va con
+`probar_mensaje`, que es lo que distingue una regla que anda de un trigger que
+revienta antes de llegar a su propio mensaje.
