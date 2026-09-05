@@ -25,7 +25,7 @@ import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { CampoSelect } from '../componentes/Campo'
 import { Semaforo } from '../componentes/Semaforo'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
-import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -389,7 +389,7 @@ function Notas({
               if (!suya) return null
               return (
                 <option key={suya.idParticipacion} value={suya.idParticipacion}>
-                  {diaYMes(c.fecha)} {hhmm(c.horaInicio)} · {c.tipoUso}
+                  {fecha(c.fecha)} {hhmm(c.horaInicio)} · {c.tipoUso}
                 </option>
               )
             })}
@@ -428,7 +428,7 @@ function Notas({
               <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-tenue">
                 <span>
                   {n.fechaDeLaClase
-                    ? `Clase del ${diaYMes(n.fechaDeLaClase)}`
+                    ? `Clase del ${fecha(n.fechaDeLaClase)}`
                     : 'Observación general'}
                 </span>
                 <span className="text-apagado">

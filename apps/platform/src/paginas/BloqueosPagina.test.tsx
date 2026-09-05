@@ -95,7 +95,10 @@ describe('el listado', () => {
     montar()
 
     expect(await screen.findByText('Refacción del piso')).toBeDefined()
-    expect(screen.getByText('01/09 al 10/09')).toBeDefined()
+    // Con año desde §14 · A5: esto es una fila de una tabla, no una vista
+    // semanal, así que nada en pantalla dice de qué año se habla — y un bloqueo
+    // se carga para el futuro.
+    expect(screen.getByText('01/09/2026 al 10/09/2026')).toBeDefined()
     expect(screen.getByText('Micaela Pérez')).toBeDefined()
   })
 
@@ -106,7 +109,7 @@ describe('el listado', () => {
 
     montar()
 
-    expect(await screen.findByText('01/09')).toBeDefined()
+    expect(await screen.findByText('01/09/2026')).toBeDefined()
   })
 
   it('sin bloqueos lo dice', async () => {

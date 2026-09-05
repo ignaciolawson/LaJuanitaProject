@@ -37,6 +37,7 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import {
   diaYMes,
+  fecha,
   diasDesde,
   filasDeHoras,
   hhmm,
@@ -521,7 +522,7 @@ function Detalle({
             {reserva.tipoUso} · {reserva.sala}
           </h3>
           <p className="mt-1 text-sm text-tenue">
-            {diaYMes(reserva.fecha)} · {hhmm(reserva.horaInicio)}–{hhmm(reserva.horaFin)} ·{' '}
+            {fecha(reserva.fecha)} · {hhmm(reserva.horaInicio)}–{hhmm(reserva.horaFin)} ·{' '}
             {capitalizar(reserva.estado)}
           </p>
           <p className="text-sm text-tenue">

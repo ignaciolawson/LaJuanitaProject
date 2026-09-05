@@ -18,7 +18,7 @@ import { Abanico } from '../componentes/Abanico'
 import { Bloque, Grupo } from '../componentes/Bloque'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
-import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
 import { fraseDelDia } from '../datos/frases'
 import { puedeOperar, puedeVerElTableroCompleto } from '../layout/menu'
 
@@ -243,7 +243,7 @@ export function InicioPagina() {
                   <>
                     <p className="t-seccion">{ultimo.titulo}</p>
                     <p className="mt-1 text-sm text-tenue">
-                      {ultimo.profesor} · {diaYMes(ultimo.fechaSubida.slice(0, 10))}
+                      {ultimo.profesor} · {fecha(ultimo.fechaSubida)}
                     </p>
                   </>
                 ) : (
@@ -540,9 +540,21 @@ export function InicioPagina() {
  * Es el primer uso de `.t-serif` en toda la plataforma: la familia estaba
  * declarada, se descargaba en cada carga y no la usaba ni una pantalla.
  *
- * ⚠️ **La atribución es un link a la fuente y no un nombre suelto.** Es la
- * misma regla que `datos/frases.ts` sostiene con el tipo: si la frase es de
+ * ⚠️ **La atribución de una cita es un link a la fuente y no un nombre suelto.**
+ * Es la misma regla que `datos/frases.ts` sostiene con el tipo: si la frase es de
  * alguien, se tiene que poder ir a chequear que la dijo.
+ *
+ * ⚠️ **Y TODAS llevan firma, incluidas las de la casa** (§14 · A2). Antes el pie
+ * sólo se dibujaba para las citas, así que las trece frases `casa` —de treinta y
+ * una, casi la mitad de los días— salían sin nadie abajo y se leían como una cita
+ * a la que le faltaba el autor. Es lo que Ignacio vio como *"te faltó poner quién
+ * la dijo"*, y era exacto: faltaba, sólo que el que faltaba era La Juanita.
+ *
+ * **La firma de las `casa` vive acá y no repetida en cada fila del arreglo**,
+ * porque es una propiedad del tipo y no de cada frase: trece copias del mismo
+ * string son trece lugares donde puede quedar distinto. Va sin link a propósito
+ * — no hay fuente que ir a verificar, que es justo lo que distingue a los dos
+ * tipos.
  */
 function FraseDelDia({ fecha }: { fecha: string }) {
   const frase = fraseDelDia(fecha)
@@ -551,8 +563,8 @@ function FraseDelDia({ fecha }: { fecha: string }) {
     <blockquote className="border-t border-shell-linea pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-10">
       <p className="t-serif text-xl leading-snug">{frase.texto}</p>
 
-      {frase.tipo === 'cita' && (
-        <footer className="t-mono mt-2.5 text-shell-tenue">
+      <footer className="t-mono mt-2.5 text-shell-tenue">
+        {frase.tipo === 'cita' ? (
           <a
             href={frase.fuente}
             target="_blank"
@@ -561,8 +573,10 @@ function FraseDelDia({ fecha }: { fecha: string }) {
           >
             {frase.autor}
           </a>
-        </footer>
-      )}
+        ) : (
+          'La Juanita'
+        )}
+      </footer>
     </blockquote>
   )
 }
@@ -656,7 +670,7 @@ function Cuando({
   return (
     <>
       <p className="t-seccion">
-        <span className="t-cifra">{diaYMes(reserva.fecha)}</span> a las{' '}
+        <span className="t-cifra">{fecha(reserva.fecha)}</span> a las{' '}
         <span className="t-cifra">{hhmm(reserva.horaInicio)}</span>
       </p>
       <p className="mt-1 text-sm text-tenue">

@@ -21,6 +21,7 @@ import { hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { fecha } from '../componentes/semana'
 
 const MEDIOS_DE_PAGO: MedioPago[] = [
   'EFECTIVO',
@@ -182,7 +183,7 @@ export function VentasPagina() {
                   )}
                 </Celda>
                 <Celda className="whitespace-nowrap text-tenue">
-                  {v.fechaVenta.split('-').reverse().join('/')}
+                  {fecha(v.fechaVenta)}
                 </Celda>
                 <Celda className="text-right">
                   {puedeEscribir && !v.anulada && (

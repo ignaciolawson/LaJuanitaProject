@@ -5,7 +5,7 @@ import { ApiError } from '../api/cliente'
 import { cancelarSolicitud, misSolicitudes } from '../api/portal'
 import { NOMBRE_DE_ESTADO_SOLICITUD, type SolicitudResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
-import { diaYMes, hhmm } from '../componentes/semana'
+import { fecha, hhmm } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -76,7 +76,7 @@ export function MisSolicitudesPagina() {
                   {s.tipoUso} · {s.sala}
                 </div>
                 <div className="text-sm text-tenue">
-                  {diaYMes(s.fecha)} de {hhmm(s.horaInicio)} a {hhmm(s.horaFin)}
+                  {fecha(s.fecha)} de {hhmm(s.horaInicio)} a {hhmm(s.horaFin)}
                 </div>
                 {s.comentario && (
                   <div className="mt-1 text-xs text-apagado">{s.comentario}</div>

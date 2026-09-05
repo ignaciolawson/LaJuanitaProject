@@ -9,6 +9,7 @@ import { Comprobantes } from './Comprobantes'
 import { importe } from './dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from './presentacion'
 import { Tabla, Celda } from '../componentes/Tabla'
+import { fecha } from './semana'
 
 /**
  * Las tres partes de un estado de cuenta: saldos por moneda, qué se contrató y
@@ -139,7 +140,7 @@ export function DetalleDeCuenta({
               {cuenta.pagos.map((p) => (
                 <tr key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
                   <Celda className="whitespace-nowrap text-tenue">
-                    {p.fechaPago.split('-').reverse().join('/')}
+                    {fecha(p.fechaPago)}
                   </Celda>
                   <Celda>
                     <div>{p.queSalda}</div>

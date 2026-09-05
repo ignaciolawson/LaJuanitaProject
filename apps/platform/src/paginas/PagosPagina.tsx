@@ -47,7 +47,7 @@ import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
-import { hoy } from '../componentes/semana'
+import { fecha, hoy } from '../componentes/semana'
 import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
@@ -359,7 +359,7 @@ export function PagosPagina() {
                   )}
                 </Celda>
                 <Celda className="text-tenue">{NOMBRE_DE_MEDIO[p.medioPago]}</Celda>
-                <Celda className="whitespace-nowrap text-tenue">{fechaCorta(p.fechaPago)}</Celda>
+                <Celda className="whitespace-nowrap text-tenue">{fecha(p.fechaPago)}</Celda>
                 <Celda>
                   <EtiquetaDeEstado pago={p} />
                 </Celda>
@@ -462,10 +462,6 @@ function EtiquetaDeEstado({ pago }: { pago: PagoResumen }) {
       )}
     </div>
   )
-}
-
-function fechaCorta(iso: string): string {
-  return iso.split('-').reverse().join('/')
 }
 
 /**
@@ -706,11 +702,17 @@ function FormularioCorreccion({
  * que nadie pueda ver por qué. **Aparece sólo cuando tiene filas**, así que en
  * una base sana no se ve nunca.
  *
- * **LOS DOS NÚMEROS SON DISTINTOS Y ESO ES EL PUNTO.** El de la solapa es
- * *cuántos pagos* hay; abajo, en la elegida, va *cuánto entró* — que no es lo
- * mismo, porque una deuda anotada y un pago anulado cuentan en el primero y no
- * en el segundo. Y va por moneda, nunca sumadas: un contrato en pesos con un
- * pago en dólares son dos cajas.
+ * **LA SOLAPA CUENTA PAGOS Y NO SUMA PLATA** (§14 · A3). Abajo iba además un
+ * *"Entraron $X"* por moneda, y se sacó: **cuánto entró es la pregunta de
+ * `/admin/caja`**, que es la pantalla hecha para contestarla y la única que manda
+ * en ese número. Dos lugares que suman plata del mismo período son dos lugares
+ * que en algún momento no van a coincidir — es el mismo argumento por el que el
+ * Tablero del Módulo 8 no recalcula la caja sino que la pide.
+ *
+ * La distinción que ese número hacía sigue siendo cierta y ahora vive donde
+ * corresponde: *cuántos pagos* no es *cuánto entró*, porque una deuda anotada y
+ * un pago anulado cuentan en el primero y no en el segundo. El campo
+ * {@code entraron} sigue viajando en la respuesta y hoy no lo dibuja nadie.
  *
  * **QUÉ LÍNEA CAE EN QUÉ SOLAPA LO DICE EL SERVIDOR**, en cada fila. Tener el
  * mapa acá sería tenerlo dos veces, y el modo de falla es concreto: la solapa
@@ -735,14 +737,6 @@ function SolapasDeLinea({
     (g) => g !== 'SIN_DESTINO' || cuantos('SIN_DESTINO') > 0,
   )
 
-  const entraron = totales.filter((t) => elegida === '' || t.grupo === elegida)
-  const porMoneda = MONEDAS.map((moneda) => ({
-    moneda,
-    total: entraron
-      .filter((t) => t.moneda === moneda)
-      .reduce((suma, t) => suma + t.entraron, 0),
-  })).filter((m) => m.total > 0)
-
   return (
     <div className="mb-4">
       <div className="flex flex-wrap gap-1 border-b border-linea" role="tablist">
@@ -757,21 +751,6 @@ function SolapasDeLinea({
           </Solapa>
         ))}
       </div>
-
-      {/* Si no entró nada con estos filtros no se dibuja la línea, en vez de
-          escribir "$ 0": un cero acá se lee como un error de carga, y lo que
-          pasa es que lo que hay son deudas o anulaciones. */}
-      {porMoneda.length > 0 && (
-        <p className="mt-2 text-sm text-tenue">
-          Entraron{' '}
-          {porMoneda.map((m, i) => (
-            <span key={m.moneda}>
-              {i > 0 && ' · '}
-              <strong className="text-texto tabular-nums">{importe(m.total, m.moneda)}</strong>
-            </span>
-          ))}
-        </p>
-      )}
     </div>
   )
 }
@@ -811,8 +790,6 @@ function Cuantos({ n }: { n: number }) {
     </span>
   )
 }
-
-const MONEDAS: Moneda[] = ['ARS', 'USD']
 
 const DESTINOS = [
   { valor: 'INSCRIPCION', etiqueta: 'Un curso' },
@@ -1144,7 +1121,7 @@ function FormularioPago({
               <option value="">Elegí una</option>
               {reservas.map((r) => (
                 <option key={r.idReserva} value={r.idReserva}>
-                  {fechaCorta(r.fecha)} {r.horaInicio.slice(0, 5)} · {r.sala} · {r.tipoUso}
+                  {fecha(r.fecha)} {r.horaInicio.slice(0, 5)} · {r.sala} · {r.tipoUso}
                 </option>
               ))}
             </CampoSelect>

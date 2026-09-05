@@ -248,6 +248,84 @@ class SelloTest {
                 .andExpect(status().isMethodNotAllowed());
     }
 
+    // == El aviso de la pantalla =============================================
+
+    /**
+     * <b>Estos cuatro casos faltaban, y por eso el catálogo entero decía "Sin
+     * contrato".</b>
+     *
+     * <p>Los veintipico de arriba atacan la regla dura y todos entran por el mismo
+     * lado: publicar, sacar el contrato, cancelar. Ninguno miraba el listado — que no
+     * decide nada, solo avisa — así que cuando {@code ReleaseService.listar} pasó a
+     * mapear con el atajo que rellenaba el conteo en cero, no había nada rojo que
+     * prenderse. El agujero nunca se abrió: el trigger de `V18` siguió rechazando
+     * igual. Lo que se rompió fue el aviso, y un aviso que salta siempre es lo mismo
+     * que no tenerlo.
+     *
+     * <p>La lección es la de §11 con el ámbar de esta misma pantalla: <b>un aviso que
+     * no distingue deja de ser un aviso</b>. Por eso el segundo caso es el que
+     * importa — con una consulta que devuelva uno para todos, el primero pasa igual.
+     */
+    @Test
+    void el_listado_cuenta_el_contrato_de_cada_release() throws Exception {
+        long artista = artista();
+        long release = releaseDe(artista);
+        cargarContrato(artista, release).andExpect(status().isCreated());
+
+        listar()
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(enElListado(release, "contratos")).value(1))
+                .andExpect(jsonPath(enElListado(release, "tieneContrato")).value(true));
+    }
+
+    /**
+     * El que de verdad ataca el bug: <b>dos releases del mismo artista y uno solo con
+     * contrato</b>. Contar mal parejo —cero para todos, o uno para todos— pasa el
+     * caso de arriba y muere acá.
+     */
+    @Test
+    void el_listado_distingue_al_que_tiene_contrato_del_que_no() throws Exception {
+        long artista = artista();
+        long conContrato = releaseDe(artista);
+        long sinContrato = releaseDe(artista);
+        cargarContrato(artista, conContrato).andExpect(status().isCreated());
+
+        listar()
+                .andExpect(jsonPath(enElListado(conContrato, "contratos")).value(1))
+                .andExpect(jsonPath(enElListado(sinContrato, "contratos")).value(0))
+                .andExpect(jsonPath(enElListado(sinContrato, "tieneContrato")).value(false));
+    }
+
+    /**
+     * El segundo camino del respaldo, que es el que una consulta escrita de apuro se
+     * come: un contrato general del artista no apunta a ningún release y respalda a
+     * todos los suyos. Es la misma definición que {@code release_tiene_contrato()}.
+     */
+    @Test
+    void el_contrato_general_del_artista_cuenta_en_el_listado() throws Exception {
+        long artista = artista();
+        cargarContrato(artista, null).andExpect(status().isCreated());
+        long release = releaseDe(artista);
+
+        listar().andExpect(jsonPath(enElListado(release, "contratos")).value(1));
+    }
+
+    /**
+     * Y el alta contesta lo mismo que el listado: <b>un release no nace en cero por
+     * ser nuevo</b>: si su artista ya tiene contrato general, nace respaldado. Era el
+     * mismo error, más chico porque la pantalla recarga después de crear.
+     */
+    @Test
+    void un_release_nuevo_nace_respaldado_por_el_contrato_general_de_su_artista() throws Exception {
+        long artista = artista();
+        cargarContrato(artista, null).andExpect(status().isCreated());
+
+        crearRelease(artista, "")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.contratos").value(1))
+                .andExpect(jsonPath("$.tieneContrato").value(true));
+    }
+
     // == El código correlativo ===============================================
 
     /**
@@ -393,6 +471,21 @@ class SelloTest {
     }
 
     // =========================================================================
+
+    private ResultActions listar() throws Exception {
+        return mvc.perform(get("/api/releases").header("Authorization", comoStaff()));
+    }
+
+    /**
+     * Un campo de UN release dentro del listado, buscado por id y no por posición.
+     *
+     * <p>Por índice, cualquier caso que cargue un release más reordena la página y
+     * pone en rojo casos que no tienen nada que ver — el orden es por fecha estimada,
+     * que acá es null en todos, así que desempata el id descendente.
+     */
+    private String enElListado(long release, String campo) {
+        return "$.contenido[?(@.idRelease == %d)].%s".formatted(release, campo);
+    }
 
     private long artista() throws Exception {
         ResultActions creado = mvc.perform(post("/api/artistas")

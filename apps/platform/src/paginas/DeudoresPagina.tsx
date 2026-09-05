@@ -8,6 +8,7 @@ import { Aviso } from '../componentes/Boton'
 import { antiguedad, importe } from '../componentes/dinero'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { fecha } from '../componentes/semana'
 
 /**
  * Módulo 3, pantalla 4 — quién debe, cuánto y hace cuántos días.
@@ -113,7 +114,7 @@ export function DeudoresPagina() {
                   <span className={d.vencido ? 'font-medium text-acento' : 'text-tenue'}>
                     {antiguedad(d.diasDeAtraso)}
                   </span>
-                  <div className="text-xs text-tenue">{fechaCorta(d.desde)}</div>
+                  <div className="text-xs text-tenue">{fecha(d.desde)}</div>
                 </Celda>
               </tr>
             ))}
@@ -128,8 +129,4 @@ export function DeudoresPagina() {
 
     </div>
   )
-}
-
-function fechaCorta(iso: string): string {
-  return iso.split('-').reverse().join('/')
 }

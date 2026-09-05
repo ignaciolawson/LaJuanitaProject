@@ -12,7 +12,7 @@ import {
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { diaYMes, hhmm } from '../componentes/semana'
+import { fecha, hhmm } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { EstadoVacio } from '../componentes/EstadoVacio'
@@ -115,7 +115,7 @@ export function SolicitudesPagina() {
                   {s.apellido}, {s.nombre}
                 </div>
                 <div className="text-sm text-tenue">
-                  {s.tipoUso} en {s.sala} · {diaYMes(s.fecha)} de {hhmm(s.horaInicio)} a{' '}
+                  {s.tipoUso} en {s.sala} · {fecha(s.fecha)} de {hhmm(s.horaInicio)} a{' '}
                   {hhmm(s.horaFin)}
                 </div>
                 <div className="text-xs text-apagado">

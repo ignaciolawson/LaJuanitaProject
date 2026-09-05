@@ -17,6 +17,7 @@ import { Etiqueta } from '../componentes/Etiqueta'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { fecha } from '../componentes/semana'
 
 /**
  * Módulo 7 — las fichas de los artistas del sello.
@@ -219,7 +220,7 @@ function Detalle({
                 </Boton>
                 <span className="text-xs text-tenue">
                   {c.general ? 'General del artista' : `Del release ${c.codigoRelease}`}
-                  {c.fechaFirma && ` · firmado el ${c.fechaFirma}`}
+                  {c.fechaFirma && ` · firmado el ${fecha(c.fechaFirma)}`}
                 </span>
               </li>
             ))}

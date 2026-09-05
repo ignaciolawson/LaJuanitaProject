@@ -39,6 +39,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { fecha } from '../componentes/semana'
 
 const TIPOS: TipoRelease[] = ['SINGLE', 'EP', 'REMIX', 'ALBUM']
 const ESTADOS: EstadoRelease[] = [
@@ -221,7 +222,7 @@ export function SelloPagina() {
                 {r.fechaEstimada ? (
                   <>
                     <div className="text-tenue">{r.estado === 'PUBLICADO' ? 'Salió' : 'Sale'}</div>
-                    <div className="tabular-nums">{r.fechaReal ?? r.fechaEstimada}</div>
+                    <div className="tabular-nums">{fecha(r.fechaReal ?? r.fechaEstimada)}</div>
                   </>
                 ) : (
                   <span className="text-apagado">Sin fecha</span>
@@ -401,7 +402,9 @@ function BloquePublicacion({
   if (release.estado === 'PUBLICADO') {
     return (
       <section className="rounded-md bg-superficie-2 px-4 py-3 text-sm">
-        <div className="font-medium">Publicado{release.fechaReal && ` el ${release.fechaReal}`}</div>
+        <div className="font-medium">
+          Publicado{release.fechaReal && ` el ${fecha(release.fechaReal)}`}
+        </div>
         {release.publicadoSinContrato && (
           <p className="mt-1.5 text-xs text-acento">
             Se publicó <strong>sin contrato adjunto</strong>
@@ -552,7 +555,7 @@ function BloqueContratos({
                 {/* La distinción que hace no obvia a la regla: un contrato general
                     respalda todos los lanzamientos del artista. */}
                 {c.general ? `General de ${c.artista}` : `De este release`}
-                {c.fechaFirma && ` · firmado el ${c.fechaFirma}`}
+                {c.fechaFirma && ` · firmado el ${fecha(c.fechaFirma)}`}
               </span>
               {puedeEscribir && (
                 <Boton variante="enlace"
@@ -629,7 +632,7 @@ function BloqueApariciones({
               </span>
               <span className="font-medium">{a.donde}</span>
               {a.quien && <span className="text-xs text-tenue">por {a.quien}</span>}
-              {a.fecha && <span className="text-xs text-tenue">· {a.fecha}</span>}
+              {a.fecha && <span className="text-xs text-tenue">· {fecha(a.fecha)}</span>}
               {a.url && (
                 <a
                   href={a.url}

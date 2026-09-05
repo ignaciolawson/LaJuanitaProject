@@ -20,6 +20,21 @@ import com.lajuanita.backend.sello.TipoRelease;
  * <p>{@link #tieneContrato} no sale de esta fila: es la misma pregunta que decide
  * la regla dura, contestada para que la pantalla pueda avisar <b>antes</b> de que
  * alguien apriete publicar y se coma un 409.
+ *
+ * <p><b>Nunca se manda {@code portadaPath} y por eso hay un booleano en su lugar.</b>
+ * La clave del almacenamiento es de la base, no del cliente: publicarla invita a
+ * armar URLs a mano, que es exactamente lo que {@code Almacenamiento} no ofrece.
+ * La portada se pide por su endpoint, que verifica quién pregunta — la misma
+ * decisión que tomó {@code TrabajoDelPortal} escondiendo el premaster en el mapeo
+ * y no en la pantalla.
+ *
+ * <p>⚠️ <b>Hay una sola fábrica y toma el conteo, a propósito.</b> Había un atajo de
+ * un argumento que pasaba cero, y el listado del catálogo lo alcanzaba con una
+ * referencia a método: el resultado fue que <b>todo el catálogo decía "Sin
+ * contrato"</b>, incluidos los releases que sí lo tenían. La regla dura de `V18`
+ * nunca se debilitó —quien decide es el trigger— pero el aviso que existe para que
+ * nadie se sorprenda al publicar saltaba para todos, o sea que no avisaba de nada.
+ * Un atajo que rellena un campo con un valor plausible no falla: miente.
  */
 public record ReleaseResumen(
         Long idRelease,
@@ -68,17 +83,5 @@ public record ReleaseResumen(
                 r.getPublicadoPor() == null ? null
                         : r.getPublicadoPor().getNombre() + " " + r.getPublicadoPor().getApellido(),
                 r.getFechaCreacion());
-    }
-
-    /**
-     * <b>Nunca se manda {@code portadaPath} y por eso hay un booleano en su lugar.</b>
-     * La clave del almacenamiento es de la base, no del cliente: publicarla invita a
-     * armar URLs a mano, que es exactamente lo que {@code Almacenamiento} no ofrece.
-     * La portada se pide por su endpoint, que verifica quién pregunta — la misma
-     * decisión que tomó {@code TrabajoDelPortal} escondiendo el premaster en el
-     * mapeo y no en la pantalla.
-     */
-    public static ReleaseResumen de(Release r) {
-        return de(r, 0);
     }
 }

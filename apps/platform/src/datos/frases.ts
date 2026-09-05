@@ -18,9 +18,13 @@
  *
  * - `cita` — dicho por alguien de afuera. Exige autor **y** una URL donde se
  *   pueda ir a verificar. Si no la encontrás, la frase no entra.
- * - `casa` — voz de La Juanita. No lleva autor porque no lo necesita: es la
- *   casa hablando. ⚠️ Estas son **placeholder** hasta que las confirme el
- *   cliente, igual que el resto de la copia larga de la landing.
+ * - `casa` — voz de La Juanita. **No lleva campo `autor` y sin embargo se firma**:
+ *   la pantalla escribe "La Juanita" para todo este tipo, porque la atribución es
+ *   una propiedad del tipo y no de cada fila. Ponerla acá serían trece copias del
+ *   mismo string, o sea trece lugares donde puede quedar distinta. Va sin link
+ *   porque no hay fuente que ir a chequear, que es exactamente lo que separa a los
+ *   dos tipos. ⚠️ Estas son **placeholder** hasta que las confirme el cliente,
+ *   igual que el resto de la copia larga de la landing.
  *
  * ⚠️ **Las traducciones son nuestras.** Cuando el original es en inglés, el
  * texto que se muestra es una traducción de la casa y el sentido es literal: la

@@ -239,27 +239,58 @@ export function ReservarPagina() {
  * **No dice de quién es cada franja**, y eso viene del backend: la agenda
  * completa cuenta quién tiene clase con quién, que es información de los otros
  * alumnos. Acá alcanza con saber qué horarios no conviene pedir.
+ *
+ * ⚠️ **Antes decía "Ese día · 16:00–18:00" y nada más** (§14 · A6), que es un
+ * dato sin la frase que lo vuelve útil. Ignacio: *"es un poco confuso"*. Le
+ * faltaban las dos mitades que alguien necesita para decidir, y la segunda no
+ * estaba escrita en ninguna pantalla del sistema:
+ *
+ * 1. **Ocupado no es para siempre**: si quien lo tiene cancela —o si es una
+ *    prereserva de `V24` y se le vence el plazo— la franja se libera sola.
+ * 2. **Pero el pedido se aprueba TAL CUAL**, que es la regla de `V13`:
+ *    administración no lo mueve a otro horario, aprueba lo que pediste o lo
+ *    rechaza. Así que pedir un horario ocupado no es "anotarse en la fila", es
+ *    casi seguro un rechazo.
+ *
+ * Sin la segunda, la primera invita justo a lo que no funciona.
+ *
+ * ⚠️ **El aviso se dibuja sólo si hay alguna franja RESERVADA.** Un bloqueo de
+ * sala no se libera porque nadie lo cancele —es la sala que no se usa ese rato—,
+ * así que con un día enteramente bloqueado la frase sería falsa.
  */
 function Disponibilidad({ franjas, hayFecha }: { franjas: FranjaOcupada[]; hayFecha: boolean }) {
   if (!hayFecha) return null
 
+  const hayReservadas = franjas.some((f) => f.motivo === 'RESERVADA')
+
   return (
     <div className="mt-4 rounded-md border border-linea px-3 py-2.5">
-      <h3 className="t-mono text-tenue">Ese día</h3>
+      <h3 className="t-mono text-tenue">Ya ocupado ese día</h3>
       {franjas.length === 0 ? (
         <p className="mt-1 text-xs text-tenue">La sala está libre todo el día.</p>
       ) : (
-        <ul className="mt-1 flex flex-wrap gap-2">
-          {franjas.map((f, i) => (
-            <li
-              key={`${f.horaInicio}-${i}`}
-              className="rounded border border-linea px-2 py-0.5 text-xs text-tenue"
-            >
-              {hhmm(f.horaInicio)}–{hhmm(f.horaFin)}
-              {f.motivo === 'BLOQUEADA' && ' · sala no disponible'}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-1 flex flex-wrap gap-2">
+            {franjas.map((f, i) => (
+              <li
+                key={`${f.horaInicio}-${i}`}
+                className="rounded border border-linea px-2 py-0.5 text-xs text-tenue"
+              >
+                {hhmm(f.horaInicio)}–{hhmm(f.horaFin)}
+                {f.motivo === 'BLOQUEADA' && ' · sala no disponible'}
+              </li>
+            ))}
+          </ul>
+
+          {hayReservadas && (
+            <p className="mt-2 text-xs leading-relaxed text-tenue">
+              Un horario ocupado <strong className="text-texto">puede liberarse</strong> si
+              quien lo tiene cancela. Pero tu pedido se aprueba tal cual: administración no
+              lo mueve de horario. <strong className="text-texto">Para asegurarte la
+              fecha, elegí un horario libre.</strong>
+            </p>
+          )}
+        </>
       )}
     </div>
   )

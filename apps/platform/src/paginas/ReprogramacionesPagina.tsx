@@ -20,7 +20,7 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { diaYMes, hhmm } from '../componentes/semana'
+import { fecha, hhmm } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 
 /**
@@ -154,13 +154,13 @@ export function ReprogramacionesPagina() {
                   {p.apellido}, {p.nombre}
                 </div>
                 <div className="text-sm text-tenue">
-                  {p.tipoUso} en {p.sala} · {diaYMes(p.fecha)} de {hhmm(p.horaInicio)} a{' '}
+                  {p.tipoUso} en {p.sala} · {fecha(p.fecha)} de {hhmm(p.horaInicio)} a{' '}
                   {hhmm(p.horaFin)}
                 </div>
                 <p className="mt-2 text-sm italic text-tenue">“{p.motivo}”</p>
                 {p.fechaAlternativaSolicitada && (
                   <div className="mt-1 text-xs text-apagado">
-                    Le vendría bien el {diaYMes(p.fechaAlternativaSolicitada)} — es una
+                    Le vendría bien el {fecha(p.fechaAlternativaSolicitada)} — es una
                     preferencia, no una reserva
                   </div>
                 )}

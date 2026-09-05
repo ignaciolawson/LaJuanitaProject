@@ -1,6 +1,8 @@
 package com.lajuanita.backend.sello;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -63,11 +65,19 @@ public class ReleaseService {
         var encontrados = releases.listar(estado, Busqueda.patron(buscar),
                 PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio)));
 
-        // El conteo de contratos se resuelve por fila y no en la consulta del
-        // listado: son dos caminos (del release y general del artista) y meterlos
-        // como subconsulta del listado paginado lo vuelve ilegible para mostrar un
-        // número que la fila del catálogo ni usa. Acá va en cero.
-        return Pagina.de(encontrados.map(ReleaseResumen::de));
+        // Los contratos de TODA la página en una consulta, y recién después se
+        // arma cada fila. La versión anterior pasaba cero acá —con un comentario
+        // que decía que era "un número que la fila del catálogo ni usa"— y la fila
+        // lo usa: el catálogo entero decía "Sin contrato". Ver
+        // ReleaseRepository.contarContratosDe.
+        //
+        // Resolverlo fila por fila habría sido más corto y son veinte consultas
+        // más por página, que es justo lo que el JOIN FETCH del artista evita.
+        Map<Long, Integer> porRelease = contratosDeLaPagina(
+                encontrados.getContent().stream().map(Release::getId).toList());
+
+        return Pagina.de(encontrados.map(
+                r -> ReleaseResumen.de(r, porRelease.getOrDefault(r.getId(), 0))));
     }
 
     @Transactional(readOnly = true)
@@ -100,7 +110,11 @@ public class ReleaseService {
         release.setFechaReal(pedido.fechaReal());
         release.setNotas(normalizar(pedido.notas()));
 
-        return ReleaseResumen.de(releases.save(release), 0);
+        // No es cero por ser nuevo: si el artista ya tiene un contrato general, este
+        // release nace respaldado. Poner cero acá era el mismo error que el del
+        // listado, más chico porque la pantalla recarga después de crear.
+        Release creado = releases.save(release);
+        return ReleaseResumen.de(creado, cuantosContratos(creado));
     }
 
     @Transactional
@@ -258,6 +272,24 @@ public class ReleaseService {
      */
     private int cuantosContratos(Release release) {
         return contratos.queRespaldanAlRelease(release.getId(), release.getArtista().getId()).size();
+    }
+
+    /**
+     * Lo mismo que {@link #cuantosContratos} pero para una página entera.
+     *
+     * <p>Con la lista vacía <b>no pregunta</b>: un {@code IN} sin elementos es un
+     * error de sintaxis en Postgres, y una página vacía —buscar algo que no está—
+     * es lo más común que le pasa a esta pantalla. Es la misma piedra que encontró
+     * el listado de pagos cuando se hizo nativo.
+     */
+    private Map<Long, Integer> contratosDeLaPagina(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return releases.contarContratosDe(ids).stream()
+                .collect(Collectors.toMap(
+                        fila -> (Long) fila[0],
+                        fila -> ((Number) fila[1]).intValue()));
     }
 
     private Release buscar(Long id) {

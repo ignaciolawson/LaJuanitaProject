@@ -7,7 +7,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
-import { diaYMes, hhmm, hoy } from '../componentes/semana'
+import { fecha, hhmm, hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -152,7 +152,7 @@ export function BloqueosPagina() {
                 <Celda>{b.motivo}</Celda>
                 <Celda className="text-xs text-tenue">
                   {b.registradoPor ?? <span className="text-apagado">—</span>}
-                  <div>{fechaCorta(b.fechaRegistro)}</div>
+                  <div>{fecha(b.fechaRegistro)}</div>
                 </Celda>
                 <Celda className="text-right">
                   {puedeEscribir && (
@@ -176,11 +176,16 @@ export function BloqueosPagina() {
   )
 }
 
-/** `2026-09-01` → `01/09`, y un solo día no se escribe como un rango. */
+/**
+ * `2026-09-01` → `01/09/2026`, y un solo día no se escribe como un rango.
+ *
+ * Con año, porque esto es una fila de una tabla y no una vista semanal: nada en
+ * la pantalla dice de qué año se habla, y un bloqueo se carga para el futuro.
+ */
 function diasDe(bloqueo: BloqueoResumen): string {
   return bloqueo.fechaInicio === bloqueo.fechaFin
-    ? diaYMes(bloqueo.fechaInicio)
-    : `${diaYMes(bloqueo.fechaInicio)} al ${diaYMes(bloqueo.fechaFin)}`
+    ? fecha(bloqueo.fechaInicio)
+    : `${fecha(bloqueo.fechaInicio)} al ${fecha(bloqueo.fechaFin)}`
 }
 
 /**
@@ -196,10 +201,6 @@ function franjaDe(bloqueo: BloqueoResumen): string {
 
   const franja = `${hhmm(bloqueo.horaInicio)} a ${hhmm(bloqueo.horaFin)}`
   return bloqueo.fechaInicio === bloqueo.fechaFin ? franja : `${franja}, todos los días`
-}
-
-function fechaCorta(iso: string): string {
-  return iso.slice(0, 10).split('-').reverse().join('/')
 }
 
 function sumarAnios(iso: string, anios: number): string {

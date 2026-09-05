@@ -341,12 +341,20 @@ describe('la barra de solapas (§13 · B2)', () => {
     expect(await screen.findByRole('tab', { name: /Sin destino\s*3/ })).toBeDefined()
   })
 
-  it('⚠️ el total dice lo que ENTRÓ, no la suma de la columna', async () => {
-    // Dos filas por la misma cantidad de pagos: una con plata adentro y otra sin
-    // nada, que es lo que pasa con una deuda anotada o un pago anulado. Si el
-    // total sumara la columna, diría que entró plata que no entró.
-    // El importe es distinto del de la fila a propósito: si fuera el mismo, la
-    // aserción encontraría dos y no distinguiría cuál de los dos números miró.
+  it('⚠️ la barra cuenta pagos y NO suma plata (§14 · A3)', async () => {
+    // Este caso está dado vuelta a propósito. Antes afirmaba que la barra
+    // mostraba *"Entraron $123.456"*, y ese total se sacó: **cuánto entró es la
+    // pregunta de `/admin/caja`**, la pantalla hecha para contestarla. Dos lugares
+    // que suman plata del mismo período son dos lugares que en algún momento no
+    // van a coincidir, y es el mismo argumento por el que el Tablero del Módulo 8
+    // no recalcula la caja sino que se la pide a Pagos.
+    //
+    // Se afirma la AUSENCIA y no se borra el caso porque `entraron` sigue
+    // viajando en la respuesta: volver a dibujarlo es una línea, y sin esto nada
+    // recordaría por qué no está.
+    //
+    // El importe sigue siendo distinto del de la fila a propósito: si fuera el
+    // mismo, la ausencia no probaría nada — lo encontraría en la tabla.
     vi.mocked(totalesPorLinea).mockResolvedValue([
       total({ cantidad: 2, entraron: 123456 }),
       total({ linea: 'VENTA_EQUIPOS', grupo: 'EQUIPOS', cantidad: 4, entraron: 0 }),
@@ -354,8 +362,10 @@ describe('la barra de solapas (§13 · B2)', () => {
 
     montar()
 
-    expect(await screen.findByText(/123\.456/)).toBeDefined()
-    expect(screen.getByRole('tab', { name: /Venta de equipos\s*4/ })).toBeDefined()
+    // Primero se espera a que la barra esté dibujada: afirmar que algo no está
+    // sobre una pantalla que todavía no cargó pasa siempre y no prueba nada.
+    expect(await screen.findByRole('tab', { name: /Venta de equipos\s*4/ })).toBeDefined()
+    expect(screen.queryByText(/123\.456/)).toBeNull()
   })
 
   it('los números no se piden de nuevo al cambiar de solapa', async () => {
@@ -824,8 +834,19 @@ describe('los comprobantes', () => {
 
     montar()
 
-    expect(await screen.findByRole('button', { name: 'equivocado.pdf' })).toBeDefined()
-    expect(screen.getByRole('button', { name: 'el-que-va.pdf' })).toBeDefined()
+    // Desde §14 · A4 los dos botones dicen "Ver comprobante" —el nombre del
+    // archivo llega como lo nombró el teléfono de quien pagó y se iba a tres
+    // renglones—, así que ya no se distinguen por el texto. Lo que este caso
+    // afirma no cambió: **los dos están, y el inválido sigue listado con su
+    // firma**, que es la mitad de `V21` §3 que hace que la tabla valga algo.
+    expect(await screen.findAllByRole('button', { name: 'Ver comprobante' })).toHaveLength(2)
+    expect(screen.getByText(/Era de otra transferencia/)).toBeDefined()
+
+    // El nombre no se tiró: sigue en el `title`, que es como se cotejan dos
+    // comprobantes de una misma fila sin abrirlos de a uno.
+    expect(screen.getByTitle('equivocado.pdf')).toBeDefined()
+    expect(screen.getByTitle('el-que-va.pdf')).toBeDefined()
+
     // Y el que ya no vale no ofrece invalidarse de nuevo: solo hay un "Invalidar".
     expect(screen.getAllByRole('button', { name: 'Invalidar' })).toHaveLength(1)
   })
@@ -838,7 +859,7 @@ describe('los comprobantes', () => {
 
     montar('DIRECTIVO')
 
-    expect(await screen.findByRole('button', { name: 'transferencia.pdf' })).toBeDefined()
+    expect(await screen.findByRole('button', { name: 'Ver comprobante' })).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Invalidar' })).toBeNull()
     expect(screen.queryByLabelText('Adjuntar')).toBeNull()
   })

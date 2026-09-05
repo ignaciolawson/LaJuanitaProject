@@ -120,9 +120,20 @@ export function Puerta({
             </div>
           </div>
 
+          {/* ⚠️ **El título de una puerta va en serif y el del resto del sistema
+              no.** Adentro, `t-titulo` (Archivo, ancho expandido) es lo correcto:
+              son nombres largos que hay que barrer rápido arriba de una tabla.
+              Acá no hay nada que barrer todavía, y la serif es la voz de la marca
+              — la misma que ya habla en la mitad de tinta. Es el mismo criterio de
+              cuentagotas que declara `.t-serif`: puerta y estados vacíos.
+
+              Y por eso la bajada de abajo DEJA de ser serif abajo de `lg`. Apiladas
+              son dos itálicas seguidas compitiendo; el título se queda con la voz y
+              la bajada pasa a texto común. Arriba de `lg` no se cruzan nunca: la
+              bajada vive en la otra mitad. */}
           <header className="mb-9">
-            <h1 className="t-titulo">{titulo}</h1>
-            <p className="t-serif mt-2 text-lg text-tenue lg:hidden">{bajada}</p>
+            <h1 className="t-serif text-4xl leading-none">{titulo}</h1>
+            <p className="mt-3 text-tenue lg:hidden">{bajada}</p>
           </header>
 
           {children}

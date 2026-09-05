@@ -11,6 +11,7 @@ import { Aviso } from '../componentes/Boton'
 import { importe } from '../componentes/dinero'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { fecha } from '../componentes/semana'
 
 /**
  * Módulo 6, el lado del cliente — mis trabajos de Mix & Mastering.
@@ -148,9 +149,4 @@ export function MisTrabajosPagina() {
       </ul>
     </div>
   )
-}
-
-function fecha(iso: string): string {
-  const [anio, mes, dia] = iso.split('-')
-  return `${dia}/${mes}/${anio}`
 }

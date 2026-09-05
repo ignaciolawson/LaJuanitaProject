@@ -41,14 +41,26 @@ export function Comprobantes({
       {comprobantes.map((c) => (
         <li key={c.idComprobante} className="text-xs">
           <div className="flex flex-wrap items-center gap-2">
+            {/* ⚠️ **Dice "Ver comprobante" y no el nombre del archivo** (§14 · A4).
+                Estos archivos llegan como los nombró el teléfono o el banco de
+                quien pagó, así que la celda mostraba cosas como
+                `vail_resorts_vail_mountain_resort_-_f_b_support__2027_winter.pdf`
+                y una fila de la tabla se iba a tres renglones. El nombre no es el
+                dato: el dato es que hay respaldo y se puede abrir.
+
+                **Y sin embargo el nombre no se tira: va en el `title`**, para
+                quien necesite cotejar contra lo que le mandaron por WhatsApp. Con
+                varios comprobantes en una misma fila es la única forma de saber
+                cuál es cuál antes de abrirlos de a uno. */}
             <button
               type="button"
               onClick={() => onVer(c)}
+              title={c.nombreOriginal}
               className={`underline underline-offset-2 hover:text-acento ${
                 c.invalido ? 'text-apagado line-through' : 'text-tenue'
               }`}
             >
-              {c.nombreOriginal}
+              Ver comprobante
             </button>
             {!c.invalido && onInvalidar && (
               <Boton variante="enlace"

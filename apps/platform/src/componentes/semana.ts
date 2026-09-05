@@ -49,8 +49,45 @@ export function diasDesde(lunes: string): string[] {
   return Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i))
 }
 
+/**
+ * `2026-09-01` → `01/09/2026`. **La forma en que se escribe una fecha acá.**
+ *
+ * ⚠️ **Es una definición única que reemplaza a seis** (§14 · A5). Antes había
+ * cinco funciones locales con dos nombres distintos —`fecha` en la ficha del
+ * alumno y en Mis trabajos, `fechaCorta` en Bloqueos, Deudores y Pagos— más tres
+ * `split('-').reverse().join('/')` escritos a mano en Egresos, Ventas y el detalle
+ * de cuenta, más cinco lugares que directamente mostraban el ISO crudo
+ * (`2026-09-01`) en el Sello y en Artistas. Es la misma forma que ya tuvo
+ * `controles.ts` con el control de línea: una idea, seis dialectos.
+ *
+ * ⚠️ **Y aguanta un timestamp, que es la trampa que se llevó puesta.** De los
+ * cinco helpers locales, sólo el de Bloqueos hacía `slice(0, 10)` — porque era el
+ * único al que le llegaba un `TIMESTAMPTZ`. A cualquiera de los otros cuatro,
+ * pasarle uno le devolvía `19T14:33:12Z/08/2026` sin fallar. Con seis copias la
+ * corrección de una no llega a las otras cinco.
+ *
+ * Nunca pasa por `Date`: `new Date('2026-09-01')` se interpreta como UTC y en
+ * Argentina devuelve el día anterior.
+ */
+export function fecha(iso: string): string {
+  const [anio, mes, dia] = iso.slice(0, 10).split('-')
+  return `${dia}/${mes}/${anio}`
+}
+
+/**
+ * `2026-09-01` → `01/09`. **Sin año, y sólo donde la pantalla ya lo fijó.**
+ *
+ * El año se omite únicamente cuando el contexto visible lo establece: las siete
+ * columnas del calendario y las filas de una vista semanal, cuya cabecera ya dice
+ * de qué semana se trata. Repetirlo siete veces arriba de una grilla no agrega
+ * nada y ensancha las columnas.
+ *
+ * **En una tabla, en un panel de detalle o en una fecha suelta va {@link fecha}**,
+ * porque ahí nada dice de qué año se habla y una lista puede tener el año pasado
+ * adentro — el historial de clases de un alumno es exactamente eso.
+ */
 export function diaYMes(iso: string): string {
-  const [, mes, dia] = iso.split('-')
+  const [, mes, dia] = iso.slice(0, 10).split('-')
   return `${dia}/${mes}`
 }
 

@@ -1,6 +1,7 @@
 package com.lajuanita.backend.sello;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +46,44 @@ public interface ReleaseRepository extends JpaRepository<Release, Long> {
 
     @Query("SELECT r FROM Release r JOIN FETCH r.artista WHERE r.id = :id")
     Optional<Release> porIdConArtista(@Param("id") Long id);
+
+    /**
+     * Cuántos contratos respaldan a cada uno de estos releases.
+     *
+     * <p><b>Existe porque el listado decía "Sin contrato" para todos.</b> Mapeaba con
+     * el atajo de un argumento de {@code ReleaseResumen}, que pasa cero, y la fila
+     * dibuja "Sin contrato" cuando ese número es cero. El comentario que lo dejaba
+     * así se defendía diciendo que era "un número que la fila del catálogo ni usa"
+     * — y la fila lo usa. Era cierto el día que se escribió y dejó de serlo cuando la
+     * pantalla empezó a mostrarlo: la regla dura de `V18` nunca se debilitó, pero el
+     * aviso que existe para que nadie se sorprenda al apretar publicar saltaba para
+     * todo el catálogo, o sea que no avisaba de nada.
+     *
+     * <p><b>Una consulta por página, no una por fila.</b> El camino corto era llamar
+     * a {@code cuantosContratos} adentro del {@code map}, que son veinte consultas
+     * más por página — exactamente lo que el {@code JOIN FETCH} del artista está
+     * puesto para evitar tres métodos más arriba. Es la forma que ya tomó
+     * {@code PagoRepository} cuando el listado de pagos se partió en dos.
+     *
+     * <p>Los dos caminos del respaldo —el contrato del release y el general de su
+     * artista— son <b>la misma definición</b> que {@code queRespaldanAlRelease} y que
+     * la función {@code release_tiene_contrato()} de `V18`. Sigue valiendo lo que
+     * dice el comentario de {@code ContratoRepository}: la de la base <b>decide</b> y
+     * estas dos solo <b>muestran</b>, así que si se separan la pantalla cuenta mal y
+     * el trigger sigue siendo el que manda.
+     *
+     * @return filas {@code [idRelease, cantidad]}, con cero para los que no tienen
+     */
+    @Query("""
+            SELECT r.id, count(c.id)
+            FROM Release r
+            LEFT JOIN ContratoSello c
+                ON c.release.id = r.id
+                OR (c.artista.id = r.artista.id AND c.release IS NULL)
+            WHERE r.id IN :ids
+            GROUP BY r.id
+            """)
+    List<Object[]> contarContratosDe(@Param("ids") Collection<Long> ids);
 
     boolean existsByCodigoReleaseIgnoreCase(String codigo);
 

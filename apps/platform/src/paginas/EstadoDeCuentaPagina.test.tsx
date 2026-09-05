@@ -276,7 +276,7 @@ describe('los comprobantes', () => {
     )
 
     montar()
-    await user.click(await screen.findByRole('button', { name: 'transferencia.pdf' }))
+    await user.click(await screen.findByRole('button', { name: 'Ver comprobante' }))
 
     // Con el id del pago y el del comprobante: la ruta está anidada, y el backend
     // verifica que ese comprobante sea de ese pago.

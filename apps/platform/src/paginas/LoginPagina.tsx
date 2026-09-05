@@ -36,7 +36,11 @@ export function LoginPagina() {
 
   return (
     <Puerta
-      titulo="Sistema de gestión"
+      // "Sistema de gestión" decía qué ES esto, y las otras dos puertas dicen qué
+      // HACÉS acá ("Crear cuenta", "Elegí tu contraseña"). Era la única de las tres
+      // que se presentaba en vez de invitar, y encima nombraba a la marca en el
+      // único lugar donde la marca ya ocupa media pantalla.
+      titulo="Ingresá"
       // La única frase con voz de toda la plataforma, y va acá porque acá
       // no hay nada que hacer todavía. Adentro, en una pantalla de carga de
       // datos, una línea así sería ruido.

@@ -14,6 +14,7 @@ import { hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { fecha } from '../componentes/semana'
 
 /**
  * Módulo 3, pantalla 5 — la plata que sale.
@@ -166,7 +167,7 @@ export function EgresosPagina() {
                   {importe(e.monto, e.moneda)}
                 </Celda>
                 <Celda className="whitespace-nowrap text-tenue">
-                  {e.fechaEgreso.split('-').reverse().join('/')}
+                  {fecha(e.fechaEgreso)}
                 </Celda>
                 <Celda className="text-right">
                   {puedeEscribir && !e.anulado && (

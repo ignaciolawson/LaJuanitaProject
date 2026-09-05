@@ -13,7 +13,7 @@ import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { cuando, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
-import { diaYMes, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -246,7 +246,7 @@ function Formulario({
           <option value="">De todo el curso</option>
           {clasesDe(clases, curso).map((r) => (
             <option key={r.idReserva} value={r.idReserva}>
-              {diaYMes(r.fecha)} {hhmm(r.horaInicio)} · {r.tipoUso}
+              {fecha(r.fecha)} {hhmm(r.horaInicio)} · {r.tipoUso}
             </option>
           ))}
         </CampoSelect>
