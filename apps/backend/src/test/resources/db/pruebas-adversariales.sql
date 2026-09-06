@@ -581,6 +581,58 @@ SELECT probar('H05','dos comprobantes apuntando al mismo archivo','FALLA',
 
 
 -- =============================================================================
+-- I. EL RESPALDO DE UN EGRESO  (V25 §2 y §3)
+--
+-- Los mismos cinco ataques de la seccion H, del lado de la plata que SALE. Que
+-- sean identicos es el punto: si las dos tablas se separan, "adjuntar un
+-- comprobante" significa una cosa en Pagos y otra en Egresos.
+--
+-- ⚠️ **La mitad que estuvo a punto de faltar en `V21` y que aca se copio a
+-- proposito es I03**: desde adentro de *"no se borra, se marca"* no se ve la otra
+-- mitad, que la marca tampoco se borre. Es la forma exacta de `V18` §1b, donde
+-- CANCELADO fuera de la escalera se podia deshacer porque nadie escribio la
+-- segunda frase.
+-- =============================================================================
+
+INSERT INTO egreso (id_usuario_registra,monto,concepto,destinatario)
+SELECT u_mica, 200000, 'egreso atacado', 'Proveedor' FROM v;
+
+INSERT INTO comprobante_egreso (id_egreso,archivo_path,nombre_original,id_usuario_carga)
+SELECT (SELECT id_egreso FROM egreso WHERE concepto='egreso atacado'),
+       'comprobantes-egreso/2026/09/atacado.pdf','recibo.pdf',(SELECT u_mica FROM v);
+
+SELECT probar_mensaje('I01','CAMBIAR el archivo de un comprobante de egreso ya adjunto',
+ 'no se cambia',
+ $q$UPDATE comprobante_egreso SET archivo_path='comprobantes-egreso/2026/09/otro.pdf'
+    WHERE nombre_original='recibo.pdf'$q$);
+
+SELECT probar_mensaje('I02','BORRAR un comprobante de egreso en vez de marcarlo',
+ 'comprobante_egreso -> invalido = TRUE',
+ $q$DELETE FROM comprobante_egreso WHERE nombre_original='recibo.pdf'$q$);
+
+UPDATE comprobante_egreso SET invalido=TRUE,
+       id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+       motivo_invalidacion='Es el recibo de otro mes'
+WHERE nombre_original='recibo.pdf';
+
+SELECT probar_mensaje('I03','ESQUIVE: desmarcar un comprobante de egreso ya invalidado',
+ 'no vuelve atras',
+ $q$UPDATE comprobante_egreso SET invalido=FALSE
+    WHERE nombre_original='recibo.pdf'$q$);
+
+-- El otro esquive del mismo tipo: dejar la marca y reescribir quien la puso.
+SELECT probar_mensaje('I04','ESQUIVE: reescribir la firma de la invalidacion del egreso',
+ 'no se reescribe',
+ $q$UPDATE comprobante_egreso SET motivo_invalidacion='Otra cosa'
+    WHERE nombre_original='recibo.pdf'$q$);
+
+SELECT probar('I05','dos comprobantes de egreso apuntando al mismo archivo','FALLA',
+ $q$INSERT INTO comprobante_egreso (id_egreso,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_egreso FROM egreso WHERE concepto='egreso atacado'),
+           'comprobantes-egreso/2026/09/atacado.pdf','copia.pdf',(SELECT u_mica FROM v)$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

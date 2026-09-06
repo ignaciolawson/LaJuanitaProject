@@ -107,11 +107,28 @@ tar -xzf backups/diarios/lajuanita-archivos-AAAA-MM-DD.tar.gz -C /ruta/al/padre
 
 # y la verificación que hace que el ensayo sirva: que la base y el disco
 # coincidan. Ninguna fila puede quedar apuntando a un archivo que no está.
-psql -d ensayo_restore -t -A -F'|' -c "SELECT id_contrato, archivo_path FROM contrato_sello" \
-  | while IFS='|' read -r id ruta; do
-      [ -f "/ruta/archivos/$ruta" ] || echo "FALTA el archivo del contrato $id"
+#
+# ⚠️ SON TRES TABLAS, NO UNA. El ensayo del 2026-08-20 verificó contrato_sello
+# (era el único tipo de archivo que existía). Después llegaron los comprobantes
+# de pago (V21) y los de egreso (V25, 2026-09-05), que NADIE probó recuperar.
+# El backup sí los toma —el tar es sobre la raíz entera— pero un ensayo que
+# mira una sola tabla deja las otras dos sin verificar.
+psql -d ensayo_restore -t -A -F'|' -c "
+    SELECT 'contrato ' || id_contrato, archivo_path FROM contrato_sello
+    UNION ALL
+    SELECT 'comprobante de pago ' || id_comprobante, archivo_path FROM comprobante_pago
+    UNION ALL
+    SELECT 'comprobante de egreso ' || id_comprobante, archivo_path FROM comprobante_egreso" \
+  | while IFS='|' read -r que ruta; do
+      [ -f "/ruta/archivos/$ruta" ] || echo "FALTA el archivo del $que"
     done
 ```
+
+⚠️ **Cada tipo de archivo nuevo agrega una tabla a esa consulta, y es fácil que no
+lo agregue nadie**: el backup no cambia —el tar toma la raíz entera— así que **nada
+falla ni avisa**. La única señal de que falta una tabla es que el ensayo pase
+demasiado rápido. Hoy son tres: contratos, comprobantes de pago y comprobantes de
+egreso.
 
 ⚠️ **La verificación va en las dos direcciones, y la segunda es la barata de
 olvidar.** Que cada fila encuentre su archivo es la que importa; que cada archivo

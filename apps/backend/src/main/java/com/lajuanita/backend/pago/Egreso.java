@@ -3,6 +3,10 @@ package com.lajuanita.backend.pago;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.hibernate.annotations.BatchSize;
 
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.usuario.Usuario;
@@ -17,6 +21,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -77,8 +83,41 @@ public class Egreso {
     @Column(name = "destinatario", length = 150)
     private String destinatario;
 
-    @Column(name = "comprobante_path", length = 500)
-    private String comprobantePath;
+    /**
+     * El respaldo adjunto. <b>Varios, desde `V25`</b>.
+     *
+     * <p>Acá había un {@code comprobante_path} que era <b>texto que alguien
+     * tipeaba</b> — la misma columna que `V21` le sacó a {@code Pago} y por el
+     * mismo motivo: el sistema mostraba respaldo donde no había ningún archivo.
+     *
+     * <p>⚠️ <b>Del lado del egreso pesa más que del lado del pago.</b> Un cobro sin
+     * comprobante lo reclama el que pagó; una salida de plata sin comprobante no la
+     * reclama nadie — el que la cobró está contento y el que la firmó es el mismo
+     * que la cargó.
+     *
+     * <p>{@code BatchSize} por lo mismo que en {@code Pago}: el listado pagina de a
+     * veinte y cada fila dibuja sus comprobantes. Sin esto son veinte consultas
+     * extra por página; con esto, una. No se resuelve con un {@code JOIN FETCH} en
+     * la consulta del listado — traer una colección paginando obliga a Hibernate a
+     * paginar en memoria, que es la trampa contraria.
+     */
+    @OneToMany(mappedBy = "egreso")
+    @OrderBy("id ASC")
+    @BatchSize(size = 50)
+    private List<ComprobanteEgreso> comprobantes = new ArrayList<>();
+
+    /**
+     * Cuelga un comprobante, <b>de los dos lados</b>.
+     *
+     * <p>Poner solo el lado dueño alcanza para que la fila quede bien guardada, y
+     * ahí está la trampa: el egreso que ya está en la sesión sigue mostrando la
+     * lista vieja, así que adjuntar y volver a leerlo en la misma transacción
+     * devuelve cero comprobantes. Le costó dos casos en rojo a `V21`.
+     */
+    public void agregarComprobante(ComprobanteEgreso comprobante) {
+        comprobante.setEgreso(this);
+        this.comprobantes.add(comprobante);
+    }
 
     @Column(name = "fecha_egreso", nullable = false)
     private LocalDate fechaEgreso = LocalDate.now();

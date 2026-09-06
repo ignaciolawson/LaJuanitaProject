@@ -1,7 +1,5 @@
 package com.lajuanita.backend.pago;
 
-import java.util.Locale;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -10,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.lajuanita.backend.archivo.Almacenamiento;
 import com.lajuanita.backend.archivo.ArchivoParaBajar;
+import com.lajuanita.backend.archivo.NombreDeArchivo;
 import com.lajuanita.backend.pago.dto.ComprobanteResumen;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
@@ -42,9 +41,6 @@ public class ComprobanteService {
 
     /** La carpeta la elige el código, nunca el cliente. */
     private static final String CARPETA = "comprobantes";
-
-    /** Lo que entra en {@code nombre_original}. */
-    private static final int LARGO_DEL_NOMBRE = 255;
 
     private final ComprobanteRepository comprobantes;
     private final PagoRepository pagos;
@@ -81,7 +77,7 @@ public class ComprobanteService {
         ComprobantePago comprobante = new ComprobantePago();
         pago.agregarComprobante(comprobante);
         comprobante.setQuienCargo(autor);
-        comprobante.setNombreOriginal(nombreSano(archivo.getOriginalFilename()));
+        comprobante.setNombreOriginal(NombreDeArchivo.sano(archivo.getOriginalFilename()));
         comprobante.setArchivoPath(guardarYLimpiarSiFalla(archivo));
 
         return ComprobanteResumen.de(comprobantes.save(comprobante));
@@ -148,34 +144,6 @@ public class ComprobanteService {
 
     private RecursoNoEncontradoException noExiste(Long idComprobante) {
         return new RecursoNoEncontradoException("No existe el comprobante " + idComprobante + ".");
-    }
-
-    /**
-     * El nombre original, saneado para poder devolverlo.
-     *
-     * <p><b>No decide dónde se guarda nada</b> —eso es un UUID que elige
-     * {@code Almacenamiento}— pero igual se limpia, porque este texto vuelve en la
-     * cabecera {@code Content-Disposition} de la descarga y viene del cliente. Se
-     * queda con el último tramo (un navegador puede mandar la ruta entera), saca lo
-     * que no sea alfanumérico, punto, guion o guion bajo, y recorta al largo de la
-     * columna. Si no queda nada usable, un nombre por defecto: la descarga tiene que
-     * llamarse de alguna manera.
-     */
-    private String nombreSano(String original) {
-        if (original == null || original.isBlank()) {
-            return "comprobante";
-        }
-        String ultimoTramo = original.replace('\\', '/');
-        ultimoTramo = ultimoTramo.substring(ultimoTramo.lastIndexOf('/') + 1);
-
-        String limpio = ultimoTramo.trim()
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9._-]", "_");
-
-        if (limpio.isBlank() || limpio.replace("_", "").replace(".", "").isEmpty()) {
-            return "comprobante";
-        }
-        return limpio.length() > LARGO_DEL_NOMBRE ? limpio.substring(0, LARGO_DEL_NOMBRE) : limpio;
     }
 
     /**

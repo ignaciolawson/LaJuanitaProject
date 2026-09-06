@@ -40,11 +40,16 @@ public record AltaEgresoRequest(
         /** Solo cuando el egreso es el pago a alguien que sí tiene cuenta. */
         Long idUsuarioDestino,
 
-        /** Vacío = hoy. */
-        LocalDate fechaEgreso,
-
-        @Size(max = 500)
-        String comprobantePath) {
+        /**
+         * Vacío = hoy.
+         *
+         * <p>⚠️ <b>Acá había un {@code comprobantePath} y se fue con `V25`.</b> El
+         * comprobante es un archivo con su firma, no un campo de este formulario:
+         * no viaja adentro del JSON, se adjunta en un pedido propio
+         * ({@code POST /api/egresos/{id}/comprobantes}) y el egreso admite varios.
+         * Es exactamente lo que `V21` hizo del lado del pago.
+         */
+        LocalDate fechaEgreso) {
 
     @AssertTrue(message = "Un egreso en dólares necesita la cotización del día.")
     public boolean isCotizacionPresenteSiEsUsd() {

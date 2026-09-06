@@ -1777,3 +1777,153 @@ de `LineaDeNegocio.OTRO`. Aparece sólo cuando tiene filas.
 **El total de cada solapa es lo que ENTRÓ**, no la suma de la columna: sumar todo
 mezclaría deuda anotada y plata anulada con plata real, que es justo lo que
 `EstadoPago.ENTRARON` existe para evitar.
+
+---
+
+## 20. Decisiones cerradas el 2026-09-05 (cuarta tanda) — la tercera barrida
+
+> Las seis preguntas que abrió la tercera barrida de correcciones
+> (`docs/mejoras.md` §14), contestadas **antes de escribir código**. Es la quinta
+> vez que ese orden evita que un módulo se trabe a la mitad.
+>
+> ⚠️ **P49 REVIERTE una decisión anterior** (§15, ratificación 5). Es la segunda vez
+> que pasa en el proyecto —la primera fue `V15` deshaciendo `V6` §3— y como
+> entonces, **la decisión posterior gana**: quien lea §15 y §20 juntas tiene que
+> quedarse con ésta.
+
+### ✅ P48 — Las frases de la casa se firman "La Juanita"
+
+**La pregunta.** De las 31 frases del Inicio, 13 son de tipo `casa` —voz propia del
+estudio— y por diseño no llevaban autor. Ignacio vio que *"falta poner quién la
+dijo"*: casi la mitad de los días salía una cita sin nadie abajo.
+
+**La respuesta: firmarlas.** Todas las frases llevan pie. Las citas siguen con
+nombre y link a la fuente; las de la casa dicen **"La Juanita"**, sin link.
+
+**Por qué sin link**: no hay fuente que ir a verificar, y ésa es exactamente la
+distinción entre los dos tipos que el tipo de TypeScript sostiene — una cita
+atribuida **exige** `fuente`, así que agregar una sin link no compila.
+
+**Lo que NO cambió**: las 18 citas siguen siendo verificadas una por una, abriendo
+el artículo. Sigue valiendo la advertencia de §12 · A5: **el resumen de un buscador
+parafrasea**, y "casi" es todo el problema cuando lo que se firma es el nombre de
+una persona real.
+
+---
+
+### ✅ P49 — El código de un release lo genera siempre el sistema
+
+> ⚠️ **Esto revierte la ratificación 5 de §15.**
+
+**Lo que decía §15.** El código es correlativo y lo genera el sistema, **pero el
+campo queda en el formulario** porque los lanzamientos anteriores se cargan a mano
+y *"un release de 2023 tiene el número que tuvo, no el que le tocaría hoy"*.
+
+**Lo que pidió Ignacio.** *"El slot de 'código' de releases saquémoslo, que lo ponga
+el sistema solo siempre."*
+
+**Se le presentó el costo antes de decidir** —si alguien busca LJ007 en Spotify y en
+el sistema es otro número, no cierran— y **eligió igual**: los lanzamientos viejos
+toman código nuevo.
+
+**Alcance exacto de la decisión: es del FORMULARIO, no de la API.**
+`AltaReleaseRequest.codigoRelease` se queda, y no como resto olvidado:
+
+- es por dónde entraría una carga histórica si alguna vez hace falta;
+- lo ejercitan tres casos de `SelloTest`, incluido el del correlativo, que necesita
+  sembrar un código alto para probar que sale **por encima del máximo** y no
+  contando filas.
+
+**Lo que sigue vigente de §15**: `maximoNumeroDeCodigo()` no cuenta filas, y el
+motivo no cambió — un código puede saltarse igual, y `count(*) + 1` chocaría contra
+el índice único o se metería en un hueco del medio.
+
+---
+
+### ✅ P50 — Los errores rojos se van a los 20s; los de campo no
+
+**La pregunta.** Ignacio pidió que *"los msj de error en rojo desaparezcan, nose, a
+los 20seg"*. Se le señaló el riesgo concreto: si el error de *"no se pudo registrar
+el pago"* se borra antes de que alguien lo lea, **una operación fallida parece haber
+salido bien**.
+
+**La respuesta: sólo los de acción, no los de campo.**
+
+| Tipo | Qué pasa |
+|---|---|
+| La banda roja de arriba (falló el pedido) | Se va a los **20 segundos** |
+| El error debajo de un campo del formulario | **Se queda**. Se limpia cuando se corrige ese campo, que es cuando deja de ser cierto |
+
+**Un reloj sobre el error de un campo borraría la marca de lo que está mal mientras
+la persona lo está mirando**, que es lo contrario de para qué existe.
+
+**Lo que la implementación agregó a esta regla** (está en `mejoras.md` §14 · B3, y
+es la parte que no se puede deducir del enunciado): **un aviso se va solo cuando la
+pantalla tiene otra cosa para mostrar.** Diez estados quedaron afuera por eso —
+siete donde el error *es* la pantalla, y **dos que no son avisos sino estados del
+flujo**: los rechazos que habilitan *"Publicarlo igual, con motivo"* y *"Liberarlo
+igual, con motivo"*.
+
+---
+
+### ✅ P51 — El rango de temas se exige al PUBLICAR, no al cargar
+
+**La pregunta.** Ignacio pidió que un EP tenga entre 3 y 6 temas y un álbum entre 8
+y 15. Se le señaló que si la base lo exige al guardar cada tema, **no se puede
+cargar el primero**: un EP con 1 tema ya viola la regla, así que nunca se llegaría a
+los 3.
+
+**La respuesta, textual:** *"si la opcion 1 la que dice 'se exige al publicar, no al
+cargar' y se guarda el progreso, esa!"*
+
+Los temas se cargan de a uno y quedan guardados. **Cuando se aprieta Publicar, si un
+EP no tiene entre 3 y 6, el sistema lo frena y dice cuántos hay.**
+
+**Es la misma forma que ya tiene la regla dura del Módulo 7** —*no se publica un
+release sin contrato adjunto*—: la verificación vive en el momento de publicar, no
+en cada fila que se carga.
+
+⚠️ **NO se decidió una salida firmada** tipo `publicado_sin_contrato`. Ignacio
+eligió esta opción **sabiendo** que la alternativa ofrecida era el aviso que no
+frena, así que la regla es dura. La tensión es real y está anotada: un EP de 2 temas
+existe en el mundo. **Si aparece un caso legítimo, se revisa deliberadamente en otra
+migración** — no se inventa la excepción sobre la marcha, que es lo que `V15` tuvo
+que venir a corregir del lado de las revisiones de M&M.
+
+---
+
+### ✅ P52 — Sólo EP y ÁLBUM llevan lista de temas
+
+**La pregunta.** Hay cuatro tipos (Single, EP, Remix, Álbum) y además el tipo puede
+quedar vacío. ¿Cuáles llevan temas?
+
+**La respuesta: sólo EP y ÁLBUM.**
+
+**Un single es el release mismo**: su nombre ya es el nombre del tema, y cargarlo de
+nuevo es escribir lo mismo dos veces. La sección de temas aparece únicamente si se
+elige EP o Álbum.
+
+**Consecuencia para la migración**: un tema colgado de un release que no es EP ni
+álbum **es una fila inválida** y la base tiene que rechazarla — no alcanza con que
+la pantalla no la ofrezca. Y `tipo_release` es nullable, así que qué pasa con un
+release sin tipo hay que decidirlo explícito.
+
+---
+
+### ✅ P53 — Cada tema lleva duración, artista invitado e ISRC
+
+**La pregunta.** Orden y título van seguros. Se ofrecieron tres campos más,
+aclarando que **los que no se marquen no van, y agregarlos después es otra
+migración**.
+
+**La respuesta: *"todo"*.** Los tres entran.
+
+| Campo | Para qué |
+|---|---|
+| **Duración** | La ficha del release y la duración total del EP/álbum |
+| **Artista invitado (feat.)** | Texto libre. El release ya tiene su artista; esto es para los temas que suman a alguien más |
+| **ISRC** | El código internacional de cada grabación, el que piden las distribuidoras. Si se va a cargar en algún lado, mejor acá que en un Excel aparte |
+
+**Ninguno es obligatorio**: se cargan cuando se tienen. El ISRC en particular
+aparece después de la distribución, así que exigirlo al crear el tema haría
+imposible armar el tracklist antes de mandarlo.

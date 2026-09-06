@@ -2923,3 +2923,532 @@ falla: desaparece del resumen**. Las reservas que sobreviven al COMMIT entran co
 su pago en un CTE. Y todo caso de rechazo contra un trigger va con
 `probar_mensaje`, que es lo que distingue una regla que anda de un trigger que
 revienta antes de llegar a su propio mensaje.
+
+
+---
+
+## 14. La TERCERA barrida de correcciones — abierta el 2026-09-05
+
+> Ignacio la trajo con la misma consigna de siempre: *"las ordenas segun te
+> convenga, armamos plan de accion por fases y una por una las mitigamos, tmb como
+> siempre, si hay alguna duda de negocio me consultas."*
+>
+> **Trece hallazgos.** Es la barrida más grande de las tres, y no porque el
+> sistema haya empeorado: varios de los trece son cosas que **no estaban en
+> ninguna capa** o que **una capa decía y otra desmentía**. Aparecen ahora porque
+> Ignacio está usando el sistema de punta a punta, no porque se hayan roto.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-05)
+
+🟡 **LA TERCERA BARRIDA ESTÁ EN DOCE DE TRECE.** Falta **C2, las canciones de un
+EP/álbum**, que es la más grande y la única que queda.
+
+**Suites: 609 backend · 520 front · 233 + 61 SQL**, sobre **25 migraciones**.
+`tsc -b` y los dos linters limpios. Nada quedó a medias en el árbol: lo hecho está
+entero, con sus casos.
+
+**LO PRIMERO AL RETOMAR: C2, y las decisiones YA ESTÁN TOMADAS.** Están abajo, en
+🔴 C2, y en `requirements/platform.md` §20 (P51, P52, P53). No hay que volver a
+preguntar nada — hay que escribir `V26`.
+
+**Después de C2:**
+
+1. **Desactivar el admin sembrado por `V3`** — ahora sería **`V27`**. Se corrió
+   otra vez: `V25` se la llevó el comprobante del egreso y `V26` se la lleva C2.
+   Es la tercera vez que se corre, así que **conviene no anotarla con número fijo
+   en ningún lado**.
+2. **El deploy de octubre** (`operacion.md` §3).
+3. **La próxima barrida**, que va a existir.
+
+⚠️ **Un pendiente de infraestructura que ESTA barrida creó.** `V25` guarda archivos
+en una carpeta nueva (`comprobantes-egreso/`). `scripts/backup.sh` ya hace el tar
+de `lajuanita.archivos.raiz` entera, así que **la copia funciona sin tocar nada** —
+pero el ensayo de restore de `operacion.md` §2 verifica contratos y comprobantes de
+pago, y ahora hay un tercer tipo de archivo que nadie probó recuperar. No es
+urgente y no es gratis olvidarlo.
+
+---
+
+### Las advertencias de método de esta barrida
+
+- ⚠️ **Un atajo que rellena un campo con un valor plausible no falla: miente.**
+  `ReleaseResumen.de(r)` —el overload de un argumento— pasaba `contratos = 0`, y el
+  listado lo alcanzaba con una referencia a método. Resultado: **todo el catálogo
+  del sello decía "Sin contrato"**, incluidos los que sí lo tenían. El atajo se
+  borró: hay una sola fábrica y toma el conteo.
+- ⚠️ **Un comentario que justifica una decisión puede volverse falso sin que nada
+  falle.** El de `ReleaseService.listar` decía que el conteo era *"un número que la
+  fila del catálogo ni usa"*. Era cierto el día que se escribió; la fila empezó a
+  usarlo después. **Es la tercera vez en este proyecto** (`V16`, la mitad de §8 del
+  Módulo 5, y ahora esto).
+- ⚠️ **Un caso nuevo se verifica poniendo el bug de vuelta.** Los cuatro casos del
+  listado del sello se probaron revirtiendo el arreglo: tres se pusieron en rojo.
+  Un caso verde no prueba nada si también sería verde con el bug puesto — es el
+  primo del *"un 'ANDA' tiene que afectar filas"* de las suites SQL.
+- ⚠️ **`findByLabelText` espera al `select`, NO a sus `option`.** Es la **tercera
+  cara** del flake de §9.6. La primera fueron los dos techos de tiempo; la segunda,
+  `userEvent.selectOptions` que no reintenta (cerrada con `pruebas/elegir.ts` en 58
+  lugares); ésta es un caso que **afirma sobre `textContent`** y por eso quedó
+  afuera de aquella barrida. No hay espera que agrandar: se espera la **opción**.
+- ⚠️ **Un `perl -0pi` sobre seis archivos acertó en dos.** La expresión pedía una
+  línea en blanco antes y cuatro archivos no la tenían. No corrompió nada —se
+  verificó con `cat -A`— pero es exactamente el terreno donde §10 se quemó: **para
+  editar archivos de este repo va la herramienta de edición, no un script.**
+
+---
+
+### El triage, con los grupos de §4
+
+| Grupo | Qué significa | Cuántos | Estado |
+|---|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo | **6** | ✅ 6 de 6 |
+| 🟡 **B** | Funcionalidad, sin tocar el schema | **5** | ✅ 5 de 5 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | 🟡 1 de 2 |
+
+**El orden fue A → B → C con una excepción deliberada**: B1 (el bug del sello) se
+hizo **primero de los trece**, porque no era una mejora sino una pantalla que
+mentía sobre todos los releases.
+
+**Las decisiones de negocio se tomaron antes de codear**, como siempre, y están en
+`requirements/platform.md` §20 (P48 a P53). Es la quinta vez que ese orden paga.
+
+---
+
+### 🟢 A1 — El login no dice "Sistema de gestión"
+
+> ✅ **CERRADO.** Ignacio: *"en el login que no diga 'Sistema de gestión' que diga
+> no se, otra cosa... y con otra letra"*.
+
+Dice **"Ingresá"**, en la serif de la marca (`.t-serif`, Instrument Serif).
+
+**Lo que hizo obvia la corrección fue mirar las otras dos puertas**: "Crear cuenta"
+y "Elegí tu contraseña" dicen **qué hacés acá**. El login era el único que se
+presentaba en vez de invitar — y encima nombraba a la marca en el único lugar del
+sistema donde la marca ya ocupa media pantalla.
+
+**La serif es del título de una puerta y no del resto del sistema.** Adentro,
+`t-titulo` es lo correcto: son nombres largos que hay que barrer arriba de una
+tabla. En una puerta no hay nada que barrer todavía. Es el criterio de cuentagotas
+que `.t-serif` ya declaraba en su propio comentario.
+
+⚠️ **Y por eso la bajada de abajo de `lg` dejó de ser serif**: apiladas eran dos
+itálicas seguidas compitiendo. Arriba de `lg` no se cruzan nunca — la bajada vive
+en la otra mitad.
+
+---
+
+### 🟢 A2 — Las frases del Inicio, todas firmadas
+
+> ✅ **CERRADO.** Ignacio: *"te falto en las frases de dj diarias poner quien la
+> dijo"*.
+
+**Faltaba, y el que faltaba era La Juanita.** De las 31 frases, **13 son de tipo
+`casa`** —voz propia del estudio— y por diseño no llevaban autor: casi la mitad de
+los días salía una cita sin nadie abajo, que se lee como un olvido.
+
+**Decisión de Ignacio (P48): firmarlas "La Juanita".** Ahora todas llevan pie.
+
+⚠️ **La firma de las `casa` vive en el componente, no repetida en cada fila del
+arreglo.** Es una propiedad del tipo y no de cada frase: trece copias del mismo
+string son trece lugares donde puede quedar distinto. Va **sin link** a propósito —
+no hay fuente que ir a verificar, que es justo lo que separa a los dos tipos.
+
+---
+
+### 🟢 A3 — Pagos deja de sumar plata
+
+> ✅ **CERRADO.** Ignacio: *"en la parte de pagos, sacar eso de entraron:
+> nosecuanta plata"*.
+
+La barra de solapas cuenta pagos y ya no suma importes.
+
+**El argumento, más allá del pedido: cuánto entró es la pregunta de
+`/admin/caja`**, que es la pantalla hecha para contestarla. Dos lugares que suman
+plata del mismo período son dos lugares que en algún momento no van a coincidir —
+es el mismo motivo por el que el Tablero del Módulo 8 **no recalcula la caja sino
+que se la pide** a Pagos.
+
+⚠️ **El caso que lo probaba se dio vuelta en vez de borrarse**: ahora afirma la
+**ausencia** del importe. `entraron` sigue viajando en la respuesta, así que volver
+a dibujarlo es una línea — y sin ese caso nada recordaría por qué no está.
+
+---
+
+### 🟢 A4 — "Ver comprobante" en vez del nombre del archivo
+
+> ✅ **CERRADO.** Ignacio: *"que no figure el nombre del pdf o del archivo ahí
+> largo... que diga 'Ver comprobante' asi es mas corto"*.
+
+Estos archivos llegan como los nombró el teléfono o el banco de quien pagó, así que
+la celda mostraba nombres de ochenta caracteres y la fila se iba a tres renglones.
+**El nombre no es el dato: el dato es que hay respaldo y se puede abrir.**
+
+⚠️ **El nombre no se tiró: va en el `title`.** Con varios comprobantes en una misma
+fila es la única forma de saber cuál es cuál sin abrirlos de a uno. El caso que
+verificaba los dos comprobantes se reescribió para afirmar sobre el `title` y sobre
+el texto de la invalidación, que es lo que de verdad prueba `V21` §3.
+
+---
+
+### 🟢 A5 — Todas las fechas en DD/MM/AAAA
+
+> ✅ **CERRADO.** Ignacio: *"Fechas, todo lo que es fecha formato DD/MM/AAAA"*.
+
+**No era "falta un helper": había seis dialectos** para la misma idea.
+
+| Dialecto | Dónde |
+|---|---|
+| `fecha()` local | `AlumnoPerfilPagina`, `MisTrabajosPagina` |
+| `fechaCorta()` local | `BloqueosPagina`, `DeudoresPagina`, `PagosPagina` |
+| `.split('-').reverse().join('/')` a mano | `EgresosPagina`, `VentasPagina`, `DetalleDeCuenta` |
+| **ISO crudo** (`2026-09-01`) | `SelloPagina` ×4, `ArtistasPagina` ×1 |
+| `diaYMes()` (DD/MM) | 14 lugares |
+| `cuando()` (DD/MM HH:MM) | notificaciones y notas |
+
+Es exactamente la forma de §12 con el control de línea: una idea, seis dialectos.
+Ahora hay **una definición**, `fecha()` en `componentes/semana.ts`.
+
+⚠️ **Y había una trampa latente.** De los cinco helpers locales, **sólo el de
+Bloqueos hacía `slice(0, 10)`** —era el único al que le llegaba un `TIMESTAMPTZ`—.
+A cualquiera de los otros cuatro, pasarle un timestamp le devolvía
+`19T14:33:12Z/08/2026` **sin fallar**. Con seis copias, la corrección de una no
+llega a las otras cinco.
+
+⚠️ **UN LUGAR QUEDÓ SIN AÑO A PROPÓSITO, Y ES REVISABLE.** La regla aplicada: **el
+año va salvo donde la pantalla ya lo fijó arriba.** Las siete columnas del
+calendario semanal y las cabeceras "Del X al Y" siguen en DD/MM, porque ahí el año
+lo establece el contexto visible y repetirlo siete veces arriba de la grilla
+ensancha las columnas sin agregar nada. **Todo lo demás lleva DD/MM/AAAA**,
+incluidas las filas de tablas y el historial de clases, donde el año sí importa.
+**Si Ignacio lo quiere literal en todo, es cambiar dos llamadas** — todo pasa por
+`semana.ts`.
+
+---
+
+### 🟢 A6 — El horario tomado, dicho entero
+
+> ✅ **CERRADO.** Ignacio: *"ya el sistema tiene eso porque dice 'ese dia 16-18'
+> como que alguien ya la tiene, pero es un poco confuso"*.
+
+Antes decía *"Ese día · 16:00–18:00"* y nada más: un dato sin la frase que lo
+vuelve útil. Le faltaban **dos mitades**, y la segunda no estaba escrita en ninguna
+pantalla del sistema:
+
+1. **Ocupado no es para siempre**: si quien lo tiene cancela —o si es una
+   prereserva de `V24` y se le vence el plazo— la franja se libera sola.
+2. ⚠️ **Pero el pedido se aprueba TAL CUAL**, que es la regla de `V13`:
+   administración no lo mueve a otro horario, aprueba lo que pediste o lo rechaza.
+   Pedir un horario ocupado no es anotarse en una fila, es casi seguro un rechazo.
+
+**Sin la segunda, la primera invita justo a lo que no funciona**, que es lo que
+Ignacio pidió evitar.
+
+⚠️ **El aviso se dibuja sólo si hay alguna franja `RESERVADA`.** Un bloqueo de sala
+no se libera porque nadie lo cancele —es la sala que no se usa ese rato—, así que
+con un día enteramente bloqueado la frase sería falsa.
+
+---
+
+### 🟡 B1 — El catálogo del sello decía "Sin contrato" para todos
+
+> ✅ **CERRADO, y se hizo PRIMERO de los trece.** Ignacio: *"en los releases, todos
+> figuran 'Sin contrato' aunque tenga contrato como nacho scoppa"*.
+
+**No era un problema de datos: el listado mandaba cero siempre.**
+`ReleaseService.listar` mapeaba con `ReleaseResumen::de`, el overload de un
+argumento, que hace `de(r, 0)`. Y la fila dibuja "Sin contrato" cuando ese número
+es cero.
+
+**El agujero nunca estuvo abierto** — el trigger de `V18` siguió rechazando igual.
+Lo que se rompió fue **el aviso**: existe para que nadie se sorprenda al apretar
+publicar, y saltaba para todo el catálogo, o sea que no avisaba de nada. **Es el
+ámbar del §11 otra vez**: un aviso que no distingue deja de ser un aviso.
+
+**Tres cosas que no estaban en el punto de Ignacio:**
+
+- ⚠️ **El alta tenía el mismo error**: pasaba `0` fijo, y un release de un artista
+  que ya tiene contrato general **nace respaldado**.
+- ⚠️ **Se borró el atajo de un argumento**, que quedó sin usuarios. Era la trampa
+  misma: se alcanzaba con una referencia a método.
+- ⚠️ **Ninguno de los 24 casos de `SelloTest` miraba el listado.** Todos entran por
+  el trigger. Por eso sobrevivió: **la regla estaba probada, el aviso no.**
+
+**Se agregaron 4 casos y se verificaron poniendo el bug de vuelta: 3 en rojo.** El
+segundo es el que importa — dos releases del mismo artista y uno solo con contrato:
+contar mal parejo (cero para todos, o uno para todos) pasa el primero y muere ahí.
+
+**Una consulta por página, no una por fila** (`ReleaseRepository.contarContratosDe`).
+El camino corto era llamar a `cuantosContratos` adentro del `map`, que son veinte
+consultas más por página — justo lo que el `JOIN FETCH` del artista evita tres
+métodos más arriba.
+
+---
+
+### 🟡 B2 — Cómo se hace alumno o profesor alguien que ya tiene cuenta
+
+> ✅ **CERRADO.** Ignacio: *"pepe no es alumno ni profe pero tiene cuenta por
+> reserva de cabina, quiere hacer un curso, ¿cómo se lo inscribe como alumno? lo
+> mismo con profe"*.
+
+**Son dos huecos muy distintos, y el segundo es el hallazgo de la barrida.**
+
+**Del lado del alumno faltaba media pantalla.** `AltaAlumnoRequest` tiene los dos
+caminos **desde el primer día**, y su javadoc describe el caso con las palabras
+casi exactas de Ignacio: *"se registró sola, quizá para alquilar una cabina, y
+ahora se inscribe"*. El formulario decía en su propio comentario *"se agrega cuando
+exista el buscador de personas. El backend ya lo soporta"*. Era medio circuito
+escrito esperando la otra mitad.
+
+⚠️ **Del lado del profesor NO EXISTÍA EN NINGUNA CAPA.** `ProfesorController` tenía
+**un solo `@GetMapping`**. Seis pantallas del Módulo 5, el selector de la
+inscripción y la agenda del profesor leían una tabla que **ninguna capa del sistema
+sabía poblar**: la única forma de que alguien fuera profesor era un INSERT a mano.
+
+**Nada estaba fallando, porque una capacidad que no existe no tiene nada que
+romper.** Es la **quinta vez** que este proyecto encuentra algo así (`V16`, la mitad
+de §8 del Módulo 5, la regla dura del Módulo 7, `MaterialRepository` de §12·C2, y
+esto). Y el comentario del controller decía *"el alta y la baja llegan con el
+Módulo 2, junto con la agenda del profesor"* — **el Módulo 2 cerró el 2026-08-16,
+el 5 construyó la agenda, y el alta nunca llegó.**
+
+**Dónde vive el alta de profesor: en `/admin/usuarios`, no en una pantalla
+propia.** No hizo falta preguntarlo — el modelo de este proyecto lo dice desde el
+principio: *permisos y relaciones de negocio son dos ejes independientes*, y una
+fila de `profesor` se crea **dándole la relación a un `usuario`**. Ésa es la
+pantalla de las personas, la misma donde se otorga el rol. Por eso "Rol" y
+"Profesor" son **dos columnas** y no una: juntas se leerían como valores de la
+misma cosa, que es el modelo equivocado que este proyecto corrigió al empezar.
+
+**Lo construido:**
+
+- `POST /api/profesores` y `PUT /api/profesores/{id}`, más `ProfesorService`, que
+  no existía. **No hay DELETE y no va a haberlo**: dar de baja es `activo = false`,
+  porque `existsByUsuarioId` —la puerta del portal del profesor— pregunta por la
+  existencia de la fila, para que quien dejó de dar clases siga viendo el historial
+  de lo que dictó.
+- `componentes/BuscadorDePersonas.tsx`, que **es la pieza que el comentario de
+  `AlumnosPagina` estaba esperando por escrito**. Es un componente y no código
+  adentro de una pantalla porque lo necesitan dos: hacerse alumno y hacerse
+  profesor son la misma pregunta —*¿quién de los que ya están?*—.
+- El alta de alumno ahora pregunta **primero** si ya tiene cuenta, y esa pregunta
+  va arriba a propósito: puesta al final, alguien completa cinco campos y recién
+  ahí se entera de que había otro camino.
+
+⚠️ **El caso que dice para qué sirve todo esto** es
+`darle_la_relacion_le_abre_el_portal_del_profesor`: `/api/me` contesta `esProfesor`
+preguntando por la existencia de la fila, así que el menú del portal —Mi agenda,
+Mis alumnos, Subir material— **le aparece a esa persona en su pedido siguiente**.
+No hay un segundo lugar donde "habilitarlo", y si algún día lo hubiera, ese caso
+avisa que se rompió el circuito.
+
+⚠️ **Queda una asimetría conocida**: no hay pantalla de profesores como la hay de
+alumnos. Es deliberado —`GET /api/profesores` no pagina justamente porque lo acota
+la nómina— pero si alguna vez se quiere "quién enseña qué" en una sola vista, eso
+es una pantalla nueva y no un endpoint que falte.
+
+---
+
+### 🟡 B3 — Los errores en rojo se van solos
+
+> ✅ **CERRADO.** Ignacio: *"los msj de error en rojo que desaparzecan nose, a los
+> 20seg"*. Alcance decidido (P50): **los de acción sí, los de campo no.**
+
+La pieza es `componentes/aviso.ts` → `useErrorPasajero()`, que reemplaza a
+`useState<string | null>(null)`. **Una línea por pantalla, 61 declaraciones, sin
+tocar una sola línea de JSX.**
+
+⚠️ **EL RELOJ VIVE EN EL ESTADO, NO EN EL COMPONENTE `Aviso`, y ésa es la decisión
+que hay que entender antes de tocar esto.** Adentro de `Aviso`, el componente se
+escondería a sí mismo mientras el estado del dueño sigue en el mensaje viejo — y
+entonces **el mismo error dos veces seguidas no se vuelve a mostrar**: la segunda
+vez el padre escribe el mismo string, React no re-renderiza porque el valor no
+cambió, y el aviso queda escondido. **Es la forma exacta de §8.1** (el `enviando`
+que sobrevivía porque el componente no se desmontaba), y se ve recién al segundo
+intento, que es justo cuando alguien está peleando con un error de verdad. Hay un
+caso que lo fija (`aviso.test.ts`), y es el único archivo de la suite que usa
+relojes falsos — porque no hay `userEvent` de por medio.
+
+⚠️ **DIEZ ESTADOS QUEDARON AFUERA, Y DOS SON UN HALLAZGO.** La regla, en una línea:
+**un aviso se va solo cuando la pantalla tiene otra cosa para mostrar.**
+
+| Cuántos | Cuáles | Por qué |
+|---|---|---|
+| 7 | Los que se dibujan como `if (error) return <Aviso>` | El mensaje **no acompaña** al contenido, lo **reemplaza**. Limpiarlo deja una página en blanco |
+| 1 | `CalendarioPagina.errorDeCarga` | Si el catálogo no cargó, el `select` queda vacío y esto es la única explicación |
+| **2** | **`SelloPagina.rechazo` y `MixMasteringPagina.rechazoDeLiberacion`** | **No son avisos: son estados del flujo** |
+
+**Los dos últimos son el hallazgo.** El estado del rechazo **habilita el botón de la
+salida con motivo**: mientras vale, y sólo mientras vale, aparece *"Publicarlo
+igual, con motivo"* / *"Liberarlo igual, con motivo"*. Con reloj, **la salida
+desaparecería sola mientras alguien está leyendo la regla y decidiendo** — y la
+forma entera de esas dos pantallas es *"el backend rechaza → se muestran sus
+palabras → recién ahí la salida"*. Son las dos reglas duras del sistema con esa
+forma y las dos quedan afuera, con el motivo escrito en el código.
+
+---
+
+### 🟡 B4 — El código del release lo pone siempre el sistema
+
+> ✅ **CERRADO.** Ignacio: *"el slot de 'código' de releases saquémoslo, que lo
+> ponga el sistema solo siempre"*.
+
+⚠️ **Esto REVIERTE la ratificación 5 de `platform.md` §15**, que dejó el campo a
+propósito para cargar lanzamientos viejos con el número que tuvieron. Se le presentó
+el costo —*"si alguien busca LJ007 en Spotify y en el sistema es otro número, no
+cierran"*— y eligió igual. **La decisión posterior gana**: está registrada como P49
+en §20.
+
+**El pedido HTTP sigue aceptando `codigoRelease`, y no es un resto olvidado**: es
+por dónde entraría una carga histórica si alguna vez hace falta, y es lo que
+ejercitan tres casos de `SelloTest` —incluido el del correlativo, que necesita
+sembrar un código alto para significar algo—. **Se sacó el camino de pantalla, no la
+capacidad**, y está dicho así en el javadoc de `AltaReleaseRequest`.
+
+---
+
+### 🟡 B5 — El slot de comprobante en ventas
+
+> ✅ **CERRADO.** Es la mitad de *"todo lo que sea pagos o cobros con slot de
+> comprobante"* que **no necesitaba migración**.
+
+**La aclaración de Ignacio convirtió dos features en una regla:** *"que haya un slot
+de comprobante en pago (la juanita le pago a alguien y se adjunta el comprobante de
+esa transferencia) o cobro (la juanita cobro y se adjunta el comprobante de pago de
+la persona que compro/contrato algo)"*.
+
+Dicho así: **toda plata que se mueve tiene dónde adjuntar su papel.**
+
+| | Dónde vive | Estado |
+|---|---|---|
+| Plata que **entra** | `pago` → `comprobante_pago` | Existía desde `V21`. **Faltaba la pantalla de ventas** |
+| Plata que **sale** | `egreso` | No existía → **C1, `V25`** |
+
+**La venta no mueve plata: la mueve su pago**, así que no necesitó ni una línea de
+SQL. `VentaResumen` ganó `idPago` y `comprobantes`, y la consulta que los trae
+reemplazó a `ventasConPago` en vez de sumarse a ella.
+
+⚠️ **`idPago` puede venir con `cobrada` en falso y no es una contradicción**: son
+las dos lecturas que `V12` enseñó a no confundir.
+
+- **Si la venta está cobrada** lo decide `EstadoPago.ENTRARON` — plata que entró de
+  verdad. Una deuda anotada no es una venta cobrada.
+- **A qué pago se le adjunta el comprobante** lo decide *no anulado*, porque a una
+  deuda anotada **sí** se le adjunta el respaldo de la transferencia: es justo el
+  papel con el que después se la cobra.
+
+Teniéndolas juntas en la misma fila es especialmente fácil mezclarlas, así que está
+escrito en el javadoc de la consulta.
+
+**Invalidar no se ofrece desde ventas**: pide un motivo que queda firmado (`V7`), y
+ese flujo vive en Pagos. Dos lugares para firmar el mismo acto son dos formas de
+firmarlo.
+
+---
+
+### 🔴 C1 — Los comprobantes de un egreso (`V25`)
+
+> ✅ **CERRADO.** Ignacio: *"en los egresos, slot para adjuntar comprobante de pago
+> hacia esa persona"*.
+
+**No hizo falta ninguna pregunta de negocio: es `V21` aplicada a la otra tabla**, y
+esa simetría es el punto — si las dos se separan, "adjuntar un comprobante"
+significa una cosa en Pagos y otra en Egresos.
+
+⚠️ **Lo que había era peor que no tener nada.** `egreso.comprobante_path` existe
+desde `V1` y es **exactamente la columna que `V21` le sacó a `pago`**: texto que
+alguien tipeaba. El formulario tenía un campo con placeholder `/comprobantes/…`, o
+sea que la pantalla le pedía a alguien que **escribiera una ruta** y después la
+mostraba como si hubiera un archivo detrás.
+
+⚠️ **Y del lado del egreso pesa más que del lado del pago**, que es el argumento que
+conviene no perder: un cobro sin comprobante **lo reclama el que pagó**; una salida
+de plata sin comprobante **no la reclama nadie** — el que la cobró está contento y
+el que la firmó es el mismo que la cargó. Ese archivo es la única prueba de que ese
+sueldo se pagó.
+
+**El mapa, para no releer `V21`:**
+
+| `V21` | `V25` |
+|---|---|
+| §1 la tabla, con la firma de la invalidación | §1 |
+| §2 `prohibir_borrado_historico` | §2 |
+| §3 inmutable, y la marca tampoco se deshace | §3 |
+| §4 la columna vieja se va, sin migrar valores | §4 |
+
+⚠️ **§3 es la mitad que es fácil no escribir**, y `V21` la aprendió de `V18` §1b:
+desde adentro de *"no se borra, se marca"* **no se ve que la marca tampoco se
+borra**. Sin ese trigger la tabla no compra nada — pisar `archivo_path` es la
+columna de siempre con más pasos, y poner `invalido = FALSE` deshace un acto
+firmado sin dejar rastro.
+
+**Los valores viejos NO se migran** y la migración imprime un NOTICE con los ids
+afectados: eran texto tipeado, así que copiarlos fabricaría respaldo inexistente —
+el modo de falla que el ensayo de restore del 2026-08-20 probó desde el otro lado.
+
+**Un extra que salió de acá:** el saneo del nombre del archivo era un método privado
+de `ComprobanteService`, y el egreso necesitaba lo mismo. Se extrajo a
+`archivo/NombreDeArchivo`, **en vez de copiarlo**: dos copias de un saneo se
+despegan sin que nada falle — un lado empieza a aceptar un carácter que el otro
+rechaza y nadie se entera hasta que una descarga sale rota.
+
+⚠️ **No hay `/api/me/...` para bajarlo, al revés que del lado del pago**, y es una
+decisión y no un olvido: un egreso **no tiene dueño del lado del portal** — el
+destinatario de un sueldo no entra al sistema a descargar su recibo. Si algún día lo
+hiciera, es una decisión de negocio nueva.
+
+**Cobertura:** 14 casos en `ComprobanteEgresoTest` (tres atacan la base por SQL,
+salteando el servicio), 7 casos en la suite de reglas (211–217) y 5 ataques
+adversariales (sección I).
+
+---
+
+### 🔴 C2 — Las canciones de un EP o un álbum (`V26`) — **LO QUE FALTA**
+
+> 🔴 **NO EMPEZADO.** Ignacio: *"en los releases vi que hay opción de EP o Album y
+> esta bueno, pero podríamos hacer que si selecciona esa opción que puedas cargar
+> las canciones de ese álbum o ep según que tipo sea, ep entre 3 y 6 temas, álbum de
+> 8 a 15"*.
+
+**LAS TRES DECISIONES DE NEGOCIO YA ESTÁN TOMADAS** (§20 · P51, P52, P53). No hay
+que volver a preguntar nada.
+
+| | Decisión | Palabras de Ignacio |
+|---|---|---|
+| **Cuándo se exige el rango** | **Al PUBLICAR, no al cargar**, guardando el progreso | *"si la opcion 1... y se guarda el progreso, esa!"* |
+| **Qué tipos llevan temas** | **Sólo EP y ÁLBUM** | *"Sólo EP y álbum"* |
+| **Qué lleva cada tema** | Orden y título, **más duración, artista invitado (feat.) e ISRC** | *"todo"* |
+
+**Por qué el rango va al publicar y no al insertar**: un EP con 1 tema ya viola
+"entre 3 y 6", así que exigirlo por fila hace imposible cargar el primero — nunca
+llegarías a los 3. Es la misma forma que ya tiene *"no se publica un release sin
+contrato"*: **la regla dura vive en el momento de publicar.**
+
+**Lo que hay que construir:**
+
+1. **`V26`** — tabla `cancion_release` (`id_release` NOT NULL, `orden`, `titulo`,
+   `duracion_segundos`, `artista_invitado`, `isrc`, `fecha_creacion`),
+   `UNIQUE (id_release, orden)`, y **dos triggers**:
+   - uno que rechace colgar un tema de un release que no sea EP ni ÁLBUM;
+   - uno que verifique el rango **al pasar a `PUBLICADO`**.
+2. Entidad, repositorio, servicio y endpoints anidados bajo el release.
+3. La sección de temas en `SelloPagina`, visible sólo con EP o ÁLBUM elegido.
+4. Casos en las dos suites SQL y en `SelloTest`.
+
+⚠️ **TRES TRAMPAS PREVISTAS, anotadas antes de escribir una línea:**
+
+- ⚠️ **El trigger del rango tiene que mirar la TRANSICIÓN a `PUBLICADO`, no el
+  estado.** El de `V18` dispara en cualquier UPDATE de un release publicado, y ahí
+  funciona porque un publicado sí tiene contrato. **Los releases ya publicados hoy
+  tienen cero temas**, así que un trigger escrito con la forma de `V18` haría que
+  editarle el nombre a un release viejo lo rechace. La condición tiene que ser
+  `TG_OP = 'INSERT' OR OLD.estado IS DISTINCT FROM NEW.estado`.
+- ⚠️ **`tipo_release` es NULLABLE** (`V1`, `release_tipo_valido` acepta NULL). Un
+  release sin tipo no tiene rango que verificar, y eso hay que decidirlo explícito
+  en la migración en vez de que salga por descarte.
+- ⚠️ **No se previó una salida firmada tipo `publicado_sin_contrato`, y es una
+  tensión real.** Un EP de 2 temas existe en el mundo; con esta regla no se puede
+  registrar. Ignacio eligió *"se exige al publicar"* **sabiendo** que la otra opción
+  ofrecida era el aviso que no frena. Si aparece un caso legítimo, **se revisa
+  deliberadamente en otra migración** — como `V22` dejó anotado para la clase que no
+  descuenta. **No inventar la excepción sobre la marcha**, que es lo que `V15` tuvo
+  que venir a corregir del lado de las revisiones de M&M.

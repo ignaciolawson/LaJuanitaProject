@@ -1,29 +1,38 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-02 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-05 — leé esto y después, si hace falta, el resto
 
-**No queda nada de producto por construir.** Los ocho módulos, el rediseño del
-front y las dos barridas de correcciones están cerrados.
+**Queda UNA cosa de producto por construir, y es la única.** Los ocho módulos, el
+rediseño del front y las tres barridas están cerrados salvo **C2 de la tercera
+barrida: las canciones de un EP o un álbum**.
 
-**Suites: 584 backend · 515 front · 226 + 56 SQL, sobre 24 migraciones.**
-
-Lo que sigue abierto son **cuatro cosas y ninguna es código de producto**:
+**Suites: 609 backend · 520 front · 233 + 61 SQL, sobre 25 migraciones.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
+| 🔴 **0** | **C2 — las canciones de un EP/álbum (`V26`).** ⚠️ **Las tres decisiones de negocio YA ESTÁN TOMADAS**: no hay nada que preguntar, hay que escribir la migración | [`mejoras.md`](mejoras.md) §14 · C2 y [`platform.md`](requirements/platform.md) §20 · P51–P53 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
-| 🟡 3 | **`V25`** — desactivar el admin sembrado por `V3`, antes del deploy | §1 de acá |
-| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §13 |
+| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25` ni `V26`** — ver abajo | §1 de acá |
+| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §14 |
+| 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 
-⚠️ **Van dos barridas y va a haber más.** No es una lista que se cierra, es un modo
-de trabajo. La lectura de Ignacio sobre la segunda: *"cada vez encuentro menos,
-vamos por el camino correcto"*.
+⚠️ **Van tres barridas y va a haber más.** No es una lista que se cierra, es un modo
+de trabajo. La lectura de Ignacio sobre la segunda —*"cada vez encuentro menos,
+vamos por el camino correcto"*— sigue valiendo, con un matiz que dejó la tercera:
+**los trece hallazgos de §14 fueron más que los cuatro de §13**, y varios eran cosas
+que **no estaban en ninguna capa**. Que aparezcan más no es que el sistema empeore:
+es que se lo está usando de punta a punta.
 
-⚠️ **`V24` se la llevó la prereserva**, así que la migración del admin sembrado es
-**`V25`**. Y esa decisión dejó una puerta abierta a propósito, anotada en §13: el
-vencimiento automático firma con **quien preconfirmó**, porque `V7` exige autor y
-acá el autor es un reloj.
+⚠️ **La migración del admin sembrado ya se corrió tres veces de número** — `V24` se
+la llevó la prereserva, `V25` el comprobante del egreso, y `V26` se la va a llevar
+C2. **No la anotes con un número fijo en ningún lado**: lo que hay que recordar es
+que existe y va antes del deploy (§1.4).
+
+⚠️ **Y sigue abierta la puerta que dejó `V24` a propósito**, anotada en §13: el
+vencimiento automático de una prereserva firma con **quien preconfirmó**, porque
+`V7` exige autor y acá el autor es un reloj. Si este sistema alguna vez necesita una
+identidad para actos automáticos, **ése es el primer lugar donde mirar**.
 
 ---
 
@@ -237,7 +246,18 @@ diciendo que están.
 
 `admin@lajuanita.local` / `lajuanita2026` es una credencial **de desarrollo,
 commiteada**, y está agendada para desactivarse **en una migración nueva antes del
-deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva, y **desde el 2026-09-02 esa migración es `V25`, no `V24`** — `V24` quedó tomada por la prereserva (`mejoras.md` §13 · C1). Las últimas usadas: **`V19`** para los pagos sin cuenta, **`V20`** para el buzón de solicitantes, **`V21`** para los comprobantes, **`V22`** para `tipo_uso.disciplina` (§12 · C1) y **`V23`** para el material por curso y por clase (§12 · C2), las dos últimas del 2026-09-01/02.
+deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migración nueva.
+
+⚠️ **NO ANOTAR SU NÚMERO EN NINGÚN LADO COMO FIJO.** Ya se corrió tres veces: era
+`V24` y se la llevó la prereserva; pasó a `V25` y se la llevó el comprobante del
+egreso; ahora sería `V26` y **se la va a llevar C2**. Es lo que pasa cuando una
+tarea sin fecha comparte numeración con el trabajo que sí avanza. Lo que hay que
+recordar es **que existe y va antes del deploy**, no qué número le toca.
+
+Las últimas usadas: **`V19`** pagos sin cuenta, **`V20`** el buzón de solicitantes,
+**`V21`** los comprobantes de un pago, **`V22`** `tipo_uso.disciplina` (§12 · C1),
+**`V23`** el material por curso y por clase (§12 · C2), **`V24`** la prereserva
+(§13 · C1) y **`V25`** los comprobantes de un egreso (§14 · C1, del 2026-09-05).
 
 ---
 

@@ -34,7 +34,9 @@ function egreso(cambios: Partial<EgresoResumen> = {}): EgresoResumen {
     destinatario: 'Tomás Ghezzi',
     idUsuarioDestino: 20,
     esPagoAProfesor: true,
-    comprobantePath: null,
+    // Desde `V25` el comprobante de un egreso es un archivo con su firma, no un
+    // texto que alguien tipea. Un egreso recién cargado no tiene ninguno.
+    comprobantes: [],
     fechaEgreso: '2026-08-16',
     fechaRegistro: '2026-08-16T14:00:00Z',
     anulado: false,

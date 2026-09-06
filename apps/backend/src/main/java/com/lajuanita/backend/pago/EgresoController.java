@@ -2,8 +2,11 @@ package com.lajuanita.backend.pago;
 
 import java.time.LocalDate;
 
+import org.springframework.core.io.Resource;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -12,13 +15,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.AltaEgresoRequest;
+import com.lajuanita.backend.pago.dto.ComprobanteResumen;
 import com.lajuanita.backend.pago.dto.EgresoResumen;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.usuario.dto.Pagina;
@@ -38,9 +44,11 @@ import jakarta.validation.Valid;
 public class EgresoController {
 
     private final EgresoService egresos;
+    private final ComprobanteEgresoService comprobantes;
 
-    public EgresoController(EgresoService egresos) {
+    public EgresoController(EgresoService egresos, ComprobanteEgresoService comprobantes) {
         this.egresos = egresos;
+        this.comprobantes = comprobantes;
     }
 
     @GetMapping
@@ -83,5 +91,65 @@ public class EgresoController {
             @Valid @RequestBody MotivoRequest solicitud,
             Authentication quienPide) {
         return egresos.anular(id, solicitud.motivo(), Autoridades.idDe(quienPide));
+    }
+
+    // == Los comprobantes (§14 · C1) =========================================
+    //
+    // Espejo exacto de los tres de `PagoController`, y esa simetría es el punto:
+    // si se separan, "adjuntar un comprobante" significa una cosa en Pagos y otra
+    // en Egresos. Van anidados bajo el egreso porque no existen sin él, y porque
+    // tener el id en la URL es lo que deja verificar que el comprobante pedido es
+    // de ESE egreso — ver `ComprobanteEgresoRepository`, que por eso no tiene un
+    // "buscar por id" pelado.
+    //
+    // ⚠️ NO hay un `/api/me/...` para bajarlo, al revés que del lado del pago. Un
+    // egreso no tiene dueño del lado del portal: el destinatario de un sueldo no
+    // entra al sistema a descargar su recibo. Si algún día lo hiciera, es una
+    // decisión de negocio nueva y no un endpoint que falta.
+
+    /**
+     * Adjuntar el comprobante de una salida de plata.
+     *
+     * <p><b>Va como {@code multipart} y no adentro del alta</b>: un archivo no
+     * viaja en un JSON, así que la pantalla hace dos pasos —cargar el egreso,
+     * adjuntarle el papel—. Hasta `V25` esto era un {@code String} que alguien
+     * tipeaba, o sea un respaldo que no respaldaba nada.
+     */
+    @PostMapping(path = "/{idEgreso}/comprobantes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PuedeOperar
+    @ResponseStatus(HttpStatus.CREATED)
+    public ComprobanteResumen adjuntarComprobante(@PathVariable Long idEgreso,
+            @RequestPart("archivo") MultipartFile archivo,
+            Authentication quienPide) {
+        return comprobantes.adjuntar(idEgreso, archivo, Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Bajar el comprobante.
+     *
+     * <p>Sale por acá y no por una ruta estática: acá adentro está el recibo de
+     * sueldo de una persona, y no puede quedar en una URL que se adivina.
+     */
+    @GetMapping("/{idEgreso}/comprobantes/{id}/archivo")
+    @PuedeLeerAdministracion
+    public ResponseEntity<Resource> descargarComprobante(@PathVariable Long idEgreso,
+            @PathVariable Long id) {
+        return comprobantes.archivoDe(idEgreso, id).comoRespuesta();
+    }
+
+    /**
+     * Marcar un comprobante como inválido. <b>No se borra.</b>
+     *
+     * <p>Lo que se marca es el archivo equivocado, no el egreso, y el correcto se
+     * adjunta al lado sin pisar nada — que es toda la razón por la que `V25` hizo
+     * una tabla en vez de dejar la columna.
+     */
+    @PatchMapping("/{idEgreso}/comprobantes/{id}/invalidacion")
+    @PuedeOperar
+    public ComprobanteResumen invalidarComprobante(@PathVariable Long idEgreso,
+            @PathVariable Long id,
+            @Valid @RequestBody MotivoRequest solicitud,
+            Authentication quienPide) {
+        return comprobantes.invalidar(idEgreso, id, solicitud.motivo(), Autoridades.idDe(quienPide));
     }
 }

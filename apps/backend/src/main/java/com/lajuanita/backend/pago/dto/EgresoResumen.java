@@ -3,6 +3,7 @@ package com.lajuanita.backend.pago.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
@@ -29,7 +30,18 @@ public record EgresoResumen(
          * para por qué el corte es ése y no la relación de profesor.
          */
         boolean esPagoAProfesor,
-        String comprobantePath,
+
+        /**
+         * El respaldo adjunto. <b>Varios desde `V25`</b> (§14 · C1).
+         *
+         * <p>Antes era {@code comprobantePath}, un texto que alguien tipeaba: la
+         * pantalla mostraba respaldo donde no había ningún archivo. Ahora es la
+         * misma lista, la misma pieza de pantalla y las mismas reglas que la de un
+         * pago — no se borra, se marca inválido con su firma, y la marca tampoco
+         * se deshace.
+         */
+        List<ComprobanteResumen> comprobantes,
+
         LocalDate fechaEgreso,
         OffsetDateTime fechaRegistro,
         /**
@@ -57,7 +69,7 @@ public record EgresoResumen(
                         : egreso.getDestinatario(),
                 destino == null ? null : destino.getId(),
                 destino != null,
-                egreso.getComprobantePath(),
+                egreso.getComprobantes().stream().map(ComprobanteResumen::de).toList(),
                 egreso.getFechaEgreso(),
                 egreso.getFechaRegistro(),
                 egreso.isAnulado(),

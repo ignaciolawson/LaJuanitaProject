@@ -1,11 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '../api/administracion'
+import {
+  abrirComprobanteDeEgreso,
+  adjuntarComprobanteDeEgreso,
+  anularEgreso,
+  invalidarComprobanteDeEgreso,
+  listarEgresos,
+  listarProfesores,
+  registrarEgreso,
+} from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import type { DestinoDeEgreso, EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
+import type {
+  ComprobanteResumen,
+  DestinoDeEgreso,
+  EgresoResumen,
+  Moneda,
+  ProfesorResumen,
+} from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
+import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
 import { Paginado } from '../componentes/Paginado'
@@ -43,6 +58,10 @@ export function EgresosPagina() {
   const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [anulando, setAnulando] = useState<EgresoResumen | null>(null)
+  const [invalidando, setInvalidando] = useState<{
+    egreso: EgresoResumen
+    comprobante: ComprobanteResumen
+  } | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -63,6 +82,58 @@ export function EgresosPagina() {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  /**
+   * Adjuntar el comprobante de una salida de plata (§14 · C1).
+   *
+   * Se recarga la lista porque la fila tiene que mostrar el archivo recién
+   * subido, y el `catch` recarga también: si el archivo entró y falló otra cosa,
+   * la pantalla no puede quedar diciendo que no hay nada.
+   */
+  async function adjuntar(idEgreso: number, archivo: File) {
+    try {
+      await adjuntarComprobanteDeEgreso(idEgreso, archivo)
+      await cargar()
+    } catch (e) {
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo adjuntar el comprobante.'
+      await cargar()
+      setError(mensaje)
+    }
+  }
+
+  async function abrir(idEgreso: number, comprobante: ComprobanteResumen) {
+    try {
+      await abrirComprobanteDeEgreso(idEgreso, comprobante.idComprobante)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo abrir el comprobante.')
+    }
+  }
+
+  /**
+   * Marcar un comprobante como inválido. <b>No lo borra.</b>
+   *
+   * Cuesta escribir un motivo y queda firmado con el nombre de quien lo marcó,
+   * porque es una decisión sobre la prueba de que esa plata salió. El correcto se
+   * adjunta al lado y los dos quedan — que es toda la razón por la que `V25` hizo
+   * una tabla en vez de dejar la columna.
+   */
+  async function confirmarInvalidacion(motivo: string) {
+    if (!invalidando) return
+    try {
+      await invalidarComprobanteDeEgreso(
+        invalidando.egreso.idEgreso,
+        invalidando.comprobante.idComprobante,
+        motivo,
+      )
+      setInvalidando(null)
+      await cargar()
+    } catch (e) {
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo invalidar el comprobante.'
+      setInvalidando(null)
+      await cargar()
+      setError(mensaje)
+    }
+  }
 
   async function confirmarAnulacion(motivo: string) {
     if (!anulando) return
@@ -133,6 +204,16 @@ export function EgresosPagina() {
         />
       )}
 
+      {invalidando && (
+        <PedirMotivo
+          key={invalidando.comprobante.idComprobante}
+          titulo="Marcar el comprobante como inválido"
+          ayuda="El archivo no se borra: queda listado como inválido, con tu nombre y el motivo. Después adjuntá el que corresponde — el egreso admite varios."
+          onCerrar={() => setInvalidando(null)}
+          onConfirmar={confirmarInvalidacion}
+        />
+      )}
+
       {anulando && (
         <PedirMotivo
           key={anulando.idEgreso}
@@ -143,7 +224,7 @@ export function EgresosPagina() {
         />
       )}
 
-      <Tabla columnas={['Concepto', 'A quién', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Fecha', '']}>
+      <Tabla columnas={['Concepto', 'A quién', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>
             {egresos.map((e) => (
               <tr key={e.idEgreso} className={e.anulado ? 'text-apagado' : undefined}>
                 <Celda className="font-medium">
@@ -170,6 +251,41 @@ export function EgresosPagina() {
                 <Celda className="whitespace-nowrap text-tenue">
                   {fecha(e.fechaEgreso)}
                 </Celda>
+
+                {/* ⚠️ **Acá había un campo de texto con placeholder
+                    `/comprobantes/…`**, o sea que la pantalla le pedía a alguien
+                    que tipeara una ruta y después mostraba eso como si hubiera un
+                    archivo detrás. Desde `V25` es un archivo real, con la firma de
+                    quién lo subió y de quién lo rechazó (§14 · C1).
+
+                    **Del lado del egreso esto pesa más que del lado del pago**: un
+                    cobro sin comprobante lo reclama el que pagó; una salida de
+                    plata sin comprobante no la reclama nadie — el que la cobró
+                    está contento y el que la firmó es el mismo que la cargó.
+
+                    Adjuntar sigue disponible sobre un egreso anulado, al revés que
+                    corregirlo: aparece el respaldo de algo que se había anulado
+                    justamente por no encontrarlo. */}
+                <Celda className="align-top">
+                  <Comprobantes
+                    comprobantes={e.comprobantes}
+                    onVer={(c) => void abrir(e.idEgreso, c)}
+                    onInvalidar={
+                      puedeEscribir
+                        ? (c) => setInvalidando({ egreso: e, comprobante: c })
+                        : undefined
+                    }
+                  />
+                  {puedeEscribir && (
+                    <div className="mt-1">
+                      <AdjuntarComprobante
+                        onElegir={(archivo) => adjuntar(e.idEgreso, archivo)}
+                        etiqueta={e.comprobantes.length === 0 ? 'Adjuntar' : 'Adjuntar otro'}
+                      />
+                    </div>
+                  )}
+                </Celda>
+
                 <Celda className="text-right">
                   {puedeEscribir && !e.anulado && (
                     <Boton variante="enlace"
@@ -213,7 +329,6 @@ function FormularioEgreso({
     destinatario: '',
     idProfesor: '',
     fechaEgreso: hoy(),
-    comprobantePath: '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useErrorPasajero()
@@ -261,7 +376,6 @@ function FormularioEgreso({
         destinatario: datos.destinatario || undefined,
         idUsuarioDestino: profesor?.idUsuario,
         fechaEgreso: datos.fechaEgreso,
-        comprobantePath: datos.comprobantePath || undefined,
       })
       onGuardado()
     } catch (e) {
@@ -340,12 +454,14 @@ function FormularioEgreso({
             onChange={cambiar('fechaEgreso')}
           />
 
-          <Campo
-            etiqueta="Comprobante"
-            value={datos.comprobantePath}
-            onChange={cambiar('comprobantePath')}
-            placeholder="/comprobantes/…"
-          />
+          {/* ⚠️ Acá había un campo "Comprobante" con placeholder
+              `/comprobantes/…`: texto libre pidiéndole a alguien que tipeara una
+              ruta, y después la pantalla lo mostraba como si hubiera un archivo
+              detrás. Se fue con `V25` (§14 · C1).
+
+              **El comprobante se adjunta desde la fila del listado, no acá**, y
+              no es comodidad: un archivo no viaja adentro del JSON del alta, así
+              que son dos pedidos. Es lo mismo que `V21` hizo del lado del pago. */}
         </div>
 
         {errorGeneral && (

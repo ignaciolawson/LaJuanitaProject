@@ -1835,6 +1835,75 @@ SELECT probar('210','cancelar una prereserva libera el horario','ANDA',
     WHERE fecha='2029-07-06'$q$);
 
 -- =============================================================================
+-- V25 - LOS COMPROBANTES DE UN EGRESO
+--
+-- El espejo de `V21`, aplicado a la plata que SALE. Hasta esta migracion el
+-- comprobante de un egreso era `egreso.comprobante_path`: texto que alguien
+-- tipeaba, sin ningun archivo detras. La pantalla mostraba respaldo donde no
+-- habia ninguno.
+--
+-- Del lado del egreso la regla pesa mas que del lado del pago, y conviene que
+-- este dicho: un cobro sin comprobante lo reclama el que pago; **una salida de
+-- plata sin comprobante no la reclama nadie** -- el que la cobro esta contento y
+-- el que la firmo es el mismo que la cargo.
+--
+-- Se prueba el ciclo completo, que es lo unico que hace util a la tabla:
+-- adjuntar, marcar el equivocado, y que el correcto entre AL LADO sin llevarse
+-- nada puesto. Los esquives -deshacer la marca, cambiar el archivo, borrar la
+-- fila- estan en la suite adversarial, seccion I.
+-- =============================================================================
+
+INSERT INTO egreso (id_usuario_registra,monto,concepto,destinatario)
+SELECT u_mica, 150000, 'sueldo con respaldo', 'Ghezz' FROM v;
+
+SELECT probar('211','adjuntar un comprobante al egreso','ANDA',
+ $q$INSERT INTO comprobante_egreso (id_egreso,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_egreso FROM egreso WHERE concepto='sueldo con respaldo'),
+           'comprobantes-egreso/2026/09/uno.pdf','recibo.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Una fila sin archivo dice que hay respaldo adjunto y no hay ninguno: es
+-- exactamente lo que el campo de texto de antes permitia todo el tiempo.
+SELECT probar('212','adjuntar un comprobante de egreso sin archivo','FALLA',
+ $q$INSERT INTO comprobante_egreso (id_egreso,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_egreso FROM egreso WHERE concepto='sueldo con respaldo'),
+           '   ','recibo.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Marcar un comprobante es una decision sobre la prueba de que esa plata salio,
+-- asi que lleva las mismas tres exigencias que anular.
+SELECT probar('213','marcar invalido sin decir quien ni por que','FALLA',
+ $q$UPDATE comprobante_egreso SET invalido=TRUE
+    WHERE nombre_original='recibo.pdf'$q$);
+
+-- La trampa de `V7`: con `btrim(x) <> ''` un motivo NULL da NULL, el CHECK entero
+-- da NULL, y un CHECK que evalua a NULL no rechaza nada. El motivo de puros
+-- espacios lo mira de frente.
+SELECT probar('214','marcar invalido con un motivo de puros espacios','FALLA',
+ $q$UPDATE comprobante_egreso SET invalido=TRUE,
+        id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+        motivo_invalidacion='   '
+    WHERE nombre_original='recibo.pdf'$q$);
+
+SELECT probar('215','marcarlo invalido con la firma completa','ANDA',
+ $q$UPDATE comprobante_egreso SET invalido=TRUE,
+        id_usuario_invalida=(SELECT u_mica FROM v), fecha_invalidacion=now(),
+        motivo_invalidacion='Es el recibo de otro mes'
+    WHERE nombre_original='recibo.pdf'$q$);
+
+-- EL CASO QUE JUSTIFICA LA TABLA, igual que el 188 del lado del pago.
+SELECT probar('216','adjuntar el correcto al lado del invalido','ANDA',
+ $q$INSERT INTO comprobante_egreso (id_egreso,archivo_path,nombre_original,id_usuario_carga)
+    SELECT (SELECT id_egreso FROM egreso WHERE concepto='sueldo con respaldo'),
+           'comprobantes-egreso/2026/09/dos.pdf','el-que-va.pdf',(SELECT u_mica FROM v)$q$);
+
+-- Y quedan los DOS, con el invalido diciendo quien lo marco y por que.
+SELECT probar('217','el egreso quedo con sus dos comprobantes, uno invalido','ANDA',
+ $q$SELECT 1 FROM comprobante_egreso c
+    WHERE c.id_egreso=(SELECT id_egreso FROM egreso WHERE concepto='sueldo con respaldo')
+    GROUP BY c.id_egreso
+    HAVING count(*)=2 AND count(*) FILTER (WHERE c.invalido)=1$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

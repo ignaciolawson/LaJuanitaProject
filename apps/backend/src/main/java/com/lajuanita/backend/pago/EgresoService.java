@@ -61,7 +61,6 @@ public class EgresoService {
         egreso.setCotizacionDolar(solicitud.cotizacionDolar());
         egreso.setConcepto(solicitud.concepto().trim());
         egreso.setDestinatario(normalizar(solicitud.destinatario()));
-        egreso.setComprobantePath(normalizar(solicitud.comprobantePath()));
         // El autor sale del token: es la mitad de "todo egreso queda con usuario,
         // fecha y motivo" que el cliente no puede aportar.
         egreso.setIdUsuarioRegistra(idAutor);

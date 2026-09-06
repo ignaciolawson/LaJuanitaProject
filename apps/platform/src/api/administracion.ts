@@ -734,7 +734,10 @@ export type AltaEgreso = {
   destinatario?: string
   idUsuarioDestino?: number
   fechaEgreso?: string
-  comprobantePath?: string
+  // ⚠️ Acá había un `comprobantePath` y se fue con `V25` (§14 · C1). El
+  // comprobante es un archivo con su firma, no un campo de este formulario: no
+  // viaja adentro del JSON, se adjunta en un pedido propio y el egreso admite
+  // varios. Es lo mismo que `V21` hizo del lado del pago.
 }
 
 export function listarEgresos(opciones: {
@@ -770,6 +773,57 @@ export function anularEgreso(id: number, motivo: string) {
     metodo: 'PATCH',
     cuerpo: { motivo },
   })
+}
+
+// -- Los comprobantes de un egreso (§14 · C1) --------------------------------
+//
+// Espejo exacto de los tres del pago. Si se separan, "adjuntar un comprobante"
+// significa una cosa en Pagos y otra en Egresos — y lo que se pidió fue una
+// regla: *"todo lo que sea pagos o cobros con slot de comprobante"*.
+
+export function adjuntarComprobanteDeEgreso(idEgreso: number, archivo: File) {
+  return pedir<ComprobanteResumen>(`/api/egresos/${idEgreso}/comprobantes`, {
+    metodo: 'POST',
+    archivo,
+  })
+}
+
+/**
+ * Abre el comprobante del egreso en una pestaña.
+ *
+ * Mismo mecanismo que el del pago y que el contrato del sello: la ruta pide
+ * credencial y **el navegador no manda el `Authorization` en una navegación
+ * común**, así que un `<a href>` volvería 401.
+ *
+ * Acá adentro está el recibo de sueldo de una persona: no puede quedar en una
+ * ruta que se adivina.
+ */
+export async function abrirComprobanteDeEgreso(
+  idEgreso: number,
+  idComprobante: number,
+): Promise<void> {
+  await abrirEnPestania(
+    `/api/egresos/${idEgreso}/comprobantes/${idComprobante}/archivo`,
+    'No se pudo abrir el comprobante.',
+  )
+}
+
+/**
+ * Marcar un comprobante como inválido. **No se borra.**
+ *
+ * Lo que se marca es el archivo equivocado, no el egreso, y el correcto se
+ * adjunta al lado sin pisar nada — que es toda la razón por la que `V25` hizo una
+ * tabla en vez de dejar la columna.
+ */
+export function invalidarComprobanteDeEgreso(
+  idEgreso: number,
+  idComprobante: number,
+  motivo: string,
+) {
+  return pedir<ComprobanteResumen>(
+    `/api/egresos/${idEgreso}/comprobantes/${idComprobante}/invalidacion`,
+    { metodo: 'PATCH', cuerpo: { motivo } },
+  )
 }
 
 // -- Venta de equipos (§6, pantalla 6) ---------------------------------------

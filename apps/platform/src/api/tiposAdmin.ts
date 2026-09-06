@@ -556,7 +556,15 @@ export type EgresoResumen = {
    * lugares vuelvan a deducirlo y terminen contando distinto.
    */
   esPagoAProfesor: boolean
-  comprobantePath: string | null
+  /**
+   * El respaldo adjunto. **Varios desde `V25`** (§14 · C1).
+   *
+   * Antes era `comprobantePath`, un texto que alguien tipeaba en el formulario —
+   * el placeholder decía `/comprobantes/…`, o sea que la pantalla pedía una ruta
+   * y mostraba respaldo donde no había ningún archivo. Ahora es la misma lista,
+   * la misma pieza de pantalla y las mismas reglas que la de un pago.
+   */
+  comprobantes: ComprobanteResumen[]
   fechaEgreso: string
   fechaRegistro: string
   /** Anulado deja de contar en la caja, pero sigue en el listado: es historial. */

@@ -37,10 +37,13 @@
 //     V23  `material` cuelga de la INSCRIPCIÓN y opcionalmente de una RESERVA;
 //          PIERDE `id_alumno` y `es_grupal`
 //     V24  `reserva.vence_preconfirmacion` y el estado PRECONFIRMADA
+//     V25  la tabla `comprobante_egreso`, y `egreso` PIERDE `comprobante_path`
+//          -- el espejo exacto de V21, sobre la plata que SALE
 //
-// Historia de las tablas: eran 23 al 2026-08-19 y son 26 desde V21. Las tres que
-// entraron son `aparicion_release` (V18), `solicitante` (V20) y
-// `comprobante_pago` (V21), y están al final del archivo.
+// Historia de las tablas: eran 23 al 2026-08-19 y son 27 desde V25. Las cuatro
+// que entraron son `aparicion_release` (V18), `solicitante` (V20),
+// `comprobante_pago` (V21) y `comprobante_egreso` (V25), y están al final del
+// archivo.
 //
 // La número 23 fue
 // `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal
@@ -586,7 +589,9 @@ Table egreso {
   cotizacion_dolar    decimal(14,4)
   concepto            varchar(200)  [not null]
   destinatario        varchar(150)
-  comprobante_path    varchar(500)
+  // V25 le sacó `comprobante_path`: era texto que alguien tipeaba, la misma
+  // columna que V21 le había sacado a `pago`. El respaldo vive ahora en
+  // `comprobante_egreso`, uno por archivo.
   fecha_egreso        date          [not null]
   fecha_registro      timestamptz   [not null]
   anulado             boolean       [not null, default: false, note: 'V9: se anula, no se borra']
@@ -868,5 +873,42 @@ Table comprobante_pago {
   El `Content-Type` al servirlo sale DEL ARCHIVO y no de una constante: la mitad
   de estos comprobantes son fotos de una transferencia, y servirlas como PDF le
   entrega al alumno un archivo que no abre nada.
+  '''
+}
+
+Table comprobante_egreso {
+  id_comprobante      bigint       [pk, increment]
+  id_egreso           bigint       [not null, ref: > egreso.id_egreso]
+  archivo_path        varchar(500) [not null, note: 'La clave opaca de Almacenamiento']
+  nombre_original     varchar(255) [not null, note: 'Sólo para que la descarga se llame como se espera']
+  id_usuario_carga    bigint       [not null, ref: > usuario.id_usuario]
+  fecha_creacion      timestamptz  [not null]
+  invalido            boolean      [not null, default: false]
+  id_usuario_invalida bigint       [ref: > usuario.id_usuario]
+  fecha_invalidacion  timestamptz
+  motivo_invalidacion text
+
+  Note: '''
+  V25 (2026-09-05). EL ESPEJO EXACTO DE `comprobante_pago`, sobre la plata que
+  SALE. Que sean iguales es el punto: si las dos se separan, "adjuntar un
+  comprobante" significa una cosa en Pagos y otra en Egresos.
+
+  Reemplaza a `egreso.comprobante_path`, que era LA MISMA COLUMNA que V21 le
+  había sacado a `pago`: texto que alguien tipeaba. El formulario tenía un campo
+  con placeholder `/comprobantes/…`, o sea que la pantalla le pedía a alguien
+  que escribiera una ruta y después la mostraba como si hubiera un archivo.
+
+  ⚠️ Y ACÁ LA REGLA PESA MÁS QUE DEL LADO DEL PAGO. Un cobro sin comprobante lo
+  reclama el que pagó; una salida de plata sin comprobante NO LA RECLAMA NADIE
+  -- el que la cobró está contento y el que la firmó es el mismo que la cargó.
+  Este archivo es la única prueba de que ese sueldo se pagó.
+
+  Las mismas dos mitades que V21: no se borra (se marca inválido, con autor,
+  fecha y motivo) y LA MARCA TAMPOCO SE DESHACE, ni se reescribe su firma.
+  La segunda es la que es fácil no escribir.
+
+  NO hay endpoint `/api/me/...` para bajarlo, al revés que del lado del pago: un
+  egreso no tiene dueño del lado del portal. El destinatario de un sueldo no
+  entra al sistema a descargar su recibo.
   '''
 }
