@@ -2938,27 +2938,24 @@ revienta antes de llegar a su propio mensaje.
 > ninguna capa** o que **una capa decía y otra desmentía**. Aparecen ahora porque
 > Ignacio está usando el sistema de punta a punta, no porque se hayan roto.
 
-### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-05)
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-06)
 
-🟡 **LA TERCERA BARRIDA ESTÁ EN DOCE DE TRECE.** Falta **C2, las canciones de un
-EP/álbum**, que es la más grande y la única que queda.
+✅ **LA TERCERA BARRIDA ESTÁ CERRADA: trece de trece.** C2 —las canciones de un
+EP/álbum— se cerró el 2026-09-06 con **`V26__las_canciones_de_un_ep.sql`**.
 
-**Suites: 609 backend · 520 front · 233 + 61 SQL**, sobre **25 migraciones**.
-`tsc -b` y los dos linters limpios. Nada quedó a medias en el árbol: lo hecho está
-entero, con sus casos.
+**Suites: 625 backend · 534 front · 253 + 66 SQL**, sobre **26 migraciones**.
+`tsc -b`, el build y los dos linters limpios. Nada quedó a medias en el árbol.
 
-**LO PRIMERO AL RETOMAR: C2, y las decisiones YA ESTÁN TOMADAS.** Están abajo, en
-🔴 C2, y en `requirements/platform.md` §20 (P51, P52, P53). No hay que volver a
-preguntar nada — hay que escribir `V26`.
+**⚠️ NO QUEDA NADA DE PRODUCTO POR CONSTRUIR.** Lo que sigue no es una lista de
+features:
 
-**Después de C2:**
-
-1. **Desactivar el admin sembrado por `V3`** — ahora sería **`V27`**. Se corrió
-   otra vez: `V25` se la llevó el comprobante del egreso y `V26` se la lleva C2.
-   Es la tercera vez que se corre, así que **conviene no anotarla con número fijo
-   en ningún lado**.
+1. **Desactivar el admin sembrado por `V3`** — ahora sería **`V27`**. Se corrió de
+   número tres veces (`V24` la prereserva, `V25` el comprobante del egreso, `V26`
+   C2), así que **no anotarla con número fijo en ningún lado**: lo que hay que
+   recordar es que existe y va antes del deploy.
 2. **El deploy de octubre** (`operacion.md` §3).
-3. **La próxima barrida**, que va a existir.
+3. **La próxima barrida**, que va a existir — Ignacio dijo que iba a haber más y
+   ya hubo tres.
 
 ⚠️ **Un pendiente de infraestructura que ESTA barrida creó.** `V25` guarda archivos
 en una carpeta nueva (`comprobantes-egreso/`). `scripts/backup.sh` ya hace el tar
@@ -3003,7 +3000,7 @@ urgente y no es gratis olvidarlo.
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo | **6** | ✅ 6 de 6 |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **5** | ✅ 5 de 5 |
-| 🔴 **C** | Toca una regla del negocio o el schema | **2** | 🟡 1 de 2 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | ✅ 2 de 2 |
 
 **El orden fue A → B → C con una excepción deliberada**: B1 (el bug del sello) se
 hizo **primero de los trece**, porque no era una mejora sino una pantalla que
@@ -3402,53 +3399,173 @@ adversariales (sección I).
 
 ---
 
-### 🔴 C2 — Las canciones de un EP o un álbum (`V26`) — **LO QUE FALTA**
+### ✅ C2 — Las canciones de un EP o un álbum (`V26`) — **HECHO el 2026-09-06**
 
-> 🔴 **NO EMPEZADO.** Ignacio: *"en los releases vi que hay opción de EP o Album y
-> esta bueno, pero podríamos hacer que si selecciona esa opción que puedas cargar
-> las canciones de ese álbum o ep según que tipo sea, ep entre 3 y 6 temas, álbum de
-> 8 a 15"*.
+> Ignacio: *"en los releases vi que hay opción de EP o Album y esta bueno, pero
+> podríamos hacer que si selecciona esa opción que puedas cargar las canciones de
+> ese álbum o ep según que tipo sea, ep entre 3 y 6 temas, álbum de 8 a 15"*.
 
-**LAS TRES DECISIONES DE NEGOCIO YA ESTÁN TOMADAS** (§20 · P51, P52, P53). No hay
-que volver a preguntar nada.
+**Las tres decisiones de negocio se tomaron ANTES de escribir una línea** (§20 ·
+P51, P52, P53). Es la sexta vez que ese orden evita que algo se trabe a la mitad, y
+esta vez se notó de entrada: la primera pregunta que había que contestar —*¿el rango
+se exige al cargar o al publicar?*— es la que le da forma a todo lo demás, y
+contestarla mal habría hecho **imposible cargar el primer tema**.
 
 | | Decisión | Palabras de Ignacio |
 |---|---|---|
-| **Cuándo se exige el rango** | **Al PUBLICAR, no al cargar**, guardando el progreso | *"si la opcion 1... y se guarda el progreso, esa!"* |
+| **Cuándo se exige el rango** | **Al PUBLICAR, no al cargar**, guardando el progreso | *"si la opcion 1... y se guarda el progreso, esa"* |
 | **Qué tipos llevan temas** | **Sólo EP y ÁLBUM** | *"Sólo EP y álbum"* |
 | **Qué lleva cada tema** | Orden y título, **más duración, artista invitado (feat.) e ISRC** | *"todo"* |
 
-**Por qué el rango va al publicar y no al insertar**: un EP con 1 tema ya viola
-"entre 3 y 6", así que exigirlo por fila hace imposible cargar el primero — nunca
-llegarías a los 3. Es la misma forma que ya tiene *"no se publica un release sin
-contrato"*: **la regla dura vive en el momento de publicar.**
+**Lo que se construyó:**
 
-**Lo que hay que construir:**
+- **`V26__las_canciones_de_un_ep.sql`** — la tabla `cancion_release` y **cuatro
+  triggers**, que son tres reglas y una contracara (ver abajo).
+- `CancionRelease`, `CancionRepository`, `CancionResumen`, `AltaCancionRequest`, y
+  cinco endpoints anidados bajo el release.
+- La sección **Temas** en `SelloPagina`, visible sólo con EP o álbum elegido, con el
+  selector de formato adentro.
+- **16 casos nuevos en `SelloTest`** (44 en total), **20 en la suite de reglas**
+  (218–237), **5 ataques adversariales** (sección J) y **14 casos de front**.
 
-1. **`V26`** — tabla `cancion_release` (`id_release` NOT NULL, `orden`, `titulo`,
-   `duracion_segundos`, `artista_invitado`, `isrc`, `fecha_creacion`),
-   `UNIQUE (id_release, orden)`, y **dos triggers**:
-   - uno que rechace colgar un tema de un release que no sea EP ni ÁLBUM;
-   - uno que verifique el rango **al pasar a `PUBLICADO`**.
-2. Entidad, repositorio, servicio y endpoints anidados bajo el release.
-3. La sección de temas en `SelloPagina`, visible sólo con EP o ÁLBUM elegido.
-4. Casos en las dos suites SQL y en `SelloTest`.
+---
 
-⚠️ **TRES TRAMPAS PREVISTAS, anotadas antes de escribir una línea:**
+#### Las cuatro puertas, que son tres reglas y la mitad que no se ve
 
-- ⚠️ **El trigger del rango tiene que mirar la TRANSICIÓN a `PUBLICADO`, no el
-  estado.** El de `V18` dispara en cualquier UPDATE de un release publicado, y ahí
-  funciona porque un publicado sí tiene contrato. **Los releases ya publicados hoy
-  tienen cero temas**, así que un trigger escrito con la forma de `V18` haría que
-  editarle el nombre a un release viejo lo rechace. La condición tiene que ser
-  `TG_OP = 'INSERT' OR OLD.estado IS DISTINCT FROM NEW.estado`.
-- ⚠️ **`tipo_release` es NULLABLE** (`V1`, `release_tipo_valido` acepta NULL). Un
-  release sin tipo no tiene rango que verificar, y eso hay que decidirlo explícito
-  en la migración en vez de que salga por descarte.
-- ⚠️ **No se previó una salida firmada tipo `publicado_sin_contrato`, y es una
-  tensión real.** Un EP de 2 temas existe en el mundo; con esta regla no se puede
-  registrar. Ignacio eligió *"se exige al publicar"* **sabiendo** que la otra opción
-  ofrecida era el aviso que no frena. Si aparece un caso legítimo, **se revisa
-  deliberadamente en otra migración** — como `V22` dejó anotado para la clase que no
-  descuenta. **No inventar la excepción sobre la marcha**, que es lo que `V15` tuvo
-  que venir a corregir del lado de las revisiones de M&M.
+**Ésta es la parte que vale más que el módulo**, y es la lección que este proyecto
+ya aprendió tres veces —`V6` §6 con el premaster, `V18` §3 con el contrato, `V23`
+con el material—: **una regla que se verifica en UN ACTO se esquiva deshaciendo la
+condición después.** Acá el acto es publicar, y las puertas son cuatro:
+
+| § | Qué cierra | Cómo se esquivaba sin ella |
+|---|---|---|
+| §2 | Un tema no cuelga de algo que no sea EP ni álbum | — |
+| §2 | Un release **con temas** no cambia de formato | cargarlos como EP y pasarlo a single |
+| §3 | El rango se verifica al publicar **y si cambia el tipo** | publicar un EP de 3 y convertirlo en álbum |
+| §4 | No se saca un tema que sostiene un release publicado | publicar con 3 y borrar 2 |
+
+⚠️ **§4 es la que hace que la regla dure más que un DELETE**, y §2-desde-el-release
+es la que no se ve desde adentro de la primera: las dos filas quedan válidas por
+separado y la situación miente igual.
+
+---
+
+#### ⚠️ La trampa central: el trigger mira la TRANSICIÓN, no el estado
+
+Estaba anotada antes de escribir la migración y **se verificó poniéndola de
+vuelta**. El trigger de `V18` §2 dispara en cualquier UPDATE de un release
+publicado, y ahí funciona porque un publicado sí tiene contrato. **Todos los
+releases publicados que existían antes de `V26` tienen cero temas**, así que un
+trigger con esa forma haría que corregirle una nota a un lanzamiento de 2023 lo
+rechace **para siempre**.
+
+La condición correcta es:
+
+```sql
+IF NOT (TG_OP = 'INSERT'
+        OR OLD.estado IS DISTINCT FROM NEW.estado
+        OR OLD.tipo_release IS DISTINCT FROM NEW.tipo_release) THEN
+    RETURN NEW;
+END IF;
+```
+
+**El caso 225 de la suite de reglas fabrica esa fila desactivando el trigger un
+momento** — es la única forma de tener un release publicado que no cumple la regla
+nueva, o sea exactamente lo que hay en la base el día que la migración se aplique.
+Con la condición escrita a la manera de `V18`, ese caso se pone en rojo con el
+mensaje entero. **Se comprobó.**
+
+Y se comprobó también la segunda trampa, la de `V18` §3: **en un BEFORE DELETE la
+fila todavía está en la tabla**, así que contar sin excluirla contesta de más y la
+regla no se dispara nunca. Sin el `AND c.id_cancion <> OLD.id_cancion` caen cinco
+casos, dos de ellos con *"EL AGUJERO VOLVIO"*.
+
+---
+
+#### Tres decisiones que no estaban en la pregunta
+
+- **El `UNIQUE (id_release, orden)` es `DEFERRABLE INITIALLY DEFERRED`, y eso es lo
+  que hace posible reordenar.** Intercambiar dos posiciones pasa por un estado
+  intermedio con dos temas en el mismo lugar: con un unique inmediato el primer
+  UPDATE choca antes de que exista el estado final. Sale gratis porque **el orden lo
+  asigna siempre el servidor** (`max + 1` al agregar, intercambio al mover) — un
+  duplicado sólo puede venir de un bug nuestro, nunca de algo que alguien tipeó, así
+  que que el rechazo llegue al COMMIT no le cuesta nada a nadie. Es el reparto
+  contrario al de `V18` §2, que es inmediato justamente porque lo que rechaza lo
+  escribió una persona y tiene que leer por qué.
+  ⚠️ **Consecuencia para las suites SQL**: un caso que ataque ese unique tiene que
+  hacer `SET CONSTRAINTS cancion_orden_unico IMMEDIATE` adentro de la sentencia, o
+  el rechazo llega **después** de que `probar` inserte su fila y el caso no falla:
+  **desaparece del resumen**. Es la trampa de `V10`, con otra ropa.
+- **`max + 1`, nunca `count + 1`.** Es la misma distinción que `maximoNumeroDeCodigo`
+  y por el mismo motivo: borrar el tema 2 de tres deja las posiciones 1 y 3, y
+  contar daría 3, que está tomado.
+- **El ISRC lleva CHECK de forma y NO es único.** Lo primero porque es el código que
+  leen las distribuidoras y uno que no es un ISRC se publica como si lo fuera —con
+  la salida de dejarlo en blanco, que P53 permite expresamente, así que la regla no
+  encierra a nadie. Lo segundo porque **la misma grabación sale como single y como
+  tema de un álbum con el mismo código**, que es justamente para lo que sirve: un
+  índice único ahí rechazaría el caso normal.
+
+---
+
+#### Lo que la pantalla decidió
+
+- **El selector de formato vive DENTRO del bloque de temas.** Es el campo que decide
+  si el bloque existe, y sin él quien creó el release como "Sin definir" no tendría
+  dónde arreglarlo: la base le pediría elegir el tipo y la pantalla no ofrecería
+  dónde. Es el hueco que este proyecto encuentra una y otra vez —una capa pide algo
+  que otra no ofrece— cerrado antes de que apareciera.
+- **El rango NO está escrito en el front.** Viaja en `minimoDeTemas` /
+  `maximoDeTemas` de cada `ReleaseResumen`, calculados por el servidor desde
+  `TipoRelease`. Escribirlo en TypeScript sería la **tercera** copia de una
+  definición que ya vive en `V26` §3 (que decide) y en Java (que muestra) — y la más
+  fácil de que quede vieja, porque nada la ata a las otras dos. **Un caso lo protege
+  mandando 2 y 4, que no son los de ningún formato real**: si alguien copiara la
+  tabla acá, ese caso se pondría en rojo.
+- **El aviso rojo de la fila sigue siendo el del contrato.** El del tracklist va en
+  tenue: el rojo es un bisturí, y el contrato es lo que hay que ir a buscar afuera
+  mientras que los temas se cargan ahí mismo. El aviso que pesa —*"faltan 2 para
+  poder publicarlo"*— está en el detalle, que es donde está la acción.
+- ⚠️ **Una duración mal escrita se rechaza, no se manda vacía.** Guardarla como
+  `null` era lo cómodo y es lo peor: el tema entra sin duración y **nadie se entera
+  de que se perdió lo que alguien había escrito**. `leerDuracion` devuelve el error
+  como valor, justamente para que no se confunda con "no cargó ninguna".
+- **La duración de cada fila la escribe el servidor** (`CancionResumen.duracion`),
+  no la pantalla: `mm:ss` escrito en dos lados termina con uno mostrando `3:04` y el
+  otro `3:4`.
+
+---
+
+#### Dos cosas que se dejaron afuera a propósito
+
+- ⚠️ **NO hay salida firmada tipo `publicado_sin_contrato`.** Se le ofreció a Ignacio
+  la alternativa —el aviso que no frena— y eligió la regla dura sabiendo el costo.
+  La tensión es real: **un EP de 2 temas existe en el mundo**. Si aparece un caso
+  legítimo, **se revisa deliberadamente en otra migración** —como `V22` dejó anotado
+  para la clase que no descuenta— y no se inventa la excepción sobre la marcha, que
+  es lo que `V15` tuvo que venir a corregir del lado de las revisiones de M&M.
+- **La duración total del EP/álbum no se muestra**, aunque P53 la nombra como uno de
+  los usos del campo. Las dos formas de hacerlo hoy son malas: sumar y formatear en
+  el front es una **segunda** manera de escribir `mm:ss`, y mandarla desde el
+  servidor obliga a ensanchar la consulta por página para un dato que la fila no
+  muestra. Y hay una decisión de negocio adentro que nadie tomó: **si un tema no
+  tiene duración cargada, el total es parcial y se lee como si fuera el entero.**
+  Cuando haga falta, se hace bien y con esa pregunta contestada.
+
+---
+
+#### La lección de método, y es nueva
+
+⚠️ **En un test `@Transactional`, un caso puede provocar UN SOLO rechazo de la
+base.** Un trigger o una constraint que rechaza aborta la transacción de Postgres, y
+todo lo que venga después contesta *"current transaction is aborted"* — incluso un
+INSERT que no tiene nada que ver. El caso que probaba los dos formatos prohibidos
+(`SINGLE` y "sin tipo") en una sola prueba **falló en el segundo con un error que no
+hablaba de la regla sino de un usuario que no se pudo crear**. Va partido en dos.
+
+Y una que ya estaba escrita y volvió a cobrar: **el `*` de un campo requerido se
+concatena al nombre accesible sin espacio.** `getByLabelText('Título')` no encuentra
+nada porque el campo se llama `Título*`. Tres casos cayeron por eso, con un error
+que no lo insinúa. Es §14 · B1 otra vez, del lado del formulario en vez del de las
+solapas.

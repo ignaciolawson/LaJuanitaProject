@@ -28,7 +28,7 @@ import com.lajuanita.backend.sello.TipoRelease;
  * decisión que tomó {@code TrabajoDelPortal} escondiendo el premaster en el mapeo
  * y no en la pantalla.
  *
- * <p>⚠️ <b>Hay una sola fábrica y toma el conteo, a propósito.</b> Había un atajo de
+ * <p>⚠️ <b>Hay una sola fábrica y toma los dos conteos, a propósito.</b> Había un atajo de
  * un argumento que pasaba cero, y el listado del catálogo lo alcanzaba con una
  * referencia a método: el resultado fue que <b>todo el catálogo decía "Sin
  * contrato"</b>, incluidos los releases que sí lo tenían. La regla dura de `V18`
@@ -55,13 +55,28 @@ public record ReleaseResumen(
         int contratos,
         boolean tieneContrato,
 
+        /** Cuántos temas tiene cargados. Cero para lo que no lleva tracklist. */
+        int temas,
+
+        /**
+         * El rango que `V26` §3 va a exigir al publicar, o {@code null} si este
+         * formato no lleva temas.
+         *
+         * <p>Viajan para que la pantalla pueda avisar <i>"faltan 2"</i> antes de que
+         * alguien apriete publicar. <b>No deciden nada</b>: quien decide es el
+         * trigger, que tiene los números en SQL. Ver {@code TipoRelease}.
+         */
+        Integer minimoDeTemas,
+        Integer maximoDeTemas,
+
         boolean publicadoSinContrato,
         String motivoPublicacion,
         String publicadoPor,
 
         OffsetDateTime fechaCreacion) {
 
-    public static ReleaseResumen de(Release r, int contratos) {
+    public static ReleaseResumen de(Release r, int contratos, int temas) {
+        TipoRelease tipo = r.getTipoRelease();
         return new ReleaseResumen(
                 r.getId(),
                 r.getCodigoRelease(),
@@ -78,6 +93,9 @@ public record ReleaseResumen(
                 r.getNotas(),
                 contratos,
                 contratos > 0,
+                temas,
+                tipo == null ? null : tipo.getMinimoDeTemas(),
+                tipo == null ? null : tipo.getMaximoDeTemas(),
                 r.isPublicadoSinContrato(),
                 r.getMotivoPublicacion(),
                 r.getPublicadoPor() == null ? null

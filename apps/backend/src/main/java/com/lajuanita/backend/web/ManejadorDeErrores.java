@@ -145,6 +145,15 @@ public class ManejadorDeErrores {
             Map.entry("release_publicacion_justificada",
                     "Para publicar un release sin contrato hacen falta el motivo escrito y el autor."),
             Map.entry("aparicion_tipo_valido", "Ese tipo de aparición no existe."),
+            Map.entry("cancion_titulo_no_vacio", "Poné el nombre del tema."),
+            Map.entry("cancion_duracion_positiva", "La duración tiene que ser mayor a cero."),
+            Map.entry("cancion_orden_positivo", "La posición de un tema arranca en 1."),
+            // El ISRC lo leen las distribuidoras: uno que no es un ISRC se publica
+            // como si lo fuera. La salida es dejarlo en blanco, que P53 permite.
+            Map.entry("cancion_isrc_valido",
+                    "Ese no es un ISRC válido: son dos letras de país, tres de sello y siete dígitos "
+                            + "(por ejemplo AR-ABC-26-00001). Si todavía no lo tenés, dejalo vacío."),
+            Map.entry("cancion_orden_unico", "Ya hay un tema en esa posición."),
             Map.entry("trabajo_cliente_identificado",
                     "Decí de quién es el trabajo: una cuenta del sistema o el nombre del cliente."),
             Map.entry("trabajo_liberacion_justificada",

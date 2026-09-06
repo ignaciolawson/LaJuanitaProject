@@ -633,6 +633,73 @@ SELECT probar('I05','dos comprobantes de egreso apuntando al mismo archivo','FAL
 
 
 -- =============================================================================
+-- J. EL RANGO DE TEMAS DE UN EP  (V26 §2, §3 y §4)
+--
+-- La regla se verifica en UN acto -- publicar -- igual que *"no se publica un
+-- release sin contrato"* y que *"no se libera un premaster sin pago"*. Y las
+-- tres veces el ataque es el mismo: **cumplir la condicion, pasar el acto, y
+-- deshacerla despues.** Por eso esta seccion no ataca el rango de frente (eso lo
+-- prueban los casos 221 y 224 de la otra suite) sino los caminos de al lado.
+--
+-- ⚠️ J03 es la mitad que no se ve desde adentro de la regla: sin el, cargar los
+-- temas como EP y despues pasar el release a SINGLE deja un single con seis
+-- temas, con las dos filas validas por separado. Es la forma exacta del trigger
+-- de `V23`.
+-- =============================================================================
+
+INSERT INTO artista (nombre_artistico) VALUES ('Atacado');
+
+INSERT INTO contrato_sello (id_artista,archivo_path)
+SELECT id_artista,'contratos/2026/09/atacado.pdf' FROM artista WHERE nombre_artistico='Atacado';
+
+INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release,estado)
+SELECT 'LJ900',id_artista,'Ep atacado','EP','CONFIRMADO' FROM artista WHERE nombre_artistico='Atacado';
+
+INSERT INTO cancion_release (id_release,orden,titulo)
+SELECT id_release,g,'Tema '||g FROM release, generate_series(1,3) g WHERE codigo_release='LJ900';
+
+UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ900';
+
+-- EL ATAQUE PRINCIPAL: publicar con 3 y sacar 2. Sin `V26` §4 el catalogo queda
+-- con un EP publicado de un tema y nada se queja.
+SELECT probar_mensaje('J01','ESQUIVE: publicar con 3 temas y despues borrarlos',
+ 'lleva por lo menos',
+ $q$DELETE FROM cancion_release
+     WHERE id_release=(SELECT id_release FROM release WHERE codigo_release='LJ900')
+       AND orden=3$q$);
+
+-- La variante silenciosa del mismo ataque: no borrar el tema, mudarlo.
+SELECT probar_mensaje('J02','ESQUIVE: mudar el tema a otro release en vez de borrarlo',
+ 'lleva por lo menos',
+ $q$INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release)
+    SELECT 'LJ901',id_artista,'Destino','ALBUM' FROM artista WHERE nombre_artistico='Atacado';
+    UPDATE cancion_release
+       SET id_release=(SELECT id_release FROM release WHERE codigo_release='LJ901')
+     WHERE id_release=(SELECT id_release FROM release WHERE codigo_release='LJ900')
+       AND orden=3$q$);
+
+-- El esquive por el otro lado de la relacion: no tocar los temas, tocar el tipo.
+SELECT probar_mensaje('J03','ESQUIVE: cargar los temas como EP y pasar el release a SINGLE',
+ 'solo un EP o un album llevan lista de temas',
+ $q$UPDATE release SET tipo_release='SINGLE' WHERE codigo_release='LJ900'$q$);
+
+-- Y la version del mismo esquive que cambia de rango en vez de salirse: un EP
+-- publicado con 3 temas convertido en album quedaria publicado con 3 de 8. `V26`
+-- §3 dispara tambien cuando cambia el tipo, no solo cuando cambia el estado.
+SELECT probar_mensaje('J04','ESQUIVE: convertir en ALBUM un EP publicado con 3 temas',
+ 'lleva entre 8 y 15',
+ $q$UPDATE release SET tipo_release='ALBUM' WHERE codigo_release='LJ900'$q$);
+
+-- Cancelar y republicar era la puerta que `V18` §1b cerro para el contrato. Se
+-- verifica que siga cerrada acá tambien: de CANCELADO no se sale, asi que no hay
+-- forma de sacar el release de la proteccion, vaciarlo y volver a subirlo.
+SELECT probar_mensaje('J05','ESQUIVE: cancelar para escaparse de la regla y volver',
+ 'no vuelve atras',
+ $q$UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ900';
+    UPDATE release SET estado='EN_DISTRIBUCION' WHERE codigo_release='LJ900'$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

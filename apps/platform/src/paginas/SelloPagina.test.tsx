@@ -4,8 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../api/cliente'
 import type { UsuarioActual } from '../api/tipos'
-import type { AparicionResumen, ContratoResumen, ReleaseResumen } from '../api/tiposSello'
+import type {
+  AparicionResumen,
+  CancionResumen,
+  ContratoResumen,
+  ReleaseResumen,
+} from '../api/tiposSello'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
+import { elegir } from '../pruebas/elegir'
 import { SelloPagina } from './SelloPagina'
 
 /**
@@ -40,14 +46,25 @@ vi.mock('../api/sello', () => ({
   aparicionesDelRelease: vi.fn(),
   anotarAparicion: vi.fn(),
   borrarAparicion: vi.fn(),
+  editarRelease: vi.fn(),
+  temasDelRelease: vi.fn(),
+  agregarTema: vi.fn(),
+  editarTema: vi.fn(),
+  moverTema: vi.fn(),
+  borrarTema: vi.fn(),
 }))
 
 const {
+  agregarTema,
   aparicionesDelRelease,
+  borrarTema,
   contratosDelRelease,
+  editarRelease,
   listarArtistas,
   listarReleases,
+  moverTema,
   publicarRelease,
+  temasDelRelease,
 } = await import('../api/sello')
 
 function release(cambios: Partial<ReleaseResumen> = {}): ReleaseResumen {
@@ -67,6 +84,9 @@ function release(cambios: Partial<ReleaseResumen> = {}): ReleaseResumen {
     notas: null,
     contratos: 0,
     tieneContrato: false,
+    temas: 0,
+    minimoDeTemas: null,
+    maximoDeTemas: null,
     publicadoSinContrato: false,
     motivoPublicacion: null,
     publicadoPor: null,
@@ -103,6 +123,37 @@ function aparicion(cambios: Partial<AparicionResumen> = {}): AparicionResumen {
     notas: null,
     ...cambios,
   }
+}
+
+function tema(cambios: Partial<CancionResumen> = {}): CancionResumen {
+  return {
+    idCancion: 11,
+    idRelease: 1,
+    orden: 1,
+    titulo: 'Primero',
+    duracionSegundos: 214,
+    // Ya viene escrita del servidor: la pantalla no formatea `mm:ss`, para que no
+    // haya dos maneras de escribirlo según qué componente lo dibuje.
+    duracion: '3:34',
+    artistaInvitado: null,
+    isrc: null,
+    ...cambios,
+  }
+}
+
+/** Un EP, que es lo único —con el álbum— que lleva tracklist (P52). */
+function ep(cambios: Partial<ReleaseResumen> = {}): ReleaseResumen {
+  return release({ tipoRelease: 'EP', minimoDeTemas: 3, maximoDeTemas: 6, ...cambios })
+}
+
+function conElReleaseEnLista(r: ReleaseResumen) {
+  vi.mocked(listarReleases).mockResolvedValue({
+    contenido: [r],
+    pagina: 0,
+    tamanio: 20,
+    totalElementos: 1,
+    totalPaginas: 1,
+  })
 }
 
 function usuario(rol: UsuarioActual['rol']): UsuarioActual {
@@ -161,6 +212,7 @@ beforeEach(() => {
   ])
   vi.mocked(contratosDelRelease).mockResolvedValue([])
   vi.mocked(aparicionesDelRelease).mockResolvedValue([])
+  vi.mocked(temasDelRelease).mockResolvedValue([])
 })
 
 describe('el catálogo', () => {
@@ -341,5 +393,270 @@ describe('los permisos', () => {
     montar()
 
     expect(await screen.findByText(/un release cuelga de uno/)).toBeDefined()
+  })
+})
+
+/**
+ * El tracklist de un EP o de un álbum (P51–P53, `V26`).
+ *
+ * **Lo que se prueba acá no es el rango**: eso lo sostienen `V26` §3 y sus casos en
+ * `SelloTest` y en las dos suites SQL. Lo que la pantalla puede arruinar sin que
+ * nada falle es otra cosa:
+ *
+ * 1. **Que se pueda guardar el progreso.** La decisión de P51 —*se exige al
+ *    publicar, no al cargar*— se ve únicamente en que, faltando temas, la pantalla
+ *    igual deje agregar. Si el formulario bloqueara, la decisión estaría deshecha
+ *    del lado del front y la base no se enteraría.
+ * 2. **Que avise cuántos faltan antes de apretar Publicar.**
+ * 3. **Que el bloque no exista donde no corresponde** (P52): un single es el
+ *    release mismo.
+ * 4. **Que el rango no esté escrito en el front.** El caso lo verifica mandando
+ *    números distintos de los reales y esperando que la pantalla muestre ESOS: si
+ *    alguien copiara la tabla de rangos acá, ese caso se pondría en rojo.
+ */
+describe('el tracklist', () => {
+  it('un single dice que no lleva lista de temas', async () => {
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText(/no lleva lista de temas/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Agregar tema' })).toBeNull()
+  })
+
+  it('un release sin formato pide elegirlo antes que nada', async () => {
+    conElReleaseEnLista(release({ tipoRelease: null }))
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText(/Elegí el formato/)).toBeDefined()
+  })
+
+  /**
+   * **El rango sale del backend, no de este repo.** El fixture manda 2 y 4 —que no
+   * son los de ningún formato real— y la pantalla los muestra tal cual. Con una
+   * tabla de rangos escrita en el front, acá diría "3 a 6" y el caso caería.
+   */
+  it('muestra el rango que manda el servidor, no uno propio', async () => {
+    conElReleaseEnLista(ep({ minimoDeTemas: 2, maximoDeTemas: 4 }))
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    // Dos textos distintos a propósito: la fila del listado anuncia el tracklist
+    // y el bloque dice qué falta. Buscar el fragmento suelto encuentra los dos.
+    expect(await screen.findByText('0 de 2 a 4 temas')).toBeDefined()
+    expect(screen.getByText('0 de 2 a 4 · faltan 2 para poder publicarlo')).toBeDefined()
+  })
+
+  /**
+   * **La decisión de P51 en pantalla.** Con un tema de tres, el aviso dice cuántos
+   * faltan **y el botón de agregar sigue estando**: se guarda el progreso. Un
+   * formulario que se bloqueara hasta llegar al mínimo haría imposible el primer
+   * tema, que es exactamente el argumento por el que la regla vive en el publicar.
+   */
+  it('avisa cuántos faltan y deja seguir cargando igual', async () => {
+    conElReleaseEnLista(ep({ temas: 1 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([tema()])
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText(/faltan 2 para poder publicarlo/)).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Agregar tema' })).toBeDefined()
+  })
+
+  it('con el tracklist completo deja de avisar', async () => {
+    conElReleaseEnLista(ep({ temas: 3 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([
+      tema(),
+      tema({ idCancion: 12, orden: 2, titulo: 'Segundo' }),
+      tema({ idCancion: 13, orden: 3, titulo: 'Tercero' }),
+    ])
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText('3 de 3 a 6')).toBeDefined()
+    expect(screen.queryByText(/faltan/)).toBeNull()
+    expect(screen.queryByText(/son más de los que entran/)).toBeNull()
+  })
+
+  /** La duración viene escrita del servidor; el feat. y el ISRC, cuando están. */
+  it('dibuja cada tema con lo que tiene cargado', async () => {
+    conElReleaseEnLista(ep({ temas: 1 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([
+      tema({ artistaInvitado: 'Otro', isrc: 'AR-ABC-26-00001' }),
+    ])
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText('Primero')).toBeDefined()
+    expect(screen.getByText('3:34')).toBeDefined()
+    expect(screen.getByText('feat. Otro')).toBeDefined()
+    expect(screen.getByText('AR-ABC-26-00001')).toBeDefined()
+  })
+
+  /**
+   * **El formulario no tiene campo de posición**, y eso es lo que hace imposible
+   * que dos temas queden en el mismo lugar: el orden lo pone el servidor. Un campo
+   * "Orden" acá volvería a abrir esa puerta.
+   */
+  it('el alta de un tema no pide la posición', async () => {
+    conElReleaseEnLista(ep())
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Agregar tema' }))
+
+    expect(await screen.findByLabelText(/^Título/)).toBeDefined()
+    expect(screen.queryByLabelText('Orden')).toBeNull()
+    expect(screen.queryByLabelText('Posición')).toBeNull()
+  })
+
+  /** La duración se escribe `mm:ss` y viaja en segundos. */
+  it('manda la duración en segundos', async () => {
+    conElReleaseEnLista(ep())
+    vi.mocked(agregarTema).mockResolvedValue(tema())
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Agregar tema' }))
+    await userEvent.type(await screen.findByLabelText(/^Título/), 'Nuevo')
+    await userEvent.type(screen.getByLabelText(/^Duración/), '3:34')
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(agregarTema)).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ titulo: 'Nuevo', duracionSegundos: 214 }),
+      )
+    })
+  })
+
+  /**
+   * ⚠️ **Una duración mal escrita se rechaza y no se manda vacía.** Guardarla como
+   * `null` sería lo cómodo y es lo peor: el tema entra sin duración y nadie se
+   * entera de que se perdió lo que alguien había escrito.
+   */
+  it('rechaza una duración mal escrita en vez de mandarla vacía', async () => {
+    conElReleaseEnLista(ep())
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Agregar tema' }))
+    await userEvent.type(await screen.findByLabelText(/^Título/), 'Nuevo')
+    await userEvent.type(screen.getByLabelText(/^Duración/), '3:70')
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+
+    expect(await screen.findByText(/se escribe como 3:34/)).toBeDefined()
+    expect(vi.mocked(agregarTema)).not.toHaveBeenCalled()
+  })
+
+  it('mover un tema reemplaza la lista con la que devuelve el backend', async () => {
+    conElReleaseEnLista(ep({ temas: 2 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([
+      tema(),
+      tema({ idCancion: 12, orden: 2, titulo: 'Segundo' }),
+    ])
+    vi.mocked(moverTema).mockResolvedValue([
+      tema({ idCancion: 12, orden: 1, titulo: 'Segundo' }),
+      tema({ orden: 2 }),
+    ])
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    await userEvent.click(await screen.findByRole('button', { name: 'Subir Segundo' }))
+
+    await waitFor(() => {
+      expect(vi.mocked(moverTema)).toHaveBeenCalledWith(12, true)
+    })
+    const titulos = screen.getAllByText(/^(Primero|Segundo)$/).map((e) => e.textContent)
+    expect(titulos).toEqual(['Segundo', 'Primero'])
+  })
+
+  /** El primero no se sube más: el botón está, apagado, y no miente. */
+  it('no deja subir el primero ni bajar el último', async () => {
+    conElReleaseEnLista(ep({ temas: 2 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([
+      tema(),
+      tema({ idCancion: 12, orden: 2, titulo: 'Segundo' }),
+    ])
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    const subirElPrimero = await screen.findByRole('button', { name: 'Subir Primero' })
+    expect(subirElPrimero.hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Bajar Segundo' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Bajar Primero' }).hasAttribute('disabled')).toBe(false)
+  })
+
+  /**
+   * **El rechazo de `V26` §4 se muestra con las palabras del trigger.** Es la mitad
+   * que hace que la regla dure más que un borrado: publicar con tres y sacar dos.
+   */
+  it('muestra el texto del backend cuando no se puede sacar un tema', async () => {
+    conElReleaseEnLista(ep({ temas: 3, estado: 'PUBLICADO' }))
+    vi.mocked(temasDelRelease).mockResolvedValue([
+      tema(),
+      tema({ idCancion: 12, orden: 2, titulo: 'Segundo' }),
+      tema({ idCancion: 13, orden: 3, titulo: 'Tercero' }),
+    ])
+    vi.mocked(borrarTema).mockRejectedValue(
+      new ApiError(
+        409,
+        'El release LJ021 ya esta publicado y es un EP: un EP lleva por lo menos 3.',
+      ),
+    )
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    const sacar = await screen.findAllByRole('button', { name: 'Sacar' })
+    await userEvent.click(sacar[0])
+
+    expect(await screen.findByText(/lleva por lo menos 3/)).toBeDefined()
+  })
+
+  /**
+   * **El selector de formato vive en este bloque porque es el campo que decide si
+   * el bloque existe.** Sin él, quien creó el release como "Sin definir" no tendría
+   * dónde arreglarlo, y la pantalla no ofrecería lo que el backend le pide.
+   */
+  it('deja cambiar el formato sin pisar el resto del expediente', async () => {
+    conElReleaseEnLista(release({ tipoRelease: null, genero: 'Techno', notas: 'algo' }))
+    vi.mocked(editarRelease).mockResolvedValue(ep())
+    montar()
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+    await elegir(userEvent, 'Formato', 'EP')
+
+    await waitFor(() => {
+      expect(vi.mocked(editarRelease)).toHaveBeenCalledWith(1, {
+        nombreRelease: 'Horizonte',
+        tipoRelease: 'EP',
+        genero: 'Techno',
+        fechaEstimada: '2026-09-15',
+        fechaReal: null,
+        sistemaPromo: false,
+        notas: 'algo',
+      })
+    })
+  })
+
+  /** DIRECTIVO lee el tracklist y no toca nada. */
+  it('un directivo no ve los controles del tracklist', async () => {
+    conElReleaseEnLista(ep({ temas: 1 }))
+    vi.mocked(temasDelRelease).mockResolvedValue([tema()])
+    montar('DIRECTIVO')
+
+    await userEvent.click(await screen.findByText('Horizonte'))
+
+    expect(await screen.findByText('Primero')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Agregar tema' })).toBeNull()
+    expect(screen.queryByLabelText('Formato')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Sacar' })).toBeNull()
   })
 })

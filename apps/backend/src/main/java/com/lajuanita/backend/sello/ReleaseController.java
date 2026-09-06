@@ -21,8 +21,10 @@ import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.sello.dto.AltaAparicionRequest;
+import com.lajuanita.backend.sello.dto.AltaCancionRequest;
 import com.lajuanita.backend.sello.dto.AltaReleaseRequest;
 import com.lajuanita.backend.sello.dto.AparicionResumen;
+import com.lajuanita.backend.sello.dto.CancionResumen;
 import com.lajuanita.backend.sello.dto.ContratoResumen;
 import com.lajuanita.backend.sello.dto.EdicionReleaseRequest;
 import com.lajuanita.backend.sello.dto.ReleaseResumen;
@@ -132,6 +134,71 @@ public class ReleaseController {
         return releases.publicar(id, pedido == null ? null : pedido.motivo(),
                 Autoridades.idDe(quienPide));
     }
+
+    // == El tracklist (P51–P53) ==============================================
+
+    /**
+     * Los temas de un EP o de un álbum.
+     *
+     * <p><b>El rango no se verifica acá</b>: se carga de a uno y se guarda el
+     * progreso (P51). Un EP con un tema ya viola *"entre 3 y 6"*, así que exigirlo
+     * al cargar haría imposible cargar el primero. Quien verifica es `V26` §3, en
+     * el momento de publicar — la misma forma que la regla dura del contrato.
+     */
+    @GetMapping("/{id}/temas")
+    @PuedeLeerAdministracion
+    public List<CancionResumen> temas(@PathVariable Long id) {
+        return releases.temas(id);
+    }
+
+    @PostMapping("/{id}/temas")
+    @PuedeOperar
+    @ResponseStatus(HttpStatus.CREATED)
+    public CancionResumen agregarTema(@PathVariable Long id,
+            @Valid @RequestBody AltaCancionRequest pedido) {
+
+        return releases.agregarTema(id, pedido);
+    }
+
+    @PutMapping("/temas/{idCancion}")
+    @PuedeOperar
+    public CancionResumen editarTema(@PathVariable Long idCancion,
+            @Valid @RequestBody AltaCancionRequest pedido) {
+
+        return releases.editarTema(idCancion, pedido);
+    }
+
+    /**
+     * Mover un tema una posición.
+     *
+     * <p><b>Devuelve el tracklist entero</b>, y no el tema movido: un intercambio
+     * cambia dos filas, así que con una sola la pantalla tendría que adivinar cuál
+     * es la otra — o pedir la lista de nuevo, que es un viaje más para un dato que
+     * ya está calculado acá.
+     */
+    @PatchMapping("/temas/{idCancion}/orden")
+    @PuedeOperar
+    public List<CancionResumen> moverTema(@PathVariable Long idCancion,
+            @RequestParam boolean arriba) {
+
+        return releases.moverTema(idCancion, arriba);
+    }
+
+    /**
+     * Sacar un tema.
+     *
+     * <p>Acá borrar está bien —un tracklist que se arma no es historial— pero `V26`
+     * §4 no deja sacar el que sostiene el rango de un release <b>ya publicado</b>:
+     * eso vuelve como 409 con el texto del trigger.
+     */
+    @DeleteMapping("/temas/{idCancion}")
+    @PuedeOperar
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void borrarTema(@PathVariable Long idCancion) {
+        releases.borrarTema(idCancion);
+    }
+
+    // == Dónde sonó ==========================================================
 
     @PostMapping("/{id}/apariciones")
     @PuedeOperar

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -470,6 +471,280 @@ class SelloTest {
                 .andExpect(status().isForbidden());
     }
 
+    // == El tracklist de un EP o un álbum (P51–P53, `V26`) ===================
+
+    /**
+     * <b>El rango se exige al PUBLICAR, no al cargar</b> (P51).
+     *
+     * <p>Los dos casos van juntos porque es la mitad que hace útil a la regla: si la
+     * base lo exigiera por fila, el primer tema de un EP ya violaría *"entre 3 y 6"*
+     * y no habría forma de llegar a los tres. Cargar de a uno guarda el progreso; lo
+     * que frena es publicar.
+     */
+    @Test
+    void los_temas_se_cargan_de_a_uno_aunque_falten_para_el_minimo() throws Exception {
+        long release = releaseDe(artista(), "EP");
+
+        agregarTema(release, "Primero").andExpect(status().isCreated());
+        agregarTema(release, "Segundo").andExpect(status().isCreated());
+
+        mvc.perform(get("/api/releases/" + release + "/temas").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void un_ep_no_se_publica_con_menos_temas_de_los_que_lleva() throws Exception {
+        long artista = artista();
+        long release = releaseDe(artista, "EP");
+        cargarContrato(artista, release).andExpect(status().isCreated());
+        agregarTema(release, "Primero").andExpect(status().isCreated());
+
+        publicar(release, null)
+                .andExpect(status().isConflict())
+                // El texto sale del trigger y dice cuántos hay: enterarse de que
+                // "no se puede" sin saber cuántos faltan no ayuda a nadie.
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("lleva entre 3 y 6")));
+    }
+
+    @Test
+    void con_el_tracklist_completo_el_ep_se_publica() throws Exception {
+        long artista = artista();
+        long release = releaseDe(artista, "EP");
+        cargarContrato(artista, release).andExpect(status().isCreated());
+        for (String titulo : new String[] { "Uno", "Dos", "Tres" }) {
+            agregarTema(release, titulo).andExpect(status().isCreated());
+        }
+
+        publicar(release, null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("PUBLICADO"))
+                .andExpect(jsonPath("$.temas").value(3));
+    }
+
+    /** Un álbum lleva otro rango, y el mensaje lo dice con sus números. */
+    @Test
+    void un_album_lleva_ocho_y_lo_dice() throws Exception {
+        long artista = artista();
+        long release = releaseDe(artista, "ALBUM");
+        cargarContrato(artista, release).andExpect(status().isCreated());
+        agregarTema(release, "Uno").andExpect(status().isCreated());
+
+        publicar(release, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("lleva entre 8 y 15")));
+    }
+
+    /**
+     * P52: <i>"un single es el release mismo"</i> — su nombre ya es el nombre del
+     * tema, y cargarlo de nuevo es escribir lo mismo dos veces.
+     */
+    @Test
+    void un_single_no_lleva_lista_de_temas() throws Exception {
+        agregarTema(releaseDe(artista(), "SINGLE"), "No va")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("solo un EP o un album")));
+    }
+
+    /**
+     * {@code tipo_release} es nullable desde `V1`, y P52 pidió decidir esto explícito
+     * en vez de que saliera por descarte: sin tipo tampoco lleva temas, porque la
+     * lista existe justamente porque el tipo dice cuántos van.
+     */
+    @Test
+    void un_release_sin_tipo_todavia_no_lleva_temas() throws Exception {
+        agregarTema(releaseDe(artista(), null), "No va")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("todavia no tiene tipo")));
+    }
+
+    /**
+     * <b>El esquive que no se ve desde adentro de la regla</b>: no tocar los temas,
+     * tocar el release. Cargarlos como EP y después pasarlo a single deja un single
+     * con seis temas, con las dos filas válidas por separado. Es la forma exacta del
+     * trigger de `V23`.
+     *
+     * <p>⚠️ <b>Va partido en dos casos y no puede ir en uno.</b> Esta suite es
+     * {@code @Transactional}, y un rechazo de Postgres —trigger o constraint— aborta
+     * la transacción: todo lo que venga después contesta <i>"current transaction is
+     * aborted"</i>, incluso un INSERT que no tiene nada que ver. <b>Un caso puede
+     * provocar un solo rechazo de la base.</b>
+     */
+    @Test
+    void un_release_con_temas_no_pasa_a_single() throws Exception {
+        long release = releaseDe(artista(), "EP");
+        agregarTema(release, "Primero").andExpect(status().isCreated());
+
+        editarTipo(release, "\"SINGLE\"")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("no puede pasar a SINGLE")));
+    }
+
+    /**
+     * Y tampoco vuelve a "sin tipo", que es el mismo agujero con otra ropa: el
+     * release deja de decir qué es y los temas quedan colgados igual.
+     */
+    @Test
+    void un_release_con_temas_no_se_queda_sin_tipo() throws Exception {
+        long release = releaseDe(artista(), "EP");
+        agregarTema(release, "Primero").andExpect(status().isCreated());
+
+        editarTipo(release, "null")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("no puede pasar a sin tipo")));
+    }
+
+    /**
+     * <b>La contracara, sin la cual la regla dura dura lo que tarda un DELETE</b>:
+     * publicar con tres y borrar dos. Es el mismo ataque que `V18` §3 cerró del lado
+     * del contrato y `V6` §6 del lado del premaster — la regla se verifica en un acto
+     * y se esquiva editando después.
+     */
+    @Test
+    void no_se_saca_un_tema_que_sostiene_un_ep_publicado() throws Exception {
+        long release = epPublicado();
+        long primero = idDe(mvc.perform(get("/api/releases/" + release + "/temas")
+                .header("Authorization", comoStaff())), "\"idCancion\":");
+
+        mvc.perform(delete("/api/releases/temas/" + primero).header("Authorization", comoStaff()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("lleva por lo menos")));
+    }
+
+    /**
+     * Y la rama que tiene que DEJAR PASAR, que es la mitad que `V16` enseñó a no
+     * olvidar: una regla que además rechaza de más es un bug, no una regla estricta.
+     * Corregirle el título a un tema publicado no toca el rango.
+     */
+    @Test
+    void corregir_un_tema_de_un_ep_publicado_anda() throws Exception {
+        long release = epPublicado();
+        long primero = idDe(mvc.perform(get("/api/releases/" + release + "/temas")
+                .header("Authorization", comoStaff())), "\"idCancion\":");
+
+        mvc.perform(put("/api/releases/temas/" + primero)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"titulo":"Uno (remasterizado)","duracionSegundos":214}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.titulo").value("Uno (remasterizado)"))
+                // La duración viaja en segundos y también escrita: sumar un álbum es
+                // sumar enteros, y formatear se hace una vez acá y no en cada fila.
+                .andExpect(jsonPath("$.duracion").value("3:34"));
+    }
+
+    /**
+     * <b>El orden lo pone el servidor y nadie lo tipea.</b> Es lo que permite que el
+     * UNIQUE de `V26` sea diferido sin costo: un duplicado sólo puede venir de un bug
+     * nuestro, nunca de un formulario.
+     */
+    @Test
+    void el_orden_lo_asigna_el_servidor_y_moverse_intercambia_con_el_vecino() throws Exception {
+        long release = releaseDe(artista(), "EP");
+        agregarTema(release, "Uno").andExpect(jsonPath("$.orden").value(1));
+        agregarTema(release, "Dos").andExpect(jsonPath("$.orden").value(2));
+        long tercero = idDe(agregarTema(release, "Tres")
+                .andExpect(jsonPath("$.orden").value(3)), "\"idCancion\":");
+
+        // Devuelve el tracklist entero, no el tema movido: un intercambio cambia dos
+        // filas y con una sola la pantalla tendría que adivinar cuál es la otra.
+        mvc.perform(patch("/api/releases/temas/" + tercero + "/orden?arriba=true")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].titulo").value("Tres"))
+                .andExpect(jsonPath("$[2].titulo").value("Dos"));
+    }
+
+    @Test
+    void el_primero_no_se_puede_subir_mas() throws Exception {
+        long release = releaseDe(artista(), "EP");
+        long primero = idDe(agregarTema(release, "Uno"), "\"idCancion\":");
+
+        mvc.perform(patch("/api/releases/temas/" + primero + "/orden?arriba=true")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * El ISRC es el código que leen las distribuidoras: uno que no es un ISRC se
+     * publica como si lo fuera. <b>La salida existe y es dejarlo en blanco</b>, que
+     * P53 permite expresamente — la regla no encierra a nadie.
+     *
+     * <p><b>400 y no 409</b>, como todo CHECK de este esquema: un campo mal escrito
+     * es un dato inválido, no un choque contra algo que ya existe. El 409 queda para
+     * lo que rechaza un trigger o un índice único. Lo decide
+     * {@code ManejadorDeErrores} por SQLSTATE, no cada endpoint.
+     */
+    @Test
+    void un_isrc_que_no_tiene_forma_de_isrc_se_rechaza() throws Exception {
+        long release = releaseDe(artista(), "EP");
+
+        temaCon(release, """
+                {"titulo":"Uno","isrc":"pendiente"}
+                """)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        Matchers.containsString("no es un ISRC válido")));
+    }
+
+    /** Se acepta con guiones —que es como se escribe— y se guarda en mayúsculas. */
+    @Test
+    void el_isrc_se_acepta_con_guiones_y_se_normaliza() throws Exception {
+        long release = releaseDe(artista(), "EP");
+
+        temaCon(release, """
+                {"titulo":"Uno","isrc":"ar-abc-26-00001"}
+                """)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.isrc").value("AR-ABC-26-00001"));
+    }
+
+    /**
+     * El listado manda el conteo y el rango <b>para que la pantalla pueda avisar
+     * antes</b> de que alguien apriete publicar. No deciden nada: quien decide es el
+     * trigger, que tiene los números en SQL. Es el mismo reparto que
+     * {@code contratos} contra {@code release_tiene_contrato()}.
+     */
+    @Test
+    void el_listado_trae_el_conteo_de_temas_y_el_rango_del_formato() throws Exception {
+        long ep = releaseDe(artista(), "EP");
+        long single = releaseDe(artista(), "SINGLE");
+        agregarTema(ep, "Uno").andExpect(status().isCreated());
+
+        listar().andExpect(status().isOk())
+                .andExpect(jsonPath(enElListado(ep, "temas")).value(Matchers.contains(1)))
+                .andExpect(jsonPath(enElListado(ep, "minimoDeTemas")).value(Matchers.contains(3)))
+                .andExpect(jsonPath(enElListado(ep, "maximoDeTemas")).value(Matchers.contains(6)))
+                // Un single no lleva tracklist, así que no tiene rango: null y no
+                // cero, por la misma distinción que hace la retención del Módulo 8 —
+                // un cero se lee como "lleva cero" y lo que pasa es que no lleva.
+                .andExpect(jsonPath(enElListado(single, "temas")).value(Matchers.contains(0)))
+                .andExpect(jsonPath(enElListado(single, "minimoDeTemas"))
+                        .value(Matchers.contains(Matchers.nullValue())));
+    }
+
+    @Test
+    void un_usuario_comun_no_carga_temas() throws Exception {
+        long release = releaseDe(artista(), "EP");
+
+        mvc.perform(post("/api/releases/" + release + "/temas")
+                .header("Authorization", credencialPara(crear(Rol.USUARIO)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"titulo":"No va"}
+                        """))
+                .andExpect(status().isForbidden());
+    }
+
     // =========================================================================
 
     private ResultActions listar() throws Exception {
@@ -501,6 +776,58 @@ class SelloTest {
 
     private long releaseDe(long artista) throws Exception {
         return idDe(crearRelease(artista, "").andExpect(status().isCreated()), "\"idRelease\":");
+    }
+
+    /** {@code tipo} en null crea un release sin tipo, que `V1` permite desde siempre. */
+    private long releaseDe(long artista, String tipo) throws Exception {
+        ResultActions creado = mvc.perform(post("/api/releases")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idArtista":%d,"nombreRelease":"Horizonte","tipoRelease":%s}
+                        """.formatted(artista, tipo == null ? "null" : "\"" + tipo + "\"")))
+                .andExpect(status().isCreated());
+
+        return idDe(creado, "\"idRelease\":");
+    }
+
+    /** Un EP publicado como corresponde: con contrato y con sus tres temas. */
+    private long epPublicado() throws Exception {
+        long artista = artista();
+        long release = releaseDe(artista, "EP");
+        cargarContrato(artista, release).andExpect(status().isCreated());
+        for (String titulo : new String[] { "Uno", "Dos", "Tres" }) {
+            agregarTema(release, titulo).andExpect(status().isCreated());
+        }
+        publicar(release, null).andExpect(status().isOk());
+        return release;
+    }
+
+    private ResultActions agregarTema(long release, String titulo) throws Exception {
+        return temaCon(release, """
+                {"titulo":"%s"}
+                """.formatted(titulo));
+    }
+
+    private ResultActions temaCon(long release, String cuerpo) throws Exception {
+        return mvc.perform(post("/api/releases/" + release + "/temas")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo));
+    }
+
+    /**
+     * Cambiar sólo el tipo. El PUT reemplaza el expediente entero, así que el resto
+     * de los campos viajan con el valor que ya tenían — mandarlos vacíos probaría
+     * otra cosa.
+     */
+    private ResultActions editarTipo(long release, String tipo) throws Exception {
+        return mvc.perform(put("/api/releases/" + release)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombreRelease":"Horizonte","tipoRelease":%s}
+                        """.formatted(tipo)));
     }
 
     private ResultActions crearRelease(long artista, String codigo) throws Exception {

@@ -1,16 +1,16 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-05 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-06 — leé esto y después, si hace falta, el resto
 
-**Queda UNA cosa de producto por construir, y es la única.** Los ocho módulos, el
-rediseño del front y las tres barridas están cerrados salvo **C2 de la tercera
-barrida: las canciones de un EP o un álbum**.
+✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR.** Los ocho módulos, el rediseño del
+front y **las tres barridas** están cerrados: C2 —las canciones de un EP o un
+álbum— se hizo el 2026-09-06 con `V26__las_canciones_de_un_ep.sql`, y era el
+último punto abierto de la tercera.
 
-**Suites: 609 backend · 520 front · 233 + 61 SQL, sobre 25 migraciones.**
+**Suites: 625 backend · 534 front · 253 + 66 SQL, sobre 26 migraciones.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🔴 **0** | **C2 — las canciones de un EP/álbum (`V26`).** ⚠️ **Las tres decisiones de negocio YA ESTÁN TOMADAS**: no hay nada que preguntar, hay que escribir la migración | [`mejoras.md`](mejoras.md) §14 · C2 y [`platform.md`](requirements/platform.md) §20 · P51–P53 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25` ni `V26`** — ver abajo | §1 de acá |
@@ -25,14 +25,22 @@ que **no estaban en ninguna capa**. Que aparezcan más no es que el sistema empe
 es que se lo está usando de punta a punta.
 
 ⚠️ **La migración del admin sembrado ya se corrió tres veces de número** — `V24` se
-la llevó la prereserva, `V25` el comprobante del egreso, y `V26` se la va a llevar
-C2. **No la anotes con un número fijo en ningún lado**: lo que hay que recordar es
+la llevó la prereserva, `V25` el comprobante del egreso, y `V26` se la llevó C2.
+**No la anotes con un número fijo en ningún lado**: lo que hay que recordar es
 que existe y va antes del deploy (§1.4).
 
 ⚠️ **Y sigue abierta la puerta que dejó `V24` a propósito**, anotada en §13: el
 vencimiento automático de una prereserva firma con **quien preconfirmó**, porque
 `V7` exige autor y acá el autor es un reloj. Si este sistema alguna vez necesita una
 identidad para actos automáticos, **ése es el primer lugar donde mirar**.
+
+⚠️ **Lo que `V26` dejó anotado y no es trabajo pendiente sino una decisión a la
+espera de un caso real**: el rango de temas **no tiene salida firmada** tipo
+`publicado_sin_contrato`. Ignacio la eligió dura sabiendo que la otra opción era el
+aviso que no frena, pero **un EP de 2 temas existe en el mundo**. Si aparece uno
+legítimo, se revisa en otra migración — no se inventa la excepción sobre la marcha.
+Y la **duración total** de un EP/álbum no se muestra: tiene una pregunta de negocio
+adentro (qué hacer cuando falta la duración de un tema) que nadie contestó.
 
 ---
 
@@ -250,14 +258,15 @@ deploy real**. No se edita `V3` (Flyway le guarda el checksum): va una migració
 
 ⚠️ **NO ANOTAR SU NÚMERO EN NINGÚN LADO COMO FIJO.** Ya se corrió tres veces: era
 `V24` y se la llevó la prereserva; pasó a `V25` y se la llevó el comprobante del
-egreso; ahora sería `V26` y **se la va a llevar C2**. Es lo que pasa cuando una
-tarea sin fecha comparte numeración con el trabajo que sí avanza. Lo que hay que
-recordar es **que existe y va antes del deploy**, no qué número le toca.
+egreso; pasó a `V26` y **se la llevó C2**. Es lo que pasa cuando una tarea sin
+fecha comparte numeración con el trabajo que sí avanza. Lo que hay que recordar es
+**que existe y va antes del deploy**, no qué número le toca.
 
 Las últimas usadas: **`V19`** pagos sin cuenta, **`V20`** el buzón de solicitantes,
 **`V21`** los comprobantes de un pago, **`V22`** `tipo_uso.disciplina` (§12 · C1),
 **`V23`** el material por curso y por clase (§12 · C2), **`V24`** la prereserva
-(§13 · C1) y **`V25`** los comprobantes de un egreso (§14 · C1, del 2026-09-05).
+(§13 · C1), **`V25`** los comprobantes de un egreso (§14 · C1, del 2026-09-05) y
+**`V26`** las canciones de un EP o un álbum (§14 · C2, del 2026-09-06).
 
 ---
 
@@ -379,10 +388,11 @@ Este proyecto tiene **dos**, y las dos están anotadas donde viven:
 ### 3.5 · El diagrama de la base quedó atrás
 
 **`docs/db/la_juanita_schema.dbml.txt` describe el esquema hasta `V14`.** Le faltan
-siete migraciones: `V17` (la clave de deduplicación de los avisos), `V18` (la tabla
+doce migraciones: `V17` (la clave de deduplicación de los avisos), `V18` (la tabla
 `aparicion_release` y la publicación sin contrato), `V19` (el pagador sin cuenta),
-`V20` (`solicitante`) y `V21` (`comprobante_pago`, y las cinco columnas que `pago`
-perdió).
+`V20` (`solicitante`), `V21` (`comprobante_pago`, y las cinco columnas que `pago`
+perdió) y todo lo que vino después: `V22` a `V26`, con `cancion_release` incluida.
+**Al 2026-09-06 le faltan doce migraciones**, no siete.
 
 **La cabecera del archivo dice exactamente qué no refleja**, que es lo que lo hace
 inofensivo: el peligro de un diagrama viejo no es estar viejo sino que alguien lo

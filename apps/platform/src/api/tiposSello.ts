@@ -23,6 +23,23 @@ export const NOMBRE_DE_TIPO_RELEASE: Record<TipoRelease, string> = {
 }
 
 /**
+ * ¿Este formato lleva tracklist? (P52)
+ *
+ * ⚠️ **No hay una tabla de rangos en este archivo, y es a propósito.** El mínimo y
+ * el máximo viajan en cada `ReleaseResumen` (`minimoDeTemas` / `maximoDeTemas`),
+ * calculados por el servidor desde `TipoRelease`. Escribirlos acá sería la
+ * **tercera** copia de una definición que ya vive en `V26` §3 (que decide) y en
+ * Java (que muestra) — y la que más fácil se queda vieja, porque nada la ata a las
+ * otras dos.
+ *
+ * Este predicado sí vive acá porque decide **si la sección se dibuja**, y eso lo
+ * necesita el formulario antes de que exista ningún release que preguntar.
+ */
+export function llevaTemas(tipo: TipoRelease | null | undefined): boolean {
+  return tipo === 'EP' || tipo === 'ALBUM'
+}
+
+/**
  * El estado de un release.
  *
  * ⚠️ **Solo avanzan, y de `CANCELADO` no se vuelve.** Las dos mitades las sostiene
@@ -132,6 +149,15 @@ export type ReleaseResumen = {
   notas: string | null
   contratos: number
   tieneContrato: boolean
+  /** Cuántos temas tiene cargados. Cero para lo que no lleva tracklist. */
+  temas: number
+  /**
+   * El rango que la base va a exigir al publicar, o `null` si el formato no lleva
+   * temas. **No deciden nada**: existen para avisar *"faltan 2"* antes de que
+   * alguien apriete Publicar y se coma un 409. Quien decide es `V26` §3.
+   */
+  minimoDeTemas: number | null
+  maximoDeTemas: number | null
   publicadoSinContrato: boolean
   motivoPublicacion: string | null
   publicadoPor: string | null
@@ -202,6 +228,39 @@ export type AparicionResumen = {
   url: string | null
   ordenRelevancia: number | null
   notas: string | null
+}
+
+/**
+ * Espeja `CancionResumen` — un tema de un EP o de un álbum (P51–P53).
+ *
+ * La duración viene **en segundos y también escrita**: el número es el dato y el
+ * texto ya viene formateado del servidor, para que no haya dos maneras de escribir
+ * `mm:ss` según qué pantalla lo dibuje.
+ */
+export type CancionResumen = {
+  idCancion: number
+  idRelease: number
+  orden: number
+  titulo: string
+  duracionSegundos: number | null
+  /** `mm:ss`, o `null` si no se cargó. */
+  duracion: string | null
+  artistaInvitado: string | null
+  isrc: string | null
+}
+
+/**
+ * Espeja `AltaCancionRequest`. Sirve para el alta y para la edición.
+ *
+ * **No lleva `orden`**: la posición la asigna el servidor —al final cuando se
+ * agrega, intercambiando cuando se mueve— así que no hay forma de que dos temas
+ * queden en el mismo lugar por algo que alguien tipeó.
+ */
+export type AltaCancion = {
+  titulo: string
+  duracionSegundos?: number | null
+  artistaInvitado?: string
+  isrc?: string
 }
 
 /** Espeja `AltaAparicionRequest`. */

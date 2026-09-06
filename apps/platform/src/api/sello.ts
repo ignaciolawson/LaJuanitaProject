@@ -3,9 +3,11 @@ import type { Pagina } from './tiposAdmin'
 import type {
   AltaAparicion,
   AltaArtista,
+  AltaCancion,
   AltaRelease,
   AparicionResumen,
   ArtistaResumen,
+  CancionResumen,
   ContratoResumen,
   EdicionRelease,
   EstadoRelease,
@@ -169,6 +171,59 @@ export async function abrirContrato(id: number): Promise<void> {
 
 export function borrarContrato(id: number) {
   return pedir<void>(`/api/contratos/${id}`, { metodo: 'DELETE' })
+}
+
+// == El tracklist de un EP o un álbum (P51–P53) ==============================
+
+/**
+ * Los temas de un release.
+ *
+ * **El rango no se verifica al cargar sino al publicar** (P51). Un EP con un tema
+ * ya viola *"entre 3 y 6"*, así que exigirlo por tema haría imposible cargar el
+ * primero: se cargan de a uno, se guarda el progreso, y lo que frena es Publicar —
+ * con el 409 del trigger diciendo cuántos hay y cuántos van.
+ */
+export function temasDelRelease(id: number) {
+  return pedir<CancionResumen[]>(`/api/releases/${id}/temas`)
+}
+
+export function agregarTema(idRelease: number, datos: AltaCancion) {
+  return pedir<CancionResumen>(`/api/releases/${idRelease}/temas`, {
+    metodo: 'POST',
+    cuerpo: datos,
+  })
+}
+
+export function editarTema(idCancion: number, datos: AltaCancion) {
+  return pedir<CancionResumen>(`/api/releases/temas/${idCancion}`, {
+    metodo: 'PUT',
+    cuerpo: datos,
+  })
+}
+
+/**
+ * Mueve un tema una posición y **devuelve el tracklist entero**.
+ *
+ * Un intercambio cambia dos filas: con una sola, la pantalla tendría que adivinar
+ * cuál es la otra o pedir la lista de nuevo.
+ */
+export function moverTema(idCancion: number, arriba: boolean) {
+  return pedir<CancionResumen[]>(
+    `/api/releases/temas/${idCancion}/orden?arriba=${arriba}`,
+    { metodo: 'PATCH' },
+  )
+}
+
+/**
+ * Saca un tema.
+ *
+ * Acá borrar está bien —un tracklist que se arma no es historial— pero **no se
+ * puede sacar el que sostiene el rango de un release ya publicado**: eso vuelve
+ * como 409 con el texto del trigger. Sin esa mitad, la regla dura duraría lo que
+ * tarda un borrado.
+ */
+export function borrarTema(idCancion: number) {
+  return pedir<void>(`/api/releases/temas/${idCancion}`, { metodo: 'DELETE' })
 }
 
 // == Dónde sonó ==============================================================

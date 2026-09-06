@@ -3,25 +3,33 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../api/cliente'
 import {
   abrirContrato,
+  agregarTema,
   anotarAparicion,
   aparicionesDelRelease,
   borrarAparicion,
   borrarContrato,
+  borrarTema,
   cambiarEstadoDelRelease,
   cargarContrato,
   contratosDelRelease,
+  editarRelease,
+  editarTema,
   listarArtistas,
   listarReleases,
+  moverTema,
   publicarRelease,
   registrarRelease,
+  temasDelRelease,
 } from '../api/sello'
 import {
   ESTADOS_QUE_SE_MUEVEN_A_MANO,
   NOMBRE_DE_ESTADO_RELEASE,
   NOMBRE_DE_TIPO_APARICION,
   NOMBRE_DE_TIPO_RELEASE,
+  llevaTemas,
   type AparicionResumen,
   type ArtistaResumen,
+  type CancionResumen,
   type ContratoResumen,
   type EstadoRelease,
   type ReleaseResumen,
@@ -232,6 +240,15 @@ export function SelloPagina() {
 
               <div className="w-32 shrink-0 text-right text-xs">
                 <EstadoDelContrato release={r} />
+                {/* El tracklist sólo se anuncia donde existe. Va en tenue y no en
+                    acento aunque falten temas: el rojo de esta fila es del contrato,
+                    que es lo que hay que ir a buscar afuera. Los temas se cargan
+                    acá mismo, y el aviso que pesa está en el detalle. */}
+                {llevaTemas(r.tipoRelease) && (
+                  <div className="text-tenue">
+                    {r.temas} de {r.minimoDeTemas} a {r.maximoDeTemas} temas
+                  </div>
+                )}
               </div>
             </button>
 
@@ -312,10 +329,12 @@ function Detalle({
 }) {
   const [contratos, setContratos] = useState<ContratoResumen[]>([])
   const [apariciones, setApariciones] = useState<AparicionResumen[]>([])
+  const [temas, setTemas] = useState<CancionResumen[]>([])
 
   const recargar = useCallback(() => {
     contratosDelRelease(release.idRelease).then(setContratos).catch(() => setContratos([]))
     aparicionesDelRelease(release.idRelease).then(setApariciones).catch(() => setApariciones([]))
+    temasDelRelease(release.idRelease).then(setTemas).catch(() => setTemas([]))
   }, [release.idRelease])
 
   useEffect(recargar, [recargar])
@@ -334,6 +353,16 @@ function Detalle({
         contratos={contratos}
         puedeEscribir={puedeEscribir}
         onCambio={recargar}
+        onError={onError}
+      />
+
+      <BloqueTemas
+        release={release}
+        temas={temas}
+        puedeEscribir={puedeEscribir}
+        onTemas={setTemas}
+        onCambio={recargar}
+        onActualizado={onActualizado}
         onError={onError}
       />
 
@@ -587,6 +616,215 @@ function BloqueContratos({
             onCambio()
           }}
         />
+      )}
+    </section>
+  )
+}
+
+/**
+ * El tracklist de un EP o de un álbum (P51–P53).
+ *
+ * **El rango se exige al PUBLICAR, no al cargar**, y esa decisión es lo que le da
+ * forma a este bloque. Los temas se cargan de a uno y se guardan; el contador de
+ * arriba dice cuántos faltan, y lo que frena es apretar *Publicar* — con el texto
+ * del trigger. Al revés —la base exigiendo el rango por fila— el primer tema de un
+ * EP ya lo violaría y no habría forma de llegar a los tres.
+ *
+ * **El selector de formato vive acá y no en otro lado.** Es el campo que decide si
+ * este bloque existe: sin él, quien creó el release como "Sin definir" no tendría
+ * dónde arreglarlo y la pantalla no ofrecería lo que el backend le pide.
+ *
+ * **El rango no está escrito en el front**: viaja en `minimoDeTemas` /
+ * `maximoDeTemas`, calculados por el servidor. Escribirlo acá sería la tercera copia
+ * de una definición que ya vive en `V26` (que decide) y en Java (que muestra).
+ */
+function BloqueTemas({
+  release,
+  temas,
+  puedeEscribir,
+  onTemas,
+  onCambio,
+  onActualizado,
+  onError,
+}: {
+  release: ReleaseResumen
+  temas: CancionResumen[]
+  puedeEscribir: boolean
+  onTemas: (temas: CancionResumen[]) => void
+  onCambio: () => void
+  onActualizado: (r: ReleaseResumen) => void
+  onError: (mensaje: string | null) => void
+}) {
+  const [agregando, setAgregando] = useState(false)
+  const [editando, setEditando] = useState<number | null>(null)
+
+  const lleva = llevaTemas(release.tipoRelease)
+  const minimo = release.minimoDeTemas
+  const maximo = release.maximoDeTemas
+  const faltan = minimo === null ? 0 : Math.max(minimo - temas.length, 0)
+
+  async function cambiarFormato(tipo: TipoRelease | '') {
+    onError(null)
+    try {
+      // El PUT reemplaza el expediente entero, así que los demás campos viajan con
+      // el valor que ya tienen. Mandarlos vacíos sería borrarlos de paso.
+      onActualizado(
+        await editarRelease(release.idRelease, {
+          nombreRelease: release.nombreRelease,
+          tipoRelease: tipo === '' ? null : tipo,
+          genero: release.genero ?? undefined,
+          fechaEstimada: release.fechaEstimada,
+          fechaReal: release.fechaReal,
+          sistemaPromo: release.sistemaPromo,
+          notas: release.notas ?? undefined,
+        }),
+      )
+    } catch (e) {
+      // Si el release ya tiene temas cargados, la base rechaza pasarlo a un formato
+      // que no los lleva, y el texto es el del trigger.
+      onError(e instanceof ApiError ? e.message : 'No se pudo cambiar el formato.')
+    }
+  }
+
+  async function mover(idCancion: number, arriba: boolean) {
+    onError(null)
+    try {
+      onTemas(await moverTema(idCancion, arriba))
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'No se pudo mover el tema.')
+    }
+  }
+
+  async function sacar(idCancion: number) {
+    onError(null)
+    try {
+      await borrarTema(idCancion)
+      onCambio()
+    } catch (e) {
+      // Sacar el que sostiene el rango de un release publicado vuelve como 409 con
+      // las palabras del trigger: se muestran tal cual.
+      onError(e instanceof ApiError ? e.message : 'No se pudo sacar el tema.')
+    }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="t-mono text-tenue">Temas</h4>
+        <div className="flex items-center gap-3">
+          {puedeEscribir && (
+            <select
+              aria-label="Formato"
+              value={release.tipoRelease ?? ''}
+              onChange={(e) => void cambiarFormato(e.target.value as TipoRelease | '')}
+              className={CONTROL_DE_FILTRO}
+            >
+              <option value="">Sin definir</option>
+              {TIPOS.map((t) => (
+                <option key={t} value={t}>
+                  {NOMBRE_DE_TIPO_RELEASE[t]}
+                </option>
+              ))}
+            </select>
+          )}
+          {puedeEscribir && lleva && (
+            <Boton variante="secundario" tamaño="chico" type="button"
+              onClick={() => setAgregando(true)}>
+              Agregar tema
+            </Boton>
+          )}
+        </div>
+      </div>
+
+      {/* P52: un single es el release mismo, su nombre ya es el nombre del tema.
+          Se dice en vez de dibujar una lista vacía que nunca se va a poder llenar. */}
+      {!lleva ? (
+        <p className="mt-1.5 text-sm text-tenue">
+          {release.tipoRelease
+            ? `Un ${NOMBRE_DE_TIPO_RELEASE[release.tipoRelease].toLowerCase()} no lleva lista de temas: el release ya es el tema.`
+            : 'Elegí el formato para armar la lista de temas.'}{' '}
+          Sólo un EP o un álbum tienen tracklist.
+        </p>
+      ) : (
+        <>
+          {/* El aviso llega ANTES de apretar Publicar. Enterarse ahí es enterarse
+              tarde: son cinco altas, no un botón. */}
+          <p className={`mt-1.5 text-sm ${faltan > 0 ? 'text-acento' : 'text-tenue'}`}>
+            {temas.length} de {minimo} a {maximo}
+            {faltan > 0
+              ? ` · faltan ${faltan} para poder publicarlo`
+              : temas.length > (maximo ?? 0)
+                ? ' · son más de los que entran'
+                : ''}
+          </p>
+
+          {temas.length > 0 && (
+            <ol className="mt-2 space-y-1.5 text-sm">
+              {temas.map((t, i) => (
+                <li key={t.idCancion} className="flex flex-wrap items-center gap-2">
+                  <span className="w-5 shrink-0 text-right text-xs tabular-nums text-tenue">
+                    {t.orden}
+                  </span>
+                  <span className="font-medium">{t.titulo}</span>
+                  {t.artistaInvitado && (
+                    <span className="text-xs text-tenue">feat. {t.artistaInvitado}</span>
+                  )}
+                  {t.duracion && (
+                    <span className="text-xs tabular-nums text-tenue">{t.duracion}</span>
+                  )}
+                  {t.isrc && <span className="t-mono text-xs text-apagado">{t.isrc}</span>}
+
+                  {puedeEscribir && (
+                    <span className="ml-auto flex items-center gap-2">
+                      <Boton variante="enlace" type="button"
+                        disabled={i === 0}
+                        onClick={() => void mover(t.idCancion, true)}
+                        aria-label={`Subir ${t.titulo}`}>
+                        ↑
+                      </Boton>
+                      <Boton variante="enlace" type="button"
+                        disabled={i === temas.length - 1}
+                        onClick={() => void mover(t.idCancion, false)}
+                        aria-label={`Bajar ${t.titulo}`}>
+                        ↓
+                      </Boton>
+                      <Boton variante="enlace" type="button"
+                        onClick={() => setEditando(t.idCancion)}>
+                        Editar
+                      </Boton>
+                      <Boton variante="enlace" type="button"
+                        onClick={() => void sacar(t.idCancion)}>
+                        Sacar
+                      </Boton>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {editando !== null && (
+            <FormularioTema
+              tema={temas.find((t) => t.idCancion === editando)}
+              onCerrar={() => setEditando(null)}
+              onGuardado={() => {
+                setEditando(null)
+                onCambio()
+              }}
+            />
+          )}
+
+          {agregando && (
+            <FormularioTema
+              idRelease={release.idRelease}
+              onCerrar={() => setAgregando(false)}
+              onGuardado={() => {
+                setAgregando(false)
+                onCambio()
+              }}
+            />
+          )}
+        </>
       )}
     </section>
   )
@@ -910,6 +1148,140 @@ function FormularioContrato({
       </div>
     </form>
   )
+}
+
+/**
+ * Cargar o corregir un tema.
+ *
+ * **No tiene campo de posición**, y eso es lo que hace que dos temas no puedan
+ * quedar en el mismo lugar: el orden lo pone el servidor —al final cuando se
+ * agrega, intercambiando con las flechas— así que no hay nada que tipear mal.
+ *
+ * **La duración se escribe `mm:ss` y viaja en segundos.** El número es el dato; el
+ * texto de cada fila lo escribe el servidor, no esta pantalla. Lo que hay acá es lo
+ * inverso —leer lo que alguien tipeó— y por eso no es una segunda copia de nada:
+ * si se equivocara, el error se ve en el acto en la fila que vuelve.
+ */
+function FormularioTema({
+  idRelease,
+  tema,
+  onCerrar,
+  onGuardado,
+}: {
+  idRelease?: number
+  tema?: CancionResumen
+  onCerrar: () => void
+  onGuardado: () => void
+}) {
+  const [titulo, setTitulo] = useState(tema?.titulo ?? '')
+  const [duracion, setDuracion] = useState(tema?.duracion ?? '')
+  const [artistaInvitado, setArtistaInvitado] = useState(tema?.artistaInvitado ?? '')
+  const [isrc, setIsrc] = useState(tema?.isrc ?? '')
+  const [error, setError] = useErrorPasajero()
+  const [guardando, setGuardando] = useState(false)
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault()
+
+    const segundos = leerDuracion(duracion)
+    if (segundos === 'mal') {
+      setError('La duración se escribe como 3:34 (minutos y segundos).')
+      return
+    }
+
+    setGuardando(true)
+    setError(null)
+    try {
+      const datos = {
+        titulo,
+        duracionSegundos: segundos,
+        artistaInvitado: artistaInvitado || undefined,
+        isrc: isrc || undefined,
+      }
+      if (tema) {
+        await editarTema(tema.idCancion, datos)
+      } else {
+        await agregarTema(idRelease as number, datos)
+      }
+      onGuardado()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo guardar el tema.')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <form
+      onSubmit={(e) => void guardar(e)}
+      className="mt-3 space-y-4 rounded-md border border-linea bg-superficie-2 p-4"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Campo
+          etiqueta="Título"
+          value={titulo}
+          onChange={(e) => setTitulo(e.target.value)}
+          required
+          className="sm:col-span-2"
+        />
+        <Campo
+          etiqueta="Duración"
+          value={duracion}
+          onChange={(e) => setDuracion(e.target.value)}
+          placeholder="3:34"
+        />
+        <Campo
+          etiqueta="Artista invitado"
+          value={artistaInvitado}
+          onChange={(e) => setArtistaInvitado(e.target.value)}
+          placeholder="feat…"
+        />
+        <Campo
+          etiqueta="ISRC"
+          value={isrc}
+          onChange={(e) => setIsrc(e.target.value)}
+          placeholder="AR-ABC-26-00001"
+          ayuda="El código de la grabación. Aparece después de la distribución: si todavía no lo tenés, dejalo vacío."
+          className="sm:col-span-2"
+        />
+      </div>
+
+      {error && <Aviso>{error}</Aviso>}
+
+      <div className="flex gap-2">
+        <Boton type="submit" disabled={guardando}>
+          {guardando ? 'Guardando…' : tema ? 'Guardar' : 'Agregar'}
+        </Boton>
+        <Boton variante="secundario" type="button" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * `"3:34"` → `214`. Vacío → `null`. Cualquier otra cosa → `'mal'`.
+ *
+ * Devuelve el error como valor en vez de tirar o de devolver `null`: con `null`,
+ * una duración mal escrita se guardaría **como si no se hubiera cargado ninguna**,
+ * que es peor que rechazarla — nadie se entera de que se perdió.
+ */
+function leerDuracion(texto: string): number | null | 'mal' {
+  const limpio = texto.trim()
+  if (limpio === '') return null
+
+  const partes = limpio.split(':')
+  if (partes.length < 2 || partes.length > 3) return 'mal'
+  if (!partes.every((p) => /^\d{1,2}$/.test(p))) return 'mal'
+
+  const numeros = partes.map(Number)
+  // Los segundos —y los minutos cuando hay hora— son un reloj, no un número
+  // suelto: "3:70" no es una duración.
+  if (numeros.slice(1).some((n) => n > 59)) return 'mal'
+
+  const total = numeros.reduce((acumulado, n) => acumulado * 60 + n, 0)
+  return total > 0 ? total : 'mal'
 }
 
 function FormularioAparicion({

@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.sello.dto.AltaAparicionRequest;
+import com.lajuanita.backend.sello.dto.AltaCancionRequest;
 import com.lajuanita.backend.sello.dto.AltaReleaseRequest;
 import com.lajuanita.backend.sello.dto.AparicionResumen;
+import com.lajuanita.backend.sello.dto.CancionResumen;
 import com.lajuanita.backend.sello.dto.EdicionReleaseRequest;
 import com.lajuanita.backend.sello.dto.ReleaseResumen;
 import com.lajuanita.backend.usuario.Busqueda;
@@ -29,13 +31,20 @@ import com.lajuanita.backend.usuario.dto.Pagina;
  * autor, y la fila no se borra. Lo que vive acá es lo que una constraint no puede
  * hacer.
  *
- * <p>Y son dos cosas:
+ * <p>Y son tres cosas:
  *
  * <ul>
  *   <li><b>El correlativo del código</b>, que necesita mirar toda la tabla.
  *   <li><b>La firma de la excepción</b>: el motivo viene del pedido, el autor sale
  *       del token y la fecha del reloj.
+ *   <li><b>La posición de cada tema del tracklist</b>: {@code max + 1} al agregar e
+ *       intercambio al mover, para que nadie la tipee. `V26` §1 apoya en eso su
+ *       UNIQUE diferido.
  * </ul>
+ *
+ * <p>El rango de temas de un EP o un álbum <b>no está acá</b>: lo verifica `V26` §3
+ * al publicar, y lo que esta clase manda al front son los números para avisar
+ * antes. Ver {@code TipoRelease}.
  */
 @Service
 public class ReleaseService {
@@ -44,17 +53,20 @@ public class ReleaseService {
     private final ArtistaRepository artistas;
     private final ContratoRepository contratos;
     private final AparicionRepository apariciones;
+    private final CancionRepository canciones;
     private final UsuarioRepository usuarios;
 
     public ReleaseService(ReleaseRepository releases,
             ArtistaRepository artistas,
             ContratoRepository contratos,
             AparicionRepository apariciones,
+            CancionRepository canciones,
             UsuarioRepository usuarios) {
         this.releases = releases;
         this.artistas = artistas;
         this.contratos = contratos;
         this.apariciones = apariciones;
+        this.canciones = canciones;
         this.usuarios = usuarios;
     }
 
@@ -73,17 +85,20 @@ public class ReleaseService {
         //
         // Resolverlo fila por fila habría sido más corto y son veinte consultas
         // más por página, que es justo lo que el JOIN FETCH del artista evita.
-        Map<Long, Integer> porRelease = contratosDeLaPagina(
-                encontrados.getContent().stream().map(Release::getId).toList());
+        List<Long> ids = encontrados.getContent().stream().map(Release::getId).toList();
+        Map<Long, Integer> porRelease = contratosDeLaPagina(ids);
+        Map<Long, Integer> temasPorRelease = temasDeLaPagina(ids);
 
         return Pagina.de(encontrados.map(
-                r -> ReleaseResumen.de(r, porRelease.getOrDefault(r.getId(), 0))));
+                r -> ReleaseResumen.de(r,
+                        porRelease.getOrDefault(r.getId(), 0),
+                        temasPorRelease.getOrDefault(r.getId(), 0))));
     }
 
     @Transactional(readOnly = true)
     public ReleaseResumen porId(Long id) {
         Release release = buscar(id);
-        return ReleaseResumen.de(release, cuantosContratos(release));
+        return resumir(release);
     }
 
     @Transactional(readOnly = true)
@@ -114,7 +129,7 @@ public class ReleaseService {
         // release nace respaldado. Poner cero acá era el mismo error que el del
         // listado, más chico porque la pantalla recarga después de crear.
         Release creado = releases.save(release);
-        return ReleaseResumen.de(creado, cuantosContratos(creado));
+        return resumir(creado);
     }
 
     @Transactional
@@ -129,7 +144,13 @@ public class ReleaseService {
         release.setSistemaPromo(Boolean.TRUE.equals(pedido.sistemaPromo()));
         release.setNotas(normalizar(pedido.notas()));
 
-        return ReleaseResumen.de(release, cuantosContratos(release));
+        // El tipo puede haber cambiado, y `V26` §2 rechaza pasarlo a un formato sin
+        // tracklist si el release ya tiene temas. El `flush` es para que ese
+        // rechazo llegue DENTRO del pedido, como un 409 con el texto del trigger,
+        // en vez de un 500 al COMMIT.
+        releases.flush();
+
+        return resumir(release);
     }
 
     // == Los dos actos con regla propia ======================================
@@ -159,7 +180,7 @@ public class ReleaseService {
         release.setEstado(nuevo);
         releases.flush();
 
-        return ReleaseResumen.de(release, cuantosContratos(release));
+        return resumir(release);
     }
 
     /**
@@ -194,7 +215,135 @@ public class ReleaseService {
         }
         releases.flush();
 
-        return ReleaseResumen.de(release, cuantosContratos(release));
+        return resumir(release);
+    }
+
+    // == El tracklist (P51–P53) ==============================================
+
+    @Transactional(readOnly = true)
+    public List<CancionResumen> temas(Long idRelease) {
+        buscar(idRelease);
+        return canciones.delRelease(idRelease).stream().map(CancionResumen::de).toList();
+    }
+
+    /**
+     * Agregar un tema al final.
+     *
+     * <p><b>El orden lo pone el servidor: {@code max + 1}, no {@code count + 1}.</b>
+     * Es la misma distinción que {@code maximoNumeroDeCodigo}, por el mismo motivo:
+     * borrar el tema 2 de tres deja las posiciones 1 y 3 ocupadas, y contar daría 3,
+     * que está tomado. Con el UNIQUE diferido de `V26` ese choque ni siquiera se
+     * vería en el pedido — llegaría al COMMIT como un 500.
+     *
+     * <p><b>Que sólo un EP o un álbum lleven temas lo sostiene el trigger</b>
+     * (`V26` §2), no un {@code if} acá: con la verificación en Java, el próximo
+     * endpoint que inserte una canción se olvidaría de llamarla y nada fallaría.
+     * El {@code flush} es para que ese rechazo llegue como un 409 con el texto del
+     * trigger, dentro del pedido.
+     */
+    @Transactional
+    public CancionResumen agregarTema(Long idRelease, AltaCancionRequest pedido) {
+        Release release = buscar(idRelease);
+
+        Short ultimo = canciones.ultimoOrden(idRelease);
+
+        CancionRelease cancion = new CancionRelease();
+        cancion.setRelease(release);
+        cancion.setOrden((short) ((ultimo == null ? 0 : ultimo) + 1));
+        escribirCampos(cancion, pedido);
+
+        CancionRelease guardada = canciones.save(cancion);
+        canciones.flush();
+
+        return CancionResumen.de(guardada);
+    }
+
+    /**
+     * Corregir un tema.
+     *
+     * <p>No toca el orden: mover un tema es {@link #moverTema}. Un formulario que
+     * dejara escribir la posición a mano volvería a abrir la puerta que el UNIQUE
+     * diferido da por cerrada — que dos temas queden en el mismo lugar por algo que
+     * alguien tipeó.
+     */
+    @Transactional
+    public CancionResumen editarTema(Long idCancion, AltaCancionRequest pedido) {
+        CancionRelease cancion = buscarTema(idCancion);
+        escribirCampos(cancion, pedido);
+        canciones.flush();
+
+        return CancionResumen.de(cancion);
+    }
+
+    /**
+     * Mover un tema una posición.
+     *
+     * <p><b>Intercambia con el vecino de la lista, no con "el de orden ± 1".</b> Los
+     * órdenes pueden tener huecos —se borró el tema 2 de tres— y buscar la posición
+     * exacta no encontraría a nadie: el botón no haría nada, sin error.
+     *
+     * <p>El intercambio son dos UPDATE que pasan por un estado intermedio con dos
+     * temas en el mismo lugar. <b>Es exactamente para eso que el UNIQUE de `V26` es
+     * diferido</b>: con uno inmediato el primer UPDATE chocaría contra el segundo
+     * tema antes de que exista el estado final, y reordenar sería imposible.
+     */
+    @Transactional
+    public List<CancionResumen> moverTema(Long idCancion, boolean arriba) {
+        CancionRelease cancion = buscarTema(idCancion);
+        Long idRelease = cancion.getRelease().getId();
+
+        List<CancionRelease> lista = canciones.delRelease(idRelease);
+        int donde = lista.indexOf(cancion);
+        int destino = arriba ? donde - 1 : donde + 1;
+
+        if (donde < 0 || destino < 0 || destino >= lista.size()) {
+            throw new SolicitudInvalidaException(
+                    arriba ? "Ese tema ya es el primero." : "Ese tema ya es el último.");
+        }
+
+        CancionRelease vecino = lista.get(destino);
+        Short suyo = cancion.getOrden();
+        cancion.setOrden(vecino.getOrden());
+        vecino.setOrden(suyo);
+        canciones.flush();
+
+        return canciones.delRelease(idRelease).stream().map(CancionResumen::de).toList();
+    }
+
+    /**
+     * Sacar un tema.
+     *
+     * <p><b>Acá borrar está bien, y no contradice al resto del esquema.</b> Un
+     * tracklist que se está armando no es historial del negocio: es la ficha de algo
+     * que todavía no salió, como {@code aparicion_release} y por el mismo criterio.
+     *
+     * <p>Lo que sí es historial es el tracklist de <b>algo ya publicado</b>, y eso lo
+     * protege `V26` §4: sacar un tema que dejaría al release por debajo del mínimo se
+     * rechaza con el texto del trigger. Sin esa mitad, la regla dura duraría lo que
+     * tarda un DELETE — publicar un EP con tres y borrar dos.
+     */
+    @Transactional
+    public void borrarTema(Long idCancion) {
+        CancionRelease cancion = buscarTema(idCancion);
+        canciones.delete(cancion);
+        canciones.flush();
+    }
+
+    private void escribirCampos(CancionRelease cancion, AltaCancionRequest pedido) {
+        cancion.setTitulo(pedido.titulo().trim());
+        cancion.setDuracionSegundos(pedido.duracionSegundos());
+        cancion.setArtistaInvitado(normalizar(pedido.artistaInvitado()));
+        // El ISRC en mayúsculas: es un código, no un nombre. La forma la verifica
+        // `V26`, que ya normaliza para comparar — esto es para que la pantalla no
+        // muestre el mismo código escrito de dos maneras.
+        String isrc = normalizar(pedido.isrc());
+        cancion.setIsrc(isrc == null ? null : isrc.toUpperCase());
+    }
+
+    private CancionRelease buscarTema(Long idCancion) {
+        return canciones.findById(idCancion)
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existe ese tema (" + idCancion + ")."));
     }
 
     // == Dónde sonó ==========================================================
@@ -286,10 +435,34 @@ public class ReleaseService {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        return releases.contarContratosDe(ids).stream()
-                .collect(Collectors.toMap(
-                        fila -> (Long) fila[0],
-                        fila -> ((Number) fila[1]).intValue()));
+        return contarPorRelease(releases.contarContratosDe(ids));
+    }
+
+    /** Lo mismo para el tracklist. Ver {@link #contratosDeLaPagina}. */
+    private Map<Long, Integer> temasDeLaPagina(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return contarPorRelease(canciones.contarTemasDe(ids));
+    }
+
+    private Map<Long, Integer> contarPorRelease(List<Object[]> filas) {
+        return filas.stream().collect(Collectors.toMap(
+                fila -> (Long) fila[0],
+                fila -> ((Number) fila[1]).intValue()));
+    }
+
+    /**
+     * Un release con sus dos conteos.
+     *
+     * <p>Existe para que ningún camino de esta clase pueda armar un
+     * {@code ReleaseResumen} a medias: es la misma razón por la que ese record dejó
+     * de tener una fábrica de un argumento, después de que el atajo que pasaba cero
+     * hiciera que todo el catálogo dijera "Sin contrato".
+     */
+    private ReleaseResumen resumir(Release release) {
+        return ReleaseResumen.de(release, cuantosContratos(release),
+                canciones.delRelease(release.getId()).size());
     }
 
     private Release buscar(Long id) {

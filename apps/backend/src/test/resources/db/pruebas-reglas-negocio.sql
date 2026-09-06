@@ -1904,6 +1904,170 @@ SELECT probar('217','el egreso quedo con sus dos comprobantes, uno invalido','AN
 
 
 -- =============================================================================
+-- LAS CANCIONES DE UN EP O DE UN ALBUM  (`V26`, §14 · C2)
+--
+-- EP entre 3 y 6 temas, album entre 8 y 15, y el rango se exige AL PUBLICAR --
+-- no al cargar cada tema (P51). Un EP con un tema ya viola el rango, asi que
+-- exigirlo por fila haria imposible cargar el primero.
+--
+-- El artista 'Ghezz' y LJ020 vienen de la seccion del sello, mas arriba.
+-- =============================================================================
+
+INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release,estado)
+SELECT 'LJ030',id_artista,'Mitad','EP','CONFIRMADO' FROM artista WHERE nombre_artistico='Ghezz';
+
+INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release,estado)
+SELECT 'LJ031',id_artista,'Solo','SINGLE','CONFIRMADO' FROM artista WHERE nombre_artistico='Ghezz';
+
+INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release,estado)
+SELECT 'LJ032',id_artista,'Doce','ALBUM','CONFIRMADO' FROM artista WHERE nombre_artistico='Ghezz';
+
+-- Un contrato general del artista: sin el, `V18` §2 frena todas las
+-- publicaciones de abajo y los casos fallarian por la regla equivocada.
+INSERT INTO contrato_sello (id_artista,archivo_path)
+SELECT id_artista,'contratos/2026/09/ghezz-general.pdf' FROM artista WHERE nombre_artistico='Ghezz';
+
+SELECT probar('218','cargar un tema en un EP','ANDA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,1,'Primero' FROM release WHERE codigo_release='LJ030'
+    RETURNING id_cancion$q$);
+
+-- P52: un single es el release mismo, su nombre ya es el nombre del tema.
+SELECT probar_mensaje('219','cargar un tema en un single',
+ 'solo un EP o un album',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,1,'No va' FROM release WHERE codigo_release='LJ031'$q$);
+
+-- `tipo_release` es NULLABLE desde `V1` y P52 pidio decidirlo explicito en vez
+-- de que saliera por descarte: sin tipo tampoco lleva temas.
+SELECT probar_mensaje('220','cargar un tema en un release sin tipo',
+ 'todavia no tiene tipo',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,1,'No va' FROM release WHERE codigo_release='LJ020'$q$);
+
+-- --- El rango, al publicar ---------------------------------------------------
+
+SELECT probar_mensaje('221','publicar un EP con 1 tema',
+ 'lleva entre 3 y 6',
+ $q$UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ030'$q$);
+
+SELECT probar('222','cargar el segundo y el tercero','ANDA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo,duracion_segundos)
+    SELECT id_release,2,'Segundo',214 FROM release WHERE codigo_release='LJ030';
+    INSERT INTO cancion_release (id_release,orden,titulo,artista_invitado)
+    SELECT id_release,3,'Tercero','Alguien' FROM release WHERE codigo_release='LJ030'
+    RETURNING id_cancion$q$);
+
+SELECT probar('223','publicar el EP con 3 temas','ANDA',
+ $q$UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ030'$q$);
+
+SELECT probar_mensaje('224','publicar un album con 0 temas',
+ 'lleva entre 8 y 15',
+ $q$UPDATE release SET estado='PUBLICADO' WHERE codigo_release='LJ032'$q$);
+
+-- ⚠️ EL CASO QUE JUSTIFICA LA FORMA DEL TRIGGER, y la trampa que se anoto antes
+-- de escribir la migracion. Escrito como el de `V18` §2 -- "si el estado es
+-- PUBLICADO, verifica" -- este trigger dispararia en CADA update de un release
+-- ya publicado, y todos los publicados que existian antes de `V26` tienen cero
+-- temas: corregirle una nota a un lanzamiento viejo seria imposible para
+-- siempre. Por eso mira la TRANSICION.
+--
+-- La fila se fabrica desactivando el trigger un momento, que es la unica forma
+-- de tener acá un release publicado que no cumple la regla nueva: exactamente lo
+-- que hay en la base de produccion el dia que esta migracion se aplique.
+SELECT probar('225','a un EP publicado ANTES de la regla se le sigue pudiendo editar','ANDA',
+ $q$ALTER TABLE release DISABLE TRIGGER release_respeta_el_rango_de_temas;
+    INSERT INTO release (codigo_release,id_artista,nombre_release,tipo_release,estado,
+                         publicado_sin_contrato,motivo_publicacion,id_usuario_publica)
+    SELECT 'LJ033',a.id_artista,'Viejo','EP','PUBLICADO',
+           TRUE,'Lanzamiento de 2023, cargado a mano',(SELECT u_mica FROM v)
+      FROM artista a WHERE a.nombre_artistico='Ghezz';
+    ALTER TABLE release ENABLE TRIGGER release_respeta_el_rango_de_temas;
+    UPDATE release SET notas='se corrige el nombre del genero'
+     WHERE codigo_release='LJ033'$q$);
+
+-- --- La contracara: no se saca lo que sostiene la publicacion ----------------
+--
+-- Sin esto la regla dura dura lo que tarda un DELETE: publicar con 3 y borrar 2.
+-- Es el mismo ataque que `V18` §3 cerro del lado del contrato.
+
+SELECT probar_mensaje('226','sacarle un tema al EP ya publicado',
+ 'lleva por lo menos',
+ $q$DELETE FROM cancion_release WHERE titulo='Tercero'$q$);
+
+-- La variante silenciosa, que es peor porque no parece un borrado.
+SELECT probar_mensaje('227','mover a otro release un tema que sostiene uno publicado',
+ 'lleva por lo menos',
+ $q$UPDATE cancion_release
+       SET id_release=(SELECT id_release FROM release WHERE codigo_release='LJ032')
+     WHERE titulo='Tercero'$q$);
+
+-- La rama que tiene que DEJAR PASAR, que es la mitad que `V16` enseño a no
+-- olvidar: corregir el titulo de un tema publicado no toca la regla.
+SELECT probar('228','corregir el titulo de un tema de un EP publicado','ANDA',
+ $q$UPDATE cancion_release SET titulo='Tercero (remasterizado)' WHERE titulo='Tercero'$q$);
+
+-- Y la otra: agregar de mas a un publicado no se frena. Un EP publicado con un
+-- cuarto tema es un dato mal cargado; uno al que le sacan la mitad es un
+-- catalogo que miente. Solo se protege el minimo.
+SELECT probar('229','agregarle un cuarto tema a un EP ya publicado','ANDA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,4,'Bonus' FROM release WHERE codigo_release='LJ030'
+    RETURNING id_cancion$q$);
+
+-- --- La regla desde el otro lado, que es la que no se ve desde adentro -------
+--
+-- Sin este trigger la regla se esquiva editando el release: cargar los temas con
+-- el release en EP y despues pasarlo a SINGLE. Las dos filas validas por
+-- separado, la situacion mintiendo igual. Es la forma exacta del trigger de
+-- `V23`.
+SELECT probar_mensaje('230','pasar a SINGLE un release que tiene temas',
+ 'no puede pasar a SINGLE',
+ $q$UPDATE release SET tipo_release='SINGLE' WHERE codigo_release='LJ030'$q$);
+
+SELECT probar_mensaje('231','dejar sin tipo un release que tiene temas',
+ 'no puede pasar a sin tipo',
+ $q$UPDATE release SET tipo_release=NULL WHERE codigo_release='LJ030'$q$);
+
+-- --- Las columnas del tema (P53) ---------------------------------------------
+
+-- ⚠️ El unique es DEFERRABLE INITIALLY DEFERRED, asi que sin esta linea el
+-- rechazo llega al COMMIT -- o sea DESPUES de que `probar` inserte su fila -- y
+-- el caso no falla: DESAPARECE del resumen. Es la trampa que `V10` le hizo a
+-- estas dos suites, con otra ropa.
+SELECT probar('232','dos temas con el mismo orden en el mismo release','FALLA',
+ $q$SET CONSTRAINTS cancion_orden_unico IMMEDIATE;
+    INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,1,'Repetido' FROM release WHERE codigo_release='LJ030'$q$);
+
+SELECT probar('233','un titulo de puros espacios','FALLA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo)
+    SELECT id_release,9,'   ' FROM release WHERE codigo_release='LJ030'$q$);
+
+SELECT probar('234','una duracion negativa','FALLA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo,duracion_segundos)
+    SELECT id_release,9,'Imposible',-5 FROM release WHERE codigo_release='LJ030'$q$);
+
+-- El ISRC es lo que leen las distribuidoras: uno que no es un ISRC se publica
+-- como si lo fuera. La salida existe y es dejarlo en blanco (P53).
+SELECT probar('235','un ISRC que no tiene forma de ISRC','FALLA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo,isrc)
+    SELECT id_release,9,'Mal codigo','pendiente' FROM release WHERE codigo_release='LJ030'$q$);
+
+SELECT probar('236','un ISRC con guiones, que es como se escribe','ANDA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo,isrc)
+    SELECT id_release,5,'Con codigo','AR-ABC-26-00001'
+      FROM release WHERE codigo_release='LJ030'
+    RETURNING id_cancion$q$);
+
+SELECT probar('237','el mismo ISRC en dos temas: la misma grabacion, dos releases','ANDA',
+ $q$INSERT INTO cancion_release (id_release,orden,titulo,isrc)
+    SELECT id_release,6,'La misma grabacion','ARABC2600001'
+      FROM release WHERE codigo_release='LJ030'
+    RETURNING id_cancion$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''
