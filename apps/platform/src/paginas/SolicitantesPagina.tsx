@@ -26,6 +26,7 @@ import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { cuando } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
+import { linkDeWhatsapp, mensajeConLaClave, saludoDeContacto } from '../componentes/whatsapp'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -177,11 +178,9 @@ export function SolicitantesPagina() {
                   <Etiqueta>{NOMBRE_DE_INTERES[f.interes]}</Etiqueta>
                 </div>
 
-                {/* El teléfono va con el mail y no escondido: es el canal por el
-                    que se contesta, y por el que va a viajar la contraseña. */}
-                <div className="mt-1 text-sm text-tenue">
-                  {f.email} · {f.telefono}
-                </div>
+                <div className="mt-1 text-sm text-tenue">{f.email}</div>
+
+                <Telefono ficha={f} />
 
                 {f.detalle && <div className="mt-1 text-sm text-tenue">{f.detalle}</div>}
                 {f.mensaje && <p className="mt-2 text-sm italic text-tenue">“{f.mensaje}”</p>}
@@ -237,6 +236,79 @@ export function SolicitantesPagina() {
 }
 
 /**
+ * El teléfono, que es **el canal por el que este buzón se contesta**.
+ *
+ * ⚠️ Antes iba en gris chico, pegado al mail, separado por un punto. Y es el dato
+ * que quien atiende tiene que **leer y volver a tipear en otra aplicación** —o
+ * sea el único de la ficha que se usa con las manos, mostrado como el que menos
+ * importa. Ahora va grande, en monoespaciada (los números se leen de a bloques),
+ * con `select-all` para que un clic lo seleccione entero, y con el botón que se
+ * saltea el paso.
+ *
+ * **Si el número no se puede leer, se dice y no se ofrece el botón.** Un `wa.me`
+ * mal armado abre WhatsApp diciendo *"número no válido"*: parece que el sistema
+ * hizo algo y deja a la persona peor que antes. Ver {@code whatsapp.ts}.
+ */
+function Telefono({ ficha }: { ficha: SolicitanteResumen }) {
+  const [copiado, setCopiado] = useState(false)
+
+  const link = linkDeWhatsapp(
+    ficha.telefono,
+    saludoDeContacto(ficha.nombre, NOMBRE_DE_INTERES[ficha.interes]),
+  )
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(ficha.telefono)
+      setCopiado(true)
+    } catch {
+      // Sin permiso, sin HTTPS o sin API no hay nada que hacer — y el número ya
+      // está a la vista y seleccionable, que es la razón por la que se muestra
+      // grande **además** de ofrecer el botón y no en lugar de él.
+    }
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span className="select-all font-mono text-base tabular-nums">{ficha.telefono}</span>
+
+      <Boton variante="enlace" type="button" onClick={() => void copiar()}>
+        {copiado ? 'Copiado' : 'Copiar'}
+      </Boton>
+
+      {link ? (
+        <EnlaceDeWhatsapp href={link}>Escribirle</EnlaceDeWhatsapp>
+      ) : (
+        <span className="text-xs text-apagado">
+          Ese número no se puede abrir en WhatsApp: copialo y buscalo a mano.
+        </span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * El link a WhatsApp.
+ *
+ * Es un `<a>` y no un `<button>` **a propósito**: abre otra aplicación, así que
+ * tiene que poder abrirse en otra pestaña, copiarse y todo lo que un link hace.
+ * Se dibuja como el botón secundario para que se lea como una acción, que es lo
+ * que es.
+ */
+function EnlaceDeWhatsapp({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="rounded-md border border-linea-control bg-superficie px-3 py-1.5 text-xs font-medium text-texto transition-colors hover:border-red hover:text-acento"
+    >
+      {children}
+    </a>
+  )
+}
+
+/**
  * Lo que hay que hacer después de convertir.
  *
  * **Cuenta dos historias distintas y no una con un hueco.** Si la cuenta se creó,
@@ -255,6 +327,17 @@ function CuentaLista({
   const sigue = DONDE_SIGUE[resultado.solicitante.interes]
   const quien = `${resultado.usuario.nombre} ${resultado.usuario.apellido}`
 
+  const linkConLaClave = resultado.passwordTemporal
+    ? linkDeWhatsapp(
+        resultado.solicitante.telefono,
+        mensajeConLaClave(
+          resultado.usuario.nombre,
+          resultado.usuario.email,
+          resultado.passwordTemporal,
+        ),
+      )
+    : null
+
   return (
     <Bloque titulo={resultado.cuentaNueva ? `Cuenta creada para ${quien}` : `${quien} ya tenía cuenta`} className="mb-6">
 
@@ -269,6 +352,25 @@ function CuentaLista({
           <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
           </Hueco>
+
+          {/* ⚠️ **El botón que hace que la advertencia de arriba deje de importar
+              tanto.** "No se puede volver a ver" convierte un error de tipeo en
+              una cuenta nueva: la persona no entra, vuelve a escribir, y hay que
+              generarle otra clave desde Personas. Escrito por el sistema, ese
+              error no existe. Mandar el mensaje sigue siendo un acto de quien
+              atiende — lo que se saca del medio es la transcripción. */}
+          {linkConLaClave ? (
+            <div className="mt-3">
+              <EnlaceDeWhatsapp href={linkConLaClave}>
+                Mandarle la clave por WhatsApp
+              </EnlaceDeWhatsapp>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-apagado">
+              El teléfono de la ficha ({resultado.solicitante.telefono}) no se puede abrir en
+              WhatsApp: copiá la clave y buscá el número a mano.
+            </p>
+          )}
         </>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-tenue">

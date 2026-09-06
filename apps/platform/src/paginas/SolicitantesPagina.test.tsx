@@ -125,13 +125,16 @@ describe('el buzón', () => {
   })
 
   /**
-   * El teléfono se muestra junto al mail y no escondido: es el canal por el que
-   * se contesta y por el que va a viajar la contraseña.
+   * ⚠️ **El teléfono dejó de ir pegado al mail en gris chico.** Este caso decía
+   * antes que los dos iban juntos en un renglón, y era cierto — pero el teléfono
+   * es el único dato de la ficha que se usa **con las manos**: hay que leerlo y
+   * tipearlo en otra aplicación. Ahora va solo, grande y con su botón.
    */
   it('muestra qué pidió, por dónde contestarle y qué escribió', async () => {
     montar()
 
-    expect(await screen.findByText(/camila@ejemplo.com · 11-5555-4444/)).toBeDefined()
+    expect(await screen.findByText('camila@ejemplo.com')).toBeDefined()
+    expect(screen.getByText('11-5555-4444')).toBeDefined()
     expect(screen.getByText('Un curso')).toBeDefined()
     expect(screen.getByText(/Programa DJ/)).toBeDefined()
     expect(screen.getByText(/Quiero arrancar en marzo/)).toBeDefined()
@@ -224,5 +227,88 @@ describe('descartar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await waitFor(() => expect(descartarSolicitante).toHaveBeenCalledWith(3, 'Spam'))
+  })
+})
+
+/**
+ * Escribirle por WhatsApp (Fase 1 de la mejora del buzón).
+ *
+ * **Lo que estos casos cuidan no es el link: es que el sistema deje de hacer
+ * tipear lo que ya sabe.** El teléfono y la contraseña temporal están los dos en
+ * la pantalla, y hasta ahora había que leerlos y volver a escribirlos en otra
+ * aplicación. Con la contraseña eso no es una molestia sino un error: **no se
+ * puede volver a ver**, así que un dígito mal copiado es una cuenta que hay que
+ * resetear.
+ *
+ * ⚠️ **Y el caso que más pesa es el del número ilegible.** Un `wa.me` mal armado
+ * abre WhatsApp diciendo *"número no válido"*: parece que el sistema hizo algo y
+ * deja a quien atiende peor que antes. La pantalla tiene que **decirlo y no
+ * ofrecer el botón**.
+ */
+describe('escribirle por WhatsApp', () => {
+  /** El texto del mensaje, ya desarmado del link. */
+  function mensajeDe(enlace: HTMLElement): string {
+    const url = new URL(enlace.getAttribute('href') as string)
+    return url.searchParams.get('text') ?? ''
+  }
+
+  it('ofrece escribirle, con el saludo que nombra lo que pidió', async () => {
+    montar()
+
+    const enlace = await screen.findByRole('link', { name: 'Escribirle' })
+
+    expect(enlace.getAttribute('href')).toContain('wa.me/5491155554444')
+    expect(mensajeDe(enlace)).toContain('Camila')
+    // "Un curso" en la ficha, "un curso" adentro de la oración.
+    expect(mensajeDe(enlace)).toContain('un curso')
+  })
+
+  /**
+   * **El que evita el error caro.** La clave viaja escrita por el sistema, junto
+   * con el mail con el que se entra: las dos cosas que, mal copiadas, terminan en
+   * la misma repregunta.
+   */
+  it('manda la clave temporal escrita, sin tipearla', async () => {
+    vi.mocked(convertirSolicitante).mockResolvedValue(conversion())
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+
+    const enlace = await screen.findByRole('link', { name: 'Mandarle la clave por WhatsApp' })
+    expect(mensajeDe(enlace)).toContain('lluvia-42-roja')
+    expect(mensajeDe(enlace)).toContain('camila@ejemplo.com')
+  })
+
+  /**
+   * ⚠️ **La mitad que importa: con un número que no se puede leer NO hay botón.**
+   * Si acá apareciera un link, abriría WhatsApp con un número inválido y quien
+   * atiende creería que escribió.
+   */
+  it('con un teléfono ilegible lo dice y no ofrece el link', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ telefono: 'no tengo, escribime por Instagram' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    expect(await screen.findByText(/no se puede abrir en WhatsApp/)).toBeDefined()
+    expect(screen.queryByRole('link', { name: 'Escribirle' })).toBeNull()
+  })
+
+  it('copia el número al portapapeles', async () => {
+    const escribir = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: escribir },
+      configurable: true,
+    })
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Copiar' }))
+
+    expect(escribir).toHaveBeenCalledWith('11-5555-4444')
+    expect(await screen.findByRole('button', { name: 'Copiado' })).toBeDefined()
   })
 })
