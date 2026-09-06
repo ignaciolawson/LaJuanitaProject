@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import { cancelarSolicitud, misSolicitudes } from '../api/portal'
 import { NOMBRE_DE_ESTADO_SOLICITUD, type SolicitudResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { fecha, hhmm } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
@@ -20,7 +21,7 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
 export function MisSolicitudesPagina() {
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     setCargando(true)

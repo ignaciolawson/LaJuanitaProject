@@ -14,8 +14,11 @@ import type {
   EstadoAlumno,
   Nivel,
   NivelIngreso,
+  UsuarioResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
+import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -52,7 +55,7 @@ export function AlumnosPagina() {
   const [disciplina, setDisciplina] = useState<Disciplina | ''>('')
   const [nivelCurso, setNivelCurso] = useState<Nivel | ''>('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [editando, setEditando] = useState<AlumnoResumen | null>(null)
 
@@ -312,7 +315,7 @@ function FormularioEdicion({
     instagram: alumno.instagram ?? '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   function cambiar(campo: keyof typeof datos) {
@@ -393,11 +396,21 @@ function FormularioEdicion({
 }
 
 /**
- * Alta de alumno creando la cuenta.
+ * Alta de alumno, por sus dos caminos.
  *
- * El otro camino (una persona que ya tiene cuenta y ahora se inscribe) usa el
- * mismo endpoint mandando `idUsuario`, y se agrega cuando exista el buscador de
- * personas. El backend ya lo soporta.
+ * ⚠️ **El segundo camino faltaba y el backend lo soportaba desde el primer día**
+ * (§14 · B2). Este comentario decía *"se agrega cuando exista el buscador de
+ * personas"*, y el javadoc de `AltaAlumnoRequest` describe el caso con las
+ * palabras exactas que después usó Ignacio: *"se registró sola, quizá para
+ * alquilar una cabina, y ahora se inscribe"*. Era medio circuito escrito
+ * esperando la otra mitad.
+ *
+ * Los dos caminos son un solo pedido y una sola transacción, que es lo que evita
+ * dejar una cuenta huérfana si el alta del alumno falla:
+ *
+ * - **Ya tiene cuenta** → `idUsuario`. No hay contraseña temporal que mostrar,
+ *   porque no se creó ninguna cuenta: la persona entra con la que ya tenía.
+ * - **Es nueva** → `usuarioNuevo`, y el sistema devuelve la contraseña temporal.
  */
 function FormularioAlta({
   onCerrar,
@@ -406,6 +419,8 @@ function FormularioAlta({
   onCerrar: () => void
   onCreado: () => void
 }) {
+  const [tieneCuenta, setTieneCuenta] = useState(false)
+  const [persona, setPersona] = useState<UsuarioResumen | null>(null)
   const [datos, setDatos] = useState({
     nombre: '',
     apellido: '',
@@ -414,7 +429,7 @@ function FormularioAlta({
     nivelIngreso: '' as NivelIngreso | '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
   const [passwordTemporal, setPasswordTemporal] = useState<string | null>(null)
 
@@ -429,19 +444,38 @@ function FormularioAlta({
     setErrorGeneral(null)
     setEnviando(true)
 
+    if (tieneCuenta && !persona) {
+      setErrorGeneral('Elegí a la persona, o cargala como cuenta nueva.')
+      setEnviando(false)
+      return
+    }
+
     try {
       const resultado = await altaAlumno({
-        usuarioNuevo: {
-          nombre: datos.nombre,
-          apellido: datos.apellido,
-          email: datos.email,
-          telefono: datos.telefono || undefined,
-        },
+        // Los dos caminos son excluyentes y el backend lo exige: mandar los dos
+        // —o ninguno— es un 400 con ese texto.
+        ...(tieneCuenta
+          ? { idUsuario: persona!.id }
+          : {
+              usuarioNuevo: {
+                nombre: datos.nombre,
+                apellido: datos.apellido,
+                email: datos.email,
+                telefono: datos.telefono || undefined,
+              },
+            }),
         nivelIngreso: datos.nivelIngreso || undefined,
       })
-      // No se cierra todavía: hay que mostrar la contraseña temporal, que no se
-      // puede volver a consultar nunca.
-      setPasswordTemporal(resultado.passwordTemporal)
+
+      // Sin cuenta nueva no hay contraseña que mostrar, así que se cierra
+      // directo. Dibujar el paso igual, en blanco, dejaría a alguien esperando un
+      // dato que no existe — la misma trampa que `ConversionRealizada` documenta
+      // en el buzón de solicitantes.
+      if (resultado.passwordTemporal) {
+        setPasswordTemporal(resultado.passwordTemporal)
+      } else {
+        onCreado()
+      }
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.errores) setErrores(e.errores)
@@ -474,6 +508,49 @@ function FormularioAlta({
   return (
     <Bloque titulo="Nuevo alumno" className="mb-6">
       <form onSubmit={onSubmit} noValidate>
+        {/* ⚠️ **La pregunta va PRIMERO y no es un detalle de orden.** Es lo que
+            decide qué campos siguen, y puesta al final alguien completa cinco
+            campos y recién ahí se entera de que había otro camino. Es la pregunta
+            que hizo Ignacio: *"pepe no es alumno ni profe pero tiene cuenta por
+            reserva de cabina, quiere hacer un curso, ¿cómo se lo inscribe?"* */}
+        <fieldset className="mb-4">
+          <legend className="t-mono mb-2 text-tenue">¿Ya tiene cuenta?</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tieneCuenta"
+                checked={!tieneCuenta}
+                onChange={() => {
+                  setTieneCuenta(false)
+                  setPersona(null)
+                  setErrores({})
+                }}
+              />
+              No, es nueva
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="tieneCuenta"
+                checked={tieneCuenta}
+                onChange={() => {
+                  setTieneCuenta(true)
+                  setErrores({})
+                }}
+              />
+              Sí, ya se registró
+            </label>
+          </div>
+        </fieldset>
+
+        {tieneCuenta ? (
+          <BuscadorDePersonas
+            elegida={persona}
+            onElegir={setPersona}
+            ayuda="Alguien que ya entró al sistema — por ejemplo, para alquilar la cabina."
+          />
+        ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo
             etiqueta="Nombre"
@@ -505,6 +582,12 @@ function FormularioAlta({
             onChange={cambiar('telefono')}
             error={errores.telefono}
           />
+        </div>
+        )}
+
+        {/* El nivel de ingreso es del alumno, no de la cuenta: va en los dos
+            caminos. */}
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <CampoSelect
             etiqueta="Nivel de ingreso"
             value={datos.nivelIngreso}
@@ -527,7 +610,11 @@ function FormularioAlta({
 
         <div className="mt-5 flex gap-3">
           <Boton type="submit" disabled={enviando}>
-            {enviando ? 'Creando…' : 'Crear alumno'}
+            {enviando
+              ? 'Creando…'
+              : tieneCuenta
+                ? 'Inscribir como alumno'
+                : 'Crear alumno'}
           </Boton>
           <Boton type="button" variante="secundario" onClick={onCerrar}>
             Cancelar

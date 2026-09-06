@@ -4,6 +4,7 @@ import { anularEgreso, listarEgresos, listarProfesores, registrarEgreso } from '
 import { ApiError } from '../api/cliente'
 import type { DestinoDeEgreso, EgresoResumen, Moneda, ProfesorResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
@@ -39,7 +40,7 @@ export function EgresosPagina() {
   /** La división por dentro de §12 · C3: sueldos o el resto de los gastos. */
   const [destino, setDestino] = useState<DestinoDeEgreso | ''>('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [anulando, setAnulando] = useState<EgresoResumen | null>(null)
 
@@ -215,7 +216,7 @@ function FormularioEgreso({
     comprobantePath: '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   // El caso más frecuente del negocio es el sueldo de un profesor, así que se

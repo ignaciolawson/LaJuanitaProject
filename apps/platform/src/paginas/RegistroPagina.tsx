@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import type { RegistroRequest } from '../api/tipos'
 import { useAuth } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo } from '../componentes/Campo'
 import { Puerta } from '../componentes/Puerta'
 
@@ -30,7 +31,7 @@ export function RegistroPagina() {
     password: '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   function cambiar(campo: keyof typeof datos) {

@@ -4,6 +4,7 @@ import { caja } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { NOMBRE_DE_MEDIO, type CajaDelPeriodo } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Filtros } from '../componentes/Filtros'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
@@ -30,7 +31,7 @@ export function CajaPagina() {
 
   const [cajas, setCajas] = useState<CajaDelPeriodo[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     setCargando(true)

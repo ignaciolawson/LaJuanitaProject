@@ -31,6 +31,7 @@ import {
   type UsuarioResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -105,7 +106,7 @@ export function CalendarioPagina() {
   const [tipos, setTipos] = useState<TipoUsoResumen[]>([])
   const [profesores, setProfesores] = useState<ProfesorResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const [elegida, setElegida] = useState<ReservaResumen | null>(null)
   const [nueva, setNueva] = useState<Franja | null>(null)
@@ -608,6 +609,9 @@ function useParticipante(activo: boolean, disciplina: string | null) {
   const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
   const [cursos, setCursos] = useState<InscripcionResumen[]>([])
   const [idAlumno, setIdAlumno] = useState('')
+  // `useState` pelado: si el catálogo no cargó, el desplegable queda vacío y este
+  // mensaje es la única explicación de por qué. Limpiarlo deja un `<select>` sin
+  // opciones y sin motivo.
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null)
 
   useEffect(() => {
@@ -778,7 +782,7 @@ function FormularioParticipante({
   onAnotado: () => void
 }) {
   const [abierto, setAbierto] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
   const tipo = tipos.find((t) => t.idTipoUso === reserva.idTipoUso)
   const selector = useParticipante(abierto, tipo?.disciplina ?? null)
@@ -886,7 +890,7 @@ function FormularioReserva({
     notas: reserva?.notas ?? '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   const sala = salas.find((s) => String(s.idSala) === datos.idSala)

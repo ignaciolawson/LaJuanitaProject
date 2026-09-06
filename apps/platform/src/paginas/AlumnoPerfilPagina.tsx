@@ -22,6 +22,7 @@ import { Aviso } from '../componentes/Boton'
 import { Paginado } from '../componentes/Paginado'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import { useErrorPasajero } from '../componentes/aviso'
 import { fecha, hoy, sumarDias } from '../componentes/semana'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { Etiqueta } from '../componentes/Etiqueta'
@@ -53,7 +54,7 @@ export function AlumnoPerfilPagina() {
   const [totalInscripciones, setTotalInscripciones] = useState(0)
   const [pagina, setPagina] = useState(0)
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     if (!Number.isInteger(idAlumno) || idAlumno <= 0) {
@@ -269,7 +270,7 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
   const [notas, setNotas] = useState<NotaDeAlumno[]>([])
   const [materiales, setMateriales] = useState<MaterialResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   useEffect(() => {
     Promise.all([notasDelAlumno(idAlumno), materialesDelAlumno(idAlumno)])
@@ -365,7 +366,7 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
 function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
   const [clases, setClases] = useState<ReservaResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   useEffect(() => {
     agenda({ desde: sumarDias(hoy(), -45), hasta: sumarDias(hoy(), 15), incluirCanceladas: true })
@@ -445,6 +446,10 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
  */
 function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
   const [cuenta, setCuenta] = useState<EstadoDeCuentaResumen | null>(null)
+  // ⚠️ `useState` pelado y NO `useErrorPasajero`: este bloque dibuja
+  // `if (error) return <Aviso>` más abajo, o sea que el mensaje no acompaña al
+  // contenido, lo reemplaza. Limpiarlo a los veinte segundos dejaría el bloque
+  // del estado de cuenta vacío y sin ninguna explicación.
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {

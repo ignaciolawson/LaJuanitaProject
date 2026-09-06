@@ -40,6 +40,7 @@ import {
   type VentaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
@@ -86,7 +87,7 @@ export function PagosPagina() {
   /** Los números de la barra de solapas. Vacío mientras no vuelvan. */
   const [totales, setTotales] = useState<TotalDeLinea[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   /** El pago que se está corrigiendo (`V19` §2). Null = no hay ninguno abierto. */
   const [editando, setEditando] = useState<PagoResumen | null>(null)
@@ -525,7 +526,7 @@ function FormularioCorreccion({
     motivoDescuento: pago.motivoDescuento ?? '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   function cambiar(campo: keyof typeof datos) {
@@ -881,7 +882,7 @@ function FormularioPago({
    */
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   const esCurso = destino === 'INSCRIPCION'

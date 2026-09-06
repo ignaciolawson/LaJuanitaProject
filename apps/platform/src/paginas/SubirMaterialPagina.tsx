@@ -11,6 +11,7 @@ import {
 import type { ReservaResumen } from '../api/tiposAdmin'
 import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { cuando, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
@@ -52,7 +53,7 @@ export function SubirMaterialPagina() {
   const [materiales, setMateriales] = useState<MaterialResumen[]>([])
   const [clases, setClases] = useState<ReservaResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -142,7 +143,7 @@ function Formulario({
   const [clase, setClase] = useState('')
   const [publicar, setPublicar] = useState(true)
   const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [errores, setErrores] = useState<Record<string, string>>({})
 
   async function enviar(evento: React.FormEvent) {
@@ -286,7 +287,7 @@ function Fila({
   material: MaterialResumen
   alCambiar: (material: MaterialResumen) => void
 }) {
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   async function alternar() {
     setError(null)

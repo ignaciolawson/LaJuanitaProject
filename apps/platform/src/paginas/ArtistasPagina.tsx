@@ -10,6 +10,7 @@ import {
 } from '../api/sello'
 import type { ArtistaResumen, ContratoResumen } from '../api/tiposSello'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo } from '../componentes/Campo'
 import { FormularioContrato } from './SelloPagina'
@@ -42,7 +43,7 @@ export function ArtistasPagina() {
   const [artistas, setArtistas] = useState<ArtistaResumen[]>([])
   const [buscar, setBuscar] = useState('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [editando, setEditando] = useState<ArtistaResumen | null>(null)
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [abierto, setAbierto] = useState<number | null>(null)
@@ -274,7 +275,7 @@ function Formulario({
   const [instagram, setInstagram] = useState(artista?.instagram ?? '')
   const [confirmado, setConfirmado] = useState(artista?.confirmado ?? false)
   const [bio, setBio] = useState(artista?.bio ?? '')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [guardando, setGuardando] = useState(false)
 

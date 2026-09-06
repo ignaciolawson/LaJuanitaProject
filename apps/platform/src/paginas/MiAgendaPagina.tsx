@@ -7,6 +7,7 @@ import type { ReservaResumen } from '../api/tiposAdmin'
 import type { ClasesDictadas } from '../api/tiposDocencia'
 import type { ReprogramacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -40,7 +41,7 @@ export function MiAgendaPagina() {
   const [dictadas, setDictadas] = useState<ClasesDictadas | null>(null)
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const hasta = sumarDias(desde, 6)
 

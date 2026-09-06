@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { cambiarMiPassword } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo } from '../componentes/Campo'
 import { Puerta } from '../componentes/Puerta'
 import { useAuth, useUsuario } from './contexto'
@@ -25,7 +26,7 @@ export function CambioPasswordObligatorio() {
   const [passwordNueva, setPasswordNueva] = useState('')
   const [repetida, setRepetida] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   async function onSubmit(evento: FormEvent) {

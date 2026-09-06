@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import { marcarLeida, marcarTodasLeidas, misNotificaciones } from '../api/portal'
 import type { NotificacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { cuando } from '../componentes/presentacion'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
@@ -37,7 +38,7 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
 export function NotificacionesPagina() {
   const [avisos, setAvisos] = useState<NotificacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     try {

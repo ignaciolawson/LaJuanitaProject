@@ -12,10 +12,20 @@ import jakarta.validation.constraints.Size;
 /**
  * Alta de un release.
  *
- * <p><b>{@code codigoRelease} es opcional y ahí está toda la decisión de §15.</b>
- * Si no viene, lo genera el sistema por encima del más alto que exista. Si viene,
- * se respeta: los lanzamientos anteriores se cargan a mano y un release de 2023
- * tiene el número que tuvo, no el que le tocaría hoy.
+ * <p><b>{@code codigoRelease} es opcional.</b> Si no viene, lo genera el sistema
+ * por encima del más alto que exista. Si viene, se respeta.
+ *
+ * <p>⚠️ <b>Desde el 2026-09-05 ninguna pantalla lo manda</b> (§14 · B4). §15
+ * ratificación 5 había dejado el campo en el formulario para cargar lanzamientos
+ * viejos con el número que tuvieron; Ignacio decidió lo contrario sabiendo el
+ * costo —<i>"que lo ponga el sistema solo siempre"</i>, y los viejos toman código
+ * nuevo— y la decisión posterior gana.
+ *
+ * <p><b>El campo se queda igual, y no es un resto olvidado.</b> Es por dónde
+ * entraría una carga histórica si alguna vez hace falta, y es lo que ejercitan
+ * tres casos de {@code SelloTest} —incluido el que prueba que el correlativo sale
+ * por encima del máximo, que necesita sembrar un código alto para significar algo.
+ * Lo que se sacó es el camino de pantalla, no la capacidad.
  *
  * <p><b>No se puede dar de alta un release ya publicado desde este formulario</b> —
  * el campo {@code estado} no existe acá. Publicar es un acto con su propia regla y

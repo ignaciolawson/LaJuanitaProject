@@ -21,6 +21,7 @@ import {
   type ProfesorResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
@@ -57,7 +58,7 @@ export function InscripcionesPagina() {
   const [disciplina, setDisciplina] = useState<Disciplina | ''>('')
   const [estado, setEstado] = useState<EstadoInscripcion | ''>('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [editando, setEditando] = useState<InscripcionResumen | null>(null)
 
@@ -542,7 +543,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
     notas: '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   /**
@@ -714,7 +715,7 @@ function FormularioEdicion({
   })
   const [motivoBajaNivel, setMotivoBajaNivel] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   const baja = esBajaDeNivel(inscripcion.nivel, datos.nivel)

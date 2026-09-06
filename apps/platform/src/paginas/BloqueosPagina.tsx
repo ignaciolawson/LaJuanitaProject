@@ -4,6 +4,7 @@ import { altaBloqueo, eliminarBloqueo, listarBloqueos, listarSalas } from '../ap
 import { ApiError } from '../api/cliente'
 import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -36,7 +37,7 @@ export function BloqueosPagina() {
   const [idSala, setIdSala] = useState<number | ''>('')
   const [verVencidos, setVerVencidos] = useState(false)
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
 
   useEffect(() => {
@@ -228,7 +229,7 @@ function FormularioBloqueo({
   const [porFranja, setPorFranja] = useState(false)
   const [horas, setHoras] = useState({ horaInicio: '09:00', horaFin: '13:00' })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   function cambiar(campo: keyof typeof datos) {

@@ -5,6 +5,7 @@ import { listarDeudores } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { DIAS_PARA_VENCER, type Deudor } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { antiguedad, importe } from '../componentes/dinero'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -29,7 +30,7 @@ import { fecha } from '../componentes/semana'
 export function DeudoresPagina() {
   const [deudores, setDeudores] = useState<Deudor[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     setCargando(true)

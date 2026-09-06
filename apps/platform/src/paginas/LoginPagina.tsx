@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import { useAuth } from '../auth/contexto'
 import { CONTROL_DE_FORMULARIO } from '../componentes/controles'
 import { Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Puerta } from '../componentes/Puerta'
 
 export function LoginPagina() {
@@ -13,7 +14,7 @@ export function LoginPagina() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   async function onSubmit(evento: FormEvent) {
     evento.preventDefault()

@@ -223,23 +223,42 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             @Param("entraron") Iterable<EstadoPago> entraron);
 
     /**
-     * Cuáles de estas ventas ya tienen la plata adentro.
+     * Los pagos vivos de estas ventas.
      *
      * <p>Una sola consulta para la página entera, no una por fila: con veinte
-     * ventas por página lo segundo son veinte viajes para pintar una etiqueta.
+     * ventas por página lo segundo son veinte viajes.
      *
-     * <p>Usa {@code ENTRARON} y no "distinto de ANULADO", que es la misma lista
-     * escrita de otra forma y se despega el día que aparezca un estado nuevo — la
-     * definición de "plata que entró" vive en {@link EstadoPago#ENTRARON} y en
-     * ningún otro lado.
+     * <p><b>Reemplazó a {@code ventasConPago}, que devolvía solo ids</b> (§14 ·
+     * B2). Con la lista de ids alcanzaba para pintar la etiqueta "sin cobrar",
+     * pero no para lo que pidió Ignacio —<i>"venta de equipos un slot para
+     * adjuntar comprobante"</i>—, porque el comprobante se cuelga <b>del pago</b>
+     * desde `V21` y la venta no tenía cómo nombrar el suyo. Trayendo las
+     * entidades salen las dos cosas de un viaje, y los comprobantes vienen con
+     * ellas por el {@code BatchSize} que {@code Pago} ya declara.
+     *
+     * <p>⚠️ <b>Acá "vivo" es {@code <> ANULADO} y NO {@link EstadoPago#ENTRARON},
+     * y las dos lecturas conviven a propósito.</b> `V12` dejó escrito que las dos
+     * listas se parecen y no son la misma, así que hay que decir cuál va dónde:
+     *
+     * <ul>
+     *   <li><b>Si la venta está cobrada</b> lo decide {@code ENTRARON} — plata que
+     *       entró de verdad, la definición que vive en {@link EstadoPago} y en
+     *       ningún otro lado. Una deuda anotada no es una venta cobrada.
+     *   <li><b>A qué pago se le adjunta el comprobante</b> lo decide "no anulado",
+     *       porque a una deuda anotada <b>sí</b> se le adjunta el respaldo de la
+     *       transferencia — es justo el papel con el que después se la cobra.
+     * </ul>
+     *
+     * Un pago anulado no es ninguna de las dos: no cuenta como cobro y no recibe
+     * comprobantes nuevos.
      */
     @Query("""
-            SELECT DISTINCT p.idVentaEquipo
-            FROM Pago p
-            WHERE p.idVentaEquipo IN :ids AND p.estadoPago IN :entraron
+            SELECT p FROM Pago p
+            WHERE p.idVentaEquipo IN :ids AND p.estadoPago <> :anulado
+            ORDER BY p.id
             """)
-    List<Long> ventasConPago(@Param("ids") List<Long> ids,
-            @Param("entraron") Iterable<EstadoPago> entraron);
+    List<Pago> pagosVivosDeVentas(@Param("ids") List<Long> ids,
+            @Param("anulado") EstadoPago anulado);
 
     /**
      * Cuánto entró contra cada uno de estos trabajos de M&M, por moneda.

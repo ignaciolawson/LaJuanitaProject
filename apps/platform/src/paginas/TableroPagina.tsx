@@ -16,6 +16,7 @@ import type {
 import { DIAS_DE_LA_SEMANA, NOMBRE_DE_LINEA } from '../api/tiposTablero'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
@@ -67,7 +68,7 @@ export function TableroPagina() {
   const [pendientes, setPendientes] = useState<CobrosPendientes[]>([])
   const [salas, setSalas] = useState<SalaResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [bajando, setBajando] = useState<'xlsx' | 'pdf' | null>(null)
 
   useEffect(() => {

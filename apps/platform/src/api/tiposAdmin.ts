@@ -590,6 +590,17 @@ export type VentaResumen = {
   fechaRegistro: string
   /** Si ya entró la plata. La venta y su cobro son dos hechos. */
   cobrada: boolean
+  /**
+   * El pago vivo de la venta, para adjuntarle el comprobante (§14 · B2).
+   *
+   * ⚠️ **Puede venir con `cobrada` en falso y no es una contradicción**: una
+   * deuda anotada es un pago vivo —se le adjunta el respaldo de la transferencia,
+   * que es el papel con el que después se la cobra— y no es plata que entró. Son
+   * las dos lecturas que `V12` enseñó a no confundir.
+   */
+  idPago: number | null
+  /** Los comprobantes de ese pago. Vacío si la venta no tiene pago. */
+  comprobantes: ComprobanteResumen[]
   /** Anulada sale del total del período pero no del listado: es historial. */
   anulada: boolean
   motivoAnulacion: string | null

@@ -4,6 +4,7 @@ import { listarSalas, usoDeSalas } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { SalaResumen, UsoDeSala } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo } from '../componentes/Campo'
@@ -31,7 +32,7 @@ export function UsoDeSalasPagina() {
   const [uso, setUso] = useState<UsoDeSala[]>([])
   const [salas, setSalas] = useState<SalaResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   useEffect(() => {
     // Las inactivas también: un período pasado puede tener adentro una sala que

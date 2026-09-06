@@ -16,6 +16,7 @@ import {
   type SolicitanteResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { CampoSelect } from '../componentes/Campo'
@@ -56,7 +57,7 @@ export function SolicitantesPagina() {
   const [total, setTotal] = useState(0)
   const [totalPaginas, setTotalPaginas] = useState(0)
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   /** Cuál está abierta para descartar. Una por vez. */
   const [descartando, setDescartando] = useState<number | null>(null)

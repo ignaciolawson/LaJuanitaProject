@@ -25,6 +25,7 @@ import {
   type TrabajoResumen,
 } from '../api/tiposMastering'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
@@ -76,7 +77,7 @@ export function MixMasteringPagina() {
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoTrabajo | ''>('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [abierto, setAbierto] = useState<number | null>(null)
 
@@ -320,7 +321,7 @@ function FormularioAlta({
     notasInternas: '',
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
@@ -550,6 +551,11 @@ function Detalle({
   const [guardando, setGuardando] = useState(false)
   const [guardado, setGuardado] = useState(false)
   const [proximoEstado, setProximoEstado] = useState<EstadoTrabajo | ''>('')
+  // ⚠️ **`useState` pelado y NO `useErrorPasajero`**, por lo mismo que el
+  // `rechazo` de `SelloPagina`: no es un aviso, es un estado del flujo. Mientras
+  // vale aparece *"Liberarlo igual, con motivo"*, así que un reloj le sacaría la
+  // salida a quien está decidiendo. Son las dos reglas duras del sistema con esta
+  // forma y las dos quedan afuera.
   const [rechazoDeLiberacion, setRechazoDeLiberacion] = useState<string | null>(null)
   const [justificando, setJustificando] = useState(false)
   const [cobrando, setCobrando] = useState(false)
@@ -846,7 +852,7 @@ function FormularioCobro({
     medioPago: 'TRANSFERENCIA' as MedioPago,
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {

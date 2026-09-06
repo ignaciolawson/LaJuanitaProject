@@ -4,6 +4,7 @@ import { ApiError } from '../api/cliente'
 import { editarPerfil } from '../api/portal'
 import { useAuth, useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo } from '../componentes/Campo'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
@@ -28,7 +29,7 @@ export function MiPerfilPagina() {
   const [telefono, setTelefono] = useState(usuario.telefono ?? '')
 
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [guardado, setGuardado] = useState(false)
   const [guardando, setGuardando] = useState(false)
 

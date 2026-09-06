@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -100,14 +100,36 @@ describe('el catálogo', () => {
    * El filtrado real lo hace el backend, que solo devuelve lo solicitable. Acá
    * se pinea que la pantalla dibuja lo que le mandan y no una lista propia: si
    * mañana Mix & Mastering se vuelve solicitable, no hay nada que tocar acá.
+   *
+   * ⚠️ **Este caso se caía 1 de cada 2 ó 3 corridas completas y pasaba siempre
+   * solo. Es la TERCERA cara del mismo bug de §9.6.**
+   *
+   * `findByLabelText` espera al `<select>`, **no a sus `<option>`**. Estos
+   * selects se dibujan vacíos en el primer frame y se llenan cuando contesta el
+   * catálogo, así que el elemento existe y las opciones todavía no — y leer
+   * `textContent` ahí devuelve `''` sin esperar nada. No es un techo de tiempo
+   * corto: no hay ninguna espera que agrandar, que es exactamente por qué
+   * subirle el `asyncUtilTimeout` a la suite no lo arregló.
+   *
+   * §9.6 encontró esta forma en los casos que **eligen** una opción
+   * (`userEvent.selectOptions` no reintenta: tira `Value not found in options` al
+   * toque) y la cerró con `src/pruebas/elegir.ts` en los 58 lugares que
+   * seleccionan. Éste no selecciona: **afirma sobre el texto**, así que quedó
+   * afuera de esa barrida y siguió flakeando en silencio.
+   *
+   * La corrección es la misma idea: **esperar la OPCIÓN, no el select.** Y de
+   * paso el caso queda mejor escrito — afirma sobre las opciones, que es lo que
+   * de verdad se está probando, en vez de sobre un string concatenado donde
+   * "Clase de DJ" podría aparecer por cualquier otro motivo.
    */
   it('ofrece los usos que vinieron del catálogo del portal', async () => {
     montar()
 
     const usos = await screen.findByLabelText('Qué querés hacer')
-    expect(usos.textContent).toContain('Alquiler de cabina')
-    expect(usos.textContent).toContain('Grabación de set')
-    expect(usos.textContent).not.toContain('Clase de DJ')
+
+    expect(await within(usos).findByRole('option', { name: 'Alquiler de cabina' })).toBeDefined()
+    expect(within(usos).getByRole('option', { name: 'Grabación de set' })).toBeDefined()
+    expect(within(usos).queryByRole('option', { name: 'Clase de DJ' })).toBeNull()
   })
 
   /** §2.6: no se graba en la Sala 1, así que no se ofrece. */

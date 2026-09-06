@@ -2,7 +2,8 @@ package com.lajuanita.backend.venta;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.pago.EstadoPago;
+import com.lajuanita.backend.pago.Pago;
 import com.lajuanita.backend.pago.PagoRepository;
 import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.AltaPagoRequest;
@@ -66,9 +68,9 @@ public class VentaEquipoService {
                 Sort.by(Sort.Direction.DESC, "fechaVenta").and(Sort.by(Sort.Direction.DESC, "id")));
 
         var encontradas = ventas.listar(desde, hasta, Busqueda.patron(buscar), paginado);
-        Set<Long> cobradas = cobradasEntre(encontradas.getContent());
+        Map<Long, Pago> pagos = pagosVivosDe(encontradas.getContent());
 
-        return Pagina.de(encontradas.map(v -> VentaResumen.de(v, cobradas.contains(v.getId()))));
+        return Pagina.de(encontradas.map(v -> VentaResumen.de(v, pagos.get(v.getId()))));
     }
 
     @Transactional
@@ -98,12 +100,16 @@ public class VentaEquipoService {
         // alta devuelve la fila y `fecha_registro` la escribe la base.
         VentaEquipo guardada = ventas.saveAndFlush(venta);
 
-        boolean cobrada = solicitud.medioPago() != null;
-        if (cobrada) {
+        if (solicitud.medioPago() != null) {
             registrarElCobro(solicitud, guardada, idAutor);
         }
 
-        return VentaResumen.de(guardada, cobrada);
+        // Se relee en vez de armar el resumen con el booleano que teníamos a mano:
+        // el alta devuelve la fila que la pantalla dibuja, y esa fila ahora lleva
+        // el id del pago —para poder adjuntarle el comprobante— y sus
+        // comprobantes. Es el mismo motivo por el que `ReservaCreada` devuelve el
+        // id del pago de la seña.
+        return VentaResumen.de(guardada, pagosVivosDe(List.of(guardada)).get(guardada.getId()));
     }
 
     /**
@@ -161,7 +167,7 @@ public class VentaEquipoService {
         if (venta.isAnulada()) {
             throw new SolicitudInvalidaException("Esa venta ya está anulada.");
         }
-        if (!cobradasEntre(List.of(venta)).isEmpty()) {
+        if (estaCobrada(venta)) {
             throw new SolicitudInvalidaException(
                     "Esa venta tiene un cobro registrado. Anulá primero el pago, desde Pagos.");
         }
@@ -171,16 +177,37 @@ public class VentaEquipoService {
         // `venta_anulacion_justificada` tiene que hablar acá y no al final de la
         // transacción, donde el error ya no se puede atribuir a esta operación.
         ventas.flush();
-        return VentaResumen.de(venta, false);
+        return VentaResumen.de(venta, null);
     }
 
-    private Set<Long> cobradasEntre(List<VentaEquipo> filas) {
+    /**
+     * El pago vivo de cada una de estas ventas, si lo tiene.
+     *
+     * <p>De ahí salen las dos cosas que la fila necesita: <b>si está cobrada</b>
+     * —que lo decide {@code ENTRARON}, no la mera existencia del pago— y <b>a qué
+     * pago se le adjunta el comprobante</b>, que desde `V21` es donde vive el
+     * respaldo. Ver {@code PagoRepository.pagosVivosDeVentas} sobre por qué las
+     * dos lecturas son distintas y conviven.
+     *
+     * <p>Si una venta tuviera más de un pago vivo —nada lo impide en el esquema,
+     * aunque el alta cree uno solo— se queda con el primero por id, que es el que
+     * la consulta ordena. Es determinista a propósito: sin orden, la pantalla
+     * podría ofrecer adjuntar contra un pago distinto en cada recarga.
+     */
+    private Map<Long, Pago> pagosVivosDe(List<VentaEquipo> filas) {
         List<Long> ids = filas.stream().map(VentaEquipo::getId).toList();
         if (ids.isEmpty()) {
             // `IN ()` no es SQL válido: sin esto, una página vacía revienta.
-            return Set.of();
+            return Map.of();
         }
-        return Set.copyOf(pagosLeidos.ventasConPago(ids, EstadoPago.ENTRARON));
+        return pagosLeidos.pagosVivosDeVentas(ids, EstadoPago.ANULADO).stream()
+                .collect(Collectors.toMap(Pago::getIdVentaEquipo, p -> p, (primero, otro) -> primero));
+    }
+
+    /** Si esta venta ya tiene la plata adentro. */
+    private boolean estaCobrada(VentaEquipo venta) {
+        Pago pago = pagosVivosDe(List.of(venta)).get(venta.getId());
+        return pago != null && EstadoPago.ENTRARON.contains(pago.getEstadoPago());
     }
 
     private Usuario buscarPersona(Long id) {

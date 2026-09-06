@@ -14,6 +14,7 @@ import {
   type ReprogramacionResumen,
 } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { EstadoVacio } from '../componentes/EstadoVacio'
@@ -57,7 +58,7 @@ export function ReprogramacionesPagina() {
   const [total, setTotal] = useState(0)
   const [totalPaginas, setTotalPaginas] = useState(0)
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   /** Cuál está abierta y para qué. Una por vez: son dos formularios distintos. */
   const [abriendo, setAbriendo] = useState<{ id: number; accion: 'aprobar' | 'rechazar' } | null>(
@@ -268,7 +269,7 @@ function FormularioDeHorario({
   const [horaInicio, setHoraInicio] = useState(pedido.horaInicio.slice(0, 5))
   const [horaFin, setHoraFin] = useState(pedido.horaFin.slice(0, 5))
   const [respuesta, setRespuesta] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   return (
     <div>

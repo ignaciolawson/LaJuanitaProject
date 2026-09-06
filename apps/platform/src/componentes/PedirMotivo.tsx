@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Boton } from './Boton'
+import { useErrorPasajero } from './aviso'
 import { Campo } from './Campo'
 
 /**
@@ -29,7 +30,7 @@ export function PedirMotivo({
   onConfirmar: (motivo: string) => void
 }) {
   const [motivo, setMotivo] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   return (
     <form

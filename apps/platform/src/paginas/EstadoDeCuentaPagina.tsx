@@ -26,6 +26,9 @@ export function EstadoDeCuentaPagina() {
 
   const [cuenta, setCuenta] = useState<EstadoDeCuenta | null>(null)
   const [cargando, setCargando] = useState(true)
+  // `useState` pelado y no `useErrorPasajero`: abajo esto se dibuja como
+  // `if (error) return <Aviso>`, o sea que el mensaje NO acompaña al contenido,
+  // lo reemplaza. Limpiarlo a los veinte segundos deja la pantalla en blanco.
   const [error, setError] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { anularVenta, listarUsuarios, listarVentas, registrarVenta } from '../api/administracion'
+import {
+  abrirComprobante,
+  adjuntarComprobante,
+  anularVenta,
+  listarUsuarios,
+  listarVentas,
+  registrarVenta,
+} from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   NOMBRE_DE_MEDIO,
+  type ComprobanteResumen,
   type MedioPago,
   type Moneda,
   type UsuarioResumen,
@@ -11,7 +19,9 @@ import {
 } from '../api/tiposAdmin'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
+import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
@@ -54,7 +64,7 @@ export function VentasPagina() {
   const [pagina, setPagina] = useState(0)
   const [buscar, setBuscar] = useState('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [anulando, setAnulando] = useState<VentaResumen | null>(null)
 
@@ -77,6 +87,39 @@ export function VentasPagina() {
     const id = setTimeout(cargar, 250)
     return () => clearTimeout(id)
   }, [cargar])
+
+  /**
+   * Adjuntar el comprobante del cobro de una venta (§14 · B2).
+   *
+   * **Va contra el pago y no contra la venta**: desde `V21` el respaldo se cuelga
+   * del movimiento de plata, que es el pago. Se recarga la lista porque la fila
+   * tiene que mostrar el comprobante recién subido, y el `catch` recarga también
+   * — si el archivo entró y falló otra cosa, la pantalla no puede quedar
+   * mostrando que no hay nada.
+   *
+   * **Invalidar NO se ofrece acá.** Marcar un comprobante como inválido pide un
+   * motivo que queda firmado (`V7`), y ese flujo vive en Pagos, que es donde se
+   * corrige un pago. Ofrecerlo en dos lugares serían dos formas de firmar el
+   * mismo acto.
+   */
+  async function adjuntar(idPago: number, archivo: File) {
+    try {
+      await adjuntarComprobante(idPago, archivo)
+      await cargar()
+    } catch (e) {
+      const mensaje = e instanceof ApiError ? e.message : 'No se pudo adjuntar el comprobante.'
+      await cargar()
+      setError(mensaje)
+    }
+  }
+
+  async function abrir(idPago: number, comprobante: ComprobanteResumen) {
+    try {
+      await abrirComprobante(idPago, comprobante.idComprobante)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo abrir el comprobante.')
+    }
+  }
 
   async function confirmarAnulacion(motivo: string) {
     if (!anulando) return
@@ -143,7 +186,7 @@ export function VentasPagina() {
         />
       )}
 
-      <Tabla columnas={['Equipo', 'Comprador', 'Vendió', { etiqueta: 'Precio', alineacion: 'derecha' }, 'Fecha', '']}>
+      <Tabla columnas={['Equipo', 'Comprador', 'Vendió', { etiqueta: 'Precio', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>
             {ventas.map((v) => (
               <tr key={v.idVenta} className={v.anulada ? 'text-apagado' : undefined}>
                 <Celda>
@@ -185,6 +228,45 @@ export function VentasPagina() {
                 <Celda className="whitespace-nowrap text-tenue">
                   {fecha(v.fechaVenta)}
                 </Celda>
+
+                {/* ⚠️ **El comprobante se cuelga del PAGO, no de la venta**
+                    (§14 · B2). Es la misma pieza, el mismo endpoint y las mismas
+                    reglas de `V21` — un comprobante marcado inválido no se borra
+                    ni se edita—, porque el papel respalda el movimiento de plata
+                    y el movimiento de plata es el pago. Una tabla de archivos
+                    propia de la venta sería una segunda definición de lo mismo.
+
+                    Es lo que pidió Ignacio dicho como regla y no como dos
+                    features: *"todo lo que sea pagos o cobros con slot de
+                    comprobante"*. Del lado que entra ya existía desde `V21` y
+                    faltaba esta pantalla; del lado que sale —los egresos— hace
+                    falta una migración, y es C1. */}
+                <Celda className="align-top">
+                  {v.idPago === null ? (
+                    // No se dibuja un "Adjuntar" que no puede funcionar: sin pago
+                    // no hay dónde colgar el archivo. Y se dice qué hacer, porque
+                    // una celda vacía acá se lee como que el sistema perdió algo.
+                    <span className="text-xs text-apagado">
+                      {v.anulada ? '—' : 'Sin pago registrado'}
+                    </span>
+                  ) : (
+                    <>
+                      <Comprobantes
+                        comprobantes={v.comprobantes}
+                        onVer={(c) => void abrir(v.idPago!, c)}
+                      />
+                      {puedeEscribir && (
+                        <div className="mt-1">
+                          <AdjuntarComprobante
+                            onElegir={(archivo) => adjuntar(v.idPago!, archivo)}
+                            etiqueta={v.comprobantes.length === 0 ? 'Adjuntar' : 'Adjuntar otro'}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </Celda>
+
                 <Celda className="text-right">
                   {puedeEscribir && !v.anulada && (
                     <Boton variante="enlace"
@@ -249,7 +331,7 @@ function FormularioVenta({
     medioPago: 'EFECTIVO' as MedioPago,
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
+  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {

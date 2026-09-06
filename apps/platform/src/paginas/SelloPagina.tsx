@@ -29,6 +29,7 @@ import {
   type TipoRelease,
 } from '../api/tiposSello'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -79,7 +80,7 @@ export function SelloPagina() {
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState<EstadoRelease | ''>('')
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [abierto, setAbierto] = useState<number | null>(null)
 
@@ -372,6 +373,13 @@ function BloquePublicacion({
   onActualizado: (r: ReleaseResumen) => void
   onError: (mensaje: string | null) => void
 }) {
+  // ⚠️ **`useState` pelado y NO `useErrorPasajero`, aunque esto se dibuje en
+  // rojo.** No es un aviso de error: es un ESTADO DEL FLUJO. Mientras vale, y
+  // sólo mientras vale, aparece *"Publicarlo igual, con motivo"* — o sea que
+  // limpiarlo a los veinte segundos le haría desaparecer la salida a alguien que
+  // está leyendo la regla y decidiendo. La forma de esta pantalla es "el backend
+  // rechaza → se muestran sus palabras → recién ahí la salida", y un reloj la
+  // rompería sin que nada falle.
   const [rechazo, setRechazo] = useState<string | null>(null)
   const [pidiendoMotivo, setPidiendoMotivo] = useState(false)
   const [confirmandoCancelar, setConfirmandoCancelar] = useState(false)
@@ -688,11 +696,10 @@ function FormularioAlta({
 }) {
   const [idArtista, setIdArtista] = useState('')
   const [nombreRelease, setNombreRelease] = useState('')
-  const [codigoRelease, setCodigoRelease] = useState('')
   const [tipoRelease, setTipoRelease] = useState<TipoRelease | ''>('')
   const [genero, setGenero] = useState('')
   const [fechaEstimada, setFechaEstimada] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [guardando, setGuardando] = useState(false)
 
   async function guardar(e: React.FormEvent) {
@@ -703,7 +710,9 @@ function FormularioAlta({
       await registrarRelease({
         idArtista: Number(idArtista),
         nombreRelease,
-        codigoRelease: codigoRelease || undefined,
+        // Sin `codigoRelease`: el sistema numera siempre (§14 · B4). El pedido
+        // sigue aceptándolo — ver `AltaReleaseRequest` — pero esta pantalla ya no
+        // es un camino para escribirlo.
         tipoRelease: tipoRelease === '' ? null : tipoRelease,
         genero: genero || undefined,
         fechaEstimada: fechaEstimada || null,
@@ -768,13 +777,17 @@ function FormularioAlta({
           ayuda="El aviso salta 7 días antes."
         />
 
-        <Campo
-          etiqueta="Código"
-          value={codigoRelease}
-          onChange={(e) => setCodigoRelease(e.target.value)}
-          placeholder="Lo pone el sistema"
-          ayuda="Solo para cargar lanzamientos viejos, que tienen el número que tuvieron."
-        />
+        {/* ⚠️ **Acá había un campo "Código" y se sacó** (§14 · B4). Existía por la
+            ratificación 5 de §15 —los lanzamientos viejos tienen el número que
+            tuvieron— e Ignacio decidió lo contrario el 2026-09-05, sabiendo lo que
+            cuesta: *"que lo ponga el sistema solo siempre"*, y los viejos toman
+            código nuevo. La decisión nueva le gana a la vieja, que es cómo se
+            resuelven acá.
+
+            **El pedido HTTP igual lo acepta**, y eso no es un resto olvidado: es
+            por dónde entraría una carga histórica si alguna vez hace falta, y es
+            lo que ejercitan tres casos de `SelloTest`. Lo que se sacó es el camino
+            de pantalla, no la capacidad. */}
       </div>
 
       {error && <Aviso>{error}</Aviso>}
@@ -813,7 +826,7 @@ function FormularioContrato({
   const [fechaFirma, setFechaFirma] = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [general, setGeneral] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [guardando, setGuardando] = useState(false)
 
   async function guardar(e: React.FormEvent) {
@@ -913,7 +926,7 @@ function FormularioAparicion({
   const [quien, setQuien] = useState('')
   const [fecha, setFecha] = useState('')
   const [url, setUrl] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [guardando, setGuardando] = useState(false)
 
   async function guardar(e: React.FormEvent) {

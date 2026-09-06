@@ -35,6 +35,9 @@ import { fecha } from '../componentes/semana'
 export function MisTrabajosPagina() {
   const [trabajos, setTrabajos] = useState<TrabajoDelPortal[]>([])
   const [cargando, setCargando] = useState(true)
+  // `useState` pelado y no `useErrorPasajero`: abajo esto se dibuja como
+  // `if (error) return <Aviso>`, o sea que el mensaje NO acompaña al contenido,
+  // lo reemplaza. Limpiarlo a los veinte segundos deja la pantalla en blanco.
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {

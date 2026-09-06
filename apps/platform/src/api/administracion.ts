@@ -234,6 +234,42 @@ export function listarProfesores(incluirInactivos = false) {
   return pedir<ProfesorResumen[]>(`/api/profesores${incluirInactivos ? '?incluirInactivos=true' : ''}`)
 }
 
+/**
+ * Convertir en profesor a alguien que ya tiene cuenta (§14 · B2).
+ *
+ * ⚠️ **Esto no existía en ninguna capa hasta el 2026-09-05**: `/api/profesores`
+ * tenía un solo GET, así que la única forma de que alguien fuera profesor era un
+ * INSERT a mano en la base. Seis pantallas del Módulo 5 leían una tabla que nada
+ * sabía poblar.
+ *
+ * Se otorga desde `/admin/usuarios`, parado sobre la persona, porque **ser
+ * profesor es una relación y no un rol** — los dos ejes de la misma persona, que
+ * es exactamente lo que esa pantalla administra. Le abre el portal del profesor
+ * en su pedido siguiente, sin tocar nada más.
+ */
+export function altaProfesor(datos: { idUsuario: number; especialidad?: string }) {
+  return pedir<ProfesorResumen>('/api/profesores', { metodo: 'POST', cuerpo: datos })
+}
+
+/**
+ * Corregir la especialidad o dar de baja al profesor.
+ *
+ * **No hay forma de borrarlo, y es deliberado**: dar de baja es `activo: false`.
+ * La fila se queda para que quien dejó de dar clases siga viendo el historial de
+ * las que dictó y para que esas clases no queden apuntando a nadie.
+ *
+ * `activo` ausente significa "no lo toques".
+ */
+export function editarProfesor(
+  idProfesor: number,
+  datos: { especialidad?: string | null; activo?: boolean },
+) {
+  return pedir<ProfesorResumen>(`/api/profesores/${idProfesor}`, {
+    metodo: 'PUT',
+    cuerpo: datos,
+  })
+}
+
 // -- Inscripciones ----------------------------------------------------------
 
 /**

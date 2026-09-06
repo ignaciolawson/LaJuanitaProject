@@ -21,6 +21,7 @@ import {
   type NotaResumen,
 } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { CampoSelect } from '../componentes/Campo'
 import { Semaforo } from '../componentes/Semaforo'
@@ -59,7 +60,7 @@ export function FichaDeAlumnoPagina() {
   const [notas, setNotas] = useState<NotaResumen[]>([])
   const [materiales, setMateriales] = useState<MaterialResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   const cargar = useCallback(async () => {
     if (!Number.isInteger(idAlumno) || idAlumno <= 0) {
@@ -208,7 +209,7 @@ function Seguimiento({
   const [estado, setEstado] = useState<EstadoSeguimiento | ''>(alumno.estadoSeguimiento ?? '')
   const [observaciones, setObservaciones] = useState(alumno.observaciones ?? '')
   const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [guardado, setGuardado] = useState(false)
 
   async function guardar() {
@@ -322,7 +323,7 @@ function Notas({
   const [contenido, setContenido] = useState('')
   const [idParticipacion, setIdParticipacion] = useState('')
   const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [editando, setEditando] = useState<number | null>(null)
   const [textoEditado, setTextoEditado] = useState('')
 
@@ -503,7 +504,7 @@ function Materiales({
   nombre: string
   alCambiar: (material: MaterialResumen) => void
 }) {
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   async function alternar(material: MaterialResumen) {
     setError(null)

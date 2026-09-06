@@ -4,6 +4,7 @@ import { ApiError } from '../api/cliente'
 import { misReprogramaciones, misReservas } from '../api/portal'
 import type { ReprogramacionResumen, ReservaDelPortal } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -52,7 +53,7 @@ export function MisReservasPagina() {
   const [reservas, setReservas] = useState<ReservaDelPortal[]>([])
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   // Cuatro semanas: es el horizonte con el que se piensa la cursada, y entra
   // holgado en el techo de 62 días que pone el backend.

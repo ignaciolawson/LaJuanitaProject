@@ -10,6 +10,7 @@ import {
   type SolicitudResumen,
 } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { fecha, hhmm } from '../componentes/semana'
@@ -40,7 +41,7 @@ export function SolicitudesPagina() {
   const [solicitudes, setSolicitudes] = useState<SolicitudResumen[]>([])
   const [total, setTotal] = useState(0)
   const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
 
   /** Cuál está abierta y para qué. Una por vez: son dos formularios distintos. */
   const [abriendo, setAbriendo] = useState<{ id: number; accion: 'aprobar' | 'rechazar' } | null>(
@@ -231,7 +232,7 @@ function FormularioDeSena({
   const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
   const [comprobante, setComprobante] = useState<File | null>(null)
   const [respuesta, setRespuesta] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   /**
    * Si la plata todavía no entró (`mejoras.md` §13 · C1).
    *

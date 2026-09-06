@@ -5,6 +5,7 @@ import { pedirMoverLaClase } from '../api/portal'
 import type { EstadoReserva } from '../api/tiposAdmin'
 import type { ReprogramacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from './Boton'
+import { useErrorPasajero } from './aviso'
 import { Campo } from './Campo'
 import { hoy } from './semana'
 
@@ -40,7 +41,7 @@ export function PedirOtroDia({
   const [abierto, setAbierto] = useState(false)
   const [motivo, setMotivo] = useState('')
   const [fecha, setFecha] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   if (pedido) {

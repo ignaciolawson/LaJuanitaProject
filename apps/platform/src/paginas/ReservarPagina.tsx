@@ -5,6 +5,7 @@ import { ApiError } from '../api/cliente'
 import { catalogoParaPedir, disponibilidad, pedirSala } from '../api/portal'
 import type { CatalogoParaPedir, FranjaOcupada } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
+import { useErrorPasajero } from '../componentes/aviso'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { hhmm, hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -41,7 +42,7 @@ export function ReservarPagina() {
 
   const [ocupado, setOcupado] = useState<FranjaOcupada[]>([])
   const [errores, setErrores] = useState<Record<string, string>>({})
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {

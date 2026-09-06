@@ -57,6 +57,11 @@ function venta(cambios: Partial<VentaResumen> = {}): VentaResumen {
     notas: null,
     fechaRegistro: '2026-08-17T14:00:00Z',
     cobrada: true,
+    // Cobrada quiere decir que tiene un pago detrás, y desde §14 · B2 ese pago es
+    // donde se cuelga el comprobante. Una fixture cobrada sin `idPago` sería un
+    // estado que el backend no produce.
+    idPago: 700,
+    comprobantes: [],
     anulada: false,
     motivoAnulacion: null,
     fechaAnulacion: null,
