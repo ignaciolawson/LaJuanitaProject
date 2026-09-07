@@ -79,6 +79,13 @@ export type Interes =
  * **`detalle` lo arma cada formulario**, en texto legible: *"Programa DJ ·
  * presencial · sin experiencia previa"*. Del otro lado nadie lo procesa — es para
  * que quien llame sepa de qué le van a hablar.
+ *
+ * ⚠️ **Los tres campos de horario SÍ se procesan, y por eso son campos** (P58).
+ * `V20` había decidido lo contrario —*"ninguno de esos datos se usa para crear
+ * nada"*— y tenía razón entonces: viajaban dentro de `detalle` porque nadie los
+ * leía. Desde que el buzón puede **apartar la cabina en un movimiento**, son lo
+ * único que se puede precargar, así que la premisa cambió y la decisión se
+ * revisó. Acotado: **tres campos, no doce.** Todo lo demás sigue en `detalle`.
  */
 export type Solicitud = {
   nombre: string;
@@ -88,6 +95,27 @@ export type Solicitud = {
   interes: Interes;
   detalle?: string;
   mensaje?: string;
+
+  /**
+   * Cuándo le vendría bien. **Los tres opcionales, y por separado.**
+   *
+   * ⚠️ **Es una preferencia, nunca una reserva.** Esta landing **no puede ver
+   * disponibilidad** —quien pide no tiene forma de saber si esa franja está
+   * ocupada—, así que nada de esto toma una sala. Un formulario que parezca una
+   * reserva hace creer a la persona que la tiene, y esa mentira es peor que la
+   * de hoy. De ahí que se pregunte *"¿qué día te vendría bien?"* y que la
+   * confirmación diga que se confirma después.
+   *
+   * ⚠️ **Y opcionales de verdad, que es la mitad no obvia.** Estos formularios
+   * existen para captar a alguien con el mínimo esfuerzo posible; exigir día y
+   * hora pierde a quien sólo quería preguntar cuánto sale. El que sabe lo que
+   * quiere los llena y el buzón precarga el alta con ellos; el que no, los deja
+   * vacíos y la ficha se lee como antes. **Degrada sola.**
+   */
+  fechaPreferida?: string;
+  horaPreferida?: string;
+  /** En minutos. Duración y no hora de fin: *"2 horas"* es lo que se piensa. */
+  duracionMinutos?: number;
 };
 
 /**

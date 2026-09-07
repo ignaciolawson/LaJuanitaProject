@@ -24,10 +24,17 @@ const INTERES_POR_SERVICIO: Record<string, Interes> = {
   "grabacion-sets": "GRABACION_SET",
 };
 
-/** `2026-09-10` → `10/09`. La ficha la lee una persona, no un parser. */
-function comoDia(iso: string): string {
-  const [anio, mes, dia] = iso.split("-");
-  return dia && mes ? `${dia}/${mes}/${anio}` : iso;
+/**
+ * El valor de un campo, o `undefined` si quedó vacío.
+ *
+ * **Un `""` no es lo mismo que "no lo dijo"**: la API tipa estos tres como
+ * opcionales, y mandar la cadena vacía haría que Jackson intente leer un `DATE`
+ * de la nada y conteste 400 — un formulario que no responde, por un campo que
+ * justamente se decidió que se puede dejar en blanco.
+ */
+function textoOVacio(valor: FormDataEntryValue | null): string | undefined {
+  const texto = String(valor ?? "").trim();
+  return texto === "" ? undefined : texto;
 }
 
 /**
@@ -63,14 +70,24 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
             email: String(datos.get("email") ?? ""),
             telefono: String(datos.get("telefono") ?? ""),
             interes: INTERES_POR_SERVICIO[service] ?? "OTRO",
-            // Fecha, hora, duración y personas viajan en texto: del otro lado
-            // nadie los procesa. La reserva la carga administración a mano —no
-            // existe sin una seña, y quien pide no tiene cómo ponerla— así que
-            // esto es para saber qué proponer, no un pedido que el sistema ejecuta.
+
+            // ⚠️ **Día, hora y duración van como campos y ya NO dentro de
+            // `detalle`.** Hasta la Fase 3 viajaban en texto porque del otro lado
+            // nadie los leía —`V20` lo decidió así con ese argumento—; ahora el
+            // buzón puede apartar la cabina en un movimiento y son lo único que
+            // se puede precargar (P58). Repetirlos también en `detalle` sería
+            // guardar dos veces el mismo dato: se sacaron de ahí, y `detalle`
+            // queda con lo que no tiene columna.
+            //
+            // Sigue sin ser una reserva: la sala la carga administración a mano
+            // —no existe sin plata detrás, y quien pide no tiene cómo ponerla—,
+            // así que esto es para saber qué proponer.
+            fechaPreferida: textoOVacio(datos.get("fecha")),
+            horaPreferida: textoOVacio(datos.get("hora")),
+            duracionMinutos: hours * 60,
+
             detalle: [
               current.name,
-              `${comoDia(String(datos.get("fecha") ?? ""))} a las ${datos.get("hora") ?? ""}`,
-              `${hours} ${hours === 1 ? "hora" : "horas"}`,
               people === "2" ? "dos personas" : "una persona",
             ].join(" · "),
           })
@@ -111,10 +128,29 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
           <Field label="Mail" name="email" type="email" required autoComplete="email" />
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Field label="Fecha" name="fecha" type="date" required />
-          <Field label="Hora de inicio" name="hora" type="time" required />
-        </div>
+        {/* ⚠️ **Se pregunta como PREFERENCIA y no como reserva** (P58), y por eso
+            la leyenda está en condicional. Esta página no ve disponibilidad —quien
+            pide no puede saber si esa franja está ocupada—, así que un formulario
+            que se lea como una reserva hace creer a la persona que ya la tiene.
+            Esa mentira es peor que la de no preguntar.
+
+            ⚠️ **Y no son obligatorios**, que es la mitad no obvia: exigir día y
+            hora pierde a quien sólo quería preguntar cuánto sale, o sea justo a la
+            gente que este formulario existe para captar. El que sabe lo que quiere
+            los llena y del otro lado el alta se precarga sola; el que no, los deja
+            vacíos y su ficha se lee igual que antes. */}
+        <fieldset>
+          <legend className="t-mono text-[color:var(--page-faint)]">
+            ¿Qué día y horario te vendría bien?
+          </legend>
+          <p className="t-body mt-1 text-sm text-[color:var(--page-muted)]">
+            Opcional. Lo confirmamos con vos por WhatsApp según la disponibilidad de la sala.
+          </p>
+          <div className="mt-3 grid gap-6 sm:grid-cols-2">
+            <Field label="Día" name="fecha" type="date" />
+            <Field label="Hora de inicio" name="hora" type="time" />
+          </div>
+        </fieldset>
 
         <fieldset>
           <legend className="t-mono text-[color:var(--page-faint)]">Duración</legend>

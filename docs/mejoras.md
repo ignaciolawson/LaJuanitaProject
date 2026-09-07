@@ -3624,7 +3624,7 @@ Están en **`docs/requirements/platform.md` §21 · P54–P58**. En una frase ca
 | **1** | Contacto en un clic: teléfono grande y copiable, botón de WhatsApp con el mensaje armado (saludo que nombra lo pedido; y el que lleva la clave temporal escrita) | ✅ **CERRADA (commit `29faa4b`, "Fase 1 rediseño" — mal etiquetado)** |
 | **2** | La ficha guarda qué produjo · `CONVERTIDO`→`ATENDIDO` · `FichaAbierta` (contador y lista dejan de definir "lo que falta" por separado) · el formulario con los 3 campos de preferencia (`V27`) · **la UI de atender** | ✅ **CERRADA (2026-09-06)** |
 | **3** | Apartar la cabina desde la ficha: cuenta + prereserva + deuda en una transacción, sin salir del buzón | ✅ **CERRADA (2026-09-06)** |
-| **4** | El formulario de la landing con los 3 campos + el alta precargada con ellos | 🔴 no empezada (la columna ya existe desde `V27`; falta el form de Next y la precarga) |
+| **4** | El formulario de la landing con los 3 campos + el alta precargada con ellos | ✅ **CERRADA (2026-09-06)** |
 | **5** | Aviso del scheduler: *"N fichas sin atender hace +48hs"*, sobre `V17` | 🔴 no empezada |
 
 ⚠️ **Fases 2 y 4 comparten la migración `V27`** — mismo argumento que `V19`: una
@@ -3775,22 +3775,68 @@ la ficha apuntando a esa reserva. Suites: **639 backend · 561 front**.
 del uso solicitable va a rojo el de la clase; sin la precarga, el de las
 preferencias.
 
-### ⚠️ DÓNDE RETOMAR — la Fase 4 (2026-09-06)
+### La Fase 4, cerrada (2026-09-06)
 
-**Sigue la Fase 4: el formulario de la landing con los tres campos de P58**
-—día, horario y duración, los tres **opcionales**— y el alta precargada con
-ellos. **La columna ya existe desde `V27` y el endpoint ya la acepta**; lo que
-falta es el formulario de Next y que `POST /api/solicitantes` los reciba.
+**Lo que había que descubrir primero: la landing YA pedía los tres datos.**
+`BookingForm` preguntaba fecha, hora y duración desde que existe — y los metía
+dentro de `detalle`, como texto, **exactamente como `V20` había decidido**
+(*"ninguno de esos datos se usa para crear nada"*). Así que la fase no fue
+agregar preguntas: fue **dejar de tirar la respuesta**.
 
-⚠️ **Los tres son opcionales por separado y eso es la mitad de la decisión**:
-exigir día y hora pierde a quien sólo quería preguntar cuánto sale, que es
-justamente la gente que estos formularios existen para captar. **Degrada solo.**
-Y se preguntan **como preferencia, nunca como reserva** — la landing no ve
-disponibilidad, así que un formulario que parezca una reserva hace creer a la
-persona que la tiene, y esa mentira es peor que la de hoy.
+- **Los tres viajan como campos y salieron de `detalle`.** Repetirlos en los dos
+  lados sería guardar dos veces el mismo dato; `detalle` queda con lo que no tiene
+  columna (el servicio y si van solos o en dupla). `AltaSolicitanteRequest` los
+  acepta y `recibir` los escribe.
+- ⚠️ **La mitad que faltaba de P58 y que tiene consecuencia comercial: dejaron de
+  ser obligatorios.** Estaban `required` en el formulario. **Exigir día y hora
+  pierde a quien sólo quería preguntar cuánto sale**, o sea justo a la gente que
+  estos formularios existen para captar — publicar la landing sin ellos era perder
+  clientes reales, que es lo que `V20` dice de sí misma. Tiene su propio caso,
+  porque un `@NotNull` agregado sin pensar convierte un formulario que capta en uno
+  que filtra **y no falla en ningún lado**.
+- ⚠️ **Se preguntan como preferencia y no como reserva**, y eso cambió el texto:
+  la leyenda es *"¿Qué día y horario te vendría bien?"* con *"Opcional. Lo
+  confirmamos con vos por WhatsApp"*. Esta página **no ve disponibilidad** —quien
+  pide no puede saber si la franja está ocupada, que es lo que se decidió al dar de
+  baja el retoque §6f.5—, así que un formulario que se lea como una reserva hace
+  creer a la persona que ya la tiene. **Esa mentira es peor que la de no
+  preguntar.**
+- **`fechaPreferida` no lleva `@Future`, a propósito.** Una fecha pasada acá es
+  alguien que se equivocó de año en un selector, y contestarle 400 es perder ese
+  cliente por un tipeo. No decide nada: quien atiende la ve y el buzón la precarga
+  para que la corrija mirando la agenda.
+- **Un `""` no es "no lo dijo".** Mandar la cadena vacía hace que Jackson intente
+  leer un `DATE` de la nada y conteste 400 — un formulario que no responde, por el
+  campo que justamente se decidió que se puede dejar en blanco. De ahí
+  `textoOVacio`.
 
-Después va la 5: el aviso del scheduler *"N fichas sin atender hace +48hs"*, sobre
-`V17`.
+**Los otros dos formularios no cambian**, y no es un olvido: un aspirante a un
+curso no tiene franja que preferir —su camino es la inscripción— y una consulta
+por equipos tampoco. Preguntarles el horario sería pedir un dato que nadie va a
+usar.
+
+**Casos: 2 de backend.** La landing no tiene suite, así que la cobertura va donde
+vive el contrato — que además es el lugar correcto: lo que hay que defender es que
+el endpoint los acepte **y que los acepte ausentes**.
+
+### ⚠️ DÓNDE RETOMAR — la Fase 5 (2026-09-06)
+
+**Queda la Fase 5, la última: el aviso del disparador automático** —*"hay N
+fichas sin atender hace más de 48 horas"*— sobre la máquina de `V17`.
+
+⚠️ **Es la respuesta a una pregunta que `V20` ya se había hecho y contestado que
+no**, y hay que releer su argumento antes de escribir nada: el buzón
+deliberadamente **no** escribe una notificación por cada ficha que entra, porque
+es el único escritor público del sistema y eso sería un aviso por cada bot que
+pase × cada ADMIN y STAFF. Lo que `SolicitanteService` dejó anotado como la forma
+correcta es exactamente ésta: **un aviso por hecho y no uno por formulario**.
+
+Lo que hay que decidir al escribirla: la clave de deduplicación. `V17` exige que
+**describa el HECHO y nunca la corrida** —el índice único parcial es lo que
+garantiza el "una vez por hecho"—, y acá el hecho es *"esta ficha lleva 48hs sin
+atender"*, así que la clave sale de la ficha y no de la fecha de la corrida. Un
+aviso por ficha o uno agrupado es la otra decisión, y tiene el mismo criterio
+detrás: la bandeja no puede volverse ruido.
 
 Y **`V27` se llevó el número que se venía usando para desactivar el admin
 sembrado** — que ahora es `V28`, y sigue sin anotarse como fijo.

@@ -374,6 +374,59 @@ class SolicitanteTest {
                         .value(Matchers.contains("anulada")));
     }
 
+    // == Lo que la web manda sobre el horario (P58, Fase 4) ==================
+
+    /**
+     * ⚠️ <b>Los tres campos de horario llegan y se guardan</b>, que es lo que hace
+     * posible precargar el alta desde el buzón.
+     *
+     * <p>Reabre a propósito una decisión escrita de `V20` —<i>"ninguno de esos
+     * datos se usa para crear nada"</i>— porque <b>la premisa cambió</b>: desde la
+     * Fase 3 el buzón aparta la cabina en un movimiento, y esto es lo único que
+     * puede precargarlo. Acotado a tres columnas, no doce.
+     */
+    @Test
+    void el_formulario_puede_decir_cuando_le_viene_bien() throws Exception {
+        long ficha = idDe(mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"ALQUILER_CABINA","fechaPreferida":"2026-10-10",
+                         "horaPreferida":"18:00","duracionMinutos":120}
+                        """.formatted(unEmail(), unTelefono())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fechaPreferida").value("2026-10-10"))
+                .andExpect(jsonPath("$.duracionMinutos").value(120)));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT duracion_minutos FROM solicitante WHERE id_solicitante = ?",
+                Integer.class, ficha)).isEqualTo(120);
+    }
+
+    /**
+     * ⚠️ <b>Y los tres son opcionales, por separado.</b>
+     *
+     * <p>Es la mitad no obvia de P58 y la que tiene consecuencia comercial:
+     * <b>exigir día y hora pierde a quien sólo quería preguntar cuánto sale</b>, o
+     * sea justo a la gente que estos formularios existen para captar — publicar la
+     * landing sin ellos era perder clientes reales, que es lo que `V20` dice de sí
+     * misma. Sin este caso, un {@code @NotNull} agregado sin pensar convierte un
+     * formulario que capta en uno que filtra, y no falla en ningún lado.
+     */
+    @Test
+    void los_tres_campos_de_horario_son_opcionales() throws Exception {
+        mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"ALQUILER_CABINA","fechaPreferida":"2026-10-10"}
+                        """.formatted(unEmail(), unTelefono())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fechaPreferida").value("2026-10-10"))
+                .andExpect(jsonPath("$.horaPreferida").doesNotExist())
+                .andExpect(jsonPath("$.duracionMinutos").doesNotExist());
+    }
+
     // == Apartar la cabina: las tres cosas en un movimiento ===================
 
     /**

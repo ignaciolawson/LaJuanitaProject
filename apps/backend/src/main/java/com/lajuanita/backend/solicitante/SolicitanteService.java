@@ -154,6 +154,12 @@ public class SolicitanteService {
         ficha.setDetalle(normalizar(formulario.detalle()));
         ficha.setMensaje(normalizar(formulario.mensaje()));
 
+        // Cuándo le vendría bien (P58). Los tres opcionales y por separado: lo que
+        // llegue se guarda, lo que no, queda en null y la ficha se lee como antes.
+        ficha.setFechaPreferida(formulario.fechaPreferida());
+        ficha.setHoraPreferida(formulario.horaPreferida());
+        ficha.setDuracionMinutos(formulario.duracionMinutos());
+
         return SolicitanteResumen.de(fichas.save(ficha));
     }
 
