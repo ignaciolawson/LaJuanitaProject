@@ -1,10 +1,10 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-02, migraciones V1..V24.
+// ✅ AL DÍA AL 2026-09-06, migraciones V1..V27.
 //
-// **Verificado contra el catálogo de una base con las 24 migraciones
-// aplicadas**, no contra las migraciones leídas de memoria: son 26 tablas y
+// **Verificado contra el catálogo de una base con las 27 migraciones
+// aplicadas**, no contra las migraciones leídas de memoria: son 28 tablas y
 // coinciden columna por columna. Es la regla que este proyecto aprendió a los
 // golpes y que está escrita en `CLAUDE.md` — *revisá el esquema, no la frase
 // sobre el esquema*.
@@ -39,11 +39,16 @@
 //     V24  `reserva.vence_preconfirmacion` y el estado PRECONFIRMADA
 //     V25  la tabla `comprobante_egreso`, y `egreso` PIERDE `comprobante_path`
 //          -- el espejo exacto de V21, sobre la plata que SALE
+//     V26  la tabla `cancion_release` -- los temas de un EP o un álbum, con
+//          CUATRO triggers y un UNIQUE diferible
+//     V27  `solicitante` gana las tres FK de lo que produjo (+ el CHECK de doble
+//          sentido) y los tres campos de preferencia de horario; el estado
+//          CONVERTIDO pasa a ATENDIDO
 //
-// Historia de las tablas: eran 23 al 2026-08-19 y son 27 desde V25. Las cuatro
+// Historia de las tablas: eran 23 al 2026-08-19 y son 28 desde V26. Las cinco
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),
-// `comprobante_pago` (V21) y `comprobante_egreso` (V25), y están al final del
-// archivo.
+// `comprobante_pago` (V21), `comprobante_egreso` (V25) y `cancion_release`
+// (V26), y están al final del archivo.
 //
 // La número 23 fue
 // `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal
@@ -812,12 +817,23 @@ Table solicitante {
   interes             varchar(30)  [not null, note: 'CURSO / ALQUILER_CABINA / GRABACION_SET / EQUIPOS']
   detalle             text
   mensaje             text
-  estado              varchar(20)  [not null, default: 'PENDIENTE', note: 'PENDIENTE / CONVERTIDO / DESCARTADO']
+  estado              varchar(20)  [not null, default: 'PENDIENTE', note: 'PENDIENTE / ATENDIDO / DESCARTADO -- V27 sacó CONVERTIDO']
   id_usuario_resuelve bigint       [ref: > usuario.id_usuario]
-  id_usuario          bigint       [ref: > usuario.id_usuario, note: 'La cuenta que salió de esta ficha']
+  id_usuario          bigint       [ref: > usuario.id_usuario, note: 'La cuenta de esta persona. NO resuelve la ficha (V27)']
   respuesta           text
   fecha_resolucion    timestamptz
   fecha_creacion      timestamptz  [not null]
+
+  // V27 -- QUÉ PRODUJO LA FICHA. Exactamente una, y sólo si está ATENDIDO:
+  // el CHECK `solicitante_atendido_produjo_algo` va en los DOS sentidos.
+  id_reserva          bigint       [ref: > reserva.id_reserva]
+  id_inscripcion      bigint       [ref: > inscripcion.id_inscripcion]
+  id_venta_equipo     bigint       [ref: > venta_equipo.id_venta]
+
+  // V27 -- CUÁNDO LE VENDRÍA BIEN (P58). Los tres opcionales, por separado.
+  fecha_preferida     date
+  hora_preferida      time
+  duracion_minutos    integer      [note: 'Duración y no hora de fin: "2 horas" es lo que la persona piensa']
 
   Note: '''
   V20 -- el buzón de los formularios de la landing. Durante meses esas cuatro
@@ -838,6 +854,69 @@ Table solicitante {
 
   Nombre y apellido en DOS columnas: es la lección de V4 aplicada a tiempo -- allá
   hubo que partir una sola adivinando dónde terminaba el nombre.
+
+  ⚠️ V27 -- `CONVERTIDO` NO ERA UN ESTADO TERMINAL Y SE USABA COMO SI LO FUERA.
+  Crear la cuenta no es atender la ficha: la persona sigue sin su reserva, y la
+  ficha ya se fue de la lista Y del contador del sidebar. Las dos cosas que
+  existen para que no se pierda nadie dejaban de mirar justo antes de lo
+  principal. Ahora una ficha está atendida cuando PRODUJO lo que pedían, y las
+  tres FK dicen qué -- es la forma que `pago` tiene desde V1 (cuatro FK anulables
+  + `pago_tiene_destino`), con tres.
+
+  "Tener cuenta" volvió a ser lo que siempre fue: una COLUMNA (`id_usuario IS NOT
+  NULL`), no un estado.
+
+  El índice `solicitante_abiertos` es parcial por `<> 'DESCARTADO'` y reemplazó a
+  `solicitante_pendientes`: lo que el buzón pregunta es a quién le debemos algo, y
+  eso incluye una ficha atendida cuya sala se apartó y nadie señó.
+  '''
+}
+
+Table cancion_release {
+  id_cancion        bigint       [pk, increment]
+  id_release        bigint       [ref: > release.id_release, not null]
+  orden             smallint     [not null, note: 'Lo asigna el servidor: max + 1, nunca count + 1']
+  titulo            varchar(200) [not null]
+  duracion_segundos integer
+  artista_invitado  varchar(200)
+  isrc              varchar(20)  [note: 'Con formato validado y DELIBERADAMENTE no único']
+  fecha_creacion    timestamptz  [not null]
+
+  indexes {
+    (id_release, orden) [unique, name: 'cancion_orden_unico -- DEFERRABLE INITIALLY DEFERRED']
+    (id_release, orden) [name: 'cancion_por_release']
+  }
+
+  Note: '''
+  V26 -- los temas de un EP o de un álbum (mejoras.md §14 · C2, platform.md §20).
+
+  EL RANGO SE EXIGE AL PUBLICAR, NO AL CARGAR (P51). Un EP de un tema ya viola
+  "entre 3 y 6", así que exigirlo por fila haría imposible el primero.
+
+  ⚠️ CUATRO TRIGGERS Y NO UNO, y es la cuarta vez que este proyecto paga la misma
+  lección: una regla verificada en UN SOLO ACTO se esquiva deshaciendo la
+  condición después. (1) Un tema sólo cuelga de un EP o un álbum. (2) Un release
+  CON temas no puede cambiar de formato -- cargalos como EP, pasalo a single, y
+  las dos filas quedan válidas mintiendo. (3) El rango se chequea al publicar Y al
+  cambiar de tipo. (4) Un tema que sostiene un release publicado no se puede
+  borrar; sin eso la regla dura vive lo que tarda un DELETE.
+
+  ⚠️ EL TRIGGER DEL RANGO MIRA LA TRANSICIÓN, NO EL ESTADO, y eso estaba escrito
+  antes de codear. V18 §2 dispara ante cualquier UPDATE de un release publicado y
+  funciona porque un publicado SÍ tiene contrato; todo release publicado antes de
+  V26 tiene CERO temas, así que la misma forma haría imposible para siempre
+  corregirle una nota a uno de 2023.
+
+  ⚠️ EL UNIQUE ES DEFERRABLE, y es lo que hace posible reordenar: un swap pasa por
+  un estado con dos temas en la misma posición. Sale gratis porque el orden lo
+  asigna siempre el servidor. Es el corte opuesto al de V18 §2, inmediato
+  precisamente porque lo que rechaza lo tipeó una persona que tiene que leer por
+  qué. Consecuencia para las suites SQL: un caso que ataque este unique necesita
+  `SET CONSTRAINTS cancion_orden_unico IMMEDIATE` adentro, o el rechazo llega
+  después de que `probar` insertó su fila y el caso DESAPARECE del resumen.
+
+  EL ISRC NO ES ÚNICO A PROPÓSITO: la misma grabación sale como single y como
+  tema de un álbum bajo el mismo código, que es para lo que sirve.
   '''
 }
 

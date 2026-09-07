@@ -3904,8 +3904,11 @@ inventario completo— es lo mismo de antes menos esta sección:
    ahora `V28`. ⚠️ **Ese número ya se movió cuatro veces**, así que no se anota
    como fijo en ningún lado.
 3. **El deploy de octubre**, que espera la decisión de hosting.
-4. **`docs/db/la_juanita_schema.dbml.txt`**, atrasado desde hace varias
-   migraciones. Tarea propia: §3.5 de `pendientes.md`.
+4. ~~El diagrama de la base~~ — **hecho el 2026-09-06**: está al día con
+   `V1..V27` y verificado contra el catálogo (28 tablas, una por una). Lo que
+   dejó de lección está en §3.5 de `pendientes.md`: **el inventario describía la
+   versión anterior del archivo**, o sea el mismo modo de falla contra el que
+   advierte la cabecera del diagrama, un nivel más arriba.
 
 ⚠️ **Y una cosa que la §15 dejó anotada y conviene no perder** (`platform.md`
 §21 · P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF

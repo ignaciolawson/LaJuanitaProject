@@ -393,19 +393,27 @@ Este proyecto tiene **dos**, y las dos están anotadas donde viven:
   *decide* y la de Java solo *muestra*. Si se separan, la pantalla lista un
   contrato de menos y la publicación sigue siendo imposible sin respaldo.
 
-### 3.5 · El diagrama de la base quedó atrás
+### 3.5 · El diagrama de la base — ✅ AL DÍA (2026-09-06)
 
-**`docs/db/la_juanita_schema.dbml.txt` describe el esquema hasta `V14`.** Le faltan
-doce migraciones: `V17` (la clave de deduplicación de los avisos), `V18` (la tabla
-`aparicion_release` y la publicación sin contrato), `V19` (el pagador sin cuenta),
-`V20` (`solicitante`), `V21` (`comprobante_pago`, y las cinco columnas que `pago`
-perdió) y todo lo que vino después: `V22` a `V26`, con `cancion_release` incluida.
-**Al 2026-09-06 le faltan doce migraciones**, no siete.
+**`docs/db/la_juanita_schema.dbml.txt` está al día con `V1..V27`**, y se verificó
+**contra el catálogo de la base**, no contra las migraciones leídas: las **28
+tablas** coinciden una por una con `information_schema`.
 
-**La cabecera del archivo dice exactamente qué no refleja**, que es lo que lo hace
-inofensivo: el peligro de un diagrama viejo no es estar viejo sino que alguien lo
-"corrija" hacia atrás — le pasó a ese mismo archivo una vez. La fuente de verdad son
-las migraciones. **Ponerlo al día es una tarea propia**, no un renglón de otra.
+Lo último que entró fue `cancion_release` (`V26`) y las seis columnas nuevas de
+`solicitante` (`V27`: las tres FK de lo que produjo, más los tres campos de
+preferencia de horario), con `CONVERTIDO` → `ATENDIDO`.
+
+⚠️ **Y lo que esta entrada decía antes es la lección que vale guardar: describía la
+versión ANTERIOR del archivo.** Sostenía que el diagrama llegaba hasta `V14` y que
+le faltaban doce migraciones, cuando el archivo ya iba por `V25` — la v4 lo había
+puesto al día y este inventario siguió hablando de la v3. **Es exactamente el modo
+de falla contra el que advierte la cabecera del propio diagrama**, sólo que un
+nivel más arriba: no se corrigió el dibujo hacia atrás, se corrigió *la frase sobre
+el dibujo*. Y costó lo mismo que cuesta siempre — abrir el archivo y mirar.
+
+La fuente de verdad siguen siendo las migraciones; esto es un dibujo para ver el
+modelo de un vistazo. **Si vuelve a quedar atrás: anotalo, no lo arregles a
+medias** — y anotalo mirando el archivo.
 
 ### 3.6 · Cosas chicas de la base, para cuando algo toque esas tablas
 
