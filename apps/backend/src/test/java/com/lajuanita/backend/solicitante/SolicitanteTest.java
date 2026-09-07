@@ -165,8 +165,8 @@ class SolicitanteTest {
     }
 
     /**
-     * DIRECTIVO lee todo y no escribe nada. Si alguien "arregla" el permiso de
-     * convertir sumándolo, un socio pasa a crear cuentas.
+     * DIRECTIVO lee todo y no escribe nada. Si alguien "arregla" el permiso
+     * sumándolo, un socio pasa a crear cuentas.
      */
     @Test
     void el_directivo_mira_el_buzon_y_no_lo_resuelve() throws Exception {
@@ -176,18 +176,29 @@ class SolicitanteTest {
         mvc.perform(get("/api/solicitantes").header("Authorization", directivo))
                 .andExpect(status().isOk());
 
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
                 .header("Authorization", directivo))
                 .andExpect(status().isForbidden());
     }
 
-    // == La conversión =======================================================
+    // == La cuenta, que ya no cierra la ficha ================================
 
+    /**
+     * ⚠️ <b>El caso que cambió de sentido con `V27`, y el que sostiene la mejora
+     * entera.</b>
+     *
+     * <p>Antes afirmaba que crear la cuenta dejaba la ficha en {@code CONVERTIDO},
+     * o sea resuelta. <b>Eso era el bug</b>: la persona seguía sin su reserva y la
+     * ficha ya se había ido de la lista — y del contador del sidebar, que miraba
+     * lo mismo. Ahora la cuenta se crea y <b>la ficha sigue abierta</b>, porque la
+     * cuenta es una comodidad para el cliente y no la respuesta a lo que pidió
+     * (P54, P55).
+     */
     @Test
-    void convertir_crea_la_cuenta_y_muestra_la_password_una_sola_vez() throws Exception {
-        long ficha = mandarUnaFicha("CURSO");
+    void darle_cuenta_no_resuelve_la_ficha() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
 
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cuentaNueva").value(true))
@@ -196,9 +207,24 @@ class SolicitanteTest {
                 .andExpect(jsonPath("$.usuario.debeCambiarPassword").value(true))
                 // Un formulario público no otorga roles ni por accidente.
                 .andExpect(jsonPath("$.usuario.rol").value("USUARIO"))
-                .andExpect(jsonPath("$.solicitante.estado").value("CONVERTIDO"))
-                .andExpect(jsonPath("$.solicitante.resueltaPor").isNotEmpty())
-                .andExpect(jsonPath("$.solicitante.fechaResolucion").isNotEmpty());
+                // Lo que cambió: sigue pendiente, y sin firma de resolución.
+                .andExpect(jsonPath("$.solicitante.estado").value("PENDIENTE"))
+                .andExpect(jsonPath("$.solicitante.idUsuario").isNotEmpty())
+                .andExpect(jsonPath("$.solicitante.fechaResolucion").doesNotExist());
+    }
+
+    /** Y por eso sigue apareciendo en la lista de lo que falta hacer. */
+    @Test
+    void una_ficha_con_cuenta_sigue_en_el_buzon_abierto() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/solicitantes?abiertas=true").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)]".formatted(ficha))
+                        .isNotEmpty());
     }
 
     /**
@@ -212,11 +238,11 @@ class SolicitanteTest {
      * muestre un campo vacío ahí está contando mal lo que pasó.
      */
     @Test
-    void convertir_a_alguien_que_ya_tenia_cuenta_la_vincula_en_vez_de_duplicarla() throws Exception {
+    void a_alguien_que_ya_tenia_cuenta_se_la_vincula_en_vez_de_duplicarla() throws Exception {
         Usuario existente = crear(Rol.USUARIO);
         long ficha = idDe(mandarFormulario("ALQUILER_CABINA", existente.getEmail()));
 
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cuentaNueva").value(false))
@@ -225,20 +251,79 @@ class SolicitanteTest {
                 .andExpect(jsonPath("$.solicitante.idUsuario").value(existente.getId()));
     }
 
+    /**
+     * ⚠️ <b>Apretar el botón dos veces ya no es un error, y eso también cambió.</b>
+     *
+     * <p>Antes la primera vez cerraba la ficha, así que la segunda chocaba contra
+     * *"ya fue atendida"*. Ahora la ficha sigue abierta —es lo correcto— y volver a
+     * apretar encuentra la cuenta que acaba de crear y la reporta como existente.
+     * <b>Lo que importa es que no cree una segunda cuenta</b>, que era todo el
+     * daño que ese caso protegía.
+     */
     @Test
-    void una_ficha_no_se_convierte_dos_veces() throws Exception {
+    void darle_cuenta_dos_veces_no_crea_una_segunda() throws Exception {
         long ficha = mandarUnaFicha("GRABACION_SET");
 
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
                 .header("Authorization", comoStaff()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cuentaNueva").value(true));
+
+        mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cuentaNueva").value(false))
+                .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
+    }
+
+    // == Atender: lo que sí cierra la ficha ==================================
+
+    /**
+     * <b>La ficha se cierra apuntando a lo que produjo</b>, y eso es a la vez el
+     * cierre automático y la trazabilidad: dentro de tres meses se abre la ficha y
+     * se ve <i>cuál</i> inscripción salió de ella.
+     */
+    @Test
+    void atender_cierra_la_ficha_apuntando_a_lo_que_produjo() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        long venta = unaVenta();
+
+        atender(ficha, "VENTA", venta)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ATENDIDO"))
+                .andExpect(jsonPath("$.idVentaEquipo").value(venta))
+                .andExpect(jsonPath("$.resueltaPor").isNotEmpty())
+                .andExpect(jsonPath("$.fechaResolucion").isNotEmpty());
+    }
+
+    /** Y ahí sí sale de la lista de lo que falta hacer. */
+    @Test
+    void una_ficha_atendida_sale_del_buzon_abierto() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        atender(ficha, "VENTA", unaVenta()).andExpect(status().isOk());
+
+        mvc.perform(get("/api/solicitantes?abiertas=true").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)]".formatted(ficha))
+                        .isEmpty());
+    }
+
+    /** Apuntar a algo que no existe no cierra nada. */
+    @Test
+    void no_se_cierra_apuntando_a_una_inscripcion_inventada() throws Exception {
+        atender(mandarUnaFicha("EQUIPOS"), "VENTA", 999_999L)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void una_ficha_no_se_atiende_dos_veces() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        atender(ficha, "VENTA", unaVenta()).andExpect(status().isOk());
 
         // 403 y no 409: `OperacionNoPermitidaException` mapea a FORBIDDEN en todo el
         // sistema, y es la misma que usa el Módulo 4 para "esa solicitud ya fue
-        // resuelta". Lo que importa del caso es que llegue el mensaje redactado y
-        // que la segunda conversión no haya creado una cuenta.
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
-                .header("Authorization", comoStaff()))
+        // resuelta".
+        atender(ficha, "VENTA", unaVenta())
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.detail").value(Matchers.containsString("ya fue atendida")));
     }
@@ -246,24 +331,41 @@ class SolicitanteTest {
     /**
      * Lo mismo, pero contra la base y por SQL crudo.
      *
-     * <p>El chequeo del servicio existe para el mensaje y para no llegar a crear la
-     * cuenta; <b>quien sostiene la regla es el trigger de `V20` §2</b>, que es la
-     * función que `V13` ya tenía. Sin este caso, borrar el {@code if} del servicio
-     * deja la suite verde y el esquive abierto: volver la ficha a PENDIENTE y
-     * convertirla otra vez, con dos cuentas para la misma persona.
+     * <p>El chequeo del servicio existe para el mensaje; <b>quien sostiene la regla
+     * es el trigger de `V20` §2</b>, que es la función que `V13` ya tenía. Sin este
+     * caso, borrar el {@code if} del servicio deja la suite verde y el esquive
+     * abierto: volver la ficha a PENDIENTE y atenderla otra vez.
      */
     @Test
     void la_base_impide_reabrir_una_ficha_resuelta() throws Exception {
-        long ficha = mandarUnaFicha("OTRO");
-        mvc.perform(post("/api/solicitantes/" + ficha + "/conversion")
-                .header("Authorization", comoStaff()))
-                .andExpect(status().isOk());
+        long ficha = mandarUnaFicha("EQUIPOS");
+        atender(ficha, "VENTA", unaVenta()).andExpect(status().isOk());
         em.flush();
 
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE solicitante SET estado = 'PENDIENTE' WHERE id_solicitante = ?", ficha))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("ya fue resuelta");
+    }
+
+    /**
+     * ⚠️ <b>La mitad del CHECK de `V27` que no se ve desde adentro de la otra</b>:
+     * un destino colgado de una ficha pendiente dice que se creó algo que nadie
+     * autorizó. Se ataca por SQL crudo porque la API no tiene ningún camino que lo
+     * escriba — y ése es justamente el motivo de atacarla desde abajo: si mañana
+     * alguien agrega uno, este caso lo frena.
+     */
+    @Test
+    void la_base_no_deja_colgar_un_destino_de_una_ficha_pendiente() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        long venta = unaVenta();
+        em.flush();
+
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE solicitante SET id_venta_equipo = ? WHERE id_solicitante = ?",
+                venta, ficha))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("solicitante_atendido_produjo_algo");
     }
 
     // == El descarte =========================================================
@@ -323,6 +425,32 @@ class SolicitanteTest {
     }
 
     // == Helpers =============================================================
+
+    private ResultActions atender(long ficha, String tipo, long id) throws Exception {
+        return mvc.perform(patch("/api/solicitantes/" + ficha + "/atencion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"tipo":"%s","id":%d}
+                        """.formatted(tipo, id)));
+    }
+
+    /**
+     * Una venta cualquiera, para tener a qué apuntar.
+     *
+     * <p>Se inserta por SQL y no por la API a propósito: lo que estos casos prueban
+     * es el ciclo de vida de la ficha, no el alta de ventas —que tiene sus 22 casos
+     * en {@code VentaEquipoTest}—. Cargarla por la API metería en rojo esta suite
+     * cada vez que cambie aquel formulario.
+     */
+    private long unaVenta() {
+        return jdbc.queryForObject("""
+                INSERT INTO venta_equipo (id_usuario_vendedor, nombre_comprador_externo,
+                                          modelo_equipo, precio, moneda, fecha_venta)
+                VALUES (?, 'Comprador de prueba', 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
+                RETURNING id_venta
+                """, Long.class, crear(Rol.STAFF).getId());
+    }
 
     private long mandarUnaFicha(String interes) throws Exception {
         return idDe(mandarFormulario(interes, unEmail()));

@@ -1,7 +1,11 @@
 package com.lajuanita.backend.solicitante.dto;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
+import com.lajuanita.backend.reserva.EstadoReserva;
+import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.solicitante.EstadoSolicitante;
 import com.lajuanita.backend.solicitante.InteresDelSolicitante;
 import com.lajuanita.backend.solicitante.Solicitante;
@@ -30,14 +34,45 @@ public record SolicitanteResumen(
         /** Nota interna de quien la atendió. Motivo obligatorio si se descartó. */
         String respuesta,
         String resueltaPor,
-        /** La cuenta en la que terminó. Solo si está CONVERTIDA. */
+
+        /**
+         * La cuenta de esta persona, si ya tiene.
+         *
+         * <p>⚠️ <b>Puede venir con la ficha PENDIENTE</b>, y eso es lo que cambió
+         * en `V27`: tener cuenta dejó de resolver la ficha. Es una comodidad para
+         * el cliente (P54), no la respuesta a lo que pidió.
+         */
         Long idUsuario,
+
+        // == Qué produjo la ficha, y en qué etapa está (P56) ==================
+
+        Long idReserva,
+        Long idInscripcion,
+        Long idVentaEquipo,
+
+        /**
+         * El estado de la reserva que produjo, si produjo una.
+         *
+         * <p><b>Viaja para que la pantalla no tenga que ir a buscarlo</b>: es lo
+         * que distingue <i>"apartada, falta la seña"</i> de <i>"se venció"</i> y de
+         * <i>"listo"</i>, que son tres situaciones con acciones distintas. La ficha
+         * no tiene una vida paralela — muestra el estado de lo que produjo.
+         */
+        EstadoReserva estadoDeLaReserva,
+
+        // == El horario que la persona prefiere (P58) =========================
+
+        LocalDate fechaPreferida,
+        LocalTime horaPreferida,
+        Integer duracionMinutos,
+
         OffsetDateTime fechaResolucion,
         OffsetDateTime fechaCreacion) {
 
     public static SolicitanteResumen de(Solicitante ficha) {
         Usuario resuelve = ficha.getUsuarioResuelve();
         Usuario cuenta = ficha.getUsuario();
+        Reserva reserva = ficha.getReserva();
 
         return new SolicitanteResumen(
                 ficha.getId(),
@@ -52,6 +87,13 @@ public record SolicitanteResumen(
                 ficha.getRespuesta(),
                 resuelve == null ? null : resuelve.getNombre() + " " + resuelve.getApellido(),
                 cuenta == null ? null : cuenta.getId(),
+                reserva == null ? null : reserva.getId(),
+                ficha.getInscripcion() == null ? null : ficha.getInscripcion().getId(),
+                ficha.getVentaEquipo() == null ? null : ficha.getVentaEquipo().getId(),
+                reserva == null ? null : reserva.getEstado(),
+                ficha.getFechaPreferida(),
+                ficha.getHoraPreferida(),
+                ficha.getDuracionMinutos(),
                 ficha.getFechaResolucion(),
                 ficha.getFechaCreacion());
     }

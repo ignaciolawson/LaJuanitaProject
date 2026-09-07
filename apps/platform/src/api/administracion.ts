@@ -8,6 +8,7 @@ import type {
   BloqueoResumen,
   CajaDelPeriodo,
   ConversionRealizada,
+  DestinoDeLaFicha,
   Deudor,
   EgresoResumen,
   EstadoDeCuenta,
@@ -919,21 +920,48 @@ export function cambiarMiPassword(passwordActual: string, passwordNueva: string)
  * aplicación, contra el único POST público de la API. Este módulo es el de las
  * pantallas de administración.
  */
-export function listarSolicitantes(opciones: { estado?: EstadoSolicitante; pagina?: number }) {
+export function listarSolicitantes(opciones: {
+  estado?: EstadoSolicitante
+  /** Lo que le debe algo a alguien: sin contestar, o apartado sin señar. */
+  abiertas?: boolean
+  pagina?: number
+}) {
   return pedir<Pagina<SolicitanteResumen>>(
-    `/api/solicitantes${query({ estado: opciones.estado, pagina: opciones.pagina })}`,
+    `/api/solicitantes${query({
+      estado: opciones.estado,
+      // `query` arma texto: un booleano va como 'true' o no va.
+      abiertas: opciones.abiertas ? 'true' : undefined,
+      pagina: opciones.pagina,
+    })}`,
   )
 }
 
 /**
- * Convertir la ficha en cuenta.
+ * Crearle la cuenta a quien mandó la ficha.
  *
- * Es POST y no PATCH porque crea un recurso —una cuenta que no existía—; el
- * cambio de estado de la ficha es la consecuencia. Si la persona ya tenía cuenta,
- * la vincula: mismo endpoint, y `cuentaNueva` dice cuál de los dos pasó.
+ * ⚠️ **NO resuelve la ficha**, y ése es el cambio de `V27`: la cuenta es una
+ * comodidad para el cliente (P54) — la persona sigue sin su reserva, así que la
+ * ficha sigue abierta. La cierra `atenderSolicitante`, diciendo qué se cargó.
+ *
+ * La contraseña temporal viene sólo si la cuenta se creó ahora. Es la única del
+ * sistema que no se puede volver a ver.
  */
-export function convertirSolicitante(id: number) {
-  return pedir<ConversionRealizada>(`/api/solicitantes/${id}/conversion`, { metodo: 'POST' })
+export function darleCuentaAlSolicitante(id: number) {
+  return pedir<ConversionRealizada>(`/api/solicitantes/${id}/cuenta`, { metodo: 'POST' })
+}
+
+/**
+ * Cerrar la ficha apuntando a lo que se le cargó.
+ *
+ * **No es un "marcar como atendida"**: hay que decir *qué* se cargó, y eso queda
+ * enlazado para siempre. Un tilde suelto sería la casilla que se puede marcar sin
+ * haber hecho nada.
+ */
+export function atenderSolicitante(id: number, destino: DestinoDeLaFicha) {
+  return pedir<SolicitanteResumen>(`/api/solicitantes/${id}/atencion`, {
+    metodo: 'PATCH',
+    cuerpo: destino,
+  })
 }
 
 /** Descartar, diciendo por qué. El motivo lo exige la base, no solo la pantalla. */

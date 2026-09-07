@@ -29,20 +29,39 @@ public interface SolicitanteRepository extends JpaRepository<Solicitante, Long> 
             SELECT s FROM Solicitante s
             LEFT JOIN FETCH s.usuarioResuelve
             LEFT JOIN FETCH s.usuario
+            LEFT JOIN FETCH s.reserva
             WHERE (:estado IS NULL OR s.estado = :estado)
+              AND (:soloAbiertas = FALSE OR """ + FichaAbierta.JPQL + """
+                  )
             ORDER BY s.fechaCreacion, s.id
             """)
-    Page<Solicitante> listar(@Param("estado") EstadoSolicitante estado, Pageable paginado);
+    Page<Solicitante> listar(@Param("estado") EstadoSolicitante estado,
+            @Param("soloAbiertas") boolean soloAbiertas,
+            Pageable paginado);
 
     /** Una sola, con lo que el DTO necesita. Mismos LEFT y por el mismo motivo. */
     @Query("""
             SELECT s FROM Solicitante s
             LEFT JOIN FETCH s.usuarioResuelve
             LEFT JOIN FETCH s.usuario
+            LEFT JOIN FETCH s.reserva
             WHERE s.id = :id
             """)
     Optional<Solicitante> porIdConDetalle(@Param("id") Long id);
 
-    /** Cuántas fichas del buzón no atendió nadie todavía. El contador del menú. */
-    long countByEstado(EstadoSolicitante estado);
+    /**
+     * Cuántas fichas le deben algo a alguien. El contador del menú.
+     *
+     * <p>⚠️ <b>Antes era {@code countByEstado(PENDIENTE)} y ése era la mitad del
+     * bug.</b> El contador dejaba de mirar en el mismo punto que la lista —al
+     * crear la cuenta— así que las dos cosas que existen para que no se pierda
+     * nadie se apagaban juntas. Ahora las dos leen {@link FichaAbierta}.
+     *
+     * <p>Es un {@code @Query} y no una consulta derivada: <b>Spring la valida al
+     * levantar el contexto, no al compilar</b>, así que un {@code mvn clean
+     * compile} en verde no prueba nada sobre ella — hay que arrancar la
+     * aplicación.
+     */
+    @Query("SELECT count(s) FROM Solicitante s WHERE " + FichaAbierta.JPQL)
+    long contarAbiertas();
 }

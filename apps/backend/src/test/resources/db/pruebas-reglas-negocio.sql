@@ -1519,15 +1519,37 @@ SELECT probar('178','descartar con un motivo de puros espacios','FALLA',
         id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
     WHERE email='camila@web.local'$q$);
 
--- Una ficha CONVERTIDA sin cuenta miente: dice que la persona entro al sistema y
--- no hay a quien cargarle nada.
-SELECT probar('179','convertir sin apuntar a ninguna cuenta','FALLA',
- $q$UPDATE solicitante SET estado='CONVERTIDO',
+-- --- LO QUE CAMBIO CON `V27` -------------------------------------------------
+--
+-- `CONVERTIDO` no existe mas. Se usaba como estado terminal y no lo era: crear la
+-- cuenta no es atender la ficha, y al apretar ese boton la persona seguia sin su
+-- reserva mientras la ficha ya se habia ido de la lista. Ahora una ficha esta
+-- ATENDIDA cuando **produjo** lo que pedian (P55, P56).
+--
+-- Los dos casos de aca abajo afirmaban el mundo anterior y los dos se pusieron en
+-- rojo al aplicar la migracion, que es exactamente lo que tenian que hacer.
+-- ----------------------------------------------------------------------------
+
+-- Una ficha ATENDIDA sin destino es el bug que `V27` vino a cerrar: dice que se
+-- resolvio y no hay nada que mostrar.
+SELECT probar('179','atender una ficha sin apuntar a lo que produjo','FALLA',
+ $q$UPDATE solicitante SET estado='ATENDIDO',
         id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
     WHERE email='camila@web.local'$q$);
 
-SELECT probar('180','convertir apuntando a la cuenta','ANDA',
- $q$UPDATE solicitante SET estado='CONVERTIDO', id_usuario=(SELECT u_juan FROM v),
+-- Y la otra mitad del CHECK, que es la que no se ve desde adentro de la primera:
+-- un destino colgado de una ficha PENDIENTE dice que se creo algo que nadie
+-- autorizo, y la sacaria de la lista sin que su estado lo diga. Por eso la
+-- equivalencia va en los dos sentidos, como la de `V22`.
+SELECT probar('179b','apuntar a una inscripcion dejando la ficha pendiente','FALLA',
+ $q$UPDATE solicitante SET id_inscripcion=(SELECT ins_juan FROM v)
+    WHERE email='camila@web.local'$q$);
+
+-- La cuenta viaja igual —se le crea de todas formas, es una comodidad (P54)— pero
+-- ya no es lo que define el estado.
+SELECT probar('180','atenderla apuntando a lo que produjo','ANDA',
+ $q$UPDATE solicitante SET estado='ATENDIDO', id_inscripcion=(SELECT ins_juan FROM v),
+        id_usuario=(SELECT u_juan FROM v),
         id_usuario_resuelve=(SELECT u_mica FROM v), fecha_resolucion=now()
     WHERE email='camila@web.local'$q$);
 
@@ -1546,6 +1568,26 @@ SELECT probar_mensaje('181','reabrir una ficha ya atendida',
 SELECT probar_mensaje('182','borrar una ficha en vez de descartarla',
  'solicitante -> DESCARTADO',
  $q$DELETE FROM solicitante WHERE email='camila@web.local'$q$);
+
+-- --- El horario que la persona prefiere (`V27` §3, P58) ----------------------
+--
+-- Los tres son OPCIONALES a proposito: estos formularios existen para captar a
+-- alguien con el minimo esfuerzo, y exigir dia y hora pierde a quien solo queria
+-- preguntar cuanto sale. El caso 174 de mas arriba ya entra sin ninguno de los
+-- tres; estos dos miran el otro lado.
+
+SELECT probar('183','una ficha con el horario que prefiere','ANDA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,
+                            fecha_preferida,hora_preferida,duracion_minutos)
+    VALUES ('Juan','Web','juan@web.local','11-5555-0003','ALQUILER_CABINA',
+            CURRENT_DATE + 7,'18:00',120)$q$);
+
+-- Duracion y no hora de fin: "2 horas" es lo que la persona piensa. Cero o
+-- negativo no es una duracion, es un dato mal cargado que despues precarga un
+-- alta imposible.
+SELECT probar('184','una duracion de cero minutos','FALLA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,duracion_minutos)
+    VALUES ('Bot','Bot','bot2@web.local','11-5555-0004','ALQUILER_CABINA',0)$q$);
 
 
 -- =============================================================================

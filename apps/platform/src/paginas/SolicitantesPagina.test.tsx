@@ -26,11 +26,12 @@ import { SolicitantesPagina } from './SolicitantesPagina'
 
 vi.mock('../api/administracion', () => ({
   listarSolicitantes: vi.fn(),
-  convertirSolicitante: vi.fn(),
+  darleCuentaAlSolicitante: vi.fn(),
+  atenderSolicitante: vi.fn(),
   descartarSolicitante: vi.fn(),
 }))
 
-const { listarSolicitantes, convertirSolicitante, descartarSolicitante } = await import(
+const { listarSolicitantes, darleCuentaAlSolicitante, descartarSolicitante } = await import(
   '../api/administracion'
 )
 
@@ -48,6 +49,13 @@ function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
     respuesta: null,
     resueltaPor: null,
     idUsuario: null,
+    idReserva: null,
+    idInscripcion: null,
+    idVentaEquipo: null,
+    estadoDeLaReserva: null,
+    fechaPreferida: null,
+    horaPreferida: null,
+    duracionMinutos: null,
     fechaResolucion: null,
     fechaCreacion: '2026-08-28T10:00:00-03:00',
     ...cambios,
@@ -56,7 +64,8 @@ function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
 
 function conversion(cambios: Partial<ConversionRealizada> = {}): ConversionRealizada {
   return {
-    solicitante: ficha({ estado: 'CONVERTIDO', idUsuario: 40 }),
+    // ⚠️ Sigue PENDIENTE: crear la cuenta ya no resuelve la ficha (`V27`, P55).
+    solicitante: ficha({ idUsuario: 40 }),
     usuario: {
       id: 40,
       nombre: 'Camila',
@@ -117,11 +126,18 @@ beforeEach(() => {
 })
 
 describe('el buzón', () => {
-  it('abre en lo que nadie contestó', async () => {
+  /**
+   * ⚠️ **Abre en "lo que falta hacer", que no es un estado.** Antes abría en
+   * `PENDIENTE`, y ése era el bug: al crear la cuenta la ficha salía de esa lista
+   * con la persona todavía sin su reserva. Ahora el filtro por defecto junta lo
+   * que nadie contestó con lo que se apartó y no se señó (`FichaAbierta`).
+   */
+  it('abre en lo que falta hacer', async () => {
     montar()
 
     expect(await screen.findByText('Ríos, Camila')).toBeDefined()
-    expect(vi.mocked(listarSolicitantes).mock.calls[0][0].estado).toBe('PENDIENTE')
+    expect(vi.mocked(listarSolicitantes).mock.calls[0][0].abiertas).toBe(true)
+    expect(vi.mocked(listarSolicitantes).mock.calls[0][0].estado).toBeUndefined()
   })
 
   /**
@@ -144,17 +160,17 @@ describe('el buzón', () => {
     montar('DIRECTIVO')
 
     expect(await screen.findByText('Ríos, Camila')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Darle cuenta' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Crearle la cuenta' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Descartar' })).toBeNull()
   })
 })
 
 describe('convertir la ficha en cuenta', () => {
   it('muestra la contraseña temporal, que no se puede volver a ver', async () => {
-    vi.mocked(convertirSolicitante).mockResolvedValue(conversion())
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     await waitFor(() => expect(screen.getByText('lluvia-42-roja')).toBeDefined())
     expect(screen.getByText(/Cuenta creada para Camila Ríos/)).toBeDefined()
@@ -167,12 +183,12 @@ describe('convertir la ficha en cuenta', () => {
    * la pantalla lo cuente, en vez de dejar vacío el lugar de la contraseña.
    */
   it('cuando la persona ya tenía cuenta lo dice, en vez de dejar el hueco', async () => {
-    vi.mocked(convertirSolicitante).mockResolvedValue(
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
       conversion({ passwordTemporal: null, cuentaNueva: false }),
     )
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     await waitFor(() => expect(screen.getByText(/ya tenía cuenta/)).toBeDefined())
     expect(screen.getByText(/No hay contraseña que mandarle/)).toBeDefined()
@@ -184,10 +200,10 @@ describe('convertir la ficha en cuenta', () => {
    * entre dieciséis pantallas.
    */
   it('dice a dónde sigue el trámite según qué pidió', async () => {
-    vi.mocked(convertirSolicitante).mockResolvedValue(conversion())
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     await waitFor(() => expect(screen.getByText(/Cargale la inscripción/)).toBeDefined())
     expect(screen.getByRole('link', { name: 'Inscripciones' }).getAttribute('href')).toBe(
@@ -196,12 +212,12 @@ describe('convertir la ficha en cuenta', () => {
   })
 
   it('una consulta por equipos manda a la pantalla de ventas', async () => {
-    vi.mocked(convertirSolicitante).mockResolvedValue(
-      conversion({ solicitante: ficha({ estado: 'CONVERTIDO', interes: 'EQUIPOS' }) }),
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
+      conversion({ solicitante: ficha({ idUsuario: 40, interes: 'EQUIPOS' }) }),
     )
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     await waitFor(() => expect(screen.getByText(/Cargale la venta/)).toBeDefined())
   })
@@ -269,10 +285,10 @@ describe('escribirle por WhatsApp', () => {
    * la misma repregunta.
    */
   it('manda la clave temporal escrita, sin tipearla', async () => {
-    vi.mocked(convertirSolicitante).mockResolvedValue(conversion())
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
     montar()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Darle cuenta' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     const enlace = await screen.findByRole('link', { name: 'Mandarle la clave por WhatsApp' })
     expect(mensajeDe(enlace)).toContain('lluvia-42-roja')

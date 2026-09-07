@@ -1927,3 +1927,201 @@ migración**.
 **Ninguno es obligatorio**: se cargan cuando se tienen. El ISRC en particular
 aparece después de la distribución, así que exigirlo al crear el tema haría
 imposible armar el tracklist antes de mandarlo.
+
+---
+
+## 21. Decisiones cerradas el 2026-09-06 (quinta tanda) — el circuito del buzón
+
+> Las cinco preguntas que abrió repensar el recorrido *formulario de la web →
+> ficha → cuenta → reserva*, contestadas **antes de escribir código**. Es la sexta
+> vez que ese orden evita que algo se trabe a la mitad.
+>
+> **El disparador no fue un bug sino una sensación de Ignacio**, y resultó ser
+> exacta: *"siento que en este proceso se pierde mucho… una vez que ponés dar
+> cuenta desaparece el coso, entonces quizás ya te olvidaste qué quería"*.
+>
+> ⚠️ **El código ya sabía**. El comentario del estado `recienConvertida` en
+> `SolicitantesPagina` dice textual que al convertir *"la ficha desaparece del
+> filtro por defecto"*, y por eso rescata **la contraseña** mostrándola aparte.
+> Alguien vio el problema, salvó lo único que no se puede volver a ver, y dejó
+> hundirse el resto. **El parche es la evidencia del bug.**
+
+### ✅ P54 — La cuenta es una comodidad del cliente, no un requisito del servicio
+
+**La pregunta.** Hoy no se puede cargar una reserva sin cuenta:
+`AltaSenaRequest.idUsuario` y `AltaPreconfirmacionRequest.idUsuario` son
+`@NotNull`. ¿Alquilar la cabina exige tener cuenta?
+
+**La respuesta, textual:** *"lo que son servicios no exige cuenta, la cuenta es
+más para el usuario para que pueda ver sus reservas y demás… es como un favor,
+pero la cuenta creémosela por si un día la quiere usar."*
+
+**Lo que eso cambia no es si la cuenta existe: es si la cuenta es un peaje.**
+Se sigue creando siempre. Lo que deja de pasar es que sea **un trámite aparte que
+va primero**.
+
+⚠️ **Y hay una razón por la que igual conviene crearla, que no es la comodidad y
+pesa más:** `AltaPreconfirmacionRequest` lo dice en su propio javadoc — *"la deuda
+tiene que aparecer en el estado de cuenta de alguien y en la pantalla de
+deudores, y eso es lo que hace que la prereserva se pueda reclamar"*. Una deuda
+sin nombre no se le cobra a nadie. Así que la cuenta es **comodidad para el
+cliente y condición para la plata al mismo tiempo**, y ninguna de las dos la
+convierte en un paso previo.
+
+**La consecuencia concreta**: el botón deja de llamarse *"Darle cuenta"*. Hoy la
+acción principal de la pantalla es la acción secundaria de la realidad —nadie abre
+el buzón para regalar cuentas—, y **eso solo ya hacía sentir pesado el
+recorrido**. Pasa a llamarse por el trabajo: *"Apartarle la cabina"*,
+*"Cargarle la inscripción"*, *"Cargarle la venta"*. La cuenta se crea en el mismo
+movimiento y se menciona al costado.
+
+---
+
+### ✅ P55 — Una ficha está atendida cuando produjo lo que pedían
+
+**La pregunta.** ¿Cuándo se considera atendida una ficha: cuando la persona tiene
+cuenta, cuando se le escribió, o cuando lo que pidió existe en el sistema?
+
+**La respuesta, textual:** *"cuando ya se le contactó por wpp y se creó la reserva
+si está disponible."*
+
+O sea: **crear la cuenta no es atender la ficha.** Es el estado `CONVERTIDO`
+usado como si fuera terminal cuando no lo es — el trabajo real (la reserva, la
+inscripción, la venta) todavía está por hacerse, y hoy la ficha se va de la lista
+justo ahí.
+
+⚠️ **De las dos mitades de esa respuesta, el sistema sólo puede observar una.**
+Que se le haya escrito por WhatsApp **no es observable**: el link de `wa.me` abre
+otra aplicación y ahí termina — el sistema no sabe si el mensaje se mandó. Un
+checkbox *"ya le escribí"* sería una casilla que se puede marcar sin escribir,
+o sea un dato que miente. **Lo que sí es observable es lo que se produjo**, y
+además es lo que le importa a quien abre el buzón dentro de un mes.
+
+**Los estados quedan en tres**, y `CONVERTIDO` desaparece:
+
+| Estado | Qué significa |
+|---|---|
+| `PENDIENTE` | Nadie la atendió |
+| `ATENDIDA` | Produjo una reserva, una inscripción o una venta |
+| `DESCARTADA` | Se cerró a mano, con motivo |
+
+*"Tiene cuenta"* deja de ser un estado y vuelve a ser lo que siempre fue: una
+columna (`id_usuario IS NOT NULL`).
+
+---
+
+### ✅ P56 — La ficha guarda qué produjo, y por eso se cierra sola
+
+**La pregunta.** ¿La cierra una persona o la deduce el sistema? Con un botón
+*"cerrar"* alguien se va a olvidar de apretarlo y la lista se llena de fichas
+viejas — el mismo problema con otra ropa.
+
+**La respuesta, textual:** *"que el sistema la marque como atendido pero que quede
+algo de trazabilidad."*
+
+**La forma: la ficha guarda una FK a lo que produjo**, escrita en el mismo
+movimiento que crea esa cosa. No es un booleano ni una deducción.
+
+⚠️ **Y no se inventa: es el patrón que `pago` ya tiene desde `V1`** — cuatro FK
+anulables (`id_reserva`, `id_inscripcion`, `id_trabajo_mastering`,
+`id_venta_equipo`) más el CHECK `pago_tiene_destino`. La ficha hace lo mismo con
+tres.
+
+Eso da las dos cosas que se pidieron de una sola vez:
+
+- **Se cierra sola** — no hay botón que olvidar.
+- **Trazabilidad de verdad** — dentro de tres meses se abre la ficha y se ve
+  *cuál* reserva salió de ella, no un tilde.
+
+**Y una idea que ordena la pantalla: la ficha no tiene una vida paralela, muestra
+el estado de lo que produjo.**
+
+| Lo que produjo | Cómo se lee la ficha |
+|---|---|
+| Nada | **Sin contestar** |
+| Una reserva `PRECONFIRMADA` | **Apartada — falta la seña** |
+| Una reserva `CONFIRMADA`, una inscripción, una venta | **Cerrada** |
+| Una reserva `CANCELADA` (se venció el plazo) | **Se venció** — hay que decidir |
+| — | **Descartada**, con su motivo |
+
+Eso resuelve las dos cosas que parecían en tensión: **se marca sola al crear la
+reserva** (P55) y **sigue visible mientras falta la seña** (la queja original).
+
+⚠️ **Una ficha atendida queda congelada, y es a propósito.** El trigger
+`solicitante_resuelto_es_final` (de `V13` §4) rechaza cualquier UPDATE sobre una
+ficha que ya salió de `PENDIENTE`, así que la FK se escribe **una vez**, junto con
+el estado y la firma. Si esa reserva después se cae, **el reintento se hace desde
+el calendario y la ficha conserva la historia honesta** de lo que produjo. Aflojar
+eso reabriría el esquive que `V13` §4 cerró: convertir, volver a pendiente,
+convertir otra vez — dos cuentas para la misma persona.
+
+---
+
+### ✅ P57 — El plazo de la prereserva no cambia
+
+**La pregunta.** Con la prereserva creada **antes** de escribirle a la persona
+(decidido en la misma charla), el plazo empieza a correr antes de que ella se
+entere. ¿24hs sigue estando bien? Ignacio lo delegó: *"como a vos te parezca"*.
+
+**La respuesta: no se toca.** `V24` y P44 quedan intactos — el plazo sigue siendo
+*el menor entre 24hs y el inicio de la reserva*.
+
+**Los cuatro motivos**, porque este es el tipo de regla que después nadie recuerda
+por qué quedó así:
+
+1. **Soltar un horario lejano casi no cuesta nada.** Si alguien pidió la cabina
+   para dentro de tres semanas y no paga en 24hs, ese horario va a seguir libre
+   cuando conteste. **El riesgo de soltar es inversamente proporcional a cuán
+   lejos está la fecha.**
+2. **El caso cercano ya está resuelto** por P44: una reserva de mañana a las 10
+   recibe un plazo más corto sola.
+3. **Un plazo que se negocia caso por caso deja de ser un plazo.**
+4. **No se inventa una regla antes de tener el caso.** `V15` tuvo que deshacer un
+   techo inventado y `V22` dejó anotada su excepción para una migración
+   deliberada. Si aparece la necesidad real —el mismo horario apartado tres
+   veces— ahí se decide, con evidencia adelante.
+
+⚠️ **Lo que sí hay que mirar: el aviso de vencimiento le llega a TODOS los admin y
+staff.** `ReservaService.avisarQueSeVencio` recorre `activosConRol(ADMIN, STAFF)`.
+Hoy vencer una prereserva es raro y no molesta; **con este circuito pasa a ser
+rutina**. Es el modo de falla que `AvisoService` documenta en su propia cabecera
+—un aviso por bot × cada persona de administración—. No se toca ahora, pero es
+**lo primero a mirar si el buzón empieza a hacer ruido**.
+
+---
+
+### ✅ P58 — El formulario de la web pide día, horario y duración, y son opcionales
+
+**La pregunta.** Hoy lo que la persona quiere viaja en `detalle`, texto libre
+armado por el servidor, por una decisión explícita de `V20`: *"ninguno de esos
+datos se usa para crear nada"*. ¿Se separan en campos? Ignacio lo delegó: *"como
+lo veas vos mejor todo lo que es manejo de info"*.
+
+**La respuesta: sí, tres campos, y los tres opcionales.**
+
+⚠️ **Esto reabre una decisión escrita de `V20`, y se hace a propósito.** El
+argumento de allá era que esos datos no se usaban para crear nada — y con el botón
+*"apartarle la cabina"* **pasan a usarse**: son lo único que se puede precargar.
+**La premisa cambió, así que la decisión se revisa**, igual que `V15` revirtió a
+`V6` §3. Pero acotado: **tres columnas, no doce.** Todo lo demás sigue en
+`detalle`.
+
+**Por qué opcionales, que es la parte no obvia.** Estos formularios existen para
+captar a alguien con el mínimo esfuerzo posible: publicar la landing sin ellos era
+perder clientes reales, que es lo que `V20` dice de sí misma. **Exigir día y hora
+pierde a quien sólo quería preguntar cuánto sale.** El que sabe lo que quiere los
+llena y el botón precarga; el que no, los deja vacíos y la ficha se lee como hoy.
+**Degrada solo.**
+
+**Duración y no hora de fin** (respuesta de Ignacio): *"2 horas"* es lo que la
+persona piensa; la hora de fin la calcula el sistema.
+
+⚠️ **Se pregunta como preferencia, nunca como reserva.** *"¿Qué día y horario te
+vendría bien?"*, y la confirmación dice que se confirma después. La landing **no
+puede ver disponibilidad** —decidido al dar de baja entero el retoque §6f.5, con
+el argumento de que *"quien pide no puede saber si está ocupado"*— así que un
+formulario que parezca una reserva hace creer a la persona que la tiene. **Esa
+mentira es peor que la de hoy.**
+
+**Y la sala no se pregunta.** La decide la matriz `sala_tipo_uso`, no el cliente:
+ofrecerla produciría combinaciones que la base rechaza.

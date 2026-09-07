@@ -4,7 +4,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.bandeja.dto.Pendientes;
-import com.lajuanita.backend.solicitante.EstadoSolicitante;
 import com.lajuanita.backend.solicitante.SolicitanteRepository;
 import com.lajuanita.backend.solicitud.EstadoReprogramacion;
 import com.lajuanita.backend.solicitud.EstadoSolicitud;
@@ -40,6 +39,11 @@ public class BandejaService {
         return new Pendientes(
                 pedidosDeSala.countByEstado(EstadoSolicitud.PENDIENTE),
                 pedidosDeCambio.countByEstado(EstadoReprogramacion.PENDIENTE),
-                buzon.countByEstado(EstadoSolicitante.PENDIENTE));
+                // ⚠️ **Abiertas y no PENDIENTE**, que era la mitad del bug que `V27`
+                // cerró: este contador y la lista del buzón dejaban de mirar en el
+                // mismo punto —al crear la cuenta— así que las dos cosas que
+                // existen para que no se pierda nadie se apagaban juntas. Las dos
+                // leen `FichaAbierta` ahora.
+                buzon.contarAbiertas());
     }
 }

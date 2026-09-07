@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import {
-  convertirSolicitante,
+  darleCuentaAlSolicitante,
   descartarSolicitante,
   listarSolicitantes,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   DONDE_SIGUE,
-  NOMBRE_DE_ESTADO_SOLICITANTE,
+  etapaDeLaFicha,
   NOMBRE_DE_INTERES,
   type ConversionRealizada,
   type EstadoSolicitante,
@@ -38,21 +38,45 @@ import { linkDeWhatsapp, mensajeConLaClave, saludoDeContacto } from '../componen
  * ninguna pantalla lo llamaba—, con el agravante de que acá del otro lado hay
  * alguien esperando que lo llamen.
  *
- * **Una ficha se atiende, no se lee.** Por eso lo que se ofrece son dos acciones
- * que la cierran —darle cuenta, o descartarla con motivo— y no un "marcar como
- * visto". Un estado "leído" habría dejado exactamente el agujero que esto viene a
- * tapar: la ficha sale de la lista sin que nadie haya llamado a nadie.
+ * **Una ficha se cierra cuando produjo lo que pedían** (`V27`, P55). No hay un
+ * "marcar como vista" —sería la casilla que se marca sin haber hecho nada, el
+ * mismo agujero que `V20` cerró al no darle a este buzón un estado "leído"— ni
+ * "darle cuenta" cierra: crear la cuenta es una comodidad para el cliente, no la
+ * respuesta a su pedido. La ficha sigue abierta hasta que exista la reserva, la
+ * inscripción o la venta, y ahí se cierra apuntando a eso.
  *
  * **La ficha dice a dónde sigue el trámite.** El último paso —la inscripción, la
  * reserva, la venta— ya está construido en las pantallas que Micaela usa todos
- * los días; lo único que faltaba era la puerta de entrada. Por eso al convertir
- * aparece el link, en vez de dejar a alguien adivinando cuál de las dieciséis
- * pantallas sigue.
+ * los días; lo único que faltaba era la puerta de entrada. Por eso aparece el
+ * link, en vez de dejar a alguien adivinando cuál de las dieciséis pantallas
+ * sigue.
+ *
+ * ⚠️ **FALTA (Fase 2 de `mejoras.md` §15): la UI para "atender".** Hoy
+ * `atenderSolicitante` sólo se puede llamar por API — no hay control en esta
+ * pantalla para cerrar la ficha apuntando a lo que se cargó.
  */
+/**
+ * Lo que la pantalla ofrece mirar.
+ *
+ * ⚠️ **`ABIERTAS` no es un estado**: junta lo que nadie contestó con lo que se
+ * apartó y todavía no se señó. Es la única pregunta que este buzón existe para
+ * contestar —*¿a quién le debemos algo?*— y quien la define de verdad es
+ * `FichaAbierta`, del lado del backend, que es la misma que alimenta el contador
+ * del sidebar. Antes de `V27` las dos se apagaban al crear la cuenta.
+ */
+type Filtro = 'ABIERTAS' | 'ATENDIDO' | 'DESCARTADO' | 'TODAS'
+
+const COMO_SE_PIDE: Record<Filtro, { abiertas?: boolean; estado?: EstadoSolicitante }> = {
+  ABIERTAS: { abiertas: true },
+  ATENDIDO: { estado: 'ATENDIDO' },
+  DESCARTADO: { estado: 'DESCARTADO' },
+  TODAS: {},
+}
+
 export function SolicitantesPagina() {
   const puedeResolver = usePuedeEscribir()
 
-  const [estado, setEstado] = useState<EstadoSolicitante | ''>('PENDIENTE')
+  const [filtro, setFiltro] = useState<Filtro>('ABIERTAS')
   const [pagina, setPagina] = useState(0)
   const [fichas, setFichas] = useState<SolicitanteResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -64,17 +88,17 @@ export function SolicitantesPagina() {
   const [descartando, setDescartando] = useState<number | null>(null)
 
   /**
-   * Lo último que se convirtió. Se muestra arriba y no adentro de la fila porque
-   * al convertir la ficha deja de estar PENDIENTE y desaparece del filtro por
-   * defecto — con la contraseña adentro se iría con ella, que es la única que no
-   * se puede volver a ver.
+   * La cuenta que se acaba de crear. Se muestra arriba y no adentro de la fila
+   * porque lo importante es **la contraseña temporal**, que es la única del
+   * sistema que no se puede volver a ver: si la fila se recarga o se filtra, se
+   * va con ella. La ficha en sí sigue en la lista (crear la cuenta no la cierra).
    */
   const [recienConvertida, setRecienConvertida] = useState<ConversionRealizada | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
     try {
-      const resultado = await listarSolicitantes({ estado: estado || undefined, pagina })
+      const resultado = await listarSolicitantes({ ...COMO_SE_PIDE[filtro], pagina })
       setFichas(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -84,16 +108,16 @@ export function SolicitantesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [estado, pagina])
+  }, [filtro, pagina])
 
   useEffect(() => {
     void cargar()
   }, [cargar])
 
-  async function convertir(ficha: SolicitanteResumen) {
+  async function darleCuenta(ficha: SolicitanteResumen) {
     setError(null)
     try {
-      setRecienConvertida(await convertirSolicitante(ficha.idSolicitante))
+      setRecienConvertida(await darleCuentaAlSolicitante(ficha.idSolicitante))
       await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta.')
@@ -122,18 +146,22 @@ export function SolicitantesPagina() {
         }
         acciones={
           <CampoSelect
-            etiqueta="Estado"
-            value={estado}
+            etiqueta="Mostrar"
+            value={filtro}
             onChange={(e) => {
-              setEstado(e.target.value as EstadoSolicitante | '')
+              setFiltro(e.target.value as Filtro)
               setPagina(0)
             }}
-            className="w-56"
+            className="w-64"
           >
-            <option value="PENDIENTE">Sin contestar</option>
-            <option value="CONVERTIDO">Ya tienen cuenta</option>
+            {/* ⚠️ El primero **no es un estado** sino la pregunta que este buzón
+                existe para contestar: ¿a quién le debemos algo? Junta lo que
+                nadie contestó con lo que se apartó y todavía no se señó — que
+                antes de `V27` desaparecía de la lista al crear la cuenta. */}
+            <option value="ABIERTAS">Lo que falta hacer</option>
+            <option value="ATENDIDO">Ya atendidas</option>
             <option value="DESCARTADO">Descartadas</option>
-            <option value="">Todas</option>
+            <option value="TODAS">Todas</option>
           </CampoSelect>
         }
       />
@@ -156,12 +184,10 @@ export function SolicitantesPagina() {
       {!cargando && fichas.length === 0 && (
         <EstadoVacio
           titulo={
-            estado === 'PENDIENTE'
-              ? 'No hay nada sin contestar.'
-              : 'No hay fichas con ese estado.'
+            filtro === 'ABIERTAS' ? 'No queda nada por hacer.' : 'No hay fichas para mostrar.'
           }
         >
-          {estado === 'PENDIENTE' &&
+          {filtro === 'ABIERTAS' &&
             'Acá caen los formularios de la web: cursos, cabina, grabación y consultas por equipos.'}
         </EstadoVacio>
       )}
@@ -189,13 +215,23 @@ export function SolicitantesPagina() {
               </div>
 
               <div className="shrink-0 text-right">
-                <Etiqueta tono={f.estado === 'PENDIENTE' ? 'atencion' : 'apagada'}>
-                  {NOMBRE_DE_ESTADO_SOLICITANTE[f.estado]}
+                {/* ⚠️ **Dice la ETAPA y no el estado crudo.** "Atendida" sobre una
+                    ficha cuya sala se apartó y nadie señó es cierto y no sirve:
+                    lo que quien mira necesita saber es qué falta. La ficha no
+                    tiene una vida paralela — muestra el estado de lo que
+                    produjo. */}
+                <Etiqueta tono={etapaDeLaFicha(f).abierta ? 'atencion' : 'apagada'}>
+                  {etapaDeLaFicha(f).texto}
                 </Etiqueta>
 
                 {f.estado === 'PENDIENTE' && puedeResolver && (
                   <div className="mt-2 flex justify-end gap-2">
-                    <Boton onClick={() => void convertir(f)}>Darle cuenta</Boton>
+                    {/* Sólo si todavía no tiene: darle cuenta dos veces no rompe
+                        nada, pero ofrecerlo cuando ya la tiene es un botón que no
+                        hace lo que dice. */}
+                    {f.idUsuario === null && (
+                      <Boton onClick={() => void darleCuenta(f)}>Crearle la cuenta</Boton>
+                    )}
                     <Boton variante="secundario" onClick={() => setDescartando(f.idSolicitante)}>
                       Descartar
                     </Boton>

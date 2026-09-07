@@ -18,6 +18,7 @@ import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
+import com.lajuanita.backend.solicitante.dto.DestinoRequest;
 import com.lajuanita.backend.solicitante.dto.SolicitanteResumen;
 import com.lajuanita.backend.usuario.dto.Pagina;
 
@@ -66,28 +67,58 @@ public class SolicitanteController {
         return solicitantes.recibir(formulario);
     }
 
-    /** El buzón. Sin filtro trae todo; la pantalla abre en PENDIENTE. */
+    /**
+     * El buzón.
+     *
+     * <p><b>{@code abiertas} no es un estado sino otro eje</b>, y por eso es un
+     * parámetro aparte: una ficha abierta puede estar {@code PENDIENTE} —nadie la
+     * tocó— o {@code ATENDIDO} con la sala apartada y la seña sin cobrar. Es la
+     * pregunta que la pantalla hace por defecto, porque es la única que el buzón
+     * existe para contestar: <i>¿a quién le debemos algo?</i>
+     */
     @GetMapping
     @PuedeLeerAdministracion
     public Pagina<SolicitanteResumen> listar(
             @RequestParam(required = false) EstadoSolicitante estado,
+            @RequestParam(defaultValue = "false") boolean abiertas,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
-        return solicitantes.listar(estado, pagina, tamanio);
+        return solicitantes.listar(estado, abiertas, pagina, tamanio);
     }
 
     /**
-     * Convertir la ficha en una cuenta.
+     * Crearle la cuenta a quien mandó la ficha.
      *
-     * <p>Es un POST y no un PATCH —al revés que el descarte— porque <b>crea un
-     * recurso</b>: una cuenta que antes no existía, con su contraseña temporal.
-     * El cambio de estado de la ficha es la consecuencia, no el hecho.
+     * <p>Es un POST y no un PATCH porque <b>crea un recurso</b>: una cuenta que
+     * antes no existía, con su contraseña temporal.
+     *
+     * <p>⚠️ <b>Y NO resuelve la ficha, que es el cambio de `V27`.</b> La cuenta es
+     * una comodidad para el cliente (P54) — la persona sigue sin su reserva, así
+     * que la ficha sigue abierta. La cierra {@link #atender}, diciendo qué se
+     * cargó.
      */
-    @PostMapping("/{id}/conversion")
+    @PostMapping("/{id}/cuenta")
     @PuedeOperar
-    public ConversionRealizada convertir(@PathVariable Long id, Authentication quienPide) {
-        return solicitantes.convertir(id, Autoridades.idDe(quienPide));
+    public ConversionRealizada darleCuenta(@PathVariable Long id) {
+        return solicitantes.darleCuenta(id);
+    }
+
+    /**
+     * Cerrar la ficha apuntando a lo que se le cargó.
+     *
+     * <p><b>No es un "marcar como atendida"</b>: hay que decir <b>qué</b> se
+     * cargó, y eso queda enlazado. Un tilde suelto sería la casilla que se puede
+     * marcar sin haber hecho nada — exactamente el estado "leído" que `V20`
+     * rechazó al diseñar este buzón.
+     */
+    @PatchMapping("/{id}/atencion")
+    @PuedeOperar
+    public SolicitanteResumen atender(@PathVariable Long id,
+            @Valid @RequestBody DestinoRequest destino,
+            Authentication quienPide) {
+
+        return solicitantes.atender(id, destino, Autoridades.idDe(quienPide));
     }
 
     /** Descartar, diciendo por qué. La base exige el motivo, no solo la pantalla. */

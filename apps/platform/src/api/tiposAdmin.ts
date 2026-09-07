@@ -680,11 +680,22 @@ export const NOMBRE_DE_ESTADO_PAGO: Record<EstadoPago, string> = {
 
 // -- El buzón de solicitantes (V20, hallazgo #7) -----------------------------
 
-export type EstadoSolicitante = 'PENDIENTE' | 'CONVERTIDO' | 'DESCARTADO'
+/**
+ * En qué quedó una ficha del buzón.
+ *
+ * ⚠️ **`CONVERTIDO` ya no existe, y ése era el bug** (`V27`, P55). Significaba
+ * *"se le creó la cuenta"* y se usaba como si fuera terminal: cuando alguien
+ * apretaba ese botón la persona seguía sin su reserva, y la ficha ya se había ido
+ * de la lista **y del contador del sidebar**. Crear la cuenta no es atender la
+ * ficha.
+ *
+ * *"Tiene cuenta"* volvió a ser lo que siempre fue: un campo (`idUsuario`).
+ */
+export type EstadoSolicitante = 'PENDIENTE' | 'ATENDIDO' | 'DESCARTADO'
 
 export const NOMBRE_DE_ESTADO_SOLICITANTE: Record<EstadoSolicitante, string> = {
   PENDIENTE: 'Sin contestar',
-  CONVERTIDO: 'Ya tiene cuenta',
+  ATENDIDO: 'Atendida',
   DESCARTADO: 'Descartada',
 }
 
@@ -738,9 +749,72 @@ export type SolicitanteResumen = {
   /** Nota interna de quien la atendió. Obligatoria si se descartó. */
   respuesta: string | null
   resueltaPor: string | null
+  /**
+   * La cuenta de esta persona, si ya tiene.
+   *
+   * ⚠️ **Puede venir con la ficha `PENDIENTE`**: desde `V27` tener cuenta no
+   * resuelve nada — es una comodidad para el cliente (P54), no la respuesta a lo
+   * que pidió.
+   */
   idUsuario: number | null
+
+  /** Qué produjo la ficha. Exactamente uno cuando está `ATENDIDO`, ninguno si no. */
+  idReserva: number | null
+  idInscripcion: number | null
+  idVentaEquipo: number | null
+
+  /**
+   * El estado de la reserva que produjo, si produjo una.
+   *
+   * Es lo que separa *"apartada, falta la seña"* de *"se venció"* y de *"listo"*:
+   * la ficha no tiene una vida paralela, muestra el estado de lo que produjo.
+   */
+  estadoDeLaReserva: EstadoReserva | null
+
+  /** El horario que la persona prefiere. Los tres opcionales — ver P58. */
+  fechaPreferida: string | null
+  horaPreferida: string | null
+  duracionMinutos: number | null
+
   fechaResolucion: string | null
   fechaCreacion: string
+}
+
+/**
+ * En qué etapa está una ficha, mirando lo que produjo.
+ *
+ * **Vive acá y no adentro de la pantalla** por lo mismo que `NOMBRE_DE_INTERES`:
+ * el contador del sidebar y el listado tienen que estar de acuerdo sobre qué
+ * cuenta como "abierta", y el backend ya lo define una vez en `FichaAbierta`.
+ * Esta función es la lectura de eso, no una segunda definición: sólo decide cómo
+ * se dibuja.
+ */
+export function etapaDeLaFicha(ficha: SolicitanteResumen): {
+  texto: string
+  abierta: boolean
+} {
+  if (ficha.estado === 'DESCARTADO') {
+    return { texto: 'Descartada', abierta: false }
+  }
+  if (ficha.estado === 'PENDIENTE') {
+    return {
+      texto: ficha.idUsuario ? 'Tiene cuenta · falta cargarle lo que pidió' : 'Sin contestar',
+      abierta: true,
+    }
+  }
+  if (ficha.estadoDeLaReserva === 'PRECONFIRMADA') {
+    return { texto: 'Apartada · falta la seña', abierta: true }
+  }
+  if (ficha.estadoDeLaReserva === 'CANCELADA') {
+    return { texto: 'Se venció sin señar', abierta: true }
+  }
+  return { texto: 'Atendida', abierta: false }
+}
+
+/** Lo que se le cargó a una ficha para cerrarla. Espeja `DestinoRequest`. */
+export type DestinoDeLaFicha = {
+  tipo: 'RESERVA' | 'INSCRIPCION' | 'VENTA'
+  id: number
 }
 
 /**

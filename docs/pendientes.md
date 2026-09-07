@@ -2,18 +2,26 @@
 
 ## ⚡ ESTADO AL 2026-09-06 — leé esto y después, si hace falta, el resto
 
-✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR.** Los ocho módulos, el rediseño del
-front y **las tres barridas** están cerrados: C2 —las canciones de un EP o un
-álbum— se hizo el 2026-09-06 con `V26__las_canciones_de_un_ep.sql`, y era el
-último punto abierto de la tercera.
+✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR** en el sentido de las barridas: los
+ocho módulos, el rediseño y **las tres barridas** están cerrados (C2 se hizo el
+2026-09-06 con `V26`).
 
-**Suites: 625 backend · 534 front · 253 + 66 SQL, sobre 26 migraciones.**
+🟡 **PERO HAY UNA MEJORA EN CURSO, sin commitear:** el circuito del buzón
+(`mejoras.md` §15). Ignacio, usándolo: *"siento que en este proceso se pierde
+mucho… una vez que ponés dar cuenta desaparece el coso, ya te olvidaste qué
+quería"*. Fase 1 cerrada (commit `29faa4b`); **Fase 2 al 80% en el árbol** —`V27`
+aplicada, backend y front verdes, **falta la UI de "atender" desde el buzón**.
+El detalle exacto de qué falta está en **`mejoras.md` §15 · DÓNDE RETOMAR**.
+
+**Suites: 631 backend · 546 front · 256 + 66 SQL, sobre 27 migraciones.** Árbol
+verde pero con trabajo sin terminar.
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
+| 🟡 0 | **Fase 2 del circuito del buzón** — falta la UI de atender y sus casos de front | [`mejoras.md`](mejoras.md) §15 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
-| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25` ni `V26`** — ver abajo | §1 de acá |
+| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
 | 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §14 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 
@@ -24,10 +32,10 @@ vamos por el camino correcto"*— sigue valiendo, con un matiz que dejó la terc
 que **no estaban en ninguna capa**. Que aparezcan más no es que el sistema empeore:
 es que se lo está usando de punta a punta.
 
-⚠️ **La migración del admin sembrado ya se corrió tres veces de número** — `V24` se
-la llevó la prereserva, `V25` el comprobante del egreso, y `V26` se la llevó C2.
-**No la anotes con un número fijo en ningún lado**: lo que hay que recordar es
-que existe y va antes del deploy (§1.4).
+⚠️ **La migración del admin sembrado ya se corrió cuatro veces de número** — `V24`
+se la llevó la prereserva, `V25` el comprobante del egreso, `V26` C2, y `V27` la
+ficha del buzón. **No la anotes con un número fijo en ningún lado**: lo que hay
+que recordar es que existe y va antes del deploy (§1.4).
 
 ⚠️ **Y sigue abierta la puerta que dejó `V24` a propósito**, anotada en §13: el
 vencimiento automático de una prereserva firma con **quien preconfirmó**, porque

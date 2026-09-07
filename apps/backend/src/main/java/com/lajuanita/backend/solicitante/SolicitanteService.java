@@ -4,9 +4,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
+import com.lajuanita.backend.reserva.ReservaRepository;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
+import com.lajuanita.backend.solicitante.dto.DestinoRequest;
 import com.lajuanita.backend.solicitante.dto.SolicitanteResumen;
 import com.lajuanita.backend.usuario.OperacionNoPermitidaException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
@@ -17,6 +20,7 @@ import com.lajuanita.backend.usuario.dto.AltaUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.Pagina;
 import com.lajuanita.backend.usuario.dto.UsuarioCreado;
 import com.lajuanita.backend.usuario.dto.UsuarioResumen;
+import com.lajuanita.backend.venta.VentaEquipoRepository;
 
 /**
  * El circuito de una ficha del buzón: alguien completa un formulario en la
@@ -64,12 +68,25 @@ public class SolicitanteService {
     private final UsuarioRepository usuarios;
     private final UsuarioService cuentas;
 
+    // Los tres destinos posibles de una ficha. Están acá y no en cada alta porque
+    // cerrar la ficha es un acto del buzón: la pantalla de inscripciones no sabe
+    // —ni tiene por qué saber— que existe un buzón.
+    private final ReservaRepository reservas;
+    private final InscripcionRepository inscripciones;
+    private final VentaEquipoRepository ventas;
+
     public SolicitanteService(SolicitanteRepository fichas,
             UsuarioRepository usuarios,
-            UsuarioService cuentas) {
+            UsuarioService cuentas,
+            ReservaRepository reservas,
+            InscripcionRepository inscripciones,
+            VentaEquipoRepository ventas) {
         this.fichas = fichas;
         this.usuarios = usuarios;
         this.cuentas = cuentas;
+        this.reservas = reservas;
+        this.inscripciones = inscripciones;
+        this.ventas = ventas;
     }
 
     // == Lo que llega de la landing ==========================================
@@ -102,9 +119,12 @@ public class SolicitanteService {
     // == El buzón ============================================================
 
     @Transactional(readOnly = true)
-    public Pagina<SolicitanteResumen> listar(EstadoSolicitante estado, int pagina, int tamanio) {
+    public Pagina<SolicitanteResumen> listar(EstadoSolicitante estado, boolean soloAbiertas,
+            int pagina, int tamanio) {
+
         return Pagina.de(fichas
-                .listar(estado, PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio)))
+                .listar(estado, soloAbiertas,
+                        PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio)))
                 .map(SolicitanteResumen::de));
     }
 
@@ -132,13 +152,12 @@ public class SolicitanteService {
      * por qué.
      */
     @Transactional
-    public ConversionRealizada convertir(Long id, Long idAutor) {
+    public ConversionRealizada darleCuenta(Long id) {
         Solicitante ficha = pendientePorId(id);
-        Usuario autor = buscarUsuario(idAutor);
 
         Usuario yaExiste = usuarios.findByEmailIgnoreCase(ficha.getEmail()).orElse(null);
         if (yaExiste != null) {
-            ficha.convertir(yaExiste, autor);
+            ficha.darleCuenta(yaExiste);
             return new ConversionRealizada(
                     SolicitanteResumen.de(ficha), UsuarioResumen.de(yaExiste), null, false);
         }
@@ -152,10 +171,38 @@ public class SolicitanteService {
                         null),
                 false);
 
-        ficha.convertir(usuarios.getReferenceById(creada.usuario().id()), autor);
+        ficha.darleCuenta(usuarios.getReferenceById(creada.usuario().id()));
 
         return new ConversionRealizada(
                 SolicitanteResumen.de(ficha), creada.usuario(), creada.passwordTemporal(), true);
+    }
+
+    /**
+     * Cerrar la ficha apuntando a lo que produjo.
+     *
+     * <p><b>Es lo que hace que el buzón se cierre solo</b>: no hay un botón
+     * "marcar atendida" que alguien pueda apretar sin haber cargado nada — hay que
+     * decir <b>qué</b> se cargó, y eso queda enlazado para siempre.
+     *
+     * <p><b>Va como un segundo pedido, después del alta</b>, y no adentro de ella.
+     * Es la forma que `V21` ya eligió para adjuntar un comprobante: la inscripción
+     * y la venta se cargan en pantallas que no saben nada del buzón, y meterles un
+     * {@code idSolicitante} las acoplaría a él para siempre. <b>El modo de falla de
+     * partirlo es el barato</b>: si el segundo pedido no sale, la ficha queda
+     * abierta y alguien la vuelve a mirar — al revés, la ficha se cerraría sin que
+     * exista lo que dice haber producido.
+     *
+     * <p>El {@code flush} es para que el CHECK de doble sentido de `V27` hable
+     * dentro del pedido y no al COMMIT.
+     */
+    @Transactional
+    public SolicitanteResumen atender(Long id, DestinoRequest destino, Long idAutor) {
+        Solicitante ficha = pendientePorId(id);
+
+        ficha.atender(destino.resolverCon(reservas, inscripciones, ventas), buscarUsuario(idAutor));
+        fichas.flush();
+
+        return SolicitanteResumen.de(ficha);
     }
 
     /**
