@@ -1,29 +1,29 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-06 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-07 — leé esto y después, si hace falta, el resto
 
-✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR** en el sentido de las barridas: los
-ocho módulos, el rediseño y **las tres barridas** están cerrados (C2 se hizo el
-2026-09-06 con `V26`).
+✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR.** Los ocho módulos, el rediseño, las
+**tres barridas** y **la mejora del circuito del buzón (`mejoras.md` §15, cerrada
+el 2026-09-06 con sus cinco fases)** están todos cerrados y commiteados.
 
-🟡 **PERO HAY UNA MEJORA EN CURSO, sin commitear:** el circuito del buzón
-(`mejoras.md` §15). Ignacio, usándolo: *"siento que en este proceso se pierde
-mucho… una vez que ponés dar cuenta desaparece el coso, ya te olvidaste qué
-quería"*. Fase 1 cerrada (commit `29faa4b`); **Fase 2 al 80% en el árbol** —`V27`
-aplicada, backend y front verdes, **falta la UI de "atender" desde el buzón**.
-El detalle exacto de qué falta está en **`mejoras.md` §15 · DÓNDE RETOMAR**.
-
-**Suites: 631 backend · 546 front · 256 + 66 SQL, sobre 27 migraciones.** Árbol
-verde pero con trabajo sin terminar.
+**Suites: 646 backend · 561 front · 256 + 66 SQL, sobre 27 migraciones.** `tsc -b`,
+los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🟡 0 | **Fase 2 del circuito del buzón** — falta la UI de atender y sus casos de front | [`mejoras.md`](mejoras.md) §15 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
-| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §14 |
+| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §15 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
+| 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
+
+⚠️ **Lo primero a mirar si el buzón empieza a hacer ruido** (`platform.md` §21 ·
+P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF —
+`ReservaService.avisarQueSeVencio` recorre `activosConRol`. Hoy vencer una
+prereserva es raro; **con el circuito nuevo pasa a ser rutina**, y es el modo de
+falla que `AvisoService` documenta en su propia cabecera. No se tocó a propósito:
+no se inventa una regla antes de tener el caso.
 
 ⚠️ **Van tres barridas y va a haber más.** No es una lista que se cierra, es un modo
 de trabajo. La lectura de Ignacio sobre la segunda —*"cada vez encuentro menos,
@@ -444,6 +444,29 @@ medias** — y anotalo mirando el archivo.
   hace meses y se olvidó.
 
 ---
+
+### 3.8 · La base de desarrollo, después de la sesión del 2026-09-07
+
+**El buzón se vació a mano** (12 fichas de prueba: *"Prueba Humo"*, `gggg ggg`,
+`wswwwqsa@qsas.ccc`…). Ninguna había producido nada —las tres FK de `V27` estaban
+en NULL—, así que no dejó nada colgando.
+
+⚠️ **Borrar una ficha exige apagar un trigger, y ahí está el riesgo real.**
+`solicitante_no_se_borra` (`V20` §3) rechaza cualquier DELETE, así que hay que
+hacer `ALTER TABLE solicitante DISABLE TRIGGER …`. **Va en la MISMA transacción que
+lo vuelve a activar**, y después se verifica en `pg_trigger` que quedó en `'O'`: un
+candado que quedó apagado no falla en ningún lado y no lo descubre nadie hasta que
+alguien borra historial de verdad. Esto es para desarrollo; **en producción la
+salida es `DESCARTADO`**, que es lo que el propio mensaje del trigger enumera.
+
+**Quedaron nueve cuentas de prueba huérfanas** (rol `USUARIO`, contraseña temporal
+sin usar, sin pagos, sin reservas y sin fila de `alumno`). Salieron de esas fichas
+al crearles la cuenta. **No se borraron**, por dos razones: no se pidió, y
+`usuario` es la identidad raíz de este esquema — vale más mirarlas una por una que
+barrerlas con una consulta. No molestan salvo en el selector de personas.
+
+⚠️ **Nada de esto pasó por Flyway y no debe pasar**: es data de desarrollo, no
+esquema. Una migración que borre fichas correría en producción.
 
 ## ⚪ 4. Decisiones que siguen sin contestar
 
