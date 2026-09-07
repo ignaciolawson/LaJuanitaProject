@@ -8,6 +8,8 @@ import type {
   BloqueoResumen,
   CajaDelPeriodo,
   ConversionRealizada,
+  ApartarLaCabina,
+  CabinaApartada,
   CandidatoDeLaFicha,
   DestinoDeLaFicha,
   Deudor,
@@ -949,6 +951,23 @@ export function listarSolicitantes(opciones: {
  */
 export function darleCuentaAlSolicitante(id: number) {
   return pedir<ConversionRealizada>(`/api/solicitantes/${id}/cuenta`, { metodo: 'POST' })
+}
+
+/**
+ * Apartarle la cabina, sin salir del buzón (`mejoras.md` §15 · Fase 3).
+ *
+ * **Un solo pedido hace las tres cosas** que antes eran tres pantallas: crea la
+ * cuenta si no la tenía, aparta el horario con la deuda anotada, y cierra la
+ * ficha apuntando a esa reserva. Van juntas porque el modo de falla de partirlo
+ * no es barato: entre crear la cuenta y crear la reserva lo que puede fallar es
+ * la reserva —la franja se ocupó—, y quedaría una cuenta recién creada, con su
+ * contraseña ya mostrada, para alguien que no tiene nada.
+ */
+export function apartarleLaCabina(id: number, datos: ApartarLaCabina) {
+  return pedir<CabinaApartada>(`/api/solicitantes/${id}/reserva`, {
+    metodo: 'POST',
+    cuerpo: datos,
+  })
 }
 
 /**

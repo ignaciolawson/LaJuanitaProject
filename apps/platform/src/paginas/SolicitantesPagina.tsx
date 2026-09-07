@@ -2,28 +2,38 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import {
+  apartarleLaCabina,
   atenderSolicitante,
   candidatosDeLaFicha,
   darleCuentaAlSolicitante,
   descartarSolicitante,
+  listarSalas,
   listarSolicitantes,
+  listarTiposUso,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   DONDE_SIGUE,
   etapaDeLaFicha,
   NOMBRE_DE_INTERES,
+  NOMBRE_DE_MEDIO,
+  type ApartarLaCabina,
+  type CabinaApartada,
   type CandidatoDeLaFicha,
   type ConversionRealizada,
   type DestinoDeLaFicha,
   type EstadoSolicitante,
+  type MedioPago,
+  type Moneda,
+  type SalaResumen,
   type SolicitanteResumen,
+  type TipoUsoResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
-import { CampoSelect } from '../componentes/Campo'
+import { Campo, CampoSelect } from '../componentes/Campo'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
@@ -31,7 +41,12 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { cuando } from '../componentes/presentacion'
 import { fecha } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { linkDeWhatsapp, mensajeConLaClave, saludoDeContacto } from '../componentes/whatsapp'
+import {
+  linkDeWhatsapp,
+  mensajeConLaClave,
+  mensajeDeCabinaApartada,
+  saludoDeContacto,
+} from '../componentes/whatsapp'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -95,6 +110,40 @@ export function SolicitantesPagina() {
   /** Cuál está abierta para cerrar apuntando a lo que produjo. Una por vez. */
   const [cerrando, setCerrando] = useState<number | null>(null)
 
+  /** Cuál está abierta para apartarle la cabina. Una por vez. */
+  const [apartando, setApartando] = useState<number | null>(null)
+
+  /**
+   * La cabina que se acaba de apartar. Va arriba y no en la fila por lo mismo
+   * que la cuenta recién creada: lo importante —la contraseña temporal y el
+   * plazo— tiene que sobrevivir a que la lista se recargue, y **la ficha ya no
+   * está en el filtro por defecto**, porque apartar la cierra.
+   */
+  const [cabinaApartada, setCabinaApartada] = useState<CabinaApartada | null>(null)
+
+  /**
+   * El catálogo de salas y usos. Se pide una vez, no por ficha: son los mismos
+   * para todas y pedirlo al abrir cada formulario son N viajes por lo mismo.
+   */
+  const [salas, setSalas] = useState<SalaResumen[]>([])
+  const [tiposUso, setTiposUso] = useState<TipoUsoResumen[]>([])
+
+  useEffect(() => {
+    if (!puedeResolver) {
+      return
+    }
+    void Promise.all([listarSalas(), listarTiposUso()])
+      .then(([s, t]) => {
+        setSalas(s)
+        setTiposUso(t)
+      })
+      // Sin catálogo el formulario de apartar no se ofrece, y el resto del buzón
+      // funciona igual: contactar, crear la cuenta y descartar no lo necesitan.
+      // Vaciar la pantalla entera por esto sería el modo de falla que la Inicio
+      // documenta — un bloque muerto no puede apagar los otros ocho.
+      .catch(() => {})
+  }, [puedeResolver])
+
   /**
    * La cuenta que se acaba de crear. Se muestra arriba y no adentro de la fila
    * porque lo importante es **la contraseña temporal**, que es la única del
@@ -129,6 +178,17 @@ export function SolicitantesPagina() {
       await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta.')
+    }
+  }
+
+  async function apartar(id: number, datos: Parameters<typeof apartarleLaCabina>[1]) {
+    setError(null)
+    try {
+      setCabinaApartada(await apartarleLaCabina(id, datos))
+      setApartando(null)
+      await cargar()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo apartar la cabina.')
     }
   }
 
@@ -193,6 +253,10 @@ export function SolicitantesPagina() {
         </div>
       )}
 
+      {cabinaApartada && (
+        <CabinaLista resultado={cabinaApartada} onCerrar={() => setCabinaApartada(null)} />
+      )}
+
       {cuentaRecienCreada && (
         <CuentaLista
           resultado={cuentaRecienCreada}
@@ -228,6 +292,8 @@ export function SolicitantesPagina() {
                 <Telefono ficha={f} />
 
                 {f.detalle && <div className="mt-1 text-sm text-tenue">{f.detalle}</div>}
+
+                <Preferencia ficha={f} />
                 {f.mensaje && <p className="mt-2 text-sm italic text-tenue">“{f.mensaje}”</p>}
 
                 <div className="mt-1 text-xs text-apagado">Llegó el {cuando(f.fechaCreacion)}</div>
@@ -248,8 +314,31 @@ export function SolicitantesPagina() {
                     {/* Sólo si todavía no tiene: darle cuenta dos veces no rompe
                         nada, pero ofrecerlo cuando ya la tiene es un botón que no
                         hace lo que dice. */}
+                    {/* ⚠️ **La acción principal se llama por el trabajo, no por el
+                        trámite** (P54). Nadie abre el buzón para regalar cuentas: la
+                        acción principal de la pantalla era la secundaria de la
+                        realidad, y eso solo ya hacía sentir pesado el recorrido. Para
+                        la cabina el botón además *hace* el trabajo — cuenta, reserva
+                        apartada y ficha cerrada en un movimiento. Para curso y
+                        equipos todavía no existe ese camino, así que sigue diciendo
+                        lo que realmente hace. */}
+                    {SE_APARTA[f.interes] && salas.length > 0 && (
+                      <Boton
+                        onClick={() =>
+                          setApartando(apartando === f.idSolicitante ? null : f.idSolicitante)
+                        }
+                      >
+                        {SE_APARTA[f.interes]}
+                      </Boton>
+                    )}
+
                     {f.idUsuario === null && (
-                      <Boton onClick={() => void darleCuenta(f)}>Crearle la cuenta</Boton>
+                      <Boton
+                        variante={SE_APARTA[f.interes] ? 'secundario' : 'principal'}
+                        onClick={() => void darleCuenta(f)}
+                      >
+                        Crearle la cuenta
+                      </Boton>
                     )}
 
                     {/* ⚠️ **Se ofrece SIEMPRE, tenga cuenta o no.** Condicionarlo a
@@ -278,6 +367,18 @@ export function SolicitantesPagina() {
                 {f.respuesta}
                 {f.resueltaPor && <span className="text-apagado"> — {f.resueltaPor}</span>}
               </p>
+            )}
+
+            {apartando === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <ApartarLaCabinaForm
+                  ficha={f}
+                  salas={salas}
+                  tiposUso={tiposUso}
+                  onCerrar={() => setApartando(null)}
+                  onConfirmar={(datos) => void apartar(f.idSolicitante, datos)}
+                />
+              </div>
             )}
 
             {cerrando === f.idSolicitante && (
@@ -311,6 +412,393 @@ export function SolicitantesPagina() {
         onCambiar={setPagina}
       />
     </div>
+  )
+}
+
+/**
+ * Cuándo le vendría bien, si lo dijo (`V27`, P58).
+ *
+ * ⚠️ **Se muestra como preferencia y nunca como reserva**, con esas palabras. Es
+ * la misma línea que el formulario de la web tiene que sostener: quien pide **no
+ * puede** saber si esa franja está libre —la landing no ve disponibilidad, y eso
+ * se decidió al dar de baja el retoque §6f.5—, así que leerlo como *"reservó el
+ * viernes a las 18"* hace creer que hay algo tomado cuando no hay nada.
+ *
+ * **Los tres son opcionales por separado**, así que se arma con lo que haya: el
+ * que sabe lo que quiere los llena y el botón precarga; el que sólo quería
+ * preguntar el precio los deja vacíos y la ficha se lee como antes. **Degrada
+ * sola.**
+ */
+function Preferencia({ ficha }: { ficha: SolicitanteResumen }) {
+  const partes = [
+    ficha.fechaPreferida && fecha(ficha.fechaPreferida),
+    ficha.horaPreferida?.slice(0, 5),
+    ficha.duracionMinutos != null &&
+      (ficha.duracionMinutos % 60 === 0
+        ? `${ficha.duracionMinutos / 60} h`
+        : `${ficha.duracionMinutos} min`),
+  ].filter(Boolean)
+
+  if (partes.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="mt-1 text-sm text-tenue">
+      Le vendría bien: <span className="text-texto">{partes.join(' · ')}</span>
+    </div>
+  )
+}
+
+/**
+ * Qué dice el botón principal de cada ficha, y cuáles se pueden apartar de una.
+ *
+ * ⚠️ **El código del interés y el del tipo de uso son el mismo string**, y no es
+ * casualidad que convenga aprovechar: `V20` nombró los intereses por el servicio
+ * que se pide y `V2` había nombrado los usos igual. Igual el tipo se busca en el
+ * catálogo en vez de confiar en la coincidencia — si algún día dejan de
+ * coincidir, el formulario no se ofrece y se ve, en lugar de mandar un id
+ * inventado.
+ *
+ * **Curso y equipos no están, y no es un olvido**: apartar es crear una reserva
+ * con su deuda, y para esos dos el camino equivalente —cargar la inscripción,
+ * cargar la venta— todavía se hace en su pantalla. Ponerles el nombre del trabajo
+ * sin hacer el trabajo sería un botón que miente.
+ */
+const SE_APARTA: Record<SolicitanteResumen['interes'], string | null> = {
+  CURSO: null,
+  ALQUILER_CABINA: 'Apartarle la cabina',
+  GRABACION_SET: 'Apartarle la sala',
+  EQUIPOS: null,
+  OTRO: null,
+}
+
+/** Las duraciones que se ofrecen. La cabina se alquila por hora, no por minuto. */
+const DURACIONES = [60, 90, 120, 180, 240]
+
+/** `2026-09-15T18:00:00-03:00` → `15/09/2026 18:00`. */
+function fechaYHora(iso: string): string {
+  return `${fecha(iso)} ${iso.slice(11, 16)}`
+}
+
+/**
+ * Apartarle la cabina sin salir del buzón (`mejoras.md` §15 · Fase 3).
+ *
+ * ⚠️ **Esto reemplaza un recorrido de tres pantallas**, que es la queja que abrió
+ * toda esta sección: crear la cuenta acá, ir al calendario a cargar la reserva,
+ * volver a cerrar la ficha. **El paso del medio era el que se perdía** — *"una vez
+ * que ponés dar cuenta desaparece el coso, entonces quizás ya te olvidaste qué
+ * quería"*.
+ *
+ * **Los tres campos del horario vienen precargados con lo que la persona pidió**
+ * (`V27`, P58), y el formulario lo dice en voz alta. Sin decirlo, una fecha ya
+ * escrita se lee como *el sistema decidió esto*, cuando es *esto es lo que pidió y
+ * hay que confirmarlo contra la agenda* — que es justamente lo que la web no puede
+ * saber, porque no ve disponibilidad.
+ *
+ * **La sala se elige acá y no se pregunta en la web**, por la matriz
+ * `sala_tipo_uso`: ofrecerla allá produciría combinaciones que la base rechaza.
+ *
+ * **Siempre aparta, nunca cobra.** Quien ya transfirió se carga desde el
+ * calendario. Es la misma razón por la que hay dos records y no uno con una
+ * bandera: la misma estructura no puede significar dos cosas según un campo.
+ */
+function ApartarLaCabinaForm({
+  ficha,
+  salas,
+  tiposUso,
+  onCerrar,
+  onConfirmar,
+}: {
+  ficha: SolicitanteResumen
+  salas: SalaResumen[]
+  tiposUso: TipoUsoResumen[]
+  onCerrar: () => void
+  onConfirmar: (datos: ApartarLaCabina) => void
+}) {
+  const uso = tiposUso.find((t) => t.codigo === ficha.interes)
+
+  // Sólo las salas que admiten ese uso: la matriz de §2.6 es data y no una lista
+  // en el código, y ofrecer una combinación que la base rechaza es hacerle
+  // completar un formulario a alguien para después decirle que no.
+  const salasPosibles = salas.filter(
+    (s) => s.activa && uso && s.usosPermitidos.some((u) => u.idTipoUso === uso.idTipoUso),
+  )
+
+  const [idSala, setIdSala] = useState(() => String(salasPosibles[0]?.idSala ?? ''))
+  const [dia, setDia] = useState(ficha.fechaPreferida ?? '')
+  const [hora, setHora] = useState(ficha.horaPreferida?.slice(0, 5) ?? '')
+  const [duracion, setDuracion] = useState(String(ficha.duracionMinutos ?? 60))
+  const [monto, setMonto] = useState('')
+  const [moneda, setMoneda] = useState<Moneda>('ARS')
+  const [cotizacion, setCotizacion] = useState('')
+  const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
+  const [mensaje, setMensaje] = useState('')
+  const [error, setError] = useErrorPasajero()
+
+  const pidioAlgo = ficha.fechaPreferida ?? ficha.horaPreferida ?? ficha.duracionMinutos
+
+  if (!uso || salasPosibles.length === 0) {
+    return (
+      <div>
+        <p className="text-sm text-tenue">
+          No hay ninguna sala habilitada para eso. Cargá la reserva desde{' '}
+          <Link to="/admin/reservas" className="text-acento underline underline-offset-2">
+            el Calendario
+          </Link>
+          .
+        </p>
+        <Boton className="mt-4" type="button" variante="secundario" onClick={onCerrar}>
+          Cerrar
+        </Boton>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (!dia || !hora) {
+          setError('Poné el día y la hora.')
+          return
+        }
+        if (!monto || Number(monto) <= 0) {
+          setError('Poné el monto que hay que abonar.')
+          return
+        }
+        if (moneda === 'USD' && !cotizacion) {
+          setError('Un importe en dólares necesita la cotización del día.')
+          return
+        }
+        onConfirmar({
+          idSala: Number(idSala),
+          idTipoUso: uso.idTipoUso,
+          fecha: dia,
+          horaInicio: hora,
+          duracionMinutos: Number(duracion),
+          monto: Number(monto),
+          moneda,
+          cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
+          medioPago,
+          mensaje: mensaje.trim() || undefined,
+        })
+      }}
+    >
+      <h3 className="t-seccion mb-1">Apartarle {uso.nombre.toLowerCase()}</h3>
+
+      <p className="mb-4 text-sm text-tenue">
+        El horario queda tomado y la deuda anotada a nombre de {ficha.nombre}: aparece en{' '}
+        <strong className="text-texto">Deudores</strong> hasta que cobres. Tiene{' '}
+        <strong className="text-texto">24 horas</strong> para abonar —o hasta que empiece la
+        franja, lo que pase antes— y si no, el horario se libera solo.{' '}
+        {ficha.idUsuario === null && 'La cuenta se crea en el mismo movimiento.'}
+      </p>
+
+      {/* ⚠️ Dice que ESTO ES LO QUE PIDIÓ, y no es cosmética. Una fecha ya escrita
+          se lee como una decisión del sistema; lo que es en realidad es una
+          preferencia sin confirmar, porque la web no ve disponibilidad (P58). Sin
+          esta línea, quien atiende la confirma sin mirar la agenda. */}
+      {pidioAlgo != null && (
+        <p className="mb-4 text-sm text-acento">
+          Precargado con lo que pidió. Confirmalo contra la agenda antes de apartar: desde la web
+          no se ve qué está ocupado.
+        </p>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <CampoSelect etiqueta="Sala" value={idSala} onChange={(e) => setIdSala(e.target.value)}>
+          {salasPosibles.map((s) => (
+            <option key={s.idSala} value={s.idSala}>
+              {s.nombre}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <CampoSelect
+          etiqueta="Duración"
+          value={duracion}
+          onChange={(e) => setDuracion(e.target.value)}
+        >
+          {DURACIONES.map((m) => (
+            <option key={m} value={m}>
+              {m % 60 === 0 ? `${m / 60} h` : `${Math.floor(m / 60)} h ${m % 60} min`}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <Campo etiqueta="Día" type="date" value={dia} onChange={(e) => setDia(e.target.value)} />
+        <Campo
+          etiqueta="Hora de inicio"
+          type="time"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+        />
+
+        <Campo
+          etiqueta="Monto a abonar"
+          type="number"
+          min="1"
+          step="0.01"
+          value={monto}
+          onChange={(e) => setMonto(e.target.value)}
+        />
+        <CampoSelect
+          etiqueta="Moneda"
+          value={moneda}
+          onChange={(e) => setMoneda(e.target.value as Moneda)}
+        >
+          <option value="ARS">Pesos</option>
+          <option value="USD">Dólares</option>
+        </CampoSelect>
+
+        {moneda === 'USD' && (
+          <Campo
+            etiqueta="Cotización del día"
+            type="number"
+            min="1"
+            step="0.01"
+            value={cotizacion}
+            onChange={(e) => setCotizacion(e.target.value)}
+            ayuda="Sin esto el importe no se puede reconstruir después."
+          />
+        )}
+
+        <CampoSelect
+          etiqueta="Cómo va a pagar"
+          value={medioPago}
+          onChange={(e) => setMedioPago(e.target.value as MedioPago)}
+        >
+          {(Object.keys(NOMBRE_DE_MEDIO) as MedioPago[]).map((m) => (
+            <option key={m} value={m}>
+              {NOMBRE_DE_MEDIO[m]}
+            </option>
+          ))}
+        </CampoSelect>
+      </div>
+
+      <Campo
+        etiqueta="Mensaje (opcional)"
+        className="mt-4"
+        value={mensaje}
+        onChange={(e) => setMensaje(e.target.value)}
+        placeholder="Te esperamos, vení 10 minutos antes…"
+      />
+
+      {error && (
+        <div className="mt-4">
+          <Aviso>{error}</Aviso>
+        </div>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        <Boton type="submit">Apartar el horario</Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * Lo que quedó hecho, y lo que hay que mandar ahora.
+ *
+ * ⚠️ **El plazo se muestra sí o sí.** Lo que se acaba de crear no es una reserva
+ * confirmada: es un horario tomado que se libera solo. Un panel que diga *"listo"*
+ * sin decir hasta cuándo deja tranquilo a quien atiende, y el que pierde es el
+ * cliente que nunca se enteró.
+ *
+ * **Dos mensajes de WhatsApp y no uno.** El de la reserva habla de lo que hay que
+ * hacer ahora —abonar, antes de tal día— y el de la cuenta, de algo que se puede
+ * mirar cuando quiera. Juntos, el que importa se lee como un trámite más.
+ */
+function CabinaLista({
+  resultado,
+  onCerrar,
+}: {
+  resultado: CabinaApartada
+  onCerrar: () => void
+}) {
+  const { reserva, usuario, ficha } = resultado
+  const cuando = `${fecha(reserva.fecha)} a las ${reserva.horaInicio.slice(0, 5)}`
+  const importe = `${resultado.moneda === 'USD' ? 'USD' : '$'} ${resultado.monto}`
+
+  const linkDeLaReserva = reserva.venceEn
+    ? linkDeWhatsapp(
+        ficha.telefono,
+        mensajeDeCabinaApartada(
+          usuario.nombre,
+          reserva.sala,
+          cuando,
+          importe,
+          fechaYHora(reserva.venceEn),
+        ),
+      )
+    : null
+
+  const linkConLaClave = resultado.passwordTemporal
+    ? linkDeWhatsapp(
+        ficha.telefono,
+        mensajeConLaClave(usuario.nombre, usuario.email, resultado.passwordTemporal),
+      )
+    : null
+
+  return (
+    <Bloque
+      titulo={`${reserva.sala} apartada para ${usuario.nombre} ${usuario.apellido}`}
+      className="mb-6"
+    >
+      <p className="mt-2 text-sm leading-relaxed text-tenue">
+        {cuando}, de {reserva.horaInicio.slice(0, 5)} a {reserva.horaFin.slice(0, 5)}. Hay que
+        abonar {importe}.{' '}
+        {reserva.venceEn ? (
+          <>
+            El horario está tomado hasta el{' '}
+            <strong className="text-texto">{fechaYHora(reserva.venceEn)}</strong>: si no abona
+            antes, se libera solo. La deuda ya figura en Deudores.
+          </>
+        ) : (
+          'La deuda ya figura en Deudores.'
+        )}
+      </p>
+
+      {linkDeLaReserva ? (
+        <div className="mt-3">
+          <EnlaceDeWhatsapp href={linkDeLaReserva}>Avisarle por WhatsApp</EnlaceDeWhatsapp>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-apagado">
+          El teléfono de la ficha ({ficha.telefono}) no se puede abrir en WhatsApp: copialo y
+          buscalo a mano.
+        </p>
+      )}
+
+      {resultado.cuentaNueva && resultado.passwordTemporal && (
+        <>
+          <p className="mt-5 text-sm leading-relaxed text-tenue">
+            Además le creamos la cuenta.{' '}
+            <strong className="text-texto">La contraseña no se puede volver a ver:</strong> si se
+            pierde, hay que generar otra desde Personas.
+          </p>
+          <Hueco className="mt-3 font-mono text-lg tracking-wider">
+            {resultado.passwordTemporal}
+          </Hueco>
+          {linkConLaClave && (
+            <div className="mt-3">
+              <EnlaceDeWhatsapp href={linkConLaClave}>
+                Mandarle la clave por WhatsApp
+              </EnlaceDeWhatsapp>
+            </div>
+          )}
+        </>
+      )}
+
+      <Boton className="mt-4" onClick={onCerrar}>
+        Listo
+      </Boton>
+    </Bloque>
   )
 }
 

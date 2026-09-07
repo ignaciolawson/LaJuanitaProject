@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual as Actual } from '../api/tipos'
 import type {
+  CabinaApartada,
   CandidatoDeLaFicha,
   ConversionRealizada,
   SolicitanteResumen,
@@ -32,6 +33,9 @@ import { SolicitantesPagina } from './SolicitantesPagina'
 vi.mock('../api/administracion', () => ({
   listarSolicitantes: vi.fn(),
   candidatosDeLaFicha: vi.fn(),
+  apartarleLaCabina: vi.fn(),
+  listarSalas: vi.fn(),
+  listarTiposUso: vi.fn(),
   darleCuentaAlSolicitante: vi.fn(),
   atenderSolicitante: vi.fn(),
   descartarSolicitante: vi.fn(),
@@ -40,6 +44,9 @@ vi.mock('../api/administracion', () => ({
 const {
   listarSolicitantes,
   candidatosDeLaFicha,
+  apartarleLaCabina,
+  listarSalas,
+  listarTiposUso,
   darleCuentaAlSolicitante,
   atenderSolicitante,
   descartarSolicitante,
@@ -136,9 +143,74 @@ function candidato(cambios: Partial<CandidatoDeLaFicha> = {}): CandidatoDeLaFich
   }
 }
 
+/** El catálogo mínimo: una sala que admite alquiler de cabina. */
+const SALA = {
+  idSala: 1,
+  nombre: 'Sala 1',
+  descripcion: null,
+  activa: true,
+  orden: 1,
+  usosPermitidos: [{ idTipoUso: 5, advertencia: null }],
+}
+
+const USO_CABINA = {
+  idTipoUso: 5,
+  codigo: 'ALQUILER_CABINA',
+  nombre: 'Alquiler de cabina',
+  esClase: false,
+  disciplina: null,
+  color: '#f4a261',
+  activo: true,
+  solicitablePorUsuario: true,
+}
+
+function cabinaApartada(cambios: Partial<CabinaApartada> = {}): CabinaApartada {
+  return {
+    ficha: ficha({ estado: 'ATENDIDO', idUsuario: 40, idReserva: 12 }),
+    reserva: {
+      idReserva: 12,
+      idSala: 1,
+      sala: 'Sala 1',
+      idTipoUso: 5,
+      tipoUso: 'Alquiler de cabina',
+      color: '#f4a261',
+      esClase: false,
+      idProfesor: null,
+      profesor: null,
+      fecha: '2026-10-10',
+      horaInicio: '18:00:00',
+      horaFin: '20:00:00',
+      estado: 'PRECONFIRMADA',
+      venceEn: '2026-09-07T10:00:00-03:00',
+      notas: null,
+      idReservaRecupera: null,
+      motivoReprogramacion: null,
+      participantes: [],
+    },
+    usuario: {
+      id: 40,
+      nombre: 'Camila',
+      apellido: 'Ríos',
+      email: 'camila@ejemplo.com',
+      telefono: '11-5555-4444',
+      rol: 'USUARIO',
+      activo: true,
+      debeCambiarPassword: true,
+    },
+    passwordTemporal: 'lluvia-42-roja',
+    cuentaNueva: true,
+    idPagoDeuda: 88,
+    monto: 15000,
+    moneda: 'ARS',
+    ...cambios,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
+  vi.mocked(listarSalas).mockResolvedValue([SALA])
+  vi.mocked(listarTiposUso).mockResolvedValue([USO_CABINA])
   vi.mocked(listarSolicitantes).mockResolvedValue({
     contenido: [ficha()],
     pagina: 0,
@@ -349,6 +421,132 @@ describe('escribirle por WhatsApp', () => {
 
     expect(escribir).toHaveBeenCalledWith('11-5555-4444')
     expect(await screen.findByRole('button', { name: 'Copiado' })).toBeDefined()
+  })
+
+  // == Apartar la cabina: las tres cosas en un movimiento ===================
+
+  /**
+   * ⚠️ **El caso central de la Fase 3.** Un formulario, y quedan hechas las tres
+   * cosas que antes eran tres pantallas — y que es lo que abrió esta sección:
+   * *"una vez que ponés dar cuenta desaparece el coso, entonces quizás ya te
+   * olvidaste qué quería"*.
+   *
+   * **La duración va en minutos y la hora de fin no viaja**: es lo que P58
+   * decidió —*"2 horas" es lo que la persona piensa*— y la cuenta la hace el
+   * servidor, para que no haya un segundo lugar donde se decida qué significa
+   * "dos horas desde las 18".
+   */
+  it('aparta la cabina desde la ficha, con la duración en minutos', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'ALQUILER_CABINA' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(apartarleLaCabina).mockResolvedValue(cabinaApartada())
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Apartarle la cabina' }))
+    await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
+    await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
+    await elegir(userEvent, 'Duración', '120')
+    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
+
+    await waitFor(() =>
+      expect(apartarleLaCabina).toHaveBeenCalledWith(
+        3,
+        expect.objectContaining({
+          idSala: 1,
+          idTipoUso: 5,
+          fecha: '2026-10-10',
+          horaInicio: '18:00',
+          duracionMinutos: 120,
+          monto: 15000,
+          moneda: 'ARS',
+        }),
+      ),
+    )
+  })
+
+  /**
+   * ⚠️ **El plazo se muestra, y esto es lo que cuida que se muestre.**
+   *
+   * Lo que se acabó de crear no es una reserva confirmada: es un horario tomado
+   * que se libera solo en 24 horas. Un panel que diga *"listo"* sin decir hasta
+   * cuándo deja tranquilo a quien atiende, y el que pierde es el cliente que
+   * nunca se enteró — la misma razón por la que la notificación del sistema lo
+   * dice.
+   */
+  it('después de apartar muestra el plazo y la clave, y ofrece los dos WhatsApp', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'ALQUILER_CABINA' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(apartarleLaCabina).mockResolvedValue(cabinaApartada())
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Apartarle la cabina' }))
+    await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
+    await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
+    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
+
+    expect(await screen.findByText(/07\/09\/2026 10:00/)).toBeDefined()
+    expect(screen.getByText('lluvia-42-roja')).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Avisarle por WhatsApp' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Mandarle la clave por WhatsApp' })).toBeDefined()
+  })
+
+  /**
+   * ⚠️ **El formulario viene precargado con lo que la persona pidió, y lo dice.**
+   *
+   * Sin ese aviso una fecha ya escrita se lee como *el sistema decidió esto*,
+   * cuando es *esto es lo que pidió* — y la web **no ve disponibilidad** (P58), así
+   * que confirmarla sin mirar la agenda es exactamente el error que puede
+   * producir.
+   */
+  it('precarga lo que pidió y avisa que hay que confirmarlo contra la agenda', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [
+        ficha({
+          interes: 'ALQUILER_CABINA',
+          fechaPreferida: '2026-10-10',
+          horaPreferida: '18:00:00',
+          duracionMinutos: 120,
+        }),
+      ],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    // La ficha lo muestra como preferencia, nunca como reserva.
+    expect(await screen.findByText(/Le vendría bien/)).toBeDefined()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Apartarle la cabina' }))
+
+    expect(await screen.findByLabelText('Día')).toHaveProperty('value', '2026-10-10')
+    expect(screen.getByLabelText('Hora de inicio')).toHaveProperty('value', '18:00')
+    expect(screen.getByText(/Confirmalo contra la agenda/)).toBeDefined()
+  })
+
+  /**
+   * **Sólo se aparta lo que se aparta.** Un curso no tiene botón de apartar: el
+   * camino equivalente —cargar la inscripción— todavía se hace en su pantalla, y
+   * ponerle el nombre del trabajo sin hacer el trabajo sería un botón que miente.
+   */
+  it('una ficha de curso no ofrece apartar', async () => {
+    montar()
+
+    expect(await screen.findByRole('button', { name: 'Crearle la cuenta' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Apartarle/ })).toBeNull()
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================

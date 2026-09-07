@@ -3623,7 +3623,7 @@ Están en **`docs/requirements/platform.md` §21 · P54–P58**. En una frase ca
 |---|---|---|
 | **1** | Contacto en un clic: teléfono grande y copiable, botón de WhatsApp con el mensaje armado (saludo que nombra lo pedido; y el que lleva la clave temporal escrita) | ✅ **CERRADA (commit `29faa4b`, "Fase 1 rediseño" — mal etiquetado)** |
 | **2** | La ficha guarda qué produjo · `CONVERTIDO`→`ATENDIDO` · `FichaAbierta` (contador y lista dejan de definir "lo que falta" por separado) · el formulario con los 3 campos de preferencia (`V27`) · **la UI de atender** | ✅ **CERRADA (2026-09-06)** |
-| **3** | Apartar la cabina desde la ficha: cuenta + prereserva + deuda en una transacción, sin salir del buzón | 🔴 no empezada |
+| **3** | Apartar la cabina desde la ficha: cuenta + prereserva + deuda en una transacción, sin salir del buzón | ✅ **CERRADA (2026-09-06)** |
 | **4** | El formulario de la landing con los 3 campos + el alta precargada con ellos | 🔴 no empezada (la columna ya existe desde `V27`; falta el form de Next y la precarga) |
 | **5** | Aviso del scheduler: *"N fichas sin atender hace +48hs"*, sobre `V17` | 🔴 no empezada |
 
@@ -3705,23 +3705,92 @@ sigue atrasado. Estaba anotado en la lista de la Fase 2 y **no es de esta fase**
 es tarea propia, §3.5 de `pendientes.md`, y ya venía atrasado siete migraciones
 antes de `V27`.
 
-### ⚠️ DÓNDE RETOMAR — la Fase 3 (2026-09-06)
+### La Fase 3, cerrada (2026-09-06)
 
-**Sigue la Fase 3: apartar la cabina desde la ficha** — cuenta + prereserva +
-deuda en una transacción, sin salir del buzón. Es la que convierte el circuito de
-*"anotá el id y volvé"* en un solo movimiento, y **la Fase 2 le dejó todo puesto**:
-la ficha ya sabe guardar qué produjo, ya trae las tres preferencias de horario
-(`V27`), y `atender` ya existe — lo que la Fase 3 agrega es que el buzón cree la
-reserva él mismo en vez de mandar a otra pantalla.
+`POST /api/solicitantes/{id}/reserva` hace **las tres cosas en una transacción**:
+crea la cuenta si no la tenía, aparta el horario con la deuda anotada, y cierra
+la ficha apuntando a esa reserva. Suites: **639 backend · 561 front**.
 
-⚠️ **La Fase 3 NO necesita migración**: `V24` ya tiene la prereserva, su plazo de
-24hs y el trigger de escalera. Lo que hay que mirar antes de empezar es el orden
-de escritura —`V10` es *deferred* y pide la seña al COMMIT, y acá la seña es una
-deuda con vencimiento— y que **la reserva tiene que NACER preconfirmada**, que es
-lo que el trigger de `V24` rechazó el día que se escribió al revés.
+- **Es un endpoint y no tres llamadas de la pantalla**, y el argumento es el
+  opuesto al de `atender`. Allá partirlo es barato: el segundo pedido que no sale
+  deja la ficha abierta y alguien la vuelve a mirar. **Acá lo que puede fallar es
+  la reserva** —la franja se ocupó mientras tanto— y lo que quedaría es una cuenta
+  creada, con su contraseña temporal ya mostrada, para alguien que no tiene nada.
+  Fallar entero deja el buzón como estaba.
+- **Y la transacción es una por una razón de la base, no de prolijidad**: el
+  `CONSTRAINT TRIGGER` de `V10` corre al COMMIT y busca el dinero detrás de la
+  reserva. La deuda de la prereserva **es** ese dinero (`V24`).
+- **El orden importa: la cuenta primero.** No por P54 —que dice justamente que la
+  cuenta no es un peaje— sino porque la deuda necesita a quién anotársela: sin
+  nombre no aparece en Deudores y no se le cobra a nadie. La cuenta es *comodidad
+  del cliente y condición de la plata a la vez*, sin volver a ser un paso previo.
+- ⚠️ **Los dos UPDATE sobre la ficha son legales en ese orden y no al revés.**
+  `darleCuenta` escribe `id_usuario` con la ficha todavía `PENDIENTE`; `atender`
+  la saca de `PENDIENTE`. El trigger `solicitante_resuelto_es_final` (`V13` §4)
+  rechaza cualquier UPDATE sobre una ficha ya resuelta, así que cerrarla antes de
+  vincular la cuenta haría fallar el segundo — es la congelación que P56 eligió a
+  propósito.
+- **El alta se DELEGA en `ReservaService.alta`**, igual que hace el pedido de
+  sala: las reglas de una reserva son suyas, y una segunda copia es la que se
+  olvida de una. Entre ellas la que `V24` enseñó a los golpes — **la reserva tiene
+  que NACER apartada**, no pasar a estarlo.
+- **Desde el buzón no se aparta una CLASE**, y la lista que lo decide no es nueva:
+  es `tipo_uso.solicitable_por_usuario`, la misma que ya define qué se puede pedir
+  desde el portal (P17). El agujero es concreto: una clase apartada acá nacería sin
+  la inscripción que la descuenta —el participante va sin inscripción— y P39
+  prohíbe exactamente eso. **La base no lo vería**, porque la deuda de la
+  prereserva ya satisface a `V10`.
+- **Siempre aparta, nunca cobra.** Quien ya transfirió se carga desde el
+  calendario. Meter las dos con una bandera haría que la misma estructura
+  signifique dos cosas según un campo — por lo mismo que `AltaSenaRequest` y
+  `AltaPreconfirmacionRequest` son dos records.
+- **La duración va en minutos y la hora de fin la calcula el servidor** (P58).
+  Este pedido *transcribe lo que la persona pidió*, y su preferencia está guardada
+  justamente así. Con hora de fin, la precarga tendría que hacer esa cuenta en la
+  pantalla: un segundo lugar donde se decide qué significa "dos horas desde las
+  18". Que la suma se pase de medianoche no necesita regla propia — lo rechaza el
+  `@AssertTrue` de `AltaReservaRequest`, que ya dice esa frase (DB-11).
 
-Después van la 4 (el formulario de la landing con los 3 campos, que ya tienen
-columna) y la 5 (el aviso del scheduler sobre `V17`).
+**Del lado de la pantalla**, tres decisiones:
+
+- ⚠️ **El formulario precarga las tres preferencias y lo dice en voz alta**:
+  *"Confirmalo contra la agenda antes de apartar: desde la web no se ve qué está
+  ocupado"*. Sin esa línea una fecha ya escrita se lee como *el sistema decidió
+  esto*, cuando es una preferencia sin confirmar — y la landing **no puede** ver
+  disponibilidad, que es lo que se decidió al dar de baja el retoque §6f.5. La
+  ficha las muestra con el mismo cuidado: *"Le vendría bien"*, nunca como reserva.
+  **Estaban guardadas desde `V27` y ninguna pantalla las mostraba.**
+- **El botón principal se llama por el trabajo** (P54) y sólo donde el trabajo
+  existe: *"Apartarle la cabina"* / *"Apartarle la sala"*. Curso y equipos siguen
+  con *"Crearle la cuenta"* + *"Ya se lo cargué"*, porque ponerles el nombre del
+  trabajo sin hacer el trabajo sería un botón que miente.
+- **El panel de resultado muestra el plazo sí o sí**, y arma **dos** mensajes de
+  WhatsApp: el de la reserva habla de lo que hay que hacer ahora —abonar, antes de
+  tal día— y el de la cuenta, de algo que se puede mirar cuando quiera. Juntos, el
+  que importa se lee como un trámite más. `CabinaApartada` lleva el monto aunque la
+  pantalla lo acabe de mandar: para armar ese mensaje su propio formulario ya se
+  cerró, y **una reserva no tiene precio en este esquema** (P13).
+
+**Casos: 4 de backend y 4 de front**, verificados poniendo el bug — sin la guarda
+del uso solicitable va a rojo el de la clase; sin la precarga, el de las
+preferencias.
+
+### ⚠️ DÓNDE RETOMAR — la Fase 4 (2026-09-06)
+
+**Sigue la Fase 4: el formulario de la landing con los tres campos de P58**
+—día, horario y duración, los tres **opcionales**— y el alta precargada con
+ellos. **La columna ya existe desde `V27` y el endpoint ya la acepta**; lo que
+falta es el formulario de Next y que `POST /api/solicitantes` los reciba.
+
+⚠️ **Los tres son opcionales por separado y eso es la mitad de la decisión**:
+exigir día y hora pierde a quien sólo quería preguntar cuánto sale, que es
+justamente la gente que estos formularios existen para captar. **Degrada solo.**
+Y se preguntan **como preferencia, nunca como reserva** — la landing no ve
+disponibilidad, así que un formulario que parezca una reserva hace creer a la
+persona que la tiene, y esa mentira es peor que la de hoy.
+
+Después va la 5: el aviso del scheduler *"N fichas sin atender hace +48hs"*, sobre
+`V17`.
 
 Y **`V27` se llevó el número que se venía usando para desactivar el admin
 sembrado** — que ahora es `V28`, y sigue sin anotarse como fijo.

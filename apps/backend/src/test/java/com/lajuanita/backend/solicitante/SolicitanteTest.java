@@ -1,5 +1,6 @@
 package com.lajuanita.backend.solicitante;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -8,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,6 +31,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.reserva.EstadoReserva;
+import com.lajuanita.backend.reserva.Reserva;
+import com.lajuanita.backend.reserva.ReservaRepository;
+import com.lajuanita.backend.sala.SalaRepository;
+import com.lajuanita.backend.sala.TipoUsoRepository;
 import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -71,6 +78,12 @@ class SolicitanteTest {
     @Autowired private UsuarioRepository usuarios;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private EntityManager em;
+    @Autowired private SalaRepository salas;
+    @Autowired private TipoUsoRepository tiposDeUso;
+    @Autowired private ReservaRepository reservas;
+
+    /** Lejos, para que el plazo de la prereserva sea el de 24hs y no el recortado. */
+    private static final LocalDate DENTRO_DE_UN_MES = LocalDate.now().plusDays(30);
 
     // == El formulario público ===============================================
 
@@ -361,6 +374,108 @@ class SolicitanteTest {
                         .value(Matchers.contains("anulada")));
     }
 
+    // == Apartar la cabina: las tres cosas en un movimiento ===================
+
+    /**
+     * ⚠️ <b>El caso central de la Fase 3.</b> Un solo POST y quedan hechas las tres
+     * cosas que antes eran tres pantallas: la cuenta, la reserva apartada con su
+     * deuda, y la ficha cerrada apuntando a esa reserva.
+     *
+     * <p>Lo que este caso cuida es que sean <b>las tres</b>. Con dos de las tres el
+     * sistema no falla en ningún lado —hay una reserva, hay una cuenta— y la ficha
+     * se queda abierta para siempre sobre algo que ya se hizo, que es la mitad del
+     * problema que abrió esta sección.
+     */
+    @Test
+    void apartar_la_cabina_crea_la_cuenta_la_reserva_y_cierra_la_ficha() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+
+        ResultActions respuesta = apartar(ficha, "20:00")
+                .andExpect(status().isOk())
+                // La cuenta, con la única contraseña del sistema que no se puede
+                // volver a ver: si no vuelve acá, se pierde al nacer.
+                .andExpect(jsonPath("$.cuentaNueva").value(true))
+                .andExpect(jsonPath("$.passwordTemporal").isNotEmpty())
+                // La ficha, cerrada y apuntando a lo que produjo (P56).
+                .andExpect(jsonPath("$.ficha.estado").value("ATENDIDO"))
+                .andExpect(jsonPath("$.ficha.idReserva").isNotEmpty())
+                .andExpect(jsonPath("$.ficha.idUsuario").isNotEmpty())
+                // Y la deuda, que es lo que hace reclamable la prereserva.
+                .andExpect(jsonPath("$.idPagoDeuda").isNotEmpty());
+
+        long idReserva = ((Number) JsonPath.read(
+                respuesta.andReturn().getResponse().getContentAsString(), "$.reserva.idReserva"))
+                .longValue();
+
+        Reserva reserva = reservas.findById(idReserva).orElseThrow();
+        assertThat(reserva.getEstado()).isEqualTo(EstadoReserva.PRECONFIRMADA);
+        assertThat(reserva.getVencePreconfirmacion()).isNotNull();
+
+        // La deuda queda anotada y NO como plata que entró: eso es lo que la pone
+        // en Deudores y lo que `V24` exige para que el horario esté apartado.
+        assertThat(jdbc.queryForObject(
+                "SELECT estado_pago FROM pago WHERE id_reserva = ?", String.class, idReserva))
+                .isEqualTo("DEBE");
+    }
+
+    /**
+     * <b>Al que pidió se lo anota como participante</b>, aunque un alquiler no sea
+     * una clase.
+     *
+     * <p>Es cierto —está en la sala ocupándola—, le da una sola definición a "mis
+     * próximas reservas", y de regalo lo mete en la regla de `V9`: nadie en dos
+     * salas a la vez. Mismo criterio que el pedido de sala del portal.
+     */
+    @Test
+    void al_que_pidio_se_lo_anota_en_su_propia_reserva() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+
+        String cuerpo = apartar(ficha, "20:00").andReturn().getResponse().getContentAsString();
+        long idReserva = ((Number) JsonPath.read(cuerpo, "$.reserva.idReserva")).longValue();
+        long idUsuario = ((Number) JsonPath.read(cuerpo, "$.usuario.id")).longValue();
+
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM reserva_participante
+                WHERE id_reserva = ? AND id_usuario = ?
+                """, Integer.class, idReserva, idUsuario)).isEqualTo(1);
+    }
+
+    /**
+     * ⚠️ <b>Desde el buzón no se aparta una CLASE</b>, y la lista que lo decide no
+     * es nueva: es {@code tipo_uso.solicitable_por_usuario}, la misma que ya define
+     * qué se puede pedir desde el portal (P17).
+     *
+     * <p>El agujero que cierra es concreto: una clase apartada acá nacería sin la
+     * inscripción que la descuenta —el participante va sin inscripción— y P39
+     * prohíbe exactamente eso desde el otro lado. La base no lo vería, porque la
+     * deuda de la prereserva ya satisface a `V10`.
+     */
+    @Test
+    void desde_el_buzon_no_se_aparta_una_clase() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+
+        mvc.perform(post("/api/solicitantes/" + ficha + "/reserva")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(pedidoDeCabina(idDeTipo("CLASE_DJ"), "20:00")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("no ")));
+    }
+
+    /**
+     * Una ficha ya atendida no se aparta de nuevo: sería una segunda reserva y una
+     * segunda deuda para un pedido que ya se resolvió.
+     */
+    @Test
+    void una_ficha_ya_atendida_no_se_aparta_de_nuevo() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+        apartar(ficha, "20:00").andExpect(status().isOk());
+
+        apartar(ficha, "21:00")
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("ya fue atendida")));
+    }
+
     // == Atender: lo que sí cierra la ficha ==================================
 
     /**
@@ -535,6 +650,34 @@ class SolicitanteTest {
                 VALUES (?, 'Comprador de prueba', 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
                 RETURNING id_venta
                 """, Long.class, crear(Rol.STAFF).getId());
+    }
+
+    /** Apartarle la cabina a una ficha, en Sala 1 y por una hora. */
+    private ResultActions apartar(long ficha, String desde) throws Exception {
+        return mvc.perform(post("/api/solicitantes/" + ficha + "/reserva")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(pedidoDeCabina(idDeTipo("ALQUILER_CABINA"), desde)));
+    }
+
+    private String pedidoDeCabina(Long idTipoUso, String desde) {
+        return """
+                {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s",
+                 "duracionMinutos":60,"monto":15000,"moneda":"ARS",
+                 "medioPago":"TRANSFERENCIA","mensaje":"Te esperamos"}
+                """.formatted(idDeSala("Sala 1"), idTipoUso, DENTRO_DE_UN_MES, desde);
+    }
+
+    private Long idDeSala(String nombre) {
+        return salas.findAll().stream()
+                .filter(s -> s.getNombreSala().equals(nombre))
+                .findFirst().orElseThrow().getId();
+    }
+
+    private Long idDeTipo(String codigo) {
+        return tiposDeUso.findAll().stream()
+                .filter(t -> t.getCodigo().equals(codigo))
+                .findFirst().orElseThrow().getId();
     }
 
     /**

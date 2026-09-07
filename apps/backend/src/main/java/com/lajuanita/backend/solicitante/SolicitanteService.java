@@ -1,6 +1,8 @@
 package com.lajuanita.backend.solicitante;
 
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,11 +11,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
+import com.lajuanita.backend.notificacion.NotificacionService;
+import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.reserva.EstadoAsistencia;
+import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.reserva.ReservaRepository;
+import com.lajuanita.backend.reserva.ReservaService;
+import com.lajuanita.backend.reserva.dto.AltaParticipanteRequest;
+import com.lajuanita.backend.reserva.dto.AltaPreconfirmacionRequest;
+import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
+import com.lajuanita.backend.reserva.dto.ReservaCreada;
+import com.lajuanita.backend.sala.TipoUso;
+import com.lajuanita.backend.sala.TipoUsoRepository;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
+import com.lajuanita.backend.solicitante.dto.ApartarLaCabinaRequest;
+import com.lajuanita.backend.solicitante.dto.CabinaApartada;
 import com.lajuanita.backend.solicitante.dto.CandidatoDeLaFicha;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
 import com.lajuanita.backend.solicitante.dto.DestinoRequest;
@@ -86,19 +100,35 @@ public class SolicitanteService {
     private final InscripcionRepository inscripciones;
     private final VentaEquipoRepository ventas;
 
+    // Para apartar la cabina sin salir del buzón (Fase 3). El alta de la reserva
+    // se DELEGA: sus reglas son del circuito de reservas, y una segunda copia es
+    // la que se olvida de una — es lo mismo que hace el pedido de sala.
+    private final ReservaService circuitoDeReservas;
+    private final TipoUsoRepository tiposDeUso;
+    private final NotificacionService avisos;
+
     public SolicitanteService(SolicitanteRepository fichas,
             UsuarioRepository usuarios,
             UsuarioService cuentas,
             ReservaRepository reservas,
             InscripcionRepository inscripciones,
-            VentaEquipoRepository ventas) {
+            VentaEquipoRepository ventas,
+            ReservaService circuitoDeReservas,
+            TipoUsoRepository tiposDeUso,
+            NotificacionService avisos) {
         this.fichas = fichas;
         this.usuarios = usuarios;
         this.cuentas = cuentas;
         this.reservas = reservas;
         this.inscripciones = inscripciones;
         this.ventas = ventas;
+        this.circuitoDeReservas = circuitoDeReservas;
+        this.tiposDeUso = tiposDeUso;
+        this.avisos = avisos;
     }
+
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter DIA_Y_HORA = DateTimeFormatter.ofPattern("dd/MM HH:mm");
 
     // == Lo que llega de la landing ==========================================
 
@@ -271,6 +301,124 @@ public class SolicitanteService {
                 .forEach(v -> candidatos.add(CandidatoDeLaFicha.de(v)));
 
         return candidatos;
+    }
+
+    /**
+     * <b>Apartarle la cabina sin salir del buzón</b> (`mejoras.md` §15 · Fase 3):
+     * la cuenta, la reserva apartada, la deuda y el cierre de la ficha, en un solo
+     * movimiento.
+     *
+     * <h2>Por qué es un endpoint y no tres llamadas de la pantalla</h2>
+     *
+     * <p>Porque el modo de falla de partirlo <b>no es barato acá</b>, al revés que
+     * en {@link #atender}. Ahí el segundo pedido que no sale deja la ficha abierta
+     * y alguien la vuelve a mirar; acá, entre crear la cuenta y crear la reserva,
+     * <b>lo que puede fallar es la reserva</b> —la franja se ocupó, la sala no
+     * admite ese uso— y lo que queda es una cuenta creada con una contraseña
+     * temporal que ya se mostró, para una persona que no tiene nada. Al revés,
+     * fallar entero deja el buzón exactamente como estaba.
+     *
+     * <p><b>Y la transacción es la misma por una razón de la base, no de prolijidad:</b>
+     * el {@code CONSTRAINT TRIGGER} de `V10` corre al COMMIT y busca el dinero
+     * detrás de la reserva. La deuda de la prereserva es ese dinero (`V24`), así
+     * que reserva y deuda tienen que estar en la misma transacción o la reserva se
+     * rechaza al cerrar.
+     *
+     * <h2>El orden, que sí importa</h2>
+     *
+     * <ol>
+     *   <li><b>La cuenta primero</b>, porque la deuda necesita a quién anotársela:
+     *       {@code AltaPreconfirmacionRequest} lo dice en su propio javadoc — una
+     *       deuda sin nombre no aparece en deudores y no se le cobra a nadie. Eso
+     *       es lo que hace que la cuenta sea <i>comodidad del cliente y condición
+     *       de la plata a la vez</i> (P54), sin volver a ser un trámite previo.
+     *   <li><b>La reserva</b>, delegada en {@link ReservaService#alta}. Nace
+     *       apartada; <b>no se aparta después</b>, que es lo que la escalera de
+     *       `V24` §5 rechaza.
+     *   <li><b>La ficha</b>, que se cierra apuntando a esa reserva (P56).
+     * </ol>
+     *
+     * <p>⚠️ <b>Los dos UPDATE sobre la ficha son legales en este orden y no al
+     * revés.</b> {@code darleCuenta} escribe {@code id_usuario} con la ficha
+     * todavía PENDIENTE, y {@code atender} la saca de PENDIENTE. El trigger
+     * {@code solicitante_resuelto_es_final} de `V13` §4 rechaza cualquier UPDATE
+     * sobre una ficha ya resuelta, así que cerrarla antes de vincular la cuenta
+     * haría fallar el segundo — es la misma congelación que P56 eligió a
+     * propósito.
+     */
+    @Transactional
+    public CabinaApartada apartarLaCabina(Long id, ApartarLaCabinaRequest pedido, Long idAutor) {
+        TipoUso uso = tiposDeUso.findById(pedido.idTipoUso())
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existe el tipo de uso " + pedido.idTipoUso() + "."));
+
+        // La misma lista que define qué se puede pedir desde el portal (P17), no
+        // una nueva: apartar una CLASE dejaría una reserva sin la inscripción que
+        // la descuenta, que es lo que P39 prohíbe desde el otro lado.
+        if (!uso.isSolicitablePorUsuario()) {
+            throw new OperacionNoPermitidaException(
+                    "Desde el buzón se aparta la cabina o la grabación de un set, no "
+                            + uso.getNombre().toLowerCase() + ".");
+        }
+
+        ConversionRealizada cuenta = darleCuenta(id);
+        Usuario quienPidio = usuarios.getReferenceById(cuenta.usuario().id());
+
+        ReservaCreada creada = circuitoDeReservas.alta(new AltaReservaRequest(
+                pedido.idSala(),
+                pedido.idTipoUso(),
+                null,
+                pedido.fecha(),
+                pedido.horaInicio(),
+                pedido.horaInicio().plusMinutes(pedido.duracionMinutos()),
+                null,
+                null,
+                null,
+                // Se lo anota como participante aunque un alquiler no sea una clase:
+                // está en la sala ocupándola, es lo que le da una sola definición a
+                // "mis próximas reservas", y de regalo entra en la regla de `V9`
+                // —nadie en dos salas a la vez—. Mismo criterio que el pedido de sala.
+                List.of(new AltaParticipanteRequest(quienPidio.getId(), null)),
+                null,
+                new AltaPreconfirmacionRequest(quienPidio.getId(),
+                        pedido.monto(),
+                        pedido.moneda(),
+                        pedido.cotizacionDolar(),
+                        pedido.medioPago(),
+                        normalizar(pedido.mensaje()))),
+                idAutor);
+
+        Reserva reserva = reservas.getReferenceById(creada.reserva().idReserva());
+        Solicitante ficha = pendientePorId(id);
+        ficha.atender(new DestinoDeLaFicha.DeUnaReserva(reserva), buscarUsuario(idAutor));
+        fichas.flush();
+
+        // ⚠️ El aviso dice que FALTA HACER ALGO y hasta cuándo. Un "está confirmado"
+        // sobre un horario que se cae en 24hs es la peor forma de perder una venta,
+        // porque el que lo lee se queda tranquilo. Acá además la persona viene de un
+        // formulario de la web y quizá nunca entró al sistema: el canal real es el
+        // WhatsApp que arma la pantalla, y esto es lo que va a encontrar si entra.
+        avisos.avisar(quienPidio,
+                TipoNotificacion.RESERVA_PRECONFIRMADA,
+                "Te apartamos la sala: falta abonarla",
+                "Te reservamos " + creada.reserva().sala() + " para el "
+                        + pedido.fecha().format(DIA) + " a las " + pedido.horaInicio()
+                        + ". Para confirmarla hay que abonar "
+                        + pedido.moneda() + " "
+                        + pedido.monto().setScale(2, RoundingMode.HALF_UP).toPlainString()
+                        + " antes del " + reserva.getVencePreconfirmacion().format(DIA_Y_HORA)
+                        + ". Pasado ese plazo el horario se libera.",
+                "/mis-reservas");
+
+        return new CabinaApartada(
+                SolicitanteResumen.de(ficha),
+                creada.reserva(),
+                cuenta.usuario(),
+                cuenta.passwordTemporal(),
+                cuenta.cuentaNueva(),
+                creada.idPagoSena(),
+                pedido.monto(),
+                pedido.moneda());
     }
 
     /**

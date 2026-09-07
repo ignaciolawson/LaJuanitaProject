@@ -170,3 +170,36 @@ export function mensajeConLaClave(
     'Te la va a pedir cambiar la primera vez que entres, y vence a los 7 días.',
   ].join('\n')
 }
+
+/**
+ * El mensaje de la cabina apartada.
+ *
+ * ⚠️ **Éste es el que cierra el circuito de la Fase 3**, y la razón es la misma
+ * por la que existe `mensajeConLaClave`: el sistema sabe las cuatro cosas que hay
+ * que decir —qué sala, cuándo, cuánto y hasta cuándo— y hasta ahora se las hacía
+ * tipear a quien atiende, en el momento en que más caro sale equivocarse.
+ *
+ * **El plazo va sí o sí, y va escrito como fecha y hora.** Un *"te apartamos la
+ * sala"* sin vencimiento deja tranquilo a quien lo lee sobre un horario que se
+ * libera solo en 24 horas: es la peor forma de perder una venta, porque nadie se
+ * entera hasta que ya pasó. Es la misma razón por la que la notificación del
+ * sistema dice las dos cosas juntas.
+ *
+ * **No lleva la contraseña.** Son dos mensajes distintos a propósito: éste habla
+ * de lo que hay que hacer ahora —abonar— y el otro de una cuenta que se puede
+ * mirar cuando quiera. Juntos, el que importa se lee como un trámite más.
+ */
+export function mensajeDeCabinaApartada(
+  nombre: string,
+  sala: string,
+  cuando: string,
+  importe: string,
+  vence: string,
+): string {
+  return [
+    `¡Hola ${nombre}! Te apartamos ${sala} para el ${cuando}.`,
+    '',
+    `Para confirmarla hay que abonar ${importe} antes del ${vence}.`,
+    'Pasado ese plazo el horario se libera.',
+  ].join('\n')
+}

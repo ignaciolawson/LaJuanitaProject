@@ -19,6 +19,8 @@ import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
+import com.lajuanita.backend.solicitante.dto.ApartarLaCabinaRequest;
+import com.lajuanita.backend.solicitante.dto.CabinaApartada;
 import com.lajuanita.backend.solicitante.dto.CandidatoDeLaFicha;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
 import com.lajuanita.backend.solicitante.dto.DestinoRequest;
@@ -105,6 +107,26 @@ public class SolicitanteController {
     @PuedeOperar
     public ConversionRealizada darleCuenta(@PathVariable Long id) {
         return solicitantes.darleCuenta(id);
+    }
+
+    /**
+     * Apartarle la cabina, sin salir del buzón (`mejoras.md` §15 · Fase 3).
+     *
+     * <p><b>Es un POST y crea tres cosas</b>: la cuenta —si no la tenía—, la
+     * reserva apartada con su deuda, y el cierre de la ficha apuntando a ella. Las
+     * tres en una transacción, por lo que explica el servicio.
+     *
+     * <p>Sustituye el recorrido de tres pantallas que abrió esta sección: crear la
+     * cuenta acá, ir al calendario, volver a cerrar la ficha. <b>El paso del medio
+     * era el que se perdía.</b>
+     */
+    @PostMapping("/{id}/reserva")
+    @PuedeOperar
+    public CabinaApartada apartarLaCabina(@PathVariable Long id,
+            @Valid @RequestBody ApartarLaCabinaRequest pedido,
+            Authentication quienPide) {
+
+        return solicitantes.apartarLaCabina(id, pedido, Autoridades.idDe(quienPide));
     }
 
     /**

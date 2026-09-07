@@ -840,6 +840,55 @@ export type CandidatoDeLaFicha = {
   reparo: string | null
 }
 
+/**
+ * Apartarle la cabina a una ficha, sin salir del buzón. Espeja
+ * `ApartarLaCabinaRequest` (`mejoras.md` §15 · Fase 3).
+ *
+ * **La duración va en minutos y la hora de fin la calcula el servidor**, que es
+ * lo que P58 decidió para el formulario de la web: *"2 horas"* es lo que la
+ * persona piensa. Acá vale doble, porque su preferencia está guardada así.
+ *
+ * **Quién paga no viaja**: es quien mandó la ficha, y la cuenta se crea en el
+ * mismo movimiento. Poder elegirlo sería poder apartarle la cabina a una persona
+ * y anotarle la deuda a otra.
+ */
+export type ApartarLaCabina = {
+  idSala: number
+  idTipoUso: number
+  fecha: string
+  horaInicio: string
+  duracionMinutos: number
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number
+  medioPago: MedioPago
+  mensaje?: string
+}
+
+/**
+ * Lo que quedó hecho al apartar. Espeja `CabinaApartada`.
+ *
+ * `passwordTemporal` viene null cuando la persona ya tenía cuenta, igual que en
+ * `ConversionRealizada`: no es un dato que falte, es la diferencia entre "copiá
+ * esto y mandáselo" y "ya tiene la suya".
+ */
+export type CabinaApartada = {
+  ficha: SolicitanteResumen
+  reserva: ReservaResumen
+  usuario: UsuarioResumen
+  passwordTemporal: string | null
+  cuentaNueva: boolean
+  idPagoDeuda: number | null
+  /**
+   * Lo que hay que abonar. **Viaja aunque la pantalla lo acabe de mandar**: con
+   * él arma el mensaje de WhatsApp sin volver a leer su propio formulario, que
+   * para entonces ya se cerró. Y `ReservaResumen` no lo tiene — una reserva no
+   * tiene precio en este esquema (P13).
+   */
+  monto: number
+  moneda: Moneda
+}
+
 /** Lo que devuelve crearle la cuenta. Espeja `ConversionRealizada` — el nombre
  * del record es de antes de `V27`, cuando esto además cerraba la ficha.
  *
