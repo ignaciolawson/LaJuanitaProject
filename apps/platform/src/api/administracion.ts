@@ -8,6 +8,7 @@ import type {
   BloqueoResumen,
   CajaDelPeriodo,
   ConversionRealizada,
+  CandidatoDeLaFicha,
   DestinoDeLaFicha,
   Deudor,
   EgresoResumen,
@@ -948,6 +949,19 @@ export function listarSolicitantes(opciones: {
  */
 export function darleCuentaAlSolicitante(id: number) {
   return pedir<ConversionRealizada>(`/api/solicitantes/${id}/cuenta`, { metodo: 'POST' })
+}
+
+/**
+ * Lo que esta ficha pudo haber producido: lo que hay para elegir al cerrarla.
+ *
+ * **Una lista vacía es una respuesta, no un error.** Puede querer decir que la
+ * ficha todavía no tiene cuenta —los candidatos salen de ella— o que a esa
+ * persona no se le cargó nada todavía. La pantalla los distingue con
+ * `idUsuario`, porque el primero tiene una salida (crearle la cuenta) y el
+ * segundo no.
+ */
+export function candidatosDeLaFicha(id: number) {
+  return pedir<CandidatoDeLaFicha[]>(`/api/solicitantes/${id}/candidatos`)
 }
 
 /**

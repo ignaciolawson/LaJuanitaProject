@@ -1,5 +1,7 @@
 package com.lajuanita.backend.solicitante;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
+import com.lajuanita.backend.solicitante.dto.CandidatoDeLaFicha;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
 import com.lajuanita.backend.solicitante.dto.DestinoRequest;
 import com.lajuanita.backend.solicitante.dto.SolicitanteResumen;
@@ -40,8 +43,8 @@ import jakarta.validation.Valid;
  * importa porque el listado tiene teléfonos y mails de gente real.
  *
  * <p>Permisos como el resto de administración: <b>leer</b> suma DIRECTIVO,
- * <b>resolver</b> es ADMIN·STAFF. Convertir crea una cuenta, así que cae del lado
- * de {@code @PuedeOperar} sin discusión.
+ * <b>resolver</b> es ADMIN·STAFF. Crearle la cuenta crea un recurso, así que cae
+ * del lado de {@code @PuedeOperar} sin discusión.
  */
 @RestController
 @RequestMapping("/api/solicitantes")
@@ -102,6 +105,25 @@ public class SolicitanteController {
     @PuedeOperar
     public ConversionRealizada darleCuenta(@PathVariable Long id) {
         return solicitantes.darleCuenta(id);
+    }
+
+    /**
+     * Lo que esta ficha pudo haber producido: lo que hay para elegir al cerrarla.
+     *
+     * <p><b>Es un GET y lee, así que suma DIRECTIVO</b> como el resto de lectura
+     * de administración. Que sólo sirva para después operar no lo convierte en una
+     * escritura, y en este proyecto el permiso sigue al verbo y no a la intención
+     * de quien llama — la misma línea que hace que {@code DIRECTIVO} vea todas las
+     * pantallas y no tenga botones.
+     *
+     * <p>Una lista vacía es una respuesta y no un error: quiere decir que a esa
+     * persona todavía no se le cargó nada —o que la ficha no tiene cuenta—, y la
+     * pantalla distingue los dos casos con {@code idUsuario}.
+     */
+    @GetMapping("/{id}/candidatos")
+    @PuedeLeerAdministracion
+    public List<CandidatoDeLaFicha> candidatos(@PathVariable Long id) {
+        return solicitantes.candidatosDe(id);
     }
 
     /**

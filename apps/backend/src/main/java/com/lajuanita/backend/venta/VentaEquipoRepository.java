@@ -72,4 +72,25 @@ public interface VentaEquipoRepository extends JpaRepository<VentaEquipo, Long> 
             GROUP BY v.moneda
             """)
     List<Object[]> porMoneda(@Param("desde") LocalDate desde, @Param("hasta") LocalDate hasta);
+
+    /**
+     * Las ventas que tienen a esta persona como compradora.
+     *
+     * <p><b>Mira sólo la cuenta y no el nombre escrito</b>, que es la mitad
+     * anulable de {@code venta_comprador_identificado}. Cruzar por nombre sería
+     * adivinar: dos "Juan Pérez" son dos personas, y una ficha cerrada contra la
+     * venta del otro es peor que una ficha que sigue abierta — la primera se ve
+     * resuelta. Quien usa esto es el buzón, que ofrece candidatos para cerrar una
+     * ficha; si la venta se cargó a nombre escrito, la ficha se cierra después de
+     * crearle la cuenta.
+     *
+     * <p>Trae las anuladas también: que la venta se anuló es exactamente lo que
+     * quien mira necesita ver antes de cerrar una ficha contra ella.
+     */
+    @Query("""
+            SELECT v FROM VentaEquipo v
+            WHERE v.comprador.id = :idUsuario
+            ORDER BY v.fechaVenta DESC, v.id DESC
+            """)
+    List<VentaEquipo> deLaPersona(@Param("idUsuario") Long idUsuario);
 }

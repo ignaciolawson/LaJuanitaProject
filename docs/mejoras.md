@@ -3622,7 +3622,7 @@ Están en **`docs/requirements/platform.md` §21 · P54–P58**. En una frase ca
 | Fase | Qué | Estado |
 |---|---|---|
 | **1** | Contacto en un clic: teléfono grande y copiable, botón de WhatsApp con el mensaje armado (saludo que nombra lo pedido; y el que lleva la clave temporal escrita) | ✅ **CERRADA (commit `29faa4b`, "Fase 1 rediseño" — mal etiquetado)** |
-| **2** | La ficha guarda qué produjo · `CONVERTIDO`→`ATENDIDO` · `FichaAbierta` (contador y lista dejan de definir "lo que falta" por separado) · el formulario con los 3 campos de preferencia (`V27`) | 🟡 **CASI — falta la UI de "atender" desde el buzón y sus casos de front** |
+| **2** | La ficha guarda qué produjo · `CONVERTIDO`→`ATENDIDO` · `FichaAbierta` (contador y lista dejan de definir "lo que falta" por separado) · el formulario con los 3 campos de preferencia (`V27`) · **la UI de atender** | ✅ **CERRADA (2026-09-06)** |
 | **3** | Apartar la cabina desde la ficha: cuenta + prereserva + deuda en una transacción, sin salir del buzón | 🔴 no empezada |
 | **4** | El formulario de la landing con los 3 campos + el alta precargada con ellos | 🔴 no empezada (la columna ya existe desde `V27`; falta el form de Next y la precarga) |
 | **5** | Aviso del scheduler: *"N fichas sin atender hace +48hs"*, sobre `V17` | 🔴 no empezada |
@@ -3630,62 +3630,98 @@ Están en **`docs/requirements/platform.md` §21 · P54–P58**. En una frase ca
 ⚠️ **Fases 2 y 4 comparten la migración `V27`** — mismo argumento que `V19`: una
 revisión de las reglas de `solicitante`, no dos.
 
-### ⚠️ DÓNDE RETOMAR — lo que quedó a medias de la Fase 2 (2026-09-06)
+### La Fase 2, cerrada (2026-09-06)
 
-**Todo lo de abajo está en el árbol, verde, sin commitear.** Suites: **631
-backend · 546 front · 256 + 66 SQL**, sobre **27 migraciones**. `tsc -b`, los dos
-linters y los dos builds limpios. `V27` **ya aplicada a la base de desarrollo** —
-las 8 fichas `CONVERTIDO` volvieron a `PENDIENTE` conservando su cuenta, con
-NOTICE nombrando los ids (46, 91, 92, 126, 160, 265, 266, 319).
+Suites: **635 backend · 557 front · 256 + 66 SQL**, sobre **27 migraciones**.
+`tsc -b`, los dos linters y los dos builds limpios.
 
-**Lo que está hecho:**
+**Lo que ya estaba** (commit `29ba09d`): `V27` con las 3 FK, el CHECK de doble
+sentido `solicitante_atendido_produjo_algo`, `CONVERTIDO`→`ATENDIDO`, la
+migración de datos y los 3 campos de preferencia; `DestinoDeLaFicha` (sealed),
+`FichaAbierta` (el JPQL compartido entre lista y contador), `DestinoRequest`;
+`POST /{id}/cuenta` + `PATCH /{id}/atencion`; y del lado del front
+`etapaDeLaFicha()`, el filtro `ABIERTAS` y el botón *"Crearle la cuenta"*.
 
-- **`V27__la_ficha_guarda_que_produjo.sql`** — las 3 FK + el CHECK de doble
-  sentido `solicitante_atendido_produjo_algo` + `CONVERTIDO`→`ATENDIDO` + la
-  migración de datos + los 3 campos de preferencia + el índice
-  `solicitante_abiertos` (parcial `<> 'DESCARTADO'`, reemplaza a
-  `solicitante_pendientes`).
-- **Backend nuevo:** `DestinoDeLaFicha` (sealed interface, 3 records — el
-  compilador garantiza "exactamente uno"), `FichaAbierta` (el JPQL compartido
-  entre lista y contador), `DestinoRequest` (DTO, `resolverCon(...)`).
-- **Backend tocado:** `EstadoSolicitante` (enum), `Solicitante` (`darleCuenta` ya
-  no cierra; `atender(destino, autor)` sí), `SolicitanteRepository`
-  (`listar(estado, soloAbiertas, ...)`, `contarAbiertas()` reemplaza a
-  `countByEstado`), `SolicitanteService` (`darleCuenta` + `atender`, con los 3
-  repos de destino cableados), `SolicitanteController`
-  (`POST /{id}/cuenta` + `PATCH /{id}/atencion`, **antes eran
-  `POST /{id}/conversion`**), `SolicitanteResumen` (los campos nuevos +
-  `estadoDeLaReserva`), `BandejaService` (`contarAbiertas()`).
-- **`SolicitanteTest`** reescrito: 21 casos, incluidos los dos que atacan el CHECK
-  por SQL crudo en los dos sentidos.
-- **Casos SQL** 179/179b/180 reescritos + 183/184 nuevos (preferencia).
-- **Front tipos + api:** `EstadoSolicitante` sin `CONVERTIDO`, `etapaDeLaFicha()`
-  (la lectura de `FichaAbierta` del lado del cliente — *no* una segunda
-  definición, sólo cómo se dibuja), `DestinoDeLaFicha`, `darleCuentaAlSolicitante`
-  + `atenderSolicitante`, `listarSolicitantes({ abiertas })`.
-- **`SolicitantesPagina`:** filtro nuevo (`ABIERTAS` / `ATENDIDO` / `DESCARTADO` /
-  `TODAS` — `ABIERTAS` es el default y **no es un estado**), la etiqueta dice la
-  **etapa** (`etapaDeLaFicha`), el botón se llama *"Crearle la cuenta"* y sólo
-  aparece si `idUsuario === null`.
+**Lo que cerró la fase: elegir en vez de tipear un id.**
 
-**Lo que FALTA para cerrar la Fase 2:**
+`atenderSolicitante` existía y ninguna pantalla podía llamarla. Lo mínimo que
+esta sección tenía anotado era *un `<select>` de tipo + un campo de id*, y **eso
+es lo que no se hizo**, por una razón que el sistema ya sostiene en todas las
+demás pantallas: **acá no se muestran ids**. El profesor elige *"12/08 10:00 ·
+Clase de DJ"*; el pago elige la inscripción por `queSalda`. Un campo numérico
+sería el único lugar donde alguien tiene que copiar un id de otra pantalla, o sea
+el único donde se puede pegar el equivocado — y **una ficha mal cerrada es peor
+que una abierta**: la abierta la vuelve a mirar alguien, la cerrada contra la
+reserva de otro se ve resuelta.
 
-1. **La UI de "atender" en `SolicitantesPagina`.** Hoy `atenderSolicitante` existe
-   en la API y no hay forma de llamarla desde la pantalla — la ficha sólo se
-   cierra por `curl`. Falta el control: en una ficha que ya tiene cuenta, un
-   *"Ya le cargué…"* que pida tipo (reserva / inscripción / venta) + id, o —mejor—
-   que después de mandar a la pantalla de destino, el operador vuelva y pegue el
-   id. **Decidir la UX con Ignacio.** Lo mínimo: un `<select>` de tipo + un campo
-   de id + botón, dentro de la fila, como `PedirMotivo`.
-2. **Casos de front nuevos** para eso, y para `etapaDeLaFicha` (las 5 ramas).
-3. **El `CuentaLista` (post-crear-cuenta)** todavía dice *"Cargale la inscripción
-   en…"* con un link — está bien, pero ahora el link debería, idealmente, volver
-   con el id para cerrar la ficha. Como mínimo revisar que el texto no diga
-   "convertida".
-4. **`DONDE_SIGUE` / textos** que todavía hablen de "convertir".
-5. **`docs/db/la_juanita_schema.dbml.txt`** — ya estaba 7 migraciones atrás; ahora
-   son más. Tarea propia (§3.5 de `pendientes.md`).
+- **`GET /api/solicitantes/{id}/candidatos`** devuelve lo que esa persona tiene,
+  ya legible. **No inventa consultas**: entra por `ReservaRepository.deLaPersona`
+  e `InscripcionRepository.deLaPersona` —las que ya definen "lo suyo"— más un
+  `VentaEquipoRepository.deLaPersona` nuevo, que es la única que faltaba.
+- **El texto lo arma el servidor y la fecha no.** Lo primero es lo que hace
+  `PagoResumen.queSalda` desde el Módulo 3, y por lo mismo: son tres tablas y la
+  pantalla tendría que saber describir cada una — una cuarta forma de escribir una
+  reserva. Lo segundo es lo que **no** se copia de ahí: `cuando` viaja `LocalDate`
+  para que lo escriba `fecha()`, que es la única forma en que este sistema escribe
+  una fecha desde §14 · A5.
+- **La llave de la opción lleva el tipo, no sólo el id** (`INSCRIPCION:77`). Los
+  ids son de tres tablas: la reserva 7 y la venta 7 existen las dos, y el CHECK de
+  `V27` no puede ver la diferencia porque **las dos filas son válidas**. Es el
+  único lugar de este circuito donde equivocarse no produce ningún error.
+- **Lo anulado y lo cancelado se ofrecen igual, con el reparo escrito.**
+  Esconderlo deja a quien atiende buscando algo que está y no aparece, y el final
+  de esa búsqueda es cerrar la ficha contra cualquier otra cosa.
+- **El botón *"Ya se lo cargué"* aparece tenga cuenta o no.** Condicionarlo a la
+  cuenta la volvería un requisito para cerrar la ficha, que es exactamente lo que
+  P54 sacó del medio. Sin cuenta no hay candidatos, y el panel **dice por qué**
+  con la salida al lado, en vez de mostrar una lista vacía — que se lee como *el
+  sistema perdió los datos*.
 
-**Después de la Fase 2:** Fases 3, 4, 5. Y **`V27` se llevó el número que se venía
-usando para desactivar el admin sembrado** — que ahora es `V28`, y sigue sin
-anotarse como fijo.
+⚠️ **La limitación que queda escrita y no escondida**: los candidatos salen de la
+cuenta, así que una venta cargada a nombre escrito (sin cuenta) no aparece.
+Cruzar por nombre sería la alternativa y es peor — **dos "Juan Pérez" son dos
+personas**, y una ficha cerrada contra la compra del otro se ve resuelta. P54
+sostiene que la cuenta se crea siempre, así que el caso es el de alguien que se
+salteó ese paso: la salida es crearle la cuenta.
+
+**Los textos que decían "convertir"** se corrigieron en las cinco partes que
+quedaban (`SolicitanteService`, `SolicitanteController`, `DONDE_SIGUE`,
+`ConversionRealizada` y el estado `recienConvertida` → `cuentaRecienCreada`), y
+`CuentaLista` ahora **cierra la frase**: *"…y volvé al buzón a cerrar la ficha
+con Ya se lo cargué"*. Antes el link era el final del trámite; desde `V27` hay un
+paso más, y sin decirlo el link manda a alguien a otra pantalla y la ficha se
+queda esperando. De paso salió el ternario de tres ramas que traducía ruta →
+nombre, ahora `NOMBRE_DE_PANTALLA`.
+
+**Casos nuevos: 4 de backend y 11 de front**, y **los cuatro que sostienen una
+regla se verificaron poniendo el bug** —la regla de §14: un caso verde no prueba
+nada si también estaría verde con el error presente. Con `deLaPersona` de ventas
+sin su filtro, `no_se_ofrece_lo_de_otra_persona` va a rojo; con la llave sin el
+tipo, va a rojo el que cierra la ficha; con el botón condicionado a la cuenta, va
+a rojo el de la ficha sin cuenta.
+
+⚠️ **Lo que NO entró en esta fase, a propósito**: `docs/db/la_juanita_schema.dbml.txt`
+sigue atrasado. Estaba anotado en la lista de la Fase 2 y **no es de esta fase** —
+es tarea propia, §3.5 de `pendientes.md`, y ya venía atrasado siete migraciones
+antes de `V27`.
+
+### ⚠️ DÓNDE RETOMAR — la Fase 3 (2026-09-06)
+
+**Sigue la Fase 3: apartar la cabina desde la ficha** — cuenta + prereserva +
+deuda en una transacción, sin salir del buzón. Es la que convierte el circuito de
+*"anotá el id y volvé"* en un solo movimiento, y **la Fase 2 le dejó todo puesto**:
+la ficha ya sabe guardar qué produjo, ya trae las tres preferencias de horario
+(`V27`), y `atender` ya existe — lo que la Fase 3 agrega es que el buzón cree la
+reserva él mismo en vez de mandar a otra pantalla.
+
+⚠️ **La Fase 3 NO necesita migración**: `V24` ya tiene la prereserva, su plazo de
+24hs y el trigger de escalera. Lo que hay que mirar antes de empezar es el orden
+de escritura —`V10` es *deferred* y pide la seña al COMMIT, y acá la seña es una
+deuda con vencimiento— y que **la reserva tiene que NACER preconfirmada**, que es
+lo que el trigger de `V24` rechazó el día que se escribió al revés.
+
+Después van la 4 (el formulario de la landing con los 3 campos, que ya tienen
+columna) y la 5 (el aviso del scheduler sobre `V17`).
+
+Y **`V27` se llevó el número que se venía usando para desactivar el admin
+sembrado** — que ahora es `V28`, y sigue sin anotarse como fijo.

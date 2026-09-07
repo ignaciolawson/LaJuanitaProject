@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import {
+  atenderSolicitante,
+  candidatosDeLaFicha,
   darleCuentaAlSolicitante,
   descartarSolicitante,
   listarSolicitantes,
@@ -11,7 +13,9 @@ import {
   DONDE_SIGUE,
   etapaDeLaFicha,
   NOMBRE_DE_INTERES,
+  type CandidatoDeLaFicha,
   type ConversionRealizada,
+  type DestinoDeLaFicha,
   type EstadoSolicitante,
   type SolicitanteResumen,
 } from '../api/tiposAdmin'
@@ -25,6 +29,7 @@ import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
 import { cuando } from '../componentes/presentacion'
+import { fecha } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { linkDeWhatsapp, mensajeConLaClave, saludoDeContacto } from '../componentes/whatsapp'
 
@@ -51,9 +56,9 @@ import { linkDeWhatsapp, mensajeConLaClave, saludoDeContacto } from '../componen
  * link, en vez de dejar a alguien adivinando cuál de las dieciséis pantallas
  * sigue.
  *
- * ⚠️ **FALTA (Fase 2 de `mejoras.md` §15): la UI para "atender".** Hoy
- * `atenderSolicitante` sólo se puede llamar por API — no hay control en esta
- * pantalla para cerrar la ficha apuntando a lo que se cargó.
+ * **Cerrar la ficha se hace eligiendo, no tipeando un id.** Ver
+ * {@link CerrarLaFicha}: es lo que evita que ésta sea la única pantalla del
+ * sistema donde hay que copiar un número de otra.
  */
 /**
  * Lo que la pantalla ofrece mirar.
@@ -87,13 +92,16 @@ export function SolicitantesPagina() {
   /** Cuál está abierta para descartar. Una por vez. */
   const [descartando, setDescartando] = useState<number | null>(null)
 
+  /** Cuál está abierta para cerrar apuntando a lo que produjo. Una por vez. */
+  const [cerrando, setCerrando] = useState<number | null>(null)
+
   /**
    * La cuenta que se acaba de crear. Se muestra arriba y no adentro de la fila
    * porque lo importante es **la contraseña temporal**, que es la única del
    * sistema que no se puede volver a ver: si la fila se recarga o se filtra, se
    * va con ella. La ficha en sí sigue en la lista (crear la cuenta no la cierra).
    */
-  const [recienConvertida, setRecienConvertida] = useState<ConversionRealizada | null>(null)
+  const [cuentaRecienCreada, setRecienConvertida] = useState<ConversionRealizada | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -121,6 +129,17 @@ export function SolicitantesPagina() {
       await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta.')
+    }
+  }
+
+  async function atender(id: number, destino: DestinoDeLaFicha) {
+    setError(null)
+    try {
+      await atenderSolicitante(id, destino)
+      setCerrando(null)
+      await cargar()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo cerrar la ficha.')
     }
   }
 
@@ -174,9 +193,9 @@ export function SolicitantesPagina() {
         </div>
       )}
 
-      {recienConvertida && (
+      {cuentaRecienCreada && (
         <CuentaLista
-          resultado={recienConvertida}
+          resultado={cuentaRecienCreada}
           onCerrar={() => setRecienConvertida(null)}
         />
       )}
@@ -225,13 +244,27 @@ export function SolicitantesPagina() {
                 </Etiqueta>
 
                 {f.estado === 'PENDIENTE' && puedeResolver && (
-                  <div className="mt-2 flex justify-end gap-2">
+                  <div className="mt-2 flex flex-wrap justify-end gap-2">
                     {/* Sólo si todavía no tiene: darle cuenta dos veces no rompe
                         nada, pero ofrecerlo cuando ya la tiene es un botón que no
                         hace lo que dice. */}
                     {f.idUsuario === null && (
                       <Boton onClick={() => void darleCuenta(f)}>Crearle la cuenta</Boton>
                     )}
+
+                    {/* ⚠️ **Se ofrece SIEMPRE, tenga cuenta o no.** Condicionarlo a
+                        la cuenta la volvería un requisito para cerrar la ficha, que
+                        es justo lo que P54 sacó del medio. Sin cuenta no hay
+                        candidatos y el panel lo dice — con la salida al lado. */}
+                    <Boton
+                      variante="secundario"
+                      onClick={() =>
+                        setCerrando(cerrando === f.idSolicitante ? null : f.idSolicitante)
+                      }
+                    >
+                      Ya se lo cargué
+                    </Boton>
+
                     <Boton variante="secundario" onClick={() => setDescartando(f.idSolicitante)}>
                       Descartar
                     </Boton>
@@ -245,6 +278,16 @@ export function SolicitantesPagina() {
                 {f.respuesta}
                 {f.resueltaPor && <span className="text-apagado"> — {f.resueltaPor}</span>}
               </p>
+            )}
+
+            {cerrando === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <CerrarLaFicha
+                  ficha={f}
+                  onCerrar={() => setCerrando(null)}
+                  onConfirmar={(destino) => void atender(f.idSolicitante, destino)}
+                />
+              </div>
             )}
 
             {descartando === f.idSolicitante && (
@@ -269,6 +312,163 @@ export function SolicitantesPagina() {
       />
     </div>
   )
+}
+
+/**
+ * Cerrar la ficha diciendo **qué** se le cargó, eligiéndolo de lo que esa
+ * persona tiene.
+ *
+ * ⚠️ **Acá no se tipea un id, y ésa es toda la razón de que este componente
+ * exista.** Un `<select>` de tipo más un campo numérico se escribía en veinte
+ * líneas y sería el único lugar del sistema donde alguien tiene que copiar un id
+ * de otra pantalla — o sea el único donde se puede pegar el equivocado. **Una
+ * ficha mal cerrada es peor que una abierta**: la abierta la vuelve a mirar
+ * alguien; la cerrada contra la reserva de otro se ve resuelta. Es el mismo
+ * criterio por el que el profesor elige *"12/08 10:00 · Clase de DJ"* y nunca un
+ * número.
+ *
+ * **Los candidatos salen de la cuenta de la ficha**, con las consultas que ya
+ * definen "lo suyo". Por eso una ficha sin cuenta no tiene ninguno — y el panel
+ * lo dice con su salida al lado en vez de mostrar una lista vacía, que se lee
+ * como *el sistema perdió los datos*. Es el mismo criterio que los bloques con
+ * aviso de la ficha del alumno.
+ *
+ * **Las filas con reparo —anuladas, canceladas— se ofrecen igual, marcadas.**
+ * Esconderlas deja a quien atiende buscando algo que está y no aparece, y el
+ * final de esa búsqueda es cerrar la ficha contra cualquier otra cosa.
+ */
+function CerrarLaFicha({
+  ficha,
+  onCerrar,
+  onConfirmar,
+}: {
+  ficha: SolicitanteResumen
+  onCerrar: () => void
+  onConfirmar: (destino: DestinoDeLaFicha) => void
+}) {
+  const [candidatos, setCandidatos] = useState<CandidatoDeLaFicha[] | null>(null)
+  const [elegido, setElegido] = useState<string>('')
+  const [error, setError] = useErrorPasajero()
+
+  useEffect(() => {
+    let vigente = true
+    candidatosDeLaFicha(ficha.idSolicitante)
+      .then((lista) => {
+        if (vigente) setCandidatos(lista)
+      })
+      .catch((e) => {
+        if (vigente) {
+          setCandidatos([])
+          setError(e instanceof ApiError ? e.message : 'No se pudo buscar qué cargarle.')
+        }
+      })
+    return () => {
+      vigente = false
+    }
+  }, [ficha.idSolicitante, setError])
+
+  const sigue = DONDE_SIGUE[ficha.interes]
+
+  return (
+    <form
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault()
+        const elegida = (candidatos ?? []).find((c) => llave(c) === elegido)
+        if (!elegida) {
+          setError('Elegí qué se le cargó.')
+          return
+        }
+        onConfirmar({ tipo: elegida.tipo, id: elegida.id })
+      }}
+    >
+      <h3 className="t-seccion mb-1">¿Qué se le cargó?</h3>
+      <p className="mb-4 text-sm text-tenue">
+        La ficha queda apuntando a eso para siempre: dentro de tres meses se abre y se ve qué salió
+        de ella. Por eso no hay un “marcar como atendida”.
+      </p>
+
+      {error && (
+        <div className="mb-4">
+          <Aviso>{error}</Aviso>
+        </div>
+      )}
+
+      {candidatos === null ? (
+        <p className="text-sm text-tenue">Buscando…</p>
+      ) : candidatos.length === 0 ? (
+        <p className="text-sm text-tenue">
+          {ficha.idUsuario === null ? (
+            <>
+              Esta ficha todavía no tiene cuenta, y lo que se ofrece acá sale de ella.{' '}
+              <strong className="text-texto">Creale la cuenta primero</strong> y después cargale lo
+              que pidió.
+            </>
+          ) : (
+            <>
+              A esta persona todavía no se le cargó nada.{' '}
+              {sigue && (
+                <>
+                  {sigue.texto} en{' '}
+                  <Link to={sigue.ruta} className="text-acento underline underline-offset-2">
+                    {NOMBRE_DE_PANTALLA[sigue.ruta]}
+                  </Link>{' '}
+                  y volvé acá a cerrar la ficha.
+                </>
+              )}
+            </>
+          )}
+        </p>
+      ) : (
+        <CampoSelect
+          etiqueta="Lo que se le cargó"
+          value={elegido}
+          onChange={(e) => setElegido(e.target.value)}
+        >
+          <option value="">Elegí una…</option>
+          {candidatos.map((c) => (
+            <option key={llave(c)} value={llave(c)}>
+              {`${fecha(c.cuando)} · ${c.descripcion}${c.reparo ? ` (${c.reparo})` : ''}`}
+            </option>
+          ))}
+        </CampoSelect>
+      )}
+
+      <div className="mt-5 flex gap-3">
+        <Boton type="submit" disabled={!candidatos?.length}>
+          Cerrar la ficha
+        </Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}
+
+/**
+ * La clave de una opción.
+ *
+ * **Lleva el tipo y no sólo el id**, porque los ids son de tres tablas distintas:
+ * la reserva 7 y la venta 7 existen las dos. Sin el tipo, elegir una cerraría la
+ * ficha contra la otra — y el CHECK de `V27` no puede verlo, porque las dos filas
+ * son válidas.
+ */
+function llave(c: CandidatoDeLaFicha): string {
+  return `${c.tipo}:${c.id}`
+}
+
+/**
+ * Lo que la ficha del alumno tiene, pero al revés.
+ *
+ * Está acá y no en `DONDE_SIGUE` porque ahí la ruta es el dato y el nombre es
+ * cómo se dibuja. Antes vivía como un ternario anidado de tres ramas adentro de
+ * {@link CuentaLista}, que es donde este mismo mapa se necesitó primero.
+ */
+const NOMBRE_DE_PANTALLA: Record<string, string> = {
+  '/admin/inscripciones': 'Inscripciones',
+  '/admin/reservas': 'el Calendario',
+  '/admin/ventas': 'Venta de equipos',
 }
 
 /**
@@ -345,7 +545,7 @@ function EnlaceDeWhatsapp({ href, children }: { href: string; children: React.Re
 }
 
 /**
- * Lo que hay que hacer después de convertir.
+ * Lo que hay que hacer después de crearle la cuenta.
  *
  * **Cuenta dos historias distintas y no una con un hueco.** Si la cuenta se creó,
  * lo importante es la contraseña —que no se puede volver a ver— y pasarla por
@@ -410,22 +610,24 @@ function CuentaLista({
         </>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-tenue">
-          No hay contraseña que mandarle: entra con la suya. La ficha quedó apuntando a esa
-          cuenta.
+          No hay contraseña que mandarle: entra con la suya. La ficha quedó apuntando a esa cuenta
+          y <strong className="text-texto">sigue abierta</strong>: falta cargarle lo que pidió.
         </p>
       )}
 
+      {/* ⚠️ **Y volvé**, que es la mitad que `V27` agregó. Antes el link era el
+          final del trámite —crear la cuenta cerraba la ficha—; ahora la ficha
+          sigue abierta hasta que exista lo que pidieron, así que la frase tiene
+          que decir que hay un paso más y dónde termina. Sin eso, el link manda a
+          alguien a otra pantalla y la ficha se queda esperando. */}
       {sigue && (
         <p className="mt-4 text-sm text-tenue">
           {sigue.texto} en{' '}
           <Link to={sigue.ruta} className="text-acento underline underline-offset-2">
-            {sigue.ruta === '/admin/inscripciones'
-              ? 'Inscripciones'
-              : sigue.ruta === '/admin/reservas'
-                ? 'el Calendario'
-                : 'Venta de equipos'}
-          </Link>
-          .
+            {NOMBRE_DE_PANTALLA[sigue.ruta]}
+          </Link>{' '}
+          y volvé al buzón a cerrar la ficha con <strong className="text-texto">Ya se lo
+          cargué</strong>.
         </p>
       )}
 

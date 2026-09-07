@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.jayway.jsonpath.JsonPath;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -276,6 +277,90 @@ class SolicitanteTest {
                 .andExpect(jsonPath("$.passwordTemporal").doesNotExist());
     }
 
+    // == Los candidatos: lo que hay para elegir al cerrar ====================
+
+    /**
+     * <b>Una ficha sin cuenta no tiene candidatos</b>, y contesta vacío en vez de
+     * fallar.
+     *
+     * <p>Las tres consultas entran por {@code id_usuario}, así que esto no es un
+     * borde: es el estado en el que llega toda ficha nueva. La pantalla lo
+     * distingue de "no se le cargó nada todavía" mirando {@code idUsuario}, y
+     * ofrece crear la cuenta.
+     */
+    @Test
+    void una_ficha_sin_cuenta_no_tiene_candidatos() throws Exception {
+        mvc.perform(get("/api/solicitantes/" + mandarUnaFicha("EQUIPOS") + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * Con cuenta, se ofrece lo de esa persona — con su descripción ya legible, que
+     * es lo que evita el único campo del sistema donde habría que tipear un id.
+     */
+    @Test
+    void los_candidatos_son_lo_que_esa_persona_tiene() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        long duenio = darleCuenta(ficha);
+        long venta = unaVentaDe(duenio);
+
+        mvc.perform(get("/api/solicitantes/" + ficha + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)].tipo".formatted(venta)).value("VENTA"))
+                .andExpect(jsonPath("$[?(@.id == %d)].descripcion".formatted(venta))
+                        .value(Matchers.contains("DDJ-400")));
+    }
+
+    /**
+     * El par del anterior, que es el que importa: <b>lo de otra persona no
+     * aparece</b>.
+     *
+     * <p>Sin este caso, una consulta a la que se le olvida el filtro por cuenta
+     * deja la pantalla funcionando y ofreciendo de más — y el final de eso es una
+     * ficha cerrada contra la compra de otro, que se ve resuelta. Es la misma
+     * razón por la que el portal está escrito en pares desde el Módulo 4.
+     */
+    @Test
+    void no_se_ofrece_lo_de_otra_persona() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        darleCuenta(ficha);
+        long ajena = unaVentaDe(crear(Rol.USUARIO).getId());
+
+        mvc.perform(get("/api/solicitantes/" + ficha + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(ajena)).isEmpty());
+    }
+
+    /**
+     * <b>Una venta anulada se ofrece igual, con el reparo escrito.</b>
+     *
+     * <p>Es una decisión y no un descuido, y por eso tiene caso: esconderla deja a
+     * quien atiende buscando algo que está y no aparece, y el final de esa
+     * búsqueda es cerrar la ficha contra cualquier otra cosa. Mostrada con el
+     * reparo, la decisión la toma quien mira.
+     */
+    @Test
+    void una_venta_anulada_se_ofrece_con_el_reparo_escrito() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        long venta = unaVentaDe(darleCuenta(ficha));
+
+        jdbc.update("""
+                UPDATE venta_equipo SET anulada = TRUE, id_usuario_anula = ?,
+                       fecha_anulacion = now(), motivo_anulacion = 'Cargada por error'
+                WHERE id_venta = ?
+                """, crear(Rol.STAFF).getId(), venta);
+
+        mvc.perform(get("/api/solicitantes/" + ficha + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)].reparo".formatted(venta))
+                        .value(Matchers.contains("anulada")));
+    }
+
     // == Atender: lo que sí cierra la ficha ==================================
 
     /**
@@ -450,6 +535,30 @@ class SolicitanteTest {
                 VALUES (?, 'Comprador de prueba', 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
                 RETURNING id_venta
                 """, Long.class, crear(Rol.STAFF).getId());
+    }
+
+    /**
+     * Crearle la cuenta y devolver su id. Es el paso previo de todo lo que mira
+     * candidatos: sin cuenta no hay de dónde sacarlos.
+     */
+    private long darleCuenta(long ficha) throws Exception {
+        ResultActions respuesta = mvc.perform(post("/api/solicitantes/" + ficha + "/cuenta")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+
+        return ((Number) JsonPath.read(
+                respuesta.andReturn().getResponse().getContentAsString(), "$.usuario.id"))
+                .longValue();
+    }
+
+    /** Una venta cuya compradora <b>tiene cuenta</b>, que es la que se ofrece. */
+    private long unaVentaDe(long idComprador) {
+        return jdbc.queryForObject("""
+                INSERT INTO venta_equipo (id_usuario_vendedor, id_usuario_comprador,
+                                          modelo_equipo, precio, moneda, fecha_venta)
+                VALUES (?, ?, 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
+                RETURNING id_venta
+                """, Long.class, crear(Rol.STAFF).getId(), idComprador);
     }
 
     private long mandarUnaFicha(String interes) throws Exception {

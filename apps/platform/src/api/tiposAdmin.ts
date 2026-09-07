@@ -723,9 +723,12 @@ export const NOMBRE_DE_INTERES: Record<InteresDelSolicitante, string> = {
 }
 
 /**
- * A dónde sigue el trámite después de convertir la ficha. Es la razón de ser de
- * `interes`, y vive acá y no adentro de la pantalla para que se lea junto con la
- * tabla de nombres: son la misma decisión mirada dos veces.
+ * A dónde sigue el trámite de una ficha: dónde se carga lo que pidieron. Es la
+ * razón de ser de `interes`, y vive acá y no adentro de la pantalla para que se
+ * lea junto con la tabla de nombres: son la misma decisión mirada dos veces.
+ *
+ * ⚠️ **No es el final del trámite desde `V27`**, y el texto de la pantalla lo
+ * dice: se carga allá y se vuelve al buzón a cerrar la ficha apuntando a eso.
  */
 export const DONDE_SIGUE: Record<InteresDelSolicitante, { texto: string; ruta: string } | null> = {
   CURSO: { texto: 'Cargale la inscripción', ruta: '/admin/inscripciones' },
@@ -818,7 +821,27 @@ export type DestinoDeLaFicha = {
 }
 
 /**
- * Lo que devuelve convertir. Espeja `ConversionRealizada`.
+ * Algo que una ficha del buzón **pudo haber producido**, ofrecido para cerrarla.
+ * Espeja `CandidatoDeLaFicha`.
+ *
+ * **Existe para que no haya ni un campo donde tipear un id.** Este sistema no
+ * muestra ids en ninguna pantalla —el profesor elige *"12/08 10:00 · Clase de
+ * DJ"*— y el buzón no iba a ser la excepción: una ficha cerrada contra la reserva
+ * de otro se ve resuelta, que es lo único que este buzón no puede permitirse.
+ */
+export type CandidatoDeLaFicha = {
+  tipo: DestinoDeLaFicha['tipo']
+  id: number
+  /** Ya legible, resuelto en el servidor. Mismo criterio que `queSalda`. */
+  descripcion: string
+  /** La fecha la escribe `fecha()`, que es la única forma de escribir una acá. */
+  cuando: string
+  /** Anulada, cancelada, pausada… `null` si no hay nada que aclarar. */
+  reparo: string | null
+}
+
+/** Lo que devuelve crearle la cuenta. Espeja `ConversionRealizada` — el nombre
+ * del record es de antes de `V27`, cuando esto además cerraba la ficha.
  *
  * `passwordTemporal` viene **null cuando la persona ya tenía cuenta**, que es el
  * otro camino de la conversión. No es un dato que falte: es la diferencia entre

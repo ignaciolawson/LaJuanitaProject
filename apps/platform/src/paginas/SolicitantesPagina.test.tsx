@@ -1,11 +1,16 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual as Actual } from '../api/tipos'
-import type { ConversionRealizada, SolicitanteResumen } from '../api/tiposAdmin'
+import type {
+  CandidatoDeLaFicha,
+  ConversionRealizada,
+  SolicitanteResumen,
+} from '../api/tiposAdmin'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
+import { elegir } from '../pruebas/elegir'
 import { SolicitantesPagina } from './SolicitantesPagina'
 
 /**
@@ -26,14 +31,19 @@ import { SolicitantesPagina } from './SolicitantesPagina'
 
 vi.mock('../api/administracion', () => ({
   listarSolicitantes: vi.fn(),
+  candidatosDeLaFicha: vi.fn(),
   darleCuentaAlSolicitante: vi.fn(),
   atenderSolicitante: vi.fn(),
   descartarSolicitante: vi.fn(),
 }))
 
-const { listarSolicitantes, darleCuentaAlSolicitante, descartarSolicitante } = await import(
-  '../api/administracion'
-)
+const {
+  listarSolicitantes,
+  candidatosDeLaFicha,
+  darleCuentaAlSolicitante,
+  atenderSolicitante,
+  descartarSolicitante,
+} = await import('../api/administracion')
 
 function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
   return {
@@ -114,8 +124,21 @@ function montar(rol: Actual['rol'] = 'STAFF') {
   )
 }
 
+/** Un candidato: lo que se le ofrece a quien cierra la ficha. */
+function candidato(cambios: Partial<CandidatoDeLaFicha> = {}): CandidatoDeLaFicha {
+  return {
+    tipo: 'INSCRIPCION',
+    id: 77,
+    descripcion: 'DJ · INICIAL',
+    cuando: '2026-09-15',
+    reparo: null,
+    ...cambios,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
   vi.mocked(listarSolicitantes).mockResolvedValue({
     contenido: [ficha()],
     pagina: 0,
@@ -326,5 +349,158 @@ describe('escribirle por WhatsApp', () => {
 
     expect(escribir).toHaveBeenCalledWith('11-5555-4444')
     expect(await screen.findByRole('button', { name: 'Copiado' })).toBeDefined()
+  })
+
+  // == Cerrar la ficha: lo único que la resuelve ============================
+
+  /**
+   * ⚠️ **El caso central de `V27`: se elige de una lista, no se tipea un id.**
+   *
+   * Sin esto la pantalla sería el único lugar del sistema donde hay que copiar un
+   * número de otra —o sea el único donde se puede pegar el equivocado—, y una
+   * ficha cerrada contra la reserva de otro **se ve resuelta**, que es lo único
+   * que este buzón no puede permitirse.
+   */
+  it('cierra la ficha eligiendo lo que se le cargó, sin tipear ningún id', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ idUsuario: 40 })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato()])
+    vi.mocked(atenderSolicitante).mockResolvedValue(ficha({ estado: 'ATENDIDO' }))
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+    await elegir(userEvent, 'Lo que se le cargó', 'INSCRIPCION:77')
+    await userEvent.click(screen.getByRole('button', { name: 'Cerrar la ficha' }))
+
+    await waitFor(() =>
+      expect(atenderSolicitante).toHaveBeenCalledWith(3, { tipo: 'INSCRIPCION', id: 77 }),
+    )
+  })
+
+  /**
+   * La opción se lee por su fecha y su descripción — **nunca por su id**, que es
+   * lo que hace que se pueda reconocer *"la cabina del viernes"*.
+   *
+   * La fecha la escribe `fecha()`, la única forma en que este sistema escribe
+   * una: el servidor la manda typed justamente para eso (§14 · A5).
+   */
+  it('la opción se lee por su fecha y lo que es', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ idUsuario: 40 })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato()])
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+    const select = await screen.findByLabelText('Lo que se le cargó')
+
+    expect(
+      await within(select).findByRole('option', { name: '15/09/2026 · DJ · INICIAL' }),
+    ).toBeDefined()
+  })
+
+  /**
+   * **Lo anulado se ofrece igual, con el reparo escrito.** Esconderlo deja a
+   * quien atiende buscando algo que está y no aparece, y el final de esa búsqueda
+   * es cerrar la ficha contra cualquier otra cosa.
+   */
+  it('ofrece lo anulado, marcado', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ idUsuario: 40, interes: 'EQUIPOS' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([
+      candidato({ tipo: 'VENTA', id: 9, descripcion: 'Pioneer DDJ-400', reparo: 'anulada' }),
+    ])
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+    const select = await screen.findByLabelText('Lo que se le cargó')
+
+    expect(await within(select).findByRole('option', { name: /anulada/ })).toBeDefined()
+  })
+
+  /**
+   * ⚠️ **Sin cuenta no hay candidatos, y la pantalla lo dice con la salida al
+   * lado.** Una lista vacía sin explicación se lee como *el sistema perdió los
+   * datos*; es el mismo criterio que los bloques con aviso de la ficha del alumno.
+   */
+  it('una ficha sin cuenta explica por qué no hay nada para elegir', async () => {
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+
+    expect(await screen.findByText(/todavía no tiene cuenta/)).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Cerrar la ficha' })).toHaveProperty('disabled', true)
+  })
+
+  /**
+   * Con cuenta pero sin nada cargado, el mensaje es **el otro**: no falta la
+   * cuenta, falta cargarle lo que pidió — y dice dónde.
+   */
+  it('con cuenta y sin nada cargado manda a la pantalla que sigue', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ idUsuario: 40 })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+
+    expect(await screen.findByText(/todavía no se le cargó nada/)).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Inscripciones' })).toBeDefined()
+  })
+
+  // == La etapa: lo que la etiqueta dice ====================================
+
+  /**
+   * ⚠️ **Las cinco ramas de `etapaDeLaFicha`, que es la lectura de `FichaAbierta`
+   * del lado del cliente.**
+   *
+   * La que importa es la tercera: *"Atendida"* sobre una ficha cuya sala se
+   * apartó y nadie señó es **cierto y no sirve** — la persona sigue sin su
+   * cabina. Antes de `V27` la ficha ni siquiera aparecía en la lista.
+   */
+  it.each([
+    [{}, 'Sin contestar'],
+    [{ idUsuario: 40 }, 'Tiene cuenta · falta cargarle lo que pidió'],
+    [
+      { estado: 'ATENDIDO' as const, estadoDeLaReserva: 'PRECONFIRMADA' as const },
+      'Apartada · falta la seña',
+    ],
+    [
+      { estado: 'ATENDIDO' as const, estadoDeLaReserva: 'CANCELADA' as const },
+      'Se venció sin señar',
+    ],
+    [{ estado: 'ATENDIDO' as const, idInscripcion: 77 }, 'Atendida'],
+    [{ estado: 'DESCARTADO' as const, respuesta: 'Spam' }, 'Descartada'],
+  ])('la etiqueta dice la etapa: %o → %s', async (cambios, texto) => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha(cambios)],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    expect(await screen.findByText(texto)).toBeDefined()
   })
 })

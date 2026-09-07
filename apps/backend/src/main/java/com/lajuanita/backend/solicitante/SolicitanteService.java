@@ -1,13 +1,20 @@
 package com.lajuanita.backend.solicitante;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
+import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
+import com.lajuanita.backend.reserva.EstadoAsistencia;
 import com.lajuanita.backend.reserva.ReservaRepository;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
+import com.lajuanita.backend.solicitante.dto.CandidatoDeLaFicha;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
 import com.lajuanita.backend.solicitante.dto.DestinoRequest;
 import com.lajuanita.backend.solicitante.dto.SolicitanteResumen;
@@ -24,7 +31,7 @@ import com.lajuanita.backend.venta.VentaEquipoRepository;
 
 /**
  * El circuito de una ficha del buzón: alguien completa un formulario en la
- * landing, y administración la convierte en cuenta o la descarta.
+ * landing, y administración le carga lo que pidió o la descarta.
  *
  * <h2>Las dos mitades y sus dos permisos</h2>
  *
@@ -32,7 +39,7 @@ import com.lajuanita.backend.venta.VentaEquipoRepository;
  * escritura público del sistema fuera del registro. Todo lo demás es
  * administración, como el resto del proyecto.
  *
- * <h2>Por qué la conversión tiene dos caminos y no uno</h2>
+ * <h2>Por qué crear la cuenta tiene dos caminos y no uno</h2>
  *
  * <p>El caso obvio es crear la cuenta. El otro —<b>la persona ya la tenía</b>— no
  * es un borde raro: un alumno que cursa hace un año y pide la cabina desde la
@@ -40,10 +47,14 @@ import com.lajuanita.backend.venta.VentaEquipoRepository;
  * {@code usuario_email_unico} y queda trabada para siempre, o peor, se descarta
  * como si el pedido no valiera.
  *
- * <p>Los dos terminan igual —la ficha CONVERTIDA apuntando a una cuenta— porque
- * para el buzón son el mismo hecho: <b>ya hay a quién cargarle el curso</b>. Lo
- * único que cambia es si hay una contraseña que pasar por WhatsApp, y eso viaja
- * explícito en {@link ConversionRealizada}.
+ * <p>Los dos terminan igual —la ficha apuntando a una cuenta, y <b>abierta</b>—
+ * porque para el buzón son el mismo hecho: <b>ya hay a quién cargarle el
+ * curso</b>. Lo único que cambia es si hay una contraseña que pasar por WhatsApp,
+ * y eso viaja explícito en {@link ConversionRealizada}.
+ *
+ * <p>⚠️ <b>Ninguno de los dos cierra la ficha</b>, que es el cambio de `V27`: la
+ * cuenta es una comodidad para el cliente (P54), y quien pidió la cabina sigue
+ * sin tenerla. La cierra {@link #atender}.
  *
  * <h2>Lo que este servicio NO hace, decidido y no olvidado</h2>
  *
@@ -129,7 +140,7 @@ public class SolicitanteService {
     }
 
     /**
-     * Convertir la ficha en una cuenta.
+     * Crearle la cuenta a quien mandó la ficha.
      *
      * <p>Los dos caminos están explicados en la cabecera. El que crea delega en
      * {@link UsuarioService#altaPorAdministracion} y no arma el {@code Usuario}
@@ -138,7 +149,7 @@ public class SolicitanteService {
      * olvida de una de las tres.
      *
      * <p><b>Se pasa {@code puedeAsignarRoles = false} siempre</b>, aunque quien
-     * convierte sea ADMIN. No es una restricción de permisos sino de qué es esto:
+     * la crea sea ADMIN. No es una restricción de permisos sino de qué es esto:
      * una ficha de la landing es una persona que quiere contratar un servicio, y
      * un rol administrativo no se otorga desde un formulario público ni por
      * accidente. Si esa persona además va a administrar, se le cambia el rol en
@@ -203,6 +214,63 @@ public class SolicitanteService {
         fichas.flush();
 
         return SolicitanteResumen.de(ficha);
+    }
+
+
+    /**
+     * Lo que esta ficha <b>pudo haber producido</b>: lo que hay para elegir al
+     * cerrarla.
+     *
+     * <h2>Salen de la cuenta, y por eso una ficha sin cuenta no tiene candidatos</h2>
+     *
+     * <p>Las tres consultas entran por {@code id_usuario}, así que una ficha a la
+     * que todavía no se le creó la cuenta contesta las tres listas vacías. <b>No
+     * es un caso olvidado</b>: la pantalla lo dice y ofrece crear la cuenta, que
+     * es el paso que faltaba. Cruzar por nombre sería la alternativa y es peor —
+     * dos "Juan Pérez" son dos personas, y una ficha cerrada contra lo del otro
+     * se ve resuelta, que es lo único que este buzón no puede permitirse.
+     *
+     * <p>Eso <b>no vuelve la cuenta un requisito del servicio</b>, que es lo que
+     * P54 rechaza: la persona tiene su reserva igual. Es un requisito de poder
+     * anotar en la ficha contra qué se cerró, y P54 mantiene que la cuenta se
+     * crea siempre.
+     *
+     * <h2>La ventana de las reservas</h2>
+     *
+     * <p>{@code deLaPersona} filtra por la fecha de la reserva, así que hay que
+     * darle un rango. Va desde <b>un mes antes de que la ficha llegara</b> —una
+     * reserva anterior a eso no la pudo producir esta ficha, y el mes es margen
+     * para la que se cargó con fecha retroactiva— hasta un año adelante, el mismo
+     * techo que usa el reporte de uso de salas.
+     *
+     * <p>Las inscripciones y las ventas vienen sin ventana: son listas cortas por
+     * persona, y acotarlas sólo agregaría una fecha más que puede esconder la fila
+     * que se busca.
+     */
+    @Transactional(readOnly = true)
+    public List<CandidatoDeLaFicha> candidatosDe(Long id) {
+        Solicitante ficha = fichas.porIdConDetalle(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la ficha " + id + "."));
+
+        Usuario cuenta = ficha.getUsuario();
+        if (cuenta == null) {
+            return List.of();
+        }
+
+        LocalDate llegada = ficha.getFechaCreacion().toLocalDate();
+        List<CandidatoDeLaFicha> candidatos = new ArrayList<>();
+
+        reservas.deLaPersona(cuenta.getId(), llegada.minusMonths(1), llegada.plusYears(1),
+                EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON)
+                .forEach(r -> candidatos.add(CandidatoDeLaFicha.de(r)));
+
+        inscripciones.deLaPersona(cuenta.getId())
+                .forEach(i -> candidatos.add(CandidatoDeLaFicha.de(i)));
+
+        ventas.deLaPersona(cuenta.getId())
+                .forEach(v -> candidatos.add(CandidatoDeLaFicha.de(v)));
+
+        return candidatos;
     }
 
     /**
