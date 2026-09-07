@@ -198,6 +198,26 @@ the platform, `/api` the backend — which is the exact shape production will ha
 test anything that crosses between the two apps (the login above all); use :5173/app/ to
 develop the platform, because **HMR does not travel through Next's rewrites**.
 
+⚠️ **The backend does NOT reload — there is no `spring-boot-devtools` in the pom — and
+its stale-process symptom points at the wrong place.** A running `mvn spring-boot:run`
+froze its request mappings at startup; recompiling (even `mvn clean compile`, even a
+full `mvn test`) does not reach it. So after **any** endpoint change or migration you
+must restart it, and the symptom when you don't is a **404 whose message reads like a
+routing bug**: *"No static resource api/solicitantes/694/cuenta."* — Spring's
+`NoResourceFoundException`, i.e. the path reached the static handler because no
+controller matched. Measured on 2026-09-06: a backend started at 18:51 still served the
+pre-`V27` `/{id}/conversion` and answered *"Ese estado de ficha no existe"*, because it
+was writing `CONVERTIDO` to a database whose CHECK no longer has it — **a stale process
+is not just missing the new route, it is actively broken against the migrated schema**.
+
+⚠️ **And an unauthenticated probe cannot tell you which routes exist**: Spring Security
+rejects before the dispatcher, so a route that exists and one that doesn't both answer
+401. Diagnose with a token — an existing route gives a business error, a missing one
+gives *"No static resource"*. This is the Spring twin of the Vite trap above (*"if you
+change a file and the browser doesn't reflect it, check that the process on the port is
+the new one before looking for the bug anywhere else"*), and it costs more here because
+the message names a resource path instead of saying "stale server".
+
 Docker Desktop is often not running and `docker compose up -d` fails with a named-pipe error
 until you launch it; on this machine it is at `C:\Program Files\Docker\Docker\Docker Desktop.exe`
 and takes ~20 s to answer after starting.
