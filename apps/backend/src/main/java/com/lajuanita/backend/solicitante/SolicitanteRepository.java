@@ -1,5 +1,6 @@
 package com.lajuanita.backend.solicitante;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -64,4 +65,27 @@ public interface SolicitanteRepository extends JpaRepository<Solicitante, Long> 
      */
     @Query("SELECT count(s) FROM Solicitante s WHERE " + FichaAbierta.JPQL)
     long contarAbiertas();
+
+    /**
+     * Cuántas fichas <b>nadie contestó</b> desde hace rato, para el aviso
+     * automático (`mejoras.md` §15 · Fase 5).
+     *
+     * <p>⚠️ <b>Pregunta por {@code PENDIENTE} y NO por {@link FichaAbierta}</b>, y
+     * es el único lugar del sistema donde las dos difieren a propósito. Una ficha
+     * con la sala apartada y la seña sin cobrar <b>está abierta</b> —le debemos
+     * algo— pero <b>fue contestada</b>: alguien la atendió, le apartó el horario y
+     * le escribió. Lo que falta ahí es que la persona pague, y de eso avisa la
+     * deuda, con su propia regla y su propio plazo. Meterla acá sería avisar dos
+     * veces del mismo hecho con dos textos distintos.
+     */
+    long countByEstadoAndFechaCreacionBefore(EstadoSolicitante estado, OffsetDateTime limite);
+
+    /**
+     * La más vieja sin contestar. <b>Es la que le da su clave al aviso.</b>
+     *
+     * <p>Ver {@code AvisoService} para por qué el aviso se identifica por ella y no
+     * por la cantidad ni por el día de la corrida.
+     */
+    Optional<Solicitante> findFirstByEstadoAndFechaCreacionBeforeOrderByIdAsc(
+            EstadoSolicitante estado, OffsetDateTime limite);
 }

@@ -72,6 +72,134 @@ class AvisosTest {
 
     // == La pregunta del módulo: correr dos veces =============================
 
+    // == Fase 5: las fichas del buzón que nadie contestó =====================
+
+    /**
+     * Una ficha que nadie contestó hace más de 48 horas se avisa a administración.
+     *
+     * <p>Es la respuesta a la pregunta que `V20` ya había contestado que no —el
+     * buzón no avisa por formulario, porque es el único escritor público del
+     * sistema— hecha de la forma que su propio comentario dejó anotada: <b>un aviso
+     * por hecho.</b>
+     */
+    @Test
+    void una_ficha_vieja_sin_contestar_se_avisa() {
+        vaciarElBuzon();
+        Usuario staff = crear(Rol.STAFF);
+        long ficha = fichaSinContestarDeHace(50);
+
+        ResumenDeAvisos resumen = avisos.generar();
+        em.flush();
+
+        assertThat(resumen.fichasSinAtender()).isEqualTo(1);
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + ficha, staff)).isEqualTo(1);
+    }
+
+    /** Una recién llegada no: 48 horas es el plazo, no una formalidad. */
+    @Test
+    void una_ficha_de_hoy_no_se_avisa() {
+        vaciarElBuzon();
+        crear(Rol.STAFF);
+        fichaSinContestarDeHace(2);
+
+        assertThat(avisos.generar().fichasSinAtender()).isZero();
+    }
+
+    /**
+     * ⚠️ <b>El caso que sostiene la decisión de la clave, y el que más caro sale
+     * perder.</b>
+     *
+     * <p>Con más fichas viejas el aviso <b>sigue siendo uno</b>, y con la clave de
+     * la más vieja. Las dos formas obvias de escribir esa clave fallan cada una
+     * para un lado: con la fecha de la corrida el aviso sale todos los días —el
+     * recordatorio diario que vuelve ruido la bandeja—, y con la cantidad sale de
+     * nuevo cada vez que entra un formulario más, o sea que <b>cuanto peor anda el
+     * buzón, más ruido hace</b>.
+     *
+     * <p>Y hay una razón por la que esto importa más acá que en las otras tres
+     * reglas: un deudor, una entrega y un lanzamiento los crea administración.
+     * <b>Una ficha la crea cualquiera desde internet</b>, así que uno por ficha
+     * sería la misma inundación que `V20` evitó, corrida cuarenta y ocho horas.
+     */
+    @Test
+    void muchas_fichas_viejas_son_un_solo_aviso_con_la_clave_de_la_mas_vieja() {
+        vaciarElBuzon();
+        Usuario staff = crear(Rol.STAFF);
+        long primera = fichaSinContestarDeHace(72);
+        long segunda = fichaSinContestarDeHace(60);
+        long tercera = fichaSinContestarDeHace(50);
+
+        ResumenDeAvisos resumen = avisos.generar();
+        em.flush();
+
+        assertThat(resumen.fichasSinAtender()).isEqualTo(3);
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + primera, staff)).isEqualTo(1);
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + segunda, staff)).isZero();
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + tercera, staff)).isZero();
+    }
+
+    /**
+     * La otra mitad de la misma decisión: <b>en cuanto se contesta la más vieja, la
+     * siguiente hereda el problema y el aviso vuelve a salir.</b>
+     *
+     * <p>Sin esto, el aviso avisaría una vez en la vida del buzón y nunca más — que
+     * es el modo de falla de una clave demasiado estable, el simétrico del ruido.
+     *
+     * <p>Y esa clave <b>no puede repetirse nunca</b>, que es lo que hace que el
+     * índice parcial de `V17` alcance: una ficha nace PENDIENTE y sólo sale de ahí
+     * —atender y descartar son finales (`V13` §4)—, así que el id más chico sin
+     * contestar sólo puede crecer.
+     */
+    @Test
+    void al_contestar_la_mas_vieja_el_aviso_vuelve_a_salir_por_la_siguiente() {
+        vaciarElBuzon();
+        Usuario staff = crear(Rol.STAFF);
+        long primera = fichaSinContestarDeHace(72);
+        long segunda = fichaSinContestarDeHace(60);
+
+        avisos.generar();
+        em.flush();
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + primera, staff)).isEqualTo(1);
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + segunda, staff)).isZero();
+
+        jdbc.update("""
+                UPDATE solicitante SET estado = 'DESCARTADO', respuesta = 'spam',
+                       id_usuario_resuelve = ?, fecha_resolucion = now()
+                WHERE id_solicitante = ?
+                """, staff.getId(), primera);
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("FICHA_SIN_ATENDER:desde=" + segunda, staff)).isEqualTo(1);
+    }
+
+    /**
+     * ⚠️ <b>Una ficha con la sala apartada NO cuenta, y es el único lugar del
+     * sistema donde "abierta" y "sin contestar" difieren a propósito.</b>
+     *
+     * <p>{@code FichaAbierta} la considera abierta —le debemos algo— y tiene razón:
+     * falta la seña. Pero <b>fue contestada</b>: alguien la atendió, apartó el
+     * horario y le escribió. De lo que falta ahí avisa la deuda, con su propio
+     * plazo y su propio texto. Contarla acá sería avisar dos veces del mismo hecho
+     * diciendo dos cosas distintas — y la segunda, <i>"nadie contestó"</i>, sería
+     * falsa.
+     */
+    @Test
+    void una_ficha_ya_atendida_no_cuenta_como_sin_contestar() {
+        vaciarElBuzon();
+        crear(Rol.STAFF);
+        long ficha = fichaSinContestarDeHace(72);
+
+        jdbc.update("""
+                UPDATE solicitante SET estado = 'DESCARTADO', respuesta = 'ya la llamé',
+                       id_usuario_resuelve = ?, fecha_resolucion = now()
+                WHERE id_solicitante = ?
+                """, crear(Rol.ADMIN).getId(), ficha);
+
+        assertThat(avisos.generar().fichasSinAtender()).isZero();
+    }
+
     /**
      * <b>El caso central.</b> Dos corridas el mismo día sobre el mismo hecho: un
      * aviso, no dos. Y el resumen de la segunda lo dice en vez de callárselo —
@@ -520,6 +648,41 @@ class AvisosTest {
                 VALUES (?, 'MIX_MASTER', 'Tema de prueba', 150.00, 'USD', ?, ?)
                 RETURNING id_trabajo
                 """, Long.class, "Cliente " + UUID.randomUUID(), estado, entrega);
+    }
+
+    /**
+     * Dejar el buzón sin fichas pendientes, para que el caso controle el conjunto.
+     *
+     * <p>⚠️ <b>Ninguno de los otros 23 casos de esta suite necesita esto, y la
+     * razón es la que hace distinta a esta regla: es la única cuyo hecho es un
+     * CONJUNTO y no una fila.</b> Un aviso de deuda se identifica por su deudor, y
+     * que la base de desarrollo tenga otras veinte deudas no lo toca. Acá el aviso
+     * es uno solo para todo el buzón y su clave sale de <b>la ficha más vieja sin
+     * contestar</b>, así que cualquier ficha preexistente —y la base de desarrollo
+     * tiene seis, que `V27` devolvió a PENDIENTE— se lleva la clave puesta.
+     *
+     * <p>Se resuelven en vez de borrarse porque `V20` §3 no deja borrar una ficha,
+     * y no hace falta: la suite es {@code @Transactional} y todo esto vuelve atrás
+     * al terminar el caso.
+     */
+    private void vaciarElBuzon() {
+        jdbc.update("""
+                UPDATE solicitante
+                   SET estado = 'DESCARTADO', respuesta = 'limpieza del test',
+                       id_usuario_resuelve = ?, fecha_resolucion = now()
+                 WHERE estado = 'PENDIENTE'
+                """, crear(Rol.ADMIN).getId());
+    }
+
+    /** Una ficha del buzón que entró hace tantas horas y nadie tocó. */
+    private long fichaSinContestarDeHace(int horas) {
+        return jdbc.queryForObject("""
+                INSERT INTO solicitante (nombre, apellido, email, telefono, interes,
+                                         estado, fecha_creacion)
+                VALUES ('Ana', 'Pérez', ?, '11-5555-0000', 'ALQUILER_CABINA', 'PENDIENTE',
+                        now() - make_interval(hours => ?))
+                RETURNING id_solicitante
+                """, Long.class, "ficha-" + UUID.randomUUID() + "@ejemplo.com", horas);
     }
 
     private int avisosCon(String clave, Usuario destino) {

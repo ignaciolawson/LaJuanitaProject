@@ -3,6 +3,7 @@ package com.lajuanita.backend.aviso;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -22,6 +23,9 @@ import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.Deudor;
 import com.lajuanita.backend.sello.Release;
 import com.lajuanita.backend.sello.ReleaseRepository;
+import com.lajuanita.backend.solicitante.EstadoSolicitante;
+import com.lajuanita.backend.solicitante.Solicitante;
+import com.lajuanita.backend.solicitante.SolicitanteRepository;
 import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -87,10 +91,23 @@ public class AvisoService {
      */
     public static final int DIAS_ANTES_DEL_LANZAMIENTO = 7;
 
+    /**
+     * Cuántas horas puede quedar una ficha del buzón sin que nadie la conteste
+     * (`mejoras.md` §15 · Fase 5).
+     *
+     * <p><b>Se mide en horas y no en días</b>, a diferencia de los otros tres, y no
+     * es una coincidencia de unidades: los otros cuentan plazos de negocio —una
+     * deuda, una entrega, un lanzamiento— y éste cuenta <b>tiempo de respuesta a
+     * una persona que está esperando</b>. Dos días es mucho para contestar un
+     * formulario; dos días de una deuda no es nada.
+     */
+    public static final int HORAS_SIN_CONTESTAR = 48;
+
     private final PagoRepository pagos;
     private final PagoService pagoService;
     private final TrabajoMasteringRepository trabajos;
     private final ReleaseRepository releases;
+    private final SolicitanteRepository fichas;
     private final UsuarioRepository usuarios;
     private final NotificacionService notificaciones;
 
@@ -98,12 +115,14 @@ public class AvisoService {
             PagoService pagoService,
             TrabajoMasteringRepository trabajos,
             ReleaseRepository releases,
+            SolicitanteRepository fichas,
             UsuarioRepository usuarios,
             NotificacionService notificaciones) {
         this.pagos = pagos;
         this.pagoService = pagoService;
         this.trabajos = trabajos;
         this.releases = releases;
+        this.fichas = fichas;
         this.usuarios = usuarios;
         this.notificaciones = notificaciones;
     }
@@ -128,14 +147,15 @@ public class AvisoService {
         int deudas = agregarDeudasVencidas(pendientes, hoy);
         int entregas = agregarEntregasImpagas(pendientes, limite, hoy);
         int lanzamientos = agregarLanzamientosProximos(pendientes, hoy);
+        int sinContestar = agregarFichasSinContestar(pendientes);
 
         int[] escritos = escribir(pendientes);
 
         return new ResumenDeAvisos(hoy, vencidos, deudas, entregas, lanzamientos,
-                escritos[0], escritos[1]);
+                sinContestar, escritos[0], escritos[1]);
     }
 
-    // == Las tres reglas =====================================================
+    // == Las cuatro reglas ===================================================
 
     /**
      * §6 — <i>"alerta automática si alguien lleva más de 7 días en estado 'debe'"</i>.
@@ -254,6 +274,94 @@ public class AvisoService {
                     "/admin/sello"));
         }
         return proximos.size();
+    }
+
+    /**
+     * §15 · Fase 5 — <i>"hay N fichas del buzón sin contestar hace más de 48
+     * horas"</i>.
+     *
+     * <h2>Es la respuesta a una pregunta que `V20` ya había contestado que no</h2>
+     *
+     * <p>El buzón deliberadamente <b>no</b> escribe una notificación por cada
+     * formulario que entra, y el argumento está en {@code SolicitanteService}: es el
+     * <b>único escritor público del sistema</b>, así que un aviso por formulario es
+     * un aviso por cada bot que pase, multiplicado por cada ADMIN y STAFF. Lo que
+     * ese mismo comentario dejó anotado como la forma correcta es exactamente ésta:
+     * <i>un aviso por hecho y no uno por formulario</i>.
+     *
+     * <h2>⚠️ Por qué es UNO agrupado y no uno por ficha</h2>
+     *
+     * <p>Es la única de las cuatro reglas que no emite un aviso por fila, y la
+     * diferencia es de dónde vienen las filas. Un deudor, una entrega y un
+     * lanzamiento los creó administración: no puede haber cincuenta de golpe. <b>Una
+     * ficha la crea cualquiera desde internet</b>, así que uno por ficha sería la
+     * misma inundación que `V20` evitó, corrida cuarenta y ocho horas.
+     *
+     * <h2>⚠️ Y la clave es la MÁS VIEJA, que es lo que lo hace funcionar</h2>
+     *
+     * <p>`V17` exige que la clave describa <b>el hecho y nunca la corrida</b>. Las
+     * dos formas obvias fallan, cada una para un lado:
+     *
+     * <ul>
+     *   <li><b>Con la fecha de la corrida</b> —{@code dia=2026-09-06}— el aviso sale
+     *       todos los días. Es el recordatorio diario que el punto 3 de esta clase
+     *       rechaza: la bandeja se vuelve ruido y el aviso que importa pasa
+     *       desapercibido.
+     *   <li><b>Con la cantidad</b> —{@code n=3}— sale de nuevo cada vez que entra un
+     *       formulario más, o sea que <b>cuanto peor anda el buzón, más ruido hace</b>,
+     *       que es justo al revés.
+     * </ul>
+     *
+     * <p>La ficha más vieja sin contestar da las dos propiedades de una: mientras
+     * nadie conteste, la clave <b>no cambia</b> —lleguen mil formularios nuevos— y
+     * en cuanto se contesta esa, la siguiente hereda el problema y el aviso vuelve a
+     * salir, que es exactamente cuando conviene volver a mirar.
+     *
+     * <p><b>Y no puede repetirse nunca</b>, que es lo que hace que el índice
+     * parcial de `V17` alcance: una ficha nace {@code PENDIENTE} y sólo sale de ahí
+     * —atender y descartar son finales (`V13` §4)—, así que el id más chico sin
+     * contestar sólo puede crecer. Una clave ya usada no vuelve.
+     *
+     * <p>El contenido dice la cantidad <b>del momento en que se escribió</b> y puede
+     * quedar vieja. Es correcto y es el mismo criterio que el resto de la bandeja: la
+     * notificación registra un momento, y el estado permanente es el buzón, que está
+     * hecho para eso.
+     */
+    private int agregarFichasSinContestar(List<Aviso> pendientes) {
+        OffsetDateTime limite = OffsetDateTime.now().minusHours(HORAS_SIN_CONTESTAR);
+
+        // ⚠️ PENDIENTE y no `FichaAbierta`: ver el javadoc de la consulta. Una ficha
+        // con la sala apartada y la seña sin cobrar está abierta pero **fue
+        // contestada**; de lo que falta ahí avisa la deuda, con su plazo.
+        Solicitante masVieja = fichas
+                .findFirstByEstadoAndFechaCreacionBeforeOrderByIdAsc(
+                        EstadoSolicitante.PENDIENTE, limite)
+                .orElse(null);
+
+        if (masVieja == null) {
+            return 0;
+        }
+
+        long cuantas = fichas.countByEstadoAndFechaCreacionBefore(
+                EstadoSolicitante.PENDIENTE, limite);
+        long horas = ChronoUnit.HOURS.between(masVieja.getFechaCreacion(), OffsetDateTime.now());
+
+        pendientes.add(new Aviso(
+                TipoNotificacion.FICHA_SIN_ATENDER,
+                "FICHA_SIN_ATENDER:desde=%d".formatted(masVieja.getId()),
+                cuantas == 1
+                        ? "Una ficha del buzón sin contestar"
+                        : cuantas + " fichas del buzón sin contestar",
+                "%s hace más de %d horas. La más vieja es la de %s %s, de hace %d horas."
+                        .formatted(
+                                cuantas == 1
+                                        ? "Hay una ficha que nadie contestó"
+                                        : "Hay " + cuantas + " fichas que nadie contestó",
+                                HORAS_SIN_CONTESTAR,
+                                masVieja.getNombre(), masVieja.getApellido(), horas),
+                "/admin/buzon"));
+
+        return (int) cuantas;
     }
 
     // == La escritura ========================================================

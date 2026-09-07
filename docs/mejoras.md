@@ -3625,7 +3625,7 @@ Están en **`docs/requirements/platform.md` §21 · P54–P58**. En una frase ca
 | **2** | La ficha guarda qué produjo · `CONVERTIDO`→`ATENDIDO` · `FichaAbierta` (contador y lista dejan de definir "lo que falta" por separado) · el formulario con los 3 campos de preferencia (`V27`) · **la UI de atender** | ✅ **CERRADA (2026-09-06)** |
 | **3** | Apartar la cabina desde la ficha: cuenta + prereserva + deuda en una transacción, sin salir del buzón | ✅ **CERRADA (2026-09-06)** |
 | **4** | El formulario de la landing con los 3 campos + el alta precargada con ellos | ✅ **CERRADA (2026-09-06)** |
-| **5** | Aviso del scheduler: *"N fichas sin atender hace +48hs"*, sobre `V17` | 🔴 no empezada |
+| **5** | Aviso del scheduler: *"N fichas sin atender hace +48hs"*, sobre `V17` | ✅ **CERRADA (2026-09-06)** |
 
 ⚠️ **Fases 2 y 4 comparten la migración `V27`** — mismo argumento que `V19`: una
 revisión de las reglas de `solicitante`, no dos.
@@ -3819,24 +3819,97 @@ usar.
 vive el contrato — que además es el lugar correcto: lo que hay que defender es que
 el endpoint los acepte **y que los acepte ausentes**.
 
-### ⚠️ DÓNDE RETOMAR — la Fase 5 (2026-09-06)
+### La Fase 5, cerrada (2026-09-06) — y con ella la §15 entera
 
-**Queda la Fase 5, la última: el aviso del disparador automático** —*"hay N
-fichas sin atender hace más de 48 horas"*— sobre la máquina de `V17`.
+**No necesitó migración**: `notificacion.tipo` es `VARCHAR(50)` sin CHECK, así que
+un tipo nuevo es Java más el tipo de TypeScript. La cuarta regla del disparador
+automático, sobre la máquina que `V17` dejó armada.
 
-⚠️ **Es la respuesta a una pregunta que `V20` ya se había hecho y contestado que
-no**, y hay que releer su argumento antes de escribir nada: el buzón
-deliberadamente **no** escribe una notificación por cada ficha que entra, porque
-es el único escritor público del sistema y eso sería un aviso por cada bot que
-pase × cada ADMIN y STAFF. Lo que `SolicitanteService` dejó anotado como la forma
-correcta es exactamente ésta: **un aviso por hecho y no uno por formulario**.
+**Es la respuesta a una pregunta que `V20` ya había contestado que no**, y las dos
+se leen juntas: el buzón deliberadamente **no** escribe una notificación por cada
+formulario que entra —es el único escritor público del sistema, así que sería un
+aviso por cada bot × cada ADMIN y STAFF—. Lo que `SolicitanteService` dejó anotado
+como la forma correcta es exactamente ésta, con estas palabras: *"un aviso por
+hecho y no uno por formulario"*.
 
-Lo que hay que decidir al escribirla: la clave de deduplicación. `V17` exige que
-**describa el HECHO y nunca la corrida** —el índice único parcial es lo que
-garantiza el "una vez por hecho"—, y acá el hecho es *"esta ficha lleva 48hs sin
-atender"*, así que la clave sale de la ficha y no de la fecha de la corrida. Un
-aviso por ficha o uno agrupado es la otra decisión, y tiene el mismo criterio
-detrás: la bandeja no puede volverse ruido.
+⚠️ **Es UNO agrupado y no uno por ficha**, que es la diferencia con las otras tres
+reglas, y el motivo es de dónde vienen las filas: un deudor, una entrega y un
+lanzamiento **los crea administración**, así que no puede haber cincuenta de
+golpe. **Una ficha la crea cualquiera desde internet.** Uno por ficha sería la
+misma inundación que `V20` evitó, corrida cuarenta y ocho horas.
 
-Y **`V27` se llevó el número que se venía usando para desactivar el admin
-sembrado** — que ahora es `V28`, y sigue sin anotarse como fijo.
+⚠️ **Y la clave es la ficha MÁS VIEJA sin contestar, que es lo que lo hace
+funcionar.** `V17` exige que la clave describa *el hecho y nunca la corrida*, y
+las dos formas obvias fallan cada una para un lado:
+
+| Clave | Qué pasa |
+|---|---|
+| `dia=2026-09-06` | Sale **todos los días**: el recordatorio diario que vuelve ruido la bandeja |
+| `n=3` | Sale de nuevo **cada vez que entra un formulario más** — cuanto peor anda el buzón, más ruido hace |
+| **`desde=<id de la más vieja>`** | Mientras nadie conteste no cambia, lleguen mil formularios; en cuanto se contesta esa, la siguiente hereda el problema y el aviso vuelve a salir |
+
+**Y esa clave no puede repetirse nunca**, que es lo que hace que el índice parcial
+de `V17` alcance: una ficha nace `PENDIENTE` y sólo sale de ahí —atender y
+descartar son finales (`V13` §4)—, así que **el id más chico sin contestar sólo
+puede crecer**.
+
+⚠️ **Cuenta `PENDIENTE` y NO `FichaAbierta`, y es el único lugar del sistema donde
+las dos difieren a propósito.** Una ficha con la sala apartada y la seña sin
+cobrar **está abierta** —le debemos algo— pero **fue contestada**: alguien la
+atendió, apartó el horario y le escribió. De lo que falta ahí avisa la deuda, con
+su propio plazo. Contarla acá sería avisar dos veces del mismo hecho diciendo dos
+cosas distintas, y la segunda —*"nadie contestó"*— sería falsa.
+
+**El plazo se mide en horas y tiene su propia constante** (`HORAS_SIN_CONTESTAR`),
+como `DIAS_ANTES_DEL_LANZAMIENTO`: los otros tres cuentan plazos de negocio —una
+deuda, una entrega, un lanzamiento— y éste cuenta **tiempo de respuesta a una
+persona que está esperando**. Dos días es mucho para contestar un formulario; dos
+días de una deuda no es nada.
+
+⚠️ **Lo que costó dos rondas, y es una lección de la suite: ésta es la primera
+regla de aviso cuyo hecho es un CONJUNTO y no una fila.** Los otros 23 casos
+ignoran los datos de la base de desarrollo sin pensarlo —un aviso de deuda se
+identifica por su deudor, y que haya otras veinte deudas no lo toca—. Acá el aviso
+es uno para todo el buzón y su clave sale de la ficha más vieja, así que **las seis
+fichas que `V27` devolvió a PENDIENTE se llevaban la clave puesta** y los cinco
+casos daban números que no eran los del fixture. De ahí `vaciarElBuzon()`, que las
+resuelve dentro de la transacción del caso (no las borra: `V20` §3 no deja).
+
+**Y de paso: el tipo `TipoNotificacion` del front estaba atrasado en cuatro
+valores**, no en uno. Faltaban las dos de la prereserva (`V24`), la del sello y la
+del buzón. **Esta lista se atrasa sola y nunca falla**, porque la pantalla no
+decide nada por el tipo — muestra título y contenido.
+
+**Casos: 5 de backend**, y los tres que sostienen la decisión de la clave se
+verificaron poniendo la clave obvia (`n=<cantidad>`): los tres van a rojo.
+
+---
+
+## ⚠️ DÓNDE RETOMAR (después de la §15, 2026-09-06)
+
+**La §15 está cerrada: las cinco fases.** El circuito *formulario de la web →
+ficha → cuenta → reserva* quedó repensado de punta a punta, que era lo que
+Ignacio pidió al usarlo.
+
+Suites: **646 backend · 561 front · 256 + 66 SQL**, sobre **27 migraciones**.
+`tsc -b`, los dos builds y los dos linters limpios.
+
+**Lo que queda abierto en todo el proyecto** —y `docs/pendientes.md` es el
+inventario completo— es lo mismo de antes menos esta sección:
+
+1. **La próxima barrida.** No es una lista que se cierra, es una forma de
+   trabajar: Ignacio usa el sistema, trae hallazgos, se triangulan en A/B/C y se
+   ejecutan A → B → C. Van tres barridas (§12, §13, §14) y **va a haber más**.
+2. **Desactivar el admin sembrado**, que sigue siendo la próxima migración —
+   ahora `V28`. ⚠️ **Ese número ya se movió cuatro veces**, así que no se anota
+   como fijo en ningún lado.
+3. **El deploy de octubre**, que espera la decisión de hosting.
+4. **`docs/db/la_juanita_schema.dbml.txt`**, atrasado desde hace varias
+   migraciones. Tarea propia: §3.5 de `pendientes.md`.
+
+⚠️ **Y una cosa que la §15 dejó anotada y conviene no perder** (`platform.md`
+§21 · P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF
+(`ReservaService.avisarQueSeVencio` recorre `activosConRol`). Hoy vencer una
+prereserva es raro; **con el circuito del buzón pasa a ser rutina**. Es el modo de
+falla que `AvisoService` documenta en su propia cabecera. No se tocó, y es **lo
+primero a mirar si el buzón empieza a hacer ruido**.

@@ -110,5 +110,27 @@ public enum TipoNotificacion {
      * <p>Va a administración, como los otros dos: los artistas no entran al sistema
      * (P24), así que del otro lado no hay a quién avisarle.
      */
-    RELEASE_PROXIMO
+    RELEASE_PROXIMO,
+
+    /**
+     * Hay fichas del buzón que nadie contestó (`mejoras.md` §15 · Fase 5).
+     *
+     * <p><b>Es la respuesta a una pregunta que `V20` ya se había hecho y contestado
+     * que no</b>, y por eso conviene leer las dos juntas. El buzón deliberadamente
+     * <b>no</b> escribe una notificación por cada formulario que entra: es el único
+     * escritor público del sistema, así que eso sería un aviso por cada bot que
+     * pase, multiplicado por cada ADMIN y STAFF — el modo de falla que
+     * {@code AvisoService} tiene escrito en su propia cabecera.
+     *
+     * <p>Lo que {@code SolicitanteService} dejó anotado como la forma correcta es
+     * exactamente ésta, y con estas palabras: <i>"un aviso del disparador
+     * automático —'hay 3 fichas sin contestar hace más de 48 horas'—, que es un
+     * aviso por hecho y no uno por formulario"</i>.
+     *
+     * <p><b>Es uno solo y agrupado, no uno por ficha</b>, que es la diferencia con
+     * los otros tres. Ver {@code AvisoService}: con uno por ficha, cincuenta
+     * formularios de un bot son cincuenta avisos, y sería la misma inundación que
+     * `V20` evitó, corrida cuarenta y ocho horas.
+     */
+    FICHA_SIN_ATENDER
 }

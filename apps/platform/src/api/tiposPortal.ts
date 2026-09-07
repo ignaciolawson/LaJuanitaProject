@@ -177,18 +177,27 @@ export type AprobacionRealizada = {
  * puede mirar el mismo hecho muchas veces: por eso llevan `clave_evento` y la
  * base es la que impide que se dupliquen (`V17`).
  *
- * `RESERVA_MOVIDA` faltaba en esta lista desde el Modulo 5 y no rompia nada,
- * porque la pantalla no decide nada por el tipo: muestra titulo y contenido. Vale
- * mantenerla completa igual —el dia que alguien filtre o pinte por tipo, el que
- * falta desaparece de la pantalla sin ningun error a la vista.
+ * ⚠️ **Esta lista se atrasa sola y nunca falla**, que es lo único que hay que
+ * saber de ella. `RESERVA_MOVIDA` faltó desde el Módulo 5; para cuando se revisó
+ * de nuevo faltaban **cuatro** — las dos de la prereserva (`V24`), la del sello y
+ * la del buzón. No rompe nada porque la pantalla no decide nada por el tipo:
+ * muestra título y contenido. Vale mantenerla completa igual — el día que alguien
+ * filtre o pinte por tipo, el que falta desaparece de la pantalla sin ningún error
+ * a la vista.
  */
 export type TipoNotificacion =
+  // Las escribe una persona al resolver algo.
   | 'SOLICITUD_APROBADA'
   | 'SOLICITUD_RECHAZADA'
   | 'RESERVA_MOVIDA'
   | 'REPROGRAMACION_RECHAZADA'
+  | 'RESERVA_PRECONFIRMADA'
+  // Las escribe el disparador automático.
+  | 'PRERESERVA_VENCIDA'
   | 'DEUDA_VENCIDA'
   | 'ENTREGA_IMPAGA'
+  | 'RELEASE_PROXIMO'
+  | 'FICHA_SIN_ATENDER'
 
 export type NotificacionResumen = {
   idNotificacion: number

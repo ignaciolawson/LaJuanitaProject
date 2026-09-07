@@ -20,6 +20,10 @@ import java.time.LocalDate;
  *                         mismo hecho le llega a cada persona de administración)
  * @param entregasAvisadas sobre cuántos trabajos de M&amp;M entregados e impagos
  * @param lanzamientosAvisados sobre cuántos releases que salen dentro de la semana
+ * @param fichasSinAtender cuántas fichas del buzón nadie contestó hace más de 48
+ *                         horas. <b>Es un conteo y no un "sobre cuántas se
+ *                         avisó"</b>, porque ese aviso es uno solo y agrupado —
+ *                         ver {@code AvisoService}
  * @param avisosEscritos   filas nuevas en {@code notificacion}
  * @param avisosOmitidos   avisos que ya estaban de una corrida anterior
  */
@@ -29,6 +33,7 @@ public record ResumenDeAvisos(
         int deudoresAvisados,
         int entregasAvisadas,
         int lanzamientosAvisados,
+        int fichasSinAtender,
         int avisosEscritos,
         int avisosOmitidos) {
 }
