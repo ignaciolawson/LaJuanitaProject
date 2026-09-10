@@ -1,20 +1,31 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-07 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-10 — leé esto y después, si hace falta, el resto
 
-✅ **NO QUEDA NADA DE PRODUCTO POR CONSTRUIR.** Los ocho módulos, el rediseño, las
-**tres barridas** y **la mejora del circuito del buzón (`mejoras.md` §15, cerrada
-el 2026-09-06 con sus cinco fases)** están todos cerrados y commiteados.
+🟠 **HAY UNA BARRIDA ABIERTA Y TRABADA: `mejoras.md` §16, la cuarta** (2026-09-10).
+**Doce hallazgos, cero ejecutados, quince preguntas de negocio sin contestar.** Es
+lo primero a leer al volver: cada punto ya está analizado contra el código, así que
+el diagnóstico no hay que rehacerlo. **Lo único liberado es A6**, que es un bug.
+
+⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
+**seña para los programas** (una política de cobro, no una corrección) y **el alta
+completa del alumno desde el buzón**. Así que la frase de las sesiones anteriores
+—*"no queda nada de producto por construir"*— **dejó de ser cierta el 2026-09-10**.
+
+Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** (§12,
+§13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
+cinco fases)** están cerrados y commiteados.
 
 **Suites: 646 backend · 561 front · 256 + 66 SQL, sobre 27 migraciones.** `tsc -b`,
 los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube | §1 de acá |
+| 🟠 0 | **La §16 está ABIERTA y trabada por quince decisiones de negocio.** Incluye dos cambios de política (seña en programas, alta completa desde el buzón) y un bug listo para tomar (A6) | [`mejoras.md`](mejoras.md) §16 |
+| 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
-| 🟢 4 | **La próxima barrida**, cuando Ignacio vuelva a usar el sistema | [`mejoras.md`](mejoras.md) §15 |
+| 🟢 4 | **La barrida siguiente a la §16**: los **grupos de a 3**, que Ignacio difirió explícitamente | [`mejoras.md`](mejoras.md) §16 · B2 2.1 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
 
@@ -470,17 +481,22 @@ esquema. Una migración que borre fichas correría en producción.
 
 ## ⚪ 4. Decisiones que siguen sin contestar
 
-**Ninguna traba nada hoy.** Están en el índice de `platform.md` §12 y se contestan
-cuando el módulo correspondiente las necesite.
+⚠️ **Ya NO es cierto que ninguna trabe nada: desde el 2026-09-10, dos de éstas
+traban la §16** — y eso es lo mejor que les podía pasar, porque llevaban meses
+esperando un módulo que las necesitara. El resto sigue como estaba: están en el
+índice de `platform.md` §12 y se contestan cuando algo las necesite.
+
+**Las quince preguntas nuevas de la §16 NO se listan acá** para no duplicarlas —
+viven al final de `mejoras.md` §16, y las respuestas van a `platform.md` §22.
 
 | # | Qué | De qué módulo |
 |---|---|---|
 | P4 | Alumnos informales de Ghezz | 1 |
 | P5 | Nivelación dentro del sistema | 1 |
-| P7 | Generación automática de clases semanales | 2 — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* |
+| **P7** | **Generación automática de clases semanales** — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* | 2 — ⚠️ **la reabre `mejoras.md` §16 · B2 2.1**: con grupos, cargar 8 clases a mano por grupo es el trabajo que la función viene a evitar |
 | P8 | Quién autoriza reservar con deuda | 2 |
 | ~~P9~~ | ✅ **CERRADA el 2026-08-29**: el profesor pide con el mismo botón que el alumno (`platform.md` §16) | 2 |
-| **P13** | **¿Lista de precios en el sistema?** | 3 — **la más consecuente de las que quedan**: ver abajo |
+| **P13** | **¿Lista de precios en el sistema?** | 3 — **la más consecuente de las que quedan**: ver abajo. ⚠️ **Desde el 2026-09-10 TRABA la §16 · B2 1.1**: para inscribir desde el buzón hace falta un precio, y hoy lo tipea una persona |
 | P17 | Alcance real de la autogestión | 4 |
 | P19 | Acceso del alumno inactivo | 4 |
 | P20 | Liquidación automática a profesores | 5 — *el M5 entregó el insumo y no la respuesta: contar clases no es calcular un total* |

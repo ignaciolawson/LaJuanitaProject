@@ -3885,34 +3885,484 @@ verificaron poniendo la clave obvia (`n=<cantidad>`): los tres van a rojo.
 
 ---
 
-## ⚠️ DÓNDE RETOMAR (después de la §15, 2026-09-06)
+## 16. La CUARTA barrida de correcciones — abierta el 2026-09-10
 
-**La §15 está cerrada: las cinco fases.** El circuito *formulario de la web →
-ficha → cuenta → reserva* quedó repensado de punta a punta, que era lo que
-Ignacio pidió al usarlo.
+> Ignacio la trajo con una consigna **distinta a la de las tres anteriores**:
+> *"Son cambios muy bruscos algunos y pueden que cambien mucho los planes, ni
+> siquiera antes de armar las fases de implementación me gustaría conocer tu
+> opinión y tus consultas."*
+>
+> **Doce hallazgos**, y el cambio de consigna no es un detalle de forma: en §12,
+> §13 y §14 la lista llegaba y se triangulaba. Acá **dos de los puntos no son
+> correcciones sino cambios de política del negocio** —programas con seña, y el
+> alta completa desde el buzón—, y uno de ellos reabre una decisión que el
+> cliente ya había tomado al revés. Pedir opinión antes de las fases es la
+> lectura correcta: **un plan armado sobre una premisa equivocada cuesta más que
+> no tenerlo.**
 
-Suites: **646 backend · 561 front · 256 + 66 SQL**, sobre **27 migraciones**.
-`tsc -b`, los dos builds y los dos linters limpios.
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-10)
 
-**Lo que queda abierto en todo el proyecto** —y `docs/pendientes.md` es el
-inventario completo— es lo mismo de antes menos esta sección:
+🟠 **ESTADO: NADA EJECUTADO. La barrida está abierta y trabada por decisiones.**
 
-1. **La próxima barrida.** No es una lista que se cierra, es una forma de
-   trabajar: Ignacio usa el sistema, trae hallazgos, se triangulan en A/B/C y se
-   ejecutan A → B → C. Van tres barridas (§12, §13, §14) y **va a haber más**.
+**Las quince preguntas de negocio del final de esta sección están sin contestar.**
+Ignacio las va a responder en la próxima sesión —*"no te respondí nada, todo esto
+que hablamos documentalo y después te respondo todo y seguimos"*—, y recién ahí se
+arma el plan por fases.
+
+**Lo único liberado hoy es A6**, que es un bug y no depende de ninguna decisión.
+Está diagnosticado hasta la línea (ver abajo) y se puede tomar sin esperar nada.
+
+⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
+*"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
+nos enfocamos en esto."* Se documenta igual —abajo, con las cinco preguntas que va
+a necesitar— porque lo que se aprendió analizándolo no conviene volver a aprenderlo.
+
+---
+
+### El triage
+
+| Grupo | Qué significa | Cuántos | Estado |
+|---|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo | **5** | ⬜ 0 de 5 |
+| 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | ⬜ 0 de 4 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | ⬜ 0 de 2 · **trabados** |
+| ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
+
+⚠️ **Tres de los puntos que Ignacio anotó como A no lo son**, y conviene saberlo
+antes de estimar: **A5** no se arregla sumando en la pantalla (la consulta cuenta
+`DISTINCT` dentro de cada nivel), **A6** es un `null` que viaja del backend, y
+**A7** necesita contenido del cliente además de código.
+
+---
+
+### Punto por punto — lo que se verificó en el código
+
+#### 🟡 A1 · "Lo próximo" en la agenda del profesor
+
+**Verificado, y el caso común es peor que el reportado.** La agenda del profesor
+pide **una semana** (`desde = lunesDe(hoy)`, `hasta = desde + 6`) y calcula
+`proxima` sobre esa ventana — `MiAgendaPagina.tsx:83`. La del alumno pide
+**cuatro** — `MisReservasPagina.tsx:60`.
+
+⚠️ **Consecuencia concreta: un sábado, el profesor que da clase el lunes no ve "lo
+próximo"**, porque el lunes cae en la ventana siguiente. No es el caso raro del que
+se va de vacaciones: es todos los fines de semana.
+
+**Igualar a cuatro semanas es una línea y tapa el 99%.** Lo que **no** da —ni en el
+profesor ni en el alumno, que tiene el mismo techo— es el *"desde siempre"* literal:
+si la próxima clase está a seis semanas, ninguna de las dos la ve. Eso sería una
+consulta propia (*"mi próxima clase"*, sin ventana) y pasa a grupo B.
+
+#### 🟢 A2 · Sacar el enlace al artículo del nombre del DJ
+
+⚠️ **`fuente` NO se reemplaza por el link al perfil: se le agrega un campo al
+lado.** Ese campo es lo que sostiene la regla del archivo, escrita en su propia
+cabecera: *"una cita atribuida exige `fuente`, así que agregar una sin link no
+compila. Es deliberado: un comentario que pide fuentes se ignora, un tipo no."* Es
+lo único que impide firmar con el nombre de una persona real algo que no dijo — el
+problema que este proyecto **ya tiene abierto** con las seis notas del blog.
+
+La forma: `perfil` opcional, el nombre linkea ahí, y `fuente` sigue existiendo.
+**Queda por decidir si `fuente` se sigue viendo** (pregunta 18).
+
+**Resident Advisor (`ra.co/dj/…`) antes que Wikipedia**: tiene a los diez autores,
+con fechas y discografía. ⚠️ **Cada slug hay que abrirlo**: un RA mal escrito es un
+404, que se lee como sistema roto. Es el mismo cuello de botella de §13 · A1 —
+trabajo de búsqueda, no de código.
+
+#### 🟡 A3 · ¿Puede un usuario mover su clase más de una vez?
+
+**Hoy sí, sin tope.** El único límite es que no haya **dos pedidos PENDIENTES**
+sobre la misma reserva — `SolicitudReprogramacionService.java:116`. Aprobado uno,
+puede pedir de nuevo indefinidamente.
+
+**Lo que NO es riesgo**, y es lo que uno teme primero:
+
+- **La plata no se entera.** Aprobar mueve la reserva **en el lugar** (misma fila,
+  otro día), no crea una nueva — la decisión de `platform.md` §16 · P9. Por eso no
+  hay devolución ni segunda seña. `SolicitudReprogramacionTest` lo pinea forzando
+  el chequeo diferido de `V10`.
+- **No se consumen clases**: la clase se consume cuando se toma.
+- **No hay doble reserva**: cada movimiento revuelve a chequear el solapamiento.
+
+**Lo que SÍ es riesgo, y es de otra naturaleza:**
+
+1. **El curso se estira sin techo** — no hay fecha de fin de inscripción.
+2. ⚠️ **Nadie ve el patrón.** El `motivo` de cada pedido se guarda desde `V1` y
+   **ninguna pantalla los cuenta**: el que movió cuatro veces se ve igual que el que
+   movió una.
+3. El costo operativo cae sobre administración, que rehace el trabajo cada vez.
+
+**Opinión: el problema no es que se pueda, es que no se vea.** Un límite duro
+—*"dos por inscripción"*— es una regla de negocio, va a la base, y el día que
+alguien tiene una razón legítima para la tercera no hay salida. Primero el contador
+visible; el número, si el contador muestra abuso real (pregunta 19).
+
+#### 🟢 A4 · Colores del tablero de indicadores
+
+**Verificado: el tablero es monocromo.** `text-tenue`, `text-apagado`, negrita, y
+**un solo color escrito a mano**: `rgba(214, 40, 40, reservas/maximo)` en el heatmap
+— `TableroPagina.tsx:520`. Por eso en oscuro no se ve: un rojo opaco con alfa bajo
+sobre fondo oscuro no existe. Y no sigue el tema, que es exactamente lo que §14 · A
+arregló en el resto del sistema.
+
+⚠️ **Hay una tensión con una regla vigente y conviene resolverla a propósito.** La
+regla es *"el rojo es un bisturí: un acento por pantalla"* (§10). El tablero es **la
+única pantalla del sistema donde eso no alcanza**: un heatmap necesita una escala y
+ocho indicadores necesitan distinguirse entre sí.
+
+**La propuesta es que el tablero sea la excepción DECLARADA** —una escala secuencial
+propia, derivada de la paleta, con contraste medido como en §14 · A— y no que se
+afloje la regla para todas. Si se afloja, en tres pantallas más hay tres acentos y
+ninguno.
+
+#### 🟡 A5 · El indicador de alumnos, sin dividir por nivel
+
+**Confirmado el síntoma que Ignacio describe** —*"figura 2 mentorías, una avanzada y
+otra gral"*—: `nivel` es nullable y mentoría no tiene nivel estándar, así que sale
+una fila `AVANZADO` y otra `SIN_NIVEL`.
+
+⚠️ **Pero NO se arregla sumando las filas en la pantalla.** La consulta agrupa por
+`(disciplina, nivel)` y cuenta `DISTINCT` el alumno **dentro de cada grupo** —
+`TableroRepository.java:61`. Sumar en el front cuenta dos veces a quien tiene DJ
+inicial y DJ avanzado. **Hay que cambiar el `GROUP BY` en SQL**, y eso arrastra el
+DTO, el tipo TS y **el informe de Excel/PDF**, que leen las mismas hojas (Módulo 8:
+una sola armada, dos formatos — si se toca una sola, los dos archivos dejan de
+coincidir).
+
+Falta decidir si el nivel se pierde del todo o sobrevive en el export (pregunta 20).
+
+#### 🔵 A6 · La pantalla en negro al cerrar la ficha — **BUG, y está diagnosticado**
+
+**Es el hallazgo más concreto de la barrida y no depende de ninguna decisión.** La
+cadena, verificada capa por capa:
+
+1. **`inscripcion.fecha_inicio` es nullable** — `V1__baseline.sql:188`. No tiene
+   `NOT NULL`, y el alta la manda opcional: `fechaInicio: datos.fechaInicio ||
+   undefined` (`InscripcionesPagina.tsx:589`).
+2. `CandidatoDeLaFicha.de(Inscripcion)` la copia tal cual —
+   `CandidatoDeLaFicha.java:96`— así que viaja `"cuando": null`.
+3. ⚠️ **El tipo de TypeScript miente**: dice `cuando: string`, no `string | null` —
+   `tiposAdmin.ts:838`.
+4. El `<option>` hace `fecha(c.cuando)`, y `fecha()` es `iso.slice(0, 10)` —
+   `semana.ts:72`. **`null.slice` tira `TypeError`.**
+
+**Y se ve negro, y no roto, por una segunda causa independiente: no hay un solo
+`ErrorBoundary` en toda la SPA** (grepeado: cero). Cualquier throw de render
+desmonta el árbol entero y queda el fondo del tema, que en oscuro es negro.
+
+⚠️ **Sólo pasa con inscripciones**, y por eso Ignacio lo encontró justo
+inscribiendo: `reserva.fecha` y `venta_equipo.fecha_venta` son **`NOT NULL`**. Los
+otros dos tipos de candidato no pueden disparar esto.
+
+**Son dos arreglos distintos y van los dos.** El `null` es el bug; el
+`ErrorBoundary` es por qué se vio negro en vez de mostrar algo, y sin él **el
+próximo throw de cualquier pantalla también se lleva la aplicación entera puesta**.
+
+⚠️ **La lección es la de §14 · A5 mirada al revés.** `fecha()` existe porque había
+seis dialectos y uno devolvía `19T14:33:12Z/08/2026` **sin fallar**. Acá el tipo
+dice que el `null` no puede pasar y **la base dice que sí**: unificar la escritura
+de fechas no sirve de nada si el tipo que la alimenta no describe la columna.
+
+#### 🟡 A7 · Mentorías en la landing
+
+⚠️ **Es peor que "falta en programas": `grep -i mentor` sobre toda la landing
+devuelve CERO coincidencias.** No está en el home, no está en programas, no está en
+el FAQ, no está en los datos. Sólo existen dos programas: DJ y Producción.
+
+**Del lado del sistema no hace falta migración.** `InteresDelSolicitante.CURSO` ya
+la cubre —su javadoc dice *"DJ o Producción"* y habría que corregirlo, pero el valor
+sirve: la disciplina se elige recién en la inscripción, y `MENTORIA` ya está en el
+CHECK de `inscripcion_disciplina_valida` desde `V1`.
+
+⚠️ **Lo que sí falta es contenido, y toca un bloqueante que ya existe.** Mentoría
+**no tiene cantidad de clases estándar** (P34: DJ 8, Producción 16, y para mentoría
+el alta **rechaza en vez de adivinar**), así que la página tiene que decir un formato
+y un precio que hoy no existen en ninguna capa. Y los precios inventados **ya son
+bloqueante para publicar la landing** (`pendientes.md` §1). Preguntas 10 y 11, y se
+cruza con la 6 / P13.
+
+#### 🟢 A8 · Un solo botón de WhatsApp al apartar la cabina
+
+**Ignacio tiene razón, y conviene registrar que revierte una decisión escrita a
+propósito.** El comentario de `whatsapp.ts` dice: *"No lleva la contraseña. Son dos
+mensajes distintos a propósito: éste habla de lo que hay que hacer ahora —abonar— y
+el otro de una cuenta que se puede mirar cuando quiera. **Juntos, el que importa se
+lee como un trámite más.**"*
+
+**El miedo era real** —que el plazo de 24hs se hunda entre la contraseña y el resto—
+**y la decisión igual se revierte**, por un motivo mecánico que la discusión original
+no tuvo en cuenta:
+
+⚠️ **Un `wa.me` es UNA URL con UN mensaje.** "Un botón para todo" es necesariamente
+*un* mensaje, no dos. No hay una tercera forma.
+
+**Así que lo que salva las dos cosas es el orden**: plazo y monto en las dos primeras
+líneas, la cuenta abajo de un separador. Es la misma decisión de orden que ya tomaron
+el premaster y la publicación sin contrato — **primero lo que hay que hacer, después
+la salida**. Qué más dice el mensaje: pregunta 21.
+
+---
+
+### 🔴 B1 · Seña para los programas — **la decisión central de la barrida**
+
+Ignacio lo trajo así: *"(No me mates) … al igual que las reservas, los programas
+también tengan señas … la tenemos más fácil porque sería lo mismo que los servicios,
+crear una pre-reserva para guardar el lugar."*
+
+⚠️ **NO es lo mismo que los servicios, y la diferencia es la que decide todo el
+diseño.**
+
+Una prereserva de cabina aparta **un recurso escaso e identificable**: sala × día ×
+hora. Y lo que lo aparta de verdad **no es el estado, es el `EXCLUDE` de `V1`** — hay
+una fila de `reserva` ocupando ese hueco y nadie más lo puede tomar. Por eso `V24`
+salió barato: el mecanismo de *ocupar* ya existía y sólo hubo que agregarle un estado
+y un vencimiento.
+
+**Un programa no tiene hueco que apartar.** No hay cupo, no hay comisión, no hay
+cohorte. `V23` lo dejó escrito con todas las letras: *"«el curso» no es una entidad
+compartida en este schema"* — una `inscripcion` es el contrato de **una** persona.
+
+Entonces *"guardar el lugar"* puede significar dos cosas incompatibles:
+
+- **Sentido débil** — la inscripción no es formal hasta que se abona. Es un
+  **estado**, no una reserva: no le saca el lugar a nadie, sirve para que figure en
+  Deudores con plazo y para que no se cuente como alumno activo hasta que pague. **Es
+  todo lo que B2 1.1 necesita.**
+- **Sentido fuerte** — hay un cupo real que se agota: un horario semanal con un profe
+  y una sala que aguanta N alumnos. Ahí sí hay algo que apartar, y **eso no existe hoy
+  en ninguna capa del sistema**. Es, además, lo que B2 2.1 (grupos) da por supuesto.
+
+**Hay que elegir antes de escribir nada** (pregunta 1). El sentido fuerte no es una
+migración: es un módulo.
+
+#### ⚠️ B1 cambia la política de cobro, y eso no estaba en el pedido
+
+El scope dice que **el curso se paga completo antes de empezar** (§1), y **P33** cerró
+que este negocio cobra por adelantado y **no en cuotas**. Una seña es cobrar **una
+parte**: los programas pasan de un pago a dos.
+
+Eso mueve Deudores, Estado de cuenta, Caja y la línea "programas" del tablero. No es
+caro — **es que hay que decidirlo, no derivarlo de "hagamos como con la cabina"**
+(preguntas 2 y 3).
+
+#### La forma recomendada, y la que se descarta
+
+**Recomendado: un estado nuevo de `inscripcion`** (`PREINSCRIPTA` o como se llame),
+**dentro** del índice único parcial y **fuera** de `VIGENTES`. Así:
+
+- no cuenta como alumno cursando —ni en el listado, ni en el filtro por disciplina, ni
+  en el número del tablero—,
+- **sí** aparece en Deudores, que es donde tiene que estar hasta que pague,
+- y no se pueden acumular tres preinscripciones a DJ abiertas, que es lo que pasa si
+  se deja el índice como está (`WHERE estado = 'ACTIVA'`, `V1:210`).
+
+⚠️ **El costo real: son seis lugares que se mueven juntos** — el CHECK
+`inscripcion_estado_valido`, el enum `EstadoInscripcion`, el tipo TS, el DBML, el
+conjunto `VIGENTES` y el índice parcial. Es **exactamente la forma de los cuatro roles
+y de los estados de reserva**: conocida, no gratis, y el que se olvida uno no se entera
+(Java deja de estar de acuerdo con la base y nada falla).
+
+**Descartada: que nazca `ACTIVA` con una deuda a plazo.** Es más barata y es el
+agujero que **`V12` cerró del otro lado** —*"un cupo se podía conseguir anotando una
+deuda"*—. Acá además haría mentir al contador de alumnos del tablero, que es justo el
+número que A5 viene a arreglar.
+
+---
+
+### 🟡 B2 1.1 y 1.2 · El alta completa desde el buzón
+
+**Es la parte más clara de todo el pedido y el molde ya está escrito y probado.**
+`POST /api/solicitantes/{id}/reserva` (§15 · Fase 3) hace cuenta + prereserva + deuda
++ cierre de la ficha **en una transacción**. B2 1.1 es eso mismo aplicado a `CURSO`,
+con un paso más: el alta de la relación `alumno`.
+
+⚠️ **El argumento de por qué es UNA transacción se traslada igual, y es el opuesto al
+de `atender`.** Lo que puede fallar acá es **la inscripción** —el índice único parcial
+la rechaza si esa persona ya tiene una `ACTIVA` en esa disciplina— y lo que quedaría es
+**una cuenta creada, con la contraseña temporal ya mostrada, para alguien que no tiene
+nada**. Es literalmente el escenario que §15 · Fase 3 usó para justificar la
+transacción única.
+
+**B2 1.2 (el que ya tiene cuenta) está medio hecho**: `darleCuenta` resuelve los dos
+caminos desde §15 —crea, o encuentra al usuario existente— y esa bifurcación fue la que
+evitó que la ficha quedara trabada para siempre contra `usuario_email_unico`. Lo que
+falta es que el botón de curso **haga el trabajo** en vez de sólo crear la cuenta.
+
+⚠️ **B2 1.1 depende de B1**: sin seña no hay deuda que mandar a Deudores ni qué decir
+por WhatsApp. **El orden es B1 → B2 1.1.**
+
+⚠️ **Y depende de cuatro datos que hoy los tipea una persona**, porque una inscripción
+los exige:
+
+| Dato | Estado hoy | Pregunta |
+|---|---|---|
+| **`precio_total`** | `NOT NULL` + `@NotNull` — **no hay lista de precios en el sistema** | 6 — **es P13**, que `pendientes.md` §4 ya marca como *"la más consecuente de las que quedan"* |
+| **`nivel`** | El formulario de la landing **no lo pregunta** | 7 |
+| **`clases_contratadas`** | Lo pone el servidor (DJ 8 / Producción 16), pero **mentoría no tiene estándar y el alta rechaza** (P34) | 8 |
+| `id_profesor` | Acepta vacío (P37) | 9 |
+
+---
+
+### ⏸️ B2 2.1 · Grupos de a 3 — **DIFERIDO por decisión de Ignacio**
+
+Fuera de esta barrida: *"Cuando terminamos esta barrida nos enfocamos en esto."* Se
+deja escrito lo que salió del análisis, que es lo caro de volver a hacer.
+
+**Ignacio ya identificó el caso incómodo** —*"se enquilomba si 2 tienen cuenta y 1
+no"*— y **ése es el fácil**: se resuelve aplicando tres veces el camino doble que
+`darleCuenta` ya tiene. **Los difíciles son otros tres:**
+
+1. ⚠️ **El grupo no existe como entidad, y la plata es el problema.** Existen clases
+   grupales (varios `reserva_participante` en una `reserva`), pero eso es *"tres
+   personas en una clase"*, no *"tres personas que cursan juntas"*. Y si la seña es
+   **una sola**, `pago` apunta a **un** `id_usuario` y a **una** `id_inscripcion` — y
+   hay tres. Si son tres, ¿el lugar se aparta con el primer pago o con el último? ¿Y si
+   pagan dos y el tercero no?
+2. ⚠️ **Reabre P7.** Hoy las clases se cargan **a mano, de a una**, y eso fue una
+   decisión explícita: *autogenerar las 8 semanales fue lo que el documento recomendó y
+   el cliente rechazó*. Con grupos, cargar 8 clases × cada grupo a mano es exactamente
+   el trabajo que la función viene a evitar. **O se revisa P7, o el grupo no compra
+   casi nada.**
+3. ⚠️ **La landing y `V20`.** Hoy el formulario manda **una** ficha con un nombre, un
+   mail y un teléfono. Un grupo de 3 es o tres fichas hermanadas o una ficha con tres
+   personas adentro, y `V20` no puede guardar ninguna de las dos. **Y una ficha no se
+   puede borrar** (`solicitante_no_se_borra`, `V20` §3), así que una forma mal elegida
+   **se acumula en el buzón para siempre**.
+
+---
+
+### ⚠️ Las quince preguntas de negocio — SIN CONTESTAR al 2026-09-10
+
+**Nada de B1, B2 1.1, B2 1.2 ni A7 se puede ejecutar sin esto.** Las respuestas van a
+`requirements/platform.md` como §22, **antes de escribir código** — el orden que ya
+pagó cinco veces.
+
+**Bloquean B1 y todo lo que cuelga:**
+
+1. **¿Hay cupo real en los programas?** ¿Un horario con un profe aguanta un máximo de
+   alumnos, o se le vende a cualquiera? **Decide si B1 es un estado o un módulo.**
+2. **¿Seña + saldo, o sigue el pago completo antes de empezar?** Si es seña: **¿cuánto**
+   (¿el mismo 50% de las reservas?) y **¿qué plazo** (¿las 24hs de la cabina, o más — un
+   curso no arranca mañana?).
+3. **¿Se puede empezar a cursar con la seña sola**, o hace falta el saldo antes de la
+   primera clase?
+4. **¿Qué pasa cuando vence la preinscripción?** La cabina se libera sola porque hay un
+   horario que devolver. Acá: ¿se cancela sola, o queda marcada para llamar?
+5. **¿Aplica a mentoría**, o sólo a DJ y Producción?
+
+**Bloquean B2 1.1:**
+
+6. **¿Hay lista de precios fija por programa, o se escribe caso por caso?** ⚠️ **Es
+   P13**, ya abierta y ya marcada como la más consecuente de las que quedan.
+7. **¿Con qué nivel entra el que aplica desde la web?** ¿Todos inicial, lo elige la
+   persona, o lo decide administración al atender?
+8. **¿Cuántas clases tiene una mentoría?** (P34 la dejó sin estándar a propósito.)
+9. **¿El profesor se asigna al inscribir o después?**
+
+**Bloquean A7:**
+
+10. **¿Qué es la mentoría en una frase que pueda ir en la web?** Formato (1:1, duración,
+    cuántos encuentros), precio, y a quién apunta.
+11. **¿Entra por el mismo formulario que DJ y Producción, o tiene el suyo?**
+
+**Sueltas, cada una traba sólo su punto:**
+
+18. **A2** — ¿la `fuente` de la cita se sigue viendo en pantalla, o queda sólo como dato
+    que sostiene la regla?
+19. **A3** — ¿contador de movimientos visible, o límite duro? Si es límite, el número.
+20. **A5** — el nivel, ¿se pierde del todo, o queda en el Excel aunque no esté en
+    pantalla?
+21. **A8** — además de *"ya podés usar tu cuenta para reservar"*, ¿qué más dice el
+    mensaje?
+
+**Diferidas con B2 2.1** (no traban esta barrida):
+
+12. ¿Una seña por grupo o una por cabeza? ¿Se confirma con el primer pago o el último?
+13. Si pagan dos y el tercero no, ¿se cae el grupo, siguen los dos, o queda esperando?
+14. ¿El grupo se mantiene junto para siempre, o es sólo la forma de darlos de alta?
+15. ¿Se acepta que el sistema genere las 8/16 clases semanales de una? **(Es P7, hoy
+    decidida al revés.)**
+16. ¿Sólo de 3, o de 2 a N? Ignacio mencionó las dos cosas.
+17. ¿Un grupo puede incluir a alguien que ya es alumno del estudio?
+
+---
+
+### Lo que esta barrida ya enseñó, antes de ejecutar nada
+
+- ⚠️ **"Es lo mismo que X" es una hipótesis, no un dato.** B1 llegó como *"la tenemos
+  más fácil, es lo mismo que los servicios"* y no lo es: lo que hace barata a la
+  prereserva es que **hay un `EXCLUDE` que ya ocupaba el hueco**, y un programa no tiene
+  hueco. La analogía era de la pantalla, no del schema.
+- ⚠️ **Un tipo de TypeScript no describe la columna: describe lo que alguien creyó de la
+  columna.** A6 es exactamente eso —`cuando: string` sobre un `DATE` nullable— y es la
+  enésima vez que este proyecto encuentra una regla que una capa afirma y otra desmiente.
+  *Chequeá el schema, no la frase sobre el schema.*
+- ⚠️ **Sin `ErrorBoundary`, todo bug de render se ve igual: negro.** Eso no sólo arruina
+  el diagnóstico, **arruina el reporte**: Ignacio no podía decir más que *"se pone todo
+  en negro"* porque no había más para ver. Una pantalla que explica el error convierte un
+  reporte inservible en uno accionable.
+- ⚠️ **Dos puntos de esta lista reabren decisiones que este proyecto ya tomó** —A8
+  revierte el mensaje partido, B2 2.1 revierte P7— y en los dos casos **la decisión
+  original tenía un buen argumento**. Que se reviertan no las invalida: las escribió
+  alguien que no había usado el sistema todavía. **Lo que no se puede es revertirlas sin
+  leerlas**, porque el argumento viejo suele señalar el modo de falla que la versión
+  nueva tiene que evitar igual.
+
+---
+
+## ⚠️ DÓNDE RETOMAR (después de abrir la §16, 2026-09-10)
+
+🟠 **HAY UNA BARRIDA ABIERTA Y TRABADA: la §16, la cuarta.** Doce hallazgos,
+**cero ejecutados**, y **quince preguntas de negocio sin contestar** — están al
+final de la §16 y son la puerta de todo lo demás. Ignacio las va a responder:
+*"no te respondí nada, todo esto que hablamos documentalo y después te respondo
+todo y seguimos."*
+
+**Lo primero al volver: leer la §16 entera antes de tocar nada.** Está toda
+analizada contra el código —cada punto dice qué se verificó y en qué archivo— así
+que el trabajo de diagnóstico ya está hecho y no hay que rehacerlo.
+
+**Lo único que se puede ejecutar hoy, sin esperar respuestas:**
+
+- 🔵 **A6 — el bug de la pantalla en negro.** Diagnosticado hasta la línea:
+  `inscripcion.fecha_inicio` es nullable, viaja `null`, el tipo TS dice `string`,
+  y `fecha()` le hace `.slice()`. **Van dos arreglos**: el `null` (que es el bug)
+  y un `ErrorBoundary`, porque **hoy no hay ninguno en toda la SPA** y cualquier
+  throw de render se lleva la aplicación entera puesta.
+
+**El orden que va a tener el plan, cuando estén las respuestas:** A → B → C, con
+B1 (la seña de los programas) primero de los dos C, porque **B2 1.1 depende de
+él** — sin seña no hay deuda que mandar a Deudores.
+
+⚠️ **Dos preguntas de la §16 NO son nuevas: ya estaban abiertas.** La 6 es
+**P13** (*¿lista de precios en el sistema?*), que `pendientes.md` §4 marca como
+*"la más consecuente de las que quedan"*, y la 15 es **P7** (autogenerar las
+clases semanales), hoy decidida al revés por el cliente. **Contestarlas cierra
+deuda vieja, no sólo esta barrida.**
+
+⚠️ **B2 2.1 (grupos de a 3) está diferido por decisión de Ignacio** a la barrida
+siguiente. Su análisis quedó escrito igual en la §16 — el caso que él vio (2 con
+cuenta, 1 sin) es el fácil; los difíciles son la plata, P7 y que **una ficha del
+buzón no se puede borrar**.
+
+---
+
+**El estado del producto no cambió**: la §15 está cerrada, suites en **646
+backend · 561 front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos
+builds y los dos linters limpios. Lo que sigue abierto en todo el proyecto está en
+`docs/pendientes.md`:
+
+1. **La §16**, que es esto.
 2. **Desactivar el admin sembrado**, que sigue siendo la próxima migración —
    ahora `V28`. ⚠️ **Ese número ya se movió cuatro veces**, así que no se anota
    como fijo en ningún lado.
 3. **El deploy de octubre**, que espera la decisión de hosting.
-4. ~~El diagrama de la base~~ — **hecho el 2026-09-06**: está al día con
-   `V1..V27` y verificado contra el catálogo (28 tablas, una por una). Lo que
-   dejó de lección está en §3.5 de `pendientes.md`: **el inventario describía la
-   versión anterior del archivo**, o sea el mismo modo de falla contra el que
-   advierte la cabecera del diagrama, un nivel más arriba.
 
 ⚠️ **Y una cosa que la §15 dejó anotada y conviene no perder** (`platform.md`
 §21 · P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF
 (`ReservaService.avisarQueSeVencio` recorre `activosConRol`). Hoy vencer una
-prereserva es raro; **con el circuito del buzón pasa a ser rutina**. Es el modo de
-falla que `AvisoService` documenta en su propia cabecera. No se tocó, y es **lo
-primero a mirar si el buzón empieza a hacer ruido**.
+prereserva es raro; **con el circuito del buzón pasa a ser rutina**, y **la §16 lo
+empeora**: si B1 entra, las preinscripciones vencidas se suman a las mismas
+bandejas. Es el modo de falla que `AvisoService` documenta en su propia cabecera.
+No se tocó, y es **lo primero a mirar si el buzón empieza a hacer ruido**.
