@@ -439,7 +439,7 @@ por falta de este módulo, y **son parte de darlo por terminado**:
   uno de dos caminos: un `pago` que la apunta (`pago.id_reserva`), o la
   inscripción que cubre esa clase (`reserva_participante.id_inscripcion`). El
   esquema ya lo acompaña con `estado_pago = 'SENADO'`.
-- **❓P13 — ¿Los precios viven en el sistema?** El único realmente abierto, **y
+- **✅P13 — CERRADA el 2026-09-10 como P63 (§22): sí, hay lista de precios.** Lo que sigue es lo que valía mientras estuvo abierta. *¿Los precios viven en el sistema?* Era el único realmente abierto, **y
   §13 ya decidió cómo seguir sin él**: `reserva` no tiene precio, así que la base
   exige *que haya un pago* y no *que sea el 50%*; esa mitad la impone la pantalla
   y la base la toma cuando `reserva` tenga precio. **Módulo 3 no construye tabla
@@ -815,7 +815,7 @@ o a comprar licencia; es la razón principal de la elección y está escrita en 
 | ~~P10~~ | ✅ Sala 1, Sala 2, Cabina de grabación | — |
 | ~~P11~~ | ✅ De 10:00 a 18:00, nada después de medianoche (§13) | — |
 | ~~P12~~ | ✅ Pago parcial contra la inscripción; el estado sale de la suma (§13) | — |
-| P13 | ¿Lista de precios en el sistema? | Módulo 3 |
+| ~~P13~~ | ✅ **Sí, hay lista de precios** — cerrada el 2026-09-10 como **P63** (§22): tabla `programa`, una fila por disciplina, editable desde una pantalla | — |
 | ~~P39~~ | ✅ **No.** El aviso se ve adentro del sistema; no se construye ningún envío hacia afuera (§15) | — |
 | ~~P14~~ | ✅ Caso por caso, con justificación escrita obligatoria | — |
 | ~~P15~~ | ✅ Se anula con autor, fecha y motivo (`V7`). No se edita ni se borra | — |
@@ -2125,3 +2125,292 @@ mentira es peor que la de hoy.**
 
 **Y la sala no se pregunta.** La decide la matriz `sala_tipo_uso`, no el cliente:
 ofrecerla produciría combinaciones que la base rechaza.
+
+---
+
+## 22. Decisiones cerradas el 2026-09-10 (sexta tanda) — la cuarta barrida
+
+> Las quince preguntas que abrió `mejoras.md` §16, contestadas por Ignacio el
+> mismo día y **antes de escribir código** — es la séptima vez que ese orden se
+> respeta. Su consigna al contestar: *"si alguna respuesta no te satisface avisá"*,
+> y cinco de ellas necesitan una precisión más (P59 ×2, P61, P63, P64, P67); están marcadas ⏳ con la lectura
+> que se adopta mientras tanto, para que nada quede trabado por una vuelta de
+> mail.
+>
+> ⚠️ **Esta tanda cambia una política de cobro que estaba cerrada desde el
+> 2026-08-11.** P33 decía *"todo antes de empezar, sin cuotas"*; P59 la parte en
+> dos. No es una contradicción descubierta: es una decisión nueva del negocio,
+> tomada por quien puede tomarla, y P33 queda superada donde P59 la toca.
+>
+> ⚠️ **Y cierra P13**, que llevaba un mes abierta y `pendientes.md` marcaba como
+> *"la más consecuente de las que quedan"*.
+
+### ✅ P59 — Los programas se señan: 50% para inscribirse, el resto antes de empezar
+
+**Textual:** *"Seña del 50% y después lo que resta del pago, misma lógica de
+negocio que las reservas"* y *"señar reserva oficialmente tu inscripción, antes de
+empezar a cursar pagás lo restante."*
+
+**Lo que decide:** una inscripción tiene **dos pagos**, no uno. La seña la hace
+formal; el saldo se paga antes de la primera clase. **Supera a P33** en los
+programas (P33 sigue valiendo para lo que decía de Mix & Mastering).
+
+**Lo que NO decide, y se adopta así hasta que Ignacio diga otra cosa:**
+
+- ⏳ **El plazo de la seña.** *"Misma lógica que las reservas"* se lee como **las
+  mismas 24 horas de `V24`**. Si un curso que arranca en tres semanas merece más,
+  es un número que se cambia en un lugar.
+- ⏳ **"Antes de empezar pagás el resto" es VISIBLE, no un candado.** El saldo
+  queda como deuda con vencimiento en la fecha de inicio, aparece en Deudores y
+  la alerta de deuda de `V17` la cubre. **No se agrega un trigger que impida
+  cargar la primera clase con saldo pendiente**, por dos motivos: sería la forma
+  de `V10` aplicada a una tabla donde hoy toda inscripción `ACTIVA` respalda sus
+  clases sin mirar la plata —rompería cada clase cargada con pago parcial—, y el
+  día que el alumno pagó en efectivo y Mica todavía no lo cargó, ese candado la
+  deja sin poder cargar la clase. Si más adelante hace falta que sea duro, es una
+  migración deliberada con su propia decisión.
+
+### ✅ P60 — No hay cupo. La preinscripción es un ESTADO, no una reserva
+
+**Textual:** *"En realidad sí, pero hoy en día como está el negocio dudo que lo
+agoten, por lo tanto pongamos sin límite, más adelante tal vez haya que
+establecerlo, pero por ahora no."*
+
+**Lo que decide:** `mejoras.md` §16 planteó dos sentidos de *"guardar el lugar"*
+y éste es **el débil**: nadie le saca el lugar a nadie, así que la preinscripción
+no aparta nada — **es un estado de la inscripción que dice "todavía no es
+formal"**. Eso la vuelve una migración chica y no un módulo.
+
+**La forma que se adopta** (la que §16 recomendó): un estado nuevo
+`PREINSCRIPTA` en `inscripcion`, **adentro** del índice único parcial (no se
+acumulan tres preinscripciones a DJ) y **afuera** de `VIGENTES` (no cuenta como
+alumno cursando en el listado, el filtro ni el tablero; **sí** está en Deudores,
+que es donde tiene que estar). Con una escalera como la de `V24`: se **nace**
+preinscripta y se sale sólo a `ACTIVA` o `CANCELADA`; y a `ACTIVA` sólo con un
+pago en `SENADO`/`PAGADO` detrás. **Sin la vuelta de `V11`** (anular la seña
+después): no hay hueco tomado, así que no hay víctima — y la historia de la plata
+queda igual.
+
+⚠️ **Se descartó la alternativa barata** —que nazca `ACTIVA` con una deuda a
+plazo— porque es el agujero que `V12` cerró del otro lado y haría mentir al
+contador de alumnos del tablero.
+
+⚠️ **Si el cupo aparece más adelante**, eso sí es el sentido fuerte y se decide
+como módulo, no como parche sobre esto.
+
+### ✅ P61 — La preinscripción vencida NO se cancela sola: avisa, y Mica decide
+
+**Textual:** *"Si no se da la seña en plazo yo creo que Mica la admin manualmente
+se comunicará con el cliente, sino sí, se cancela."*
+
+**Lo que decide:** la cabina se libera sola porque hay un horario que devolver;
+acá no hay nada que devolver (P60), así que **el sistema no cancela**. Al vencer,
+la deuda de la seña pasa a `VENCIDO` y **el scheduler avisa a administración**
+—una alerta por hecho, clave por inscripción, como las otras cuatro reglas de
+`V17`—; Mica llama, y cancela o cobra. ⏳ Se adopta esta lectura porque la frase
+la sostiene; si Ignacio quería cancelación automática, es un `UPDATE` más en el
+mismo scheduler y se agrega.
+
+⚠️ **Consecuencia que ya estaba anotada y se agrava**: los avisos le llegan a
+**todos** los ADMIN y STAFF (P57). Con preinscripciones vencidas sumadas a las
+prereservas vencidas, es lo primero a mirar si el buzón empieza a hacer ruido.
+
+### ✅ P62 — La seña aplica a las tres disciplinas
+
+**Textual:** *"A todo."* DJ, Producción y Mentoría por igual. No hay excepción por
+tipo, que es lo que P8 ya había decidido para las reservas.
+
+### ✅ P63 — Hay lista de precios en el sistema · **cierra P13**
+
+**Textual:** *"Obvio, cada programa tiene su precio."*
+
+**Lo que decide:** P13 llevaba un mes abierta y ésta es su respuesta. Nace una
+tabla `programa` —una fila por disciplina— con **precio, moneda, cantidad de
+clases estándar** (8 · 16 · sin estándar) y la duración. **Editable desde una
+pantalla** (Q9: *"intentemos que sea todo modificable"*), porque los precios en
+pesos cambian y una tabla que sólo edita un desarrollador es un `properties` con
+extra pasos.
+
+⚠️ **La inscripción sigue guardando SU precio** (`precio_total`), copiado del
+catálogo al inscribir y editable ahí. El catálogo dice cuánto sale hoy; la
+inscripción dice cuánto se acordó ese día. Si el catálogo sube en marzo, la
+inscripción de febrero no cambia — el mismo criterio por el que la historia de la
+plata no se reescribe (`V19`, C3 de §14).
+
+⚠️ **Y se lleva `CLASES_ESTANDAR` con ella.** Hoy el 8/16 vive en Java (que
+decide) y en el front (que muestra): con la tabla hay **una** definición y las
+otras dos se borran. Es la deuda de las dos copias (`pendientes.md` §3.4) pagada
+donde se toca.
+
+⏳ **Los valores**: Ignacio no los tiene todavía (*"precio a confirmar"* para la
+mentoría). La tabla nace con lo que hoy dice la landing —que es placeholder— y
+Mica los corrige desde la pantalla. **No bloquea el código; bloquea publicar la
+landing**, que ya estaba bloqueada por lo mismo.
+
+⏳ **La mentoría se cobra ¿por sesión o por paquete?** DJ se vende como paquete
+de 8; la mentoría no tiene estándar (P65), así que un "precio del programa" no
+alcanza. **Se adopta: precio por sesión, total = sesiones × precio**, que es lo
+único que funciona con una cantidad variable. Si el negocio la vende en paquetes
+cerrados, se agrega el paquete como fila.
+
+### ✅ P64 — El nivel sale del formulario… y el formulario no lo pregunta
+
+**Textual:** *"Depende el que seleccione en el formulario."*
+
+⚠️ **Lo que el formulario pregunta hoy es otra cosa, a propósito.**
+`ProgramApplyForm` no ofrece inicial/intermedio/avanzado: pregunta **experiencia
+previa** (*arranca de cero · algo por su cuenta · ya toca o produce*), y su propio
+comentario dice por qué — *"en vez de obligar a la persona a autodiagnosticarse
+antes de leer nada"*. Es una decisión de la landing, escrita, y buena.
+
+⏳ **Se adopta la lectura que respeta las dos cosas**: la ficha guarda la
+experiencia **como dato** (hoy va enterrada en `detalle`), y al inscribir desde
+el buzón **el nivel viene prellenado** desde ahí —*cero* → INICIAL, *algo* →
+INICIAL, *ya toca* → INTERMEDIO— **y quien inscribe lo puede cambiar** (Q9). Así
+la persona no se autodiagnostica, y Mica no arranca de un `<select>` vacío. Si
+Ignacio prefiere que el formulario pregunte el nivel directo, es cambiar una
+pregunta y borrar el prellenado; se avisa al confirmar.
+
+### ✅ P65 — La mentoría no tiene estándar de clases: lo escribe quien inscribe
+
+**Textual:** *"Acá hay un gris y es que no tiene clases, igual fijate que, por
+ejemplo, Mica elige cuántas clases de DJ va a tomar, podríamos hacer lo mismo
+acá."*
+
+**Lo que decide:** ratifica P34 —mentoría sin estándar— y resuelve el gris con
+lo que el alta **ya hace**: `clasesContratadas` es opcional y Mica puede
+sobreescribir el 8 de DJ. Para mentoría el campo viene vacío y **es
+obligatorio**, en vez de rechazar. Una sesión de mentoría es una `reserva` de
+1:30 como una clase; *"no tiene clases"* quiere decir que no tiene un número
+fijo, no que no ocupe la agenda.
+
+### ✅ P66 — El profesor se asigna al inscribir, y todo queda editable
+
+**Textual:** *"Se asigna el profe al inscribir, intentemos que sea todo
+modificable igual, esto y todo."*
+
+**Lo que decide:** el alta desde el buzón lleva el selector de profesor (el
+mismo `BuscadorDeProfesores` del alta de inscripciones), **sin volverlo
+obligatorio** — P37 sigue: una clase no exige profesor asignado, y una inscripción
+tampoco. Y la frase *"todo modificable"* fija el criterio de la tanda entera:
+**lo que el buzón crea se edita después desde las pantallas de siempre**
+(`/admin/inscripciones`, `/admin/alumnos/:id`), no desde el buzón. El buzón
+crea; no administra.
+
+### ✅ P67 — Qué es la mentoría, y entra con formulario propio
+
+**Textual:** *"Charlas mano a mano con algún DJ que te aconseja, te explica… te
+hace de mentor para tu carrera de DJ. Duración 1:30, formato virtual o
+presencial, apunta a DJs que ya tienen recorrido y están estancados o algo así,
+precio a confirmar."* Y sobre el formulario: *"el suyo."*
+
+**Lo que decide para la landing:** una página de programa más, con esa copia
+(**a validar por el cliente como toda la copia larga**), su formulario propio y
+sin precio hasta que exista. El público es distinto al de los otros dos —gente
+que ya toca— y eso cambia las preguntas del formulario: no tiene sentido
+preguntarle si arranca de cero.
+
+⏳ **"Virtual o presencial" no cabe en la agenda del sistema, y no es sólo de la
+mentoría.** El formulario de programas **ya pregunta modalidad** (presencial /
+virtual en vivo) para DJ y Producción también, y la respuesta viaja en `detalle`.
+En el sistema **toda clase es una `reserva` en una `sala`**: una sesión virtual
+no ocupa sala y hoy no se puede cargar sin ocupar una. **Se adopta**: la
+modalidad se guarda en la ficha como dato, y la sesión virtual se carga igual en
+la sala desde donde el profesor la da — que es lo que pasa en la realidad. Si
+alguna vez dos profesores dan virtual a la misma hora, ahí hace falta una `sala`
+"Virtual" sin exclusión de solapamiento, y eso se decide aparte.
+
+### ✅ P68 — El nombre del DJ linkea a su perfil, no al artículo; la fuente deja la pantalla
+
+**Textual:** *"Sacala, que te lleve a lo que te dije, a alguna página con info de
+ese DJ, no al artículo donde dijo la frase. Si es de La Juanita no pongas ningún
+link a nada."*
+
+**Lo que decide:** `Frase` gana `perfil` (opcional) y la pantalla linkea el
+nombre ahí. **`fuente` no se borra**: es lo que sostiene la regla del archivo
+—una cita atribuida exige dónde verificarla, y sin eso no compila— y esa regla es
+la única defensa contra firmar con un nombre real algo que la persona no dijo.
+Deja de verse; sigue existiendo. Las de la casa, sin link.
+
+### ✅ P69 — Mover la clase no tiene tope; se cuenta y se muestra
+
+**Textual:** *"Como vos digas."*
+
+**Lo que decide:** lo que §16 recomendó — **contador visible, sin límite**. La
+clase dice *"movida 3 veces"* en las tres pantallas que la dibujan, y la ficha
+del alumno lo suma. El número duro se agrega el día que el contador muestre un
+abuso real, no antes.
+
+### ✅ P70 — El tablero cuenta alumnos por disciplina; el nivel queda en el export
+
+**Textual:** *"Dale, me gustó, dejalo en el export no en pantalla."*
+
+**Lo que decide:** la pantalla muestra **un número por disciplina**, contado en
+SQL con `DISTINCT` sobre la disciplina entera. El Excel conserva la apertura por
+nivel en una hoja aparte. Son **dos consultas** y no una filtrada, porque sumar
+la segunda en el front cuenta dos veces a quien tiene dos niveles de la misma
+disciplina.
+
+### ✅ P71 — El mensaje único de WhatsApp dice qué se confirmó, qué se debe, y presenta el portal
+
+**Textual:** *"Aparte de todo lo que dije —que se confirmó lo que pidió, que el
+precio es tal, que a las 24 hs no sé qué, tu usuario es tal, tu mail es tal, que
+la contra vence a los 7 días, etc.— que diga que a partir de ahora tiene
+disponible el portal del alumno en el cual va a poder ver todos sus pagos,
+reservas, solicitar nuevas reservas (describir bien el portal), y a lo que vos se
+te ocurra que puede sumar."*
+
+**Lo que decide:** un solo mensaje, en **tres bloques y en este orden** — es la
+decisión de `mejoras.md` §16 · A8: lo urgente arriba, la salida abajo.
+
+1. **Lo que se confirmó y lo que se debe**: qué, cuándo, cuánto, hasta cuándo, y
+   qué pasa si no.
+2. **La cuenta**: dónde se entra, usuario, contraseña temporal, que se la va a
+   pedir cambiar, que vence a los 7 días.
+3. **El portal, descrito por lo que hace** — no *"tenés un portal"* sino la lista
+   de lo que puede hacer desde hoy. **Se escribe con lo que el portal tiene de
+   verdad**, no con lo que suena bien: ver sus reservas y pedir mover una clase
+   (*"No puedo ese día"*), ver sus pagos y su estado de cuenta con los
+   comprobantes, pedir la cabina o una grabación para otro día, seguir el avance
+   de su curso clase por clase, y ver el material que le deje su profesor. Lo
+   que **no** se promete: nada que pase por mail (no hay), ni pagar desde el
+   portal (no hay pasarela — todos los medios son manuales).
+
+**El borrador para la cabina** (se valida en la pantalla, que es donde se lee):
+
+> ¡Hola {nombre}! Te apartamos {sala} para el {cuándo}.
+>
+> Para confirmarla hay que abonar {importe} antes del {vence}. Pasado ese plazo
+> el horario se libera. Cualquier duda, contestá por acá.
+>
+> Además te creamos tu cuenta en La Juanita Studio. Entrás en {url}
+> Usuario: {email}
+> Contraseña: {temporal}
+> Te la va a pedir cambiar la primera vez, y vence a los 7 días.
+>
+> Desde tu cuenta vas a poder ver esta reserva y las que hagas después, pedir la
+> cabina para otro día, ver tus pagos y descargar los comprobantes, y avisarnos
+> si un día no podés venir. ¡Te esperamos!
+
+**Para la inscripción a un programa**, el mismo molde con el primer bloque
+cambiado — *"te anotamos en {programa} con {profesor}"*, la seña y su plazo, y
+que el saldo va antes de la primera clase — y el tercero sumando *"seguir el
+avance de tu curso clase por clase y ver el material que te deje tu profe"*.
+
+⚠️ **Lo que agrega el sistema y no se le pide a nadie que tipee**: el mensaje
+tiene **dos variantes y no una**, porque la persona que ya tenía cuenta **no
+recibe el bloque 2** — mandarle una contraseña temporal a alguien que ya entra
+con la suya es el modo de falla que `ConversionRealizada.passwordTemporal = null`
+existe para evitar. El bloque 3 sí va igual: que ya tenga cuenta no quiere decir
+que sepa qué puede hacer desde ella.
+
+---
+
+### Lo que esta tanda deja anotado para la barrida siguiente
+
+- **P7 (autogenerar las clases semanales) NO se tocó**, aunque §16 la señala
+  como lo que los grupos de a 3 van a reabrir. Se decide con los grupos, no antes.
+- **El cupo** (P60) puede aparecer. Si aparece, es el sentido fuerte de "guardar
+  el lugar" y se decide como módulo.
+- **El candado del saldo** (P59, segunda ⏳) puede volverse duro. Es una migración
+  con su propia decisión, no un ajuste de ésta.

@@ -3902,15 +3902,15 @@ verificaron poniendo la clave obvia (`n=<cantidad>`): los tres van a rojo.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-10)
 
-🟠 **ESTADO: NADA EJECUTADO. La barrida está abierta y trabada por decisiones.**
+🟢 **ESTADO: DESTRABADA. Nada ejecutado todavía; el plan está armado.**
 
-**Las quince preguntas de negocio del final de esta sección están sin contestar.**
-Ignacio las va a responder en la próxima sesión —*"no te respondí nada, todo esto
-que hablamos documentalo y después te respondo todo y seguimos"*—, y recién ahí se
-arma el plan por fases.
+**Las quince preguntas se contestaron el mismo día** y están cerradas en
+`requirements/platform.md` §22 (P59–P71, y P13 con ellas). Cinco llevan una ⏳
+con la lectura adoptada — ninguna traba. **El plan por fases está al final de esta
+sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
+(`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-**Lo único liberado hoy es A6**, que es un bug y no depende de ninguna decisión.
-Está diagnosticado hasta la línea (ver abajo) y se puede tomar sin esperar nada.
+**Lo próximo es ejecutar la Fase 0 (A6).** Está diagnosticado hasta la línea.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -4232,59 +4232,161 @@ no"*— y **ése es el fácil**: se resuelve aplicando tres veces el camino dobl
 
 ---
 
-### ⚠️ Las quince preguntas de negocio — SIN CONTESTAR al 2026-09-10
+### ✅ Las quince preguntas — contestadas el mismo día, y P13 con ellas
 
-**Nada de B1, B2 1.1, B2 1.2 ni A7 se puede ejecutar sin esto.** Las respuestas van a
-`requirements/platform.md` como §22, **antes de escribir código** — el orden que ya
-pagó cinco veces.
+Ignacio las contestó el 2026-09-10 (*"te respondo las preguntas cosa que no se
+trabe nada"*) y **las respuestas están en `requirements/platform.md` §22, P59 a
+P71**, escritas antes de tocar código. La correspondencia, para no ir a buscarla:
 
-**Bloquean B1 y todo lo que cuelga:**
+| Pregunta | Decisión | En una línea |
+|---|---|---|
+| 1 · ¿Hay cupo? | **P60** | No por ahora → la preinscripción es un **estado**, no una reserva |
+| 2 · ¿Seña + saldo? | **P59** | 50% y el resto antes de empezar · ⏳ plazo: se adoptan las 24 hs de `V24` |
+| 3 · ¿Se cursa con la seña sola? | **P59** | La seña la hace formal; el saldo va antes de la primera clase · ⏳ **visible, no candado** |
+| 4 · ¿Vencida se cancela? | **P61** | **No**: avisa a administración y Mica decide · ⏳ lectura adoptada |
+| 5 · ¿Mentoría también? | **P62** | A todo |
+| 6 · ¿Lista de precios? | **P63 — cierra P13** | Sí: tabla `programa`, editable · ⏳ mentoría por sesión |
+| 7 · ¿Con qué nivel entra? | **P64** | ⚠️ el formulario pregunta **experiencia**, no nivel, a propósito → se prellena y Mica lo cambia · ⏳ |
+| 8 · ¿Cuántas clases una mentoría? | **P65** | Sin estándar: lo escribe quien inscribe, obligatorio |
+| 9 · ¿Profesor al inscribir? | **P66** | Sí, opcional, y **todo editable después desde las pantallas de siempre** |
+| 10 · ¿Qué es la mentoría? | **P67** | 1:1 con un DJ, 1:30, para quien ya toca y está estancado · ⏳ **virtual no cabe en la agenda** |
+| 11 · ¿Formulario propio? | **P67** | Sí |
+| 18 · ¿La fuente sigue visible? | **P68** | No: deja la pantalla, **se queda en el dato** (sostiene la regla) |
+| 19 · ¿Contador o límite? | **P69** | Contador |
+| 20 · ¿El nivel dónde queda? | **P70** | En el export |
+| 21 · ¿Qué más dice el mensaje? | **P71** | Tres bloques: lo confirmado y lo que se debe · la cuenta · **el portal descrito por lo que hace** |
 
-1. **¿Hay cupo real en los programas?** ¿Un horario con un profe aguanta un máximo de
-   alumnos, o se le vende a cualquiera? **Decide si B1 es un estado o un módulo.**
-2. **¿Seña + saldo, o sigue el pago completo antes de empezar?** Si es seña: **¿cuánto**
-   (¿el mismo 50% de las reservas?) y **¿qué plazo** (¿las 24hs de la cabina, o más — un
-   curso no arranca mañana?).
-3. **¿Se puede empezar a cursar con la seña sola**, o hace falta el saldo antes de la
-   primera clase?
-4. **¿Qué pasa cuando vence la preinscripción?** La cabina se libera sola porque hay un
-   horario que devolver. Acá: ¿se cancela sola, o queda marcada para llamar?
-5. **¿Aplica a mentoría**, o sólo a DJ y Producción?
+⚠️ **Dos respuestas chocaron con algo que ya estaba escrito en la landing, y las
+dos se resolvieron respetando las dos cosas** (P64 y P67): el formulario de
+programas **no pregunta el nivel** —pregunta experiencia, para que la persona no
+se autodiagnostique antes de leer nada— y **ya pregunta modalidad presencial /
+virtual para los tres programas**, no sólo para la mentoría. Ninguna de las dos
+estaba en la lista de Ignacio ni en la mía: aparecieron al abrir el formulario.
+*Chequeá el código, no la frase sobre el código*, otra vez.
 
-**Bloquean B2 1.1:**
+**Las cinco ⏳ no traban nada**: cada una tiene una lectura adoptada y escrita, y
+cambiarla es un ajuste, no un rediseño. Están enumeradas en la cabecera de §22.
 
-6. **¿Hay lista de precios fija por programa, o se escribe caso por caso?** ⚠️ **Es
-   P13**, ya abierta y ya marcada como la más consecuente de las que quedan.
-7. **¿Con qué nivel entra el que aplica desde la web?** ¿Todos inicial, lo elige la
-   persona, o lo decide administración al atender?
-8. **¿Cuántas clases tiene una mentoría?** (P34 la dejó sin estándar a propósito.)
-9. **¿El profesor se asigna al inscribir o después?**
+---
 
-**Bloquean A7:**
+### El plan por fases
 
-10. **¿Qué es la mentoría en una frase que pueda ir en la web?** Formato (1:1, duración,
-    cuántos encuentros), precio, y a quién apunta.
-11. **¿Entra por el mismo formulario que DJ y Producción, o tiene el suyo?**
+**Seis fases, en el orden de siempre — A → B → C — con A6 primero porque es un
+bug y no una mejora**, la misma excepción que §14 hizo con el bug del sello.
+Cada fase termina con las seis verificaciones en verde (`mvn test`,
+`pruebas-sql.sh`, vitest, `tsc -b`, los dos builds, los dos linters) y **cada
+punto se cierra por separado**.
 
-**Sueltas, cada una traba sólo su punto:**
+⚠️ **Tres migraciones nuevas, y la del admin sembrado se corre por QUINTA vez**:
+ya no es `V28`. Va a ser `V31`. No la anotes con número.
 
-18. **A2** — ¿la `fuente` de la cita se sigue viendo en pantalla, o queda sólo como dato
-    que sostiene la regla?
-19. **A3** — ¿contador de movimientos visible, o límite duro? Si es límite, el número.
-20. **A5** — el nivel, ¿se pierde del todo, o queda en el Excel aunque no esté en
-    pantalla?
-21. **A8** — además de *"ya podés usar tu cuenta para reservar"*, ¿qué más dice el
-    mensaje?
+#### Fase 0 · A6 — el bug de la pantalla en negro
 
-**Diferidas con B2 2.1** (no traban esta barrida):
+- `CandidatoDeLaFicha.cuando` pasa a `string | null` en el tipo TS (la columna lo
+  es); la opción escribe *"sin fecha de inicio"* cuando no hay.
+- **Un `ErrorBoundary` en el shell** con un mensaje legible y la salida (volver
+  al inicio / recargar), y **uno por ruta** para que una pantalla rota no se
+  lleve el sidebar. Hoy no hay ninguno.
+- Caso nuevo con una inscripción sin fecha; **se verifica poniendo el bug de
+  vuelta** — el caso tiene que ir a rojo con `cuando: string`.
 
-12. ¿Una seña por grupo o una por cabeza? ¿Se confirma con el primer pago o el último?
-13. Si pagan dos y el tercero no, ¿se cae el grupo, siguen los dos, o queda esperando?
-14. ¿El grupo se mantiene junto para siempre, o es sólo la forma de darlos de alta?
-15. ¿Se acepta que el sistema genere las 8/16 clases semanales de una? **(Es P7, hoy
-    decidida al revés.)**
-16. ¿Sólo de 3, o de 2 a N? Ignacio mencionó las dos cosas.
-17. ¿Un grupo puede incluir a alguien que ya es alumno del estudio?
+#### Fase 1 · Grupo A — A1 · A2 · A4 · A8
+
+- **A1** — la agenda del profesor pasa de 1 a **4 semanas**, igual que la del
+  alumno. `misClasesDictadas` acompaña el período (las dos preguntas son del
+  mismo rango a propósito y siguen siéndolo).
+- **A2** — `Frase` gana `perfil?: string`; el nombre linkea ahí; `fuente` deja de
+  dibujarse y sigue siendo obligatoria en el tipo. **Diez perfiles a buscar y
+  abrir uno por uno** (Resident Advisor, con Wikipedia de respaldo) — es trabajo
+  de búsqueda, como las diecisiete citas.
+- **A4** — el tablero es la **excepción declarada** a "un acento por pantalla":
+  una escala secuencial de la paleta para el heatmap, medida en claro y oscuro
+  como en §14 · A, y tono en las tarjetas de indicadores. El `rgba(214,40,40)`
+  escrito a mano desaparece.
+- **A8** — **un botón, un mensaje, dos variantes** (P71): `mensajeDeCabinaApartada`
+  absorbe a `mensajeConLaClave`; sin cuenta nueva no va el bloque 2. La pantalla
+  pierde el segundo botón. Los casos que buscaban los dos se reescriben.
+
+#### Fase 2 · Grupo B — A3 · A5 · A7
+
+- **A3** — *"movida N veces"* en la clase. Mis reservas y Mi agenda ya tienen los
+  pedidos cargados: cuentan los aprobados por reserva. Para administración
+  (calendario y ficha del alumno) el conteo viaja en el resumen de la reserva,
+  agrupado en la consulta y no por fila.
+- **A5** — **dos consultas**: alumnos por disciplina (pantalla) y por disciplina
+  y nivel (una hoja aparte del export). `DISTINCT` sobre la disciplina entera en
+  la primera. DTO, tipo TS y las hojas del informe cambian juntas — un armado,
+  dos formatos.
+- **A7** — la página de mentoría en la landing (`programs.ts`, copia de P67 a
+  validar, precio *a confirmar* como los otros), **formulario propio** con las
+  preguntas de alguien que ya toca, en el home y en `/programas`. Manda
+  `interes: CURSO` con el programa en `detalle` como hoy; **los campos
+  estructurados llegan con C2** y ahí se actualizan los tres formularios de una.
+
+#### Fase 3 · C1 — el catálogo de programas (`V28`, cierra P13)
+
+- Tabla `programa`: una fila por disciplina — nombre, **precio y moneda**,
+  `cobro` (por paquete / por sesión, P63), `clases_estandar` (8 · 16 · NULL),
+  duración, `activa`, `fecha_creacion`. Sembrada con lo que hoy dice la landing.
+- `GET/PUT /api/programas` y la pantalla `/admin/programas` — tres filas
+  editables, `@PuedeOperar`; `DIRECTIVO` la lee.
+- **`CLASES_ESTANDAR` se borra de Java y del front**: el alta lee el catálogo.
+  Una definición, no tres.
+- El alta de inscripción **prellena el precio** desde el catálogo; la inscripción
+  sigue guardando el suyo.
+
+#### Fase 4 · C2 — la ficha dice qué programa (`V29`)
+
+- `solicitante.disciplina`, `solicitante.experiencia`, `solicitante.modalidad`,
+  las tres **nullable y con CHECK**, sin atarlas a `interes` (el buzón está vacío
+  en desarrollo y no hay producción, pero atarlas obliga a desplegar landing y
+  backend a la vez). Es la Fase 4 de §15 otra vez: **lo que la web sabe viaja
+  como campo, no enterrado en `detalle`**.
+- Los tres formularios de programas de la landing mandan los tres campos; el
+  buzón los muestra.
+
+#### Fase 5 · C3 — la preinscripción (`V30`, P59–P62)
+
+- `PREINSCRIPTA` en el CHECK; `inscripcion.vence_preinscripcion` con el CHECK de
+  ida y vuelta contra el estado (la forma de `V24`).
+- El índice único parcial se **amplía** a `estado IN ('ACTIVA', 'PREINSCRIPTA')`.
+- **La escalera**: se nace preinscripta y se sale sólo a `ACTIVA` o `CANCELADA`;
+  **a `ACTIVA` sólo con un pago en `SENADO`/`PAGADO` detrás**. Inmediato, con
+  mensaje propio para `ManejadorDeErrores`. Sin la vuelta de `V11` (P60 dice por
+  qué).
+- Los seis lugares que se mueven juntos: CHECK, `EstadoInscripcion`, tipo TS,
+  DBML, `VIGENTES` (**afuera**), índice.
+- Casos en las dos suites SQL — con `probar_mensaje`, y **una sola rechazada por
+  caso** (la lección de `V26`).
+
+#### Fase 6 · C4 + C5 — la seña de los programas y el alta desde el buzón (B1 · B2 1.1 · B2 1.2)
+
+- **`AltaInscripcionRequest.sena` opcional**, el molde exacto de
+  `AltaReservaRequest`: con seña nace `ACTIVA` y el pago `SENADO`; sin seña nace
+  `PREINSCRIPTA` con una deuda del 50% que vence en 24 hs
+  (`lajuanita.preinscripcion.vigencia`).
+- **`PATCH /api/pagos/{id}/cobro` se extiende**: cobrar la seña de una
+  preinscripción la pasa a `ACTIVA` **y crea la deuda del saldo** (`precio_total`
+  menos lo cobrado) con vencimiento en la fecha de inicio. Un movimiento, no dos
+  — el mismo argumento por el que el cobro de una prereserva confirma la reserva.
+- **La quinta regla del scheduler**: preinscripción vencida → alerta a
+  administración, clave `PREINSCRIPCION_VENCIDA:i=<id>`, **no cancela** (P61).
+- **`POST /api/solicitantes/{id}/inscripcion`**, el molde de `/reserva`: cuenta
+  si falta (los dos caminos de `darleCuenta`) + relación `alumno` si falta +
+  inscripción preinscripta (precio y clases del catálogo, nivel prellenado desde
+  la experiencia, profesor opcional) + deuda de la seña + cierre de la ficha con
+  `id_inscripcion` + notificación. **Una transacción**, por el argumento de §15 ·
+  Fase 3: lo que puede fallar es la inscripción (el índice único) y lo que
+  quedaría es una cuenta con contraseña ya mostrada para alguien sin nada.
+- Pantallas: el buzón gana *"Inscribirlo"* para `CURSO` (`SE_APARTA` deja de ser
+  sólo de cabina), el formulario y el panel de resultado con el mensaje de P71 en
+  sus dos variantes; `/admin/inscripciones` muestra el estado y el vencimiento y
+  ofrece la seña en el alta; la ficha del alumno y `Mis cursos` dicen
+  *"Preinscripto · falta la seña"* en vez de dibujar un progreso de cero.
+
+**Qué queda afuera de las seis fases, a propósito**: B2 2.1 (grupos), P7, el
+cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
+§22 con la condición que los reabre.
 
 ---
 
@@ -4311,40 +4413,41 @@ pagó cinco veces.
 
 ---
 
-## ⚠️ DÓNDE RETOMAR (después de abrir la §16, 2026-09-10)
+## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
 
-🟠 **HAY UNA BARRIDA ABIERTA Y TRABADA: la §16, la cuarta.** Doce hallazgos,
-**cero ejecutados**, y **quince preguntas de negocio sin contestar** — están al
-final de la §16 y son la puerta de todo lo demás. Ignacio las va a responder:
-*"no te respondí nada, todo esto que hablamos documentalo y después te respondo
-todo y seguimos."*
+🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
+**cero ejecutados**, **las quince decisiones de negocio cerradas el mismo día**
+(`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
+de la §16. Lo que falta es ejecutarlo.
 
-**Lo primero al volver: leer la §16 entera antes de tocar nada.** Está toda
-analizada contra el código —cada punto dice qué se verificó y en qué archivo— así
-que el trabajo de diagnóstico ya está hecho y no hay que rehacerlo.
+**Lo primero al volver: leer la §16 y la §22 antes de tocar nada.** Cada hallazgo
+dice qué se verificó y en qué archivo; cada decisión dice qué se adopta y por qué.
+El diagnóstico y las decisiones no hay que rehacerlos.
 
-**Lo único que se puede ejecutar hoy, sin esperar respuestas:**
+**El orden, y por qué:**
 
-- 🔵 **A6 — el bug de la pantalla en negro.** Diagnosticado hasta la línea:
-  `inscripcion.fecha_inicio` es nullable, viaja `null`, el tipo TS dice `string`,
-  y `fecha()` le hace `.slice()`. **Van dos arreglos**: el `null` (que es el bug)
-  y un `ErrorBoundary`, porque **hoy no hay ninguno en toda la SPA** y cualquier
-  throw de render se lleva la aplicación entera puesta.
+| Fase | Qué | Migración |
+|---|---|---|
+| 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe | — |
+| 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único | — |
+| 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing | — |
+| 3 | **C1** — el catálogo de programas, cierra P13 | `V28` |
+| 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
+| 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
+| 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
 
-**El orden que va a tener el plan, cuando estén las respuestas:** A → B → C, con
-B1 (la seña de los programas) primero de los dos C, porque **B2 1.1 depende de
-él** — sin seña no hay deuda que mandar a Deudores.
+⚠️ **La migración del admin sembrado se corre por QUINTA vez: ya no es `V28`,
+va a ser `V31`.** Sigue sin anotarse con número en ningún lado.
 
-⚠️ **Dos preguntas de la §16 NO son nuevas: ya estaban abiertas.** La 6 es
-**P13** (*¿lista de precios en el sistema?*), que `pendientes.md` §4 marca como
-*"la más consecuente de las que quedan"*, y la 15 es **P7** (autogenerar las
-clases semanales), hoy decidida al revés por el cliente. **Contestarlas cierra
-deuda vieja, no sólo esta barrida.**
+⚠️ **Cinco decisiones llevan una ⏳ en §22** — P59 (plazo 24 hs · saldo visible y
+no candado), P61 (no cancela sola), P63 (mentoría por sesión), P64 (el nivel se
+prellena desde la experiencia), P67 (virtual se carga en sala). Cada una tiene su
+lectura adoptada; **si Ignacio cambia alguna, es un ajuste dentro de su fase, no
+un rediseño**. La que más conviene confirmar antes de la Fase 5 es la segunda de
+P59: si el saldo tiene que ser un candado, `V30` lleva un trigger más.
 
-⚠️ **B2 2.1 (grupos de a 3) está diferido por decisión de Ignacio** a la barrida
-siguiente. Su análisis quedó escrito igual en la §16 — el caso que él vio (2 con
-cuenta, 1 sin) es el fácil; los difíciles son la plata, P7 y que **una ficha del
-buzón no se puede borrar**.
+⚠️ **B2 2.1 (grupos de a 3) sigue diferido** a la barrida siguiente, con su
+análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §22.
 
 ---
 
@@ -4353,16 +4456,13 @@ backend · 561 front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los d
 builds y los dos linters limpios. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto.
-2. **Desactivar el admin sembrado**, que sigue siendo la próxima migración —
-   ahora `V28`. ⚠️ **Ese número ya se movió cuatro veces**, así que no se anota
-   como fijo en ningún lado.
+1. **La §16**, que es esto — seis fases por delante.
+2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 
-⚠️ **Y una cosa que la §15 dejó anotada y conviene no perder** (`platform.md`
-§21 · P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF
-(`ReservaService.avisarQueSeVencio` recorre `activosConRol`). Hoy vencer una
-prereserva es raro; **con el circuito del buzón pasa a ser rutina**, y **la §16 lo
-empeora**: si B1 entra, las preinscripciones vencidas se suman a las mismas
-bandejas. Es el modo de falla que `AvisoService` documenta en su propia cabecera.
-No se tocó, y es **lo primero a mirar si el buzón empieza a hacer ruido**.
+⚠️ **Y una cosa que la §15 dejó anotada y la §16 agrava** (`platform.md` §21 ·
+P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF
+(`ReservaService.avisarQueSeVencio` recorre `activosConRol`). La Fase 6 suma a
+esas mismas bandejas el aviso de preinscripción vencida (P61). Es el modo de
+falla que `AvisoService` documenta en su propia cabecera. No se tocó, y es **lo
+primero a mirar si el buzón empieza a hacer ruido**.

@@ -2,10 +2,11 @@
 
 ## ⚡ ESTADO AL 2026-09-10 — leé esto y después, si hace falta, el resto
 
-🟠 **HAY UNA BARRIDA ABIERTA Y TRABADA: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, cero ejecutados, quince preguntas de negocio sin contestar.** Es
-lo primero a leer al volver: cada punto ya está analizado contra el código, así que
-el diagnóstico no hay que rehacerlo. **Lo único liberado es A6**, que es un bug.
+🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
+**Doce hallazgos, cero ejecutados, las quince decisiones de negocio cerradas el
+mismo día** (`platform.md` §22 · P59–P71) **y el plan por fases escrito** — seis
+fases, tres migraciones (`V28` catálogo de programas · `V29` ficha · `V30`
+preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 0 (A6).
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -21,7 +22,7 @@ los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🟠 0 | **La §16 está ABIERTA y trabada por quince decisiones de negocio.** Incluye dos cambios de política (seña en programas, alta completa desde el buzón) y un bug listo para tomar (A6) | [`mejoras.md`](mejoras.md) §16 |
+| 🟢 0 | **La §16 está ABIERTA y con plan**: seis fases, decisiones cerradas en `platform.md` §22. Incluye dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón), **cierra P13** y arranca por un bug (A6) | [`mejoras.md`](mejoras.md) §16 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
@@ -481,13 +482,13 @@ esquema. Una migración que borre fichas correría en producción.
 
 ## ⚪ 4. Decisiones que siguen sin contestar
 
-⚠️ **Ya NO es cierto que ninguna trabe nada: desde el 2026-09-10, dos de éstas
-traban la §16** — y eso es lo mejor que les podía pasar, porque llevaban meses
-esperando un módulo que las necesitara. El resto sigue como estaba: están en el
-índice de `platform.md` §12 y se contestan cuando algo las necesite.
+**La §16 cerró una de éstas el 2026-09-10 — P13, la más consecuente — y dejó
+otra señalada para la barrida siguiente — P7, que los grupos de a 3 van a
+reabrir.** El resto sigue como estaba: están en el índice de `platform.md` §12 y
+se contestan cuando algo las necesite.
 
-**Las quince preguntas nuevas de la §16 NO se listan acá** para no duplicarlas —
-viven al final de `mejoras.md` §16, y las respuestas van a `platform.md` §22.
+**Las quince preguntas de la §16 están contestadas en `platform.md` §22
+(P59–P71)**; cinco llevan una ⏳ con la lectura adoptada, ninguna traba.
 
 | # | Qué | De qué módulo |
 |---|---|---|
@@ -496,7 +497,7 @@ viven al final de `mejoras.md` §16, y las respuestas van a `platform.md` §22.
 | **P7** | **Generación automática de clases semanales** — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* | 2 — ⚠️ **la reabre `mejoras.md` §16 · B2 2.1**: con grupos, cargar 8 clases a mano por grupo es el trabajo que la función viene a evitar |
 | P8 | Quién autoriza reservar con deuda | 2 |
 | ~~P9~~ | ✅ **CERRADA el 2026-08-29**: el profesor pide con el mismo botón que el alumno (`platform.md` §16) | 2 |
-| **P13** | **¿Lista de precios en el sistema?** | 3 — **la más consecuente de las que quedan**: ver abajo. ⚠️ **Desde el 2026-09-10 TRABA la §16 · B2 1.1**: para inscribir desde el buzón hace falta un precio, y hoy lo tipea una persona |
+| ~~P13~~ | ✅ **CERRADA el 2026-09-10 como P63** (`platform.md` §22): **sí, hay lista de precios** — tabla `programa`, una fila por disciplina, editable desde `/admin/programas`. Llega con `V28`, Fase 3 de la §16 | — |
 | P17 | Alcance real de la autogestión | 4 |
 | P19 | Acceso del alumno inactivo | 4 |
 | P20 | Liquidación automática a profesores | 5 — *el M5 entregó el insumo y no la respuesta: contar clases no es calcular un total* |
@@ -505,8 +506,9 @@ viven al final de `mejoras.md` §16, y las respuestas van a `platform.md` §22.
 | P36 | ¿Entran eventos / clases abiertas / showcases? | Alcance — *por defecto **fuera**, pero un evento ocupa una sala* |
 | P37 | ¿Una clase exige profesor asignado? | 2 — *interpretación **abierta a propósito**: no se exige* |
 
-> **P13 es la que arrastra algo concreto.** La seña es el **50% del total** y hoy
-> eso **es verificable sobre una inscripción y no sobre una reserva**:
+> **Lo que P13 arrastraba sigue en pie aunque P13 esté cerrada**, porque P63
+> pone precio a los **programas** y no a las **reservas**. La seña es el **50% del
+> total** y hoy eso **es verificable sobre una inscripción y no sobre una reserva**:
 > `inscripcion.precio_total` existe, `reserva` **no tiene precio** — el de un
 > alquiler sale de horas × una tarifa que no está en el sistema. Por eso la base
 > exige *que exista un pago*, no *que sea la mitad*, y **la pantalla sostiene el
