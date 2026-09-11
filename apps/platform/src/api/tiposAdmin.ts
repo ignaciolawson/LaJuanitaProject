@@ -834,8 +834,17 @@ export type CandidatoDeLaFicha = {
   id: number
   /** Ya legible, resuelto en el servidor. Mismo criterio que `queSalda`. */
   descripcion: string
-  /** La fecha la escribe `fecha()`, que es la única forma de escribir una acá. */
-  cuando: string
+  /**
+   * La fecha la escribe `fecha()`, que es la única forma de escribir una acá.
+   *
+   * ⚠️ **`null` para una inscripción sin fecha de inicio**, y ese `null` es real:
+   * `inscripcion.fecha_inicio` es nullable en `V1` y el alta la manda opcional.
+   * Este tipo decía `string` y la pantalla le hacía `.slice()` — la pantalla en
+   * negro de §16 · A6. Los otros dos candidatos no pueden traerlo: `reserva.fecha`
+   * y `venta_equipo.fecha_venta` son `NOT NULL`. *Chequeá el schema, no la frase
+   * sobre el schema.*
+   */
+  cuando: string | null
   /** Anulada, cancelada, pausada… `null` si no hay nada que aclarar. */
   reparo: string | null
 }

@@ -607,6 +607,36 @@ describe('escribirle por WhatsApp', () => {
   })
 
   /**
+   * **Una inscripción sin fecha de inicio se ofrece igual, dicha así** — y este es
+   * el caso de la pantalla en negro (§16 · A6). `inscripcion.fecha_inicio` es
+   * nullable, el alta la manda opcional, y el tipo decía `string`: la opción le
+   * hacía `fecha(null)`, `null.slice` tiraba, y sin `ErrorBoundary` se iba el
+   * árbol entero. Ignacio lo encontró justo inscribiendo porque sólo pasa con
+   * inscripciones: la reserva y la venta tienen la fecha `NOT NULL`.
+   *
+   * Se verificó poniendo el bug de vuelta: con `fecha(c.cuando)` a secas este
+   * caso va a rojo.
+   */
+  it('ofrece la inscripción sin fecha de inicio, en vez de romper la pantalla', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ idUsuario: 40 })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato({ cuando: null })])
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+    const select = await screen.findByLabelText('Lo que se le cargó')
+
+    expect(
+      await within(select).findByRole('option', { name: 'sin fecha de inicio · DJ · INICIAL' }),
+    ).toBeDefined()
+  })
+
+  /**
    * **Lo anulado se ofrece igual, con el reparo escrito.** Esconderlo deja a
    * quien atiende buscando algo que está y no aparece, y el final de esa búsqueda
    * es cerrar la ficha contra cualquier otra cosa.

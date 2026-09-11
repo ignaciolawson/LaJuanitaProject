@@ -53,6 +53,12 @@ public record CandidatoDeLaFicha(
          * <p>Es el dato con el que se reconoce la fila —quien atiende se acuerda
          * de <i>"la cabina del viernes"</i>—, así que va typed y lo escribe el
          * front.
+         *
+         * <p>⚠️ <b>Puede ser {@code null}, y sólo para una inscripción</b>:
+         * {@code inscripcion.fecha_inicio} es nullable desde {@code V1} y el alta
+         * la manda opcional. {@code reserva.fecha} y {@code venta_equipo.fecha_venta}
+         * son {@code NOT NULL}. El tipo del front lo decía {@code string} y le hacía
+         * {@code .slice()}: la pantalla en negro de {@code mejoras.md} §16 · A6.
          */
         LocalDate cuando,
 

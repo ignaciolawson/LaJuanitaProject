@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Rol, UsuarioActual } from '../api/tipos'
@@ -120,5 +121,47 @@ describe('los contadores del menú', () => {
 
     await waitFor(() => expect(pendientes).toHaveBeenCalled())
     expect(notificacionesSinLeer).toHaveBeenCalled()
+  })
+})
+
+/**
+ * Una pantalla rota se rompe sola (`mejoras.md` §16 · A6).
+ *
+ * Antes no había ningún límite de error: un throw al dibujar cualquier pantalla
+ * desmontaba el árbol entero, sidebar incluido, y quedaba el fondo del tema.
+ * Lo que se cuida acá es la parte que vive en el Layout: que el límite envuelva
+ * al `<Outlet />` y no al sidebar, y que **el `key` en el path lo reinicie** al
+ * navegar —sin él, la persona que vuelve al inicio desde el sidebar seguiría
+ * viendo el error de la pantalla que dejó.
+ */
+describe('una pantalla rota', () => {
+  function Rota(): never {
+    throw new TypeError('se rompió al dibujarse')
+  }
+
+  it('se rompe sola: el sidebar sigue y otra ruta la deja atrás', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(useUsuario).mockReturnValue(usuario('ADMIN'))
+    render(
+      <MemoryRouter initialEntries={['/admin/buzon']}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<p>El inicio, sano</p>} />
+            <Route path="/admin/buzon" element={<Rota />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const alerta = screen.getByRole('alert')
+    expect(alerta.textContent).toContain('Esta pantalla se rompió')
+    expect(alerta.textContent).toContain('/admin/buzon')
+    expect(item('Calendario')).toBeTruthy()
+
+    await userEvent.click(item('Inicio'))
+
+    expect(screen.getByText('El inicio, sano')).toBeDefined()
+    expect(screen.queryByRole('alert')).toBeNull()
+    vi.restoreAllMocks()
   })
 })

@@ -17,6 +17,20 @@ import { MisReservasPagina } from './MisReservasPagina'
  *    pagaste, no porque estés anotado, y ahí no hay lista que tomar.
  */
 
+/**
+ * ⚠️ El día de hoy se fija, como en `CajaPagina`. Los fixtures dicen "la
+ * próxima es el 07/09" y eso fue cierto hasta el 07/09: desde el 11/09 la
+ * pantalla la leía como pasada, no había "Lo próximo" y cinco casos caían
+ * solos —encontrado el 2026-09-11 mientras se cerraba §16 · A6, sin que nadie
+ * hubiera tocado esta pantalla. Es §9.6 pero del almanaque: una suite que se
+ * pone roja sola deja de poder decir si rompiste algo. Se mockea `hoy` y no
+ * los timers porque `userEvent` usa timers para escribir.
+ */
+vi.mock('../componentes/semana', async (importarReal) => ({
+  ...(await importarReal<typeof import('../componentes/semana')>()),
+  hoy: () => '2026-09-01',
+}))
+
 vi.mock('../api/portal', () => ({
   misReservas: vi.fn(),
   misReprogramaciones: vi.fn(),

@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { AuthProvider } from './auth/AuthProvider'
 import { RutaProtegida } from './auth/RutaProtegida'
 import { useAuth, useUsuario } from './auth/contexto'
+import { LimiteDeError } from './componentes/LimiteDeError'
 import { puedeAdministrar } from './layout/menu'
 import { AlumnoPerfilPagina } from './paginas/AlumnoPerfilPagina'
 import { AlumnosPagina } from './paginas/AlumnosPagina'
@@ -43,15 +44,20 @@ import { UsuariosPagina } from './paginas/UsuariosPagina'
 
 export default function App() {
   return (
-    <AuthProvider>
-      {/* El `basename` es el gemelo del `base` de `vite.config.ts`: la
-          plataforma se sirve bajo `/app` porque comparte origen con la landing
-          (ver el comentario largo alla). Los dos tienen que moverse juntos —con
-          uno solo, o cargan los assets y no resuelve ninguna ruta, o al reves. */}
-      <BrowserRouter basename="/app">
-        <Rutas />
-      </BrowserRouter>
-    </AuthProvider>
+    // El límite de afuera es para lo que el de cada pantalla no cubre: el
+    // Layout, el AuthProvider, las puertas. Va fuera del router a propósito,
+    // porque el router puede ser lo que se rompió (§16 · A6).
+    <LimiteDeError alcance="aplicacion">
+      <AuthProvider>
+        {/* El `basename` es el gemelo del `base` de `vite.config.ts`: la
+            plataforma se sirve bajo `/app` porque comparte origen con la landing
+            (ver el comentario largo alla). Los dos tienen que moverse juntos —con
+            uno solo, o cargan los assets y no resuelve ninguna ruta, o al reves. */}
+        <BrowserRouter basename="/app">
+          <Rutas />
+        </BrowserRouter>
+      </AuthProvider>
+    </LimiteDeError>
   )
 }
 

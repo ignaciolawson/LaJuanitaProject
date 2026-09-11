@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-**Lo próximo es ejecutar la Fase 0 (A6).** Está diagnosticado hasta la línea.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fase 0 cerrada el 2026-09-11**; lo próximo es la Fase 1 (A1 · A2 · A4 · A8). El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3923,7 +3923,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 
 | Grupo | Qué significa | Cuántos | Estado |
 |---|---|---|---|
-| 🟢 **A** | Pantalla, texto y estilo | **5** | ⬜ 0 de 5 |
+| 🟢 **A** | Pantalla, texto y estilo | **5** | 🟨 1 de 5 · A6 cerrado el 2026-09-11 |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | ⬜ 0 de 4 |
 | 🔴 **C** | Toca una regla del negocio o el schema | **2** | ⬜ 0 de 2 · **trabados** |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
@@ -4032,7 +4032,7 @@ coincidir).
 
 Falta decidir si el nivel se pierde del todo o sobrevive en el export (pregunta 20).
 
-#### 🔵 A6 · La pantalla en negro al cerrar la ficha — **BUG, y está diagnosticado**
+#### ✅ A6 · La pantalla en negro al cerrar la ficha — **BUG, cerrado el 2026-09-11**
 
 **Es el hallazgo más concreto de la barrida y no depende de ninguna decisión.** La
 cadena, verificada capa por capa:
@@ -4063,6 +4063,50 @@ próximo throw de cualquier pantalla también se lleva la aplicación entera pue
 seis dialectos y uno devolvía `19T14:33:12Z/08/2026` **sin fallar**. Acá el tipo
 dice que el `null` no puede pasar y **la base dice que sí**: unificar la escritura
 de fechas no sirve de nada si el tipo que la alimenta no describe la columna.
+
+**Cerrado el 2026-09-11 (Fase 0), con los dos arreglos:**
+
+- **El tipo dice la verdad**: `CandidatoDeLaFicha.cuando` es `string | null` en
+  `tiposAdmin.ts`, con el porqué escrito al lado, y el javadoc del record de Java
+  dice lo mismo desde su lado. La opción escribe *"sin fecha de inicio · DJ ·
+  INICIAL"* cuando no hay. `fecha()` **no** aprendió a tolerar `null` a propósito:
+  un `null` en cualquier otro lugar sigue siendo un tipo que miente, y conviene
+  que falle ahí y no que se escriba *"sin fecha"* en una columna `NOT NULL`.
+- **`LimiteDeError`** (`componentes/LimiteDeError.tsx`), una clase porque
+  `getDerivedStateFromError` no tiene hook y el `errorElement` de react-router es
+  del router de datos, que este sistema no usa. Dos alcances: **`pantalla`** en el
+  `Layout` alrededor del `<Outlet />`, con `key={pathname}` para que navegar a otra
+  ruta lo reinicie solo —sin el `key`, quien vuelve al inicio desde el sidebar
+  sigue viendo el error de la pantalla que dejó—; y **`aplicacion`** en `App`,
+  **fuera del router** porque el router puede ser lo que se rompió, con las dos
+  salidas como navegaciones del navegador. **Los dos muestran el path y el
+  `name: message` del error en un `<pre>` para copiar**: es para el reporte, no
+  para quien usa el sistema.
+- **Siete casos**, y el del buzón se verificó **poniendo el bug de vuelta**: con
+  `fecha(c.cuando!)` va a rojo. Los otros seis cubren el límite: mensaje y path,
+  que no se lleva lo de afuera, *Intentar de nuevo*, *Volver al inicio*, el de la
+  aplicación sin router, y en `Layout.test` que el sidebar sigue y que cambiar de
+  ruta deja la pantalla rota atrás.
+
+⚠️ **Una trampa de test que apareció escribiendo el caso de "Intentar de nuevo"**:
+un componente que *"tira la primera vez y anda la segunda"* nunca llega al límite.
+React, ante un throw en un render concurrente, **reintenta el árbol entero de forma
+síncrona antes de entregárselo al `ErrorBoundary`**, así que el reintento ya andaba,
+el límite no se enteraba, y encima el throw descartado salía por `reportError` y
+vitest lo reportaba como *Uncaught Exception* de un caso que no era. El componente
+de prueba tira **mientras una bandera esté en `true`**, y el caso la baja antes de
+apretar el botón.
+
+⚠️ **Y un rojo que no era de A6**: cinco casos de `MisReservasPagina.test` caían en
+el árbol sin tocar. Sus fixtures decían *"la próxima es el 07/09"* y eso fue cierto
+hasta el 07/09; desde el 11 la pantalla la leía como pasada y no había *"Lo
+próximo"*. Es §9.6 del almanaque, la misma especie que `CajaPagina` ya había pagado
+el 31 de cada mes; se fijó `hoy()` igual que allá. **Doce suites más de pantallas
+que leen `hoy()` no lo fijan** (`AlumnoPerfil`, `Bloqueos`, `Calendario`, `Egresos`,
+`FichaDeAlumno`, `Inicio`, `Pagos`, `Reservar`, `SubirMaterial`, `Tablero`,
+`UsoDeSalas`, `Ventas`) — hoy pasan, y cualquiera de ellas puede ponerse roja sola
+el día que un fixture "futuro" quede atrás. No se tocaron: es un barrido propio,
+no parte de A6.
 
 #### 🟡 A7 · Mentorías en la landing
 
@@ -4416,7 +4460,7 @@ cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**cero ejecutados**, **las quince decisiones de negocio cerradas el mismo día**
+**uno ejecutado — la Fase 0 (A6) cerró el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
 (`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
 de la §16. Lo que falta es ejecutarlo.
 
@@ -4428,13 +4472,19 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 
 | Fase | Qué | Migración |
 |---|---|---|
-| 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe | — |
+| ✅ 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe · **cerrada el 2026-09-11** | — |
 | 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único | — |
 | 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing | — |
 | 3 | **C1** — el catálogo de programas, cierra P13 | `V28` |
 | 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
 | 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
 | 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
+
+**Lo próximo es la Fase 1** — A1 · A2 · A4 · A8, sin migración. A2 es trabajo de
+búsqueda (diez perfiles a abrir uno por uno); A8 reescribe casos que buscaban dos
+botones. ⚠️ Desde la Fase 0 el sistema tiene `LimiteDeError`: **si una pantalla
+tira, ahora se ve el path y el mensaje en un `<pre>`** — pedirle eso a Ignacio
+cuando reporte algo, en vez de *"se pone en negro"*.
 
 ⚠️ **La migración del admin sembrado se corre por QUINTA vez: ya no es `V28`,
 va a ser `V31`.** Sigue sin anotarse con número en ningún lado.
@@ -4451,12 +4501,12 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto no cambió**: la §15 está cerrada, suites en **646
-backend · 561 front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos
-builds y los dos linters limpios. Lo que sigue abierto en todo el proyecto está en
+**El estado del producto**: la §15 está cerrada, suites en **646 backend · 568
+front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos builds y los
+dos linters limpios (los siete casos nuevos del front son de A6). Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — seis fases por delante.
+1. **La §16**, que es esto — cinco fases por delante (la 0 cerró el 2026-09-11).
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

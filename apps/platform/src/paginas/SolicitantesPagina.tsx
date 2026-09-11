@@ -916,7 +916,7 @@ function CerrarLaFicha({
           <option value="">Elegí una…</option>
           {candidatos.map((c) => (
             <option key={llave(c)} value={llave(c)}>
-              {`${fecha(c.cuando)} · ${c.descripcion}${c.reparo ? ` (${c.reparo})` : ''}`}
+              {`${c.cuando ? fecha(c.cuando) : 'sin fecha de inicio'} · ${c.descripcion}${c.reparo ? ` (${c.reparo})` : ''}`}
             </option>
           ))}
         </CampoSelect>

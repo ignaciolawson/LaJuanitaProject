@@ -1,12 +1,13 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-10 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, cero ejecutados, las quince decisiones de negocio cerradas el
-mismo día** (`platform.md` §22 · P59–P71) **y el plan por fases escrito** — seis
-fases, tres migraciones (`V28` catálogo de programas · `V29` ficha · `V30`
-preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 0 (A6).
+**Doce hallazgos, uno ejecutado —la Fase 0 (A6) cerró el 2026-09-11—, las quince
+decisiones de negocio cerradas el mismo día** (`platform.md` §22 · P59–P71) **y el
+plan por fases escrito** — seis fases, tres migraciones (`V28` catálogo de
+programas · `V29` ficha · `V30` preinscripción). Es lo primero a leer al volver;
+lo próximo es la Fase 1 (A1 · A2 · A4 · A8).
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -17,12 +18,12 @@ Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** 
 §13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
 cinco fases)** están cerrados y commiteados.
 
-**Suites: 646 backend · 561 front · 256 + 66 SQL, sobre 27 migraciones.** `tsc -b`,
+**Suites: 646 backend · 568 front · 256 + 66 SQL, sobre 27 migraciones.** `tsc -b`,
 los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🟢 0 | **La §16 está ABIERTA y con plan**: seis fases, decisiones cerradas en `platform.md` §22. Incluye dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón), **cierra P13** y arranca por un bug (A6) | [`mejoras.md`](mejoras.md) §16 |
+| 🟢 0 | **La §16 está ABIERTA y con plan**: seis fases, decisiones cerradas en `platform.md` §22. Incluye dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón), **cierra P13** y arrancó por un bug (A6, ✅ 2026-09-11) | [`mejoras.md`](mejoras.md) §16 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |

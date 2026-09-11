@@ -1,8 +1,9 @@
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { nombreCompleto } from '../api/tipos'
 import { useAuth, useUsuario } from '../auth/contexto'
 import { Abanico } from '../componentes/Abanico'
+import { LimiteDeError } from '../componentes/LimiteDeError'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { SelectorDeTema } from '../tema/SelectorDeTema'
 import { useTema } from '../tema/useTema'
@@ -36,6 +37,7 @@ export function Layout() {
   const grupos = menuPara(usuario)
   const { tema, alternar } = useTema(usuario)
   const { contadores } = usePendientes(usuario)
+  const ubicacion = useLocation()
 
   return (
     <div className="flex min-h-full">
@@ -134,7 +136,12 @@ export function Layout() {
       </aside>
 
       <main className="min-w-0 flex-1 px-8 py-8">
-        <Outlet />
+        {/* Una pantalla que tira al dibujarse se rompe sola, no con el sidebar
+            (§16 · A6). El `key` en el path es lo que la reinicia: navegar a otra
+            ruta desmonta el límite roto y monta uno limpio. */}
+        <LimiteDeError alcance="pantalla" key={ubicacion.pathname}>
+          <Outlet />
+        </LimiteDeError>
       </main>
     </div>
   )
