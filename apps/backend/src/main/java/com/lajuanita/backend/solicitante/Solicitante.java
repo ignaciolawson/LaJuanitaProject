@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import org.hibernate.annotations.Generated;
 import org.hibernate.generator.EventType;
 
+import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.usuario.Usuario;
@@ -165,6 +166,28 @@ public class Solicitante {
     /** En minutos. La hora de fin la calcula el sistema: "2 horas" es lo que se piensa. */
     @Column(name = "duracion_minutos")
     private Integer duracionMinutos;
+
+    // == Qué programa, con qué experiencia y cómo (`V29`, P64 · P67) ==========
+    //
+    // Lo que el formulario de programas de la landing pregunta, como campos y
+    // no enterrado en `detalle`: la Fase 6 los necesita para inscribir desde el
+    // buzón (leer el catálogo por disciplina, prellenar el nivel). Es lo mismo
+    // que `V27` §3 hizo con el horario, por el mismo motivo.
+    //
+    // ⚠️ Nullable y SIN atar a `interes` (`V29`, punto 2): una landing vieja
+    // manda fichas de curso sin ellos y tienen que entrar igual.
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "disciplina", length = 20)
+    private Disciplina disciplina;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "experiencia", length = 10)
+    private Experiencia experiencia;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modalidad", length = 12)
+    private Modalidad modalidad;
 
     /**
      * Cuándo llegó. Lo pone el DEFAULT de la base.

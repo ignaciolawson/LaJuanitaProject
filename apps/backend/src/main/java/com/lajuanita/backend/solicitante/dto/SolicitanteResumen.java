@@ -4,10 +4,13 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
+import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.solicitante.EstadoSolicitante;
+import com.lajuanita.backend.solicitante.Experiencia;
 import com.lajuanita.backend.solicitante.InteresDelSolicitante;
+import com.lajuanita.backend.solicitante.Modalidad;
 import com.lajuanita.backend.solicitante.Solicitante;
 import com.lajuanita.backend.usuario.Usuario;
 
@@ -66,6 +69,15 @@ public record SolicitanteResumen(
         LocalTime horaPreferida,
         Integer duracionMinutos,
 
+        // == Qué programa, con qué experiencia y cómo (`V29`) =================
+        //
+        // Los tres pueden venir en null: una ficha anterior a `V29`, o una que
+        // no es de curso. La pantalla arma la frase con lo que haya.
+
+        Disciplina disciplina,
+        Experiencia experiencia,
+        Modalidad modalidad,
+
         OffsetDateTime fechaResolucion,
         OffsetDateTime fechaCreacion) {
 
@@ -94,6 +106,9 @@ public record SolicitanteResumen(
                 ficha.getFechaPreferida(),
                 ficha.getHoraPreferida(),
                 ficha.getDuracionMinutos(),
+                ficha.getDisciplina(),
+                ficha.getExperiencia(),
+                ficha.getModalidad(),
                 ficha.getFechaResolucion(),
                 ficha.getFechaCreacion());
     }

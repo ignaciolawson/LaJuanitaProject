@@ -2271,6 +2271,12 @@ la persona no se autodiagnostica, y Mica no arranca de un `<select>` vacío. Si
 Ignacio prefiere que el formulario pregunte el nivel directo, es cambiar una
 pregunta y borrar el prellenado; se avisa al confirmar.
 
+**Ejecutada el 2026-09-11 (`V29`, §16 · Fase 4).** `solicitante.experiencia`
+guarda `CERO / ALGO / TOCA` —la respuesta, no un nivel; `INTERMEDIO` no entra al
+CHECK— y la traducción vive en un solo lugar, `Experiencia.nivelSugerido()`,
+que el alta desde el buzón (Fase 6) va a llamar. La mentoría manda `TOCA` fijo:
+su formulario no pregunta esto porque su público ya toca (P67).
+
 ### ✅ P65 — La mentoría no tiene estándar de clases: lo escribe quien inscribe
 
 **Textual:** *"Acá hay un gris y es que no tiene clases, igual fijate que, por
@@ -2319,6 +2325,11 @@ modalidad se guarda en la ficha como dato, y la sesión virtual se carga igual e
 la sala desde donde el profesor la da — que es lo que pasa en la realidad. Si
 alguna vez dos profesores dan virtual a la misma hora, ahí hace falta una `sala`
 "Virtual" sin exclusión de solapamiento, y eso se decide aparte.
+
+**La parte de la ficha se ejecutó el 2026-09-11 (`V29`, §16 · Fase 4):**
+`solicitante.modalidad` es `PRESENCIAL / VIRTUAL`, los tres formularios la
+mandan como campo y el buzón la muestra. La sala "Virtual" sigue sin existir,
+como se decidió.
 
 ### ✅ P68 — El nombre del DJ linkea a su perfil, no al artículo; la fuente deja la pantalla
 

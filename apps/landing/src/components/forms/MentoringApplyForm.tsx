@@ -1,17 +1,22 @@
 "use client";
 
 import { Field, ChoiceGroup, TextArea, FormShell } from "@/components/forms/Fields";
-import { mandarSolicitud } from "@/lib/api";
+import { mandarSolicitud, type Modalidad } from "@/lib/api";
 
-/**
- * Cómo se lee cada opción en la ficha que ve administración. Mismo criterio
- * que `ProgramApplyForm`: los `value` son de la interfaz, el buzón lee frases.
- */
-const MODALIDAD: Record<string, string> = {
-  presencial: "Presencial en Pilar",
-  virtual: "Virtual",
+/** Mismo mapa que en `ProgramApplyForm`: del radio al valor del sistema. */
+const MODALIDAD: Record<string, Modalidad> = {
+  presencial: "PRESENCIAL",
+  virtual: "VIRTUAL",
 };
 
+/**
+ * El recorrido sigue yendo en `detalle`, como frase, y no en `experiencia`.
+ *
+ * `experiencia` guarda una sola pregunta —cuánto ya hace de esto: cero, algo,
+ * ya toca— y ésta es otra: hace cuánto. Meterla en la misma columna la
+ * volvería una columna cuyo significado depende del programa, que es lo que
+ * el buzón rechazó desde su primera migración. Quien atiende la lee igual.
+ */
 const RECORRIDO: Record<string, string> = {
   poco: "toca hace menos de un año",
   algo: "toca hace 1 a 3 años",
@@ -27,11 +32,11 @@ const RECORRIDO: Record<string, string> = {
  * hace cuánto y qué quiere destrabar —que es lo primero que el mentor va a
  * preguntar, así que mejor que llegue escrito.
  *
- * Manda `interes: "CURSO"` como los otros dos: la disciplina se elige recién
- * al inscribir, y `MENTORIA` está en el sistema desde `V1`. El programa viaja
- * primero en `detalle` porque es lo que decide a qué pantalla va quien atiende
- * la ficha. **Los campos estructurados (programa, experiencia, modalidad)
- * llegan con `V29`**, y ahí se actualizan los tres formularios de una.
+ * Manda `interes: "CURSO"` como los otros dos, con `disciplina: "MENTORIA"`
+ * como campo (`V29`). **Y `experiencia: "TOCA"` fijo**: este formulario no lo
+ * pregunta porque su público ya toca (P67) — es la premisa del programa, no
+ * un dato que la persona tenga que confirmar. Lo que sí pregunta, hace cuánto,
+ * va en `detalle`.
  */
 export function MentoringApplyForm({ programName }: { programName: string }) {
   return (
@@ -46,13 +51,10 @@ export function MentoringApplyForm({ programName }: { programName: string }) {
           email: String(datos.get("email") ?? ""),
           telefono: String(datos.get("telefono") ?? ""),
           interes: "CURSO",
-          detalle: [
-            programName,
-            MODALIDAD[String(datos.get("modalidad"))] ?? null,
-            RECORRIDO[String(datos.get("recorrido"))] ?? null,
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          disciplina: "MENTORIA",
+          experiencia: "TOCA",
+          modalidad: MODALIDAD[String(datos.get("modalidad"))],
+          detalle: RECORRIDO[String(datos.get("recorrido"))],
           mensaje: String(datos.get("mensaje") ?? "") || undefined,
         })
       }

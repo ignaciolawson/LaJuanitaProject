@@ -15,7 +15,9 @@ import { ApiError } from '../api/cliente'
 import {
   DONDE_SIGUE,
   etapaDeLaFicha,
+  NOMBRE_DE_EXPERIENCIA,
   NOMBRE_DE_INTERES,
+  NOMBRE_DE_MODALIDAD,
   NOMBRE_DE_MEDIO,
   type ApartarLaCabina,
   type CabinaApartada,
@@ -38,7 +40,7 @@ import { EstadoVacio } from '../componentes/EstadoVacio'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { cuando } from '../componentes/presentacion'
+import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
 import { fecha } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import {
@@ -291,6 +293,7 @@ export function SolicitantesPagina() {
 
                 <Telefono ficha={f} />
 
+                <Programa ficha={f} />
                 {f.detalle && <div className="mt-1 text-sm text-tenue">{f.detalle}</div>}
 
                 <Preferencia ficha={f} />
@@ -413,6 +416,33 @@ export function SolicitantesPagina() {
       />
     </div>
   )
+}
+
+/**
+ * Qué programa pidió, con qué experiencia y cómo (`V29`, P64 · P67).
+ *
+ * Hasta `V29` esto llegaba adentro de `detalle` como una frase que armaba la
+ * landing; ahora son tres campos y la frase la arma esta pantalla, con lo que
+ * haya. **Se muestra la experiencia y no un nivel** —*"ya toca o produce"*, no
+ * *"intermedio"*—: la persona contestó lo primero, y lo segundo es lo que el
+ * alta va a sugerir, editable. Decir acá "intermedio" sería presentar una
+ * sugerencia como si fuera un dato de la persona.
+ *
+ * Los tres son opcionales por separado, así que una ficha vieja (todo en
+ * `detalle`) o una que no es de curso no dibuja nada y se lee como antes.
+ */
+function Programa({ ficha }: { ficha: SolicitanteResumen }) {
+  const partes = [
+    ficha.disciplina && NOMBRE_DE_DISCIPLINA[ficha.disciplina],
+    ficha.modalidad && NOMBRE_DE_MODALIDAD[ficha.modalidad],
+    ficha.experiencia && NOMBRE_DE_EXPERIENCIA[ficha.experiencia],
+  ].filter(Boolean)
+
+  if (partes.length === 0) {
+    return null
+  }
+
+  return <div className="mt-1 text-sm text-tenue">{partes.join(' · ')}</div>
 }
 
 /**

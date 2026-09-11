@@ -49,6 +49,8 @@
  * largo: qué es, por qué acá, para quién, temario y formulario.
  */
 
+import type { Disciplina } from "@/lib/api";
+
 export type ProgramModule = {
   title: string;
   detail: string;
@@ -107,6 +109,13 @@ export type Program = {
    * sentido. Hoy ninguno lo usa.
    */
   cta: "apply" | "mentoring" | "consult";
+  /**
+   * Cómo se llama este programa **en el sistema**: es lo que el formulario
+   * manda como `disciplina` (`V29`) para que el buzón sepa qué inscribir sin
+   * parsear el nombre de marketing. Los tres valores son los del CHECK de
+   * `inscripcion` y `programa`; el tipo vive en `lib/api.ts`.
+   */
+  disciplina: Disciplina;
 };
 
 export const PROGRAMS: Program[] = [
@@ -191,6 +200,7 @@ export const PROGRAMS: Program[] = [
       "Criterio para elegir qué poner y cuándo.",
     ],
     cta: "apply",
+    disciplina: "DJ",
   },
   {
     slug: "produccion-musical",
@@ -257,6 +267,7 @@ export const PROGRAMS: Program[] = [
       "Postulación al sello con material real.",
     ],
     cta: "apply",
+    disciplina: "PRODUCCION",
   },
   {
     slug: "mentoria",
@@ -328,6 +339,7 @@ export const PROGRAMS: Program[] = [
       "Contacto directo con un DJ de la casa.",
     ],
     cta: "mentoring",
+    disciplina: "MENTORIA",
   },
 ];
 

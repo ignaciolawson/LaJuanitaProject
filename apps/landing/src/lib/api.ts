@@ -63,6 +63,23 @@ export type Interes =
   | "OTRO";
 
 /**
+ * Qué programa, en el nombre que tiene en el sistema. Espeja `Disciplina`
+ * del backend, que es el CHECK de `inscripcion` y `programa`. Cada entrada de
+ * `data/programs.ts` dice cuál es la suya.
+ */
+export type Disciplina = "DJ" | "PRODUCCION" | "MENTORIA";
+
+/**
+ * Cuánta experiencia trae. **Es lo que el formulario pregunta, no un nivel**:
+ * la landing no ofrece inicial/intermedio/avanzado a propósito, y el sistema
+ * traduce al inscribir (P64). Espeja `Experiencia` del backend.
+ */
+export type Experiencia = "CERO" | "ALGO" | "TOCA";
+
+/** Presencial o virtual. Espeja `Modalidad` del backend. */
+export type Modalidad = "PRESENCIAL" | "VIRTUAL";
+
+/**
  * Lo que viaja. Espeja `AltaSolicitanteRequest`.
  *
  * **`nombre` y `apellido` son dos campos**, no uno partido después. El sistema
@@ -85,7 +102,14 @@ export type Interes =
  * nada"*— y tenía razón entonces: viajaban dentro de `detalle` porque nadie los
  * leía. Desde que el buzón puede **apartar la cabina en un movimiento**, son lo
  * único que se puede precargar, así que la premisa cambió y la decisión se
- * revisó. Acotado: **tres campos, no doce.** Todo lo demás sigue en `detalle`.
+ * revisó. Acotado: **tres campos, no doce.**
+ *
+ * **Y los tres del programa también, desde `V29`** (P64, P67): qué programa, qué
+ * experiencia trae y cómo quiere cursar. El alta desde el buzón los necesita
+ * para leer el catálogo y prellenar el nivel, y no puede hacerlo parseando una
+ * frase que este sitio arma con sus nombres de marketing. Seis campos en total;
+ * lo que sólo un formulario pregunta (el recorrido de la mentoría, el
+ * presupuesto de equipos) sigue en `detalle`.
  */
 export type Solicitud = {
   nombre: string;
@@ -116,6 +140,15 @@ export type Solicitud = {
   horaPreferida?: string;
   /** En minutos. Duración y no hora de fin: *"2 horas"* es lo que se piensa. */
   duracionMinutos?: number;
+
+  /**
+   * Qué programa, con qué experiencia y cómo (`V29`). Los mandan sólo los
+   * formularios de programas; **opcionales del lado del sistema** a propósito,
+   * para que una versión de este sitio anterior a `V29` siga entrando.
+   */
+  disciplina?: Disciplina;
+  experiencia?: Experiencia;
+  modalidad?: Modalidad;
 };
 
 /**

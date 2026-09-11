@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0, 1, 2 y 3 cerradas el 2026-09-11**; lo próximo es la Fase 4 (C2, la ficha dice qué programa, `V29`). El estado vivo está en el bloque final de este documento.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0 a 4 cerradas el 2026-09-11**; lo próximo es la Fase 5 (C3, la preinscripción, `V30`). El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3925,7 +3925,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo | **5** | ✅ 5 de 5 · cerrado el 2026-09-11 (Fases 0 y 1) |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | 🟨 3 de 4 · A3 · A5 · A7 el 2026-09-11 (Fase 2); B2 1.1/1.2 es la Fase 6 |
-| 🔴 **C** | Toca una regla del negocio o el schema | **2** | 🟨 C1 (`V28`) cerrado el 2026-09-11; queda C2/C3 (`V29`, `V30`) |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | 🟨 C1 (`V28`) y C2 (`V29`) cerrados el 2026-09-11; queda C3 (`V30`) |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
 
 ⚠️ **Tres de los puntos que Ignacio anotó como A no lo son**, y conviene saberlo
@@ -4569,7 +4569,7 @@ una lista (*"expected 200000.0 but was 200000"*): `Matchers.contains`. Y una
 etiqueta de `Campo` con `ayuda` concatena la ayuda al nombre accesible, así que
 `getByLabelText('Precio del paquete')` no lo encuentra: regex.
 
-#### Fase 4 · C2 — la ficha dice qué programa (`V29`)
+#### ✅ Fase 4 · C2 — la ficha dice qué programa (`V29`) — **cerrada el 2026-09-11**
 
 - `solicitante.disciplina`, `solicitante.experiencia`, `solicitante.modalidad`,
   las tres **nullable y con CHECK**, sin atarlas a `interes` (el buzón está vacío
@@ -4578,6 +4578,49 @@ etiqueta de `Campo` con `ayuda` concatena la ayuda al nombre accesible, así que
   como campo, no enterrado en `detalle`**.
 - Los tres formularios de programas de la landing mandan los tres campos; el
   buzón los muestra.
+
+**Cerrado el 2026-09-11 (Fase 4), tal como estaba planeado, con tres
+decisiones que el plan no explicitaba:**
+
+- **`experiencia` guarda lo que el formulario PREGUNTA, no un nivel** — el CHECK
+  es `CERO / ALGO / TOCA`, y `INTERMEDIO` no entra (caso SQL 248, escrito para
+  eso). La traducción de P64 vive en **un solo lugar**, `Experiencia.
+  nivelSugerido()` (cero/algo → INICIAL, toca → INTERMEDIO), con su caso; la
+  Fase 6 la llama desde el alta. El buzón muestra *"ya toca o produce"* y no
+  *"intermedio"*: lo primero lo dijo la persona, lo segundo es una sugerencia
+  del sistema, y presentarla como dato de la persona sería mentir.
+- **La mentoría manda `experiencia: TOCA` fijo y su recorrido sigue en
+  `detalle`.** Su formulario no pregunta experiencia previa —su público ya toca
+  (P67)— sino hace cuánto (menos de un año / 1 a 3 / más de 3). Meter esas
+  respuestas en la misma columna la volvería una columna cuyo significado
+  depende de la disciplina, que es exactamente lo que `V20` rechazó.
+- **CHECK y no FK a `programa`**, aunque `programa.disciplina` es UNIQUE desde
+  `V28` y el FK era posible: es la tercera copia de la misma lista
+  (`inscripcion`, `programa`, ésta), con el enum de Java como cuarta. Una
+  disciplina nueva es una migración que toca los tres CHECKs. La cabecera de
+  `V29` lo dice, punto 5.
+
+Y lo que dejó de viajar: **`ProgramApplyForm` ya no manda `detalle`** — decir
+lo mismo dos veces es tener dos definiciones de lo que la persona pidió. La
+landing gana `Program.disciplina` en `data/programs.ts`, así que el nombre de
+sistema de cada programa es un dato del programa y no un `if` sobre el slug.
+
+**Casos**: 5 en `SolicitanteTest` (los tres campos, curso sin programa entra
+igual, experiencia inventada 400, modalidad inventada la frena la base,
+`nivelSugerido`), **5 en la suite SQL** (245–249, incluido *"un nivel donde va
+la experiencia"*), 2 en `SolicitantesPagina.test` (la frase sin traducir a
+nivel; sin los campos no dibuja el renglón). Probado además contra el backend
+levantado: la ficha #808 de la base de desarrollo es esa prueba. El DBML tiene
+las tres columnas.
+
+⚠️ **Una trampa nueva de entorno, no de código: `next build` con `next dev`
+corriendo al lado.** El `tsconfig` de la landing incluye `.next/dev/types/**`,
+que el dev server reescribe; correr el build mientras lo hace dejó
+`routes.d.ts` con la cola duplicada (*"TS1109: Expression expected"* en un
+archivo que no está en el repo), y borrarlo produjo un 404 transitorio en
+`/programas/[slug]` que parecía del cambio y era del dev server recompilando.
+**Si el build de la landing falla en `.next/`, mirá primero si hay un `next
+dev` en :3000** — se verifica con `git stash` y una request, no leyendo el diff.
 
 #### Fase 5 · C3 — la preinscripción (`V30`, P59–P62)
 
@@ -4680,14 +4723,15 @@ ninguna fase puede reclamar como propia:
 
 **Para arrancar la próxima sesión**: `docker compose up -d` (Docker Desktop
 suele estar apagado), `mvn spring-boot:run` **reiniciado** —el proceso viejo no
-conoce `/api/programas` ni `V28`—, `npm run dev:platform` desde la raíz. `V28` ya
-está aplicada en la base de desarrollo. Todo commiteado al cierre del día
-(`F3`), suites verdes, `tsc -b`, builds y linters limpios.
+conoce los campos de `V29`—, `npm run dev:platform` desde la raíz. `V29` ya
+está aplicada en la base de desarrollo (la Fase 4 se cerró en una segunda
+sesión del mismo día). Todo commiteado, suites verdes, `tsc -b`, builds y
+linters limpios.
 
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**nueve ejecutados — las Fases 0 a 3 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
+**diez ejecutados — las Fases 0 a 4 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
 (`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
 de la §16. Lo que falta es ejecutarlo.
 
@@ -4703,19 +4747,24 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 | ✅ 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único · **cerrada el 2026-09-11** | — |
 | ✅ 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing · **cerrada el 2026-09-11** | — |
 | ✅ 3 | **C1** — el catálogo de programas, cierra P13 · **cerrada el 2026-09-11** | `V28` ✅ aplicada |
-| 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
+| ✅ 4 | **C2** — la ficha guarda programa, experiencia y modalidad · **cerrada el 2026-09-11** | `V29` ✅ aplicada |
 | 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
 | 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
 
-**Lo próximo es la Fase 4 — C2, la ficha dice qué programa, `V29`.** El plan
-está en la §16: `solicitante.disciplina`, `.experiencia`, `.modalidad`, las tres
-nullable y con CHECK, sin atarlas a `interes`; **los tres formularios de la
-landing pasan a mandarlas como campos** (hoy van dentro de `detalle`) y se tocan
-de una; y el alta desde el buzón prellena el nivel desde la experiencia (P64:
-*cero/algo* → INICIAL, *ya toca* → INTERMEDIO). Antes de escribirla, releer P64
-y P67. ⚠️ **`V28` ya está aplicada** en la base de desarrollo y en las suites: la
-próxima libre es `V29`, y **el admin sembrado sigue siendo `V31`**. ⚠️ Y de la
-Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
+**Lo próximo es la Fase 5 — C3, la preinscripción, `V30`.** El plan está en la
+§16 (Fase 5): `PREINSCRIPTA` en el CHECK, `inscripcion.vence_preinscripcion` con
+el CHECK de ida y vuelta (la forma de `V24`), el índice único parcial ampliado
+a `ACTIVA + PREINSCRIPTA`, la escalera (se nace preinscripta, se sale sólo a
+`ACTIVA` —con un pago `SENADO`/`PAGADO` detrás— o a `CANCELADA`),
+**deliberadamente sin la vuelta de `V11`** (P60), `VIGENTES` **afuera**, y
+casos con `probar_mensaje` y **una sola rechazada por caso**. Antes de
+escribirla, releer P59–P62 en §22 — y **la segunda ⏳ de P59 es la que más
+conviene confirmar con Ignacio**: si el saldo tiene que ser un candado y no
+sólo visible, `V30` lleva un trigger más. ⚠️ **`V29` ya está aplicada** en la
+base de desarrollo y en las suites: la próxima libre es `V30`, y **el admin
+sembrado sigue siendo `V31`**. ⚠️ De la Fase 4 queda **una pieza escrita y sin
+llamador todavía**: `Experiencia.nivelSugerido()` — la Fase 6 la usa en el
+alta desde el buzón. ⚠️ Y de la Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
 y `llms.txt` lo lista PENDIENTE** — ahora que existe `/admin/programas`, lo que
 falta es que Mica cargue el número, no código. ⚠️ Desde la Fase 0 el
 sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
@@ -4738,14 +4787,14 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto**: la §15 está cerrada, suites en **657 backend · 588
-front · 264 + 66 SQL** sobre **28 migraciones**, `tsc -b`, los dos builds y los
-dos linters limpios (los veintisiete casos nuevos del front, los once del backend
-y los ocho de SQL son de las Fases 0 a 3). La landing genera **20 páginas** desde
-A7. Lo que sigue abierto en todo el proyecto está en
+**El estado del producto**: la §15 está cerrada, suites en **662 backend · 590
+front · 269 + 66 SQL** sobre **29 migraciones**, `tsc -b`, los dos builds y los
+dos linters limpios (los veintinueve casos nuevos del front, los dieciséis del
+backend y los trece de SQL son de las Fases 0 a 4). La landing genera **20
+páginas** desde A7. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — dos fases por delante con migración (`V29`, `V30`) y la última sin ella (0 a 3 cerraron el 2026-09-11).
+1. **La §16**, que es esto — una fase por delante con migración (`V30`) y la última sin ella (0 a 4 cerraron el 2026-09-11).
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

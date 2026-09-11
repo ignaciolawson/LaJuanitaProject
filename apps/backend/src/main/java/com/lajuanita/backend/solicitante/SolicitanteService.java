@@ -160,6 +160,13 @@ public class SolicitanteService {
         ficha.setHoraPreferida(formulario.horaPreferida());
         ficha.setDuracionMinutos(formulario.duracionMinutos());
 
+        // Qué programa, con qué experiencia y cómo (`V29`, P64 · P67). Mismo
+        // criterio: opcionales, sin atar a `interes`, y lo que no llega queda en
+        // null. El nivel NO se traduce acá — se sugiere al inscribir.
+        ficha.setDisciplina(formulario.disciplina());
+        ficha.setExperiencia(formulario.experiencia());
+        ficha.setModalidad(formulario.modalidad());
+
         return SolicitanteResumen.de(fichas.save(ficha));
     }
 

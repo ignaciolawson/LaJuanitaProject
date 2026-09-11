@@ -3,11 +3,13 @@
 ## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, nueve ejecutados —las Fases 0 a 3 cerraron el 2026-09-11—,
+**Doce hallazgos, diez ejecutados —las Fases 0 a 4 cerraron el 2026-09-11—,
 las quince decisiones de negocio cerradas el mismo día** (`platform.md` §22 ·
 P59–P71) **y el plan por fases escrito** — seis fases, tres migraciones (`V28`
-catálogo de programas ✅ aplicada · `V29` ficha · `V30` preinscripción). Es lo
-primero a leer al volver; lo próximo es la Fase 4 (C2, `V29`).
+catálogo de programas ✅ aplicada · `V29` ficha ✅ aplicada · `V30`
+preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 5 (C3,
+`V30`) — y antes de escribirla, confirmar con Ignacio la segunda ⏳ de P59
+(saldo visible vs. candado), que decide si `V30` lleva un trigger más.
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -18,7 +20,7 @@ Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** 
 §13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
 cinco fases)** están cerrados y commiteados.
 
-**Suites: 657 backend · 588 front · 264 + 66 SQL, sobre 28 migraciones.** `tsc -b`,
+**Suites: 662 backend · 590 front · 269 + 66 SQL, sobre 29 migraciones.** `tsc -b`,
 los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |

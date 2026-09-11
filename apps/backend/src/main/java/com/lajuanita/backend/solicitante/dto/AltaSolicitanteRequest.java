@@ -3,7 +3,10 @@ package com.lajuanita.backend.solicitante.dto;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.solicitante.Experiencia;
 import com.lajuanita.backend.solicitante.InteresDelSolicitante;
+import com.lajuanita.backend.solicitante.Modalidad;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
@@ -112,5 +115,32 @@ public record AltaSolicitanteRequest(
          */
         @Positive(message = "La duración tiene que ser mayor a cero.")
         @Max(value = 1440, message = "La duración no puede pasar de un día.")
-        Integer duracionMinutos) {
+        Integer duracionMinutos,
+
+        // == Qué programa, con qué experiencia y cómo (`V29`, P64 · P67) ======
+        //
+        // Lo que el formulario de programas pregunta, como campos. Hasta `V29`
+        // viajaban adentro de `detalle` por la decisión de `V20` —"ninguno de
+        // esos datos se usa para crear nada"— y dejan de serlo por lo mismo que
+        // el horario: el alta desde el buzón (Fase 6) los necesita para leer el
+        // catálogo y prellenar el nivel. Tres más, no doce: lo que sólo un
+        // formulario pregunta (el recorrido de la mentoría, el presupuesto de
+        // equipos) sigue en `detalle`.
+        //
+        // ⚠️ Los tres OPCIONALES y sin atar a `interes`, por el mismo argumento
+        // comercial que el horario: una landing que todavía no los manda tiene
+        // que seguir entrando. Un valor que no está en el enum es un 400, como
+        // con `interes`.
+
+        /** Qué programa. La misma lista que {@code inscripcion} y {@code programa}. */
+        Disciplina disciplina,
+
+        /**
+         * Lo que el formulario pregunta —no un nivel—. El nivel se sugiere desde
+         * acá al inscribir ({@link Experiencia#nivelSugerido}).
+         */
+        Experiencia experiencia,
+
+        /** Presencial o virtual. Dato de la ficha, no de la reserva (P67). */
+        Modalidad modalidad) {
 }

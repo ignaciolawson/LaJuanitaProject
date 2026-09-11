@@ -1,12 +1,12 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-11, migraciones V1..V28.
+// ✅ AL DÍA AL 2026-09-11, migraciones V1..V29.
 //
 // **Verificado contra el catálogo de una base con las 27 migraciones
-// aplicadas** (V28 se agregó a mano el día que se escribió, con las columnas
-// copiadas de la migración), no contra las migraciones leídas de memoria: son
-// 29 tablas y
+// aplicadas** (V28 y V29 se agregaron a mano el día que se escribieron, con
+// las columnas copiadas de la migración), no contra las migraciones leídas de
+// memoria: son 29 tablas y
 // coinciden columna por columna. Es la regla que este proyecto aprendió a los
 // golpes y que está escrita en `CLAUDE.md` — *revisá el esquema, no la frase
 // sobre el esquema*.
@@ -48,6 +48,9 @@
 //          CONVERTIDO pasa a ATENDIDO
 //     V28  la tabla `programa` -- el catálogo: qué se vende, a cuánto, cuántas
 //          clases trae. Cierra P13. SIN FK desde `inscripcion`, a propósito
+//     V29  `solicitante` gana disciplina, experiencia y modalidad: lo que el
+//          formulario de programas pregunta, como campos y no en `detalle`.
+//          Nullable, con CHECK, sin atar a `interes`
 //
 // Historia de las tablas: eran 23 al 2026-08-19 y son 29 desde V28. Las seis
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),
@@ -838,6 +841,15 @@ Table solicitante {
   fecha_preferida     date
   hora_preferida      time
   duracion_minutos    integer      [note: 'Duración y no hora de fin: "2 horas" es lo que la persona piensa']
+
+  // V29 -- QUÉ PROGRAMA, CON QUÉ EXPERIENCIA Y CÓMO (P64 · P67). Nullable y
+  // SIN atar a `interes`: una landing anterior a V29 manda fichas de curso sin
+  // ellos y tienen que entrar. `experiencia` es lo que el formulario PREGUNTA,
+  // no un nivel — el nivel se sugiere al inscribir (cero/algo → INICIAL,
+  // toca → INTERMEDIO) y quien inscribe lo cambia.
+  disciplina          varchar(20)  [note: 'DJ / PRODUCCION / MENTORIA -- el mismo CHECK que inscripcion y programa, sin FK a propósito']
+  experiencia         varchar(10)  [note: 'CERO / ALGO / TOCA -- lo que la web pregunta, no un nivel']
+  modalidad           varchar(12)  [note: 'PRESENCIAL / VIRTUAL -- dato de la ficha, no de la reserva']
 
   Note: '''
   V20 -- el buzón de los formularios de la landing. Durante meses esas cuatro

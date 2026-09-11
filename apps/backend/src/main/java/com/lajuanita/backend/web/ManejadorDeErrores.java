@@ -142,6 +142,13 @@ public class ManejadorDeErrores {
                     "Una ficha convertida tiene que apuntar a una cuenta, y solo una convertida puede tenerla."),
             Map.entry("solicitante_descarte_explicado",
                     "Para descartar una ficha hay que decir por qué."),
+            // Los tres de `V29`. Desde la API nunca llegan —el enum del request
+            // los rechaza antes con un 400—, así que si uno de estos habla es
+            // porque alguien escribió la tabla por otro lado.
+            Map.entry("solicitante_disciplina_valida", "Esa disciplina no existe."),
+            Map.entry("solicitante_experiencia_valida",
+                    "La experiencia es CERO, ALGO o TOCA: lo que pregunta el formulario."),
+            Map.entry("solicitante_modalidad_valida", "La modalidad es PRESENCIAL o VIRTUAL."),
             // El sello (V18). `release_codigo_release_key` es el índice único que `V1`
             // creó implícitamente con el UNIQUE de la columna: el nombre lo pone
             // Postgres, no nosotros, y por eso no se parece a los demás.

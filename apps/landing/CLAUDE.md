@@ -402,8 +402,8 @@ descartada). La contraseña de la cuenta que se cree después viaja por WhatsApp
 
 | Formulario | Dónde | Qué manda |
 | --- | --- | --- |
-| Solicitud de programa | `/programas/[slug]` | `CURSO` + programa, modalidad y experiencia |
-| Pedido de mentoría | `/programas/mentoria` | `CURSO` + programa, modalidad y hace cuánto toca; el mensaje es obligatorio. **Formulario propio** (`MentoringApplyForm`, P67): a quien ya toca no se le pregunta si arranca de cero |
+| Solicitud de programa | `/programas/[slug]` | `CURSO` + **`disciplina`, `modalidad` y `experiencia` como campos** (`V29`), sin `detalle`. La disciplina sale de `Program.disciplina` en `data/programs.ts`; la experiencia viaja tal cual (`CERO/ALGO/TOCA`), nunca traducida a un nivel — eso lo hace el sistema al inscribir (P64) |
+| Pedido de mentoría | `/programas/mentoria` | `CURSO` + `disciplina: MENTORIA`, `modalidad`, **`experiencia: TOCA` fijo** (su público ya toca, P67) y *hace cuánto toca* en `detalle`; el mensaje es obligatorio. **Formulario propio** (`MentoringApplyForm`): a quien ya toca no se le pregunta si arranca de cero |
 | Reserva de cabina | `/servicios#reservar` | `ALQUILER_CABINA` o `GRABACION_SET` + fecha, hora, duración y personas |
 | Consulta de equipos | `/equipos#consultar` | `EQUIPOS` + categorías, nivel y presupuesto |
 | Contacto | `/contacto` | **Nada: no es un formulario.** Son links a WhatsApp |

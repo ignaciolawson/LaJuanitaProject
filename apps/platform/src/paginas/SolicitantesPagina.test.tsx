@@ -73,6 +73,9 @@ function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
     fechaPreferida: null,
     horaPreferida: null,
     duracionMinutos: null,
+    disciplina: null,
+    experiencia: null,
+    modalidad: null,
     fechaResolucion: null,
     fechaCreacion: '2026-08-28T10:00:00-03:00',
     ...cambios,
@@ -250,6 +253,47 @@ describe('el buzón', () => {
     expect(screen.getByText('Un curso')).toBeDefined()
     expect(screen.getByText(/Programa DJ/)).toBeDefined()
     expect(screen.getByText(/Quiero arrancar en marzo/)).toBeDefined()
+  })
+
+  /**
+   * `V29`: el programa, la modalidad y la experiencia llegan como campos y la
+   * pantalla arma la frase. ⚠️ **Dice la experiencia, no un nivel**: la persona
+   * contestó "ya toco o produzco", y "intermedio" es lo que el alta va a
+   * sugerir con eso — presentarlo acá como dato de la persona sería mentir.
+   */
+  it('dice qué programa, cómo y con qué experiencia, sin traducirla a un nivel', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [
+        ficha({ detalle: null, disciplina: 'PRODUCCION', modalidad: 'VIRTUAL', experiencia: 'TOCA' }),
+      ],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    expect(await screen.findByText('Producción · virtual · ya toca o produce')).toBeDefined()
+    expect(screen.queryByText(/intermedio/i)).toBeNull()
+  })
+
+  /**
+   * Una ficha anterior a `V29` trae todo en `detalle` y nada en los campos; una
+   * de cabina no trae los campos nunca. Ninguna de las dos dibuja un renglón
+   * vacío ni un "·" suelto — se lee como antes.
+   */
+  it('sin los campos del programa no dibuja el renglón', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ detalle: null, mensaje: null, interes: 'ALQUILER_CABINA' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    const tarjeta = (await screen.findByText('Ríos, Camila')).closest('li')!
+    expect(within(tarjeta).queryByText(/·/)).toBeNull()
   })
 
   it('un directivo mira el buzón y no lo resuelve', async () => {

@@ -2158,6 +2158,45 @@ SELECT probar('244','desactivarlo, que es la salida','ANDA',
 
 
 -- =============================================================================
+-- LA FICHA DICE QUE PROGRAMA  (`V29`, §16 · C2, P64 · P67)
+--
+-- Tres columnas mas en `solicitante` —disciplina, experiencia, modalidad— que
+-- hasta aca viajaban enterradas en `detalle`. Lo que la tabla sostiene sola son
+-- las tres listas, y lo que NO sostiene a proposito: no se atan a `interes`. Una
+-- landing anterior a `V29` manda fichas de curso sin ellas y tienen que entrar.
+-- =============================================================================
+
+SELECT probar('245','una ficha de curso con programa, experiencia y modalidad','ANDA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,
+                            disciplina,experiencia,modalidad)
+    VALUES ('Lucia','Web','lucia@web.local','11-5555-0005','CURSO',
+            'PRODUCCION','TOCA','VIRTUAL')$q$);
+
+-- La mitad no obvia: sin atar a `interes`, en los dos sentidos. Curso sin
+-- programa (la landing vieja), y cabina con programa (nadie lo manda, pero el
+-- CHECK que lo prohibiera seria el mismo que rompe el primero).
+SELECT probar('246','una ficha de curso sin decir el programa','ANDA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,detalle)
+    VALUES ('Vieja','Landing','vieja@web.local','11-5555-0006','CURSO',
+            'Convertite en DJ · Presencial en Pilar · arranca de cero')$q$);
+
+-- Las tres listas. La disciplina es la misma de `inscripcion` y `programa`;
+-- la experiencia es lo que el formulario pregunta y NO un nivel — INTERMEDIO
+-- es la respuesta de otra pregunta, y que no entre es lo que pinea P64.
+SELECT probar('247','una disciplina que no existe','FALLA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,disciplina)
+    VALUES ('Bot','Bot','bot3@web.local','11-5555-0007','CURSO','CANTO')$q$);
+
+SELECT probar('248','un nivel donde va la experiencia','FALLA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,experiencia)
+    VALUES ('Bot','Bot','bot4@web.local','11-5555-0008','CURSO','INTERMEDIO')$q$);
+
+SELECT probar('249','una modalidad que no existe','FALLA',
+ $q$INSERT INTO solicitante (nombre,apellido,email,telefono,interes,modalidad)
+    VALUES ('Bot','Bot','bot5@web.local','11-5555-0009','CURSO','HIBRIDA')$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

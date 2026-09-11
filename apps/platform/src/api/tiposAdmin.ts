@@ -755,6 +755,32 @@ export const NOMBRE_DE_INTERES: Record<InteresDelSolicitante, string> = {
 }
 
 /**
+ * Cuánta experiencia trae quien pidió un programa (`V29`, P64). Espeja
+ * `Experiencia` del backend.
+ *
+ * **Es lo que el formulario de la web pregunta, no un nivel**: la landing no
+ * ofrece inicial/intermedio/avanzado a propósito. El nivel se sugiere desde
+ * acá al inscribir (cero y algo → inicial, ya toca → intermedio) y quien
+ * inscribe lo cambia si quiere.
+ */
+export type Experiencia = 'CERO' | 'ALGO' | 'TOCA'
+
+/** Como lo dice la ficha: la frase que el formulario le mostró a la persona. */
+export const NOMBRE_DE_EXPERIENCIA: Record<Experiencia, string> = {
+  CERO: 'arranca de cero',
+  ALGO: 'algo por su cuenta',
+  TOCA: 'ya toca o produce',
+}
+
+/** Presencial o virtual (`V29`, P67). Dato de la ficha, no de la reserva. */
+export type Modalidad = 'PRESENCIAL' | 'VIRTUAL'
+
+export const NOMBRE_DE_MODALIDAD: Record<Modalidad, string> = {
+  PRESENCIAL: 'presencial',
+  VIRTUAL: 'virtual',
+}
+
+/**
  * A dónde sigue el trámite de una ficha: dónde se carga lo que pidieron. Es la
  * razón de ser de `interes`, y vive acá y no adentro de la pantalla para que se
  * lea junto con la tabla de nombres: son la misma decisión mirada dos veces.
@@ -810,6 +836,15 @@ export type SolicitanteResumen = {
   fechaPreferida: string | null
   horaPreferida: string | null
   duracionMinutos: number | null
+
+  /**
+   * Qué programa, con qué experiencia y cómo (`V29`). Los tres pueden venir en
+   * null: una ficha anterior a `V29`, o una que no es de curso — no se atan a
+   * `interes` a propósito, para que una landing vieja siga entrando.
+   */
+  disciplina: Disciplina | null
+  experiencia: Experiencia | null
+  modalidad: Modalidad | null
 
   fechaResolucion: string | null
   fechaCreacion: string

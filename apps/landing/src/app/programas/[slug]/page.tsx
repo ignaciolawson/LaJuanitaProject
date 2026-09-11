@@ -272,7 +272,7 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
               {program.cta === "mentoring" ? (
                 <MentoringApplyForm programName={program.name} />
               ) : (
-                <ProgramApplyForm programName={program.name} />
+                <ProgramApplyForm programName={program.name} disciplina={program.disciplina} />
               )}
             </div>
           ) : (

@@ -1,24 +1,29 @@
 "use client";
 
 import { Field, ChoiceGroup, TextArea, FormShell } from "@/components/forms/Fields";
-import { mandarSolicitud } from "@/lib/api";
+import { mandarSolicitud, type Disciplina, type Experiencia, type Modalidad } from "@/lib/api";
 
 /**
- * Cómo se lee cada opción en la ficha que ve administración.
+ * De lo que la persona marca a lo que el sistema guarda (`V29`).
  *
- * Los `value` viajan cortos porque son de la interfaz; en el buzón se lee una
- * frase. Sin esto la ficha diría "cero" y "presencial", que a quien llama no le
- * dicen lo mismo que "arranca de cero, presencial en Pilar".
+ * Los `value` de los radios son de la interfaz; lo que viaja es el valor del
+ * CHECK del sistema, **como campo y no como frase**: hasta `V29` esto se
+ * mandaba adentro de `detalle` (*"Presencial en Pilar · arranca de cero"*) y el
+ * buzón lo leía; ahora lo lee el alta para prellenar el nivel, y una frase no
+ * se prellena. El buzón arma su propia lectura desde el valor.
+ *
+ * Tipados contra el enum para que agregar una opción acá sin agregarla allá
+ * no compile, en vez de mandar `undefined` en silencio.
  */
-const MODALIDAD: Record<string, string> = {
-  presencial: "Presencial en Pilar",
-  virtual: "Virtual en vivo",
+const MODALIDAD: Record<string, Modalidad> = {
+  presencial: "PRESENCIAL",
+  virtual: "VIRTUAL",
 };
 
-const EXPERIENCIA: Record<string, string> = {
-  cero: "arranca de cero",
-  algo: "algo por su cuenta",
-  si: "ya toca o produce",
+const EXPERIENCIA: Record<string, Experiencia> = {
+  cero: "CERO",
+  algo: "ALGO",
+  si: "TOCA",
 };
 
 /**
@@ -26,9 +31,18 @@ const EXPERIENCIA: Record<string, string> = {
  *
  * La pregunta de experiencia previa es la que reemplaza a la vieja división
  * "inicial / avanzado": en vez de obligar a la persona a autodiagnosticarse
- * antes de leer nada, se resuelve acá, cuando ya sabe qué se enseña.
+ * antes de leer nada, se resuelve acá, cuando ya sabe qué se enseña. **Y se
+ * manda tal cual** —no traducida a un nivel—: el nivel lo sugiere el sistema al
+ * inscribir y quien inscribe lo puede cambiar (P64).
  */
-export function ProgramApplyForm({ programName }: { programName: string }) {
+export function ProgramApplyForm({
+  programName,
+  disciplina,
+}: {
+  programName: string;
+  /** Cómo se llama este programa en el sistema; sale de `data/programs.ts`. */
+  disciplina: Disciplina;
+}) {
   return (
     <FormShell
       submitLabel="Solicitar lugar"
@@ -41,15 +55,11 @@ export function ProgramApplyForm({ programName }: { programName: string }) {
           email: String(datos.get("email") ?? ""),
           telefono: String(datos.get("telefono") ?? ""),
           interes: "CURSO",
-          // El programa es lo primero del detalle porque es lo que decide a qué
-          // pantalla va quien atiende la ficha.
-          detalle: [
-            programName,
-            MODALIDAD[String(datos.get("modalidad"))] ?? null,
-            EXPERIENCIA[String(datos.get("experiencia"))] ?? null,
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          // Las tres como campos (`V29`). Ya no va `detalle`: decir lo mismo
+          // dos veces es tener dos definiciones de lo que la persona pidió.
+          disciplina,
+          modalidad: MODALIDAD[String(datos.get("modalidad"))],
+          experiencia: EXPERIENCIA[String(datos.get("experiencia"))],
           mensaje: String(datos.get("mensaje") ?? "") || undefined,
         })
       }

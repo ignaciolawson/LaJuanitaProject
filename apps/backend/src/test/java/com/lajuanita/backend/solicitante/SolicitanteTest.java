@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.reserva.ReservaRepository;
@@ -425,6 +426,92 @@ class SolicitanteTest {
                 .andExpect(jsonPath("$.fechaPreferida").value("2026-10-10"))
                 .andExpect(jsonPath("$.horaPreferida").doesNotExist())
                 .andExpect(jsonPath("$.duracionMinutos").doesNotExist());
+    }
+
+    // == Qué programa, con qué experiencia y cómo (`V29`, P64 · P67) ==========
+
+    /**
+     * El formulario de programas manda las tres como campos, y la ficha las
+     * guarda tal cual: <b>la experiencia, no un nivel</b>. Que se lea de vuelta
+     * como {@code TOCA} y no como {@code INTERMEDIO} es la mitad de P64 que este
+     * caso pinea — la traducción es del alta, no de la landing.
+     */
+    @Test
+    void el_formulario_de_programas_dice_que_programa_con_que_experiencia_y_como() throws Exception {
+        long ficha = idDe(mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"CURSO","disciplina":"PRODUCCION","experiencia":"TOCA",
+                         "modalidad":"VIRTUAL"}
+                        """.formatted(unEmail(), unTelefono())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.disciplina").value("PRODUCCION"))
+                .andExpect(jsonPath("$.experiencia").value("TOCA"))
+                .andExpect(jsonPath("$.modalidad").value("VIRTUAL")));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT experiencia FROM solicitante WHERE id_solicitante = ?",
+                String.class, ficha)).isEqualTo("TOCA");
+    }
+
+    /**
+     * ⚠️ <b>Los tres son opcionales y NO se atan a {@code interes}</b> (`V29`,
+     * punto 2). Una ficha de curso sin disciplina tiene que entrar: es lo que
+     * manda una landing anterior a esta fase, y rechazarla es perder a la
+     * persona — el mismo argumento que sostiene los tres campos de horario.
+     * Sin este caso, un {@code @NotNull} o un CHECK "CURSO exige disciplina"
+     * obligan a desplegar landing y backend a la vez y no fallan en ningún lado.
+     */
+    @Test
+    void una_ficha_de_curso_sin_programa_entra_igual() throws Exception {
+        mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"CURSO","detalle":"Convertite en DJ · Presencial en Pilar"}
+                        """.formatted(unEmail(), unTelefono())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.disciplina").doesNotExist())
+                .andExpect(jsonPath("$.experiencia").doesNotExist())
+                .andExpect(jsonPath("$.modalidad").doesNotExist());
+    }
+
+    /** Un valor que no está en el enum es un 400, como con {@code interes}. */
+    @Test
+    void una_experiencia_inventada_no_entra() throws Exception {
+        mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"CURSO","disciplina":"DJ","experiencia":"INTERMEDIO"}
+                        """.formatted(unEmail(), unTelefono())))
+                .andExpect(status().isBadRequest());
+    }
+
+    /**
+     * La base sostiene la lista aunque Java no la mire: el CHECK es el que
+     * habla si alguien escribe la tabla por otro lado.
+     */
+    @Test
+    void la_base_no_acepta_una_modalidad_que_no_existe() {
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO solicitante (nombre, apellido, email, telefono, interes, modalidad)
+                VALUES ('Ana', 'Pérez', ?, ?, 'CURSO', 'HIBRIDA')
+                """, unEmail(), unTelefono()))
+                .hasMessageContaining("solicitante_modalidad_valida");
+    }
+
+    /**
+     * P64 ⏳: <i>cero</i> y <i>algo</i> arrancan en INICIAL, <i>ya toca</i> en
+     * INTERMEDIO. Es una sugerencia que el alta muestra elegida; lo que este
+     * caso pinea es que la tabla viva en un solo lugar.
+     */
+    @Test
+    void la_experiencia_sugiere_el_nivel_con_el_que_arranca_el_alta() {
+        assertThat(Experiencia.CERO.nivelSugerido()).isEqualTo(Nivel.INICIAL);
+        assertThat(Experiencia.ALGO.nivelSugerido()).isEqualTo(Nivel.INICIAL);
+        assertThat(Experiencia.TOCA.nivelSugerido()).isEqualTo(Nivel.INTERMEDIO);
     }
 
     // == Apartar la cabina: las tres cosas en un movimiento ===================
