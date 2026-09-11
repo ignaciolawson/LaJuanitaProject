@@ -4647,7 +4647,44 @@ cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
 
 ---
 
-## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-11) — Fases 0 a 3 cerradas en un día
+
+**Se ejecutaron cuatro de las seis fases de la §16 en una sesión, en el orden del
+plan, con nueve de los doce hallazgos cerrados y `V28` aplicada.** Cada fase tiene
+su cierre escrito dentro del hallazgo que resolvió (buscar *"Cerrado el
+2026-09-11"*), y el bloque final de este documento dice dónde se sigue. Lo que
+conviene leer antes de la Fase 4 son las lecciones transversales del día, que
+ninguna fase puede reclamar como propia:
+
+- ⚠️ **El plan decía "lo cuenta el portal sobre los pedidos que ya tiene", y
+  estaba mal** (A3). Una clase la mueve el alumno *o* el profesor, y cada uno
+  habría visto 1 donde se movió dos veces. *"Movida N veces" es un hecho de la
+  reserva, no de quien mira.* Un plan escrito antes de abrir el código es una
+  hipótesis: se corrige cuando el código la desmiente, no se ejecuta igual.
+- ⚠️ **Tres suites se pusieron rojas solas o casi, y las tres eran de la misma
+  familia**: `MisReservasPagina.test` cayó por el almanaque (fixtures que decían
+  "la próxima es el 07/09"); el caso del `ErrorBoundary` con un componente que
+  "tira la primera vez" nunca llegaba al límite porque React reintenta el
+  render antes de entregárselo; y `jsonPath` con filtro contestó *"expected 7
+  but was 7"* dos veces en el día (A5 y C1). **Doce suites de pantallas que leen
+  `hoy()` no lo fijan** y pueden repetir la primera cualquier día.
+- ⚠️ **Hibernate escribe los INSERT antes que los UPDATE, otra vez** (A5): pausar
+  una inscripción y crear la segunda en la misma transacción chocó contra el
+  índice parcial. Es la trampa de `ReservaService`, en un test.
+- **Resident Advisor contesta 403 a todo**, incluso a un slug inventado (A2). Lo
+  que no se puede abrir no entra: los perfiles son de Wikipedia.
+- **El tablero se cambió con medidas y sin verlo en el navegador** (A4). Si
+  Ignacio lo ve raro en oscuro, `--serie-5/6` es lo primero.
+- **"A confirmar" es un dato y no un hueco** (C1): `programa.precio` es NULL para
+  la mentoría, no 0 — cero en este esquema es una beca.
+
+**Para arrancar la próxima sesión**: `docker compose up -d` (Docker Desktop
+suele estar apagado), `mvn spring-boot:run` **reiniciado** —el proceso viejo no
+conoce `/api/programas` ni `V28`—, `npm run dev:platform` desde la raíz. `V28` ya
+está aplicada en la base de desarrollo. Todo commiteado al cierre del día
+(`F3`), suites verdes, `tsc -b`, builds y linters limpios.
+
+## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
 **nueve ejecutados — las Fases 0 a 3 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
