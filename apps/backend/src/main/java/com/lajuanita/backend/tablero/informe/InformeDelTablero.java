@@ -48,6 +48,7 @@ public final class InformeDelTablero {
         hojas.add(caja(tablero));
         hojas.add(ingresos(tablero));
         hojas.add(alumnos(tablero));
+        hojas.add(alumnosPorNivel(tablero));
         hojas.add(ocupacion(tablero));
         hojas.add(pendientes(tablero));
         hojas.add(retencion(tablero));
@@ -88,8 +89,28 @@ public final class InformeDelTablero {
                 List.of("Moneda", "Línea de negocio", "Monto", "Cobros"), filas);
     }
 
+    /** Lo que muestra la pantalla: un número por disciplina (P70). */
     private static Hoja alumnos(Tablero tablero) {
         List<List<Celda>> filas = tablero.alumnos().stream()
+                .map(a -> List.<Celda>of(
+                        new Celda.Texto(a.disciplina()),
+                        new Celda.Cantidad(a.alumnos()),
+                        new Celda.Cantidad(a.inscripciones())))
+                .toList();
+
+        return new Hoja("Alumnos cursando", AL_DIA_DE_HOY,
+                List.of("Disciplina", "Alumnos", "Inscripciones"), filas);
+    }
+
+    /**
+     * La apertura por nivel, que la pantalla dejó de mostrar y el export
+     * conserva (P70: <i>"dejalo en el export no en pantalla"</i>). Hoja aparte y
+     * no columnas extra en la anterior: sumar sus filas NO da la de arriba —una
+     * persona con dos niveles de la misma disciplina cuenta una vez allá y dos
+     * acá— y en una sola hoja alguien iba a sumarlas.
+     */
+    private static Hoja alumnosPorNivel(Tablero tablero) {
+        List<List<Celda>> filas = tablero.alumnosPorNivel().stream()
                 .map(a -> List.<Celda>of(
                         new Celda.Texto(a.disciplina()),
                         new Celda.Texto(a.nivel() == null || a.nivel().equals("SIN_NIVEL") ? "—" : a.nivel()),
@@ -97,7 +118,7 @@ public final class InformeDelTablero {
                         new Celda.Cantidad(a.inscripciones())))
                 .toList();
 
-        return new Hoja("Alumnos cursando", AL_DIA_DE_HOY,
+        return new Hoja("Alumnos por nivel", AL_DIA_DE_HOY,
                 List.of("Disciplina", "Nivel", "Alumnos", "Inscripciones"), filas);
     }
 

@@ -122,7 +122,7 @@ class ExportacionTest {
             List<String> hojas = new ArrayList<>();
             libro.sheetIterator().forEachRemaining(h -> hojas.add(h.getSheetName()));
 
-            assertThat(hojas).containsExactly("Caja", "Ingresos por línea", "Alumnos cursando",
+            assertThat(hojas).containsExactly("Caja", "Ingresos por línea", "Alumnos cursando", "Alumnos por nivel",
                     "Ocupación", "Cobros pendientes", "Retención", "Conversión",
                     "Mix & Mastering", "Sello");
         }

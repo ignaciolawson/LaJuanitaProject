@@ -23,15 +23,15 @@ administración. Ver [Formularios](#formularios-conectados-el-2026-08-30).
 
 ## Rutas
 
-**13 archivos de ruta → 19 páginas generadas, 18 en el sitemap** (`/ingresar` va
+**13 archivos de ruta → 20 páginas generadas, 19 en el sitemap** (`/ingresar` va
 `noindex`). Los números salen del build; no los copies a un comentario nuevo —
 había seis lugares con un conteo a mano, cinco equivocados y ninguno coincidía
 con otro (SEO-04).
 
 ```
 /                     home
-/programas            índice de los dos programas
-/programas/[slug]     detalle + solicitud (SSG, 2 slugs)
+/programas            índice de los tres programas (dos cursos y la mentoría)
+/programas/[slug]     detalle + solicitud (SSG, 3 slugs)
 /servicios            alquiler de cabina y grabación + reserva
 /equipos              La Juanita Shop + consulta
 /sello                La Juanita Records
@@ -403,6 +403,7 @@ descartada). La contraseña de la cuenta que se cree después viaja por WhatsApp
 | Formulario | Dónde | Qué manda |
 | --- | --- | --- |
 | Solicitud de programa | `/programas/[slug]` | `CURSO` + programa, modalidad y experiencia |
+| Pedido de mentoría | `/programas/mentoria` | `CURSO` + programa, modalidad y hace cuánto toca; el mensaje es obligatorio. **Formulario propio** (`MentoringApplyForm`, P67): a quien ya toca no se le pregunta si arranca de cero |
 | Reserva de cabina | `/servicios#reservar` | `ALQUILER_CABINA` o `GRABACION_SET` + fecha, hora, duración y personas |
 | Consulta de equipos | `/equipos#consultar` | `EQUIPOS` + categorías, nivel y presupuesto |
 | Contacto | `/contacto` | **Nada: no es un formulario.** Son links a WhatsApp |
@@ -459,7 +460,7 @@ Casi todo el texto largo está escrito con la voz del negocio, pero es
 | `data/services.ts` | Precios ($18.000/h cabina, $65.000/h grabación) y el "qué incluye". **Los precios bloquean publicar** |
 | `data/business.ts` | **Ya no tiene nada inventado.** Dirección, teléfono, horario y año se confirmaron el 2026-08-14 (§13). Siguen en `null`, y por eso se omiten del JSON-LD: las coordenadas |
 | `data/gear.ts` | Qué entra en cada categoría |
-| `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario. **Los precios bloquean publicar**; el formato (clases, no meses) ya es el confirmado |
+| `data/programs.ts` | Textos largos: qué es, por qué acá, para quién, temario. **Los precios bloquean publicar**; el formato (clases, no meses) ya es el confirmado. **La mentoría (2026-09-11, §16 · A7) tiene el formato y el público confirmados por P67 y el texto largo escrito por nosotros a partir de su frase — a validar como el resto; el precio dice "a confirmar" porque no existe hasta `V28`** |
 | `data/posts.ts` | Las seis notas del blog, enteras. **Bloquean publicar.** Ya no llevan firma de personas reales (hoy: "Equipo La Juanita") — ver abajo |
 | `data/releases.ts`, `dates.ts`, `teachers.ts`, `faq.ts` | Placeholder heredado |
 | `data/contact.ts` | Ya no: el WhatsApp es el real y el email inventado se sacó (queda en `null`). Falta el Instagram real — hoy es el dominio pelado |

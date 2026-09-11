@@ -258,10 +258,14 @@ export function ProgramsRail() {
                   </div>
                   <Link
                     href={`/programas/${program.slug}`}
-                    data-cursor={program.cta === "apply" ? "INSCRIBIRME" : "CONSULTAR"}
+                    data-cursor={program.cta === "consult" ? "CONSULTAR" : "INSCRIBIRME"}
                     className="t-mono link-u text-accent"
                   >
-                    {program.cta === "apply" ? "Ver e inscribirme" : "Ver y consultar"}
+                    {program.cta === "apply"
+                      ? "Ver e inscribirme"
+                      : program.cta === "mentoring"
+                        ? "Ver y pedir una sesión"
+                        : "Ver y consultar"}
                   </Link>
                 </div>
               </div>

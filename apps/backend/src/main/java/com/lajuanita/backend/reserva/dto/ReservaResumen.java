@@ -43,9 +43,17 @@ public record ReservaResumen(
         String notas,
         Long idReservaRecupera,
         String motivoReprogramacion,
-        List<ParticipanteResumen> participantes) {
+        List<ParticipanteResumen> participantes,
+        /**
+         * Cuántas veces se movió: los pedidos de cambio aprobados sobre esta
+         * reserva (P69). Cero es lo normal. Viene agrupado de la consulta, no
+         * calculado por fila — ver {@code SolicitudReprogramacionRepository.movidasDe}.
+         */
+        int vecesMovida) {
 
-    public static ReservaResumen de(Reserva reserva, List<ParticipanteResumen> participantes) {
+    public static ReservaResumen de(Reserva reserva,
+            List<ParticipanteResumen> participantes,
+            int vecesMovida) {
         var sala = reserva.getSala();
         var tipoUso = reserva.getTipoUso();
         Profesor profesor = reserva.getProfesor();
@@ -70,6 +78,7 @@ public record ReservaResumen(
                 reserva.getNotas(),
                 recupera == null ? null : recupera.getId(),
                 reserva.getMotivoReprogramacion(),
-                participantes);
+                participantes,
+                vecesMovida);
     }
 }

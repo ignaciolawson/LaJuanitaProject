@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0 y 1 cerradas el 2026-09-11**; lo próximo es la Fase 2 (A3 · A5 · A7). El estado vivo está en el bloque final de este documento.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0, 1 y 2 cerradas el 2026-09-11**; lo próximo es la Fase 3 (C1, el catálogo de programas, `V28`). El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3924,7 +3924,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 | Grupo | Qué significa | Cuántos | Estado |
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo | **5** | ✅ 5 de 5 · cerrado el 2026-09-11 (Fases 0 y 1) |
-| 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | ⬜ 0 de 4 |
+| 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | 🟨 3 de 4 · A3 · A5 · A7 el 2026-09-11 (Fase 2); B2 1.1/1.2 es la Fase 6 |
 | 🔴 **C** | Toca una regla del negocio o el schema | **2** | ⬜ 0 de 2 · **trabados** |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
 
@@ -3999,7 +3999,7 @@ trabajo de búsqueda, no de código.
   el de pantalla (`InicioPagina.test`: la firma linkea al perfil y **no** contiene
   `djmag.com`), con `fraseDelDia` fijado a una cita para que no dependa del día.
 
-#### 🟡 A3 · ¿Puede un usuario mover su clase más de una vez?
+#### ✅ A3 · ¿Puede un usuario mover su clase más de una vez? — **cerrado el 2026-09-11**
 
 **Hoy sí, sin tope.** El único límite es que no haya **dos pedidos PENDIENTES**
 sobre la misma reserva — `SolicitudReprogramacionService.java:116`. Aprobado uno,
@@ -4026,6 +4026,30 @@ puede pedir de nuevo indefinidamente.
 —*"dos por inscripción"*— es una regla de negocio, va a la base, y el día que
 alguien tiene una razón legítima para la tercera no hay salida. Primero el contador
 visible; el número, si el contador muestra abuso real (pregunta 19).
+
+**Cerrado el 2026-09-11 (Fase 2), y el plan se corrigió antes de escribirlo.** El
+plan decía que el portal contara sobre los pedidos que ya tiene cargados, y **eso
+daba un número falso**: `deLaPersona` trae lo que pidió *esa* persona, y una clase
+la puede mover el alumno o el profesor (P9) — cada uno habría visto 1 donde la
+clase se movió dos veces. *"Movida N veces" es un hecho de la reserva, no de quien
+mira.* Así que hay **una sola definición**, en SQL:
+`SolicitudReprogramacionRepository.aprobadasPorReserva` (APROBADA, agrupado por
+reserva) con un `default movidasDe(ids)` que resuelve el `IN ()` vacío, y la
+consumen los tres servicios que arman una reserva —`ReservaService`,
+`DocenciaService`, `PortalService`— en un campo nuevo, `vecesMovida`, de
+`ReservaResumen` y de `ReservaDelPortal`. Los cinco lugares que construían
+`ReservaResumen.de` pasan el número; el alta pasa 0 con el comentario de por qué
+(acaba de nacer). Lo rechazado y lo pendiente no cuentan.
+
+- **Front**: `componentes/Movida.tsx`, una `Etiqueta` neutra que **con cero no
+  dibuja nada** (lo normal es no haberla movido; *"movida 0 veces"* en cada fila
+  tapa la que sí). La usan Mis reservas, Mi agenda, el detalle del calendario y el
+  historial de la ficha del alumno, que además **suma** en el título — *"movió 3
+  veces"*— sobre las clases listadas, o sea los mismos 45 días que el título ya
+  declara. Un total "desde siempre" sería otra consulta; hoy la pregunta es si
+  esta persona mueve seguido, no cuántas en su vida.
+- **Casos**: dos en `SolicitudReprogramacionTest` (la misma cuenta para los tres
+  que la miran; rechazado y pendiente dan cero) y tres en el front.
 
 #### ✅ A4 · Colores del tablero de indicadores — **cerrado el 2026-09-11**
 
@@ -4070,7 +4094,7 @@ tablero tenía dos problemas y el hallazgo nombraba uno:
 ⚠️ **No se verificó en el navegador, sólo con las medidas.** Si Ignacio lo ve raro
 en oscuro, lo primero a mirar son `--serie-5` y `--serie-6`.
 
-#### 🟡 A5 · El indicador de alumnos, sin dividir por nivel
+#### ✅ A5 · El indicador de alumnos, sin dividir por nivel — **cerrado el 2026-09-11**
 
 **Confirmado el síntoma que Ignacio describe** —*"figura 2 mentorías, una avanzada y
 otra gral"*—: `nivel` es nullable y mentoría no tiene nivel estándar, así que sale
@@ -4085,6 +4109,26 @@ una sola armada, dos formatos — si se toca una sola, los dos archivos dejan de
 coincidir).
 
 Falta decidir si el nivel se pierde del todo o sobrevive en el export (pregunta 20).
+
+**Cerrado el 2026-09-11 (Fase 2), como P70 lo decidió: dos consultas.**
+`TableroRepository.alumnosPorDisciplina` (`DISTINCT` sobre la disciplina entera)
+alimenta `Tablero.alumnos`, ahora `AlumnosPorDisciplina` —las tres siempre, en el
+orden del enum, con cero—; la vieja `alumnosPorServicio` pasa a
+`Tablero.alumnosPorNivel` y **sólo la lee el informe**, en una hoja nueva,
+*"Alumnos por nivel"*, separada a propósito de *"Alumnos cursando"*: sumar sus
+filas NO da la de arriba, y en una sola hoja alguien iba a sumarlas. La pantalla
+dejó de dibujar el nivel; el caso nuevo del front pinea que dice 4 y no 5.
+
+⚠️ **El caso del backend pisó dos trampas ya documentadas, una detrás de otra.**
+Para tener a alguien con dos niveles vigentes de la misma disciplina hay que
+pausar el primero antes de insertar el segundo, y **Hibernate escribe los INSERT
+antes que los UPDATE**: sin `saveAndFlush` el índice parcial rechazó la segunda
+inscripción con la primera todavía ACTIVA en la base — `ReservaService`, otra vez.
+Y después, `jsonPath("$.alumnos[?(...)].alumnos").value(7)` falló diciendo
+*"expected 7 but was 7"*: un filtro devuelve una LISTA y el JSON trae `Integer`;
+se compara con `Matchers.contains(Math.toIntExact(n))`. El número esperado se
+cuenta en SQL sobre la misma base (la de desarrollo tiene alumnos propios), con el
+`DISTINCT` que es justamente la definición que se prueba.
 
 #### ✅ A6 · La pantalla en negro al cerrar la ficha — **BUG, cerrado el 2026-09-11**
 
@@ -4162,7 +4206,7 @@ que leen `hoy()` no lo fijan** (`AlumnoPerfil`, `Bloqueos`, `Calendario`, `Egres
 el día que un fixture "futuro" quede atrás. No se tocaron: es un barrido propio,
 no parte de A6.
 
-#### 🟡 A7 · Mentorías en la landing
+#### ✅ A7 · Mentorías en la landing — **cerrado el 2026-09-11**
 
 ⚠️ **Es peor que "falta en programas": `grep -i mentor` sobre toda la landing
 devuelve CERO coincidencias.** No está en el home, no está en programas, no está en
@@ -4179,6 +4223,32 @@ el alta **rechaza en vez de adivinar**), así que la página tiene que decir un 
 y un precio que hoy no existen en ninguna capa. Y los precios inventados **ya son
 bloqueante para publicar la landing** (`pendientes.md` §1). Preguntas 10 y 11, y se
 cruza con la 6 / P13.
+
+**Cerrado el 2026-09-11 (Fase 2), con P67 y sin migración.** Un tercer programa en
+`data/programs.ts` (`slug: mentoria`), con la copia armada a partir de la frase de
+Ignacio —**el texto largo es a validar como todo el resto**; lo que no es
+placeholder es el formato (sesiones de 1:30), el público (quien ya toca), la
+modalidad (presencial o virtual) y que el precio dice *"a confirmar"*, porque no
+existe hasta `V28` (P63: se cobra por sesión). **Sin cantidad de sesiones**: no es
+un curso con estándar (P65) y acá tampoco se inventa uno. Lo que decidió:
+
+- **`cta: "mentoring"`, un tercer valor y no un flag**: es el campo que decide
+  qué formulario se monta al pie del detalle. `MentoringApplyForm` pregunta
+  modalidad, *hace cuánto tocás* (tres franjas) y **un mensaje obligatorio** —
+  *"dónde estás y qué querés destrabar"*—, en vez de si arranca de cero. `TextArea`
+  ganó `required` para eso. Manda `interes: CURSO` con el programa primero en
+  `detalle`, como los otros dos; **los campos estructurados llegan con `V29`** y
+  ahí se actualizan los tres formularios de una.
+- **Aparece sola donde `PROGRAMS` se lee**: el riel de la home, `/programas`, el
+  sitemap y el `Course` del JSON-LD. Lo que estaba escrito a mano se corrigió:
+  la nota de `Numbers` (*"DJ, producción y mentoría"*), la descripción de
+  `/programas`, el FAQ de *"¿tengo que saber algo?"* (la mentoría es al revés) y
+  `llms.txt`, que la lista con el precio como PENDIENTE — la regla de ese archivo.
+- **El build pasó de 19 a 20 páginas** (19 en el sitemap); los dos `CLAUDE.md`
+  lo dicen. `InteresDelSolicitante.CURSO` corrigió su javadoc, que decía *"DJ o
+  Producción"*.
+- **Foto**: reusa `sala-mastering.jpg`; no hay una de la mentoría y no se
+  inventa. Cuando el cliente valide la copia, conviene pedirle una.
 
 #### ✅ A8 · Un solo botón de WhatsApp al apartar la cabina — **cerrado el 2026-09-11**
 
@@ -4533,7 +4603,7 @@ cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**cinco ejecutados — las Fases 0 y 1 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
+**ocho ejecutados — las Fases 0, 1 y 2 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
 (`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
 de la §16. Lo que falta es ejecutarlo.
 
@@ -4547,17 +4617,21 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 |---|---|---|
 | ✅ 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe · **cerrada el 2026-09-11** | — |
 | ✅ 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único · **cerrada el 2026-09-11** | — |
-| 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing | — |
+| ✅ 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing · **cerrada el 2026-09-11** | — |
 | 3 | **C1** — el catálogo de programas, cierra P13 | `V28` |
 | 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
 | 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
 | 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
 
-**Lo próximo es la Fase 2** — A3 · A5 · A7, grupo B, sin migración. A3 es el
-contador de movidas (portal desde los pedidos ya cargados; administración desde
-el resumen de la reserva, agrupado en la consulta); **A5 cambia un `GROUP BY` y
-arrastra DTO, tipo TS y el informe Excel/PDF** (P70: el nivel queda en el export);
-A7 necesita contenido del cliente además de código (P67). ⚠️ Desde la Fase 0 el
+**Lo próximo es la Fase 3 — C1, el catálogo de programas, `V28`, cierra P13.**
+Es la primera migración de la barrida y el plan está en la §16 (tabla `programa`
+con precio, moneda, `cobro` por paquete/sesión, `clases_estandar` nullable;
+`GET/PUT /api/programas`; `/admin/programas`; **`CLASES_ESTANDAR` se borra de Java
+y del front**). Antes de escribirla, releer P63 y P65. ⚠️ De la Fase 2 quedan dos
+cosas para las fases que siguen: **la mentoría en la landing dice "precio a
+confirmar" y `llms.txt` lo lista PENDIENTE** — `V28` es lo que lo destraba —, y
+**los tres formularios de la landing mandan el programa dentro de `detalle`**:
+con `V29` (C2) se pasan a campos y se tocan los tres de una. ⚠️ Desde la Fase 0 el
 sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
 mensaje en un `<pre>`** — pedirle eso a Ignacio cuando reporte algo, en vez de
 *"se pone en negro"*. ⚠️ Y de la Fase 1: **el tablero se cambió con medidas y sin
@@ -4578,12 +4652,13 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto**: la §15 está cerrada, suites en **646 backend · 575
+**El estado del producto**: la §15 está cerrada, suites en **649 backend · 579
 front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos builds y los
-dos linters limpios (los catorce casos nuevos del front son de las Fases 0 y 1). Lo que sigue abierto en todo el proyecto está en
+dos linters limpios (los dieciocho casos nuevos del front y los tres del backend
+son de las Fases 0, 1 y 2). La landing genera **20 páginas** desde A7. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — cuatro fases por delante (la 0 y la 1 cerraron el 2026-09-11).
+1. **La §16**, que es esto — tres fases por delante, las tres con migración (0, 1 y 2 cerraron el 2026-09-11).
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

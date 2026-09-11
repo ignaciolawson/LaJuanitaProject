@@ -96,7 +96,15 @@ function tablero(cambios: Partial<Tablero> = {}): Tablero {
     caja: caja(),
     pendientes: pendientes(),
     alumnos: [
+      { disciplina: 'DJ', alumnos: 4, inscripciones: 5 },
+      { disciplina: 'PRODUCCION', alumnos: 0, inscripciones: 0 },
+      { disciplina: 'MENTORIA', alumnos: 0, inscripciones: 0 },
+    ],
+    // La apertura por nivel viaja para el export y la pantalla no la dibuja:
+    // sumada daría 5 alumnos de DJ donde hay 4 (uno tiene dos niveles).
+    alumnosPorNivel: [
       { disciplina: 'DJ', nivel: 'INICIAL', alumnos: 4, inscripciones: 4 },
+      { disciplina: 'DJ', nivel: 'AVANZADO', alumnos: 1, inscripciones: 1 },
       { disciplina: 'PRODUCCION', nivel: null, alumnos: 0, inscripciones: 0 },
       { disciplina: 'MENTORIA', nivel: null, alumnos: 0, inscripciones: 0 },
     ],
@@ -304,6 +312,23 @@ describe('cero y no vacío', () => {
 
     expect(await screen.findByText('Producción')).toBeDefined()
     expect(screen.getByText('Mentoría')).toBeDefined()
+  })
+
+  /**
+   * **Un número por disciplina, y el nivel no se dibuja** (P70, §16 · A5).
+   * Ignacio veía *"2 mentorías, una avanzada y otra gral"*. El número es el del
+   * servidor, contado con DISTINCT sobre la disciplina entera: si alguien
+   * volviera a dibujar `alumnosPorNivel` o a sumarlo, la pantalla diría 5 donde
+   * hay 4, y este caso lo ve.
+   */
+  it('cuenta alumnos por disciplina, sin abrir por nivel', async () => {
+    montar('ADMIN')
+
+    await screen.findByText('Alumnos cursando')
+    expect(screen.getByText('4')).toBeDefined()
+    expect(screen.queryByText('5')).toBeNull()
+    expect(screen.queryByText(/Inicial|Avanzado/)).toBeNull()
+    expect(screen.getAllByText(/DJ$/)).toHaveLength(1)
   })
 
   /** La grilla dibuja las casillas vacías: son 7 días × las horas que vinieron. */

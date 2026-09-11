@@ -27,6 +27,19 @@ export type Periodo = {
   idSala: number | null
 }
 
+/** Un número por disciplina, lo que dibuja la pantalla (P70). */
+export type AlumnosPorDisciplina = {
+  disciplina: Disciplina
+  alumnos: number
+  inscripciones: number
+}
+
+/**
+ * La misma foto abierta por nivel. **Es del export, no de la pantalla** (P70:
+ * *"dejalo en el export no en pantalla"*). ⚠️ No se suma para obtener la de
+ * arriba: quien tiene dos niveles de la misma disciplina está en dos filas acá
+ * y una vez allá. Son dos consultas en el servidor.
+ */
 export type AlumnosPorServicio = {
   disciplina: Disciplina
   /** `null` cuando la inscripción no tiene nivel cargado (las mentorías). */
@@ -119,7 +132,8 @@ export type SelloDelTablero = {
 export type Tablero = {
   periodo: Periodo
   caja: CajaDelPeriodo[]
-  alumnos: AlumnosPorServicio[]
+  alumnos: AlumnosPorDisciplina[]
+  alumnosPorNivel: AlumnosPorServicio[]
   ingresos: IngresosDeLinea[]
   ocupacion: Ocupacion
   pendientes: CobrosPendientes[]

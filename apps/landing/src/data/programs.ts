@@ -28,6 +28,23 @@
  * ("Convertite en DJ") y el nivel se resuelve dentro de la solicitud, con
  * la pregunta de experiencia previa.
  *
+ * ── Y DE DOS A TRES: LA MENTORÍA (2026-09-11, `mejoras.md` §16 · A7) ──
+ *
+ * `grep -i mentor` sobre toda la landing daba CERO coincidencias mientras el
+ * sistema la tenía como disciplina desde `V1` y la inscribía. La copia sale de
+ * P67, textual de Ignacio: *"charlas mano a mano con algún DJ que te aconseja,
+ * te explica… te hace de mentor para tu carrera de DJ. Duración 1:30, formato
+ * virtual o presencial, apunta a DJs que ya tienen recorrido y están
+ * estancados, precio a confirmar."* **El texto largo es a validar como toda la
+ * copia larga**; lo que NO es placeholder es el formato (sesiones de 1:30), el
+ * público (quien ya toca) y que el precio no existe todavía (P63: se cobra por
+ * sesión, y la lista de precios llega con `V28`).
+ *
+ * No es un curso y por eso no tiene cantidad de clases: el sistema rechaza
+ * adivinarle un estándar (P34, P65) y acá tampoco se inventa uno. Y tiene
+ * **formulario propio** (`cta: "mentoring"`): a alguien que ya toca no se le
+ * pregunta si arranca de cero.
+ *
  * Cada programa tiene página propia (`/programas/[slug]`) con el detalle
  * largo: qué es, por qué acá, para quién, temario y formulario.
  */
@@ -81,13 +98,15 @@ export type Program = {
   modules: ProgramModule[];
   outcomes: string[];
   /**
-   * `apply` abre el formulario de solicitud; `consult` manda a contacto.
+   * `apply` abre el formulario de solicitud de un curso; `mentoring` abre el
+   * de la mentoría, que pregunta otra cosa (P67: *"el suyo"*); `consult` manda
+   * a contacto.
    *
-   * Hoy los dos programas son `apply`. `consult` queda para el caso de un
-   * programa a medida o con cupo de sala, donde pedir los mismos datos que en
-   * uno con fecha de arranque no tendría sentido.
+   * `consult` queda para el caso de un programa a medida o con cupo de sala,
+   * donde pedir los mismos datos que en uno con fecha de arranque no tendría
+   * sentido. Hoy ninguno lo usa.
    */
-  cta: "apply" | "consult";
+  cta: "apply" | "mentoring" | "consult";
 };
 
 export const PROGRAMS: Program[] = [
@@ -238,6 +257,77 @@ export const PROGRAMS: Program[] = [
       "Postulación al sello con material real.",
     ],
     cta: "apply",
+  },
+  {
+    slug: "mentoria",
+    name: "Mentoría para DJs",
+    shortName: "Mentoría",
+    tagline: "Mano a mano con alguien que ya pasó por ahí",
+    description:
+      "Charlas uno a uno con un DJ de la casa que te aconseja, te explica y te hace de mentor para tu carrera. Para quien ya toca y siente que se estancó.",
+    // Sin cantidad de sesiones a propósito: no es un curso con un estándar de
+    // clases (P65), se coordina según lo que cada uno necesite.
+    duration: "Sesiones de 1:30 · las que necesites",
+    modality: "Presencial en Pilar o virtual",
+    price: "A confirmar",
+    priceNote: "Se cobra por sesión — el precio se confirma al coordinar",
+    highlights: ["Uno a uno", "Para DJs con recorrido", "Presencial o virtual"],
+    image: "/images/estudio/sala-mastering.jpg",
+    level: 100,
+    levelLabel: "Para quien ya toca",
+    intro: [
+      "No es un curso: es sentarte una hora y media con alguien que ya tocó en los lugares a los que querés llegar, y hablar de vos. De tu set, de tus grabaciones, de cómo te estás moviendo y de por qué sentís que no avanzás.",
+      "Está pensada para el momento que casi todos los DJs atraviesan: ya tocás, ya tenés algo de recorrido, y sin embargo estás en el mismo lugar hace un año. Ahí un tutorial no ayuda. Lo que ayuda es que alguien mire lo que hacés y te diga qué cambiaría.",
+      "Cada sesión se arma alrededor de lo que traés. Podés venir con un set grabado, con dudas de sonido, con preguntas sobre cómo conseguir fechas o con las tres cosas juntas. Se coordina una sesión, y después las que hagan falta.",
+    ],
+    reasons: [
+      {
+        title: "Es sobre vos, no sobre un temario",
+        detail:
+          "No hay un programa que seguir. Lo que se trabaja en cada sesión sale de tu material y de lo que querés destrabar.",
+      },
+      {
+        title: "Mentores que están en fecha",
+        detail:
+          "Los DJs de la casa tocan y publican hoy. Los consejos vienen de lo que les pasa a ellos ahora, no de lo que les pasaba hace diez años.",
+      },
+      {
+        title: "Una sesión a la vez",
+        detail:
+          "No hay paquete que comprar de antemano. Arrancás con una sesión y seguís si te sirvió.",
+      },
+      {
+        title: "Presencial o virtual",
+        detail:
+          "En el estudio en Pilar, con el equipo a mano para mostrar lo que sea, o por videollamada si estás lejos.",
+      },
+    ],
+    forWho: [
+      "Tocás hace un tiempo y sentís que te estancaste.",
+      "Tenés sets grabados y nadie con criterio que te los escuche.",
+      "Conseguís alguna fecha suelta pero no sabés cómo pasar a la siguiente.",
+      "Querés una opinión honesta de alguien que está tocando.",
+    ],
+    modules: [
+      {
+        title: "Dónde estás",
+        detail: "Escuchamos tu material y repasamos cómo te venís moviendo. Sin diagnóstico previo: se arma en la charla.",
+      },
+      {
+        title: "Qué destrabar",
+        detail: "Sonido, selección, lectura de pista, cómo te presentás, cómo buscás fechas. Lo que haga falta.",
+      },
+      {
+        title: "Qué hacer esta semana",
+        detail: "Salís con cosas concretas para probar antes de la próxima, si hay próxima.",
+      },
+    ],
+    outcomes: [
+      "Una mirada externa con criterio sobre lo que hacés.",
+      "Un plan concreto para las semanas que siguen.",
+      "Contacto directo con un DJ de la casa.",
+    ],
+    cta: "mentoring",
   },
 ];
 

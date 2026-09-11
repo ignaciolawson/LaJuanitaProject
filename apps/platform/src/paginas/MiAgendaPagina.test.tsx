@@ -50,6 +50,7 @@ function clase(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
     notas: null,
     idReservaRecupera: null,
     motivoReprogramacion: null,
+    vecesMovida: 0,
     participantes: [
       {
         idParticipacion: 900,
@@ -137,6 +138,14 @@ describe('la agenda', () => {
     await screen.findByText('10:00 a 11:30')
     expect(laAgenda().getByText('Clase de DJ')).toBeDefined()
     expect(laAgenda().queryByText(/Juan Pérez/)).toBeNull()
+  })
+
+  /** El mismo contador que ve el alumno (P69), desde el lado de quien da la clase. */
+  it('dice cuántas veces se movió la clase', async () => {
+    vi.mocked(miAgenda).mockResolvedValue([clase({ vecesMovida: 1 })])
+    render(<MiAgendaPagina />)
+
+    expect(await laAgenda().findByText('movida 1 vez')).toBeDefined()
   })
 
   it('un período sin clases lo dice', async () => {

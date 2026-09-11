@@ -15,7 +15,7 @@ import { SERVICES } from "@/data/services";
 export const metadata: Metadata = pageMetadata({
   title: "Cursos de DJ y producción musical en Pilar",
   description:
-    "Dos programas presenciales o virtuales en vivo: Convertite en DJ (8 clases) y Producción Musical Electrónica (16 clases), una clase por semana de una hora y media. Sobre Pioneer CDJ-3000 en cabina real, en Pilar, Buenos Aires.",
+    "Dos programas presenciales o virtuales en vivo —Convertite en DJ (8 clases) y Producción Musical Electrónica (16 clases), una clase por semana de una hora y media— y mentorías uno a uno para DJs con recorrido. Sobre Pioneer CDJ-3000 en cabina real, en Pilar, Buenos Aires.",
   path: "/programas",
 });
 
@@ -116,10 +116,14 @@ export default function ProgramasPage() {
                     <div className="mt-auto pt-8">
                       <Link
                         href={`/programas/${program.slug}`}
-                        data-cursor={program.cta === "apply" ? "INSCRIBIRME" : "CONSULTAR"}
+                        data-cursor={program.cta === "consult" ? "CONSULTAR" : "INSCRIBIRME"}
                         className="btn btn--solid"
                       >
-                        {program.cta === "apply" ? "Ver e inscribirme" : "Ver y consultar"}
+                        {program.cta === "apply"
+                          ? "Ver e inscribirme"
+                          : program.cta === "mentoring"
+                            ? "Ver y pedir una sesión"
+                            : "Ver y consultar"}
                         <span aria-hidden className="text-[1.25em] leading-none">
                           ↗
                         </span>

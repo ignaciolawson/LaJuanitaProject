@@ -51,6 +51,11 @@ export type ReservaDelPortal = {
   venceEn: string | null
   /** Null cuando la reserva es mía por haberla pagado y no por estar anotado. */
   miAsistencia: EstadoAsistencia | null
+  /**
+   * Cuántas veces se aprobó moverla (P69). Lo cuenta el servidor sobre TODOS los
+   * pedidos de esta reserva, los haya hecho quien los haya hecho.
+   */
+  vecesMovida: number
 }
 
 /** "Mi progreso": nivel, clases tomadas y clases restantes. Sin plata ni notas. */

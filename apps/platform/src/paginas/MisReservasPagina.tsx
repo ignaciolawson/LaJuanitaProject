@@ -10,6 +10,7 @@ import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 import { cuando } from '../componentes/presentacion'
+import { Movida } from '../componentes/Movida'
 import { Proxima } from '../componentes/Proxima'
 
 /**
@@ -220,6 +221,7 @@ export function MisReservasPagina() {
               </div>
 
               <div className="flex items-center gap-4 text-right text-xs">
+                <Movida veces={r.vecesMovida} />
                 {caida ? (
                   <span className="font-medium text-acento">
                     {r.estado === 'CANCELADA' ? 'Cancelada' : 'Reprogramada'}

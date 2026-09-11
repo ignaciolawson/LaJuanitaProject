@@ -33,6 +33,7 @@ import com.lajuanita.backend.reserva.ReservaRepository;
 import com.lajuanita.backend.sala.BloqueoSala;
 import com.lajuanita.backend.sala.BloqueoSalaRepository;
 import com.lajuanita.backend.sala.SalaService;
+import com.lajuanita.backend.solicitud.SolicitudReprogramacionRepository;
 import com.lajuanita.backend.sala.dto.TipoUsoResumen;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 
@@ -73,6 +74,7 @@ public class PortalService {
     private final SalaService catalogo;
     private final AlumnoRepository alumnos;
     private final MaterialRepository materiales;
+    private final SolicitudReprogramacionRepository cambios;
 
     public PortalService(ReservaRepository reservas,
             ReservaParticipanteRepository participantes,
@@ -82,7 +84,8 @@ public class PortalService {
             BloqueoSalaRepository bloqueos,
             SalaService catalogo,
             AlumnoRepository alumnos,
-            MaterialRepository materiales) {
+            MaterialRepository materiales,
+            SolicitudReprogramacionRepository cambios) {
         this.reservas = reservas;
         this.participantes = participantes;
         this.inscripciones = inscripciones;
@@ -92,6 +95,7 @@ public class PortalService {
         this.catalogo = catalogo;
         this.alumnos = alumnos;
         this.materiales = materiales;
+        this.cambios = cambios;
     }
 
     /**
@@ -148,9 +152,12 @@ public class PortalService {
             miAsistencia.put(p.getReserva().getId(), p.getEstadoAsistencia());
         }
 
-        return reservas.deLaPersona(idUsuario, desde, hasta,
-                EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON).stream()
-                .map(r -> ReservaDelPortal.de(r, miAsistencia.get(r.getId())))
+        List<Reserva> mias = reservas.deLaPersona(idUsuario, desde, hasta,
+                EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON);
+        Map<Long, Integer> movidas = cambios.movidasDe(mias.stream().map(Reserva::getId).toList());
+        return mias.stream()
+                .map(r -> ReservaDelPortal.de(r, miAsistencia.get(r.getId()),
+                        movidas.getOrDefault(r.getId(), 0)))
                 .toList();
     }
 

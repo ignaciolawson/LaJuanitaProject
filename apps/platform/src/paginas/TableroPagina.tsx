@@ -301,13 +301,13 @@ export function TableroPagina() {
                 const maximo = Math.max(1, ...tablero.alumnos.map((x) => x.alumnos))
                 return (
                   <div
-                    key={`${a.disciplina}-${a.nivel ?? 'sin'}`}
+                    key={a.disciplina}
                     className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-5"
                   >
+                    {/* Un número por disciplina (P70): la apertura por nivel se fue
+                        al Excel. Sumarla acá contaría dos veces a quien tiene dos
+                        niveles de la misma disciplina. */}
                     <h4 className="font-semibold">{NOMBRE_DE_DISCIPLINA[a.disciplina]}</h4>
-                    {a.nivel && a.nivel !== 'SIN_NIVEL' && (
-                      <p className="text-xs text-tenue">{capitalizar(a.nivel)}</p>
-                    )}
                     <p className="mt-1 text-2xl font-semibold tracking-tight">{a.alumnos}</p>
                     <div className="mt-2 h-1.5 rounded bg-superficie-2">
                       <div

@@ -26,6 +26,7 @@ import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.sello.EstadoRelease;
 import com.lajuanita.backend.tablero.dto.ResumenFinanciero;
 import com.lajuanita.backend.tablero.dto.Tablero;
+import com.lajuanita.backend.tablero.dto.Tablero.AlumnosPorDisciplina;
 import com.lajuanita.backend.tablero.dto.Tablero.AlumnosPorServicio;
 import com.lajuanita.backend.tablero.dto.Tablero.CobrosPendientes;
 import com.lajuanita.backend.tablero.dto.Tablero.Conversion;
@@ -133,6 +134,7 @@ public class TableroService {
         return new Tablero(
                 new Periodo(desde, hasta, idSala),
                 pagos.caja(desde, hasta),
+                alumnosPorDisciplina(),
                 alumnosPorServicio(),
                 ingresosPorLinea(desde, hasta),
                 ocupacion(desde, hasta, idSala),
@@ -228,6 +230,29 @@ public class TableroService {
      * que no existen no se inventan, porque una grilla de disciplina × nivel con
      * nueve casillas casi todas vacías esconde las tres que importan.
      */
+    private List<AlumnosPorDisciplina> alumnosPorDisciplina() {
+        List<String> vigentes = EstadoInscripcion.VIGENTES.stream().map(Enum::name).toList();
+
+        Map<String, AlumnosPorDisciplina> porDisciplina = new LinkedHashMap<>();
+        for (Object[] fila : tablero.alumnosPorDisciplina(vigentes)) {
+            String disciplina = (String) fila[0];
+            porDisciplina.put(disciplina, new AlumnosPorDisciplina(
+                    disciplina,
+                    ((Number) fila[1]).longValue(),
+                    ((Number) fila[2]).longValue()));
+        }
+
+        // Las tres siempre, y en el orden del enum: el cero es el dato por el que
+        // se abre esta tarjeta, y una fila que falta se lee como dato perdido.
+        List<AlumnosPorDisciplina> filas = new ArrayList<>();
+        for (Disciplina disciplina : Disciplina.values()) {
+            filas.add(porDisciplina.getOrDefault(disciplina.name(),
+                    new AlumnosPorDisciplina(disciplina.name(), 0, 0)));
+        }
+        return filas;
+    }
+
+    /** La apertura por nivel, para el export. Ver {@code TableroRepository}. */
     private List<AlumnosPorServicio> alumnosPorServicio() {
         List<String> vigentes = EstadoInscripcion.VIGENTES.stream().map(Enum::name).toList();
 

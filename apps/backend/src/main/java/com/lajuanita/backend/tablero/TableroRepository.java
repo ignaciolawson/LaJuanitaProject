@@ -46,9 +46,17 @@ public interface TableroRepository extends Repository<Pago, Long> {
      * dice ("al día de hoy") y la cabecera de trazabilidad de la exportación
      * también.
      *
-     * <p>Cuenta {@code DISTINCT} el alumno dentro de cada disciplina porque la
-     * misma persona puede tener DJ y producción a la vez, y las dos tienen que
-     * sumar en su fila. Lo que no puede es aparecer dos veces en la misma.
+     * <p>Cuenta {@code DISTINCT} el alumno dentro de cada disciplina Y nivel,
+     * porque la misma persona puede tener DJ y producción a la vez, y las dos
+     * tienen que sumar en su fila. Lo que no puede es aparecer dos veces en la
+     * misma.
+     *
+     * <p>⚠️ <b>Desde §16 · A5 (P70) esta es la apertura del EXPORT, no la de la
+     * pantalla.</b> La pantalla muestra un número por disciplina y sale de
+     * {@link #alumnosPorDisciplina}: <b>sumar estas filas en el front cuenta dos
+     * veces</b> a quien tiene DJ inicial pausado y DJ avanzado activo — el
+     * {@code DISTINCT} es por grupo, y esa persona está en dos grupos. Son dos
+     * consultas a propósito, no una filtrada.
      *
      * <p>{@code VIGENTES} es {@code ACTIVA + PAUSADA}, la misma definición con la
      * que el listado de alumnos filtra por disciplina: un curso pausado sigue
@@ -68,6 +76,28 @@ public interface TableroRepository extends Repository<Pago, Long> {
             ORDER BY i.disciplina, 2
             """, nativeQuery = true)
     List<Object[]> alumnosPorServicio(@Param("vigentes") Iterable<String> vigentes);
+
+    /**
+     * Cuántos alumnos hay hoy en cada disciplina, sin abrir por nivel (P70).
+     *
+     * <p>Es la que dibuja la pantalla: Ignacio veía <i>"2 mentorías, una
+     * avanzada y otra gral"</i> donde quería ver un número. El {@code DISTINCT}
+     * acá es sobre la disciplina entera, que es lo que hace que una persona con
+     * dos niveles vigentes de la misma disciplina cuente una vez — ver
+     * {@link #alumnosPorServicio}. Mismo {@code VIGENTES}, misma foto de hoy.
+     *
+     * @return filas {@code [disciplina, alumnos, inscripciones]}
+     */
+    @Query(value = """
+            SELECT i.disciplina,
+                   count(DISTINCT i.id_alumno)        AS alumnos,
+                   count(*)                           AS inscripciones
+            FROM inscripcion i
+            WHERE i.estado IN (:vigentes)
+            GROUP BY i.disciplina
+            ORDER BY i.disciplina
+            """, nativeQuery = true)
+    List<Object[]> alumnosPorDisciplina(@Param("vigentes") Iterable<String> vigentes);
 
     // == 2. Ingresos del período por línea de negocio ==========================
 

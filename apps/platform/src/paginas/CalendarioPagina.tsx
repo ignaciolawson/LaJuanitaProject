@@ -33,6 +33,7 @@ import {
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
+import { Movida } from '../componentes/Movida'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
@@ -522,9 +523,12 @@ function Detalle({
           <h3 className="t-seccion">
             {reserva.tipoUso} · {reserva.sala}
           </h3>
-          <p className="mt-1 text-sm text-tenue">
-            {fecha(reserva.fecha)} · {hhmm(reserva.horaInicio)}–{hhmm(reserva.horaFin)} ·{' '}
-            {capitalizar(reserva.estado)}
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-tenue">
+            <span>
+              {fecha(reserva.fecha)} · {hhmm(reserva.horaInicio)}–{hhmm(reserva.horaFin)} ·{' '}
+              {capitalizar(reserva.estado)}
+            </span>
+            <Movida veces={reserva.vecesMovida} />
           </p>
           <p className="text-sm text-tenue">
             {reserva.profesor ?? <span className="text-apagado">Sin profesor asignado</span>}

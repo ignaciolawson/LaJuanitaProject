@@ -38,7 +38,7 @@ export const FAQ: FaqItem[] = [
   {
     question: "¿Necesito experiencia previa para anotarme?",
     answer:
-      "No. Los programas Convertite en DJ y Producción Musical Electrónica arrancan desde cero, y quien ya viene mezclando o produciendo saltea lo que tiene resuelto. El nivel se define en la solicitud, con una pregunta sobre experiencia previa, así que no hace falta autodiagnosticarse antes de empezar.",
+      "No. Los programas Convertite en DJ y Producción Musical Electrónica arrancan desde cero, y quien ya viene mezclando o produciendo saltea lo que tiene resuelto. El nivel se define en la solicitud, con una pregunta sobre experiencia previa, así que no hace falta autodiagnosticarse antes de empezar. La mentoría es al revés: es para DJs que ya tocan y quieren destrabar algo puntual, mano a mano.",
   },
   {
     question: "¿Dónde queda La Juanita Studio?",

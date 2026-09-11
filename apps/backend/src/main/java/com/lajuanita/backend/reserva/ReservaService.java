@@ -44,6 +44,7 @@ import com.lajuanita.backend.sala.Sala;
 import com.lajuanita.backend.sala.SalaRepository;
 import com.lajuanita.backend.sala.TipoUso;
 import com.lajuanita.backend.sala.TipoUsoRepository;
+import com.lajuanita.backend.solicitud.SolicitudReprogramacionRepository;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.Rol;
@@ -115,6 +116,7 @@ public class ReservaService {
 
     /** Para el aviso de "te movimos la clase". Ver {@code avisarSiSeMovio}. */
     private final NotificacionService avisos;
+    private final SolicitudReprogramacionRepository cambios;
 
     private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
 
@@ -127,7 +129,8 @@ public class ReservaService {
             InscripcionRepository inscripciones,
             AlumnoRepository alumnos,
             PagoService pagos,
-            NotificacionService avisos) {
+            NotificacionService avisos,
+            SolicitudReprogramacionRepository cambios) {
         this.reservas = reservas;
         this.participantes = participantes;
         this.salas = salas;
@@ -138,6 +141,7 @@ public class ReservaService {
         this.alumnos = alumnos;
         this.pagos = pagos;
         this.avisos = avisos;
+        this.cambios = cambios;
     }
 
     // == El calendario ========================================================
@@ -155,8 +159,11 @@ public class ReservaService {
                 desde, hasta, idSala, idProfesor, incluirCanceladas, EstadoReserva.OCUPAN_LA_SALA);
 
         Map<Long, List<ParticipanteResumen>> porReserva = participantesDe(encontradas);
+        Map<Long, Integer> movidas = cambios.movidasDe(encontradas.stream().map(Reserva::getId).toList());
         return encontradas.stream()
-                .map(r -> ReservaResumen.de(r, porReserva.getOrDefault(r.getId(), List.of())))
+                .map(r -> ReservaResumen.de(r,
+                        porReserva.getOrDefault(r.getId(), List.of()),
+                        movidas.getOrDefault(r.getId(), 0)))
                 .toList();
     }
 
@@ -164,8 +171,7 @@ public class ReservaService {
     public ReservaResumen porId(Long id) {
         Reserva reserva = reservas.porIdConDetalle(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la reserva " + id + "."));
-        return ReservaResumen.de(reserva,
-                participantesDe(List.of(reserva)).getOrDefault(id, List.of()));
+        return conParticipantes(reserva);
     }
 
     /**
@@ -313,7 +319,8 @@ public class ReservaService {
         // El id de la seña vuelve para que la pantalla pueda adjuntarle el
         // comprobante enseguida: desde `V21` el archivo va por su propio endpoint y
         // no cabe en este JSON. Ver `ReservaCreada`.
-        return new ReservaCreada(ReservaResumen.de(guardada, anotados), idPagoSena);
+        // Acaba de nacer: nadie pudo pedir moverla todavía.
+        return new ReservaCreada(ReservaResumen.de(guardada, anotados, 0), idPagoSena);
     }
 
     /**
@@ -794,7 +801,8 @@ public class ReservaService {
 
     private ReservaResumen conParticipantes(Reserva reserva) {
         return ReservaResumen.de(reserva,
-                participantesDe(List.of(reserva)).getOrDefault(reserva.getId(), List.of()));
+                participantesDe(List.of(reserva)).getOrDefault(reserva.getId(), List.of()),
+                cambios.movidasDe(List.of(reserva.getId())).getOrDefault(reserva.getId(), 0));
     }
 
     private Reserva buscar(Long id) {

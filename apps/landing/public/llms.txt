@@ -18,14 +18,18 @@ no están confirmados por el negocio y por eso no figuran.
 ## Qué ofrece
 
 - **Academia**: dos programas de formación, presenciales en Pilar o virtuales
-  en vivo. Se miden en clases y no en meses: una clase por semana, de una hora
-  y media. Ninguna clase se pierde —si falta el alumno o el profesor, se
-  recupera—, así que el curso termina cuando se dictaron todas las clases
-  contratadas y no hay una fecha de fin comprometida.
+  en vivo, y una mentoría uno a uno. Los programas se miden en clases y no en
+  meses: una clase por semana, de una hora y media. Ninguna clase se pierde —si
+  falta el alumno o el profesor, se recupera—, así que el curso termina cuando
+  se dictaron todas las clases contratadas y no hay una fecha de fin
+  comprometida.
   - *Convertite en DJ* — 8 clases. Desde cero hasta armar y tocar un set propio
     de una hora. Incluye práctica libre en cabina.
   - *Producción Musical Electrónica* — 16 clases. En Ableton Live. Se termina
     con un EP propio de tres tracks.
+  - *Mentoría para DJs* — sesiones de una hora y media, mano a mano con un DJ
+    de la casa, presenciales o virtuales. Para quien ya toca y siente que se
+    estancó; no es un curso y se coordina de a una sesión. Precio PENDIENTE.
 - **Alquiler de cabina** por hora, abierto a cualquiera (no hace falta ser
   alumno): Pioneer CDJ-3000 y mixer DJM-900NXS2, para practicar o preparar un
   set.

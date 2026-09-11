@@ -12,6 +12,7 @@ import { PedirOtroDia } from '../componentes/PedirOtroDia'
 import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { Movida } from '../componentes/Movida'
 import { Proxima } from '../componentes/Proxima'
 
 /**
@@ -178,6 +179,8 @@ export function MiAgendaPagina() {
                     ` · ${presentes.map((p) => `${p.nombre} ${p.apellido}`).join(', ')}`}
                 </div>
               </div>
+
+              <Movida veces={c.vecesMovida} />
 
               {caida && (
                 <span className="text-xs font-medium text-acento">

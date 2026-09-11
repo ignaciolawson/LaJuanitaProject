@@ -58,9 +58,16 @@ public record ReservaDelPortal(
          * anotado en ella — el caso de un alquiler viejo, cargado antes de que el
          * portal anotara al que pide.
          */
-        EstadoAsistencia miAsistencia) {
+        EstadoAsistencia miAsistencia,
+        /**
+         * Cuántas veces se movió esta reserva (P69): pedidos aprobados, los pida
+         * quien los pida. Sale de la misma consulta que usa administración —
+         * contarlo acá sobre "mis pedidos" daría 1 donde el profesor también
+         * pidió una vez.
+         */
+        int vecesMovida) {
 
-    public static ReservaDelPortal de(Reserva reserva, EstadoAsistencia miAsistencia) {
+    public static ReservaDelPortal de(Reserva reserva, EstadoAsistencia miAsistencia, int vecesMovida) {
         var profesor = reserva.getProfesor();
 
         return new ReservaDelPortal(
@@ -76,6 +83,7 @@ public record ReservaDelPortal(
                 reserva.getHoraFin(),
                 reserva.getEstado(),
                 reserva.getVencePreconfirmacion(),
-                miAsistencia);
+                miAsistencia,
+                vecesMovida);
     }
 }

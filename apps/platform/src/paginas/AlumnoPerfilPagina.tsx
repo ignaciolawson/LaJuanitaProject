@@ -19,6 +19,7 @@ import type {
 } from '../api/tiposAdmin'
 import type { MaterialResumen, NotaDeAlumno } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
+import { Movida } from '../componentes/Movida'
 import { Paginado } from '../componentes/Paginado'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
@@ -383,11 +384,23 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
       .finally(() => setCargando(false))
   }, [idUsuario])
 
+  // La suma del contador de cada clase (P69): el que movió cuatro veces se
+  // veía igual que el que movió una, y la ficha es donde se mira el patrón. Es
+  // de las clases listadas —el mismo período que dice el título— y no de toda
+  // la historia: un total "desde siempre" sería otra consulta, y hoy la
+  // pregunta es si esta persona mueve seguido, no cuántas en su vida.
+  const movidas = clases.reduce((suma, c) => suma + c.vecesMovida, 0)
+
   return (
     <section className="mt-8">
       <h3 className="t-seccion mb-3">
         Historial de clases{' '}
         <span className="text-sm font-normal text-tenue">(últimos 45 días)</span>
+        {movidas > 0 && (
+          <span className="ml-2 text-sm font-normal text-tenue">
+            · {movidas === 1 ? 'movió 1 clase' : `movió ${movidas} veces`}
+          </span>
+        )}
       </h3>
 
       {error && <Aviso>{error}</Aviso>}
@@ -422,7 +435,8 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
                     <div className="text-xs text-apagado">no descuenta clases</div>
                   )}
                 </div>
-                <span className="whitespace-nowrap text-xs text-tenue">
+                <span className="flex items-center gap-3 whitespace-nowrap text-xs text-tenue">
+                  <Movida veces={clase.vecesMovida} />
                   {caida
                     ? capitalizar(clase.estado)
                     : capitalizar(suya.estadoAsistencia.replace('_', ' '))}

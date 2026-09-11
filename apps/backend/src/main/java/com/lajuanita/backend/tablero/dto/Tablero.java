@@ -45,8 +45,16 @@ public record Tablero(
          */
         List<CajaDelPeriodo> caja,
 
-        /** Foto de hoy: quién está cursando qué. */
-        List<AlumnosPorServicio> alumnos,
+        /** Foto de hoy: quién está cursando qué, un número por disciplina (P70). */
+        List<AlumnosPorDisciplina> alumnos,
+
+        /**
+         * La misma foto abierta por nivel. <b>Es del export, no de la pantalla</b>
+         * (P70: <i>"dejalo en el export no en pantalla"</i>). Viaja en el mismo
+         * DTO porque el informe se arma de acá — un armado, dos formatos — y no
+         * se suma con la de arriba: son dos consultas, ver el repositorio.
+         */
+        List<AlumnosPorServicio> alumnosPorNivel,
 
         /** Del período: de dónde salió la plata que entró. */
         List<IngresosDeLinea> ingresos,
@@ -71,6 +79,16 @@ public record Tablero(
 
     /** El período elegido. Los indicadores "de hoy" no lo miran, y lo dicen. */
     public record Periodo(LocalDate desde, LocalDate hasta, Long idSala) {
+    }
+
+    /**
+     * Cuántos alumnos hay en cada disciplina, <b>hoy</b>, sin abrir por nivel.
+     * Las tres disciplinas siempre, con cero si no hay nadie.
+     */
+    public record AlumnosPorDisciplina(
+            String disciplina,
+            long alumnos,
+            long inscripciones) {
     }
 
     /**

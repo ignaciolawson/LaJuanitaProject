@@ -62,6 +62,7 @@ function claseDe(idUsuario: number, cambios: Record<string, unknown> = {}) {
     notas: null,
     idReservaRecupera: null,
     motivoReprogramacion: null,
+    vecesMovida: 0,
     participantes: [
       {
         idParticipacion: 1,
@@ -390,6 +391,27 @@ describe('el historial de clases', () => {
     montar()
 
     expect(await screen.findByText('no descuenta clases')).toBeDefined()
+  })
+
+  /**
+   * **El contador de movidas, por clase y sumado** (P69, §16 · A3). El motivo de
+   * cada pedido se guardaba desde `V1` y ninguna pantalla los contaba: el que
+   * movió cuatro veces se veía igual que el que movió una. La ficha es donde se
+   * mira el patrón, así que suma lo de las clases listadas.
+   */
+  it('dice cuántas veces se movió cada clase, y las suma en el título', async () => {
+    vi.mocked(agenda).mockResolvedValue([
+      claseDe(100, { idReserva: 1, vecesMovida: 2, fecha: '2026-09-01' }),
+      claseDe(100, { idReserva: 2, vecesMovida: 1, fecha: '2026-09-08' }),
+      claseDe(100, { idReserva: 3, vecesMovida: 0, fecha: '2026-09-15' }),
+    ] as never)
+
+    montar()
+
+    expect(await screen.findByText('movida 2 veces')).toBeDefined()
+    expect(screen.getByText('movida 1 vez')).toBeDefined()
+    expect(screen.queryByText(/movida 0/)).toBeNull()
+    expect(screen.getByText(/movió 3 veces/)).toBeDefined()
   })
 })
 

@@ -29,7 +29,7 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
 // escrito a mano, así que no se puede volver a desincronizar.
 const STATS = [
   { value: 200, suffix: "+", label: "Alumnos formados", note: "Desde 2021" },
-  { value: PROGRAMS.length, suffix: "", label: "Programas activos", note: "DJ y producción" },
+  { value: PROGRAMS.length, suffix: "", label: "Programas activos", note: "DJ, producción y mentoría" },
   { value: 12, suffix: "", label: "Lanzamientos del sello", note: "La Juanita Records" },
   { value: 100, suffix: "%", label: "Práctica en cabina real", note: "Pioneer DJ" },
 ];

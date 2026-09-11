@@ -39,6 +39,7 @@ import com.lajuanita.backend.reserva.ReservaParticipanteRepository;
 import com.lajuanita.backend.reserva.ReservaRepository;
 import com.lajuanita.backend.reserva.dto.ParticipanteResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
+import com.lajuanita.backend.solicitud.SolicitudReprogramacionRepository;
 import com.lajuanita.backend.usuario.OperacionNoPermitidaException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
@@ -79,6 +80,7 @@ public class DocenciaService {
     private final ReservaParticipanteRepository participantes;
     private final InscripcionRepository inscripciones;
     private final InscripcionService cursos;
+    private final SolicitudReprogramacionRepository cambios;
 
     public DocenciaService(ProfesorRepository profesores,
             AlumnoRepository alumnos,
@@ -88,7 +90,8 @@ public class DocenciaService {
             ReservaRepository reservas,
             ReservaParticipanteRepository participantes,
             InscripcionRepository inscripciones,
-            InscripcionService cursos) {
+            InscripcionService cursos,
+            SolicitudReprogramacionRepository cambios) {
         this.profesores = profesores;
         this.alumnos = alumnos;
         this.notas = notas;
@@ -98,6 +101,7 @@ public class DocenciaService {
         this.participantes = participantes;
         this.inscripciones = inscripciones;
         this.cursos = cursos;
+        this.cambios = cambios;
     }
 
     // == Mi agenda y mi historial ============================================
@@ -119,8 +123,11 @@ public class DocenciaService {
                 desde, hasta, null, yo.getId(), false, EstadoReserva.OCUPAN_LA_SALA);
 
         Map<Long, List<ParticipanteResumen>> porReserva = participantesDe(encontradas);
+        Map<Long, Integer> movidas = cambios.movidasDe(encontradas.stream().map(Reserva::getId).toList());
         return encontradas.stream()
-                .map(r -> ReservaResumen.de(r, porReserva.getOrDefault(r.getId(), List.of())))
+                .map(r -> ReservaResumen.de(r,
+                        porReserva.getOrDefault(r.getId(), List.of()),
+                        movidas.getOrDefault(r.getId(), 0)))
                 .toList();
     }
 

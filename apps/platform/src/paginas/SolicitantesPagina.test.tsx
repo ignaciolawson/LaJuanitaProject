@@ -185,6 +185,7 @@ function cabinaApartada(cambios: Partial<CabinaApartada> = {}): CabinaApartada {
       notas: null,
       idReservaRecupera: null,
       motivoReprogramacion: null,
+      vecesMovida: 0,
       participantes: [],
     },
     usuario: {

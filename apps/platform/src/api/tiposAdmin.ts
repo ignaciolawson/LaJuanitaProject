@@ -176,6 +176,8 @@ export type ReservaResumen = {
   notas: string | null
   idReservaRecupera: number | null
   motivoReprogramacion: string | null
+  /** Cuántas veces se aprobó cambiarla de día (P69). Agrupado en la consulta. */
+  vecesMovida: number
   participantes: ParticipanteResumen[]
 }
 

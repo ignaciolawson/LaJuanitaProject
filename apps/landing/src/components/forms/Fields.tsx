@@ -78,11 +78,13 @@ export function TextArea({
   name,
   placeholder,
   rows = 4,
+  required,
 }: {
   label: string;
   name: string;
   placeholder?: string;
   rows?: number;
+  required?: boolean;
 }) {
   const id = useId();
   return (
@@ -95,6 +97,7 @@ export function TextArea({
         name={name}
         rows={rows}
         placeholder={placeholder}
+        required={required}
         className={clsx(fieldBase, "t-body mt-1 resize-none")}
       />
     </div>

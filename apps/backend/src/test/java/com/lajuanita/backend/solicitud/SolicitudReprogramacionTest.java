@@ -415,6 +415,65 @@ class SolicitudReprogramacionTest {
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
+    // == Cuántas veces se movió (P69, §16 · A3) ================================
+
+    /**
+     * <b>"Movida N veces" es un hecho de la reserva, no de quien mira.</b> El
+     * alumno pide una vez y el profesor otra, las dos se aprueban: los tres
+     * lugares que dibujan la clase —administración, el portal del alumno, la
+     * agenda del profesor— dicen 2. Contado sobre "mis pedidos", cada uno vería
+     * 1, que es el plan que se descartó.
+     */
+    @Test
+    void la_clase_dice_cuantas_veces_se_movio_y_es_la_misma_cuenta_para_todos() throws Exception {
+        Profesor profesor = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        long clase = unaClaseCon(profesor, alumno);
+        LocalDate otroMas = OTRO_DIA.plusDays(7);
+
+        long delAlumno = idDelPedido(pedir(alumno.getUsuario(), clase, "no puedo", OTRO_DIA));
+        mvc.perform(aprobar(delAlumno, sala1, OTRO_DIA, "22:00", "23:30")).andExpect(status().isOk());
+        long delProfesor = idDelPedido(pedir(profesor.getUsuario(), clase, "tengo una fecha", null));
+        mvc.perform(aprobar(delProfesor, sala1, otroMas, "22:00", "23:30")).andExpect(status().isOk());
+
+        mvc.perform(get("/api/reservas/" + clase).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vecesMovida").value(2));
+
+        mvc.perform(get("/api/me/reservas")
+                .param("desde", otroMas.toString()).param("hasta", otroMas.toString())
+                .header("Authorization", credencialPara(alumno.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].idReserva").value(clase))
+                .andExpect(jsonPath("$[0].vecesMovida").value(2));
+
+        mvc.perform(get("/api/me/profesor/agenda")
+                .param("desde", otroMas.toString()).param("hasta", otroMas.toString())
+                .header("Authorization", credencialPara(profesor.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].idReserva").value(clase))
+                .andExpect(jsonPath("$[0].vecesMovida").value(2));
+    }
+
+    /** Un pedido rechazado no movió nada, y uno pendiente todavía no: cero. */
+    @Test
+    void lo_rechazado_y_lo_pendiente_no_cuentan_como_movida() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long clase = unaClaseDe(alumno);
+
+        long rechazado = idDelPedido(pedir(alumno.getUsuario(), clase, "no puedo", null));
+        mvc.perform(patch("/api/reprogramaciones/" + rechazado + "/rechazo")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"respuesta\":\"No hay sala\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(pedir(alumno.getUsuario(), clase, "de nuevo", null)).andExpect(status().isCreated());
+
+        mvc.perform(get("/api/reservas/" + clase).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vecesMovida").value(0));
+    }
+
     // == Helpers =============================================================
 
     private MockHttpServletRequestBuilder pedir(Usuario quienPide, long idReserva, String motivo,
@@ -460,7 +519,10 @@ class SolicitudReprogramacionTest {
 
     /** Una clase con profesor y con alguien anotado, para el camino de P9. */
     private long unaClaseCon(Profesor profesor) throws Exception {
-        Alumno alumno = alumnoNuevo();
+        return unaClaseCon(profesor, alumnoNuevo());
+    }
+
+    private long unaClaseCon(Profesor profesor, Alumno alumno) throws Exception {
         Inscripcion inscripcion = inscripcionDe(alumno);
         return idDeLaReserva(mvc.perform(post("/api/reservas")
                 .header("Authorization", comoStaff())

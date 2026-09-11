@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.hamcrest.Matchers;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -32,6 +33,7 @@ import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.EstadoInscripcion;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.inscripcion.Nivel;
@@ -137,6 +139,41 @@ class TableroTest {
                 .andExpect(jsonPath("$.alumnos[?(@.disciplina == 'DJ')]").isNotEmpty())
                 .andExpect(jsonPath("$.alumnos[?(@.disciplina == 'PRODUCCION')]").isNotEmpty())
                 .andExpect(jsonPath("$.alumnos[?(@.disciplina == 'MENTORIA')]").isNotEmpty());
+    }
+
+    /**
+     * <b>Un número por disciplina, y la persona con dos niveles cuenta una vez</b>
+     * (P70, §16 · A5). Ignacio veía <i>"2 mentorías, una avanzada y otra gral"</i>.
+     * Y no se arregla sumando en el front: alguien con DJ inicial PAUSADA y DJ
+     * avanzada ACTIVA —las dos vigentes, que el índice parcial permite— es dos
+     * filas por nivel y UN alumno de DJ. La apertura por nivel sigue viajando
+     * para el export, sin sumarse con la otra.
+     */
+    @Test
+    void cuenta_alumnos_por_disciplina_y_quien_tiene_dos_niveles_cuenta_una_vez() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inicial = inscripcionDe(alumno);
+        inicial.setEstado(EstadoInscripcion.PAUSADA);
+        // Hibernate escribe los INSERT antes que los UPDATE: sin el flush, la
+        // segunda inscripción entra con la primera todavía ACTIVA en la base y el
+        // índice parcial la rechaza. Es la trampa de `ReservaService`, otra vez.
+        inscripciones.saveAndFlush(inicial);
+        Inscripcion avanzada = inscripcionDe(alumno);
+        avanzada.setNivel(Nivel.AVANZADO);
+        inscripciones.save(avanzada);
+
+        long alumnosDeDj = alumnosDeDjSegunElTablero();
+
+        tablero()
+                // El filtro devuelve una lista, y el JSON trae un Integer: se compara
+                // con `contains` y no con `value`, que falla diciendo "7 pero era 7".
+                .andExpect(jsonPath("$.alumnos[?(@.disciplina == 'DJ')].alumnos")
+                        .value(Matchers.contains(Math.toIntExact(alumnosDeDj))))
+                .andExpect(jsonPath("$.alumnos[?(@.disciplina == 'DJ')].nivel").doesNotExist())
+                .andExpect(jsonPath("$.alumnosPorNivel[?(@.disciplina == 'DJ' && @.nivel == 'INICIAL')]")
+                        .isNotEmpty())
+                .andExpect(jsonPath("$.alumnosPorNivel[?(@.disciplina == 'DJ' && @.nivel == 'AVANZADO')]")
+                        .isNotEmpty());
     }
 
     /** Todos los estados de M&M y del sello, aunque no exista ninguna fila. */
@@ -544,6 +581,20 @@ class TableroTest {
     private ResultActions tablero() throws Exception {
         return mvc.perform(get("/api/tablero?desde=%s&hasta=%s".formatted(DESDE, HASTA))
                 .header("Authorization", comoAdmin()));
+    }
+
+    /**
+     * Cuántos alumnos de DJ tendría que decir el tablero, contados en SQL sobre
+     * la misma base — la de desarrollo tiene alumnos propios y este caso no puede
+     * suponer que el suyo es el único. Contado con el DISTINCT sobre la
+     * disciplina entera, que es la definición que se prueba.
+     */
+    private long alumnosDeDjSegunElTablero() {
+        inscripciones.flush();
+        return jdbc.queryForObject("""
+                SELECT count(DISTINCT id_alumno) FROM inscripcion
+                WHERE disciplina = 'DJ' AND estado IN ('ACTIVA', 'PAUSADA')
+                """, Long.class);
     }
 
     /** {@code [conVentanaCerrada, retenidos]}, leídos del tablero. */

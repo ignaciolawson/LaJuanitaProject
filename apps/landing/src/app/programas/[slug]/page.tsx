@@ -9,6 +9,7 @@ import { SplitReveal } from "@/components/motion/SplitReveal";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { ProgramApplyForm } from "@/components/forms/ProgramApplyForm";
+import { MentoringApplyForm } from "@/components/forms/MentoringApplyForm";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { pageMetadata, graph, breadcrumbLd, courseLd } from "@/lib/seo";
 import { PROGRAMS, getProgram } from "@/data/programs";
@@ -26,8 +27,10 @@ import { CONTACT } from "@/data/contact";
  * Un programa con `cta: "consult"` no muestra formulario, sino que manda a
  * contacto: si es a medida o con cupo de sala, pedirle a alguien los mismos
  * datos que en uno con fecha de arranque es pedirle trabajo por una respuesta
- * que igual va a ser "hablemos". Hoy los dos programas son `apply`; el caso
- * existía por Mix & Mastering, que dejó de ser un programa (§13).
+ * que igual va a ser "hablemos". Los dos cursos son `apply` y la mentoría es
+ * `mentoring` —su propio formulario, porque a quien ya toca no se le pregunta
+ * si arranca de cero (P67)—; `consult` existía por Mix & Mastering, que dejó
+ * de ser un programa (§13), y hoy no lo usa nadie.
  */
 
 export function generateStaticParams() {
@@ -239,17 +242,19 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
         className="bg-[color:var(--page-bg)] py-[var(--gap)] text-[color:var(--page-fg)]"
       >
         <Container wide>
-          {program.cta === "apply" ? (
+          {program.cta !== "consult" ? (
             <div className="grid gap-14 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-20">
               <div>
-                <span className="label">Solicitar lugar</span>
+                <span className="label">
+                  {program.cta === "mentoring" ? "Pedir una sesión" : "Solicitar lugar"}
+                </span>
                 <SplitReveal as="h2" type="chars" className="t-display h-md mt-5">
-                  Anotate
+                  {program.cta === "mentoring" ? "Hablemos" : "Anotate"}
                 </SplitReveal>
                 <p className="t-body mt-6 max-w-[38ch] text-[color:var(--page-muted)]">
-                  Dejanos tus datos y te contamos fechas de arranque, cupos
-                  disponibles y formas de pago. No es un compromiso: es una
-                  conversación.
+                  {program.cta === "mentoring"
+                    ? "Contanos dónde estás y qué querés destrabar, y coordinamos la primera sesión con el mentor que mejor encaje. No es un compromiso: es una conversación."
+                    : "Dejanos tus datos y te contamos fechas de arranque, cupos disponibles y formas de pago. No es un compromiso: es una conversación."}
                 </p>
                 <p className="t-mono mt-8 text-[color:var(--page-faint)]">
                   ¿Preferís hablar antes?{" "}
@@ -264,7 +269,11 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
                 </p>
               </div>
 
-              <ProgramApplyForm programName={program.name} />
+              {program.cta === "mentoring" ? (
+                <MentoringApplyForm programName={program.name} />
+              ) : (
+                <ProgramApplyForm programName={program.name} />
+              )}
             </div>
           ) : (
             <div className="max-w-[62ch]">

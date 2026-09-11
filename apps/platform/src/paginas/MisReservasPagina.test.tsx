@@ -53,6 +53,7 @@ function reserva(cambios: Partial<ReservaDelPortal> = {}): ReservaDelPortal {
     estado: 'CONFIRMADA',
     venceEn: null,
     miAsistencia: 'PENDIENTE',
+    vecesMovida: 0,
     ...cambios,
   }
 }
@@ -64,6 +65,23 @@ beforeEach(() => {
 })
 
 describe('el listado', () => {
+  /**
+   * *"Movida N veces"* (P69, §16 · A3): el número viene del servidor y es el de
+   * la reserva —los pedidos del alumno y los del profesor, juntos—; con cero no
+   * se dibuja nada, porque lo normal es no haberla movido.
+   */
+  it('dice cuántas veces se movió, y con cero no dice nada', async () => {
+    vi.mocked(misReservas).mockResolvedValue([
+      reserva({ idReserva: 1, vecesMovida: 2 }),
+      reserva({ idReserva: 2, vecesMovida: 0, fecha: '2026-09-08' }),
+    ])
+    render(<MisReservasPagina />)
+
+    const lista = within(await screen.findByRole('list'))
+    expect(await lista.findByText('movida 2 veces')).toBeDefined()
+    expect(lista.getAllByText(/movida/)).toHaveLength(1)
+  })
+
   it('muestra qué, cuándo, dónde y con quién', async () => {
     render(<MisReservasPagina />)
 

@@ -1,6 +1,9 @@
 package com.lajuanita.backend.solicitud;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -81,4 +84,44 @@ public interface SolicitudReprogramacionRepository extends JpaRepository<Solicit
 
     /** Cuántos pedidos de cambio esperan respuesta. El contador del menú. */
     long countByEstado(EstadoReprogramacion estado);
+
+    /**
+     * Cuántas veces se movió cada reserva: los pedidos APROBADOS, agrupados
+     * (`mejoras.md` §16 · A3, P69).
+     *
+     * <p><b>Es la única definición de "movida N veces"</b>, y por eso vive acá y
+     * no en cada pantalla. El primer plan era que el portal contara sobre los
+     * pedidos que ya tiene cargados, y no sirve: {@link #deLaPersona} trae lo
+     * que pidió <i>esa</i> persona, y una clase la puede mover el alumno o el
+     * profesor (P9) — cada uno vería 1 donde la clase se movió dos veces. El
+     * conteo es un hecho de la reserva, no de quien mira.
+     *
+     * <p>Se cuentan sólo los aprobados: un pedido rechazado no movió nada, y uno
+     * pendiente todavía no.
+     */
+    @Query("""
+            SELECT s.reserva.id, COUNT(s)
+            FROM SolicitudReprogramacion s
+            WHERE s.reserva.id IN :ids
+              AND s.estado = com.lajuanita.backend.solicitud.EstadoReprogramacion.APROBADA
+            GROUP BY s.reserva.id
+            """)
+    List<Object[]> aprobadasPorReserva(@Param("ids") Collection<Long> ids);
+
+    /**
+     * {@link #aprobadasPorReserva} como mapa, con el {@code IN ()} vacío resuelto:
+     * una semana sin reservas no puede reventar por una lista vacía, que en
+     * Postgres es un error de sintaxis. Lo que no está en el mapa se movió cero
+     * veces.
+     */
+    default Map<Long, Integer> movidasDe(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Integer> porReserva = new HashMap<>();
+        for (Object[] fila : aprobadasPorReserva(ids)) {
+            porReserva.put((Long) fila[0], ((Number) fila[1]).intValue());
+        }
+        return porReserva;
+    }
 }

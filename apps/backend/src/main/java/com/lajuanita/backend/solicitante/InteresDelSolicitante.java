@@ -20,7 +20,13 @@ package com.lajuanita.backend.solicitante;
  */
 public enum InteresDelSolicitante {
 
-    /** Anotarse a un programa — DJ o Producción. */
+    /**
+     * Anotarse a un programa — DJ, Producción o la mentoría. La disciplina se
+     * elige recién al inscribir; hasta ahí viaja escrita en {@code detalle}, y
+     * las tres están en {@code inscripcion_disciplina_valida} desde {@code V1}.
+     * (Decía "DJ o Producción" hasta §16 · A7, cuando la landing sumó la
+     * mentoría que el sistema ya inscribía.)
+     */
     CURSO,
 
     /** Alquilar la cabina. */
