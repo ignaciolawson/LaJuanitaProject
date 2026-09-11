@@ -209,19 +209,49 @@ export type Moneda = 'ARS' | 'USD'
 export type EstadoInscripcion = 'ACTIVA' | 'COMPLETADA' | 'CANCELADA' | 'PAUSADA'
 
 /**
- * Clases que trae cada curso de fábrica (§13, P34).
+ * Cómo se vende un programa (`V28`, P63). Espeja `Cobro`.
  *
- * Está acá **para mostrarlo en el formulario**, no para decidirlo: quien
- * completa el valor cuando no viene es el backend, así que un alta por la API
- * tiene la misma regla que una por pantalla. Si estas dos tablas se separan, la
- * que vale es la de Java.
- *
- * La mentoría se arma a medida y por eso no tiene número.
+ * `PAQUETE`: el precio es del curso entero (DJ, Producción). `SESION`: el precio
+ * es de cada sesión y el total sale de sesiones × precio (la mentoría, que no
+ * tiene estándar de clases).
  */
-export const CLASES_ESTANDAR: Record<Disciplina, number | null> = {
-  DJ: 8,
-  PRODUCCION: 16,
-  MENTORIA: null,
+export type Cobro = 'PAQUETE' | 'SESION'
+
+/**
+ * Una fila del catálogo de programas (`V28`, P63 — cierra P13). Espeja
+ * `ProgramaResumen`.
+ *
+ * ⚠️ **Acá vivía `CLASES_ESTANDAR`**, una copia del 8/16 de Java "para
+ * mostrarlo", con un comentario diciendo que la de Java era la que valía. Eran
+ * dos definiciones de un dato que nadie podía cambiar sin un deploy. Desde
+ * `V28` el alta de inscripción lee el catálogo — `clasesEstandar` de acá — y
+ * prellena el precio con `precio`. Mica lo edita en `/admin/programas`.
+ */
+export type ProgramaResumen = {
+  idPrograma: number
+  disciplina: Disciplina
+  nombre: string
+  descripcion: string | null
+  /** `null` = todavía no hay precio ("a confirmar"). Cero es un precio. */
+  precio: number | null
+  moneda: Moneda
+  cobro: Cobro
+  /** `null` = sin estándar: quien inscribe dice cuántas son. */
+  clasesEstandar: number | null
+  duracionMinutos: number
+  activo: boolean
+}
+
+/** Editar una fila del catálogo. Todo menos la disciplina. Espeja `EdicionProgramaRequest`. */
+export type EdicionPrograma = {
+  nombre: string
+  descripcion: string | null
+  precio: number | null
+  moneda: Moneda
+  cobro: Cobro
+  clasesEstandar: number | null
+  duracionMinutos: number
+  activo: boolean
 }
 
 const ORDEN_NIVEL: Record<Nivel, number> = { INICIAL: 1, INTERMEDIO: 2, AVANZADO: 3 }

@@ -34,6 +34,8 @@ import type {
   ParticipanteResumen,
   Pendientes,
   ProfesorResumen,
+  ProgramaResumen,
+  EdicionPrograma,
   ReservaResumen,
   SalaResumen,
   SolicitanteResumen,
@@ -269,6 +271,21 @@ export function editarProfesor(
   datos: { especialidad?: string | null; activo?: boolean },
 ) {
   return pedir<ProfesorResumen>(`/api/profesores/${idProfesor}`, {
+    metodo: 'PUT',
+    cuerpo: datos,
+  })
+}
+
+// -- El catálogo de programas (`V28`) ---------------------------------------
+
+/** Las tres filas, siempre, en el orden DJ · Producción · Mentoría. */
+export function listarProgramas() {
+  return pedir<ProgramaResumen[]>('/api/programas')
+}
+
+/** Todo menos la disciplina. Es un PUT: la fila entera, y `precio: null` escribe null. */
+export function editarPrograma(idPrograma: number, datos: EdicionPrograma) {
+  return pedir<ProgramaResumen>(`/api/programas/${idPrograma}`, {
     metodo: 'PUT',
     cuerpo: datos,
   })

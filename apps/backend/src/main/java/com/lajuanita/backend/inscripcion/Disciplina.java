@@ -1,30 +1,19 @@
 package com.lajuanita.backend.inscripcion;
 
 /**
- * Qué se cursa. Coincide con el CHECK {@code inscripcion_disciplina_valida}.
+ * Qué se cursa. Coincide con el CHECK {@code inscripcion_disciplina_valida} —y
+ * con el de {@code programa}, que es la tabla que desde `V28` dice cuántas
+ * clases trae cada una y a cuánto.
  *
- * <p>Cada una trae la cantidad de clases que el curso tiene <b>de fábrica</b>,
- * confirmada por el cliente el 2026-08-14 ({@code platform.md} §13, P34): el
- * curso es cerrado, de 1:30 semanal, y termina cuando se dictaron todas.
- *
- * <p><b>La mentoría no tiene número estándar</b>, y eso no es un olvido: se
- * arma a medida. Por eso {@link #clasesEstandar()} devuelve {@code null} ahí y
- * el alta obliga a decir cuántas son.
+ * <p>Hasta `V28` este enum cargaba la cantidad de clases de fábrica (DJ 8,
+ * Producción 16, mentoría sin estándar — §13, P34), y el front tenía una copia
+ * para mostrarla. Eran dos definiciones de un dato que además nadie podía
+ * cambiar sin un deploy. Ahora vive en una fila de {@code programa} que Mica
+ * edita, y esto volvió a ser lo que es: la lista de valores del CHECK.
  */
 public enum Disciplina {
 
-    DJ(8),
-    PRODUCCION(16),
-    MENTORIA(null);
-
-    private final Integer clasesEstandar;
-
-    Disciplina(Integer clasesEstandar) {
-        this.clasesEstandar = clasesEstandar;
-    }
-
-    /** Clases del curso cerrado, o {@code null} si la disciplina no tiene una. */
-    public Integer clasesEstandar() {
-        return clasesEstandar;
-    }
+    DJ,
+    PRODUCCION,
+    MENTORIA
 }

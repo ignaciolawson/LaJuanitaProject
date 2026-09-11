@@ -144,6 +144,15 @@ const MENU: GrupoMenu[] = [
         disponible: true,
       },
       { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
+      {
+        // El catálogo (`V28`, P63): qué se vende y a cuánto. Va en Personas y no
+        // en Dinero porque es lo que se INSCRIBE, y se edita cuando cambia un
+        // precio — al lado de Inscripciones, que es quien lo lee.
+        etiqueta: 'Programas',
+        ruta: '/admin/programas',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
     ],
   },
   {

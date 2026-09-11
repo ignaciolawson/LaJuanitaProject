@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
-import type { AlumnoResumen, InscripcionResumen } from '../api/tiposAdmin'
+import type { AlumnoResumen, InscripcionResumen, ProgramaResumen } from '../api/tiposAdmin'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { InscripcionesPagina } from './InscripcionesPagina'
 import { elegir } from '../pruebas/elegir'
@@ -23,6 +23,7 @@ vi.mock('../api/administracion', () => ({
   listarInscripciones: vi.fn(),
   listarAlumnos: vi.fn(),
   listarProfesores: vi.fn(),
+  listarProgramas: vi.fn(),
   altaInscripcion: vi.fn(),
   editarInscripcion: vi.fn(),
   cambiarEstadoInscripcion: vi.fn(),
@@ -35,6 +36,7 @@ const {
   listarAlumnos,
   listarInscripciones,
   listarProfesores,
+  listarProgramas,
 } = await import('../api/administracion')
 
 function usuario(rol: UsuarioActual['rol']): UsuarioActual {
@@ -131,7 +133,31 @@ beforeEach(() => {
   ])
   vi.mocked(listarAlumnos).mockResolvedValue(paginaDe([alumno()]))
   vi.mocked(listarInscripciones).mockResolvedValue(paginaDe([inscripcion()]))
+  // El catálogo (`V28`): de acá salen las clases de fábrica y el precio. Los
+  // casos de abajo que dicen "8" y "16" lo dicen porque ESTE catálogo lo dice.
+  vi.mocked(listarProgramas).mockResolvedValue([
+    programa({ idPrograma: 1, disciplina: 'DJ', nombre: 'Convertite en DJ', precio: 170000, clasesEstandar: 8 }),
+    programa({ idPrograma: 2, disciplina: 'PRODUCCION', nombre: 'Producción Musical Electrónica', precio: 440000, clasesEstandar: 16 }),
+    programa({ idPrograma: 3, disciplina: 'MENTORIA', nombre: 'Mentoría para DJs', precio: null, cobro: 'SESION', clasesEstandar: null }),
+  ])
 })
+
+/** Una fila del catálogo (`V28`). */
+function programa(cambios: Partial<ProgramaResumen> = {}): ProgramaResumen {
+  return {
+    idPrograma: 1,
+    disciplina: 'DJ',
+    nombre: 'Convertite en DJ',
+    descripcion: null,
+    precio: 170000,
+    moneda: 'ARS',
+    cobro: 'PAQUETE',
+    clasesEstandar: 8,
+    duracionMinutos: 90,
+    activo: true,
+    ...cambios,
+  }
+}
 
 describe('las clases restantes', () => {
   /**
@@ -171,7 +197,7 @@ describe('eje de escritura (SEC-05)', () => {
   })
 })
 
-describe('las clases de fábrica del curso (§13, P34)', () => {
+describe('las clases de fábrica del curso (§13, P34 — desde V28, del catálogo)', () => {
   it('elegir DJ completa las 8 clases del curso cerrado', async () => {
     const user = userEvent.setup()
     await montarYEsperar('STAFF', 'Pérez, Juan')
@@ -180,6 +206,42 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
     await elegir(user, 'Disciplina', 'DJ')
 
     expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '8')
+  })
+
+  /**
+   * **El 8 ya no vive acá: vive en el catálogo** (`V28`, P63). Si Mica lo cambia
+   * en `/admin/programas`, el formulario lo muestra. Con `CLASES_ESTANDAR` de
+   * vuelta en el front este caso diría 8, que es para lo que está.
+   */
+  it('el estándar es el del catálogo, no una constante', async () => {
+    vi.mocked(listarProgramas).mockResolvedValue([
+      programa({ disciplina: 'DJ', clasesEstandar: 10, precio: 200000 }),
+    ])
+    const user = userEvent.setup()
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await elegir(user, 'Disciplina', 'DJ')
+
+    expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '10')
+  })
+
+  /**
+   * **El precio se prellena desde el catálogo y queda en la inscripción** (P63):
+   * el catálogo dice cuánto sale hoy, la inscripción guarda cuánto se acordó ese
+   * día. Quien inscribe lo puede cambiar; y sin precio en el catálogo ("a
+   * confirmar", la mentoría) el campo queda vacío para tipearlo, como antes.
+   */
+  it('elegir una disciplina prellena el precio del catálogo, y la mentoría lo deja vacío', async () => {
+    const user = userEvent.setup()
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await elegir(user, 'Disciplina', 'DJ')
+    expect(screen.getByLabelText(/Precio total/)).toHaveProperty('value', '170000')
+
+    await elegir(user, 'Disciplina', 'MENTORIA')
+    expect(screen.getByLabelText(/Precio total/)).toHaveProperty('value', '')
   })
 
   it('elegir Producción completa las 16', async () => {
@@ -211,7 +273,7 @@ describe('las clases de fábrica del curso (§13, P34)', () => {
     await user.click(screen.getByRole('button', { name: 'Crear inscripción' }))
 
     expect(
-      await screen.findByText('La mentoría se arma a medida: decí cuántas clases son.'),
+      await screen.findByText('Mentoría para DJs se arma a medida: decí cuántas clases son.'),
     ).toBeDefined()
     expect(altaInscripcion).not.toHaveBeenCalled()
   })

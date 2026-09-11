@@ -2110,6 +2110,54 @@ SELECT probar('237','el mismo ISRC en dos temas: la misma grabacion, dos release
 
 
 -- =============================================================================
+-- EL CATALOGO DE PROGRAMAS  (`V28`, §16 · C1, P63 — cierra P13)
+--
+-- Una fila por disciplina con su precio de hoy. La inscripcion NO apunta aca:
+-- copia el precio al inscribir y guarda el suyo, asi que si el catalogo sube en
+-- marzo la inscripcion de febrero no cambia. Lo que se prueba es lo que la
+-- tabla sostiene sola: que un paquete sepa de cuantas clases es, que no se
+-- borre, y que "sin precio" sea NULL y no cero.
+-- =============================================================================
+
+-- La siembra: las tres estan, y la mentoria nace sin precio (NULL, no 0 — cero
+-- en este esquema es una beca). Un 'ANDA' tiene que afectar filas: este UPDATE
+-- toca exactamente la fila que la migracion dejo asi.
+SELECT probar('238','la mentoria nace sin precio y se le pone uno','ANDA',
+ $q$UPDATE programa SET precio=45000 WHERE disciplina='MENTORIA' AND precio IS NULL$q$);
+
+SELECT probar('239','un precio negativo','FALLA',
+ $q$UPDATE programa SET precio=-1 WHERE disciplina='DJ'$q$);
+
+-- Un paquete sin cantidad de clases no es un precio: no se puede señar (¿el 50%
+-- de que?) ni saber cuando termina el curso (`V28` §2).
+SELECT probar('240','un paquete sin cantidad de clases','FALLA',
+ $q$UPDATE programa SET clases_estandar=NULL WHERE disciplina='DJ'$q$);
+
+-- La misma regla mirada al reves: pasar a paquete algo que no dice cuantas son.
+SELECT probar('240b','pasar a paquete un programa sin estandar','FALLA',
+ $q$UPDATE programa SET cobro='PAQUETE' WHERE disciplina='MENTORIA'$q$);
+
+-- Por sesion si puede ir sin estandar: es justamente la mentoria.
+SELECT probar('241','por sesion sin estandar','ANDA',
+ $q$UPDATE programa SET cobro='SESION', clases_estandar=NULL WHERE disciplina='MENTORIA'$q$);
+
+-- Una fila por disciplina. Sumar una disciplina es una migracion, no un INSERT.
+SELECT probar('242','una segunda fila para la misma disciplina','FALLA',
+ $q$INSERT INTO programa (disciplina,nombre,cobro,clases_estandar)
+    VALUES ('DJ','Otro DJ','PAQUETE',8)$q$);
+
+-- No se borra: se desactiva. Con `probar_mensaje` porque es un trigger, y el
+-- mensaje tiene que decir la salida — quien choca necesita saber como se retira
+-- la fila que tiene delante.
+SELECT probar_mensaje('243','borrar un programa en vez de desactivarlo',
+ 'programa -> activo = FALSE',
+ $q$DELETE FROM programa WHERE disciplina='MENTORIA'$q$);
+
+SELECT probar('244','desactivarlo, que es la salida','ANDA',
+ $q$UPDATE programa SET activo=FALSE WHERE disciplina='MENTORIA'$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

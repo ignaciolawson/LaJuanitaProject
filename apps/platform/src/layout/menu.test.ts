@@ -270,7 +270,7 @@ describe('la recorrida por rol', () => {
     for (const rol of ['ADMIN', 'DIRECTIVO', 'STAFF'] as Rol[]) {
       const { total, grupos } = inventario(usuario({ rol }))
       expect(grupos).toEqual(dominios)
-      expect(total).toBe(8 + 18)
+      expect(total).toBe(8 + 19)
     }
   })
 
@@ -288,7 +288,7 @@ describe('la recorrida por rol', () => {
     const ghezz = usuario({ rol: 'STAFF', esProfesor: true })
     const { total, grupos } = inventario(ghezz)
 
-    expect(total).toBe(8 + 3 + 18)
+    expect(total).toBe(8 + 3 + 19)
     expect(grupos).toContain('Mi formación')
     expect(grupos).toContain('Dinero')
   })

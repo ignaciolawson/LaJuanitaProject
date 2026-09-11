@@ -37,6 +37,7 @@ import { ReprogramacionesPagina } from './paginas/ReprogramacionesPagina'
 import { SolicitantesPagina } from './paginas/SolicitantesPagina'
 import { SolicitudesPagina } from './paginas/SolicitudesPagina'
 import { PagosPagina } from './paginas/PagosPagina'
+import { ProgramasPagina } from './paginas/ProgramasPagina'
 import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
 import { TableroPagina } from './paginas/TableroPagina'
@@ -104,6 +105,7 @@ function Rutas() {
           <Route path="/admin/alumnos" element={<AlumnosPagina />} />
           <Route path="/admin/alumnos/:id" element={<AlumnoPerfilPagina />} />
           <Route path="/admin/inscripciones" element={<InscripcionesPagina />} />
+          <Route path="/admin/programas" element={<ProgramasPagina />} />
           <Route path="/admin/reservas" element={<CalendarioPagina />} />
           <Route path="/admin/solicitudes" element={<SolicitudesPagina />} />
           <Route path="/admin/buzon" element={<SolicitantesPagina />} />

@@ -7,10 +7,10 @@ import {
   listarAlumnos,
   listarInscripciones,
   listarProfesores,
+  listarProgramas,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
-  CLASES_ESTANDAR,
   esBajaDeNivel,
   type AlumnoResumen,
   type Disciplina,
@@ -19,6 +19,7 @@ import {
   type Moneda,
   type Nivel,
   type ProfesorResumen,
+  type ProgramaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -528,8 +529,29 @@ function useProfesores() {
   return profesores
 }
 
+/**
+ * El catálogo (`V28`): cuántas clases trae cada disciplina y a cuánto. Sale del
+ * servidor y no de una constante, para que el 8 de DJ viva en UN lugar — el que
+ * Mica edita en `/admin/programas`.
+ *
+ * Si no carga, el formulario sigue funcionando sin prellenar nada: la regla la
+ * aplica el backend igual, y un catálogo caído no puede impedir inscribir.
+ */
+function useProgramas() {
+  const [programas, setProgramas] = useState<ProgramaResumen[]>([])
+
+  useEffect(() => {
+    listarProgramas()
+      .then(setProgramas)
+      .catch(() => setProgramas([]))
+  }, [])
+
+  return programas
+}
+
 function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada: () => void }) {
   const profesores = useProfesores()
+  const programas = useProgramas()
   const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
   const [disciplina, setDisciplina] = useState<Disciplina | ''>('')
   const [datos, setDatos] = useState<CamposDelCurso>({
@@ -547,15 +569,23 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   const [enviando, setEnviando] = useState(false)
 
   /**
-   * Al elegir disciplina se completan las clases de fábrica: DJ 8, Producción 16
-   * (§13, P34). Es una sugerencia visible, no una regla — quien la aplica cuando
-   * el campo va vacío es el backend, así que un alta por la API tiene la misma
-   * cuenta que una por pantalla.
+   * Al elegir disciplina se completan las clases de fábrica y el precio, desde
+   * el catálogo (P63). Es una sugerencia visible, no una regla — quien aplica la
+   * cantidad cuando el campo va vacío es el backend, así que un alta por la API
+   * tiene la misma cuenta que una por pantalla. **El precio sí queda en la
+   * inscripción**: el catálogo dice cuánto sale hoy y esto guarda cuánto se
+   * acordó ese día (P63). Sin precio en el catálogo ("a confirmar"), el campo
+   * queda vacío y lo tipea quien inscribe, como antes.
    */
   function elegirDisciplina(nueva: Disciplina | '') {
     setDisciplina(nueva)
-    const estandar = nueva === '' ? null : CLASES_ESTANDAR[nueva]
-    setDatos((previo) => ({ ...previo, clasesContratadas: estandar ? String(estandar) : '' }))
+    const programa = nueva === '' ? undefined : programas.find((p) => p.disciplina === nueva)
+    setDatos((previo) => ({
+      ...previo,
+      clasesContratadas: programa?.clasesEstandar ? String(programa.clasesEstandar) : '',
+      precioTotal: programa?.precio != null ? String(programa.precio) : '',
+      moneda: programa?.moneda ?? previo.moneda,
+    }))
   }
 
   function cambiar(campo: keyof CamposDelCurso) {
@@ -566,7 +596,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   async function onSubmit(evento: React.FormEvent) {
     evento.preventDefault()
 
-    const locales = validar(alumno, disciplina, datos)
+    const locales = validar(alumno, disciplina, datos, programas)
     if (Object.keys(locales).length > 0) {
       setErrores(locales)
       return
@@ -616,7 +646,11 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
             error={errores.disciplina}
           >
             <option value="">Elegí una</option>
-            {DISCIPLINAS.map((d) => (
+            {/* Un programa desactivado no se ofrece (el backend lo rechaza igual).
+                Sin catálogo cargado se ofrecen las tres, como siempre. */}
+            {DISCIPLINAS.filter(
+              (d) => programas.length === 0 || programas.some((p) => p.disciplina === d && p.activo),
+            ).map((d) => (
               <option key={d} value={d}>
                 {NOMBRE_DE_DISCIPLINA[d]}
               </option>
@@ -628,7 +662,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
             cambiar={cambiar}
             errores={errores}
             profesores={profesores}
-            ayudaClases={ayudaDeClases(disciplina)}
+            ayudaClases={ayudaDeClases(disciplina, programas)}
           />
         </div>
 
@@ -651,13 +685,20 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   )
 }
 
-function ayudaDeClases(disciplina: Disciplina | ''): string | undefined {
+function ayudaDeClases(
+  disciplina: Disciplina | '',
+  programas: ProgramaResumen[],
+): string | undefined {
   if (disciplina === '') return undefined
 
-  const estandar = CLASES_ESTANDAR[disciplina]
-  return estandar === null
-    ? 'La mentoría se arma a medida: no hay una cantidad estándar.'
-    : `El curso de ${NOMBRE_DE_DISCIPLINA[disciplina]} son ${estandar} clases de 1:30.`
+  const programa = programas.find((p) => p.disciplina === disciplina)
+  if (!programa) return undefined
+
+  if (programa.clasesEstandar === null) {
+    return `${programa.nombre} se arma a medida: no hay una cantidad estándar.`
+  }
+  const duracion = `${Math.floor(programa.duracionMinutos / 60)}:${String(programa.duracionMinutos % 60).padStart(2, '0')}`
+  return `${programa.nombre} son ${programa.clasesEstandar} clases de ${duracion}.`
 }
 
 /**
@@ -672,6 +713,7 @@ function validar(
   alumno: AlumnoResumen | null,
   disciplina: Disciplina | '',
   datos: CamposDelCurso,
+  programas: ProgramaResumen[],
 ): Record<string, string> {
   const errores: Record<string, string> = {}
 
@@ -679,9 +721,13 @@ function validar(
   if (!disciplina) errores.disciplina = 'Elegí la disciplina.'
   if (datos.precioTotal === '') errores.precioTotal = 'Poné el precio total del curso.'
 
-  // El único caso donde el backend NO puede completar el número por su cuenta.
-  if (disciplina === 'MENTORIA' && datos.clasesContratadas === '') {
-    errores.clasesContratadas = 'La mentoría se arma a medida: decí cuántas clases son.'
+  // El único caso donde el backend NO puede completar el número por su cuenta:
+  // un programa sin estándar en el catálogo (hoy, la mentoría). Lo dice el
+  // catálogo y no el nombre de la disciplina, por lo mismo que el 8 de DJ ya no
+  // vive acá. Sin catálogo cargado se manda y el backend contesta.
+  const programa = programas.find((p) => p.disciplina === disciplina)
+  if (programa && programa.clasesEstandar === null && datos.clasesContratadas === '') {
+    errores.clasesContratadas = `${programa.nombre} se arma a medida: decí cuántas clases son.`
   }
 
   return errores

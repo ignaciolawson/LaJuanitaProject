@@ -3,11 +3,11 @@
 ## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, ocho ejecutados —las Fases 0, 1 y 2 cerraron el 2026-09-11—,
+**Doce hallazgos, nueve ejecutados —las Fases 0 a 3 cerraron el 2026-09-11—,
 las quince decisiones de negocio cerradas el mismo día** (`platform.md` §22 ·
 P59–P71) **y el plan por fases escrito** — seis fases, tres migraciones (`V28`
-catálogo de programas · `V29` ficha · `V30` preinscripción). Es lo primero a leer
-al volver; lo próximo es la Fase 3 (C1, `V28`), la primera con migración.
+catálogo de programas ✅ aplicada · `V29` ficha · `V30` preinscripción). Es lo
+primero a leer al volver; lo próximo es la Fase 4 (C2, `V29`).
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -18,7 +18,7 @@ Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** 
 §13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
 cinco fases)** están cerrados y commiteados.
 
-**Suites: 649 backend · 579 front · 256 + 66 SQL, sobre 27 migraciones.** `tsc -b`,
+**Suites: 657 backend · 588 front · 264 + 66 SQL, sobre 28 migraciones.** `tsc -b`,
 los dos builds y los dos linters limpios. **Árbol limpio.**
 
 | | Qué | Dónde vive el detalle |
@@ -396,7 +396,11 @@ que `V7` exige. Un pago tiene ahora varios comprobantes.
 
 ### 3.4 · Dos copias de una misma definición
 
-Este proyecto tiene **dos**, y las dos están anotadas donde viven:
+Este proyecto tiene **dos**, y las dos están anotadas donde viven. (Eran tres:
+**`CLASES_ESTANDAR` —el 8/16 en el enum de Java y en una constante del front—
+se pagó el 2026-09-11 con `V28`**: ahora es una fila de `programa` que Mica
+edita, y las dos copias se borraron. Es la deuda pagada donde se toca, como P63
+había anticipado.)
 
 - **`contarClasesConsumidas` (Java) vs `V9` §5 (SQL)** — qué cuenta como clase
   consumida. Si se separan, la pantalla dice que quedan tres clases y la base
@@ -408,9 +412,11 @@ Este proyecto tiene **dos**, y las dos están anotadas donde viven:
 
 ### 3.5 · El diagrama de la base — ✅ AL DÍA (2026-09-06)
 
-**`docs/db/la_juanita_schema.dbml.txt` está al día con `V1..V27`**, y se verificó
-**contra el catálogo de la base**, no contra las migraciones leídas: las **28
-tablas** coinciden una por una con `information_schema`.
+**`docs/db/la_juanita_schema.dbml.txt` está al día con `V1..V28`** — hasta `V27`
+verificado **contra el catálogo de la base**, no contra las migraciones leídas
+(las **28 tablas** coincidían una por una con `information_schema`); `programa`
+(`V28`, la 29) se agregó a mano el día que se escribió la migración, con las
+columnas copiadas de ella.
 
 Lo último que entró fue `cancion_release` (`V26`) y las seis columnas nuevas de
 `solicitante` (`V27`: las tres FK de lo que produjo, más los tres campos de
@@ -498,7 +504,7 @@ se contestan cuando algo las necesite.
 | **P7** | **Generación automática de clases semanales** — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* | 2 — ⚠️ **la reabre `mejoras.md` §16 · B2 2.1**: con grupos, cargar 8 clases a mano por grupo es el trabajo que la función viene a evitar |
 | P8 | Quién autoriza reservar con deuda | 2 |
 | ~~P9~~ | ✅ **CERRADA el 2026-08-29**: el profesor pide con el mismo botón que el alumno (`platform.md` §16) | 2 |
-| ~~P13~~ | ✅ **CERRADA el 2026-09-10 como P63** (`platform.md` §22): **sí, hay lista de precios** — tabla `programa`, una fila por disciplina, editable desde `/admin/programas`. Llega con `V28`, Fase 3 de la §16 | — |
+| ~~P13~~ | ✅ **CERRADA el 2026-09-10 como P63** (`platform.md` §22) y **construida el 2026-09-11 (`V28`)**: tabla `programa`, una fila por disciplina, editable desde `/admin/programas`. La mentoría nació sin precio (*a confirmar*) — falta que Mica cargue el número | — |
 | P17 | Alcance real de la autogestión | 4 |
 | P19 | Acceso del alumno inactivo | 4 |
 | P20 | Liquidación automática a profesores | 5 — *el M5 entregó el insumo y no la respuesta: contar clases no es calcular un total* |

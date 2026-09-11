@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0, 1 y 2 cerradas el 2026-09-11**; lo próximo es la Fase 3 (C1, el catálogo de programas, `V28`). El estado vivo está en el bloque final de este documento.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0, 1, 2 y 3 cerradas el 2026-09-11**; lo próximo es la Fase 4 (C2, la ficha dice qué programa, `V29`). El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3925,7 +3925,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo | **5** | ✅ 5 de 5 · cerrado el 2026-09-11 (Fases 0 y 1) |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | 🟨 3 de 4 · A3 · A5 · A7 el 2026-09-11 (Fase 2); B2 1.1/1.2 es la Fase 6 |
-| 🔴 **C** | Toca una regla del negocio o el schema | **2** | ⬜ 0 de 2 · **trabados** |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | 🟨 C1 (`V28`) cerrado el 2026-09-11; queda C2/C3 (`V29`, `V30`) |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
 
 ⚠️ **Tres de los puntos que Ignacio anotó como A no lo son**, y conviene saberlo
@@ -4510,7 +4510,7 @@ ya no es `V28`. Va a ser `V31`. No la anotes con número.
   `interes: CURSO` con el programa en `detalle` como hoy; **los campos
   estructurados llegan con C2** y ahí se actualizan los tres formularios de una.
 
-#### Fase 3 · C1 — el catálogo de programas (`V28`, cierra P13)
+#### ✅ Fase 3 · C1 — el catálogo de programas (`V28`, cierra P13) — **cerrada el 2026-09-11**
 
 - Tabla `programa`: una fila por disciplina — nombre, **precio y moneda**,
   `cobro` (por paquete / por sesión, P63), `clases_estandar` (8 · 16 · NULL),
@@ -4521,6 +4521,53 @@ ya no es `V28`. Va a ser `V31`. No la anotes con número.
   Una definición, no tres.
 - El alta de inscripción **prellena el precio** desde el catálogo; la inscripción
   sigue guardando el suyo.
+
+**Lo que decidió al escribirse, y no estaba en el plan:**
+
+- ⚠️ **`precio` es NULLABLE y el NULL significa "todavía no hay precio".** La
+  mentoría nace así (P63: *"a confirmar"*). La alternativa era un 0, y 0 en este
+  esquema ya quiere decir otra cosa —en `inscripcion`, una beca—. Un catálogo que
+  dice $0 donde no se decidió nada miente; uno que dice "a confirmar" se muestra.
+  La pantalla lo escribe así y el alta no prellena nada: lo tipea quien inscribe,
+  como antes. **Y el PUT manda la fila entera** para que un precio borrado viaje
+  como `null` — si el formulario lo omitiera o lo volviera 0, "a confirmar" no se
+  podría volver a poner nunca. Hay un caso que lo pinea.
+- **Sin FK de `inscripcion` a `programa`, a propósito.** La unión es
+  `disciplina`, con el mismo CHECK en las dos tablas: la inscripción no depende
+  de que la fila del catálogo exista para seguir siendo válida — es su precio, no
+  el del catálogo (P63, el criterio de `V19`).
+- **`cobro` = PAQUETE exige `clases_estandar`** (CHECK `programa_paquete_con_clases`):
+  un precio de paquete sin saber de cuántas clases es no se puede señar (¿el 50%
+  de qué?). La inversa se deja libre: por sesión puede tener estándar o no.
+- **No se borra: se desactiva**, con trigger propio (`programa_no_se_borra`) y
+  no con `prohibir_borrado_historico()`, porque aquél dice *"es historial de un
+  negocio real"* y esto no lo es. El motivo acá es otro y el mensaje lo dice: el
+  alta lee de esta fila. **`activo = FALSE` significa algo**: `ProgramaService.
+  paraInscribir` rechaza, y el `<select>` del alta deja de ofrecerlo.
+- ⚠️ **La siembra deriva un placeholder de otro placeholder, y está escrito.** La
+  landing publica *"$85.000/mes"* y el catálogo guarda el precio del paquete: 8
+  clases semanales ≈ 2 meses → 170.000; 16 ≈ 4 → 440.000. La migración lo dice en
+  su cabecera y en un `RAISE NOTICE`. Son números a reemplazar desde
+  `/admin/programas`, y ya estaban bloqueando publicar la landing por lo mismo.
+- **El alta de inscripción ahora también valida contra el catálogo**: el mensaje
+  *"se arma a medida: decí cuántas clases son"* sale para cualquier programa sin
+  estándar, no por el nombre `MENTORIA`. Y el precio se prellena con la moneda
+  del catálogo.
+- **`Disciplina` volvió a ser un enum pelado** — la lista del CHECK. Su javadoc
+  cuenta por qué.
+
+**Casos**: 6 en `ProgramaTest` (la siembra con el `null` de la mentoría, editar,
+paquete sin clases, por sesión sin estándar, DIRECTIVO, no se borra), 2 en
+`InscripcionTest` que pinean que el estándar es el del catálogo (con el 8 todavía
+en el enum, *"el estándar es el del catálogo y se edita"* entraría con 8) y que un
+programa desactivado no se inscribe, **8 en la suite SQL** (238–244) y 9 en el
+front (7 de `ProgramasPagina`, 2 en Inscripciones). El diagrama DBML tiene la
+tabla (29 tablas).
+
+⚠️ **Dos trampas conocidas, pisadas otra vez.** `jsonPath` con filtro devuelve
+una lista (*"expected 200000.0 but was 200000"*): `Matchers.contains`. Y una
+etiqueta de `Campo` con `ayuda` concatena la ayuda al nombre accesible, así que
+`getByLabelText('Precio del paquete')` no lo encuentra: regex.
 
 #### Fase 4 · C2 — la ficha dice qué programa (`V29`)
 
@@ -4603,7 +4650,7 @@ cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**ocho ejecutados — las Fases 0, 1 y 2 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
+**nueve ejecutados — las Fases 0 a 3 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
 (`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
 de la §16. Lo que falta es ejecutarlo.
 
@@ -4618,20 +4665,22 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 | ✅ 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe · **cerrada el 2026-09-11** | — |
 | ✅ 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único · **cerrada el 2026-09-11** | — |
 | ✅ 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing · **cerrada el 2026-09-11** | — |
-| 3 | **C1** — el catálogo de programas, cierra P13 | `V28` |
+| ✅ 3 | **C1** — el catálogo de programas, cierra P13 · **cerrada el 2026-09-11** | `V28` ✅ aplicada |
 | 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
 | 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
 | 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
 
-**Lo próximo es la Fase 3 — C1, el catálogo de programas, `V28`, cierra P13.**
-Es la primera migración de la barrida y el plan está en la §16 (tabla `programa`
-con precio, moneda, `cobro` por paquete/sesión, `clases_estandar` nullable;
-`GET/PUT /api/programas`; `/admin/programas`; **`CLASES_ESTANDAR` se borra de Java
-y del front**). Antes de escribirla, releer P63 y P65. ⚠️ De la Fase 2 quedan dos
-cosas para las fases que siguen: **la mentoría en la landing dice "precio a
-confirmar" y `llms.txt` lo lista PENDIENTE** — `V28` es lo que lo destraba —, y
-**los tres formularios de la landing mandan el programa dentro de `detalle`**:
-con `V29` (C2) se pasan a campos y se tocan los tres de una. ⚠️ Desde la Fase 0 el
+**Lo próximo es la Fase 4 — C2, la ficha dice qué programa, `V29`.** El plan
+está en la §16: `solicitante.disciplina`, `.experiencia`, `.modalidad`, las tres
+nullable y con CHECK, sin atarlas a `interes`; **los tres formularios de la
+landing pasan a mandarlas como campos** (hoy van dentro de `detalle`) y se tocan
+de una; y el alta desde el buzón prellena el nivel desde la experiencia (P64:
+*cero/algo* → INICIAL, *ya toca* → INTERMEDIO). Antes de escribirla, releer P64
+y P67. ⚠️ **`V28` ya está aplicada** en la base de desarrollo y en las suites: la
+próxima libre es `V29`, y **el admin sembrado sigue siendo `V31`**. ⚠️ Y de la
+Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
+y `llms.txt` lo lista PENDIENTE** — ahora que existe `/admin/programas`, lo que
+falta es que Mica cargue el número, no código. ⚠️ Desde la Fase 0 el
 sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
 mensaje en un `<pre>`** — pedirle eso a Ignacio cuando reporte algo, en vez de
 *"se pone en negro"*. ⚠️ Y de la Fase 1: **el tablero se cambió con medidas y sin
@@ -4652,13 +4701,14 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto**: la §15 está cerrada, suites en **649 backend · 579
-front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos builds y los
-dos linters limpios (los dieciocho casos nuevos del front y los tres del backend
-son de las Fases 0, 1 y 2). La landing genera **20 páginas** desde A7. Lo que sigue abierto en todo el proyecto está en
+**El estado del producto**: la §15 está cerrada, suites en **657 backend · 588
+front · 264 + 66 SQL** sobre **28 migraciones**, `tsc -b`, los dos builds y los
+dos linters limpios (los veintisiete casos nuevos del front, los once del backend
+y los ocho de SQL son de las Fases 0 a 3). La landing genera **20 páginas** desde
+A7. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — tres fases por delante, las tres con migración (0, 1 y 2 cerraron el 2026-09-11).
+1. **La §16**, que es esto — dos fases por delante con migración (`V29`, `V30`) y la última sin ella (0 a 3 cerraron el 2026-09-11).
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

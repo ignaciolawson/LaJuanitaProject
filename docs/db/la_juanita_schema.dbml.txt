@@ -1,10 +1,12 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-06, migraciones V1..V27.
+// ✅ AL DÍA AL 2026-09-11, migraciones V1..V28.
 //
 // **Verificado contra el catálogo de una base con las 27 migraciones
-// aplicadas**, no contra las migraciones leídas de memoria: son 28 tablas y
+// aplicadas** (V28 se agregó a mano el día que se escribió, con las columnas
+// copiadas de la migración), no contra las migraciones leídas de memoria: son
+// 29 tablas y
 // coinciden columna por columna. Es la regla que este proyecto aprendió a los
 // golpes y que está escrita en `CLAUDE.md` — *revisá el esquema, no la frase
 // sobre el esquema*.
@@ -44,11 +46,13 @@
 //     V27  `solicitante` gana las tres FK de lo que produjo (+ el CHECK de doble
 //          sentido) y los tres campos de preferencia de horario; el estado
 //          CONVERTIDO pasa a ATENDIDO
+//     V28  la tabla `programa` -- el catálogo: qué se vende, a cuánto, cuántas
+//          clases trae. Cierra P13. SIN FK desde `inscripcion`, a propósito
 //
-// Historia de las tablas: eran 23 al 2026-08-19 y son 28 desde V26. Las cinco
+// Historia de las tablas: eran 23 al 2026-08-19 y son 29 desde V28. Las seis
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),
-// `comprobante_pago` (V21), `comprobante_egreso` (V25) y `cancion_release`
-// (V26), y están al final del archivo.
+// `comprobante_pago` (V21), `comprobante_egreso` (V25), `cancion_release`
+// (V26) y `programa` (V28), y están al final del archivo.
 //
 // La número 23 fue
 // `solicitud_reserva`, que trajo V13 con el Módulo 4 -- lo único que el portal
@@ -989,5 +993,49 @@ Table comprobante_egreso {
   NO hay endpoint `/api/me/...` para bajarlo, al revés que del lado del pago: un
   egreso no tiene dueño del lado del portal. El destinatario de un sueldo no
   entra al sistema a descargar su recibo.
+  '''
+}
+
+
+// ============================================================================
+// EL CATÁLOGO DE PROGRAMAS (V28)
+// ============================================================================
+
+Table programa {
+  id_programa       bigint        [pk, increment]
+  disciplina        varchar(20)   [not null, unique, note: 'DJ | PRODUCCION | MENTORIA -- el mismo CHECK que inscripcion']
+  nombre            varchar(100)  [not null]
+  descripcion       text
+  precio            numeric(14,2) [note: 'NULL = todavía no hay precio ("a confirmar"). Cero es un precio']
+  moneda            varchar(3)    [not null, default: 'ARS']
+  cobro             varchar(10)   [not null, note: 'PAQUETE (precio del curso entero) | SESION (precio de cada sesión)']
+  clases_estandar   smallint      [note: 'NULL = sin estándar: quien inscribe dice cuántas son']
+  duracion_minutos  smallint      [not null, default: 90]
+  activo            boolean       [not null, default: true]
+  fecha_creacion    timestamptz   [not null]
+
+  Note: '''
+  V28 (2026-09-11). Cierra P13, la pregunta abierta más vieja del proyecto:
+  ¿hay lista de precios? Una fila por disciplina, editable desde
+  /admin/programas (P63).
+
+  ⚠️ NO HAY FK DESDE `inscripcion`, Y ES A PROPÓSITO. La inscripción copia el
+  precio al inscribir y guarda el suyo (`precio_total`): el catálogo dice
+  cuánto sale hoy, la inscripción dice cuánto se acordó ese día. Si el catálogo
+  sube en marzo, la de febrero no cambia -- el mismo criterio por el que la
+  historia de la plata no se reescribe (V19). La unión es `disciplina`, con el
+  mismo CHECK en las dos tablas.
+
+  Un PAQUETE exige `clases_estandar` (CHECK `programa_paquete_con_clases`):
+  un precio de paquete sin saber de cuántas clases es no se puede señar.
+  La inversa no se exige.
+
+  No se borra: un trigger propio (`programa_no_se_borra`) lo rechaza y dice la
+  salida, `activo = FALSE`. El alta de inscripción lee de acá cuántas clases
+  trae la disciplina y rechaza un programa desactivado.
+
+  Sembrada con los precios PLACEHOLDER de la landing, derivados de un "/mes"
+  (DJ 170.000, Producción 440.000) y la mentoría sin precio. Se corrigen
+  desde la pantalla.
   '''
 }

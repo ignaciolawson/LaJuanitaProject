@@ -17,6 +17,8 @@ import com.lajuanita.backend.inscripcion.dto.EdicionInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.InscripcionResumen;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
+import com.lajuanita.backend.programa.Programa;
+import com.lajuanita.backend.programa.ProgramaService;
 import com.lajuanita.backend.reserva.EstadoAsistencia;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.usuario.Busqueda;
@@ -47,13 +49,16 @@ public class InscripcionService {
     private final InscripcionRepository inscripciones;
     private final AlumnoRepository alumnos;
     private final ProfesorRepository profesores;
+    private final ProgramaService programas;
 
     public InscripcionService(InscripcionRepository inscripciones,
             AlumnoRepository alumnos,
-            ProfesorRepository profesores) {
+            ProfesorRepository profesores,
+            ProgramaService programas) {
         this.inscripciones = inscripciones;
         this.alumnos = alumnos;
         this.profesores = profesores;
+        this.programas = programas;
     }
 
     @Transactional
@@ -220,18 +225,27 @@ public class InscripcionService {
      * <p>Vive en el servidor y no en la pantalla a propósito: es una regla del
      * negocio, y si la supiera solo el front, la misma alta hecha por la API
      * quedaría sin ella.
+     *
+     * <p><b>Desde `V28` la cantidad sale del catálogo</b>, no del enum: es la
+     * misma fila que Mica edita en {@code /admin/programas}, así que el 8 de DJ
+     * vive en UN lugar. El catálogo también decide si la disciplina se ofrece
+     * hoy ({@code activo}); la cantidad pedida a mano le sigue ganando al
+     * estándar, como siempre.
      */
     private short clasesDe(Disciplina disciplina, Short pedidas) {
+        Programa programa = programas.paraInscribir(disciplina);
+
         if (pedidas != null) {
             return pedidas;
         }
 
-        Integer estandar = disciplina.clasesEstandar();
+        Short estandar = programa.getClasesEstandar();
         if (estandar == null) {
             throw new SolicitudInvalidaException(
-                    "La mentoría se arma a medida: decí cuántas clases son en `clasesContratadas`.");
+                    "El programa de " + disciplina
+                            + " no tiene una cantidad estándar de clases: decí cuántas son en `clasesContratadas`.");
         }
-        return estandar.shortValue();
+        return estandar;
     }
 
     private Profesor buscarProfesor(Long idProfesor) {

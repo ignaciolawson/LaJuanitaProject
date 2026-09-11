@@ -137,6 +137,39 @@ class InscripcionTest {
                 .andExpect(jsonPath("$.clasesContratadas").value(4));
     }
 
+    /**
+     * <b>Desde `V28` el estándar sale del catálogo, no del enum.</b> Si Mica cambia
+     * el 8 de DJ desde la pantalla, el próximo alta lo usa. Es el caso que
+     * pinea que hay UNA definición: con el número todavía en {@code Disciplina},
+     * esto entraría con 8.
+     */
+    @Test
+    void el_estandar_es_el_del_catalogo_y_se_edita() throws Exception {
+        jdbc.update("UPDATE programa SET clases_estandar = 10 WHERE disciplina = 'DJ'");
+
+        mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":100000}
+                """.formatted(alumnoNuevo().getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.clasesContratadas").value(10));
+    }
+
+    /**
+     * Un programa desactivado no se ofrece: es lo que {@code activo} significa.
+     * Sin esto la columna sería decorativa, que es peor que no tenerla.
+     */
+    @Test
+    void un_programa_desactivado_no_se_inscribe() throws Exception {
+        jdbc.update("UPDATE programa SET activo = FALSE WHERE disciplina = 'PRODUCCION'");
+
+        mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"PRODUCCION","precioTotal":100000}
+                """.formatted(alumnoNuevo().getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("desactivado")));
+    }
+
     /** El estándar es un valor por defecto, no un techo: un curso se puede ampliar desde el alta. */
     @Test
     void las_clases_dichas_a_mano_le_ganan_al_estandar() throws Exception {
