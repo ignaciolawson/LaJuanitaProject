@@ -12,7 +12,10 @@
  *
  * ⚠️ **La regla la sostiene el TIPO, no la buena memoria de quien edite.** Una
  * cita atribuida exige `fuente`, así que agregar una sin link no compila. Es
- * deliberado: un comentario que pide fuentes se ignora, un tipo no.
+ * deliberado: un comentario que pide fuentes se ignora, un tipo no. **Desde
+ * §16 · A2 la fuente ya no se dibuja** —el nombre linkea al perfil de la
+ * persona, ver `PERFILES`— y sigue siendo obligatoria por lo mismo: es lo
+ * único que separa una cita de una frase inventada con un nombre real abajo.
  *
  * Las dos formas:
  *
@@ -51,8 +54,47 @@
  *
  * El techo no es el código: `fraseDelDia` no tiene tope.
  */
+/**
+ * A dónde lleva el nombre de cada autor (§16 · A2, P68).
+ *
+ * Ignacio: *"Sacala, que te lleve a lo que te dije, a alguna página con info de
+ * ese DJ, no al artículo donde dijo la frase."* Así que el nombre linkea al
+ * PERFIL y `fuente` deja la pantalla — **pero no el archivo**: sigue siendo lo
+ * que sostiene la regla de arriba, y sigue siendo obligatoria en el tipo.
+ *
+ * ⚠️ **Es un mapa por persona y no un campo por frase**, porque el perfil es de
+ * la persona y la fuente es de la cita: Kerri Chandler tiene tres frases de dos
+ * artículos y un solo perfil. Tres copias de la misma URL son tres lugares donde
+ * puede quedar distinta. **Y `autor` se tipa contra este mapa** (`Autor`), así que
+ * citar a alguien que no está acá no compila — la misma forma en que `fuente`
+ * sostiene su regla.
+ *
+ * ⚠️ **Wikipedia y no Resident Advisor, y es una limitación medida, no un
+ * gusto.** RA era la primera opción —tiene a los diez, con discografía— pero
+ * contesta **403 a cualquier fetch** (probado el 2026-09-11, también con un slug
+ * inventado: no hay forma de distinguir un perfil real de un 404 sin abrirlo en
+ * un navegador). La regla de §13 · A1 es que lo que no se puede abrir no entra.
+ * Las diez páginas de acá se abrieron una por una y cada una describe a esa
+ * persona como DJ/productor en su primera oración; **en castellano cuando
+ * existe el artículo** (seis), en inglés las otras cuatro.
+ */
+export const PERFILES = {
+  'Carl Cox': 'https://es.wikipedia.org/wiki/Carl_Cox',
+  'Ellen Allien': 'https://es.wikipedia.org/wiki/Ellen_Allien',
+  'Frankie Knuckles': 'https://es.wikipedia.org/wiki/Frankie_Knuckles',
+  'Hernán Cattáneo': 'https://es.wikipedia.org/wiki/Hern%C3%A1n_Catt%C3%A1neo',
+  'Honey Dijon': 'https://es.wikipedia.org/wiki/Honey_Dijon',
+  'Jackmaster': 'https://en.wikipedia.org/wiki/Jackmaster',
+  'Jayda G': 'https://en.wikipedia.org/wiki/Jayda_G',
+  'Jeff Mills': 'https://es.wikipedia.org/wiki/Jeff_Mills',
+  'Kerri Chandler': 'https://en.wikipedia.org/wiki/Kerri_Chandler',
+  'Laurent Garnier': 'https://es.wikipedia.org/wiki/Laurent_Garnier',
+} as const satisfies Record<string, string>
+
+export type Autor = keyof typeof PERFILES
+
 export type Frase =
-  | { tipo: 'cita'; texto: string; autor: string; fuente: string }
+  | { tipo: 'cita'; texto: string; autor: Autor; fuente: string }
   | { tipo: 'casa'; texto: string }
 
 const DJMAG_CHANDLER =

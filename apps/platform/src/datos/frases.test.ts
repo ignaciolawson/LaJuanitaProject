@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { FRASES, fraseDelDia } from './frases'
+import { FRASES, PERFILES, fraseDelDia } from './frases'
 
 describe('las frases del Inicio', () => {
   it('una cita atribuida siempre trae su fuente', () => {
@@ -12,6 +12,18 @@ describe('las frases del Inicio', () => {
       if (frase.tipo === 'cita') {
         expect(frase.autor.trim()).not.toBe('')
         expect(frase.fuente).toMatch(/^https:\/\//)
+      }
+    }
+  })
+
+  it('cada autor citado tiene un perfil a donde llevar su nombre', () => {
+    // §16 · A2: el nombre linkea al perfil de la persona y no al artículo. El
+    // tipo `Autor` ya lo impide al compilar; el caso está por lo mismo que el
+    // de arriba, y además cuida que cada perfil sea una URL de verdad y no un
+    // "TODO" que compile igual.
+    for (const frase of FRASES) {
+      if (frase.tipo === 'cita') {
+        expect(PERFILES[frase.autor], frase.autor).toMatch(/^https:\/\/(es|en)\.wikipedia\.org\/wiki\//)
       }
     }
   })

@@ -479,7 +479,7 @@ describe('escribirle por WhatsApp', () => {
    * nunca se enteró — la misma razón por la que la notificación del sistema lo
    * dice.
    */
-  it('después de apartar muestra el plazo y la clave, y ofrece los dos WhatsApp', async () => {
+  it('después de apartar muestra el plazo y la clave, y ofrece UN WhatsApp con todo', async () => {
     vi.mocked(listarSolicitantes).mockResolvedValue({
       contenido: [ficha({ interes: 'ALQUILER_CABINA' })],
       pagina: 0,
@@ -498,8 +498,47 @@ describe('escribirle por WhatsApp', () => {
 
     expect(await screen.findByText(/07\/09\/2026 10:00/)).toBeDefined()
     expect(screen.getByText('lluvia-42-roja')).toBeDefined()
-    expect(screen.getByRole('link', { name: 'Avisarle por WhatsApp' })).toBeDefined()
-    expect(screen.getByRole('link', { name: 'Mandarle la clave por WhatsApp' })).toBeDefined()
+
+    // Un solo botón (P71, §16 · A8): el plazo, la clave y el portal en un mensaje,
+    // en ese orden. Antes eran dos y quien atendía tenía que mandar los dos.
+    const enlaces = screen.getAllByRole('link', { name: /WhatsApp/ })
+    expect(enlaces).toHaveLength(1)
+    const mensaje = mensajeDe(enlaces[0])
+    expect(mensaje).toContain('07/09/2026 10:00')
+    expect(mensaje).toContain('lluvia-42-roja')
+    expect(mensaje).toContain('camila@ejemplo.com')
+    expect(mensaje.indexOf('07/09/2026 10:00')).toBeLessThan(mensaje.indexOf('lluvia-42-roja'))
+  })
+
+  /**
+   * ⚠️ **La persona que ya tenía cuenta no recibe una contraseña.** Es la segunda
+   * variante del mensaje único: sin `passwordTemporal` no hay bloque de cuenta,
+   * ni en pantalla ni en el WhatsApp — y el botón sigue estando, porque el plazo
+   * hay que mandarlo igual.
+   */
+  it('si ya tenía cuenta, el WhatsApp va sin clave', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'ALQUILER_CABINA', idUsuario: 40 })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(apartarleLaCabina).mockResolvedValue(
+      cabinaApartada({ cuentaNueva: false, passwordTemporal: null }),
+    )
+    montar()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Apartarle la cabina' }))
+    await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
+    await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
+    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
+
+    const enlace = await screen.findByRole('link', { name: 'Avisarle por WhatsApp' })
+    expect(mensajeDe(enlace)).toContain('07/09/2026 10:00')
+    expect(mensajeDe(enlace)).not.toContain('Contraseña')
+    expect(screen.queryByText('lluvia-42-roja')).toBeNull()
   })
 
   /**

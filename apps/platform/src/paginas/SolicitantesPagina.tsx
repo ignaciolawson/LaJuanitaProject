@@ -710,9 +710,11 @@ function ApartarLaCabinaForm({
  * sin decir hasta cuándo deja tranquilo a quien atiende, y el que pierde es el
  * cliente que nunca se enteró.
  *
- * **Dos mensajes de WhatsApp y no uno.** El de la reserva habla de lo que hay que
- * hacer ahora —abonar, antes de tal día— y el de la cuenta, de algo que se puede
- * mirar cuando quiera. Juntos, el que importa se lee como un trámite más.
+ * **Un solo WhatsApp** (P71, §16 · A8). Eran dos —la reserva y la cuenta— por
+ * miedo a que el plazo se hundiera entre la contraseña y el resto; lo que lo
+ * salva es el orden del mensaje, no partirlo. Ver `mensajeDeCabinaApartada`.
+ * La contraseña sigue en pantalla, grande, para el caso en que el link no se
+ * pueda armar: es lo único que no se puede volver a ver.
  */
 function CabinaLista({
   resultado,
@@ -724,24 +726,21 @@ function CabinaLista({
   const { reserva, usuario, ficha } = resultado
   const cuando = `${fecha(reserva.fecha)} a las ${reserva.horaInicio.slice(0, 5)}`
   const importe = `${resultado.moneda === 'USD' ? 'USD' : '$'} ${resultado.monto}`
+  const cuentaNueva = resultado.cuentaNueva && resultado.passwordTemporal
 
-  const linkDeLaReserva = reserva.venceEn
+  const link = reserva.venceEn
     ? linkDeWhatsapp(
         ficha.telefono,
-        mensajeDeCabinaApartada(
-          usuario.nombre,
-          reserva.sala,
+        mensajeDeCabinaApartada({
+          nombre: usuario.nombre,
+          sala: reserva.sala,
           cuando,
           importe,
-          fechaYHora(reserva.venceEn),
-        ),
-      )
-    : null
-
-  const linkConLaClave = resultado.passwordTemporal
-    ? linkDeWhatsapp(
-        ficha.telefono,
-        mensajeConLaClave(usuario.nombre, usuario.email, resultado.passwordTemporal),
+          vence: fechaYHora(reserva.venceEn),
+          cuenta: cuentaNueva
+            ? { email: usuario.email, passwordTemporal: resultado.passwordTemporal! }
+            : null,
+        }),
       )
     : null
 
@@ -764,18 +763,7 @@ function CabinaLista({
         )}
       </p>
 
-      {linkDeLaReserva ? (
-        <div className="mt-3">
-          <EnlaceDeWhatsapp href={linkDeLaReserva}>Avisarle por WhatsApp</EnlaceDeWhatsapp>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-apagado">
-          El teléfono de la ficha ({ficha.telefono}) no se puede abrir en WhatsApp: copialo y
-          buscalo a mano.
-        </p>
-      )}
-
-      {resultado.cuentaNueva && resultado.passwordTemporal && (
+      {cuentaNueva && (
         <>
           <p className="mt-5 text-sm leading-relaxed text-tenue">
             Además le creamos la cuenta.{' '}
@@ -785,14 +773,20 @@ function CabinaLista({
           <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
           </Hueco>
-          {linkConLaClave && (
-            <div className="mt-3">
-              <EnlaceDeWhatsapp href={linkConLaClave}>
-                Mandarle la clave por WhatsApp
-              </EnlaceDeWhatsapp>
-            </div>
-          )}
         </>
+      )}
+
+      {link ? (
+        <div className="mt-4">
+          <EnlaceDeWhatsapp href={link}>
+            {cuentaNueva ? 'Avisarle por WhatsApp, con la clave' : 'Avisarle por WhatsApp'}
+          </EnlaceDeWhatsapp>
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-apagado">
+          El teléfono de la ficha ({ficha.telefono}) no se puede abrir en WhatsApp: copialo y
+          buscalo a mano.
+        </p>
       )}
 
       <Boton className="mt-4" onClick={onCerrar}>

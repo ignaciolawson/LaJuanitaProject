@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   linkDeWhatsapp,
   mensajeConLaClave,
+  mensajeDeCabinaApartada,
   numeroParaWhatsapp,
   saludoDeContacto,
 } from './whatsapp'
@@ -109,5 +110,54 @@ describe('los mensajes', () => {
     expect(mensaje).toContain('juan@mail.com')
     expect(mensaje).toContain('cambiar')
     expect(mensaje).toContain('7 días')
+  })
+
+  /**
+   * **Un mensaje, tres bloques, y el orden es la decisión** (P71, §16 · A8).
+   * Eran dos mensajes por miedo a que el plazo se hundiera entre la contraseña y
+   * el resto; lo que lo salva es que el plazo y el monto van ANTES de la cuenta.
+   * Un caso que sólo mire que las cosas estén no protege eso: mira posiciones.
+   */
+  it('el de la cabina dice el plazo antes que la clave, y cierra con el portal', () => {
+    const mensaje = mensajeDeCabinaApartada({
+      nombre: 'Juan',
+      sala: 'Sala 1',
+      cuando: '10/10/2026 a las 18:00',
+      importe: '$ 15000',
+      vence: '07/09/2026 10:00',
+      cuenta: { email: 'juan@mail.com', passwordTemporal: 'A7K2M9' },
+    })
+
+    const plazo = mensaje.indexOf('07/09/2026 10:00')
+    const clave = mensaje.indexOf('A7K2M9')
+    const portal = mensaje.indexOf('Desde tu cuenta')
+    expect(plazo).toBeGreaterThan(-1)
+    expect(clave).toBeGreaterThan(plazo)
+    expect(portal).toBeGreaterThan(clave)
+    expect(mensaje).toContain('$ 15000')
+    expect(mensaje).toContain('juan@mail.com')
+    expect(mensaje).toContain('7 días')
+  })
+
+  /**
+   * ⚠️ **Con cuenta previa no va el bloque de la cuenta** — mandarle una
+   * contraseña temporal a alguien que ya entra con la suya es el modo de falla
+   * que `passwordTemporal = null` existe para evitar. El portal sí se describe:
+   * que ya tenga cuenta no quiere decir que sepa qué puede hacer desde ella.
+   */
+  it('sin cuenta nueva no lleva clave ni usuario, pero sí el portal', () => {
+    const mensaje = mensajeDeCabinaApartada({
+      nombre: 'Juan',
+      sala: 'Sala 1',
+      cuando: '10/10/2026 a las 18:00',
+      importe: '$ 15000',
+      vence: '07/09/2026 10:00',
+      cuenta: null,
+    })
+
+    expect(mensaje).not.toContain('Contraseña')
+    expect(mensaje).not.toContain('Usuario:')
+    expect(mensaje).toContain('07/09/2026 10:00')
+    expect(mensaje).toContain('Desde tu cuenta')
   })
 })

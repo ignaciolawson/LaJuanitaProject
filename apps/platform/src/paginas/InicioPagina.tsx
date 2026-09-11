@@ -19,7 +19,7 @@ import { Bloque, Grupo } from '../componentes/Bloque'
 import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
 import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
-import { fraseDelDia } from '../datos/frases'
+import { PERFILES, fraseDelDia } from '../datos/frases'
 import { puedeOperar, puedeVerElTableroCompleto } from '../layout/menu'
 
 /**
@@ -540,9 +540,12 @@ export function InicioPagina() {
  * Es el primer uso de `.t-serif` en toda la plataforma: la familia estaba
  * declarada, se descargaba en cada carga y no la usaba ni una pantalla.
  *
- * ⚠️ **La atribución de una cita es un link a la fuente y no un nombre suelto.**
- * Es la misma regla que `datos/frases.ts` sostiene con el tipo: si la frase es de
- * alguien, se tiene que poder ir a chequear que la dijo.
+ * ⚠️ **La atribución de una cita es un link al PERFIL de la persona, y no a la
+ * fuente** (§16 · A2, P68). Ignacio: *"que te lleve a alguna página con info de
+ * ese DJ, no al artículo donde dijo la frase"*. La fuente sigue en
+ * `datos/frases.ts`, obligatoria en el tipo, para quien edite el archivo: la
+ * regla de que una frase con nombre real se pueda verificar no cambió, cambió
+ * a quién se le muestra.
  *
  * ⚠️ **Y TODAS llevan firma, incluidas las de la casa** (§14 · A2). Antes el pie
  * sólo se dibujaba para las citas, así que las trece frases `casa` —de treinta y
@@ -566,7 +569,7 @@ function FraseDelDia({ fecha }: { fecha: string }) {
       <footer className="t-mono mt-2.5 text-shell-tenue">
         {frase.tipo === 'cita' ? (
           <a
-            href={frase.fuente}
+            href={PERFILES[frase.autor]}
             target="_blank"
             rel="noreferrer"
             className="underline underline-offset-4 transition-colors hover:text-shell-texto"

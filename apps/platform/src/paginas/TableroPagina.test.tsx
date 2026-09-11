@@ -314,6 +314,23 @@ describe('cero y no vacío', () => {
     expect(screen.getByTitle(/Lun 10:00 — 3 reservas/)).toBeDefined()
     expect(screen.getByTitle(/Mar 10:00 — 0 reservas/)).toBeDefined()
   })
+
+  /**
+   * **El color sale de la escala del tema, no de un `rgba()` escrito acá**
+   * (§16 · A4). Antes era `rgba(214, 40, 40, α)`: un rojo fijo que en oscuro
+   * no existía y no seguía al tema. La casilla llena toma el escalón alto y la
+   * vacía la celda apagada del sistema — si alguien vuelve a escribir un color
+   * a mano, este caso lo ve.
+   */
+  it('las casillas se pintan con la escala del tema, y el cero con la celda apagada', async () => {
+    montar('ADMIN')
+
+    await screen.findByText('Cuándo se llena el estudio')
+    expect(screen.getByTitle(/Lun 10:00 — 3 reservas/).style.backgroundColor).toBe('var(--calor-4)')
+    expect(screen.getByTitle(/Mar 10:00 — 0 reservas/).style.backgroundColor).toBe(
+      'var(--superficie-2)',
+    )
+  })
 })
 
 describe('cuando algo falla', () => {

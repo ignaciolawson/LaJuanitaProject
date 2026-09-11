@@ -168,6 +168,57 @@
     0 1px 2px rgba(10, 10, 11, 0.05),
     0 12px 32px rgba(10, 10, 11, 0.12);
 
+  /* ⚠️ EL TABLERO ES LA EXCEPCIÓN DECLARADA A "UN ACENTO POR PANTALLA"
+     (`mejoras.md` §16 · A4).
+
+     La regla de arriba —el rojo es un bisturí— vale en 35 pantallas y en el
+     tablero no alcanza: un mapa de calor necesita una ESCALA y ocho indicadores
+     necesitan distinguirse entre sí. Antes el tablero era monocromo con un solo
+     color escrito a mano, `rgba(214, 40, 40, α)` en las casillas, que en oscuro
+     no existe (rojo opaco con alfa bajo sobre fondo oscuro) y no sigue al tema.
+     Y las series de los gráficos eran una rampa sobre `--ink` fija, o sea tinta
+     sobre tinta en oscuro.
+
+     La excepción se DECLARA acá, en tokens propios que sólo el tablero usa, en
+     vez de aflojar la regla para todas: si se afloja, en tres pantallas más hay
+     tres acentos y ninguno. Las dos escalas se derivan de las mismas tres
+     tintas —rojo mezclado con la superficie del tema para el calor, rojo
+     fundiéndose en la tinta del tema para las series— y **están medidas, no
+     elegidas a ojo**, como en §14 · A:
+
+       calor      rojo sobre la superficie (#fff)   vs superficie
+         1  22%   #f9cfd0                             1,42:1
+         2  45%   #f39c9e                             2,08:1
+         3  70%   #ed6569                             3,15:1
+         4 100%   #e52328                             4,56:1
+
+       serie      del rojo a la tinta               vs superficie
+         1        #e52328  (--red)                    4,56:1
+         2        #a31c1f                             7,65:1
+         3        #621417                            12,91:1
+         4        #0a0a0b  (--ink)                   19,79:1
+         5        #787879  (ink al 55%)               4,40:1
+         6        #b6b6b6  (ink al 30%)               2,04:1
+
+     Los dos primeros escalones del calor y el sexto de las series quedan
+     abajo de 3:1 a propósito: en un mapa de calor lo que se viene a mirar es
+     CUÁL es la franja cargada —el escalón alto—, y el sexto de una serie es la
+     categoría más chica de seis. Lo que sí se cuida es que cada escalón se
+     distinga del anterior y que el máximo se lea en los dos temas, que es
+     justo lo que el rgba() a mano no daba. La casilla en cero es
+     `--superficie-2`, la misma celda apagada del resto del sistema. */
+  --calor-1: #f9cfd0;
+  --calor-2: #f39c9e;
+  --calor-3: #ed6569;
+  --calor-4: var(--red);
+
+  --serie-1: var(--red);
+  --serie-2: #a31c1f;
+  --serie-3: #621417;
+  --serie-4: var(--ink);
+  --serie-5: #787879;
+  --serie-6: #b6b6b6;
+
   /* Las tres familias de la marca. Se cargan en index.html.
      Los nombres van por ROL y no por familia, al revés que la landing —
      allá el nombre por familia evita un ciclo con las clases de next/font,
@@ -255,6 +306,28 @@ html[data-tema="oscuro"] {
   --sombra-flotante:
     0 1px 2px rgba(0, 0, 0, 0.6),
     0 16px 40px rgba(0, 0, 0, 0.55);
+
+  /* Las escalas del tablero, medidas sobre la superficie oscura (#17171a).
+     El rojo de acá es `--red-hover`, por lo mismo que `--acento` lo toma en
+     este tema: #e52328 sobre #17171a mide 4,17:1 y #ff3a30, 5,03:1.
+
+       calor   1  22%  #4a1f1f  1,28:1     serie  1  #ff3a30  5,03:1
+               2  45%  #7f2724  1,89:1            2  #f86c61  6,23:1
+               3  70%  #b92f29  3,00:1            3  #f19e92  8,58:1
+               4 100%  #ff3a30  5,03:1            4  #e8e1d4 13,76:1 (--bone)
+                                                  5  #8a8680  4,95:1
+                                                  6  #565452  2,36:1 */
+  --calor-1: #4a1f1f;
+  --calor-2: #7f2724;
+  --calor-3: #b92f29;
+  --calor-4: var(--red-hover);
+
+  --serie-1: var(--red-hover);
+  --serie-2: #f86c61;
+  --serie-3: #f19e92;
+  --serie-4: var(--bone);
+  --serie-5: #8a8680;
+  --serie-6: #565452;
 }
 
 @theme inline {

@@ -144,15 +144,48 @@ export function saludoDeContacto(nombre: string, queQuiere: string): string {
 }
 
 /**
- * El mensaje que lleva la contraseña temporal.
+ * La cuenta que se acaba de crear: dónde se entra, con qué, y las dos
+ * advertencias que evitan la repregunta.
  *
- * **Éste es el que justifica todo el archivo.** La contraseña no se puede volver
- * a ver: si se tipea mal, la persona no entra, escribe de nuevo, y hay que
- * generarle otra desde Personas. Acá la escribe el sistema.
+ * **Éste es el bloque que justifica todo el archivo.** La contraseña no se puede
+ * volver a ver: si se tipea mal, la persona no entra, escribe de nuevo, y hay
+ * que generarle otra desde Personas. Acá la escribe el sistema.
+ *
+ * Es un bloque y no un mensaje porque va adentro de dos: solo, cuando lo único
+ * que pasó fue crear la cuenta, y como segundo bloque del de la cabina (P71).
+ * Escrito una vez, no puede decir una cosa en un lado y otra en el otro.
+ */
+function bloqueDeLaCuenta(email: string, passwordTemporal: string): string[] {
+  return [
+    `Entrás en ${dondeSeEntra()}`,
+    `Usuario: ${email}`,
+    `Contraseña: ${passwordTemporal}`,
+    'Te la va a pedir cambiar la primera vez que entres, y vence a los 7 días.',
+  ]
+}
+
+/**
+ * Qué puede hacer desde su cuenta, dicho por lo que hace y no como *"tenés un
+ * portal"* (P71).
+ *
+ * ⚠️ **Se escribe con lo que el portal tiene de verdad**, no con lo que suena
+ * bien: Mis reservas y *"No puedo ese día"*, Reservar, Mis pagos con los
+ * comprobantes. Lo que **no** se promete: nada que pase por mail (no hay) ni
+ * pagar desde el portal (no hay pasarela — todos los medios son manuales). El
+ * día que el portal sume algo, se suma acá; el día que este texto prometa algo
+ * que el portal no hace, la persona lo descubre sola.
+ */
+const QUE_PUEDE_HACER =
+  'Desde tu cuenta vas a poder ver tus reservas y las que hagas después, pedir la ' +
+  'cabina para otro día, ver tus pagos y descargar los comprobantes, y avisarnos ' +
+  'si un día no podés venir.'
+
+/**
+ * El mensaje de una cuenta recién creada, cuando eso fue lo único que pasó.
  *
  * Dice las tres cosas que evitan la repregunta —con qué mail entra, que se la va
  * a pedir cambiar, y que vence— porque cada una de ellas, sin decirla, es un
- * mensaje más de ida y vuelta.
+ * mensaje más de ida y vuelta. Y cierra con lo que puede hacer desde ahí.
  */
 export function mensajeConLaClave(
   nombre: string,
@@ -160,46 +193,66 @@ export function mensajeConLaClave(
   passwordTemporal: string,
 ): string {
   return [
-    `¡Hola ${nombre}! Te creamos tu cuenta en La Juanita Studio para que puedas ` +
-      'ver tus reservas y tus pagos.',
+    `¡Hola ${nombre}! Te creamos tu cuenta en La Juanita Studio.`,
     '',
-    `Entrás en ${dondeSeEntra()}`,
-    `Usuario: ${email}`,
-    `Contraseña: ${passwordTemporal}`,
+    ...bloqueDeLaCuenta(email, passwordTemporal),
     '',
-    'Te la va a pedir cambiar la primera vez que entres, y vence a los 7 días.',
+    `${QUE_PUEDE_HACER} ¡Te esperamos!`,
   ].join('\n')
 }
 
 /**
- * El mensaje de la cabina apartada.
+ * El mensaje de la cabina apartada: **uno solo, en tres bloques y en este
+ * orden** (P71, `mejoras.md` §16 · A8).
  *
- * ⚠️ **Éste es el que cierra el circuito de la Fase 3**, y la razón es la misma
- * por la que existe `mensajeConLaClave`: el sistema sabe las cuatro cosas que hay
- * que decir —qué sala, cuándo, cuánto y hasta cuándo— y hasta ahora se las hacía
- * tipear a quien atiende, en el momento en que más caro sale equivocarse.
+ * ⚠️ **Éste es el que cierra el circuito de la Fase 3**: el sistema sabe las
+ * cuatro cosas que hay que decir —qué sala, cuándo, cuánto y hasta cuándo— y
+ * hasta ahora se las hacía tipear a quien atiende, en el momento en que más caro
+ * sale equivocarse.
  *
  * **El plazo va sí o sí, y va escrito como fecha y hora.** Un *"te apartamos la
  * sala"* sin vencimiento deja tranquilo a quien lo lee sobre un horario que se
  * libera solo en 24 horas: es la peor forma de perder una venta, porque nadie se
- * entera hasta que ya pasó. Es la misma razón por la que la notificación del
- * sistema dice las dos cosas juntas.
+ * entera hasta que ya pasó.
  *
- * **No lleva la contraseña.** Son dos mensajes distintos a propósito: éste habla
- * de lo que hay que hacer ahora —abonar— y el otro de una cuenta que se puede
- * mirar cuando quiera. Juntos, el que importa se lee como un trámite más.
+ * ⚠️ **Antes eran dos mensajes, a propósito, y la decisión se revirtió con
+ * argumento.** El miedo era real —que el plazo se hunda entre la contraseña y el
+ * resto, y lo que importa se lea como un trámite más— y la respuesta no fue
+ * ignorarlo sino **el orden**: un `wa.me` es UNA URL con UN mensaje, así que "un
+ * botón para todo" es necesariamente un mensaje, y lo que salva las dos cosas es
+ * que el plazo y el monto van en las dos primeras líneas y la cuenta abajo de un
+ * separador. Es la misma decisión de orden del premaster y de la publicación sin
+ * contrato: primero lo que hay que hacer, después la salida.
+ *
+ * **Dos variantes y no una**: la persona que ya tenía cuenta **no recibe el
+ * bloque de la cuenta** — mandarle una contraseña temporal a alguien que ya entra
+ * con la suya es el modo de falla que `ConversionRealizada.passwordTemporal =
+ * null` existe para evitar. El tercer bloque sí va igual: que ya tenga cuenta no
+ * quiere decir que sepa qué puede hacer desde ella.
  */
-export function mensajeDeCabinaApartada(
-  nombre: string,
-  sala: string,
-  cuando: string,
-  importe: string,
-  vence: string,
-): string {
+export function mensajeDeCabinaApartada(datos: {
+  nombre: string
+  sala: string
+  cuando: string
+  importe: string
+  vence: string
+  /** Sólo si la cuenta se creó recién. Con cuenta previa, `null`. */
+  cuenta: { email: string; passwordTemporal: string } | null
+}): string {
+  const { nombre, sala, cuando, importe, vence, cuenta } = datos
   return [
     `¡Hola ${nombre}! Te apartamos ${sala} para el ${cuando}.`,
     '',
     `Para confirmarla hay que abonar ${importe} antes del ${vence}.`,
-    'Pasado ese plazo el horario se libera.',
+    'Pasado ese plazo el horario se libera. Cualquier duda, contestá por acá.',
+    ...(cuenta
+      ? [
+          '',
+          'Además te creamos tu cuenta en La Juanita Studio.',
+          ...bloqueDeLaCuenta(cuenta.email, cuenta.passwordTemporal),
+        ]
+      : []),
+    '',
+    `${QUE_PUEDE_HACER} ¡Te esperamos!`,
   ].join('\n')
 }

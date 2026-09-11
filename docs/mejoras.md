@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fase 0 cerrada el 2026-09-11**; lo próximo es la Fase 1 (A1 · A2 · A4 · A8). El estado vivo está en el bloque final de este documento.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0 y 1 cerradas el 2026-09-11**; lo próximo es la Fase 2 (A3 · A5 · A7). El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3923,7 +3923,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 
 | Grupo | Qué significa | Cuántos | Estado |
 |---|---|---|---|
-| 🟢 **A** | Pantalla, texto y estilo | **5** | 🟨 1 de 5 · A6 cerrado el 2026-09-11 |
+| 🟢 **A** | Pantalla, texto y estilo | **5** | ✅ 5 de 5 · cerrado el 2026-09-11 (Fases 0 y 1) |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | ⬜ 0 de 4 |
 | 🔴 **C** | Toca una regla del negocio o el schema | **2** | ⬜ 0 de 2 · **trabados** |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
@@ -3937,7 +3937,7 @@ antes de estimar: **A5** no se arregla sumando en la pantalla (la consulta cuent
 
 ### Punto por punto — lo que se verificó en el código
 
-#### 🟡 A1 · "Lo próximo" en la agenda del profesor
+#### ✅ A1 · "Lo próximo" en la agenda del profesor — **cerrado el 2026-09-11**
 
 **Verificado, y el caso común es peor que el reportado.** La agenda del profesor
 pide **una semana** (`desde = lunesDe(hoy)`, `hasta = desde + 6`) y calcula
@@ -3953,7 +3953,14 @@ profesor ni en el alumno, que tiene el mismo techo— es el *"desde siempre"* li
 si la próxima clase está a seis semanas, ninguna de las dos la ve. Eso sería una
 consulta propia (*"mi próxima clase"*, sin ventana) y pasa a grupo B.
 
-#### 🟢 A2 · Sacar el enlace al artículo del nombre del DJ
+**Cerrado el 2026-09-11 (Fase 1).** `MiAgendaPagina` pide `desde + 27` como Mis
+reservas, los botones saltan de a 28 y *"Esta semana"* pasó a *"Hoy"*; el vacío
+dice *"en estas cuatro semanas"*. `misClasesDictadas` acompaña el rango (el techo
+del backend, `DocenciaService.MAXIMO_DE_DIAS`, es 366). Un caso nuevo pinea que las
+dos consultas van del mismo rango: `pide cuatro semanas, y el resumen del mismo
+período`.
+
+#### ✅ A2 · Sacar el enlace al artículo del nombre del DJ — **cerrado el 2026-09-11**
 
 ⚠️ **`fuente` NO se reemplaza por el link al perfil: se le agrega un campo al
 lado.** Ese campo es lo que sostiene la regla del archivo, escrita en su propia
@@ -3969,6 +3976,28 @@ La forma: `perfil` opcional, el nombre linkea ahí, y `fuente` sigue existiendo.
 con fechas y discografía. ⚠️ **Cada slug hay que abrirlo**: un RA mal escrito es un
 404, que se lee como sistema roto. Es el mismo cuello de botella de §13 · A1 —
 trabajo de búsqueda, no de código.
+
+**Cerrado el 2026-09-11 (Fase 1), con dos desvíos del plan que conviene saber:**
+
+- ⚠️ **Resident Advisor quedó afuera, y es una limitación medida.** `ra.co`
+  contesta **403 a cualquier fetch** —probado con `curl` y un User-Agent de
+  navegador, y también con un slug inventado: 403 igual—, así que **no hay forma
+  de distinguir un perfil real de un 404** sin abrirlo en un navegador de verdad.
+  La regla de §13 · A1 es que lo que no se puede abrir no entra. Los diez perfiles
+  son de **Wikipedia**, cada uno abierto y leído: los diez describen a esa persona
+  como DJ/productor en la primera oración, ninguno es desambiguación ni stub. En
+  castellano los siete que tienen artículo (Cox, Allien, Knuckles, Cattáneo, Dijon,
+  Mills, Garnier), en inglés Jackmaster, Jayda G y Chandler.
+- **No es `perfil?: string` por frase: es un mapa `PERFILES` por persona, y
+  `autor` se tipa contra sus claves** (`type Autor = keyof typeof PERFILES`). El
+  perfil es de la persona y la fuente es de la cita: Chandler tiene tres frases de
+  dos artículos y un perfil, y tres copias de una URL son tres lugares donde
+  puede quedar distinta. Con el tipo, citar a alguien sin perfil **no compila** —
+  la misma forma en que `fuente` sostiene su regla. `fuente` sigue obligatoria y
+  deja de dibujarse.
+- Dos casos: el de datos (cada autor citado tiene un perfil, y es de Wikipedia) y
+  el de pantalla (`InicioPagina.test`: la firma linkea al perfil y **no** contiene
+  `djmag.com`), con `fraseDelDia` fijado a una cita para que no dependa del día.
 
 #### 🟡 A3 · ¿Puede un usuario mover su clase más de una vez?
 
@@ -3998,7 +4027,7 @@ puede pedir de nuevo indefinidamente.
 alguien tiene una razón legítima para la tercera no hay salida. Primero el contador
 visible; el número, si el contador muestra abuso real (pregunta 19).
 
-#### 🟢 A4 · Colores del tablero de indicadores
+#### ✅ A4 · Colores del tablero de indicadores — **cerrado el 2026-09-11**
 
 **Verificado: el tablero es monocromo.** `text-tenue`, `text-apagado`, negrita, y
 **un solo color escrito a mano**: `rgba(214, 40, 40, reservas/maximo)` en el heatmap
@@ -4015,6 +4044,31 @@ ocho indicadores necesitan distinguirse entre sí.
 propia, derivada de la paleta, con contraste medido como en §14 · A— y no que se
 afloje la regla para todas. Si se afloja, en tres pantallas más hay tres acentos y
 ninguno.
+
+**Cerrado el 2026-09-11 (Fase 1). La excepción está DECLARADA en `index.css`**, en
+un bloque propio con sus medidas, y son **dos escalas y no una**, porque el
+tablero tenía dos problemas y el hallazgo nombraba uno:
+
+- **El calor**: `--calor-1..4`, rojo mezclado con la superficie del tema en cuatro
+  escalones (22 · 45 · 70 · 100 %), medidos contra la superficie de cada tema
+  (claro 1,42 · 2,08 · 3,15 · 4,56 — oscuro 1,28 · 1,89 · 3,00 · 5,03). El cero es
+  `--superficie-2`, la celda apagada del sistema. **Escalones y no alfa continuo**:
+  `rgba(214,40,40,α)` daba una casilla distinta por cada cantidad, ruido en un
+  mapa de 7×10, y en oscuro directamente no existía.
+- **Las series**: `--serie-1..6`, del rojo a la tinta del tema. Esto no estaba en
+  el hallazgo y era peor: `graficos.tsx` tenía una rampa de opacidad sobre `--ink`
+  **fija**, es decir tinta sobre tinta en oscuro — la dona, las barras y el anillo
+  de retención eran invisibles con el tema oscuro. Ahora `colorDeSerie` devuelve
+  `var(--serie-N)` y **no escribe ningún color**; el anillo lleno toma `--serie-1`.
+- Los dos primeros escalones del calor y el sexto de las series quedan bajo 3:1 a
+  propósito y está escrito por qué: lo que se mira en un mapa de calor es el
+  escalón alto, y el sexto de una serie es la categoría más chica de seis.
+- Un caso en `TableroPagina.test` pinea que la casilla llena lleva `var(--calor-4)`
+  y la vacía `var(--superficie-2)`: si alguien vuelve a escribir un color a mano,
+  lo ve.
+
+⚠️ **No se verificó en el navegador, sólo con las medidas.** Si Ignacio lo ve raro
+en oscuro, lo primero a mirar son `--serie-5` y `--serie-6`.
 
 #### 🟡 A5 · El indicador de alumnos, sin dividir por nivel
 
@@ -4126,7 +4180,7 @@ y un precio que hoy no existen en ninguna capa. Y los precios inventados **ya so
 bloqueante para publicar la landing** (`pendientes.md` §1). Preguntas 10 y 11, y se
 cruza con la 6 / P13.
 
-#### 🟢 A8 · Un solo botón de WhatsApp al apartar la cabina
+#### ✅ A8 · Un solo botón de WhatsApp al apartar la cabina — **cerrado el 2026-09-11**
 
 **Ignacio tiene razón, y conviene registrar que revierte una decisión escrita a
 propósito.** El comentario de `whatsapp.ts` dice: *"No lleva la contraseña. Son dos
@@ -4145,6 +4199,25 @@ no tuvo en cuenta:
 líneas, la cuenta abajo de un separador. Es la misma decisión de orden que ya tomaron
 el premaster y la publicación sin contrato — **primero lo que hay que hacer, después
 la salida**. Qué más dice el mensaje: pregunta 21.
+
+**Cerrado el 2026-09-11 (Fase 1), con el borrador de P71 tal cual.**
+`mensajeDeCabinaApartada` toma un objeto con `cuenta: {email, passwordTemporal} |
+null` y arma los tres bloques; `CabinaLista` perdió el segundo botón y el único
+dice *"Avisarle por WhatsApp, con la clave"* cuando la cuenta es nueva. Lo que
+conviene saber del código:
+
+- **El bloque de la cuenta y la descripción del portal se escriben UNA vez**
+  (`bloqueDeLaCuenta`, `QUE_PUEDE_HACER`) y los usan los dos mensajes —el de la
+  cabina y `mensajeConLaClave`, que sigue existiendo para *"Crearle la cuenta"*
+  sin reserva y ahora también cierra con el portal. Escritos dos veces, dirían
+  una cosa en un lado y otra en el otro.
+- **El caso de `whatsapp.test` mira POSICIONES, no presencia**: `indexOf(plazo) <
+  indexOf(clave) < indexOf('Desde tu cuenta')`. Un caso que sólo mire que las
+  cosas estén no protege la decisión, que es el orden.
+- La segunda variante tiene su caso en la pantalla: con `cuentaNueva: false` el
+  link no contiene *"Contraseña"* y la clave no se dibuja.
+- El molde para la inscripción a un programa (P71, segundo párrafo) **no se
+  escribió**: es de la Fase 6, cuando exista el alta desde el buzón.
 
 ---
 
@@ -4460,7 +4533,7 @@ cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10)
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**uno ejecutado — la Fase 0 (A6) cerró el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
+**cinco ejecutados — las Fases 0 y 1 cerraron el 2026-09-11**, **las quince decisiones de negocio cerradas el mismo día**
 (`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
 de la §16. Lo que falta es ejecutarlo.
 
@@ -4473,18 +4546,22 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 | Fase | Qué | Migración |
 |---|---|---|
 | ✅ 0 | **A6** — el bug de la pantalla en negro + el `ErrorBoundary` que no existe · **cerrada el 2026-09-11** | — |
-| 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único | — |
+| ✅ 1 | **A1 · A2 · A4 · A8** — la agenda a 4 semanas, los perfiles de los DJs, la paleta del tablero, el mensaje único · **cerrada el 2026-09-11** | — |
 | 2 | **A3 · A5 · A7** — el contador de movidas, el total por disciplina, la mentoría en la landing | — |
 | 3 | **C1** — el catálogo de programas, cierra P13 | `V28` |
 | 4 | **C2** — la ficha guarda programa, experiencia y modalidad | `V29` |
 | 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera | `V30` |
 | 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
 
-**Lo próximo es la Fase 1** — A1 · A2 · A4 · A8, sin migración. A2 es trabajo de
-búsqueda (diez perfiles a abrir uno por uno); A8 reescribe casos que buscaban dos
-botones. ⚠️ Desde la Fase 0 el sistema tiene `LimiteDeError`: **si una pantalla
-tira, ahora se ve el path y el mensaje en un `<pre>`** — pedirle eso a Ignacio
-cuando reporte algo, en vez de *"se pone en negro"*.
+**Lo próximo es la Fase 2** — A3 · A5 · A7, grupo B, sin migración. A3 es el
+contador de movidas (portal desde los pedidos ya cargados; administración desde
+el resumen de la reserva, agrupado en la consulta); **A5 cambia un `GROUP BY` y
+arrastra DTO, tipo TS y el informe Excel/PDF** (P70: el nivel queda en el export);
+A7 necesita contenido del cliente además de código (P67). ⚠️ Desde la Fase 0 el
+sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
+mensaje en un `<pre>`** — pedirle eso a Ignacio cuando reporte algo, en vez de
+*"se pone en negro"*. ⚠️ Y de la Fase 1: **el tablero se cambió con medidas y sin
+mirarlo en el navegador** — si Ignacio lo ve raro en oscuro, `--serie-5/6`.
 
 ⚠️ **La migración del admin sembrado se corre por QUINTA vez: ya no es `V28`,
 va a ser `V31`.** Sigue sin anotarse con número en ningún lado.
@@ -4501,12 +4578,12 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto**: la §15 está cerrada, suites en **646 backend · 568
+**El estado del producto**: la §15 está cerrada, suites en **646 backend · 575
 front · 256 + 66 SQL** sobre **27 migraciones**, `tsc -b`, los dos builds y los
-dos linters limpios (los siete casos nuevos del front son de A6). Lo que sigue abierto en todo el proyecto está en
+dos linters limpios (los catorce casos nuevos del front son de las Fases 0 y 1). Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — cinco fases por delante (la 0 cerró el 2026-09-11).
+1. **La §16**, que es esto — cuatro fases por delante (la 0 y la 1 cerraron el 2026-09-11).
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

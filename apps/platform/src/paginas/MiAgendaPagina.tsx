@@ -18,7 +18,7 @@ import { Proxima } from '../componentes/Proxima'
  * Módulo 5, pantallas 1 y 5 — mi agenda y mis clases dictadas.
  *
  * **Son una sola pantalla y no dos**, porque son la misma pregunta mirada desde
- * los dos lados del día de hoy: qué tengo esta semana y cuántas di. Separarlas
+ * los dos lados del día de hoy: qué tengo por delante y cuántas di. Separarlas
  * obligaba a elegir dos veces el mismo período.
  *
  * **Es una lista, no una grilla.** La grilla de tres salas por ocho horas es de
@@ -43,7 +43,12 @@ export function MiAgendaPagina() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
 
-  const hasta = sumarDias(desde, 6)
+  // Cuatro semanas, las mismas que ve el alumno en Mis reservas (§16 · A1).
+  // Con una sola, un sábado el profesor que da clase el lunes no veía "lo
+  // próximo": el lunes caía en la ventana siguiente — y eso no era el caso raro
+  // del que se va de vacaciones, era todos los fines de semana. Entra holgado
+  // en el techo de 62 días del backend.
+  const hasta = sumarDias(desde, 27)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -94,18 +99,14 @@ export function MiAgendaPagina() {
         aclaracion={<>{cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}</>}
         acciones={<>{/* El texto del rango se arma con `diaYMes` y no con `rangoLegible`:
               aquella indexa el día [6] y da por hecho una semana de siete. Acá
-              hoy son siete, pero atar el encabezado a eso ya rompió una vez. */}
-          
-        
-
-        
-          <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -7))}>
+              son veintiocho, y atar el encabezado a siete ya rompió una vez. */}
+          <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, -28))}>
             ← Anterior
           </Boton>
           <Boton variante="secundario" onClick={() => setDesde(lunesDe(ahora))}>
-            Esta semana
+            Hoy
           </Boton>
-          <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 7))}>
+          <Boton variante="secundario" onClick={() => setDesde(sumarDias(desde, 28))}>
             Siguiente →
           </Boton></>}
       />
@@ -117,12 +118,12 @@ export function MiAgendaPagina() {
       )}
 
       {!cargando && ordenadas.length === 0 && (
-        <EstadoVacio titulo="No tenés clases en esta semana." />
+        <EstadoVacio titulo="No tenés clases en estas cuatro semanas." />
       )}
 
       {/* La misma pieza que ve el alumno en "Mis reservas", del lado de quien
           da la clase: lo que un profesor viene a saber es cuándo tiene la
-          próxima y con quién, no a leer la grilla entera de la semana. */}
+          próxima y con quién, no a leer la lista entera del período. */}
       {proxima && (
         <Proxima
           className="mb-6"
@@ -138,7 +139,7 @@ export function MiAgendaPagina() {
       {/* Con nombre: el tipo de uso —"Clase de DJ"— aparece también en el
           desglose del resumen de abajo, y sin un nombre en cada zona no hay cómo
           preguntar por una sin traerse la otra. */}
-      <ul aria-label="Clases de la semana" className="space-y-3">
+      <ul aria-label="Clases del período" className="space-y-3">
         {ordenadas.map((c) => {
           const caida = c.estado === 'CANCELADA' || c.estado === 'REPROGRAMADA'
           // Los que se dieron de baja no van: la clase se da igual, pero esa

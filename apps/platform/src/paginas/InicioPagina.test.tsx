@@ -43,6 +43,17 @@ vi.mock('../api/administracion', () => ({
 }))
 vi.mock('../api/docencia', () => ({ miAgenda: vi.fn(), misAlumnos: vi.fn() }))
 vi.mock('../api/tablero', () => ({ resumenFinanciero: vi.fn() }))
+// La frase del día se fija: cuál toca depende de la fecha, y el caso de la firma
+// necesita que sea una cita. Todo lo demás del módulo sigue siendo el real.
+vi.mock('../datos/frases', async (importarReal) => ({
+  ...(await importarReal<typeof import('../datos/frases')>()),
+  fraseDelDia: () => ({
+    tipo: 'cita',
+    texto: 'Trato de liderar, no de seguir.',
+    autor: 'Carl Cox',
+    fuente: 'https://djmag.com/news/carl-cox-speaks-out-how-make-it-dj',
+  }),
+}))
 
 const portal = await import('../api/portal')
 const admin = await import('../api/administracion')
@@ -359,5 +370,22 @@ describe('la distribución (§12 · A1)', () => {
     // Los cinco grupos: operación, números, clases, formación y lo mío.
     expect(grillas).toHaveLength(5)
     for (const g of grillas) expect(g.children.length).toBeGreaterThan(1)
+  })
+})
+
+describe('la frase del día', () => {
+  /**
+   * **El nombre linkea al perfil de la persona, no al artículo** (§16 · A2,
+   * P68). Ignacio: *"que te lleve a alguna página con info de ese DJ, no al
+   * artículo donde dijo la frase"*. La fuente sigue en el archivo —el tipo la
+   * exige— pero deja la pantalla. Si alguien vuelve a poner `frase.fuente` en el
+   * `href`, este caso lo ve.
+   */
+  it('firma con el nombre linkeado al perfil, no a la fuente', async () => {
+    montar('USUARIO')
+
+    const firma = await screen.findByRole('link', { name: 'Carl Cox' })
+    expect(firma.getAttribute('href')).toBe('https://es.wikipedia.org/wiki/Carl_Cox')
+    expect(firma.getAttribute('href')).not.toContain('djmag.com')
   })
 })

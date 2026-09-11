@@ -515,16 +515,29 @@ function Casilla({
         reservas === 1 ? 'reserva' : 'reservas'
       }`}
       className="h-6 rounded text-center"
-      style={{
-        backgroundColor:
-          reservas === 0 ? 'var(--color-papel, #f4f4f4)' : `rgba(214, 40, 40, ${reservas / maximo})`,
-      }}
+      style={{ backgroundColor: colorDeCalor(reservas, maximo) }}
     >
       <span className="sr-only">
         {dia} {hora}: {reservas}
       </span>
     </td>
   )
+}
+
+/**
+ * El color de una casilla: cuatro escalones de la escala del tablero
+ * (`--calor-N` en `index.css`, la excepción declarada de §16 · A4), y la
+ * celda apagada del sistema para el cero.
+ *
+ * Son escalones y no un alfa continuo a propósito: `rgba(214, 40, 40, α)` daba
+ * una casilla distinta por cada cantidad, que en un mapa de 7×10 es ruido —y en
+ * oscuro directamente no existía. Cuatro pasos medidos se distinguen entre sí
+ * y se leen en los dos temas.
+ */
+function colorDeCalor(reservas: number, maximo: number): string {
+  if (reservas === 0) return 'var(--superficie-2)'
+  const escalon = Math.min(4, Math.ceil((reservas / maximo) * 4))
+  return `var(--calor-${escalon})`
 }
 
 /**

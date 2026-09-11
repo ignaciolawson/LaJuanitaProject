@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ReservaResumen } from '../api/tiposAdmin'
 import type { ClasesDictadas } from '../api/tiposDocencia'
+import { hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { MiAgendaPagina } from './MiAgendaPagina'
 
 /**
@@ -82,7 +83,7 @@ const RESUMEN: ClasesDictadas = {
  * mismo dato y las dos tienen que estar.
  */
 function laAgenda() {
-  return within(screen.getByRole('list', { name: 'Clases de la semana' }))
+  return within(screen.getByRole('list', { name: 'Clases del período' }))
 }
 
 function elResumen() {
@@ -138,11 +139,27 @@ describe('la agenda', () => {
     expect(laAgenda().queryByText(/Juan Pérez/)).toBeNull()
   })
 
-  it('una semana sin clases lo dice', async () => {
+  it('un período sin clases lo dice', async () => {
     vi.mocked(miAgenda).mockResolvedValue([])
     render(<MiAgendaPagina />)
 
-    expect(await screen.findByText(/No tenés clases en esta semana/)).toBeDefined()
+    expect(await screen.findByText(/No tenés clases en estas cuatro semanas/)).toBeDefined()
+  })
+
+  /**
+   * **Cuatro semanas, como la del alumno, y el resumen del mismo período**
+   * (§16 · A1). Con una sola, un sábado el profesor que da clase el lunes no veía
+   * "lo próximo": el lunes caía en la ventana siguiente, todos los fines de
+   * semana. Y las dos consultas van del mismo rango a propósito: el resumen
+   * cuenta lo que la lista muestra, así que no pueden discrepar.
+   */
+  it('pide cuatro semanas, y el resumen del mismo período', async () => {
+    render(<MiAgendaPagina />)
+
+    const desde = lunesDe(hoy())
+    const hasta = sumarDias(desde, 27)
+    await waitFor(() => expect(miAgenda).toHaveBeenCalledWith(desde, hasta))
+    expect(misClasesDictadas).toHaveBeenCalledWith(desde, hasta)
   })
 })
 

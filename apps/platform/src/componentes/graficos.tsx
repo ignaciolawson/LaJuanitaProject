@@ -1,31 +1,25 @@
 /**
  * Primitivas de gráficos del tablero de dirección, en SVG plano y sin
  * dependencia externa — misma decisión que ya tomó la grilla de ocupación
- * (`TableroPagina.tsx`), que dibuja su propio mapa de calor con una tabla y
- * `rgba()` en vez de traer una librería para una sola pantalla.
+ * (`TableroPagina.tsx`), que dibuja su propio mapa de calor con una tabla en
+ * vez de traer una librería para una sola pantalla.
  *
- * **La paleta es monocromática a propósito.** `index.css` lo dice: "el rojo
- * se usa como bisturí, no como relleno [...] si empieza a aparecer en todos
- * lados, deja de señalar nada". Repartir seis colores entre las líneas de
- * negocio convertiría al rojo en el color de "venta de equipos" tanto como
- * en el de una deuda vencida, y ese es justo el significado que no se puede
- * diluir. Así que las series usan una rampa de opacidad sobre `--ink`, y el
- * rojo queda libre para cuando un número necesite señalar un problema — como
- * ya hacen `text-acento` en "vencidos" y "sin contrato" en esta misma pantalla.
+ * **La paleta es la excepción declarada a "un acento por pantalla"**
+ * (`mejoras.md` §16 · A4, tokens `--serie-N` en `index.css`). Hasta la §16 las
+ * series eran una rampa de opacidad sobre `--ink` escrita acá, con el argumento
+ * de que repartir colores diluía al rojo. El argumento sigue valiendo para las
+ * otras 35 pantallas; en el tablero fallaba dos veces: era **tinta sobre tinta
+ * en oscuro** —invisible— y ocho indicadores en gris no se distinguen entre sí,
+ * que es para lo que se abre un tablero. La escala va del rojo a la tinta del
+ * tema, medida en claro y oscuro donde se declara, y **acá no se escribe ningún
+ * color**: el que quiera cambiarla la cambia en un solo lugar, con sus medidas.
  */
 
-/** La rampa de grises sobre `--ink` (`#0a0a0b`), de más oscuro a más claro. */
-const RAMPA_INK = [
-  'rgba(10, 10, 11, 0.82)',
-  'rgba(10, 10, 11, 0.62)',
-  'rgba(10, 10, 11, 0.46)',
-  'rgba(10, 10, 11, 0.32)',
-  'rgba(10, 10, 11, 0.2)',
-  'rgba(10, 10, 11, 0.12)',
-]
+/** Seis escalones, del rojo a la tinta del tema. Ver `--serie-N` en `index.css`. */
+const ESCALONES = 6
 
 export function colorDeSerie(indice: number): string {
-  return RAMPA_INK[indice % RAMPA_INK.length]
+  return `var(--serie-${(indice % ESCALONES) + 1})`
 }
 
 export type Segmento = {
@@ -62,7 +56,7 @@ export function Dona({ segmentos, tamaño = 128 }: { segmentos: Segmento[]; tama
               cy={tamaño / 2}
               r={radio}
               fill="none"
-              stroke="var(--color-papel)"
+              stroke="var(--superficie-2)"
               strokeWidth={grosor}
             />
           ) : (
@@ -97,7 +91,7 @@ export function Dona({ segmentos, tamaño = 128 }: { segmentos: Segmento[]; tama
               <span
                 aria-hidden
                 className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: total === 0 ? 'var(--color-papel)' : (s.color ?? colorDeSerie(indice)) }}
+                style={{ backgroundColor: total === 0 ? 'var(--superficie-2)' : (s.color ?? colorDeSerie(indice)) }}
               />
               <span className="truncate text-tenue">{s.etiqueta}</span>
             </span>
@@ -180,7 +174,7 @@ export function Medidor({ porcentaje, tamaño = 72 }: { porcentaje: number | nul
         cy={tamaño / 2}
         r={radio}
         fill="none"
-        stroke="var(--color-papel)"
+        stroke="var(--superficie-2)"
         strokeWidth={grosor}
       />
       {porcentaje !== null && (
@@ -189,7 +183,9 @@ export function Medidor({ porcentaje, tamaño = 72 }: { porcentaje: number | nul
           cy={tamaño / 2}
           r={radio}
           fill="none"
-          stroke="var(--color-ink)"
+          // El anillo lleno va en el primer escalón de la escala y no en `--ink`:
+          // tinta fija sobre la tarjeta oscura no se veía (§16 · A4).
+          stroke="var(--serie-1)"
           strokeWidth={grosor}
           strokeLinecap="round"
           strokeDasharray={`${relleno} ${circunferencia - relleno}`}
