@@ -4890,10 +4890,14 @@ reabre P7), **el precio de las reservas** (P72: la mitad de P13 que falta), y
 **la "deuda viva" del tablero**, que no ve los saldos de programas. ⚠️ **`V30`
 es la última migración**; la próxima libre es `V31`, y **el admin sembrado
 sigue siendo `V31`** — por primera vez en cinco corrimientos, el número no se
-movió en una sesión. ⚠️ La ficha **#808** (*Prueba V29*) sigue en el buzón de
-desarrollo: es el candidato natural para que Ignacio pruebe *"Inscribirlo"* de
-punta a punta — cuenta, alumno, preinscripción, mensaje de WhatsApp, Deudores
-con *"sin señar"*, y el pago de la seña que la activa. ⚠️ Y de la Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
+movió en una sesión. ⚠️ La ficha **#808** ya NO sigue en el buzón: una prueba
+en caliente contra el backend levantado (pensada para otra cosa, un 403) la
+inscribió de verdad — quedó **ATENDIDO**, con la inscripción **13228**
+(PRODUCCION, $440.000, PREINSCRIPTA, vence 13/09 14:50) y una cuenta nueva
+(`prueba.v29@ejemplo.local`). Es el circuito de *"Inscribirlo"* de punta a
+punta, ya hecho, y sirve igual de prueba: registrale la seña en Pagos y mirala
+activarse sola, o cancelala desde el `<select>` de Inscripciones si se prefiere
+la base limpia. ⚠️ Y de la Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
 y `llms.txt` lo lista PENDIENTE** — ahora que existe `/admin/programas`, lo que
 falta es que Mica cargue el número, no código. ⚠️ Desde la Fase 0 el
 sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
