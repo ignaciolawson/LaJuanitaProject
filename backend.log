@@ -1,0 +1,75 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] -----------------------< com.lajuanita:backend >------------------------
+[INFO] Building backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.1.0:run (default-cli) > test-compile @ backend >>>
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ backend ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 30 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ backend ---
+[INFO] Copying 2 resources from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ backend ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] <<< spring-boot:4.1.0:run (default-cli) < test-compile @ backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.1.0:run (default-cli) @ backend ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-09-12T11:59:05.534-03:00  INFO 6080 --- [backend] [           main] c.lajuanita.backend.BackendApplication   : Starting BackendApplication using Java 25.0.2 with PID 6080 (D:\JuanitaStudioProyect\apps\backend\target\classes started by Ignacio in D:\JuanitaStudioProyect\apps\backend)
+2026-09-12T11:59:05.537-03:00  INFO 6080 --- [backend] [           main] c.lajuanita.backend.BackendApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-09-12T11:59:06.892-03:00  INFO 6080 --- [backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-09-12T11:59:07.070-03:00  INFO 6080 --- [backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 170 ms. Found 29 JPA repository interfaces.
+2026-09-12T11:59:07.847-03:00  INFO 6080 --- [backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-09-12T11:59:07.863-03:00  INFO 6080 --- [backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-09-12T11:59:07.863-03:00  INFO 6080 --- [backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-09-12T11:59:07.951-03:00  INFO 6080 --- [backend] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2334 ms
+2026-09-12T11:59:08.378-03:00  INFO 6080 --- [backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-09-12T11:59:08.589-03:00  INFO 6080 --- [backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@14b5752f
+2026-09-12T11:59:08.590-03:00  INFO 6080 --- [backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-09-12T11:59:08.625-03:00  INFO 6080 --- [backend] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://localhost:5432/la_juanita (PostgreSQL 16.15)
+2026-09-12T11:59:08.793-03:00  INFO 6080 --- [backend] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 30 migrations (execution time 00:00.069s)
+2026-09-12T11:59:08.819-03:00  INFO 6080 --- [backend] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 30
+2026-09-12T11:59:08.825-03:00  INFO 6080 --- [backend] [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-09-12T11:59:08.996-03:00  INFO 6080 --- [backend] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-09-12T11:59:09.072-03:00  INFO 6080 --- [backend] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.1.Final
+2026-09-12T11:59:09.485-03:00  INFO 6080 --- [backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-09-12T11:59:09.576-03:00  INFO 6080 --- [backend] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/la_juanita]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.15
+	Default catalog/schema: la_juanita/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-09-12T11:59:11.060-03:00  INFO 6080 --- [backend] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-09-12T11:59:11.169-03:00  INFO 6080 --- [backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-09-12T11:59:11.262-03:00  INFO 6080 --- [backend] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-09-12T11:59:13.083-03:00  INFO 6080 --- [backend] [           main] c.l.b.archivo.AlmacenamientoEnDisco      : Los archivos del sistema se guardan en D:\JuanitaStudioProyect\apps\backend\archivos
+2026-09-12T11:59:13.140-03:00  WARN 6080 --- [backend] [           main] c.l.backend.config.SeguridadConfig       : ⚠️  Firmando los tokens con el secreto JWT de DESARROLLO, que está commiteado en el repositorio. Sirve para trabajar local; en cualquier entorno accesible desde afuera hay que definir JWT_SECRET y sacar lajuanita.jwt.permitir-secreto-de-desarrollo.
+2026-09-12T11:59:16.300-03:00  INFO 6080 --- [backend] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 1 endpoint beneath base path '/actuator'
+2026-09-12T11:59:16.425-03:00  INFO 6080 --- [backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-09-12T11:59:16.436-03:00  INFO 6080 --- [backend] [           main] c.lajuanita.backend.BackendApplication   : Started BackendApplication in 11.385 seconds (process running for 12.052)
