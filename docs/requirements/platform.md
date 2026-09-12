@@ -2518,3 +2518,86 @@ prereserva 24 hs con su deuda anotada, y confirmada al cobrar la seña.
 - **El precio de las reservas** — la mitad de P13 que falta. Sin él, *"seña
   abonada, falta el resto"* no se puede decir de una cabina (P72). Lista de
   precios de alquiler + `reserva.precio_total` copiado al reservar.
+
+---
+
+## 23. Decisiones cerradas el 2026-09-12 (séptima tanda) — la quinta barrida
+
+> Las cuatro ⏳ de `mejoras.md` §17, contestadas el mismo día en que se
+> preguntaron. Tres con *"tu adopción"*; la primera **cambió lo que se
+> preguntó** y es la que vale la pena leer.
+
+### ✅ P73 — Los dos plazos: la cabina se cancela sola a las 72 hs; el programa lo cancela Mica, y a las 3 semanas se cancela solo
+
+**Textual:** *"Hagamos esto, si pasan 72hs se cancela sola y se libera el
+cupo, para los servicios, para lo que es programas que lo haga Micaela manual
+lo de cancelar la preinscripción, si querés ponele un límite automático, no sé
+ponele 3 semanas."*
+
+Se preguntó otra cosa —si la seña pendiente seguía en *"Lo que debo"* del
+portal después de las 24 hs— y la respuesta redefinió los plazos. **Lo que
+decide, por servicio:**
+
+1. **Servicios (cabina, grabación de set — la prereserva de `V24`): 72 horas,
+   no 24.** Sigue siendo *"el menor entre el plazo y el inicio de la franja"*
+   (P44, intacto), sigue cancelándose sola y liberando el horario
+   (`ReservaService.avisarQueSeVencio`), y sigue avisando (P57). Cambia el
+   número: `lajuanita.prereserva.horas` pasa de 24 a 72, y los textos de las
+   tres pantallas que dicen *"24 horas"* de una cabina.
+2. **Programas: la seña sigue teniendo 24 horas** (P72 · 1, intacto) y **la
+   preinscripción vencida NO se cancela sola a las 24 hs** (P61 · P72 · 4,
+   intactos): avisa, y Mica cobra o cancela. **Y a las tres semanas del alta
+   se cancela sola** — el límite automático que Ignacio ofreció, para que un
+   preinscripto que nunca contestó no viva en Deudores para siempre.
+   `lajuanita.preinscripcion.cancelacion-dias`, default 21, y es la **sexta
+   regla del scheduler**: `PREINSCRIPTA` con `fecha_creacion + 21 días < now()`
+   → `CANCELADA` por la escalera de `V30` (que lo permite), con aviso a
+   administración (`PREINSCRIPCION_CANCELADA:i=<id>`, el hecho y no la corrida).
+   Sin migración: la escalera ya tiene esa salida.
+3. **Lo que ve el alumno en "Lo que debo"** (la pregunta original): la seña
+   pendiente **sigue visible entre las 24 hs y las tres semanas, marcada
+   *"venció el DD/MM — hablá con el estudio"***, porque la inscripción sigue
+   existiendo y Deudores la sigue mostrando; desaparece cuando se cancela,
+   a mano o sola.
+
+⚠️ **Dos relojes distintos para dos cosas distintas, y no es inconsistencia**:
+la cabina tiene un horario que otro quiere, así que se libera rápido; el
+programa no tiene cupo (P60), así que no hay nada que liberar y lo único que
+la cancelación automática hace es limpiar Deudores. Por eso 72 horas y tres
+semanas, y no un número.
+
+### ✅ P74 — Un pago sobre una inscripción va en la moneda del contrato
+
+**Textual:** *"claro, hacé tu adopción."*
+
+La regla, como regla de la base (`V31`): un `pago` con `id_inscripcion` lleva
+la `moneda` de esa inscripción, o se rechaza. El formulario de Pagos **fija la
+moneda al elegir el curso** y no la ofrece. El sistema sigue sin convertir
+(§2.3): quien paga en pesos un programa pensado en dólares tiene el contrato
+cargado en pesos, al cambio del día que se acordó.
+
+**Lo que cierra**: la contradicción entre `V30` §4 (c) —que activaba la
+preinscripta con un `SENADO` en cualquier moneda— y Deudores, que cuenta sólo
+la moneda del contrato. Con P74 las dos preguntas tienen la misma respuesta
+porque no puede haber un pago en otra moneda. Las filas viejas que la violan
+(en la base de desarrollo, tres) no se tocan: el `NOTICE` de la migración las
+nombra, y la 13231 se corrige editando la inscripción a USD.
+
+### ✅ P75 — El buzón: menos botones, y la cabina vencida deja de estar abierta sola
+
+**Textual:** *"dale, tu adopción"* (H5) y *"tu adopción"* (H7).
+
+- *"Escribirle"* se va (el WhatsApp con el mensaje entero está en el bloque de
+  resultado). *"Crearle la cuenta"* se va de la fila de acciones y **queda
+  sólo adentro del panel de cerrar la ficha**, en la rama sin cuenta —ahí es
+  instrucción sin cómo si no está—. *"Ya se lo cargué"* **queda sólo donde no
+  hay gemelo de un click**: EQUIPOS, y CURSO/CABINA cuando el catálogo o las
+  salas no cargaron. Un *"Venderle"* (venta + ficha cerrada en un movimiento)
+  queda anotado para otra barrida.
+- **Reabre P56 en su tercer punto**: la ficha cuya prereserva se venció sin
+  señar **deja de contar como abierta**. `FichaAbierta` mira sólo `PENDIENTE` y
+  `PRECONFIRMADA`. Queda en *"Ya atendidas"* con su etiqueta gris *"Se venció
+  sin señar"*: historia intacta, ningún click, y quien vuelve manda el
+  formulario de nuevo. P56 había pedido *"una decisión: apartar de nuevo, o
+  descartar"* y el trigger de `V13` §4 no dejaba tomar ninguna de las dos — se
+  cerró la definición y no se probó la salida.

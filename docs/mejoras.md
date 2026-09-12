@@ -4858,7 +4858,385 @@ conoce `/api/solicitantes/{id}/inscripcion` ni `Pendientes.deudores`—,
 `npm run dev:platform` desde la raíz. `V30` ya está aplicada en la base de
 desarrollo. Todo commiteado, suites verdes, `tsc -b`, builds y linters limpios.
 
+## 17. La QUINTA barrida de correcciones — abierta el 2026-09-12
+
+> Ignacio la trajo el mismo día que cerró la §16, con la consigna de siempre:
+> *"analizar las correcciones y armar un plan de fases antes de arrancar"*.
+> **Nueve hallazgos**, todos de usar el circuito que la §16 acaba de construir
+> —la preinscripción, la seña, el buzón que inscribe— más dos de la agenda.
+> Ninguno cambia una política del negocio como pasó en §16; pero **uno es un
+> bug de regla** (la moneda de la seña) y **otro es una ficha que no tiene
+> salida** (la prereserva vencida), y los dos se verificaron contra la base de
+> desarrollo antes de escribir una línea.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-12)
+
+🟢 **ESTADO: DESTRABADA. Las cuatro ⏳ se contestaron el mismo día
+(`platform.md` §23, P73–P75) y la Fase 1 arrancó el 2026-09-12.** H3 creció con
+P73 (72 hs para la cabina, cancelación automática a las 3 semanas para los
+programas); el resto quedó como se adoptó.
+
+---
+
+### El triage
+
+| Grupo | Qué significa | Cuántos | Cuáles |
+|---|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo | **3** | H5 · H6 · H9 |
+| 🟡 **B** | Funcionalidad, sin tocar el schema | **5** | H1 · H2 · H3 · H7 · H8 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **1** | H4 (`V31`) |
+
+⚠️ **Dos de los puntos son más grandes que como llegaron, y conviene saberlo
+antes de estimar.** **H8** (*"un buscador arriba de las listas largas"*) no es
+comodidad: los seis `<select>` de personas cargan **la página 0 del listado,
+que son veinte filas** — con 36 cuentas en la base, dieciséis personas no
+existen para el formulario de pagos, el de la seña de una reserva ni el de Mix
+& Mastering, y nada avisa. **H4** (*"no salgo de Deudores"*) no es un bug de
+pantalla: es que **`V30` y Deudores tienen dos definiciones de "la seña
+entró"** — el trigger acepta un `SENADO` en cualquier moneda y Deudores cuenta
+sólo lo cobrado en la moneda del contrato.
+
+Y uno es **más chico**: **H9** (*"Duarte debía cinco cosas y me enteré de
+una"*) — el backend ya devuelve todas y la pantalla ya las pinta todas, una
+fila por deuda; lo que pasa es que las filas de una misma persona quedan
+lejos entre sí porque la lista ordena por fuente y antigüedad, no por
+persona. Es agruparlas, no buscarlas.
+
+---
+
+### Punto por punto — lo que se verificó en el código
+
+#### 🟡 H1 · "Lo próximo" sin ventana — agenda del profesor, Mis reservas y el Inicio
+
+**Verificado, y la §16 · A1 lo había dejado anotado**: *"lo que no da es el
+'desde siempre' literal: si la próxima clase está a seis semanas, ninguna de
+las dos la ve. Eso sería una consulta propia y pasa a grupo B."* Es este punto.
+
+Hoy `proxima` se calcula **sobre la ventana que la pantalla pidió**
+(`MiAgendaPagina.tsx:89`, `MisReservasPagina.tsx:101`, y el Inicio con
+`misReservas(hoy, hoy + 28)` en `InicioPagina.tsx:72`). Y **no se arregla
+agrandando la ventana**: el endpoint del alumno tiene techo de **62 días**
+(`PortalService.MAXIMO_DE_DIAS`), el del profesor de 366. *"A 3000 días"* no se
+puede ni pedir.
+
+**Lo que se hace**: una consulta propia, *"mi próxima"*, sin ventana — la
+primera reserva que ocupa su lugar (`OCUPAN_LA_SALA`) con fecha ≥ hoy, ordenada
+por fecha y hora. **Dos caminos, los que ya existen**: para el alumno,
+`ReservaRepository.deLaPersona` (participante o pagador, `V12`'s two paths);
+para el profesor, por `id_profesor`. Endpoints `GET /api/me/proxima` y
+`GET /api/me/profesor/proxima`, y **las tres pantallas leen de ahí** — la
+agenda sigue mostrando sus cuatro semanas, pero el cuadro de arriba ya no
+depende de ellas. El Inicio separa clase de alquiler (dos tarjetas), así que el
+endpoint del alumno acepta `?esClase=`.
+
+#### 🟡 H2 · El cuadro del profesor dice quiénes vienen, de qué nivel y por qué clase van
+
+**Verificado.** `ReservaResumen.participantes` ya trae nombre, apellido,
+`idInscripcion` y `disciplina` (`ParticipanteResumen`), pero **ni el nivel ni el
+número de clase**. `AlumnoDelProfesor.cursos[]` trae el nivel y las clases que
+quedan, pero no cuál es *esta*.
+
+**"Por qué clase van" es un ordinal dentro de la inscripción**: cuántas
+participaciones de esa inscripción hay con fecha y hora ≤ la de esta clase,
+contadas **con la misma definición que `contarClasesConsumidas`** (no
+canceladas, en reservas que ocupan su lugar) — si se contara distinto, el
+cuadro diría "clase 3" y el contador de clases restantes diría otra cosa. Se
+calcula en el backend, en la respuesta de H1 (`ProximaClase`: por cada alumno,
+nombre, nivel, *"clase 3 de 8"*), y `Proxima` gana un renglón por alumno. No se
+mete en `ParticipanteResumen` — ahí lo pagarían las 28×N filas del calendario
+para un dato que sólo pide el cuadro.
+
+#### 🟡 H3 · El portal del alumno no muestra la seña pendiente en "Lo que debo"
+
+**Verificado.** La tarjeta del Inicio lee `cuenta.saldos` (`InicioPagina.tsx:167`),
+y `saldos` se arma **sólo con filas de `pago`** en estado `DEBE`/`VENCIDO`
+(`PagoService.estadoDeCuenta`). Desde P72 la seña **no es una fila de pago**: es
+`precio_total − cobrado` sobre la inscripción. Así que un preinscripto ve
+*"Estás al día"* mientras Deudores lo lista como *"sin señar"* — dos pantallas
+diciendo lo contrario de la misma persona.
+
+**Lo que se hace**: **la misma cuenta que alimenta Deudores, acotada a la
+persona.** `PagoService.inscripcionesConPlataPendiente` se parte en una función
+que recibe las inscripciones a mirar, y `EstadoDeCuenta` gana `pendientes[]`
+(motivo, disciplina, importe, plazo) — el DTO compartido entre el estado de
+cuenta de administración y el del portal, así que **las dos lo ven igual**. La
+tarjeta lista *"Seña de Producción · $220.000 · hasta el 13/09 12:41"* y
+*"Resto de DJ · $85.000"*, y sólo si no hay nada dice *"Estás al día"*.
+
+⏳ → ✅ **P73 — y la respuesta cambió la pregunta.** Se preguntó qué pasa a las
+24 horas con la tarjeta, e Ignacio contestó con los plazos: **la cabina se
+cancela sola a las 72 hs** (era 24; `lajuanita.prereserva.horas`, P44 intacto),
+**el programa lo cancela Mica** (P61 intacto) **y a las tres semanas del alta se
+cancela solo** (`lajuanita.preinscripcion.cancelacion-dias`, default 21 — la
+**sexta regla del scheduler**, `PREINSCRIPTA → CANCELADA` por la escalera de
+`V30`, con aviso `PREINSCRIPCION_CANCELADA:i=<id>`). La tarjeta: la seña sigue
+visible entre las 24 hs y las tres semanas, marcada *"venció el 13/09 — hablá
+con el estudio"*, y desaparece con la cancelación. **Esto suma trabajo a H3**:
+el número de la cabina y sus tres textos, y la regla nueva del scheduler.
+
+#### 🔴 H4 · "Abono el resto y no salgo de Deudores" — la seña en otra moneda
+
+**Verificado con los datos, y no es intermitente: es la moneda.** La
+inscripción de Lawson Ignacio (`ignaciolawson0@gmail.com`) en Mentoría es la
+**13231: $200 ARS**. Sus tres pagos: **USD 100** (SENADO, la seña), **$100 ARS**
+(PAGADO), **USD 100** (PAGADO). Deudores cuenta *"sólo lo cobrado en la moneda
+del contrato"* (`contratosDe`, `inscripcionesConPlataPendiente`, la regla de
+§2.3 — el sistema nunca convierte), así que cobrado = $100 de $200 y el saldo
+es **$100 ARS**. Con Perez Urbizu anduvo porque los tres movimientos fueron en
+pesos. Ignacio pensó la mentoría en dólares (*"ponele que sale 200usd"*) y la
+inscripción nació en pesos: el catálogo (`programa.moneda`) dice ARS y el alta
+lo copia.
+
+**Pero el bug de fondo no es ése — es que el sistema se contradice a sí
+mismo.** `V30` §4 (c) activa la preinscripta con *un pago SENADO/PAGADO detrás*
+**sin mirar la moneda**, y `PagoService.registrar:306` la pasa a `ACTIVA` con
+la misma condición. Así que **la seña en USD activó una inscripción cuyo
+cobrado en su moneda era cero**: el estado dice "señada" y la aritmética dice
+"sin señar". Dos definiciones de un hecho — el patrón de `V12` (*"un conjunto
+escrito por lo que excluye parece el mismo que el escrito por lo que incluye, y
+no lo es"*), ahora entre el estado y la cuenta.
+
+⏳ **Pregunta — ¿un pago sobre una inscripción tiene que ser en la moneda del
+contrato?** Las dos salidas: **(a) prohibirlo** — un pago con `id_inscripcion`
+lleva la moneda de la inscripción, y el formulario la fija al elegir el curso
+(no se elige); o **(b) convertir** con la `cotizacionDolar` que el pago en USD
+ya carga. La (b) rompe §2.3 (*"un número que no corresponde a ninguna caja
+real"*) y todo lo que se apoya en ella. **Lectura adoptada: (a), como regla de
+la base** — un trigger sobre `pago` (`V31`), porque la regla que hoy falla es
+la de `V30` y una regla de la base sólo se cierra desde la base; el servicio la
+repite para el mensaje y `ManejadorDeErrores` la traduce. Si alguien paga en
+pesos un programa en dólares, **el contrato se carga en pesos**, al cambio del
+día, y el sistema sigue sin convertir nada.
+
+**Lo que hace `V31` además de la regla**: un `NOTICE` con las filas existentes
+que la violan (hay al menos tres: 7154, 7158, 7159), sin tocarlas — `V21` y
+`V23` no inventaron respaldo y esto no inventa cobros. **Y el dato de Ignacio
+se arregla sin migración**: editar la inscripción 13231 a USD (el formulario de
+edición ya lo permite) deja cobrado USD 200 de 200, y sale de Deudores sola.
+
+**Lo que se aprende**: `V30` se escribió mirando *que hubiera plata* (`V10`'s
+shape) y Deudores mirando *cuánta*; ninguno estaba mal solo. **Cuando dos
+capas responden la misma pregunta con dos consultas, probarlas con una moneda
+distinta es la prueba barata que las separa.**
+
+#### 🟢 H5 · El buzón pierde tres botones — "Escribirle", "Crearle la cuenta", "Ya se lo cargué"
+
+**Verificado.** *"Escribirle"* vive en `Telefono` (`SolicitantesPagina.tsx:1354`,
+§15 · Fase 1); *"Crearle la cuenta"* y *"Ya se lo cargué"* en la fila de
+acciones (`:403`, `:417`). Los dos últimos existían porque cuando se escribieron
+**no había camino de un click para curso ni para equipos** (el propio comentario
+lo dice: *"Para curso y equipos todavía no existe ese camino"*); la §16 lo
+construyó para curso.
+
+⚠️ **Para EQUIPOS no lo construyó, y ahí "Ya se lo cargué" es la única forma de
+cerrar la ficha**: la venta se carga en `/admin/ventas` y la ficha se cierra
+eligiéndola. Sin ese botón, una consulta de equipos sólo se puede descartar —
+y descartar una ficha que produjo una venta es mentir en el historial (la
+CHECK `solicitante_atendido_produjo_algo` distingue las dos cosas a propósito).
+
+⏳ **Pregunta**: ¿*"Ya se lo cargué"* se va del todo, o se queda **sólo donde
+no hay gemelo de un click** (EQUIPOS, y CURSO/CABINA si el catálogo o las salas
+no cargaron)? **Lectura adoptada: se queda sólo ahí**, como botón secundario.
+La alternativa completa —*"Venderle"*, el tercer gemelo, venta + ficha cerrada
+en un movimiento— es un punto de grupo B para otra barrida; se anota.
+
+*"Escribirle"* se va sin condición: el WhatsApp con el mensaje entero ya está
+en el bloque de resultado. *"Crearle la cuenta"* se va **de la fila de
+acciones** — la cuenta la crea el alta — pero ⚠️ **no puede desaparecer del
+todo mientras exista "Ya se lo cargué"**: el panel de cerrar busca los
+candidatos por `id_usuario` y a una ficha sin cuenta le dice *"creale la cuenta
+primero"* (`:1240`) — sin el botón, eso es una instrucción sin cómo. Pasa a
+vivir **adentro de ese panel**, sólo en esa rama.
+
+#### 🟢 H6 · El resultado de "Preinscribir" aparece donde estaba el formulario
+
+**Verificado.** Los tres bloques de resultado (`CabinaLista`, `InscripcionLista`,
+`CuentaLista`) se pintan **arriba de la lista** (`SolicitantesPagina.tsx:292-310`);
+el formulario está adentro de la tarjeta, que con veinte fichas queda a una
+pantalla de distancia. Se aprieta *"Preinscribir"*, la tarjeta se cierra y el
+mensaje con la seña, el plazo y la contraseña quedó arriba sin que nada lo diga.
+
+⚠️ **Y hay una razón por la que estaba arriba**: al inscribir, la ficha pasa a
+`ATENDIDO`, la lista se recarga y **la tarjeta desaparece del filtro por
+defecto** — no hay "en el lugar del formulario" donde dejarlo. **Lo que se
+hace**: el resultado **reemplaza al formulario adentro de la tarjeta**, y la
+recarga se difiere hasta que se cierra el resultado (*"Listo"*). Aplica a los
+dos que quedan (cabina e inscripción; `CuentaLista` se va con H5).
+
+#### 🟡 H7 · Las fichas que se vencieron sin señar no tienen salida
+
+**Verificado, y es peor que "se acumulan": están trabadas.** Una ficha con la
+cabina apartada cuya prereserva venció queda `ATENDIDO` con `reserva.estado =
+CANCELADA`. `FichaAbierta` la cuenta como **abierta** (P56: *"necesita una
+decisión: apartar de nuevo, o descartar"*), la pantalla le pone *"Se venció sin
+señar"*… **y no le ofrece ningún botón**, porque las acciones se dibujan sólo
+con `estado === 'PENDIENTE'` (`:358`). Y aunque se ofreciera, **el trigger
+`solicitante_resuelto_es_final` (`V13` §4) rechaza cualquier UPDATE sobre una
+ficha resuelta**: ni descartarla ni apartarle de nuevo. Las fichas 699 y 700 de
+la base de desarrollo están así hoy. P56 pidió una decisión y no
+dejó cómo tomarla.
+
+⚠️ **La preinscripción NO tiene este problema, y es asimetría a propósito**: la
+inscripción cierra la ficha en el acto (`FichaAbierta` sólo mira `s.reserva`),
+y la preinscripta vencida vive en Deudores como *"sin señar · venció"* hasta que
+Mica cobra o cancela (P61). Lo que Ignacio ve acumularse son cabinas.
+
+**Dos salidas**, y son sus dos opciones textuales:
+- **(a) "descartalos solos"** — `FichaAbierta` deja de contar la prereserva
+  `CANCELADA` como abierta. La ficha queda en *"Ya atendidas"* con la etiqueta
+  gris *"Se venció sin señar"*: historia intacta, nadie tiene que hacer nada, y
+  quien quiera volver manda el formulario de nuevo (que es lo que el trigger
+  dice en su propio mensaje: *"se pide de nuevo"*). El aviso de prereserva
+  vencida (P57) ya le avisó a administración. **Sin migración; reabre P56.**
+- **(b) "dejales el botón de descartar"** — `V31` afloja el trigger para
+  `ATENDIDO → DESCARTADO` sólo cuando lo producido murió, y aparece el botón.
+  Una migración más, un click más por ficha, y el descarte pide un motivo que
+  en el 100% de los casos va a decir *"se venció"*.
+
+**Lectura adoptada: (a).** Es grupo B. Se documenta en `platform.md` como P73
+porque cambia lo que P56 decidió.
+
+#### 🟡 H8 · Las listas de personas son buscadores — y hoy muestran veinte
+
+**Verificado, y es un bug que nadie reportó porque no falla.** Seis `<select>`
+cargan `pagina: 0` y se quedan con `contenido`: alumnos y personas en Pagos
+(`PagosPagina.tsx:892`, `:932`), alumnos del participante y personas de la
+seña en el calendario (`CalendarioPagina.tsx:623`, `:949`), cliente y pagador
+en Mix & Mastering (`MixMasteringPagina.tsx:328`, `:859`). El listado pagina de
+a **veinte** (`Pagina.TAMANIO_POR_DEFECTO`). La base tiene 36 cuentas y 14
+alumnos: **hoy dieciséis personas no se pueden elegir como pagador**, y el día
+que haya ochenta alumnos serán sesenta. `BuscadorDePersonas` lo describe en su
+propia cabecera como el modo de falla que existe para evitar: *"mostraría los
+primeros veinte y diría que el resto no existe."*
+
+**Lo que se hace**: los seis pasan a los buscadores que ya existen —
+`BuscadorDePersonas` para cuentas (§14 · B2) y `SelectorDeAlumno`, que hoy es
+privado de `InscripcionesPagina`, **sale a `componentes/`** para los tres de
+alumnos. Buscan contra el servidor, que es lo que pagina. Los de profesores y
+salas no cambian: están acotados por la nómina, no por el negocio.
+
+#### 🟢 H9 · Deudores, agrupado por persona
+
+**Verificado, y la lista ya trae todo**: el endpoint devuelve una fila por deuda
+anotada (persona × moneda) más una por inscripción con saldo, y la pantalla las
+pinta todas — Benítez Sofía aparece hoy dos veces, con DJ y con Mentoría. Lo
+que Ignacio vio es el **orden**: las anotadas primero por antigüedad, después
+los programas por fecha de alta, así que las deudas de una persona quedan
+separadas por diez filas de otros. Se paga una, la de al lado desaparece, y la
+otra —que siempre estuvo— parece recién llegada.
+
+**Lo que se hace**: **una fila por persona**, con todo lo que debe adentro
+(cada deuda con su motivo, importe y plazo) y un total por moneda; la persona
+se ordena por su deuda más vieja. El encabezado dice *"5 personas · 8
+deudas"*. El contador del sidebar (`Pendientes.deudores`) sigue contando deudas,
+que es lo que hay que ir a cobrar. Sin backend.
+
+---
+
+### Las cuatro preguntas — con la lectura adoptada
+
+**Contestadas el mismo día — `platform.md` §23, P73–P75.**
+
+| # | Pregunta | Respuesta |
+|---|---|---|
+| H3 | A las 24 hs, ¿la seña pendiente sigue en "Lo que debo" o desaparece? | **P73**: cabina 72 hs y se cancela sola; programa lo cancela Mica y a las 3 semanas solo; la tarjeta la muestra *vencida* hasta entonces |
+| H4 | ¿Un pago sobre una inscripción va en la moneda del contrato (`V31`), o se convierte? | **P74**: se prohíbe, regla de la base |
+| H5 | *"Ya se lo cargué"*: ¿se va del todo, o queda sólo donde no hay botón de un click? | **P75**: queda sólo ahí; *"Crearle la cuenta"* vive adentro del panel de cerrar |
+| H7 | Las cabinas vencidas sin señar: ¿dejan de estar abiertas solas o ganan *Descartar* (`V31`)? | **P75**: solas — reabre P56 |
+
+---
+
+### El plan por fases
+
+**Tres fases, A → B → C.** Cada fase termina con las seis verificaciones en
+verde (`mvn test`, `pruebas-sql.sh`, vitest, `tsc -b`, los dos builds, los dos
+linters) y **cada punto se cierra por separado**.
+
+⚠️ **Una migración, `V31`, y la del admin sembrado se corre por SEXTA vez**: ya
+no es `V31`. Va a ser `V32`. No la anotes con número.
+
+#### Fase 1 · Grupo A — H5 · H6 · H9
+
+- **H5** — se van *"Escribirle"* y *"Crearle la cuenta"*; *"Ya se lo cargué"*
+  queda sólo donde no hay gemelo de un click (⏳). Los casos que buscaban los
+  tres botones se reescriben.
+- **H6** — el resultado reemplaza al formulario **adentro de la tarjeta** y la
+  recarga espera al *"Listo"*. Caso nuevo: después de preinscribir, la tarjeta
+  sigue en pantalla con la seña, el plazo y la clave; al cerrar, se va.
+- **H9** — `DeudoresPagina` agrupa por persona (id de usuario, o nombre para el
+  externo): una fila, sus deudas adentro, total por moneda, ordenada por la más
+  vieja. Encabezado *"N personas · M deudas"*. Los casos que contaban filas
+  cuentan personas o deudas según lo que afirman.
+
+#### Fase 2 · Grupo B — H1 + H2 · H3 · H7 · H8
+
+- **H1 + H2, juntos** porque es un endpoint: `GET /api/me/proxima[?esClase=]` y
+  `GET /api/me/profesor/proxima`, sin ventana, la primera reserva que ocupa su
+  lugar desde hoy. La del profesor viene con sus alumnos: nombre, nivel y
+  *"clase N de M"* (N con la definición de `contarClasesConsumidas`; M es
+  `clasesContratadas`). Mi agenda, Mis reservas y las tres tarjetas del Inicio
+  leen de ahí; `Proxima` gana el renglón por alumno. Casos en pares (PortalTest
+  / DocenciaTest): la mía y la del vecino, y una a 90 días que la ventana no ve.
+- **H3** — `EstadoDeCuenta.pendientes[]` desde la función que alimenta Deudores,
+  acotada a la persona; la tarjeta del Inicio y `DetalleDeCuenta` la listan,
+  la vencida marcada. **Más P73**: `lajuanita.prereserva.horas` a 72 con sus
+  tres textos, y la sexta regla del scheduler —la preinscripta con más de
+  `cancelacion-dias` (21) desde el alta pasa a `CANCELADA` y avisa— con su
+  caso en `AvisoTest` y la clave por hecho.
+- **H7** — `FichaAbierta` deja de contar la prereserva `CANCELADA` (P75). Las
+  fichas 699 y 700 salen solas. El caso que pineaba
+  *"vencida sigue abierta"* se invierte, y uno nuevo pinea que el contador y la
+  lista siguen de acuerdo.
+- **H8** — `SelectorDeAlumno` sale a `componentes/`; los seis `<select>` pasan a
+  los buscadores. **Caso que pone el bug de vuelta**: una persona en la página 2
+  del listado tiene que ser elegible.
+
+#### Fase 3 · Grupo C — H4 (`V31`)
+
+- **`V31__el_pago_de_un_programa_va_en_su_moneda.sql`**: trigger `BEFORE INSERT
+  OR UPDATE` sobre `pago` — con `id_inscripcion`, `moneda` = la de la
+  inscripción; mensaje propio para `ManejadorDeErrores`. `NOTICE` con las filas
+  existentes que no cumplen, sin tocarlas. Caso 'FALLA' con `probar_mensaje` en
+  las dos suites, y uno 'ANDA' con la moneda correcta.
+- `PagoService.registrar` lo verifica antes (el 409 con el texto de la regla) y
+  **el formulario de Pagos fija la moneda al elegir el curso**; el de la seña
+  del alta ya la manda igual que la inscripción.
+- Deudores y el estado de cuenta muestran *"cobrado en otra moneda: USD 200"*
+  en las filas viejas que lo tengan, para que la 13231 y las como ella se
+  entiendan hasta que se corrijan.
+- **La 13231 se corrige a mano**: editar la inscripción a USD. No es migración.
+
+---
+
+### Lo que esta barrida ya enseñó, antes de ejecutar nada
+
+- **Una regla escrita mirando *que haya* no es la misma que la escrita mirando
+  *cuánto*.** `V30` preguntó si había un pago; Deudores cuánto había en la
+  moneda del contrato. Ninguna estaba mal sola, y juntas dejaron una
+  inscripción activa con cobrado cero. **Probar con la otra moneda** es la
+  prueba de un minuto que las separa, y no se hizo.
+- **Una decisión que pide "una decisión" tiene que dejar el botón.** P56 dijo
+  que la cabina vencida *"necesita una decisión: apartar de nuevo, o
+  descartar"* y el trigger de `V13` §4 impide las dos. Se cerró la definición
+  de "abierta" y no se probó la salida. Un caso que afirme *"de esta ficha se
+  sale"* la hubiera encontrado el mismo día.
+- **`pagina: 0` sin paginar es un listado que miente a los veintiuno.**
+  Seis veces en tres pantallas, ninguna con error. El componente que lo evita
+  existía desde §14 con la advertencia escrita en su cabecera.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
+
+🟡 **LA QUINTA BARRIDA (§17) ESTÁ ABIERTA desde el 2026-09-12, el mismo día
+que cerró la §16: nueve hallazgos, analizados y verificados en código y en la
+base de desarrollo, con el plan por fases armado y NADA ejecutado.** Leer la
+§17 primero: tres fases (A: H5 · H6 · H9 → B: H1+H2 · H3 · H7 · H8 → C: H4,
+`V31`), **las cuatro ⏳ contestadas** (`platform.md` §23, P73–P75 — y P73
+agrandó H3: 72 hs para la cabina, cancelación sola a las 3 semanas para el
+programa), y tres cosas que ya enseñó. ⚠️ Si H4 va a la base, **la migración del admin
+sembrado se corre por SEXTA vez: `V32`**. Lo que sigue abajo es el estado en
+que la §16 dejó todo, y sigue siendo cierto.
 
 ✅ **LA CUARTA BARRIDA (§16) ESTÁ CERRADA: once de doce el 2026-09-12** — las
 Fases 0 a 4 el 2026-09-11, la 5 y la 6 el 2026-09-12; el doceavo (B2 2.1, grupos
@@ -4928,8 +5306,8 @@ landing genera **20 páginas** desde A7. **Vuelve a ser cierto que no queda
 producto por construir** — hasta la próxima barrida. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. ~~**La §16**~~ — cerrada el 2026-09-12. Lo que dejó para la siguiente: grupos de a 3, el precio de las reservas, la deuda viva del tablero.
-2. **Desactivar el admin sembrado**, ahora `V31`.
+1. **La §17**, abierta el 2026-09-12 — nueve hallazgos, plan armado, nada ejecutado. (La §16 cerró ese mismo día; lo que dejó para más adelante sigue pendiente: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)
+2. **Desactivar el admin sembrado**, ahora `V31` — o `V32` si la §17 escribe la suya.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 
 ⚠️ **Y una cosa que la §15 dejó anotada y la §16 agrava** (`platform.md` §21 ·
