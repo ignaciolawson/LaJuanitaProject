@@ -34,8 +34,11 @@ vi.mock('../api/administracion', () => ({
   listarSolicitantes: vi.fn(),
   candidatosDeLaFicha: vi.fn(),
   apartarleLaCabina: vi.fn(),
+  inscribirDesdeElBuzon: vi.fn(),
   listarSalas: vi.fn(),
   listarTiposUso: vi.fn(),
+  listarProgramas: vi.fn(),
+  listarProfesores: vi.fn(),
   darleCuentaAlSolicitante: vi.fn(),
   atenderSolicitante: vi.fn(),
   descartarSolicitante: vi.fn(),
@@ -45,8 +48,11 @@ const {
   listarSolicitantes,
   candidatosDeLaFicha,
   apartarleLaCabina,
+  inscribirDesdeElBuzon,
   listarSalas,
   listarTiposUso,
+  listarProgramas,
+  listarProfesores,
   darleCuentaAlSolicitante,
   atenderSolicitante,
   descartarSolicitante,
@@ -76,6 +82,7 @@ function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
     disciplina: null,
     experiencia: null,
     modalidad: null,
+    nivelSugerido: null,
     fechaResolucion: null,
     fechaCreacion: '2026-08-28T10:00:00-03:00',
     ...cambios,
@@ -215,6 +222,32 @@ beforeEach(() => {
   vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
   vi.mocked(listarSalas).mockResolvedValue([SALA])
   vi.mocked(listarTiposUso).mockResolvedValue([USO_CABINA])
+  vi.mocked(listarProgramas).mockResolvedValue([
+    {
+      idPrograma: 1,
+      disciplina: 'DJ',
+      nombre: 'Convertite en DJ',
+      descripcion: null,
+      precio: 170000,
+      moneda: 'ARS',
+      cobro: 'PAQUETE',
+      clasesEstandar: 8,
+      duracionMinutos: 90,
+      activo: true,
+    },
+  ])
+  vi.mocked(listarProfesores).mockResolvedValue([
+    {
+      idProfesor: 3,
+      idUsuario: 30,
+      nombre: 'Tomás',
+      apellido: 'Ghezzi',
+      nombreCompleto: 'Tomás Ghezzi',
+      email: 'tomas@lajuanita.local',
+      especialidad: null,
+      activo: true,
+    },
+  ])
   vi.mocked(listarSolicitantes).mockResolvedValue({
     contenido: [ficha()],
     pagina: 0,
@@ -626,11 +659,98 @@ describe('escribirle por WhatsApp', () => {
    * camino equivalente —cargar la inscripción— todavía se hace en su pantalla, y
    * ponerle el nombre del trabajo sin hacer el trabajo sería un botón que miente.
    */
-  it('una ficha de curso no ofrece apartar', async () => {
+  it('una ficha de curso no ofrece apartar, ofrece inscribir', async () => {
     montar()
 
     expect(await screen.findByRole('button', { name: 'Crearle la cuenta' })).toBeDefined()
     expect(screen.queryByRole('button', { name: /Apartarle/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Inscribirlo' })).toBeDefined()
+  })
+
+  // == Inscribir desde la ficha: el gemelo de apartar (Fase 6) ==============
+
+  /**
+   * ⚠️ El formulario arranca de lo que la persona contó en la web y del
+   * catálogo (P64 · P66): el programa, el nivel sugerido desde la experiencia,
+   * el precio. Y **no pide seña**: lo que manda es una preinscripción, con el
+   * 50% dicho en pantalla para que quien atiende sepa qué va a escribir.
+   */
+  it('inscribe desde la ficha, prellenado desde lo que pidió y el catálogo', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ disciplina: 'DJ', experiencia: 'TOCA', nivelSugerido: 'INTERMEDIO' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(inscribirDesdeElBuzon).mockResolvedValue({
+      ficha: ficha({ estado: 'ATENDIDO', idInscripcion: 77, idUsuario: 40 }),
+      inscripcion: {
+        idInscripcion: 77,
+        idAlumno: 5,
+        idUsuario: 40,
+        nombre: 'Camila',
+        apellido: 'Ríos',
+        email: 'camila@ejemplo.com',
+        idProfesor: 3,
+        profesor: 'Tomás Ghezzi',
+        disciplina: 'DJ',
+        nivel: 'INTERMEDIO',
+        clasesContratadas: 8,
+        clasesConsumidas: 0,
+        clasesRestantes: 8,
+        precioTotal: 170000,
+        moneda: 'ARS',
+        cotizacionDolar: null,
+        fechaInicio: null,
+        estado: 'PREINSCRIPTA',
+        vencePreinscripcion: '2026-09-13T10:00:00-03:00',
+        notas: null,
+      },
+      usuario: conversion().usuario,
+      passwordTemporal: 'A7K2M9',
+      cuentaNueva: true,
+      senia: 85000,
+      moneda: 'ARS',
+      vence: '2026-09-13T10:00:00-03:00',
+    })
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Inscribirlo' }))
+
+    expect(screen.getByLabelText('Programa')).toHaveProperty('value', 'DJ')
+    expect(screen.getByLabelText('Nivel')).toHaveProperty('value', 'INTERMEDIO')
+    expect(screen.getByLabelText('Precio total')).toHaveProperty('value', '170000')
+    expect(screen.getByText(/tiene 24 horas para señar el 50%/)).toBeDefined()
+
+    await elegir(user, 'Profesor', '3')
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+
+    await waitFor(() => expect(inscribirDesdeElBuzon).toHaveBeenCalled())
+    expect(vi.mocked(inscribirDesdeElBuzon).mock.calls[0]).toEqual([
+      3,
+      {
+        disciplina: 'DJ',
+        nivel: 'INTERMEDIO',
+        idProfesor: 3,
+        clasesContratadas: 8,
+        precioTotal: 170000,
+        moneda: 'ARS',
+        fechaInicio: undefined,
+        notas: undefined,
+      },
+    ])
+
+    // El panel: la seña, el plazo, la clave, y UN WhatsApp con todo (P71).
+    expect(await screen.findByText(/preinscripto a DJ/)).toBeDefined()
+    expect(screen.getByText('A7K2M9')).toBeDefined()
+    const link = screen.getByRole('link', { name: /Avisarle por WhatsApp, con la clave/ })
+    const mensaje = decodeURIComponent(link.getAttribute('href')!)
+    expect(mensaje).toContain('Te anotamos en DJ con Tomás Ghezzi')
+    expect(mensaje).toContain('85.000')
+    expect(mensaje).toContain('13/09/2026 10:00')
+    expect(mensaje).toContain('A7K2M9')
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================

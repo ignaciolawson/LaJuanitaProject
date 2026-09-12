@@ -74,23 +74,38 @@ export function MisCursosPagina() {
               ) : undefined
             }
           >
-            {/* El número grande es LO QUE FALTA y no lo que se hizo: la
-                pregunta con la que un alumno entra acá es "¿cuánto me queda?".
-                Lo tomado va abajo, chico, porque es el contexto de esa cifra. */}
-            <p className="t-dato">{c.clasesRestantes}</p>
-            <p className="mt-1 text-sm text-tenue">
-              {c.clasesRestantes === 1 ? 'clase por delante' : 'clases por delante'}
-            </p>
+            {c.estado === 'PREINSCRIPTA' ? (
+              /* Una preinscripta no cursa (`V30`): un progreso en cero diría
+                 "te quedan 8" a alguien que todavía no tiene el lugar. Se dice lo
+                 que falta, que es la seña, y qué pasa cuando entre. */
+              <>
+                <p className="t-dato">Preinscripto</p>
+                <p className="mt-1 text-sm text-tenue">falta la seña</p>
+                <p className="mt-4 text-xs text-tenue">
+                  Cuando entre la seña, tu lugar queda confirmado y el curso arranca acá.
+                </p>
+              </>
+            ) : (
+              <>
+                {/* El número grande es LO QUE FALTA y no lo que se hizo: la
+                    pregunta con la que un alumno entra acá es "¿cuánto me queda?".
+                    Lo tomado va abajo, chico, porque es el contexto de esa cifra. */}
+                <p className="t-dato">{c.clasesRestantes}</p>
+                <p className="mt-1 text-sm text-tenue">
+                  {c.clasesRestantes === 1 ? 'clase por delante' : 'clases por delante'}
+                </p>
 
-            <Progreso
-              className="mt-5"
-              hechas={c.clasesConsumidas}
-              total={c.clasesContratadas}
-            />
+                <Progreso
+                  className="mt-5"
+                  hechas={c.clasesConsumidas}
+                  total={c.clasesContratadas}
+                />
 
-            <p className="mt-2.5 text-xs text-tenue">
-              Tomaste {c.clasesConsumidas} de {c.clasesContratadas}
-            </p>
+                <p className="mt-2.5 text-xs text-tenue">
+                  Tomaste {c.clasesConsumidas} de {c.clasesContratadas}
+                </p>
+              </>
+            )}
 
             <p className="mt-4 border-t border-linea pt-3 text-xs text-tenue">
               {c.nivel ? capitalizar(c.nivel) : 'Sin nivel asignado'}

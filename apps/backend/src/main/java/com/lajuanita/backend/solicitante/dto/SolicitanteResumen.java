@@ -5,6 +5,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.solicitante.EstadoSolicitante;
@@ -78,6 +79,13 @@ public record SolicitanteResumen(
         Experiencia experiencia,
         Modalidad modalidad,
 
+        /**
+         * Con qué nivel arranca el alta desde el buzón (P64): la traducción de
+         * {@code experiencia} hecha por el servidor, para que la tabla viva en un
+         * solo lugar ({@code Experiencia#nivelSugerido}). Null sin experiencia.
+         */
+        Nivel nivelSugerido,
+
         OffsetDateTime fechaResolucion,
         OffsetDateTime fechaCreacion) {
 
@@ -109,6 +117,7 @@ public record SolicitanteResumen(
                 ficha.getDisciplina(),
                 ficha.getExperiencia(),
                 ficha.getModalidad(),
+                ficha.getExperiencia() == null ? null : ficha.getExperiencia().nivelSugerido(),
                 ficha.getFechaResolucion(),
                 ficha.getFechaCreacion());
     }

@@ -21,6 +21,7 @@ import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.pago.PagoRepository;
 import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.pago.dto.MotivoDeDeuda;
 import com.lajuanita.backend.sello.Release;
 import com.lajuanita.backend.sello.ReleaseRepository;
 import com.lajuanita.backend.solicitante.EstadoSolicitante;
@@ -148,11 +149,12 @@ public class AvisoService {
         int entregas = agregarEntregasImpagas(pendientes, limite, hoy);
         int lanzamientos = agregarLanzamientosProximos(pendientes, hoy);
         int sinContestar = agregarFichasSinContestar(pendientes);
+        int preinscripciones = agregarPreinscripcionesVencidas(pendientes, hoy);
 
         int[] escritos = escribir(pendientes);
 
         return new ResumenDeAvisos(hoy, vencidos, deudas, entregas, lanzamientos,
-                sinContestar, escritos[0], escritos[1]);
+                sinContestar, preinscripciones, escritos[0], escritos[1]);
     }
 
     // == Las cuatro reglas ===================================================
@@ -170,7 +172,13 @@ public class AvisoService {
      * contradecir a `V9` §5.
      */
     private int agregarDeudasVencidas(List<Aviso> pendientes, LocalDate hoy) {
-        List<Deudor> vencidos = pagoService.deudores().stream().filter(Deudor::vencido).toList();
+        // Sólo las anotadas: desde P72 la lista trae también inscripciones con
+        // plata pendiente, y las preinscriptas vencidas tienen su propia regla
+        // abajo — con su propia clave, por inscripción y no por persona.
+        List<Deudor> vencidos = pagoService.deudores().stream()
+                .filter(d -> d.motivo() == MotivoDeDeuda.DEUDA_ANOTADA)
+                .filter(Deudor::vencido)
+                .toList();
 
         for (Deudor deudor : vencidos) {
             // Desde `V19` un deudor puede no tener cuenta, y entonces `apellido` es
@@ -208,6 +216,36 @@ public class AvisoService {
                             : "/admin/deudores"));
         }
         return vencidos.size();
+    }
+
+    /**
+     * P61 · P72 — la preinscripción venció sin la seña. La quinta regla.
+     *
+     * <p>Lee <b>la misma lista que Deudores</b>, como la de deudas: la
+     * preinscripta vencida es la fila {@code SIN_SENIAR} con {@code vencido}. La
+     * clave es la inscripción —una preinscripción vence una sola vez— y el aviso
+     * dice cuánto hace, porque lo que Mica decide con eso es si llama o cancela.
+     * <b>No cancela</b>: no hay cupo, no hay nada que devolver.
+     */
+    private int agregarPreinscripcionesVencidas(List<Aviso> pendientes, LocalDate hoy) {
+        List<Deudor> vencidas = pagoService.deudores().stream()
+                .filter(d -> d.motivo() == MotivoDeDeuda.SIN_SENIAR)
+                .filter(Deudor::vencido)
+                .toList();
+
+        for (Deudor d : vencidas) {
+            long horas = ChronoUnit.HOURS.between(d.vence(), java.time.OffsetDateTime.now());
+            pendientes.add(new Aviso(
+                    TipoNotificacion.PREINSCRIPCION_VENCIDA,
+                    "PREINSCRIPCION_VENCIDA:i=%d".formatted(d.idInscripcion()),
+                    "Preinscripción sin señar: " + d.nombre() + " " + d.apellido(),
+                    "%s %s se anotó a %s y pasaron %d horas del plazo sin la seña (%s %s). "
+                            + "No se cancela sola: llamalo, y cobrá o cancelá."
+                            .formatted(d.nombre(), d.apellido(), d.disciplina(), horas,
+                                    d.moneda(), plata(d.adeudado())),
+                    "/admin/inscripciones"));
+        }
+        return vencidas.size();
     }
 
     /**

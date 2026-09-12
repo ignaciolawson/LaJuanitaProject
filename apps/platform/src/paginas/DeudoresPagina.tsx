@@ -3,10 +3,11 @@ import { Link } from 'react-router'
 
 import { listarDeudores } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import { DIAS_PARA_VENCER, type Deudor } from '../api/tiposAdmin'
+import { type Deudor, NOMBRE_DE_MOTIVO } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { antiguedad, importe } from '../componentes/dinero'
+import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { fecha } from '../componentes/semana'
@@ -49,6 +50,7 @@ export function DeudoresPagina() {
   }, [cargar])
 
   const vencidos = deudores.filter((d) => d.vencido).length
+  const sinSeniar = deudores.filter((d) => d.motivo === 'SIN_SENIAR').length
 
   return (
     <div>
@@ -58,8 +60,9 @@ export function DeudoresPagina() {
             ? 'Cargando…'
             : deudores.length === 0
               ? 'Nadie debe nada'
-              : `${deudores.length} ${deudores.length === 1 ? 'deuda' : 'deudas'}` +
-                (vencidos > 0 ? ` · ${vencidos} de más de ${DIAS_PARA_VENCER} días` : '')}</>}
+              : `${deudores.length} ${deudores.length === 1 ? 'pendiente' : 'pendientes'}` +
+                (vencidos > 0 ? ` · ${vencidos} ${vencidos === 1 ? 'vencido' : 'vencidos'}` : '') +
+                (sinSeniar > 0 ? ` · ${sinSeniar} sin señar` : '')}</>}
       />
 
       {error && (
@@ -68,13 +71,15 @@ export function DeudoresPagina() {
         </div>
       )}
 
-      <Tabla columnas={['Quién', 'Contacto', { etiqueta: 'Debe', alineacion: 'derecha' }, 'Desde']}>
+      <Tabla columnas={['Quién', 'Contacto', 'Por qué', { etiqueta: 'Debe', alineacion: 'derecha' }, 'Desde']}>
             {deudores.map((d) => (
               // La clave lleva la moneda: quien debe en las dos aparece dos
               // veces, y son dos deudas distintas que se reclaman por separado.
               // Sin cuenta no hay id, así que la clave lleva el nombre: dos
               // deudores externos distintos no pueden colapsar en la misma fila.
-              <tr key={`${d.idUsuario ?? d.nombre}-${d.moneda}`}>
+              // Y la inscripción, desde P72: la misma persona puede tener una
+              // deuda anotada y un programa sin señar.
+              <tr key={`${d.idUsuario ?? d.nombre}-${d.moneda}-${d.idInscripcion ?? 'pago'}`}>
                 <Celda>
                   {/* **El deudor sin cuenta entra igual, pero no se linkea.**
                       Aparece porque una deuda que no está en esta pantalla es una
@@ -95,9 +100,11 @@ export function DeudoresPagina() {
                     </Link>
                   )}
                   <div className="text-xs text-tenue">
-                    {d.cantidadDePagos === 1
-                      ? '1 pago pendiente'
-                      : `${d.cantidadDePagos} pagos pendientes`}
+                    {d.motivo !== 'DEUDA_ANOTADA'
+                      ? `Programa de ${NOMBRE_DE_DISCIPLINA[d.disciplina!]}`
+                      : d.cantidadDePagos === 1
+                        ? '1 pago pendiente'
+                        : `${d.cantidadDePagos} pagos pendientes`}
                   </div>
                 </Celda>
                 <Celda className="text-tenue">
@@ -108,10 +115,15 @@ export function DeudoresPagina() {
                   {d.telefono ?? <span className="text-apagado">Sin teléfono</span>}
                   {d.email && <div className="text-xs">{d.email}</div>}
                 </Celda>
+                <Celda>
+                  <PorQue deudor={d} />
+                </Celda>
                 <Celda numerica className="whitespace-nowrap font-medium">
                   {importe(d.adeudado, d.moneda)}
                 </Celda>
                 <Celda className="whitespace-nowrap">
+                  {/* El saldo de un programa no tiene reloj (P72): se dice desde
+                      cuándo, nunca "vencido". */}
                   <span className={d.vencido ? 'font-medium text-acento' : 'text-tenue'}>
                     {antiguedad(d.diasDeAtraso)}
                   </span>
@@ -124,10 +136,33 @@ export function DeudoresPagina() {
                 ve qué columnas hay y que ninguna tiene filas. Sueltos, no se
                 distingue "no hay deudas" de "filtré de más" ni de "no cargó". */}
             {!cargando && deudores.length === 0 && (
-              <FilaVacia columnas={4}>No hay deudas anotadas. Todo al día.</FilaVacia>
+              <FilaVacia columnas={5}>Nadie debe nada. Todo al día.</FilaVacia>
             )}
           </Tabla>
 
     </div>
   )
+}
+
+/**
+ * De qué se trata cada fila (P72). Deudores tiene dos fuentes desde la §16 ·
+ * Fase 6, y sin esto una preinscripta sin señar y una deuda anotada se leen
+ * igual — y son dos llamados distintos. **La preinscripta dice su plazo**, que
+ * es lo que decide si hay que llamar; el saldo no dice ninguno porque no lo
+ * tiene: se paga antes de empezar, cuando sea.
+ */
+function PorQue({ deudor }: { deudor: Deudor }) {
+  if (deudor.motivo === 'SIN_SENIAR' && deudor.vence) {
+    return (
+      <>
+        <span className={deudor.vencido ? 'font-medium text-acento' : ''}>
+          {NOMBRE_DE_MOTIVO.SIN_SENIAR}
+        </span>
+        <div className="text-xs text-tenue">
+          {deudor.vencido ? `Venció el ${cuando(deudor.vence)}` : `Hasta el ${cuando(deudor.vence)}`}
+        </div>
+      </>
+    )
+  }
+  return <span className={deudor.motivo === 'DEUDA_ANOTADA' ? '' : 'text-tenue'}>{NOMBRE_DE_MOTIVO[deudor.motivo]}</span>
 }

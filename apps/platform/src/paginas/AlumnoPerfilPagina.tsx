@@ -169,8 +169,19 @@ export function AlumnoPerfilPagina() {
                     mismo razonamiento de §3.3 con el estado de pago — un número
                     único de algo que vive abajo miente. */}
                 <Celda className="whitespace-nowrap">
-                  <div className="font-medium">{`${i.clasesRestantes} de ${i.clasesContratadas}`}</div>
-                  <div className="text-xs text-tenue">clases restantes</div>
+                  {i.estado === 'PREINSCRIPTA' ? (
+                    /* No cursa todavía (`V30`): "8 de 8 restantes" diría que tiene
+                       un curso, y lo que tiene es un lugar sin señar. */
+                    <>
+                      <div className="font-medium text-acento">Falta la seña</div>
+                      <div className="text-xs text-tenue">{i.clasesContratadas} clases al confirmar</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-medium">{`${i.clasesRestantes} de ${i.clasesContratadas}`}</div>
+                      <div className="text-xs text-tenue">clases restantes</div>
+                    </>
+                  )}
                 </Celda>
                 <Celda className="whitespace-nowrap text-tenue">
                   {i.fechaInicio ? fecha(i.fechaInicio) : <span className="text-apagado">A acordar</span>}

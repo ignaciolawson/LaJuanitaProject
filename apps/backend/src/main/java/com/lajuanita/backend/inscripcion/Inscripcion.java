@@ -7,6 +7,9 @@ import java.time.OffsetDateTime;
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.profesor.Profesor;
 
+import org.hibernate.annotations.Generated;
+import org.hibernate.generator.EventType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -145,7 +148,16 @@ public class Inscripcion {
         return estado == EstadoInscripcion.PREINSCRIPTA;
     }
 
-    /** La escribe el DEFAULT de la base, no la aplicación. */
+    /**
+     * La escribe el DEFAULT de la base, no la aplicación.
+     *
+     * <p>{@code @Generated} y no sólo {@code insertable = false}: desde P72
+     * Deudores la lee (<i>"desde cuándo"</i> de una inscripción con saldo) en la
+     * misma transacción que la creó, y sin la anotación Hibernate nunca relee la
+     * columna y devuelve null — la séptima vez que aparece esta trampa en el
+     * proyecto, y la primera en esta entidad porque ningún DTO la exponía.
+     */
+    @Generated(event = EventType.INSERT)
     @Column(name = "fecha_creacion", nullable = false, insertable = false, updatable = false)
     private OffsetDateTime fechaCreacion;
 

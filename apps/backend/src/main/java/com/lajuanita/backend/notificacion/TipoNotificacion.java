@@ -132,5 +132,15 @@ public enum TipoNotificacion {
      * formularios de un bot son cincuenta avisos, y sería la misma inundación que
      * `V20` evitó, corrida cuarenta y ocho horas.
      */
-    FICHA_SIN_ATENDER
+    FICHA_SIN_ATENDER,
+
+    /**
+     * Una preinscripción pasó sus 24 horas sin la seña (`V30`, P61 · P72).
+     *
+     * <p>A administración, y <b>sin cancelar nada</b>: no hay cupo (P60), así que
+     * no hay horario que devolver, y lo que Ignacio pidió es que Mica llame y
+     * decida — cobra, o cancela a mano. Es la quinta regla del scheduler, y como
+     * las otras cuatro describe el hecho y no la corrida: una por inscripción.
+     */
+    PREINSCRIPCION_VENCIDA
 }

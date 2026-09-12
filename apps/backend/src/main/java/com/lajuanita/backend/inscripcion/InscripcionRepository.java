@@ -125,6 +125,24 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     List<Inscripcion> deLaPersona(@Param("idUsuario") Long idUsuario);
 
     /**
+     * Las inscripciones que pueden tener plata pendiente, para Deudores (P72):
+     * preinscriptas (les falta la seña) y activas (puede faltarles el resto).
+     * Con precio, porque una beca no debe nada. Cuánto falta lo calcula el
+     * servicio contra lo cobrado — la misma cuenta que el estado de cuenta.
+     *
+     * <p>PAUSADA queda afuera a propósito: no cursa, y perseguirle el saldo a
+     * alguien que frenó el curso es una decisión que nadie tomó.
+     */
+    @Query("""
+            SELECT i FROM Inscripcion i
+            JOIN FETCH i.alumno a JOIN FETCH a.usuario
+            WHERE i.estado IN :estados AND i.precioTotal > 0
+            ORDER BY i.fechaCreacion
+            """)
+    List<Inscripcion> conPlataPosiblementePendiente(
+            @Param("estados") Collection<EstadoInscripcion> estados);
+
+    /**
      * Las inscripciones vigentes de un conjunto de alumnos, en una consulta.
      *
      * <p>Para "Mis alumnos" del portal del profesor, que muestra cuántas clases le

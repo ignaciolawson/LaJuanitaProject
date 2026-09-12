@@ -2,6 +2,8 @@ package com.lajuanita.backend.solicitante;
 
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +12,16 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.alumno.Alumno;
+import com.lajuanita.backend.alumno.AlumnoService;
+import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.inscripcion.InscripcionService;
+import com.lajuanita.backend.inscripcion.Nivel;
+import com.lajuanita.backend.inscripcion.dto.AltaInscripcionRequest;
+import com.lajuanita.backend.inscripcion.dto.InscripcionCreada;
+import com.lajuanita.backend.solicitante.dto.AlumnoInscripto;
+import com.lajuanita.backend.solicitante.dto.InscribirDesdeElBuzonRequest;
+import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.TipoNotificacion;
@@ -106,6 +118,8 @@ public class SolicitanteService {
     private final ReservaService circuitoDeReservas;
     private final TipoUsoRepository tiposDeUso;
     private final NotificacionService avisos;
+    private final AlumnoService alumnos;
+    private final InscripcionService circuitoDeInscripciones;
 
     public SolicitanteService(SolicitanteRepository fichas,
             UsuarioRepository usuarios,
@@ -115,7 +129,9 @@ public class SolicitanteService {
             VentaEquipoRepository ventas,
             ReservaService circuitoDeReservas,
             TipoUsoRepository tiposDeUso,
-            NotificacionService avisos) {
+            NotificacionService avisos,
+            AlumnoService alumnos,
+            InscripcionService circuitoDeInscripciones) {
         this.fichas = fichas;
         this.usuarios = usuarios;
         this.cuentas = cuentas;
@@ -125,6 +141,8 @@ public class SolicitanteService {
         this.circuitoDeReservas = circuitoDeReservas;
         this.tiposDeUso = tiposDeUso;
         this.avisos = avisos;
+        this.alumnos = alumnos;
+        this.circuitoDeInscripciones = circuitoDeInscripciones;
     }
 
     private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
@@ -432,6 +450,99 @@ public class SolicitanteService {
                 creada.idPagoSena(),
                 pedido.monto(),
                 pedido.moneda());
+    }
+
+    /**
+     * Inscribir a quien pidió un curso, desde su ficha, en un movimiento (§16 ·
+     * B2 1.1, P59 · P64 · P72): cuenta si falta, relación de alumno si falta,
+     * inscripción <b>preinscripta</b>, y la ficha cerrada apuntándole.
+     *
+     * <p><b>Una transacción, por el argumento de {@link #apartarLaCabina}</b> y no
+     * el de {@code atender}: lo que puede fallar es la inscripción —el índice
+     * único, si ya tiene una abierta en esa disciplina— y lo que quedaría es una
+     * cuenta creada, con la contraseña temporal ya mostrada, para alguien que no
+     * tiene nada.
+     *
+     * <p><b>Nace preinscripta, sin seña</b>: la persona viene de un formulario y
+     * todavía no pagó. Lo que la pantalla arma para el WhatsApp es exactamente
+     * eso —te anotamos, la seña es el 50%, hasta cuándo—, y el pago de la seña la
+     * activa después ({@code PagoService.registrar}). Con precio en cero (una
+     * beca) nace activa: no hay qué señar, y {@code vence} viaja en null.
+     *
+     * <p>El nivel, si no viene, es el que la ficha sugiere desde la experiencia
+     * (P64) — la tabla vive en {@code Experiencia#nivelSugerido} y en ningún
+     * otro lado. Y sólo para fichas de CURSO: inscribir a quien pidió la cabina
+     * es lo simétrico de apartar una clase, que el otro camino rechaza.
+     */
+    @Transactional
+    public AlumnoInscripto inscribir(Long id, InscribirDesdeElBuzonRequest pedido, Long idAutor) {
+        Solicitante ficha = pendientePorId(id);
+        if (ficha.getInteres() != InteresDelSolicitante.CURSO) {
+            throw new OperacionNoPermitidaException(
+                    "Desde el buzón se inscribe a quien pidió un curso; esta ficha pidió "
+                            + ficha.getInteres().name().toLowerCase().replace('_', ' ') + ".");
+        }
+
+        ConversionRealizada cuenta = darleCuenta(id);
+        Usuario quienPidio = usuarios.getReferenceById(cuenta.usuario().id());
+
+        Alumno alumno = alumnos.buscarPorUsuario(quienPidio.getId())
+                .orElseGet(() -> alumnos.altaDeLaRelacion(quienPidio));
+
+        Nivel nivel = pedido.nivel() != null
+                ? pedido.nivel()
+                : ficha.getExperiencia() == null ? null : ficha.getExperiencia().nivelSugerido();
+
+        InscripcionCreada creada = circuitoDeInscripciones.alta(new AltaInscripcionRequest(
+                alumno.getId(),
+                pedido.idProfesor(),
+                pedido.disciplina(),
+                nivel,
+                pedido.clasesContratadas(),
+                pedido.precioTotal(),
+                pedido.moneda(),
+                pedido.cotizacionDolar(),
+                pedido.fechaInicio(),
+                normalizar(pedido.notas()),
+                // Sin seña: nace preinscripta (o activa, si es una beca).
+                null),
+                idAutor);
+
+        Inscripcion inscripcion = inscripciones.getReferenceById(creada.inscripcion().idInscripcion());
+        // La ficha se relee: `darleCuenta` la modificó en esta misma sesión.
+        ficha = pendientePorId(id);
+        ficha.atender(new DestinoDeLaFicha.DeUnaInscripcion(inscripcion), buscarUsuario(idAutor));
+        fichas.flush();
+
+        Moneda moneda = creada.inscripcion().moneda();
+        BigDecimal senia = pedido.precioTotal()
+                .divide(BigDecimal.TWO, 2, RoundingMode.HALF_UP);
+        OffsetDateTime vence = creada.inscripcion().vencePreinscripcion();
+
+        // Como en la cabina: el aviso dice que FALTA HACER ALGO y hasta cuándo.
+        // La persona viene de la web y quizá nunca entró; el canal real es el
+        // WhatsApp que arma la pantalla, y esto es lo que va a encontrar si entra.
+        String programa = creada.inscripcion().disciplina().name();
+        avisos.avisar(quienPidio,
+                TipoNotificacion.RESERVA_PRECONFIRMADA,
+                vence == null ? "Te anotamos en el programa" : "Te anotamos: falta la seña",
+                vence == null
+                        ? "Te anotamos en " + programa + ". Desde acá vas a poder seguir tu curso."
+                        : "Te anotamos en " + programa + ". Para confirmar el lugar hay que abonar "
+                                + "la seña de " + moneda + " " + senia.toPlainString()
+                                + " antes del " + vence.format(DIA_Y_HORA)
+                                + ". El resto se paga antes de la primera clase.",
+                "/mis-cursos");
+
+        return new AlumnoInscripto(
+                SolicitanteResumen.de(ficha),
+                creada.inscripcion(),
+                cuenta.usuario(),
+                cuenta.passwordTemporal(),
+                cuenta.cuentaNueva(),
+                senia,
+                moneda,
+                vence);
     }
 
     /**

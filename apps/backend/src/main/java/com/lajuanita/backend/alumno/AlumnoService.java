@@ -93,6 +93,25 @@ public class AlumnoService {
         return new AltaAlumnoResultado(AlumnoResumen.recienCreado(guardado), passwordTemporal);
     }
 
+    /** La relación de esta persona, si la tiene. Para el alta desde el buzón. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Alumno> buscarPorUsuario(Long idUsuario) {
+        return alumnos.findByUsuarioId(idUsuario);
+    }
+
+    /**
+     * La relación pelada —sin nivel de ingreso ni Instagram— para quien llega
+     * del buzón con cuenta y sin fila de alumno. Es {@link #alta} por el camino
+     * 1 sin el DTO: lo que falta se completa después desde la ficha del alumno
+     * (P66: el buzón crea, no administra).
+     */
+    @Transactional
+    public Alumno altaDeLaRelacion(Usuario usuario) {
+        Alumno alumno = new Alumno();
+        alumno.setUsuario(usuario);
+        return alumnos.save(alumno);
+    }
+
     @Transactional(readOnly = true)
     public Page<AlumnoResumen> listar(String buscar,
             EstadoAlumno estado,

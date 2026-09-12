@@ -77,6 +77,20 @@ describe('el progreso', () => {
     expect(await screen.findByText('Pausada')).toBeDefined()
   })
 
+  /**
+   * Una preinscripta no cursa (`V30`): un progreso en cero le diría "te quedan
+   * 8" a alguien que todavía no tiene el lugar. Se dice lo que falta.
+   */
+  it('una preinscripta dice que falta la seña y no dibuja un progreso', async () => {
+    vi.mocked(misCursos).mockResolvedValue([curso({ estado: 'PREINSCRIPTA' })])
+    montar()
+
+    expect(await screen.findByText('Preinscripto')).toBeDefined()
+    expect(screen.getByText('falta la seña')).toBeDefined()
+    expect(screen.queryByText(/clases por delante/)).toBeNull()
+    expect(screen.queryByText(/Tomaste/)).toBeNull()
+  })
+
   /** Tener cuenta y ser alumno son cosas distintas (P18). */
   it('el que no cursa nada ve un mensaje y no un error', async () => {
     vi.mocked(misCursos).mockResolvedValue([])

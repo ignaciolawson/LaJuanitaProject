@@ -3910,7 +3910,7 @@ con la lectura adoptada — ninguna traba. **El plan por fases está al final de
 sección**: seis fases, A6 primero, después A → B → C, con tres migraciones
 (`V28` catálogo · `V29` ficha · `V30` preinscripción).
 
-~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Fases 0 a 4 cerradas el 2026-09-11, la 5 el 2026-09-12**; lo próximo es la Fase 6 (la seña en el alta, Deudores con dos fuentes, el alta desde el buzón). El estado vivo está en el bloque final de este documento.
+~~**Lo próximo es ejecutar la Fase 0 (A6).**~~ **Las seis fases cerradas: 0 a 4 el 2026-09-11, 5 y 6 el 2026-09-12.** La barrida está cerrada. El estado vivo está en el bloque final de este documento.
 
 ⚠️ **B2 2.1 (grupos de a 3) quedó FUERA de esta barrida por decisión de Ignacio**:
 *"todo esto dejando afuera B2 2.1 — grupos de a 3. Cuando terminamos esta barrida
@@ -3925,7 +3925,7 @@ a necesitar— porque lo que se aprendió analizándolo no conviene volver a apr
 |---|---|---|---|
 | 🟢 **A** | Pantalla, texto y estilo | **5** | ✅ 5 de 5 · cerrado el 2026-09-11 (Fases 0 y 1) |
 | 🟡 **B** | Funcionalidad, sin tocar el schema | **4** | 🟨 3 de 4 · A3 · A5 · A7 el 2026-09-11 (Fase 2); B2 1.1/1.2 es la Fase 6 |
-| 🔴 **C** | Toca una regla del negocio o el schema | **2** | ✅ C1 (`V28`) y C2 (`V29`) el 2026-09-11; C3 (`V30`) el 2026-09-12 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **2** | ✅ C1 (`V28`) y C2 (`V29`) el 2026-09-11; C3 (`V30`) y C4/C5 (sin migración) el 2026-09-12 |
 | ⏸️ | Diferido a la barrida siguiente | **1** | B2 2.1 |
 
 ⚠️ **Tres de los puntos que Ignacio anotó como A no lo son**, y conviene saberlo
@@ -4677,7 +4677,7 @@ no ve la fila que un CTE `INSERT … RETURNING` de la misma sentencia acaba de
 insertar. El caso 263 escrito así pasó *"sin afectar filas"* y el guardián de
 *"un ANDA afecta filas"* lo dijo. Son dos casos ahora.
 
-#### Fase 6 · C4 + C5 — la seña de los programas y el alta desde el buzón (B1 · B2 1.1 · B2 1.2) — **reescrita por P72 el 2026-09-12**
+#### ✅ Fase 6 · C4 + C5 — la seña de los programas y el alta desde el buzón (B1 · B2 1.1 · B2 1.2) — **reescrita por P72 y cerrada el 2026-09-12**
 
 ⚠️ **Lo tachado es lo que P72 cambió**: la plata de un programa **se calcula
 desde la inscripción** (`precio_total − cobrado`, lo que el estado de cuenta ya
@@ -4716,9 +4716,85 @@ como 7 días desde la fila más vieja, y el saldo de un programa no tiene fecha.
   ficha del alumno y `Mis cursos` dicen *"Preinscripto · falta la seña"* en vez
   de dibujar un progreso de cero.
 
+**Cerrado el 2026-09-12 (Fase 6), sin migración, tal como P72 lo reescribió.**
+Lo que quedó hecho, en el orden del plan:
+
+- **La seña en el alta** — `AltaInscripcionRequest.sena` opcional
+  (`SenaDeInscripcionRequest`: sin pagador, es el alumno). Con seña nace
+  ACTIVA con el pago SENADO en la misma transacción; **sin seña nace
+  PREINSCRIPTA** con `vence = ahora + 24 hs` (`lajuanita.preinscripcion.horas`) y
+  ninguna fila de `pago`; **en cero nace activa** (una beca no tiene qué señar).
+  El alta devuelve `InscripcionCreada` (fila + `idPagoSena`), el molde de
+  `ReservaCreada`, y la pantalla tiene la casilla *"La seña entró ahora"* con el
+  50% prellenado — y dice al lado qué significa no marcarla. ⚠️ **Es un cambio
+  de política**: toda alta sin seña es una preinscripción. Los tests que
+  inscribían por la API y esperaban ACTIVA ganaron su seña (`SENA` en
+  `InscripcionTest`, el helper de `AlumnoTest`).
+- **Deudores con dos fuentes** (`MotivoDeDeuda`): las filas anotadas de siempre
+  y **las inscripciones con plata pendiente, calculadas** —
+  `InscripcionRepository.conPlataPosiblementePendiente` (ACTIVA + PREINSCRIPTA
+  con precio; PAUSADA afuera, a propósito) contra `cobradoPorInscripcion` en la
+  moneda del contrato, la misma cuenta que el estado de cuenta. *"Sin señar"*
+  vence con `vence_preinscripcion`; *"Seña abonada, falta el resto"* **nunca**.
+  La pantalla gana la columna *"Por qué"* y el contador del sidebar las trae
+  solo. ⚠️ **El tablero NO cambió**: su *"deuda viva"* sigue leyendo sólo las
+  filas anotadas (`TableroRepository.cobrosPendientes`). Anotado para la
+  barrida siguiente — es una decisión de Módulo 8, no de ésta.
+- **La quinta regla del scheduler**: `agregarPreinscripcionesVencidas`, clave
+  `PREINSCRIPCION_VENCIDA:i=<id>`, a administración, **sin cancelar** (P61). Lee
+  la misma lista que Deudores y la regla de deudas **filtra su propia fuente**
+  — sin eso, una preinscripta vencida avisaba dos veces con dos claves.
+  `TipoNotificacion.PREINSCRIPCION_VENCIDA` en Java y en el tipo TS.
+- **`POST /api/solicitantes/{id}/inscripcion`** (`SolicitanteService.inscribir`):
+  `darleCuenta` (los dos caminos) + `AlumnoService.altaDeLaRelacion` si falta +
+  `InscripcionService.alta` sin seña + `atender(DeUnaInscripcion)` +
+  notificación, **una transacción**. El nivel, si no viene, sale de
+  `Experiencia.nivelSugerido()` — y `SolicitanteResumen` lo trae como
+  `nivelSugerido` para que el formulario arranque de ahí sin copiar la tabla.
+  Sólo fichas de CURSO (el espejo de *"desde el buzón no se aparta una clase"*).
+  Devuelve `AlumnoInscripto` con la seña sugerida (50%) y el plazo.
+- **Pantallas**: el buzón gana *"Inscribirlo"* (`InscribirForm`, todo prellenado
+  y editable — P66) y el panel `InscripcionLista` con **el mensaje de P71 en su
+  variante de programa** (`mensajeDeInscripcion`: seña y plazo primero, la clave
+  después, el portal al final, más *"seguir el curso clase por clase y ver el
+  material"*); `Mis cursos` y la ficha del alumno dicen *"Preinscripto · falta
+  la seña"* en vez de un progreso en cero.
+
+**Casos**: 4 + 7 en `InscripcionTest` y `SolicitanteTest` (alta con/sin seña,
+en cero, dólares sin cotización; inscribir desde la ficha, el nivel de la
+experiencia, `nivelSugerido`, quien ya era alumno, el choque, el alta rechazada
+después de crear la cuenta, la cabina no se inscribe), 6 en `CajaTest` (las dos
+fuentes), 4 en `AvisosTest` (la quinta regla y que no avise dos veces), 1 en
+`BandejaTest`; en el front 2 en Inscripciones, 3 en Deudores, 2 en el buzón, 2
+en `whatsapp.test`, 1 en Mis cursos, 1 en el perfil. **691 backend · 603 front ·
+284 + 66 SQL.**
+
+⚠️ **Cinco trampas de esta fase, y ninguna estaba en el plan:**
+
+- **Un retorno temprano escondió la segunda fuente entera.** `deudores()` hacía
+  `if (filas.isEmpty()) return List.of()` sobre las deudas anotadas, y la base
+  de desarrollo no tiene ninguna — así que las preinscriptas no aparecieron en
+  la primera corrida de los casos y **en producción, con el estudio al día,
+  tampoco habrían aparecido nunca**. Cuando una lista pasa a tener dos fuentes,
+  buscá el atajo de la primera.
+- **`Inscripcion.fechaCreacion` era `insertable = false` sin `@Generated`**: la
+  séptima vez de la trampa del `CLAUDE.md`, y la primera en esta entidad porque
+  ningún DTO la exponía. Deudores la lee en la misma transacción que la creó.
+- **Un test `@Transactional` no puede VER un rollback**: el `SELECT` posterior
+  lee la misma transacción todavía abierta. Lo que sí puede afirmar es que
+  quedó marcada — `TestTransaction.isFlaggedForRollback()` — que es exactamente
+  *"cuenta y alta viven en una"*.
+- **Un filtro de jsonPath devuelve una lista**: un `vence` en null aparece como
+  `[null]`, no ausente. `contains((Object) null)`, no `doesNotExist()`.
+- **Una fixture con mail nuevo hizo pasar el caso del choque por otra razón**:
+  la cuenta creada era otra persona, sin inscripción abierta, y el 200 era
+  legítimo. El choque real necesita la ficha con el mail de quien ya cursa.
+
 **Qué queda afuera de las seis fases, a propósito**: B2 2.1 (grupos), P7, el
 cupo, el candado duro del saldo, y la sala "Virtual". Todos anotados al final de
-§22 con la condición que los reabre.
+§22 con la condición que los reabre. **Y dos que esta fase dejó para la barrida
+siguiente**: el precio de las reservas (P72: sin él no hay *"falta el resto"* de
+una cabina) y la *"deuda viva"* del tablero, que no ve los saldos de programas.
 
 ---
 
@@ -4778,17 +4854,18 @@ ninguna fase puede reclamar como propia:
 
 **Para arrancar la próxima sesión**: `docker compose up -d` (Docker Desktop
 suele estar apagado), `mvn spring-boot:run` **reiniciado** —el proceso viejo no
-conoce los campos de `V29`—, `npm run dev:platform` desde la raíz. `V29` ya
-está aplicada en la base de desarrollo (la Fase 4 se cerró en una segunda
-sesión del mismo día). Todo commiteado, suites verdes, `tsc -b`, builds y
-linters limpios.
+conoce `/api/solicitantes/{id}/inscripcion` ni `Pendientes.deudores`—,
+`npm run dev:platform` desde la raíz. `V30` ya está aplicada en la base de
+desarrollo. Todo commiteado, suites verdes, `tsc -b`, builds y linters limpios.
 
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
 
-🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: la §16, la cuarta.** Doce hallazgos,
-**once ejecutados — las Fases 0 a 4 cerraron el 2026-09-11 y la 5 el 2026-09-12**, **las quince decisiones de negocio cerradas el 2026-09-11 y una decimosexta (P72) el 2026-09-12**
-(`requirements/platform.md` §22, P59–P71) y **el plan por fases escrito** al final
-de la §16. Lo que falta es ejecutarlo.
+✅ **LA CUARTA BARRIDA (§16) ESTÁ CERRADA: once de doce el 2026-09-12** — las
+Fases 0 a 4 el 2026-09-11, la 5 y la 6 el 2026-09-12; el doceavo (B2 2.1, grupos
+de a 3) quedó **diferido por decisión de Ignacio** a la barrida siguiente. Las
+decisiones son `requirements/platform.md` §22, P59–P72. **No queda ninguna fase
+por ejecutar.** ⚠️ En git, el commit `8fa22c7 "Fase 6"` contiene la Fase 5; la
+Fase 6 es el commit siguiente.
 
 **Lo primero al volver: leer la §16 y la §22 antes de tocar nada.** Cada hallazgo
 dice qué se verificó y en qué archivo; cada decisión dice qué se adopta y por qué.
@@ -4804,22 +4881,19 @@ El diagnóstico y las decisiones no hay que rehacerlos.
 | ✅ 3 | **C1** — el catálogo de programas, cierra P13 · **cerrada el 2026-09-11** | `V28` ✅ aplicada |
 | ✅ 4 | **C2** — la ficha guarda programa, experiencia y modalidad · **cerrada el 2026-09-11** | `V29` ✅ aplicada |
 | ✅ 5 | **C3** — la preinscripción: estado, vencimiento, índice, escalera · **cerrada el 2026-09-12**, con P72 decidida antes | `V30` ✅ aplicada |
-| 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) | — |
+| ✅ 6 | **C4 + C5** — la seña de los programas (B1) y el alta completa desde el buzón (B2 1.1 · 1.2) · **cerrada el 2026-09-12** | — |
 
-**Lo próximo es la Fase 6 — la última: la seña en el alta, Deudores con dos
-fuentes, el alta desde el buzón, y la quinta regla del scheduler. Sin
-migración.** El plan está en la §16 (Fase 6), **reescrito por P72** — leer P72
-antes que el plan: la plata de un programa se calcula desde la inscripción, no
-se anota como `DEBE`; Deudores muestra *"sin señar"* (con plazo) y *"seña
-abonada, falta el resto"* (sin plazo, nunca vencida); registrar la seña ya
-activa (Fase 5). ⚠️ **`V30` ya está aplicada** en la base de desarrollo y en
-las suites: la próxima libre es `V31`, y **el admin sembrado pasa a `V32`** si
-la Fase 6 no trae migración (y no debería). ⚠️ Dos piezas escritas y sin
-llamador hasta la Fase 6: `Experiencia.nivelSugerido()` (Fase 4) y
-`Inscripcion.preinscribir()` (Fase 5). ⚠️ Y un hallazgo nuevo para la barrida
-siguiente, de P72: **"mismo caso para reservas" no se puede hacer sin un precio
-de alquiler** — `reserva` no tiene `precio_total`, la mitad de P13 que `V28` no
-cerró. ⚠️ Y de la Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
+**No hay próxima fase: la §16 cerró.** Lo que sigue es lo de siempre entre
+barridas — Ignacio usa el sistema y trae hallazgos — y la lista de lo que esta
+barrida dejó anotado para la siguiente: **los grupos de a 3** (B2 2.1, que
+reabre P7), **el precio de las reservas** (P72: la mitad de P13 que falta), y
+**la "deuda viva" del tablero**, que no ve los saldos de programas. ⚠️ **`V30`
+es la última migración**; la próxima libre es `V31`, y **el admin sembrado
+sigue siendo `V31`** — por primera vez en cinco corrimientos, el número no se
+movió en una sesión. ⚠️ La ficha **#808** (*Prueba V29*) sigue en el buzón de
+desarrollo: es el candidato natural para que Ignacio pruebe *"Inscribirlo"* de
+punta a punta — cuenta, alumno, preinscripción, mensaje de WhatsApp, Deudores
+con *"sin señar"*, y el pago de la seña que la activa. ⚠️ Y de la Fase 3 queda una cosa para la landing: **la mentoría dice "precio a confirmar"
 y `llms.txt` lo lista PENDIENTE** — ahora que existe `/admin/programas`, lo que
 falta es que Mica cargue el número, no código. ⚠️ Desde la Fase 0 el
 sistema tiene `LimiteDeError`: **si una pantalla tira, ahora se ve el path y el
@@ -4842,14 +4916,15 @@ análisis en la §16 y lo que va a reabrir (P7, el cupo) anotado al final de §2
 
 ---
 
-**El estado del producto**: la §15 está cerrada, suites en **670 backend · 593
-front · 284 + 66 SQL** sobre **30 migraciones**, `tsc -b`, los dos builds y los
-dos linters limpios (los treinta y dos casos nuevos del front, los
-veinticuatro del backend y los veintiocho de SQL son de las Fases 0 a 5). La
-landing genera **20 páginas** desde A7. Lo que sigue abierto en todo el proyecto está en
+**El estado del producto**: las §15 y §16 están cerradas, suites en **691
+backend · 603 front · 284 + 66 SQL** sobre **30 migraciones**, `tsc -b`, los dos
+builds y los dos linters limpios (los cuarenta y dos casos nuevos del front, los
+cuarenta y cinco del backend y los veintiocho de SQL son de las Fases 0 a 6). La
+landing genera **20 páginas** desde A7. **Vuelve a ser cierto que no queda
+producto por construir** — hasta la próxima barrida. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §16**, que es esto — queda la Fase 6, sin migración (0 a 4 cerraron el 2026-09-11, la 5 el 2026-09-12).
+1. ~~**La §16**~~ — cerrada el 2026-09-12. Lo que dejó para la siguiente: grupos de a 3, el precio de las reservas, la deuda viva del tablero.
 2. **Desactivar el admin sembrado**, ahora `V31`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 

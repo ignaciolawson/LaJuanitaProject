@@ -4,6 +4,7 @@ import {
   linkDeWhatsapp,
   mensajeConLaClave,
   mensajeDeCabinaApartada,
+  mensajeDeInscripcion,
   numeroParaWhatsapp,
   saludoDeContacto,
 } from './whatsapp'
@@ -159,5 +160,48 @@ describe('los mensajes', () => {
     expect(mensaje).not.toContain('Usuario:')
     expect(mensaje).toContain('07/09/2026 10:00')
     expect(mensaje).toContain('Desde tu cuenta')
+  })
+
+  /**
+   * La variante de programa (P71, Fase 6): el mismo orden —seña y plazo
+   * primero, la clave después, el portal al final— con lo que un alumno puede
+   * hacer y quien alquila no: seguir el curso y ver el material.
+   */
+  it('el de la inscripción dice programa, profe, seña y plazo, y que el resto va antes de empezar', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Juan',
+      programa: 'DJ',
+      profesor: 'Tomás Ghezzi',
+      importe: '$ 85.000',
+      vence: '13/09/2026 10:00',
+      cuenta: { email: 'juan@mail.com', passwordTemporal: 'A7K2M9' },
+    })
+
+    expect(mensaje).toContain('Te anotamos en DJ con Tomás Ghezzi')
+    const plazo = mensaje.indexOf('13/09/2026 10:00')
+    const clave = mensaje.indexOf('A7K2M9')
+    const portal = mensaje.indexOf('Desde tu cuenta')
+    expect(plazo).toBeGreaterThan(-1)
+    expect(clave).toBeGreaterThan(plazo)
+    expect(portal).toBeGreaterThan(clave)
+    expect(mensaje).toContain('$ 85.000')
+    expect(mensaje).toContain('El resto se paga antes de la primera clase')
+    expect(mensaje).toContain('clase por clase')
+  })
+
+  it('el de la inscripción sin plazo (una beca) no pide plata ni lleva clave si ya tenía cuenta', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Juan',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 0',
+      vence: null,
+      cuenta: null,
+    })
+
+    expect(mensaje).toContain('Te anotamos en DJ.')
+    expect(mensaje).toContain('No hay nada que abonar')
+    expect(mensaje).not.toContain('seña')
+    expect(mensaje).not.toContain('Contraseña')
   })
 })

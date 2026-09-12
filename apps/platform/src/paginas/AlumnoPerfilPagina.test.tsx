@@ -254,6 +254,19 @@ describe('las inscripciones', () => {
     expect(screen.getByText('3 de 4')).toBeDefined()
   })
 
+  /** Una preinscripta no tiene clases restantes: tiene un lugar sin señar (`V30`). */
+  it('una preinscripta dice que falta la seña en vez de contar clases', async () => {
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      paginaDe([inscripcion({ estado: 'PREINSCRIPTA', clasesRestantes: 8, vencePreinscripcion: '2099-01-01T10:00:00-03:00' })]),
+    )
+
+    montar()
+
+    expect(await screen.findByText('Falta la seña')).toBeDefined()
+    expect(screen.getByText('8 clases al confirmar')).toBeDefined()
+    expect(screen.queryByText('8 de 8')).toBeNull()
+  })
+
   it('sin inscripciones lo dice con palabras', async () => {
     vi.mocked(listarInscripciones).mockResolvedValue(paginaDe([]))
 

@@ -256,3 +256,48 @@ export function mensajeDeCabinaApartada(datos: {
     `${QUE_PUEDE_HACER} ¡Te esperamos!`,
   ].join('\n')
 }
+
+/**
+ * El mensaje de la inscripción hecha desde el buzón: el molde de
+ * {@link mensajeDeCabinaApartada} con el primer bloque cambiado (P71, §16 ·
+ * Fase 6) — *te anotamos en {programa} con {profesor}*, la seña y su plazo, y
+ * que el saldo va antes de la primera clase (P59 · P72).
+ *
+ * **La seña y el plazo van en las dos primeras líneas** por lo mismo que en la
+ * cabina: un *"te anotamos"* sin plazo deja tranquilo a quien lo lee sobre una
+ * preinscripción que a las 24 horas figura vencida. Sin plazo (una beca, que
+ * nace activa) el mensaje lo dice distinto: no hay nada que abonar.
+ *
+ * El tercer bloque suma lo que el portal tiene para un alumno y no para quien
+ * alquila: seguir el curso clase por clase y el material del profe (P71).
+ */
+export function mensajeDeInscripcion(datos: {
+  nombre: string
+  programa: string
+  profesor: string | null
+  importe: string
+  vence: string | null
+  cuenta: { email: string; passwordTemporal: string } | null
+}): string {
+  const { nombre, programa, profesor, importe, vence, cuenta } = datos
+  return [
+    `¡Hola ${nombre}! Te anotamos en ${programa}${profesor ? ` con ${profesor}` : ''}.`,
+    '',
+    ...(vence
+      ? [
+          `Para confirmar tu lugar hay que abonar la seña de ${importe} antes del ${vence}.`,
+          'El resto se paga antes de la primera clase. Cualquier duda, contestá por acá.',
+        ]
+      : ['No hay nada que abonar para arrancar. Cualquier duda, contestá por acá.']),
+    ...(cuenta
+      ? [
+          '',
+          'Además te creamos tu cuenta en La Juanita Studio.',
+          ...bloqueDeLaCuenta(cuenta.email, cuenta.passwordTemporal),
+        ]
+      : []),
+    '',
+    `${QUE_PUEDE_HACER} También vas a poder seguir el avance de tu curso clase por clase ` +
+      'y ver el material que te deje tu profe. ¡Te esperamos!',
+  ].join('\n')
+}

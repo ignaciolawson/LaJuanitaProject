@@ -8,8 +8,10 @@ import type {
   BloqueoResumen,
   CajaDelPeriodo,
   ConversionRealizada,
+  AlumnoInscripto,
   ApartarLaCabina,
   CabinaApartada,
+  InscribirDesdeElBuzon,
   CandidatoDeLaFicha,
   DestinoDeLaFicha,
   Deudor,
@@ -111,6 +113,29 @@ export type AltaInscripcion = {
   cotizacionDolar?: number | null
   fechaInicio?: string
   notas?: string
+  /**
+   * La seña, si entró junto con la inscripción (P59, `V30`). **Sin ella la
+   * inscripción nace PREINSCRIPTA** con 24 hs para señar — no "sin plata".
+   * Espeja `SenaDeInscripcionRequest`: sin pagador, porque es el alumno.
+   */
+  sena?: SenaDeInscripcion
+}
+
+export type SenaDeInscripcion = {
+  monto: number
+  moneda: Moneda
+  cotizacionDolar?: number | null
+  medioPago: MedioPago
+}
+
+/**
+ * Lo que devuelve el alta. Espeja `InscripcionCreada`: la fila, y el id del
+ * pago de la seña si vino con una (null si nació preinscripta) — el molde de
+ * `ReservaCreada`, para colgarle el comprobante.
+ */
+export type InscripcionCreada = {
+  inscripcion: InscripcionResumen
+  idPagoSena: number | null
 }
 
 /**
@@ -321,7 +346,7 @@ export function listarInscripciones(opciones: {
 }
 
 export function altaInscripcion(datos: AltaInscripcion) {
-  return pedir<InscripcionResumen>('/api/inscripciones', { metodo: 'POST', cuerpo: datos })
+  return pedir<InscripcionCreada>('/api/inscripciones', { metodo: 'POST', cuerpo: datos })
 }
 
 export function editarInscripcion(id: number, datos: EdicionInscripcion) {
@@ -982,6 +1007,20 @@ export function darleCuentaAlSolicitante(id: number) {
  */
 export function apartarleLaCabina(id: number, datos: ApartarLaCabina) {
   return pedir<CabinaApartada>(`/api/solicitantes/${id}/reserva`, {
+    metodo: 'POST',
+    cuerpo: datos,
+  })
+}
+
+/**
+ * Inscribir a quien pidió un curso, desde su ficha: cuenta + alumno +
+ * inscripción preinscripta + ficha cerrada, en un pedido (§16 · B2 1.1). El
+ * gemelo de `apartarleLaCabina` para los programas, con el mismo argumento
+ * para ser uno solo: lo que puede fallar es la inscripción, y lo que quedaría
+ * es una cuenta con contraseña ya mostrada para alguien sin nada.
+ */
+export function inscribirDesdeElBuzon(id: number, datos: InscribirDesdeElBuzon) {
+  return pedir<AlumnoInscripto>(`/api/solicitantes/${id}/inscripcion`, {
     metodo: 'POST',
     cuerpo: datos,
   })

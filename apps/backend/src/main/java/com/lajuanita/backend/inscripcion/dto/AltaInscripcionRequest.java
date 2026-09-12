@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.Nivel;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -57,5 +58,16 @@ public record AltaInscripcionRequest(
 
         LocalDate fechaInicio,
 
-        String notas) {
+        String notas,
+
+        /**
+         * La seña, si entró junto con la inscripción (P59, §16 · Fase 6).
+         *
+         * <p><b>Opcional, y el significado de que falte no es "sin plata"</b>: es
+         * que la inscripción nace {@code PREINSCRIPTA} con 24 horas para señar
+         * (`V30`, P72). Con seña nace {@code ACTIVA} y el pago entra
+         * {@code SENADO} en la misma transacción. Una inscripción en cero (una
+         * beca) no tiene qué señar y nace activa sin esto.
+         */
+        @Valid SenaDeInscripcionRequest sena) {
 }

@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -99,14 +100,14 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","nivel":"INICIAL","precioTotal":180000}
-                """.formatted(alumno.getId())))
+                {"idAlumno":%d,"disciplina":"DJ","nivel":"INICIAL","precioTotal":180000,%s}
+                """.formatted(alumno.getId(), SENA)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clasesContratadas").value(8))
-                .andExpect(jsonPath("$.clasesConsumidas").value(0))
-                .andExpect(jsonPath("$.clasesRestantes").value(8))
-                .andExpect(jsonPath("$.estado").value("ACTIVA"))
-                .andExpect(jsonPath("$.moneda").value("ARS"));
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(8))
+                .andExpect(jsonPath("$.inscripcion.clasesConsumidas").value(0))
+                .andExpect(jsonPath("$.inscripcion.clasesRestantes").value(8))
+                .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"))
+                .andExpect(jsonPath("$.inscripcion.moneda").value("ARS"));
     }
 
     @Test
@@ -115,7 +116,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"PRODUCCION","precioTotal":320000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clasesContratadas").value(16));
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(16));
     }
 
     /** La mentoría se arma a medida: no hay número de fábrica que suponer. */
@@ -134,7 +135,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clasesContratadas").value(4));
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(4));
     }
 
     /**
@@ -151,7 +152,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"DJ","precioTotal":100000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clasesContratadas").value(10));
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(10));
     }
 
     /**
@@ -177,7 +178,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"DJ","clasesContratadas":12,"precioTotal":250000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clasesContratadas").value(12));
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(12));
     }
 
     @Test
@@ -230,9 +231,10 @@ class InscripcionTest {
     @Test
     void se_puede_volver_a_inscribir_en_dj_una_vez_completado_el_anterior() throws Exception {
         Alumno alumno = alumnoNuevo();
+        // Con seña: completar exige que haya nacido activa (la escalera de V30).
         String cuerpo = """
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
-                """.formatted(alumno.getId());
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                """.formatted(alumno.getId(), SENA);
 
         long primera = idDe(mvc.perform(alta(cuerpo)).andExpect(status().isCreated()));
 
@@ -252,8 +254,8 @@ class InscripcionTest {
     void reactivar_una_inscripcion_vieja_choca_si_ya_hay_otra_activa() throws Exception {
         Alumno alumno = alumnoNuevo();
         String cuerpo = """
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
-                """.formatted(alumno.getId());
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                """.formatted(alumno.getId(), SENA);
 
         long primera = idDe(mvc.perform(alta(cuerpo)).andExpect(status().isCreated()));
         mvc.perform(patch("/api/inscripciones/" + primera + "/estado?estado=COMPLETADA")
@@ -292,7 +294,7 @@ class InscripcionTest {
                  "moneda":"USD","cotizacionDolar":1450.5}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.moneda").value("USD"));
+                .andExpect(jsonPath("$.inscripcion.moneda").value("USD"));
     }
 
     /** Una beca es un precio, no una inscripción sin precio. */
@@ -302,7 +304,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"DJ","precioTotal":0}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.precioTotal").value(0));
+                .andExpect(jsonPath("$.inscripcion.precioTotal").value(0));
     }
 
     // == El profesor a cargo (P6) =============================================
@@ -315,8 +317,8 @@ class InscripcionTest {
                 {"idAlumno":%d,"idProfesor":%d,"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevo().getId(), profe.getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idProfesor").value(profe.getId()))
-                .andExpect(jsonPath("$.profesor").value("Tomás Ghezzi"));
+                .andExpect(jsonPath("$.inscripcion.idProfesor").value(profe.getId()))
+                .andExpect(jsonPath("$.inscripcion.profesor").value("Tomás Ghezzi"));
     }
 
     /** Se puede anotar a alguien y decidir después quién lo toma. */
@@ -326,7 +328,7 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idProfesor").doesNotExist());
+                .andExpect(jsonPath("$.inscripcion.idProfesor").doesNotExist());
     }
 
     @Test
@@ -442,6 +444,82 @@ class InscripcionTest {
                 "UPDATE inscripcion SET nivel = 'INICIAL' WHERE id_inscripcion = ?", id))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("id_usuario_baja_nivel");
+    }
+
+    // == El alta con o sin seña (P59, §16 · Fase 6) ============================
+
+    /**
+     * Con seña nace ACTIVA y el pago entra SENADO apuntándole, en la misma
+     * transacción, y el alta devuelve el id del pago para colgarle el
+     * comprobante (el molde de {@code ReservaCreada}).
+     */
+    @Test
+    void con_senia_nace_activa_y_el_pago_queda_senado() throws Exception {
+        Alumno alumno = alumnoNuevo();
+
+        String respuesta = mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                """.formatted(alumno.getId(), SENA)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"))
+                .andExpect(jsonPath("$.inscripcion.vencePreinscripcion").doesNotExist())
+                .andExpect(jsonPath("$.idPagoSena").isNumber())
+                .andReturn().getResponse().getContentAsString();
+
+        long idPago = Long.parseLong(respuesta.replaceAll(".*\"idPagoSena\":(\\d+).*", "$1"));
+        assertThat(jdbc.queryForObject(
+                "SELECT estado_pago FROM pago WHERE id_pago = ?", String.class, idPago))
+                .isEqualTo("SENADO");
+        assertThat(jdbc.queryForObject(
+                "SELECT id_inscripcion FROM pago WHERE id_pago = ?", Long.class, idPago))
+                .isEqualTo(idDe(respuesta));
+    }
+
+    /**
+     * ⚠️ Sin seña NO es "sin plata": nace PREINSCRIPTA con 24 horas (P72), y sin
+     * ninguna fila de pago — la deuda no se anota, se calcula. Es el cambio de
+     * política de P59 sobre P33.
+     */
+    @Test
+    void sin_senia_nace_preinscripta_con_plazo_y_sin_deuda_anotada() throws Exception {
+        Alumno alumno = alumnoNuevo();
+
+        long id = idDe(mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                """.formatted(alumno.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.inscripcion.estado").value("PREINSCRIPTA"))
+                .andExpect(jsonPath("$.inscripcion.vencePreinscripcion").isNotEmpty())
+                .andExpect(jsonPath("$.idPagoSena").doesNotExist()));
+
+        OffsetDateTime vence = jdbc.queryForObject(
+                "SELECT vence_preinscripcion FROM inscripcion WHERE id_inscripcion = ?",
+                OffsetDateTime.class, id);
+        assertThat(vence).isBetween(
+                OffsetDateTime.now().plusHours(23), OffsetDateTime.now().plusHours(25));
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pago WHERE id_inscripcion = ?", Long.class, id))
+                .isZero();
+    }
+
+    /** Una beca no tiene qué señar: en cero nace activa sin seña (§13: cero es un precio). */
+    @Test
+    void en_cero_nace_activa_sin_senia() throws Exception {
+        mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":0}
+                """.formatted(alumnoNuevoId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"));
+    }
+
+    /** La seña en dólares sin cotización se frena en el DTO, como en la reserva. */
+    @Test
+    void una_senia_en_dolares_sin_cotizacion_se_rechaza() throws Exception {
+        mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,
+                 "sena":{"monto":100,"moneda":"USD","medioPago":"EFECTIVO"}}
+                """.formatted(alumnoNuevoId())))
+                .andExpect(status().isBadRequest());
     }
 
     // == La preinscripción (`V30`, P59 · P60 · P72) ============================
@@ -879,14 +957,24 @@ class InscripcionTest {
                 .content(cuerpo);
     }
 
-    /** Da de alta una inscripción de DJ y devuelve su id. */
+    /**
+     * Da de alta una inscripción de DJ <b>con su seña</b> y devuelve su id.
+     *
+     * <p>Con seña porque desde `V30` un alta sin ella nace PREINSCRIPTA, que no
+     * cursa: los casos que usan este helper hablan de una inscripción activa.
+     * Los que prueban la preinscripción llaman a {@link #preinscribirDj}.
+     */
     private long inscribirDj(Alumno alumno, String nivel) throws Exception {
         String nivelJson = nivel == null ? "null" : "\"" + nivel + "\"";
         return idDe(mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","nivel":%s,"precioTotal":180000}
-                """.formatted(alumno.getId(), nivelJson)))
+                {"idAlumno":%d,"disciplina":"DJ","nivel":%s,"precioTotal":180000,%s}
+                """.formatted(alumno.getId(), nivelJson, SENA)))
                 .andExpect(status().isCreated()));
     }
+
+    /** La seña de un alta, para pegar en un cuerpo: la mitad de 180.000. */
+    private static final String SENA =
+            "\"sena\":{\"monto\":90000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}";
 
     /**
      * Nace preinscripta, por SQL: hasta la Fase 6 no hay alta que lo escriba.
@@ -904,7 +992,10 @@ class InscripcionTest {
 
     /** Sin parsear JSON: el id es lo único que hace falta y el DTO es plano. */
     private long idDe(ResultActions resultado) throws Exception {
-        String respuesta = resultado.andReturn().getResponse().getContentAsString();
+        return idDe(resultado.andReturn().getResponse().getContentAsString());
+    }
+
+    private long idDe(String respuesta) {
         int desde = respuesta.indexOf("\"idInscripcion\":") + "\"idInscripcion\":".length();
         int hasta = respuesta.indexOf(',', desde);
         return Long.parseLong(respuesta.substring(desde, hasta).trim());

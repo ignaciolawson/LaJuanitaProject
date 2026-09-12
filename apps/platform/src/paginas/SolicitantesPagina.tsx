@@ -7,6 +7,9 @@ import {
   candidatosDeLaFicha,
   darleCuentaAlSolicitante,
   descartarSolicitante,
+  inscribirDesdeElBuzon,
+  listarProfesores,
+  listarProgramas,
   listarSalas,
   listarSolicitantes,
   listarTiposUso,
@@ -30,6 +33,12 @@ import {
   type SalaResumen,
   type SolicitanteResumen,
   type TipoUsoResumen,
+  type AlumnoInscripto,
+  type Disciplina,
+  type InscribirDesdeElBuzon,
+  type Nivel,
+  type ProfesorResumen,
+  type ProgramaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -47,8 +56,7 @@ import {
   linkDeWhatsapp,
   mensajeConLaClave,
   mensajeDeCabinaApartada,
-  saludoDeContacto,
-} from '../componentes/whatsapp'
+  saludoDeContacto, mensajeDeInscripcion } from '../componentes/whatsapp'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -115,6 +123,12 @@ export function SolicitantesPagina() {
   /** Cuál está abierta para apartarle la cabina. Una por vez. */
   const [apartando, setApartando] = useState<number | null>(null)
 
+  /** Cuál está abierta para inscribirlo. Una por vez. */
+  const [inscribiendo, setInscribiendo] = useState<number | null>(null)
+
+  /** Lo que se acaba de inscribir: arriba, por lo mismo que la cabina apartada. */
+  const [alumnoInscripto, setAlumnoInscripto] = useState<AlumnoInscripto | null>(null)
+
   /**
    * La cabina que se acaba de apartar. Va arriba y no en la fila por lo mismo
    * que la cuenta recién creada: lo importante —la contraseña temporal y el
@@ -129,6 +143,9 @@ export function SolicitantesPagina() {
    */
   const [salas, setSalas] = useState<SalaResumen[]>([])
   const [tiposUso, setTiposUso] = useState<TipoUsoResumen[]>([])
+  /** Y el de programas y profesores, para inscribir desde acá (`V28`, Fase 6). */
+  const [programas, setProgramas] = useState<ProgramaResumen[]>([])
+  const [profesores, setProfesores] = useState<ProfesorResumen[]>([])
 
   useEffect(() => {
     if (!puedeResolver) {
@@ -138,6 +155,13 @@ export function SolicitantesPagina() {
       .then(([s, t]) => {
         setSalas(s)
         setTiposUso(t)
+      })
+      .catch(() => {})
+    // Por separado: que el catálogo de programas caiga no apaga el de salas.
+    void Promise.all([listarProgramas(), listarProfesores()])
+      .then(([pr, pf]) => {
+        setProgramas(pr)
+        setProfesores(pf)
       })
       // Sin catálogo el formulario de apartar no se ofrece, y el resto del buzón
       // funciona igual: contactar, crear la cuenta y descartar no lo necesitan.
@@ -191,6 +215,17 @@ export function SolicitantesPagina() {
       await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo apartar la cabina.')
+    }
+  }
+
+  async function inscribir(id: number, datos: InscribirDesdeElBuzon) {
+    setError(null)
+    try {
+      setAlumnoInscripto(await inscribirDesdeElBuzon(id, datos))
+      setInscribiendo(null)
+      await cargar()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo inscribir.')
     }
   }
 
@@ -257,6 +292,14 @@ export function SolicitantesPagina() {
 
       {cabinaApartada && (
         <CabinaLista resultado={cabinaApartada} onCerrar={() => setCabinaApartada(null)} />
+      )}
+
+      {alumnoInscripto && (
+        <InscripcionLista
+          resultado={alumnoInscripto}
+          profesores={profesores}
+          onCerrar={() => setAlumnoInscripto(null)}
+        />
       )}
 
       {cuentaRecienCreada && (
@@ -335,9 +378,26 @@ export function SolicitantesPagina() {
                       </Boton>
                     )}
 
+                    {/* El gemelo de apartar, para los cursos (§16 · B2 1.1): cuenta,
+                        alumno, preinscripción y ficha cerrada en un movimiento. Con
+                        el catálogo caído no se ofrece, como la cabina sin salas. */}
+                    {f.interes === 'CURSO' && programas.length > 0 && (
+                      <Boton
+                        onClick={() =>
+                          setInscribiendo(inscribiendo === f.idSolicitante ? null : f.idSolicitante)
+                        }
+                      >
+                        Inscribirlo
+                      </Boton>
+                    )}
+
                     {f.idUsuario === null && (
                       <Boton
-                        variante={SE_APARTA[f.interes] ? 'secundario' : 'principal'}
+                        variante={
+                          SE_APARTA[f.interes] || (f.interes === 'CURSO' && programas.length > 0)
+                            ? 'secundario'
+                            : 'principal'
+                        }
                         onClick={() => void darleCuenta(f)}
                       >
                         Crearle la cuenta
@@ -380,6 +440,18 @@ export function SolicitantesPagina() {
                   tiposUso={tiposUso}
                   onCerrar={() => setApartando(null)}
                   onConfirmar={(datos) => void apartar(f.idSolicitante, datos)}
+                />
+              </div>
+            )}
+
+            {inscribiendo === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <InscribirForm
+                  ficha={f}
+                  programas={programas}
+                  profesores={profesores}
+                  onCerrar={() => setInscribiendo(null)}
+                  onConfirmar={(datos) => void inscribir(f.idSolicitante, datos)}
                 />
               </div>
             )}
@@ -490,10 +562,11 @@ function Preferencia({ ficha }: { ficha: SolicitanteResumen }) {
  * coincidir, el formulario no se ofrece y se ve, en lugar de mandar un id
  * inventado.
  *
- * **Curso y equipos no están, y no es un olvido**: apartar es crear una reserva
- * con su deuda, y para esos dos el camino equivalente —cargar la inscripción,
- * cargar la venta— todavía se hace en su pantalla. Ponerles el nombre del trabajo
- * sin hacer el trabajo sería un botón que miente.
+ * **Equipos no está, y no es un olvido**: apartar es crear una reserva con su
+ * deuda, y para la venta el camino equivalente todavía se hace en su pantalla.
+ * Ponerle el nombre del trabajo sin hacer el trabajo sería un botón que miente.
+ * (Curso tiene el suyo desde la Fase 6: *"Inscribirlo"*, que no pasa por acá
+ * porque no depende del catálogo de salas.)
  */
 const SE_APARTA: Record<SolicitanteResumen['interes'], string | null> = {
   CURSO: null,
@@ -790,6 +863,259 @@ function CabinaLista({
           </>
         ) : (
           'La deuda ya figura en Deudores.'
+        )}
+      </p>
+
+      {cuentaNueva && (
+        <>
+          <p className="mt-5 text-sm leading-relaxed text-tenue">
+            Además le creamos la cuenta.{' '}
+            <strong className="text-texto">La contraseña no se puede volver a ver:</strong> si se
+            pierde, hay que generar otra desde Personas.
+          </p>
+          <Hueco className="mt-3 font-mono text-lg tracking-wider">
+            {resultado.passwordTemporal}
+          </Hueco>
+        </>
+      )}
+
+      {link ? (
+        <div className="mt-4">
+          <EnlaceDeWhatsapp href={link}>
+            {cuentaNueva ? 'Avisarle por WhatsApp, con la clave' : 'Avisarle por WhatsApp'}
+          </EnlaceDeWhatsapp>
+        </div>
+      ) : (
+        <p className="mt-4 text-xs text-apagado">
+          El teléfono de la ficha ({ficha.telefono}) no se puede abrir en WhatsApp: copialo y
+          buscalo a mano.
+        </p>
+      )}
+
+      <Boton className="mt-4" onClick={onCerrar}>
+        Listo
+      </Boton>
+    </Bloque>
+  )
+}
+
+/**
+ * Inscribir a quien pidió un curso, desde la ficha (§16 · B2 1.1, P64 · P66).
+ *
+ * **Todo viene prellenado y todo se edita** (P66: *"que sea todo modificable"*):
+ * el programa de lo que la persona pidió en la web, el nivel de la experiencia
+ * que contó (`nivelSugerido`, traducido por el servidor para que la tabla viva
+ * en un lugar), clases y precio del catálogo. **No pide seña**: desde acá la
+ * inscripción nace preinscripta, con 24 hs — la persona viene de un formulario
+ * y todavía no pagó nada, y el mensaje que sale de esto dice exactamente eso.
+ */
+function InscribirForm({
+  ficha,
+  programas,
+  profesores,
+  onCerrar,
+  onConfirmar,
+}: {
+  ficha: SolicitanteResumen
+  programas: ProgramaResumen[]
+  profesores: ProfesorResumen[]
+  onCerrar: () => void
+  onConfirmar: (datos: InscribirDesdeElBuzon) => void
+}) {
+  const [disciplina, setDisciplina] = useState<Disciplina | ''>(ficha.disciplina ?? '')
+  const [nivel, setNivel] = useState<Nivel | ''>(ficha.nivelSugerido ?? '')
+  const [idProfesor, setIdProfesor] = useState('')
+  const programa = programas.find((p) => p.disciplina === disciplina)
+  const [clases, setClases] = useState(programa?.clasesEstandar ? String(programa.clasesEstandar) : '')
+  const [precio, setPrecio] = useState(programa?.precio != null ? String(programa.precio) : '')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [notas, setNotas] = useState('')
+  const [errores, setErrores] = useState<Record<string, string>>({})
+
+  function elegirPrograma(nueva: Disciplina | '') {
+    setDisciplina(nueva)
+    const p = programas.find((x) => x.disciplina === nueva)
+    setClases(p?.clasesEstandar ? String(p.clasesEstandar) : '')
+    setPrecio(p?.precio != null ? String(p.precio) : '')
+  }
+
+  function confirmar(e: React.FormEvent) {
+    e.preventDefault()
+    const locales: Record<string, string> = {}
+    if (!disciplina) locales.disciplina = 'Elegí el programa.'
+    if (precio === '') locales.precio = 'Poné el precio del programa.'
+    if (programa && programa.clasesEstandar === null && clases === '') {
+      locales.clases = `${programa.nombre} se arma a medida: decí cuántas clases son.`
+    }
+    if (Object.keys(locales).length > 0) {
+      setErrores(locales)
+      return
+    }
+    onConfirmar({
+      disciplina: disciplina as Disciplina,
+      nivel: nivel || undefined,
+      idProfesor: idProfesor ? Number(idProfesor) : undefined,
+      clasesContratadas: clases ? Number(clases) : undefined,
+      precioTotal: Number(precio),
+      moneda: programa?.moneda ?? 'ARS',
+      fechaInicio: fechaInicio || undefined,
+      notas: notas || undefined,
+    })
+  }
+
+  const senia = precio === '' ? null : Number(precio) / 2
+
+  return (
+    <form onSubmit={confirmar} noValidate>
+      <p className="mb-3 text-sm text-tenue">
+        Queda <strong className="text-texto">preinscripto</strong>: tiene 24 horas para señar
+        {senia != null && senia > 0 ? ` el 50% (${formatearImporte(senia, programa?.moneda ?? 'ARS')})` : ''}
+        . El resto se paga antes de la primera clase.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <CampoSelect
+          etiqueta="Programa"
+          value={disciplina}
+          onChange={(e) => elegirPrograma(e.target.value as Disciplina | '')}
+          error={errores.disciplina}
+        >
+          <option value="">Elegí uno</option>
+          {programas
+            .filter((p) => p.activo)
+            .map((p) => (
+              <option key={p.disciplina} value={p.disciplina}>
+                {p.nombre}
+              </option>
+            ))}
+        </CampoSelect>
+
+        <div>
+          <CampoSelect
+            etiqueta="Nivel"
+            value={nivel}
+            onChange={(e) => setNivel(e.target.value as Nivel | '')}
+          >
+            <option value="">Sin definir</option>
+            <option value="INICIAL">Inicial</option>
+            <option value="INTERMEDIO">Intermedio</option>
+            <option value="AVANZADO">Avanzado</option>
+          </CampoSelect>
+          {/* De dónde salió el prellenado (P64): la persona no se autodiagnosticó,
+              contó su experiencia; el nivel es una sugerencia y acá se cambia. */}
+          {ficha.experiencia && (
+            <p className="mt-1 text-xs text-tenue">
+              Sugerido por lo que contó: {NOMBRE_DE_EXPERIENCIA[ficha.experiencia]}.
+            </p>
+          )}
+        </div>
+
+        <CampoSelect
+          etiqueta="Profesor"
+          value={idProfesor}
+          onChange={(e) => setIdProfesor(e.target.value)}
+        >
+          <option value="">Se asigna después</option>
+          {profesores.map((p) => (
+            <option key={p.idProfesor} value={p.idProfesor}>
+              {p.apellido}, {p.nombre}
+            </option>
+          ))}
+        </CampoSelect>
+
+        <Campo
+          etiqueta="Clases"
+          type="number"
+          value={clases}
+          onChange={(e) => setClases(e.target.value)}
+          error={errores.clases}
+        />
+
+        <Campo
+          etiqueta="Precio total"
+          type="number"
+          step="0.01"
+          value={precio}
+          onChange={(e) => setPrecio(e.target.value)}
+          error={errores.precio}
+        />
+
+        <Campo
+          etiqueta="Fecha de inicio (opcional)"
+          type="date"
+          value={fechaInicio}
+          onChange={(e) => setFechaInicio(e.target.value)}
+        />
+
+        <Campo
+          etiqueta="Notas (opcional)"
+          value={notas}
+          onChange={(e) => setNotas(e.target.value)}
+        />
+      </div>
+
+      <div className="mt-4 flex gap-3">
+        <Boton type="submit">Preinscribir</Boton>
+        <Boton type="button" variante="secundario" onClick={onCerrar}>
+          Cancelar
+        </Boton>
+      </div>
+    </form>
+  )
+}
+
+function formatearImporte(monto: number, moneda: Moneda): string {
+  return `${moneda === 'USD' ? 'USD' : '$'} ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)}`
+}
+
+/**
+ * Lo que quedó hecho al inscribir, y **el mensaje de P71 en su variante de
+ * programa**: te anotamos en X con Y, la seña y hasta cuándo, el resto antes
+ * de empezar. Mismo criterio que {@link CabinaLista}: arriba, porque la
+ * contraseña temporal no se puede volver a ver, y con la salida de WhatsApp.
+ */
+function InscripcionLista({
+  resultado,
+  profesores,
+  onCerrar,
+}: {
+  resultado: AlumnoInscripto
+  profesores: ProfesorResumen[]
+  onCerrar: () => void
+}) {
+  const { inscripcion, usuario, ficha } = resultado
+  const cuentaNueva = resultado.cuentaNueva && resultado.passwordTemporal
+  const profesor = profesores.find((p) => p.idProfesor === inscripcion.idProfesor)
+  const importe = formatearImporte(resultado.senia, resultado.moneda)
+
+  const link = linkDeWhatsapp(
+    ficha.telefono,
+    mensajeDeInscripcion({
+      nombre: usuario.nombre,
+      programa: NOMBRE_DE_DISCIPLINA[inscripcion.disciplina],
+      profesor: profesor ? `${profesor.nombre} ${profesor.apellido}` : null,
+      importe,
+      vence: resultado.vence ? fechaYHora(resultado.vence) : null,
+      cuenta: cuentaNueva
+        ? { email: usuario.email, passwordTemporal: resultado.passwordTemporal! }
+        : null,
+    }),
+  )
+
+  return (
+    <Bloque
+      titulo={`${usuario.nombre} ${usuario.apellido}, preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`}
+      className="mb-6"
+    >
+      <p className="mt-2 text-sm leading-relaxed text-tenue">
+        {resultado.vence ? (
+          <>
+            Falta la seña de <strong className="text-texto">{importe}</strong>, antes del{' '}
+            <strong className="text-texto">{fechaYHora(resultado.vence)}</strong>. Ya figura en
+            Deudores como “sin señar”; cuando entre el pago, la inscripción se activa sola.
+          </>
+        ) : (
+          'Quedó activa: no hay nada que abonar.'
         )}
       </p>
 

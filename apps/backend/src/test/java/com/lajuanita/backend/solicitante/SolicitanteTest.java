@@ -27,6 +27,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -426,6 +427,160 @@ class SolicitanteTest {
                 .andExpect(jsonPath("$.fechaPreferida").value("2026-10-10"))
                 .andExpect(jsonPath("$.horaPreferida").doesNotExist())
                 .andExpect(jsonPath("$.duracionMinutos").doesNotExist());
+    }
+
+    // == Inscribir desde el buzón: las cuatro cosas en un movimiento (Fase 6) ==
+
+    /**
+     * ⚠️ El gemelo de {@code apartar_la_cabina_...} para los programas (B2 1.1).
+     * Un POST y quedan hechas las cuatro: la cuenta, la relación de alumno, la
+     * inscripción <b>preinscripta</b> con su plazo, y la ficha cerrada apuntándole.
+     * Y lo que la pantalla necesita para el WhatsApp: la seña sugerida (50%) y
+     * hasta cuándo.
+     */
+    @Test
+    void inscribir_crea_la_cuenta_el_alumno_la_preinscripcion_y_cierra_la_ficha() throws Exception {
+        long ficha = idDe(mandarFormularioDeCurso(unEmail(), "DJ", "CERO"));
+
+        ResultActions respuesta = inscribir(ficha, """
+                {"disciplina":"DJ","precioTotal":180000}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cuentaNueva").value(true))
+                .andExpect(jsonPath("$.passwordTemporal").isNotEmpty())
+                .andExpect(jsonPath("$.inscripcion.estado").value("PREINSCRIPTA"))
+                .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(8))
+                .andExpect(jsonPath("$.inscripcion.vencePreinscripcion").isNotEmpty())
+                .andExpect(jsonPath("$.senia").value(90000.00))
+                .andExpect(jsonPath("$.moneda").value("ARS"))
+                .andExpect(jsonPath("$.vence").isNotEmpty())
+                .andExpect(jsonPath("$.ficha.estado").value("ATENDIDO"))
+                .andExpect(jsonPath("$.ficha.idInscripcion").isNotEmpty())
+                .andExpect(jsonPath("$.ficha.idUsuario").isNotEmpty());
+
+        long idUsuario = ((Number) JsonPath.read(
+                respuesta.andReturn().getResponse().getContentAsString(), "$.usuario.id")).longValue();
+        // La relación de alumno existe, y no hay ningún pago anotado (P72).
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM alumno WHERE id_usuario = ?", Long.class, idUsuario)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM pago WHERE id_usuario = ?", Long.class, idUsuario)).isZero();
+        // Y el aviso en su bandeja, que dice que falta la seña.
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE id_usuario_destino = ? AND titulo LIKE '%falta la seña%'",
+                Long.class, idUsuario)).isEqualTo(1);
+    }
+
+    /**
+     * P64: el nivel se prellena desde la experiencia que la web preguntó — "ya
+     * toca" arranca en INTERMEDIO— cuando el pedido no lo dice, y el pedido
+     * gana cuando sí lo dice. La tabla vive en un solo lugar.
+     */
+    @Test
+    void el_nivel_sale_de_la_experiencia_de_la_ficha_salvo_que_se_diga_otro() throws Exception {
+        long toca = idDe(mandarFormularioDeCurso(unEmail(), "PRODUCCION", "TOCA"));
+        inscribir(toca, """
+                {"disciplina":"PRODUCCION","precioTotal":440000}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inscripcion.nivel").value("INTERMEDIO"));
+
+        long otra = idDe(mandarFormularioDeCurso(unEmail(), "DJ", "TOCA"));
+        inscribir(otra, """
+                {"disciplina":"DJ","nivel":"AVANZADO","precioTotal":180000}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inscripcion.nivel").value("AVANZADO"));
+    }
+
+    /** La ficha ya trae `nivelSugerido`, para que el formulario arranque de ahí. */
+    @Test
+    void la_ficha_dice_con_que_nivel_arrancar() throws Exception {
+        mandarFormularioDeCurso(unEmail(), "DJ", "ALGO")
+                .andExpect(jsonPath("$.nivelSugerido").value("INICIAL"));
+        mandarFormularioDeCurso(unEmail(), "DJ", "TOCA")
+                .andExpect(jsonPath("$.nivelSugerido").value("INTERMEDIO"));
+        mandarUnaFicha("CURSO");
+    }
+
+    /** Quien ya tenía cuenta (y alumno) no recibe otra: se le cuelga la inscripción. */
+    @Test
+    void a_quien_ya_era_alumno_se_le_cuelga_la_preinscripcion_sin_otra_cuenta() throws Exception {
+        Usuario persona = crear(Rol.USUARIO);
+        jdbc.update("INSERT INTO alumno (id_usuario) VALUES (?)", persona.getId());
+        long ficha = idDe(mandarFormularioDeCurso(persona.getEmail(), "DJ", "CERO"));
+
+        inscribir(ficha, """
+                {"disciplina":"DJ","precioTotal":180000}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cuentaNueva").value(false))
+                .andExpect(jsonPath("$.passwordTemporal").doesNotExist())
+                .andExpect(jsonPath("$.usuario.id").value(persona.getId()));
+
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM alumno WHERE id_usuario = ?", Long.class, persona.getId())).isEqualTo(1);
+    }
+
+    /**
+     * ⚠️ El caso que justifica la transacción única: si la inscripción choca (ya
+     * tiene una abierta en esa disciplina), <b>no queda una cuenta creada</b> con
+     * una contraseña que ya no se puede volver a ver, y la ficha sigue abierta.
+     */
+    @Test
+    void si_la_inscripcion_choca_no_queda_ni_la_cuenta_ni_la_ficha_cerrada() throws Exception {
+        // Alguien que ya cursa DJ y pide DJ otra vez desde la web.
+        Usuario persona = crear(Rol.USUARIO);
+        long idAlumno = jdbc.queryForObject(
+                "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, persona.getId());
+        jdbc.update("""
+                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total)
+                VALUES (?, 'DJ', 8, 180000)
+                """, idAlumno);
+        long ficha = idDe(mandarFormularioDeCurso(persona.getEmail(), "DJ", "CERO"));
+
+        inscribir(ficha, """
+                {"disciplina":"DJ","precioTotal":180000}
+                """).andExpect(status().isConflict());
+
+        // ⚠️ Este caso corre adentro de la transacción del test, así que el
+        // rollback no se puede VER: lo que se afirma es que quedó marcada para
+        // deshacerse entera — que es exactamente "cuenta y alta viven en una".
+        assertThat(TestTransaction.isFlaggedForRollback()).isTrue();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM inscripcion WHERE id_alumno = ?", Long.class, idAlumno)).isEqualTo(1);
+    }
+
+    /**
+     * Y con una cuenta NUEVA: la mentoría sin decir las clases se rechaza en el
+     * alta (P65), que corre <b>después</b> de crear la cuenta. Si la transacción
+     * no fuera una, quedaría una cuenta con una contraseña ya mostrada para
+     * alguien que no tiene nada — el escenario exacto de §15 · Fase 3.
+     */
+    @Test
+    void si_el_alta_se_rechaza_despues_de_crear_la_cuenta_la_cuenta_no_queda() throws Exception {
+        String email = unEmail();
+        long ficha = idDe(mandarFormularioDeCurso(email, "MENTORIA", "TOCA"));
+
+        inscribir(ficha, """
+                {"disciplina":"MENTORIA","precioTotal":100000}
+                """).andExpect(status().isBadRequest());
+
+        // La cuenta se creó (`darleCuenta` corrió) y la transacción entera quedó
+        // marcada para rollback: al terminar, esa cuenta no existe. Ver el caso
+        // de arriba sobre por qué no se puede leer el rollback desde acá.
+        assertThat(usuarios.findByEmailIgnoreCase(email)).isPresent();
+        assertThat(TestTransaction.isFlaggedForRollback()).isTrue();
+    }
+
+    /** Sólo fichas de curso: inscribir a quien pidió la cabina es el espejo de apartar una clase. */
+    @Test
+    void desde_el_buzon_no_se_inscribe_a_quien_pidio_la_cabina() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+
+        inscribir(ficha, """
+                {"disciplina":"DJ","precioTotal":180000}
+                """).andExpect(status().isForbidden());
     }
 
     // == Qué programa, con qué experiencia y cómo (`V29`, P64 · P67) ==========
@@ -842,6 +997,25 @@ class SolicitanteTest {
                 VALUES (?, ?, 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
                 RETURNING id_venta
                 """, Long.class, crear(Rol.STAFF).getId(), idComprador);
+    }
+
+    private ResultActions inscribir(long ficha, String cuerpo) throws Exception {
+        return mvc.perform(post("/api/solicitantes/" + ficha + "/inscripcion")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo));
+    }
+
+    /** Un formulario de programa, con los campos de `V29`. */
+    private ResultActions mandarFormularioDeCurso(String email, String disciplina, String experiencia)
+            throws Exception {
+        return mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Ana","apellido":"Pérez","email":"%s","telefono":"%s",
+                         "interes":"CURSO","disciplina":"%s","experiencia":"%s","modalidad":"PRESENCIAL"}
+                        """.formatted(email, unTelefono(), disciplina, experiencia)))
+                .andExpect(status().isCreated());
     }
 
     private long mandarUnaFicha(String interes) throws Exception {

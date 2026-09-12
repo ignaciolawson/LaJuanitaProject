@@ -34,6 +34,8 @@ public record ResumenDeAvisos(
         int entregasAvisadas,
         int lanzamientosAvisados,
         int fichasSinAtender,
+        /** Preinscripciones que pasaron su plazo sin la seña (P61 · P72). */
+        int preinscripcionesVencidas,
         int avisosEscritos,
         int avisosOmitidos) {
 }

@@ -2,6 +2,7 @@ package com.lajuanita.backend.pago;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -9,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -26,6 +28,7 @@ import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
 import com.lajuanita.backend.pago.dto.CajaDelPeriodo.PorMedioDePago;
 import com.lajuanita.backend.pago.dto.Deudor;
+import com.lajuanita.backend.pago.dto.MotivoDeDeuda;
 import com.lajuanita.backend.pago.dto.EdicionPagoRequest;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.pago.dto.EstadoDeCuenta.ContratoDelAlumno;
@@ -601,9 +604,10 @@ public class PagoService {
     public List<Deudor> deudores() {
         LocalDate hoy = LocalDate.now();
         List<Object[]> filas = pagos.deudores(EstadoPago.ADEUDADOS);
-        if (filas.isEmpty()) {
-            return List.of();
-        }
+        // Sin retorno temprano: desde P72 hay una segunda fuente, y con la
+        // primera vacía —que es lo normal en un estudio al día— la segunda es
+        // la única. Un `return List.of()` acá dejó a las preinscriptas fuera de
+        // Deudores en la primera corrida de los casos.
 
         // Desde `V19` una fila puede no tener cuenta detrás, así que solo se piden
         // las que sí la tienen. Sin el filtro, el `findAllById` recibe un null y
@@ -616,7 +620,7 @@ public class PagoService {
                         .toList())
                 .forEach(u -> personas.put(u.getId(), u));
 
-        return filas.stream().map(fila -> {
+        List<Deudor> lista = filas.stream().map(fila -> {
             LocalDate desde = (LocalDate) fila[6];
             int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
             Moneda moneda = (Moneda) fila[3];
@@ -629,14 +633,72 @@ public class PagoService {
             // modo de falla que `mejoras.md` §9.1 anota como el riesgo de `V19`.
             if (fila[0] == null) {
                 return new Deudor(null, (String) fila[1], null, null, (String) fila[2],
-                        moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER);
+                        moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER,
+                        MotivoDeDeuda.DEUDA_ANOTADA, null, null, null);
             }
 
             Usuario persona = personas.get(((Number) fila[0]).longValue());
             return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
                     persona.getEmail(), persona.getTelefono(),
-                    moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER);
-        }).toList();
+                    moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER,
+                    MotivoDeDeuda.DEUDA_ANOTADA, null, null, null);
+        }).collect(Collectors.toCollection(ArrayList::new));
+
+        lista.addAll(inscripcionesConPlataPendiente(hoy));
+        return lista;
+    }
+
+    /**
+     * La segunda fuente de Deudores (P72): lo que falta pagar de un programa,
+     * <b>calculado desde la inscripción</b> y nunca anotado como {@code pago}.
+     *
+     * <p>Es la misma cuenta que {@link #contratosDe}: sólo lo cobrado <b>en la
+     * moneda del contrato</b> lo cancela. Dos situaciones, y la diferencia es el
+     * reloj: la preinscripta vence cuando pasó {@code vence_preinscripcion} (y
+     * avisa, P61); la activa con saldo <b>no vence nunca</b> — el resto se paga
+     * antes de empezar, sin fecha (P72). Una fila DEBE por ese saldo diría
+     * "Deuda vencida" a la semana para alguien que arranca en tres.
+     */
+    private List<Deudor> inscripcionesConPlataPendiente(LocalDate hoy) {
+        List<Inscripcion> candidatas = inscripciones.conPlataPosiblementePendiente(
+                EstadoInscripcion.ABIERTAS);
+        if (candidatas.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, BigDecimal> cobradoEnSuMoneda = new HashMap<>();
+        List<Long> ids = candidatas.stream().map(Inscripcion::getId).toList();
+        Map<Long, Inscripcion> porId = new HashMap<>();
+        candidatas.forEach(i -> porId.put(i.getId(), i));
+        for (Object[] fila : pagos.cobradoPorInscripcion(ids, EstadoPago.ENTRARON)) {
+            long id = ((Number) fila[0]).longValue();
+            if (((Moneda) fila[1]) == porId.get(id).getMoneda()) {
+                cobradoEnSuMoneda.merge(id, (BigDecimal) fila[2], BigDecimal::add);
+            }
+        }
+
+        OffsetDateTime ahora = OffsetDateTime.now();
+        List<Deudor> lista = new ArrayList<>();
+        for (Inscripcion i : candidatas) {
+            BigDecimal saldo = i.getPrecioTotal()
+                    .subtract(cobradoEnSuMoneda.getOrDefault(i.getId(), BigDecimal.ZERO));
+            if (saldo.signum() <= 0) {
+                continue;
+            }
+            Usuario persona = i.getAlumno().getUsuario();
+            LocalDate desde = i.getFechaCreacion().toLocalDate();
+            int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
+            boolean preinscripta = i.estaPreinscripta();
+
+            lista.add(new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
+                    persona.getEmail(), persona.getTelefono(),
+                    i.getMoneda().name(), Importe.normalizar(saldo), 0, desde, dias,
+                    preinscripta && i.getVencePreinscripcion().isBefore(ahora),
+                    preinscripta ? MotivoDeDeuda.SIN_SENIAR : MotivoDeDeuda.FALTA_EL_RESTO,
+                    i.getId(), i.getDisciplina().name(),
+                    preinscripta ? i.getVencePreinscripcion() : null));
+        }
+        return lista;
     }
 
     // -------------------------------------------------------------------------

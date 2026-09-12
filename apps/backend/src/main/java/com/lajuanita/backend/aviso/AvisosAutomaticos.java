@@ -63,10 +63,11 @@ public class AvisosAutomaticos {
     public void correr() {
         try {
             ResumenDeAvisos resumen = avisos.generar();
-            log.info("Avisos automáticos: {} pagos pasaron a VENCIDO; {} deudas, {} entregas impagas "
-                    + "y {} lanzamientos próximos; {} notificaciones escritas y {} ya estaban.",
+            log.info("Avisos automáticos: {} pagos pasaron a VENCIDO; {} deudas, {} entregas impagas, "
+                    + "{} lanzamientos próximos y {} preinscripciones vencidas; "
+                    + "{} notificaciones escritas y {} ya estaban.",
                     resumen.pagosVencidos(), resumen.deudoresAvisados(), resumen.entregasAvisadas(),
-                    resumen.lanzamientosAvisados(),
+                    resumen.lanzamientosAvisados(), resumen.preinscripcionesVencidas(),
                     resumen.avisosEscritos(), resumen.avisosOmitidos());
         } catch (RuntimeException e) {
             log.error("La corrida de avisos automáticos falló. No se reintenta hoy: "

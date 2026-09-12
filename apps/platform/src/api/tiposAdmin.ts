@@ -563,10 +563,31 @@ export type Deudor = {
   telefono: string | null
   moneda: Moneda
   adeudado: number
+  /** 0 para las dos fuentes de inscripción: no hay pago anotado. */
   cantidadDePagos: number
   desde: string
   diasDeAtraso: number
   vencido: boolean
+
+  /**
+   * Por qué figura (P72). Deudores tiene DOS fuentes desde la §16 · Fase 6:
+   * las deudas anotadas de siempre (con reloj de 7 días) y las inscripciones
+   * con plata pendiente — `SIN_SENIAR` (preinscripta, con su plazo) y
+   * `FALTA_EL_RESTO` (activa con saldo, **sin plazo, nunca vencida**).
+   */
+  motivo: MotivoDeDeuda
+  idInscripcion: number | null
+  disciplina: Disciplina | null
+  /** Sólo para `SIN_SENIAR`: hasta cuándo puede señar. */
+  vence: string | null
+}
+
+export type MotivoDeDeuda = 'DEUDA_ANOTADA' | 'SIN_SENIAR' | 'FALTA_EL_RESTO'
+
+export const NOMBRE_DE_MOTIVO: Record<MotivoDeDeuda, string> = {
+  DEUDA_ANOTADA: 'Deuda anotada',
+  SIN_SENIAR: 'Sin señar',
+  FALTA_EL_RESTO: 'Seña abonada, falta el resto',
 }
 
 /** Espeja `EgresoResumen`. */
@@ -708,6 +729,13 @@ export const NOMBRE_DE_MEDIO: Record<MedioPago, string> = {
   CUENTA_EEUU: 'Cuenta EEUU',
   OTRO: 'Otro',
 }
+
+/**
+ * Los medios en el orden del `<select>`. Derivado del mapa de nombres para que
+ * un medio nuevo no pueda quedar con etiqueta y sin opción. (Tres pantallas
+ * todavía llevan su copia local de esta lista; ésta es la que conviene usar.)
+ */
+export const MEDIOS_DE_PAGO = Object.keys(NOMBRE_DE_MEDIO) as MedioPago[]
 
 export const NOMBRE_DE_ESTADO_PAGO: Record<EstadoPago, string> = {
   SENADO: 'Señado',
@@ -852,6 +880,11 @@ export type SolicitanteResumen = {
   disciplina: Disciplina | null
   experiencia: Experiencia | null
   modalidad: Modalidad | null
+  /**
+   * Con qué nivel arranca el alta desde el buzón (P64): la experiencia
+   * traducida por el servidor, para que la tabla viva en un solo lugar.
+   */
+  nivelSugerido: Nivel | null
 
   fechaResolucion: string | null
   fechaCreacion: string
@@ -970,6 +1003,38 @@ export type CabinaApartada = {
    */
   monto: number
   moneda: Moneda
+}
+
+/**
+ * Inscribir desde el buzón. Espeja `InscribirDesdeElBuzonRequest`: sin alumno
+ * (sale de la ficha) y **sin seña** — desde acá la inscripción nace
+ * preinscripta, con 24 hs; la persona todavía no pagó nada.
+ */
+export type InscribirDesdeElBuzon = {
+  disciplina: Disciplina
+  nivel?: Nivel | ''
+  idProfesor?: number | null
+  clasesContratadas?: number
+  precioTotal: number
+  moneda?: Moneda
+  cotizacionDolar?: number | null
+  fechaInicio?: string
+  notas?: string
+}
+
+/**
+ * Lo que quedó hecho al inscribir. Espeja `AlumnoInscripto`. `senia` es la
+ * sugerencia del 50% y `vence` hasta cuándo (null si nació activa: una beca).
+ */
+export type AlumnoInscripto = {
+  ficha: SolicitanteResumen
+  inscripcion: InscripcionResumen
+  usuario: UsuarioResumen
+  passwordTemporal: string | null
+  cuentaNueva: boolean
+  senia: number
+  moneda: Moneda
+  vence: string | null
 }
 
 /** Lo que devuelve crearle la cuenta. Espeja `ConversionRealizada` — el nombre

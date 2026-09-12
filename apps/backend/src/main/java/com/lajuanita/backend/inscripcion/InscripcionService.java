@@ -1,10 +1,13 @@
 package com.lajuanita.backend.inscripcion;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -15,6 +18,11 @@ import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.inscripcion.dto.AltaInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.EdicionInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.InscripcionResumen;
+import com.lajuanita.backend.inscripcion.dto.SenaDeInscripcionRequest;
+import com.lajuanita.backend.inscripcion.dto.InscripcionCreada;
+import com.lajuanita.backend.pago.EstadoPago;
+import com.lajuanita.backend.pago.PagoService;
+import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.programa.Programa;
@@ -50,19 +58,44 @@ public class InscripcionService {
     private final AlumnoRepository alumnos;
     private final ProfesorRepository profesores;
     private final ProgramaService programas;
+    private final PagoService pagos;
+
+    /**
+     * Hasta cuándo se aguanta una preinscripción sin señar (P59 · P72: 24 hs).
+     * Configurable con default, por lo mismo que {@code lajuanita.prereserva.horas}:
+     * una regla de negocio que sólo vive en un archivo de configuración es una
+     * regla que nadie encuentra.
+     */
+    @Value("${lajuanita.preinscripcion.horas:24}")
+    private long horasDePreinscripcion;
 
     public InscripcionService(InscripcionRepository inscripciones,
             AlumnoRepository alumnos,
             ProfesorRepository profesores,
-            ProgramaService programas) {
+            ProgramaService programas,
+            PagoService pagos) {
         this.inscripciones = inscripciones;
         this.alumnos = alumnos;
         this.profesores = profesores;
         this.programas = programas;
+        this.pagos = pagos;
     }
 
+    /**
+     * Alta de una inscripción, con o sin su seña (P59, `V30`, P72).
+     *
+     * <p><b>Con seña nace ACTIVA</b> y el pago entra {@code SENADO} apuntándole,
+     * en la misma transacción — el molde de {@code ReservaService.alta}: una
+     * inscripción activa cuyo pago falló es lo que la escalera de `V30` existe
+     * para no permitir por otro camino. <b>Sin seña nace PREINSCRIPTA</b>, con el
+     * plazo puesto por el servidor, y la activa después el pago de la seña
+     * ({@code PagoService.registrar}). <b>En cero nace activa sin seña</b>: una
+     * beca es un precio (§13) y no tiene qué señar.
+     *
+     * <p>{@code idAutor} firma el pago de la seña; sin seña no se usa.
+     */
     @Transactional
-    public InscripcionResumen alta(AltaInscripcionRequest solicitud) {
+    public InscripcionCreada alta(AltaInscripcionRequest solicitud, Long idAutor) {
         Alumno alumno = alumnos.findById(solicitud.idAlumno())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "No existe el alumno " + solicitud.idAlumno() + "."));
@@ -90,9 +123,43 @@ public class InscripcionService {
         inscripcion.setFechaInicio(solicitud.fechaInicio());
         inscripcion.setNotas(normalizar(solicitud.notas()));
 
+        boolean hayQueSeniar = solicitud.sena() == null
+                && solicitud.precioTotal().compareTo(BigDecimal.ZERO) > 0;
+        if (hayQueSeniar) {
+            inscripcion.preinscribir(
+                    OffsetDateTime.now().plusHours(horasDePreinscripcion));
+        }
+
         Inscripcion guardada = inscripciones.save(inscripcion);
+
+        Long idPagoSena = solicitud.sena() == null
+                ? null
+                : registrarLaSena(solicitud.sena(), guardada, idAutor);
+
         // Recién creada: no hay ninguna clase dada todavía.
-        return InscripcionResumen.de(guardada, 0);
+        return new InscripcionCreada(InscripcionResumen.de(guardada, 0), idPagoSena);
+    }
+
+    /**
+     * La seña como {@code pago}, delegada a Módulo 3 para que la caja, el estado
+     * de cuenta y Deudores la vean como cualquier otro pago. Va {@code SENADO} y
+     * no {@code PAGADO}: es plata contra un total que todavía no se completó.
+     */
+    private Long registrarLaSena(SenaDeInscripcionRequest sena, Inscripcion inscripcion,
+            Long idAutor) {
+        return pagos.registrar(new AltaPagoRequest(
+                inscripcion.getAlumno().getUsuario().getId(),
+                null, null,
+                inscripcion.getId(), null, null, null,
+                "Seña del programa",
+                sena.monto(),
+                sena.moneda(),
+                sena.cotizacionDolar(),
+                sena.medioPago(),
+                null, null,
+                EstadoPago.SENADO,
+                null),
+                idAutor).idPago();
     }
 
     @Transactional(readOnly = true)

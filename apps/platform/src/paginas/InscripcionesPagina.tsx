@@ -20,6 +20,9 @@ import {
   type Nivel,
   type ProfesorResumen,
   type ProgramaResumen,
+  MEDIOS_DE_PAGO,
+  type MedioPago,
+  NOMBRE_DE_MEDIO,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -611,6 +614,20 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   const [enviando, setEnviando] = useState(false)
 
   /**
+   * La seña (P59, `V30`). **Apagada por defecto, y lo que eso significa se dice
+   * en la pantalla**: sin seña la inscripción nace preinscripta con 24 hs para
+   * pagarla, no "sin plata". El monto se prellena con el 50% del precio y se
+   * edita: la base sostiene que haya plata cobrada, no que sea la mitad.
+   */
+  const [conSena, setConSena] = useState(false)
+  const [sena, setSena] = useState({ monto: '', medioPago: 'EFECTIVO' as MedioPago })
+
+  function cambiarSena(campo: 'monto' | 'medioPago') {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setSena((previo) => ({ ...previo, [campo]: e.target.value }))
+  }
+
+  /**
    * Al elegir disciplina se completan las clases de fábrica y el precio, desde
    * el catálogo (P63). Es una sugerencia visible, no una regla — quien aplica la
    * cantidad cuando el campo va vacío es el backend, así que un alta por la API
@@ -628,6 +645,11 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
       precioTotal: programa?.precio != null ? String(programa.precio) : '',
       moneda: programa?.moneda ?? previo.moneda,
     }))
+    // Y la seña sugerida: el 50% de ese precio.
+    setSena((previo) => ({
+      ...previo,
+      monto: programa?.precio != null ? String(programa.precio / 2) : '',
+    }))
   }
 
   function cambiar(campo: keyof CamposDelCurso) {
@@ -639,6 +661,9 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
     evento.preventDefault()
 
     const locales = validar(alumno, disciplina, datos, programas)
+    if (conSena && (!sena.monto || Number(sena.monto) <= 0)) {
+      locales.senaMonto = 'Poné el monto de la seña.'
+    }
     if (Object.keys(locales).length > 0) {
       setErrores(locales)
       return
@@ -660,6 +685,14 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
         cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : undefined,
         fechaInicio: datos.fechaInicio || undefined,
         notas: datos.notas || undefined,
+        sena: conSena
+          ? {
+              monto: Number(sena.monto),
+              moneda: datos.moneda,
+              cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : null,
+              medioPago: sena.medioPago,
+            }
+          : undefined,
       })
       onCreada()
     } catch (e) {
@@ -706,6 +739,50 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
             profesores={profesores}
             ayudaClases={ayudaDeClases(disciplina, programas)}
           />
+
+          {/* La seña (P59). Lo que significa no marcarla se dice al lado: una
+              preinscripción no es "sin plata", es "con 24 hs para pagar". */}
+          <label className="flex items-start gap-2 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={conSena}
+              onChange={(e) => setConSena(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm">
+              <span className="font-medium">La seña entró ahora</span>
+              <span className="block text-xs text-tenue">
+                {conSena
+                  ? 'La inscripción nace activa y el pago queda registrado como seña.'
+                  : 'Sin seña queda preinscripta: la persona tiene 24 horas para pagarla y figura en Deudores como “sin señar”.'}
+              </span>
+            </span>
+          </label>
+
+          {conSena && (
+            <>
+              <Campo
+                etiqueta="Monto de la seña"
+                type="number"
+                step="0.01"
+                value={sena.monto}
+                onChange={cambiarSena('monto')}
+                error={errores.senaMonto}
+                ayuda="El 50% del precio, por defecto."
+              />
+              <CampoSelect
+                etiqueta="Cómo pagó"
+                value={sena.medioPago}
+                onChange={cambiarSena('medioPago')}
+              >
+                {MEDIOS_DE_PAGO.map((m) => (
+                  <option key={m} value={m}>
+                    {NOMBRE_DE_MEDIO[m]}
+                  </option>
+                ))}
+              </CampoSelect>
+            </>
+          )}
         </div>
 
         {errorGeneral && (
@@ -716,7 +793,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
 
         <div className="mt-5 flex gap-3">
           <Boton type="submit" disabled={enviando}>
-            {enviando ? 'Creando…' : 'Crear inscripción'}
+            {enviando ? 'Creando…' : conSena ? 'Crear inscripción' : 'Preinscribir'}
           </Boton>
           <Boton type="button" variante="secundario" onClick={onCerrar}>
             Cancelar

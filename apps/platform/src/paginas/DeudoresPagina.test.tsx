@@ -32,6 +32,10 @@ function deudor(cambios: Partial<Deudor> = {}): Deudor {
     desde: '2026-06-01',
     diasDeAtraso: 30,
     vencido: true,
+    motivo: 'DEUDA_ANOTADA',
+    idInscripcion: null,
+    disciplina: null,
+    vence: null,
     ...cambios,
   }
 }
@@ -93,7 +97,7 @@ describe('el listado', () => {
     vi.mocked(listarDeudores).mockResolvedValue([])
     montar()
 
-    expect(await screen.findByText('No hay deudas anotadas. Todo al día.')).toBeDefined()
+    expect(await screen.findByText('Nadie debe nada. Todo al día.')).toBeDefined()
   })
 })
 
@@ -107,7 +111,67 @@ describe('el vencimiento', () => {
 
     montar()
 
-    expect(await screen.findByText(/2 deudas · 1 de más de 7 días/)).toBeDefined()
+    expect(await screen.findByText(/2 pendientes · 1 vencido/)).toBeDefined()
+  })
+
+  /**
+   * P72: la segunda fuente. Una preinscripta dice "sin señar" y hasta cuándo;
+   * pasado el plazo lo dice en rojo; y el saldo de una activa se lee como
+   * "falta el resto" y **nunca** como vencido, por viejo que sea.
+   */
+  it('una preinscripta dice sin señar y hasta cuándo', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([
+      deudor({
+        motivo: 'SIN_SENIAR',
+        idInscripcion: 5,
+        disciplina: 'DJ',
+        vence: '2099-01-15T18:00:00-03:00',
+        vencido: false,
+        cantidadDePagos: 0,
+        diasDeAtraso: 0,
+      }),
+    ])
+    montar()
+
+    expect(await screen.findByText('Sin señar')).toBeDefined()
+    expect(screen.getByText('Hasta el 15/01 18:00')).toBeDefined()
+    expect(screen.getByText('Programa de DJ')).toBeDefined()
+    expect(screen.getByText(/1 pendiente · 1 sin señar/)).toBeDefined()
+  })
+
+  it('una preinscripta con el plazo pasado lo dice', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([
+      deudor({
+        motivo: 'SIN_SENIAR',
+        idInscripcion: 5,
+        disciplina: 'DJ',
+        vence: '2020-01-15T18:00:00-03:00',
+        vencido: true,
+        cantidadDePagos: 0,
+      }),
+    ])
+    montar()
+
+    expect(await screen.findByText('Venció el 15/01 18:00')).toBeDefined()
+  })
+
+  it('el saldo de un programa activo se lee como falta el resto, sin vencer', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([
+      deudor({
+        motivo: 'FALTA_EL_RESTO',
+        idInscripcion: 5,
+        disciplina: 'PRODUCCION',
+        vence: null,
+        vencido: false,
+        cantidadDePagos: 0,
+        diasDeAtraso: 60,
+      }),
+    ])
+    montar()
+
+    expect(await screen.findByText('Seña abonada, falta el resto')).toBeDefined()
+    expect(screen.getByText('Programa de Producción')).toBeDefined()
+    expect(screen.queryByText(/vencid/)).toBeNull()
   })
 
   it('una deuda de hoy no dice "hace 0 días"', async () => {

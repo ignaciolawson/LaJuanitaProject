@@ -9,9 +9,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -21,6 +23,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,6 +68,8 @@ class CajaTest {
     @Autowired private UsuarioRepository usuarios;
     @Autowired private AlumnoRepository alumnos;
     @Autowired private InscripcionRepository inscripciones;
+    @Autowired private JdbcTemplate jdbc;
+    @Autowired private EntityManager em;
 
     // == La caja ==============================================================
 
@@ -364,15 +369,20 @@ class CajaTest {
 
     // == Los deudores =========================================================
 
+    // Desde la §16 · Fase 6 (P72) la lista tiene DOS fuentes, y estos casos miran
+    // la de siempre —las filas anotadas— por su `motivo`: la inscripción de
+    // 1.000.000 que sostiene cada deuda anotada aparece también, con lo que le
+    // falta, y sin el filtro cada jsonPath traería dos filas.
+
     @Test
     void un_deudor_aparece_con_cuanto_debe_y_desde_cuando() throws Exception {
         Usuario quienDebe = alumnoConDeuda("40000", DIA);
 
         deudores()
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].adeudado".formatted(quienDebe.getId()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].adeudado".formatted(quienDebe.getId()))
                         .value(40000.00))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].desde".formatted(quienDebe.getId()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].desde".formatted(quienDebe.getId()))
                         .value(DIA.toString()));
     }
 
@@ -393,10 +403,10 @@ class CajaTest {
 
         long id = alumno.getUsuario().getId();
         deudores()
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].desde".formatted(id))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].desde".formatted(id))
                         .value(vieja.toString()))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].adeudado".formatted(id)).value(40000.00))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].diasDeAtraso".formatted(id)).value(90));
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].adeudado".formatted(id)).value(40000.00))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].diasDeAtraso".formatted(id)).value(90));
     }
 
     /** La regla dura de §6: pasados los 7 días, la deuda está vencida. */
@@ -406,9 +416,9 @@ class CajaTest {
         Usuario vieja = alumnoConDeuda("10000", LocalDate.now().minusDays(30));
 
         deudores()
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].vencido".formatted(reciente.getId()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].vencido".formatted(reciente.getId()))
                         .value(false))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d)].vencido".formatted(vieja.getId()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].vencido".formatted(vieja.getId()))
                         .value(true));
     }
 
@@ -423,6 +433,107 @@ class CajaTest {
 
         deudores().andExpect(jsonPath("$[?(@.idUsuario == %d)]".formatted(alumno.getUsuario().getId()))
                 .isEmpty());
+    }
+
+    // == La segunda fuente: lo que falta pagar de un programa (P72) ===========
+
+    /**
+     * Una preinscripta figura como "sin señar", con su plazo y su disciplina, y
+     * <b>no está vencida</b> mientras el plazo corre. Es una inscripción, no un
+     * pago: {@code cantidadDePagos} es 0.
+     */
+    @Test
+    void una_preinscripta_figura_como_sin_seniar_con_su_plazo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long id = preinscribir(alumno, "180000", OffsetDateTime.now().plusHours(20));
+        long usuario = alumno.getUsuario().getId();
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].motivo".formatted(id)).value("SIN_SENIAR"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].idUsuario".formatted(id)).value((int) usuario))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(id)).value(180000.00))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].disciplina".formatted(id)).value("DJ"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].cantidadDePagos".formatted(id)).value(0))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vence".formatted(id)).isNotEmpty())
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vencido".formatted(id)).value(false));
+    }
+
+    /** Pasado el plazo, está vencida — y sigue en la lista, porque no se cancela sola (P61). */
+    @Test
+    void una_preinscripta_con_el_plazo_pasado_esta_vencida() throws Exception {
+        long id = preinscribir(alumnoNuevo(), "180000", OffsetDateTime.now().minusHours(1));
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].motivo".formatted(id)).value("SIN_SENIAR"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vencido".formatted(id)).value(true));
+    }
+
+    /**
+     * ⚠️ El caso que sostiene P72: una activa con la seña puesta figura como
+     * "falta el resto" con lo que falta, y <b>nunca está vencida</b> — el saldo
+     * no tiene fecha. Sin este caso, un reloj agregado "por coherencia" con las
+     * deudas anotadas le diría "Deuda vencida" a la semana a alguien que arranca
+     * en tres.
+     */
+    @Test
+    void una_activa_con_la_senia_figura_como_falta_el_resto_y_nunca_vence() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000");
+        // La inscripción "nació" hace 40 días: con reloj de 7, estaría vencida.
+        jdbc.update("UPDATE inscripcion SET fecha_creacion = now() - interval '40 days' WHERE id_inscripcion = ?",
+                curso.getId());
+        // La entidad ya está en la sesión con la fecha de recién: sin vaciarla,
+        // la consulta devuelve esa instancia y no relee la columna.
+        em.clear();
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":90000,"moneda":"ARS","medioPago":"EFECTIVO",
+                 "estadoPago":"SENADO"}
+                """.formatted(alumno.getUsuario().getId(), curso.getId())))
+                .andExpect(status().isCreated());
+
+        long id = curso.getId();
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].motivo".formatted(id)).value("FALTA_EL_RESTO"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(id)).value(90000.00))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].diasDeAtraso".formatted(id)).value(40))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vencido".formatted(id)).value(false))
+                // Un filtro de jsonPath devuelve la lista de valores: un `vence` en
+                // null aparece como `[null]`, no como ausente.
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vence".formatted(id)).value(
+                        org.hamcrest.Matchers.contains((Object) null)));
+    }
+
+    /** Sólo lo cobrado EN LA MONEDA del contrato cancela: la misma cuenta que el estado de cuenta. */
+    @Test
+    void un_pago_en_otra_moneda_no_descuenta_el_saldo_del_programa() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000");
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":180000,"moneda":"USD","cotizacionDolar":1,
+                 "medioPago":"EFECTIVO","estadoPago":"PAGADO"}
+                """.formatted(alumno.getUsuario().getId(), curso.getId())))
+                .andExpect(status().isCreated());
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(curso.getId()))
+                        .value(180000.00));
+    }
+
+    /** Una beca (precio cero) no debe nada y no aparece. */
+    @Test
+    void una_beca_no_figura_entre_los_deudores() throws Exception {
+        Inscripcion beca = inscripcionDe(alumnoNuevo(), "0");
+
+        deudores().andExpect(jsonPath("$[?(@.idInscripcion == %d)]".formatted(beca.getId())).isEmpty());
+    }
+
+    /** Una pausada queda afuera a propósito: perseguirle el saldo a quien frenó es una decisión que nadie tomó. */
+    @Test
+    void una_pausada_con_saldo_no_figura() throws Exception {
+        Inscripcion curso = inscripcionDe(alumnoNuevo(), "180000");
+        jdbc.update("UPDATE inscripcion SET estado = 'PAUSADA' WHERE id_inscripcion = ?", curso.getId());
+
+        deudores().andExpect(jsonPath("$[?(@.idInscripcion == %d)]".formatted(curso.getId())).isEmpty());
     }
 
     // == Los egresos ==========================================================
@@ -598,6 +709,17 @@ class CajaTest {
         Alumno alumno = new Alumno();
         alumno.setUsuario(crear(Rol.USUARIO));
         return alumnos.save(alumno);
+    }
+
+    /** Nace preinscripta por SQL, con el plazo que se le diga (`V30`). */
+    private long preinscribir(Alumno alumno, String precio, OffsetDateTime vence) {
+        em.flush();
+        return jdbc.queryForObject("""
+                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
+                                         estado, vence_preinscripcion)
+                VALUES (?, 'DJ', 8, ?, 'PREINSCRIPTA', ?)
+                RETURNING id_inscripcion
+                """, Long.class, alumno.getId(), new BigDecimal(precio), vence);
     }
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio) {

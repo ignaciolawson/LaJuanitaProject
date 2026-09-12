@@ -303,6 +303,86 @@ class AvisosTest {
         assertThat(avisosCon(segunda, staff)).isEqualTo(1);
     }
 
+    // == La quinta regla: la preinscripción vencida (P61 · P72) ================
+
+    /**
+     * Vencida, avisa a administración con la inscripción como clave — y
+     * <b>no la cancela</b>: sigue PREINSCRIPTA, porque no hay cupo que devolver
+     * y lo que Ignacio pidió es que Mica llame y decida.
+     */
+    @Test
+    void una_preinscripcion_vencida_avisa_y_no_se_cancela() {
+        Usuario staff = crear(Rol.STAFF);
+        long id = preinscripcionQueVencio(crear(Rol.USUARIO), 3);
+
+        ResumenDeAvisos resumen = avisos.generar();
+        em.flush();
+
+        assertThat(resumen.preinscripcionesVencidas()).isEqualTo(1);
+        assertThat(avisosCon("PREINSCRIPCION_VENCIDA:i=" + id, staff)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "SELECT estado FROM inscripcion WHERE id_inscripcion = ?", String.class, id))
+                .isEqualTo("PREINSCRIPTA");
+    }
+
+    /** Con el plazo corriendo, nada. */
+    @Test
+    void una_preinscripcion_en_plazo_no_avisa() {
+        Usuario staff = crear(Rol.STAFF);
+        long id = preinscripcionQueVencio(crear(Rol.USUARIO), -20);
+
+        avisos.generar();
+        em.flush();
+
+        assertThat(avisosCon("PREINSCRIPCION_VENCIDA:i=" + id, staff)).isZero();
+    }
+
+    /**
+     * ⚠️ Y no sale ADEMÁS como "Deuda vencida": la regla de deudas mira sólo las
+     * anotadas. Sin el filtro, la preinscripta vencida avisaría dos veces con
+     * dos claves, diciendo dos cosas distintas del mismo hecho.
+     */
+    @Test
+    void una_preinscripcion_vencida_no_avisa_tambien_como_deuda() {
+        Usuario staff = crear(Rol.STAFF);
+        Usuario alumno = crear(Rol.USUARIO);
+        preinscripcionQueVencio(alumno, 3);
+
+        ResumenDeAvisos resumen = avisos.generar();
+        em.flush();
+
+        assertThat(resumen.deudoresAvisados()).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM notificacion
+                 WHERE id_usuario_destino = ? AND clave_evento LIKE 'DEUDA:u=%'
+                """, Integer.class, staff.getId()).intValue())
+                .isEqualTo(contarDeudasAvisadasAntesDe(staff, alumno));
+    }
+
+    /** El saldo de una activa nunca avisa: no tiene fecha (P72). */
+    @Test
+    void el_saldo_de_un_programa_activo_no_avisa_nunca() {
+        Usuario staff = crear(Rol.STAFF);
+        Usuario alumno = crear(Rol.USUARIO);
+        long idAlumno = jdbc.queryForObject(
+                "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, alumno.getId());
+        long id = jdbc.queryForObject("""
+                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
+                                         fecha_creacion)
+                VALUES (?, 'DJ', 8, 180000, now() - interval '60 days')
+                RETURNING id_inscripcion
+                """, Long.class, idAlumno);
+
+        ResumenDeAvisos resumen = avisos.generar();
+        em.flush();
+
+        assertThat(resumen.preinscripcionesVencidas()).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM notificacion
+                 WHERE id_usuario_destino = ? AND clave_evento LIKE ?
+                """, Integer.class, staff.getId(), "%i=" + id)).isZero();
+    }
+
     // == El estado que nadie escribía nunca ===================================
 
     /**
@@ -592,6 +672,30 @@ class AvisosTest {
     // =========================================================================
 
     /** Deja una deuda vieja y devuelve la clave con la que se la va a avisar. */
+    /**
+     * Una preinscripción cuyo plazo venció hace {@code horas} (negativo: todavía
+     * corre). Por SQL, como la fila legada del caso 225 de la suite.
+     */
+    private long preinscripcionQueVencio(Usuario alumno, int horas) {
+        long idAlumno = jdbc.queryForObject(
+                "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, alumno.getId());
+        return jdbc.queryForObject("""
+                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
+                                         estado, vence_preinscripcion)
+                VALUES (?, 'DJ', 8, 180000, 'PREINSCRIPTA', now() - make_interval(hours => ?))
+                RETURNING id_inscripcion
+                """, Long.class, idAlumno, horas);
+    }
+
+    /** Cuántos avisos de deuda de OTRA gente ya tenía este staff: la base de desarrollo trae los suyos. */
+    private int contarDeudasAvisadasAntesDe(Usuario staff, Usuario alumno) {
+        return jdbc.queryForObject("""
+                SELECT count(*) FROM notificacion
+                 WHERE id_usuario_destino = ? AND clave_evento LIKE 'DEUDA:u=%'
+                   AND clave_evento NOT LIKE ?
+                """, Integer.class, staff.getId(), "DEUDA:u=" + alumno.getId() + ":%");
+    }
+
     private String deudaVencidaDe(Usuario deudor, int dias) {
         pagoAdeudado(deudor, dias);
         return "DEUDA:u=%d:ARS:desde=%s".formatted(deudor.getId(), LocalDate.now().minusDays(dias));

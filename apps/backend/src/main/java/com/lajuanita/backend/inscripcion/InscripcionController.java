@@ -20,6 +20,7 @@ import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.inscripcion.dto.AltaInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.EdicionInscripcionRequest;
+import com.lajuanita.backend.inscripcion.dto.InscripcionCreada;
 import com.lajuanita.backend.inscripcion.dto.InscripcionResumen;
 import com.lajuanita.backend.usuario.dto.Pagina;
 
@@ -72,8 +73,9 @@ public class InscripcionController {
     @PostMapping
     @PuedeOperar
     @ResponseStatus(HttpStatus.CREATED)
-    public InscripcionResumen alta(@Valid @RequestBody AltaInscripcionRequest solicitud) {
-        return inscripciones.alta(solicitud);
+    public InscripcionCreada alta(@Valid @RequestBody AltaInscripcionRequest solicitud,
+            Authentication quien) {
+        return inscripciones.alta(solicitud, Autoridades.idDe(quien));
     }
 
     /**

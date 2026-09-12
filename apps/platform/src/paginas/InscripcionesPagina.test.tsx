@@ -269,9 +269,10 @@ describe('las clases de fábrica del curso (§13, P34 — desde V28, del catálo
     await elegir(user, 'Disciplina', 'MENTORIA')
 
     expect(screen.getByLabelText(/Clases contratadas/)).toHaveProperty('value', '')
+    // Sin seña marcada el botón dice lo que va a pasar: preinscribir.
 
     await user.type(screen.getByLabelText(/Precio total/), '90000')
-    await user.click(screen.getByRole('button', { name: 'Crear inscripción' }))
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
 
     expect(
       await screen.findByText('Mentoría para DJs se arma a medida: decí cuántas clases son.'),
@@ -281,7 +282,7 @@ describe('las clases de fábrica del curso (§13, P34 — desde V28, del catálo
 
   it('con las clases dichas a mano, la mentoría sí se envía', async () => {
     const user = userEvent.setup()
-    vi.mocked(altaInscripcion).mockResolvedValue(inscripcion())
+    vi.mocked(altaInscripcion).mockResolvedValue({ inscripcion: inscripcion(), idPagoSena: null })
     await montarYEsperar('STAFF', 'Pérez, Juan')
 
     await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
@@ -289,7 +290,7 @@ describe('las clases de fábrica del curso (§13, P34 — desde V28, del catálo
     await elegir(user, 'Disciplina', 'MENTORIA')
     await user.type(screen.getByLabelText(/Clases contratadas/), '4')
     await user.type(screen.getByLabelText(/Precio total/), '90000')
-    await user.click(screen.getByRole('button', { name: 'Crear inscripción' }))
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
 
     await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
     expect(vi.mocked(altaInscripcion).mock.calls[0][0]).toMatchObject({
@@ -406,6 +407,52 @@ describe('estados vacíos y de error', () => {
     expect(
       await screen.findByText('Ese alumno ya tiene una inscripción activa en esa disciplina.'),
     ).toBeDefined()
+  })
+})
+
+describe('la seña en el alta (P59, Fase 6)', () => {
+  /**
+   * Sin marcar la seña, el pedido va sin `sena` y el botón lo dice: el
+   * backend la hace nacer preinscripta. Marcándola, va con monto (el 50% del
+   * precio del catálogo, prellenado) y medio de pago, y nace activa.
+   */
+  it('sin seña manda el alta pelada y el botón dice Preinscribir', async () => {
+    const user = userEvent.setup()
+    vi.mocked(altaInscripcion).mockResolvedValue({ inscripcion: inscripcion(), idPagoSena: null })
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await elegir(user, /Disciplina/, 'DJ')
+    expect(screen.getByText(/queda preinscripta/)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+
+    await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
+    expect(vi.mocked(altaInscripcion).mock.calls[0][0].sena).toBeUndefined()
+  })
+
+  it('con la seña marcada la manda con el 50% prellenado', async () => {
+    const user = userEvent.setup()
+    vi.mocked(altaInscripcion).mockResolvedValue({ inscripcion: inscripcion(), idPagoSena: 9 })
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await elegir(user, /Disciplina/, 'DJ')
+    await user.click(screen.getByLabelText(/La seña entró ahora/))
+
+    expect(screen.getByLabelText(/Monto de la seña/)).toHaveProperty('value', '85000')
+    await elegir(user, /Cómo pagó/, 'TRANSFERENCIA')
+    await user.click(screen.getByRole('button', { name: 'Crear inscripción' }))
+
+    await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
+    expect(vi.mocked(altaInscripcion).mock.calls[0][0].sena).toEqual({
+      monto: 85000,
+      moneda: 'ARS',
+      cotizacionDolar: null,
+      medioPago: 'TRANSFERENCIA',
+    })
   })
 })
 

@@ -203,6 +203,7 @@ export type TipoNotificacion =
   | 'ENTREGA_IMPAGA'
   | 'RELEASE_PROXIMO'
   | 'FICHA_SIN_ATENDER'
+  | 'PREINSCRIPCION_VENCIDA'
 
 export type NotificacionResumen = {
   idNotificacion: number

@@ -2,15 +2,12 @@
 
 ## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
 
-🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, once ejecutados —las Fases 0 a 4 cerraron el 2026-09-11 y
-la 5 el 2026-09-12—, las quince decisiones de negocio cerradas el 2026-09-11 y
-P72 el 2026-09-12** (`platform.md` §22) **y el plan por fases escrito** — seis
-fases, tres migraciones, **las tres aplicadas** (`V28` catálogo · `V29` ficha ·
-`V30` preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 6
-(la última: seña en el alta, Deudores con dos fuentes, alta desde el buzón,
-quinta regla del scheduler — sin migración). ⚠️ **Leer P72 antes que el plan de
-la Fase 6**: lo reescribió.
+✅ **LA CUARTA BARRIDA (`mejoras.md` §16) ESTÁ CERRADA: once de doce el
+2026-09-12** — Fases 0 a 4 el 2026-09-11, 5 y 6 el 2026-09-12; el doceavo (los
+grupos de a 3) diferido por Ignacio a la siguiente. Tres migraciones, las tres
+aplicadas (`V28` catálogo · `V29` ficha · `V30` preinscripción); las decisiones
+son `platform.md` §22, P59–P72. **No hay ninguna fase por ejecutar**: lo que
+sigue es lo de siempre — Ignacio usa el sistema y trae hallazgos.
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -21,16 +18,16 @@ Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** 
 §13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
 cinco fases)** están cerrados y commiteados.
 
-**Suites: 670 backend · 593 front · 284 + 66 SQL, sobre 30 migraciones.** `tsc -b`,
+**Suites: 691 backend · 603 front · 284 + 66 SQL, sobre 30 migraciones.** `tsc -b`,
 los dos builds y los dos linters limpios.
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| 🟢 0 | **La §16 está ABIERTA y con plan**: seis fases, decisiones cerradas en `platform.md` §22. Incluye dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón), **cierra P13** y arrancó por un bug (A6, ✅ 2026-09-11) | [`mejoras.md`](mejoras.md) §16 |
+| ✅ 0 | ~~**La §16 está ABIERTA y con plan**~~ — **cerrada el 2026-09-12**, once de doce. Trajo dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón) y **cerró P13** | [`mejoras.md`](mejoras.md) §16 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
-| 🟢 4 | **La barrida siguiente a la §16**: los **grupos de a 3**, que Ignacio difirió explícitamente, y **el precio de las reservas** (la mitad de P13 que falta: sin él, *"seña abonada, falta el resto"* no se puede decir de una cabina — P72) | [`mejoras.md`](mejoras.md) §16 · B2 2.1 · `platform.md` P72 |
+| 🟢 4 | **La barrida siguiente a la §16**, con tres cosas ya anotadas: los **grupos de a 3** (Ignacio los difirió; reabren P7), **el precio de las reservas** (la mitad de P13 que falta: sin él, *"seña abonada, falta el resto"* no se puede decir de una cabina — P72), y **la "deuda viva" del tablero**, que sigue leyendo sólo las deudas anotadas y no ve los saldos de programas | [`mejoras.md`](mejoras.md) §16 · Fase 6 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
 

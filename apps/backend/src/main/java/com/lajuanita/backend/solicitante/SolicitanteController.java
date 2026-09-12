@@ -20,6 +20,8 @@ import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.pago.dto.MotivoRequest;
 import com.lajuanita.backend.solicitante.dto.AltaSolicitanteRequest;
 import com.lajuanita.backend.solicitante.dto.ApartarLaCabinaRequest;
+import com.lajuanita.backend.solicitante.dto.AlumnoInscripto;
+import com.lajuanita.backend.solicitante.dto.InscribirDesdeElBuzonRequest;
 import com.lajuanita.backend.solicitante.dto.CabinaApartada;
 import com.lajuanita.backend.solicitante.dto.CandidatoDeLaFicha;
 import com.lajuanita.backend.solicitante.dto.ConversionRealizada;
@@ -127,6 +129,20 @@ public class SolicitanteController {
             Authentication quienPide) {
 
         return solicitantes.apartarLaCabina(id, pedido, Autoridades.idDe(quienPide));
+    }
+
+    /**
+     * Inscribir a quien pidió un curso, desde la ficha: cuenta + relación de
+     * alumno + inscripción preinscripta + ficha cerrada, en un movimiento (§16 ·
+     * B2 1.1). El gemelo de {@link #apartarLaCabina} para los programas.
+     */
+    @PostMapping("/{id}/inscripcion")
+    @PuedeOperar
+    public AlumnoInscripto inscribir(@PathVariable Long id,
+            @Valid @RequestBody InscribirDesdeElBuzonRequest pedido,
+            Authentication quienPide) {
+
+        return solicitantes.inscribir(id, pedido, Autoridades.idDe(quienPide));
     }
 
     /**
