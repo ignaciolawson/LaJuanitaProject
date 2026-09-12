@@ -18,6 +18,10 @@ Thumbs.db
 # docker volumes (bind-mounted local data, if any)
 pgdata/
 
+# local run logs (backend/vite nohup output, not project history)
+/backend.log
+/vite.log
+
 # volcados de la base (scripts/backup.sh). Nunca se commitean: a partir de
 # diciembre tienen los datos reales del negocio -- alumnos, telefonos, pagos --
 # y los hashes de las contrasenas. Ver docs/operacion.md.
