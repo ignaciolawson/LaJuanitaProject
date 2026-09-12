@@ -312,7 +312,8 @@ describe('apartar el horario sin cobrar (§13 · C1)', () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
 
-    expect(screen.getByText(/24 horas/)).toBeDefined()
+    // 72 desde P73 (§17 · H3); eran 24.
+    expect(screen.getByText(/72 horas/)).toBeDefined()
     expect(screen.getByText(/el horario se libera solo/)).toBeDefined()
   })
 })

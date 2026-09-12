@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -66,6 +67,7 @@ class PagoTest {
     @Autowired private AlumnoRepository alumnos;
     @Autowired private InscripcionRepository inscripciones;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private EntityManager em;
 
     // == El alta ==============================================================
 
@@ -781,11 +783,14 @@ class PagoTest {
     }
 
     /**
-     * Un pago en otra moneda <b>no</b> cancela el contrato: aparece en los saldos
-     * y no en el renglón del curso. Es la misma regla vista desde el otro lado.
+     * `V31` (P74, §17 · H4): <b>un pago en otra moneda que el contrato se
+     * rechaza</b>, con el mensaje que dice qué hacer. Antes entraba, y era el
+     * bug de Ignacio: el estado de cuenta lo mostraba en los saldos y no en el
+     * renglón del curso, y la seña en USD activaba una preinscripción cuyo
+     * cobrado en su moneda era cero.
      */
     @Test
-    void un_pago_en_otra_moneda_no_cancela_el_contrato() throws Exception {
+    void un_pago_en_otra_moneda_que_el_contrato_se_rechaza() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion enPesos = inscripcionDe(alumno, "180000", Moneda.ARS);
 
@@ -793,11 +798,60 @@ class PagoTest {
                 {"idUsuario":%d,"idInscripcion":%d,"monto":180000,"moneda":"USD",
                  "cotizacionDolar":1200,"medioPago":"PAYPAL"}
                 """.formatted(alumno.getUsuario().getId(), enPesos.getId())))
-                .andExpect(status().isCreated());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("moneda del contrato")));
+
+        estadoDeCuenta(alumno)
+                .andExpect(jsonPath("$.contratos[0].pagado").value(0.00))
+                .andExpect(jsonPath("$.saldos.length()").value(0));
+    }
+
+    /**
+     * Y la regla la sostiene la base, no el servicio: por SQL crudo, el trigger
+     * de `V31` habla con su propio texto.
+     */
+    @Test
+    void el_trigger_de_V31_rechaza_el_pago_en_otra_moneda_aunque_se_escriba_a_mano() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion enPesos = inscripcionDe(alumno, "180000", Moneda.ARS);
+        em.flush();
+
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO pago (id_usuario, id_inscripcion, monto, moneda, cotizacion_dolar, medio_pago)
+                VALUES (?, ?, 100, 'USD', 1200, 'PAYPAL')
+                """, alumno.getUsuario().getId(), enPesos.getId()))
+                .hasMessageContaining("moneda del contrato");
+    }
+
+    /**
+     * Las filas anteriores a `V31` siguen existiendo, y el estado de cuenta las
+     * dice (§17 · H4): {@code cobradoEnOtraMoneda}. Sin eso, un contrato "sin
+     * seña" al lado de un pago que sí entró no se entiende. La fila legada se
+     * fabrica apagando el trigger un instante — la única forma de tener lo que
+     * la base de producción va a tener el día que corra la migración (el
+     * precedente es el caso 225 de la suite SQL).
+     */
+    @Test
+    void un_pago_legado_en_otra_moneda_se_dice_y_no_cancela_el_contrato() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion enPesos = inscripcionDe(alumno, "180000", Moneda.ARS);
+        em.flush();
+
+        jdbc.execute("ALTER TABLE pago DISABLE TRIGGER pago_en_la_moneda_del_contrato");
+        try {
+            jdbc.update("""
+                    INSERT INTO pago (id_usuario, id_inscripcion, monto, moneda, cotizacion_dolar, medio_pago)
+                    VALUES (?, ?, 180000, 'USD', 1200, 'PAYPAL')
+                    """, alumno.getUsuario().getId(), enPesos.getId());
+        } finally {
+            jdbc.execute("ALTER TABLE pago ENABLE TRIGGER pago_en_la_moneda_del_contrato");
+        }
 
         estadoDeCuenta(alumno)
                 .andExpect(jsonPath("$.contratos[0].pagado").value(0.00))
                 .andExpect(jsonPath("$.contratos[0].saldado").value(false))
+                .andExpect(jsonPath("$.contratos[0].cobradoEnOtraMoneda").value(180000.00))
                 .andExpect(jsonPath("$.saldos[?(@.moneda == 'USD')].pagado").value(180000.00));
     }
 

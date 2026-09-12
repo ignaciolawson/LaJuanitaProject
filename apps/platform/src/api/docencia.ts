@@ -1,6 +1,7 @@
 import { pedir } from './cliente'
 import type { ReservaResumen } from './tiposAdmin'
 import type {
+  ProximaClase,
   AltaMaterial,
   AltaNota,
   AlumnoDelProfesor,
@@ -43,6 +44,11 @@ import type {
  */
 export function miAgenda(desde: string, hasta: string): Promise<ReservaResumen[]> {
   return pedir(`/api/me/profesor/agenda?desde=${desde}&hasta=${hasta}`)
+}
+
+/** La próxima clase que doy, sin ventana, con quiénes vienen (§17 · H1 · H2). */
+export function miProximaClase(): Promise<ProximaClase> {
+  return pedir('/api/me/profesor/proxima')
 }
 
 /** Cuántas clases di. Cuenta, no liquida: P20 sigue abierta. */

@@ -1,4 +1,4 @@
-import type { Disciplina, Nivel } from './tiposAdmin'
+import type { Disciplina, Nivel, ReservaResumen } from './tiposAdmin'
 
 /**
  * Contratos del Módulo 5 — el portal del profesor.
@@ -209,6 +209,26 @@ export type FijarSeguimiento = {
  * profesor sale de esta cuenta o se carga a mano es una pregunta abierta al
  * cliente.
  */
+/**
+ * La próxima clase que doy, con quiénes vienen (§17 · H1 · H2). Espeja
+ * `ProximaClase`. `numeroDeClase` y `clasesContratadas` van en `null` para
+ * quien está sin inscripción (un alquiler con gente anotada).
+ */
+export type ProximaClase = {
+  clase: ReservaResumen | null
+  alumnos: AlumnoEnLaClase[]
+}
+
+export type AlumnoEnLaClase = {
+  idUsuario: number
+  nombre: string
+  apellido: string
+  disciplina: Disciplina | null
+  nivel: Nivel | null
+  numeroDeClase: number | null
+  clasesContratadas: number | null
+}
+
 export type ClasesDictadas = {
   desde: string
   hasta: string

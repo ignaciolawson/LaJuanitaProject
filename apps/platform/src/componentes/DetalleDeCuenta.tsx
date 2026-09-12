@@ -105,6 +105,15 @@ export function DetalleDeCuenta({
                   </Celda>
                   <Celda numerica className="whitespace-nowrap">
                     {importe(c.pagado, c.moneda)}
+                    {/* Desde `V31` no puede nacer un pago en otra moneda que el
+                        contrato; lo anterior a la regla se dice (§17 · H4), porque
+                        "sin seña" al lado de un pago que entró no se entiende. */}
+                    {c.cobradoEnOtraMoneda !== null && (
+                      <div className="text-xs text-acento">
+                        + {importe(c.cobradoEnOtraMoneda, c.moneda === 'ARS' ? 'USD' : 'ARS')} en otra
+                        moneda, que no cancela el contrato
+                      </div>
+                    )}
                   </Celda>
                   <Celda numerica className="whitespace-nowrap">
                     <span className={c.saldo > 0 ? 'font-medium text-acento' : 'text-tenue'}>

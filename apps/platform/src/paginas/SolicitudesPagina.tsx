@@ -265,7 +265,7 @@ function FormularioDeSena({
           <>
             El horario queda tomado y la deuda anotada: la persona lo ve en sus
             reservas y aparece en <strong>Deudores</strong> hasta que cobres. Tiene{' '}
-            <strong>24 horas</strong> para abonar —o hasta que empiece la franja, lo
+            <strong>72 horas</strong> para abonar —o hasta que empiece la franja, lo
             que pase antes— y si no, el horario se libera solo.
           </>
         ) : (

@@ -1,6 +1,7 @@
 package com.lajuanita.backend.portal;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.springframework.core.io.Resource;
@@ -27,6 +28,7 @@ import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.portal.dto.CatalogoParaPedir;
 import com.lajuanita.backend.portal.dto.FranjaOcupada;
 import com.lajuanita.backend.portal.dto.ProgresoDelCurso;
+import com.lajuanita.backend.portal.dto.ProximaDelPortal;
 import com.lajuanita.backend.portal.dto.ReservaDelPortal;
 import com.lajuanita.backend.solicitud.SolicitudReprogramacionService;
 import com.lajuanita.backend.solicitud.SolicitudReservaService;
@@ -102,6 +104,16 @@ public class PortalController {
             Authentication quienPide) {
 
         return portal.misReservas(Autoridades.idDe(quienPide), desde, hasta);
+    }
+
+    /**
+     * Lo próximo que tengo, sin ventana (§17 · H1). {@code esClase} separa la
+     * clase del alquiler para las dos tarjetas del Inicio; sin él, cualquiera.
+     */
+    @GetMapping("/proxima")
+    public ProximaDelPortal miProxima(@RequestParam(required = false) Boolean esClase,
+            Authentication quienPide) {
+        return portal.miProxima(Autoridades.idDe(quienPide), esClase, LocalDate.now(), LocalTime.now());
     }
 
     /** Mi progreso: nivel, clases tomadas y clases restantes de cada curso. */

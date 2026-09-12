@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.lajuanita.backend.aviso.dto.ResumenDeAvisos;
+import com.lajuanita.backend.inscripcion.InscripcionService;
 import com.lajuanita.backend.reserva.ReservaService;
 
 /**
@@ -44,9 +45,36 @@ public class AvisosAutomaticos {
     /** Para el vencimiento de las prereservas. Ver {@link #vencerPrereservas()}. */
     private final ReservaService reservas;
 
-    public AvisosAutomaticos(AvisoService avisos, ReservaService reservas) {
+    /** Para la cancelación de las preinscripciones abandonadas (P73). */
+    private final InscripcionService inscripciones;
+
+    public AvisosAutomaticos(AvisoService avisos, ReservaService reservas,
+            InscripcionService inscripciones) {
         this.avisos = avisos;
         this.reservas = reservas;
+        this.inscripciones = inscripciones;
+    }
+
+    /**
+     * La cancelación de las preinscripciones abandonadas (P73, §17 · H3).
+     *
+     * <p>Diaria como los avisos —el plazo se mide en semanas— pero <b>en su propio
+     * método</b>, por lo mismo que las prereservas: esto cambia estado, y una
+     * excepción escribiendo notificaciones no puede impedir que se cancelen, ni
+     * al revés. Corre a las 8:05, después de la corrida de avisos, para que la
+     * quinta regla (la alerta de vencida) llegue antes que el final.
+     */
+    @Scheduled(cron = "${lajuanita.preinscripcion.cron:0 5 8 * * *}", zone = "${lajuanita.avisos.zona:America/Argentina/Buenos_Aires}")
+    public void cancelarPreinscripcionesAbandonadas() {
+        try {
+            int canceladas = inscripciones.cancelarLasAbandonadas();
+            if (canceladas > 0) {
+                log.info("Preinscripciones abandonadas: {} canceladas.", canceladas);
+            }
+        } catch (RuntimeException e) {
+            log.error("La cancelación de preinscripciones abandonadas falló. Se reintenta "
+                    + "mañana: lo que decide es el reloj contra una fecha guardada.", e);
+        }
     }
 
     /**

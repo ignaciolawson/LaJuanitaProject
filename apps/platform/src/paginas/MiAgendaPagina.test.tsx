@@ -23,12 +23,16 @@ import { MiAgendaPagina } from './MiAgendaPagina'
  *    buscar a alguien que avisó que no venía es peor que no listarlo.
  */
 
-vi.mock('../api/docencia', () => ({ miAgenda: vi.fn(), misClasesDictadas: vi.fn() }))
+vi.mock('../api/docencia', () => ({
+  miAgenda: vi.fn(),
+  miProximaClase: vi.fn(),
+  misClasesDictadas: vi.fn(),
+}))
 // El profesor pide mover su clase con el mismo componente que el alumno (P9),
 // así que esta pantalla llama al portal aunque no sea suya.
 vi.mock('../api/portal', () => ({ misReprogramaciones: vi.fn(), pedirMoverLaClase: vi.fn() }))
 
-const { miAgenda, misClasesDictadas } = await import('../api/docencia')
+const { miAgenda, miProximaClase, misClasesDictadas } = await import('../api/docencia')
 const { misReprogramaciones, pedirMoverLaClase } = await import('../api/portal')
 
 function clase(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
@@ -94,6 +98,7 @@ function elResumen() {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(miAgenda).mockResolvedValue([clase()])
+  vi.mocked(miProximaClase).mockResolvedValue({ clase: null, alumnos: [] })
   vi.mocked(misClasesDictadas).mockResolvedValue(RESUMEN)
   vi.mocked(misReprogramaciones).mockResolvedValue([])
 })
@@ -146,6 +151,46 @@ describe('la agenda', () => {
     render(<MiAgendaPagina />)
 
     expect(await laAgenda().findByText('movida 1 vez')).toBeDefined()
+  })
+
+  /**
+   * ⚠️ **Lo próximo lo dice el servidor, sin ventana, y con quiénes vienen**
+   * (§17 · H1 · H2). La lista está vacía —la clase está a meses— y el cuadro
+   * igual la muestra, con un renglón por alumno: nombre, nivel y por qué clase
+   * va. Sin inscripción queda el nombre solo, nunca "clase null de null".
+   */
+  it('lo próximo dice quiénes vienen, de qué nivel y por qué clase van', async () => {
+    vi.mocked(miAgenda).mockResolvedValue([])
+    vi.mocked(miProximaClase).mockResolvedValue({
+      clase: clase({ fecha: '2027-03-01', horaInicio: '16:00:00', horaFin: '17:30:00' }),
+      alumnos: [
+        {
+          idUsuario: 42,
+          nombre: 'Juan',
+          apellido: 'Pérez',
+          disciplina: 'DJ',
+          nivel: 'INTERMEDIO',
+          numeroDeClase: 3,
+          clasesContratadas: 8,
+        },
+        {
+          idUsuario: 43,
+          nombre: 'Ana',
+          apellido: 'Suárez',
+          disciplina: null,
+          nivel: null,
+          numeroDeClase: null,
+          clasesContratadas: null,
+        },
+      ],
+    })
+    render(<MiAgendaPagina />)
+
+    expect(await screen.findByText('Lo próximo')).toBeDefined()
+    expect(screen.getByText('Juan Pérez · DJ intermedio · clase 3 de 8')).toBeDefined()
+    expect(screen.getByText('Ana Suárez')).toBeDefined()
+    expect(screen.queryByText(/null/)).toBeNull()
+    expect(screen.getByText(/No tenés clases en estas cuatro semanas/)).toBeDefined()
   })
 
   it('un período sin clases lo dice', async () => {

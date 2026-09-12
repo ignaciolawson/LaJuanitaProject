@@ -11,6 +11,7 @@ import type {
   FranjaOcupada,
   NotificacionResumen,
   ProgresoDelCurso,
+  ProximaDelPortal,
   ReservaDelPortal,
   SolicitudResumen,
 } from './tiposPortal'
@@ -32,6 +33,16 @@ import type { Pagina } from './tiposAdmin'
 
 export function misReservas(desde: string, hasta: string): Promise<ReservaDelPortal[]> {
   return pedir(`/api/me/reservas?desde=${desde}&hasta=${hasta}`)
+}
+
+/**
+ * Lo próximo que tengo, sin ventana (§17 · H1). `misReservas` pide un rango con
+ * techo de 62 días, y el cuadro de arriba se calculaba sobre él: la clase de
+ * dentro de seis semanas no era "la próxima" para nadie. `esClase` separa la
+ * clase del alquiler para las dos tarjetas del Inicio.
+ */
+export function miProxima(esClase?: boolean): Promise<ProximaDelPortal> {
+  return pedir(esClase === undefined ? '/api/me/proxima' : `/api/me/proxima?esClase=${esClase}`)
 }
 
 export function misCursos(): Promise<ProgresoDelCurso[]> {

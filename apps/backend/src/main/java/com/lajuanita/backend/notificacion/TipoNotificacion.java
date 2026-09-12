@@ -142,5 +142,14 @@ public enum TipoNotificacion {
      * decida — cobra, o cancela a mano. Es la quinta regla del scheduler, y como
      * las otras cuatro describe el hecho y no la corrida: una por inscripción.
      */
-    PREINSCRIPCION_VENCIDA
+    PREINSCRIPCION_VENCIDA,
+
+    /**
+     * Una preinscripción se canceló sola por abandono (P73, §17 · H3): pasaron
+     * tres semanas del alta sin la seña. Es la sexta regla del scheduler y la
+     * única que cambia el estado de una inscripción — a la persona, porque creía
+     * estar anotada; a administración, porque salió de Deudores sin que nadie
+     * cobrara.
+     */
+    PREINSCRIPCION_CANCELADA
 }

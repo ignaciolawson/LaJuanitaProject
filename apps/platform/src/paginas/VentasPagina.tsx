@@ -4,7 +4,6 @@ import {
   abrirComprobante,
   adjuntarComprobante,
   anularVenta,
-  listarUsuarios,
   listarVentas,
   registrarVenta,
 } from '../api/administracion'
@@ -31,6 +30,7 @@ import { hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { fecha } from '../componentes/semana'
 
 const MEDIOS_DE_PAGO: MedioPago[] = [
@@ -310,10 +310,18 @@ function FormularioVenta({
   onGuardada: () => void
 }) {
   const actual = useUsuario()
-  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
+  /**
+   * Quién vendió y quién compró se BUSCAN entre las cuentas (§17 · H8). El
+   * `<select>` que había cargaba la primera página del listado —veinte
+   * personas— y el comprador veintiuno no existía para este formulario, sin
+   * que nada avisara. Quien vendió viene puesto (es quien carga, casi siempre)
+   * y se cambia buscando.
+   */
+  const [comprador, setComprador] = useState<UsuarioResumen | null>(null)
+  const [vendedor, setVendedor] = useState<UsuarioResumen | null>(null)
+  const [cambiandoVendedor, setCambiandoVendedor] = useState(false)
   const [conCuenta, setConCuenta] = useState(true)
   const [datos, setDatos] = useState({
-    idUsuarioComprador: '',
     nombreCompradorExterno: '',
     contactoCompradorExterno: '',
     // Lo más común es que quien carga sea quien vendió, así que viene puesto. Es
@@ -334,12 +342,6 @@ function FormularioVenta({
   const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
-  useEffect(() => {
-    listarUsuarios({ pagina: 0 })
-      .then((r) => setPersonas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudo cargar el listado de personas.'))
-  }, [])
-
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
@@ -351,10 +353,10 @@ function FormularioVenta({
     const locales: Record<string, string> = {}
     if (!datos.modeloEquipo.trim()) locales.modeloEquipo = 'Poné el modelo del equipo.'
     if (!datos.precio || Number(datos.precio) <= 0) locales.precio = 'Poné un precio mayor a cero.'
-    if (!datos.idUsuarioVendedor) locales.idUsuarioVendedor = 'Decí quién hizo la venta.'
+    if (!datos.idUsuarioVendedor && !vendedor) locales.idUsuarioVendedor = 'Decí quién hizo la venta.'
     // Espeja `venta_comprador_identificado`: una venta sin comprador es una fila
     // que después no se puede reclamar.
-    if (conCuenta && !datos.idUsuarioComprador) {
+    if (conCuenta && !comprador) {
       locales.compradorIdentificado = 'Elegí al comprador.'
     }
     if (!conCuenta && !datos.nombreCompradorExterno.trim()) {
@@ -374,12 +376,12 @@ function FormularioVenta({
 
     try {
       await registrarVenta({
-        idUsuarioComprador: conCuenta ? Number(datos.idUsuarioComprador) : undefined,
+        idUsuarioComprador: conCuenta ? comprador!.id : undefined,
         nombreCompradorExterno: conCuenta ? undefined : datos.nombreCompradorExterno.trim(),
         contactoCompradorExterno: conCuenta
           ? undefined
           : datos.contactoCompradorExterno.trim() || undefined,
-        idUsuarioVendedor: Number(datos.idUsuarioVendedor),
+        idUsuarioVendedor: vendedor ? vendedor.id : Number(datos.idUsuarioVendedor),
         categoria: datos.categoria.trim() || undefined,
         marca: datos.marca.trim() || undefined,
         modeloEquipo: datos.modeloEquipo.trim(),
@@ -423,19 +425,33 @@ function FormularioVenta({
             ayuda="Controladora, bandeja, mixer, monitores…"
           />
 
-          <CampoSelect
-            etiqueta="Vendió"
-            value={datos.idUsuarioVendedor}
-            onChange={cambiar('idUsuarioVendedor')}
-            error={errores.idUsuarioVendedor}
-          >
-            <option value="">Elegí a la persona</option>
-            {personas.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.apellido}, {p.nombre}
-              </option>
-            ))}
-          </CampoSelect>
+          <div>
+            {actual && !cambiandoVendedor ? (
+              <div>
+                <span className="t-mono text-tenue">Vendió</span>
+                <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
+                  <strong className="font-medium">
+                    {actual.nombre} {actual.apellido}
+                  </strong>
+                  <Boton
+                    variante="enlace"
+                    type="button"
+                    onClick={() => {
+                      setCambiandoVendedor(true)
+                      setDatos((previo) => ({ ...previo, idUsuarioVendedor: '' }))
+                    }}
+                  >
+                    Cambiar
+                  </Boton>
+                </div>
+              </div>
+            ) : (
+              <BuscadorDePersonas elegida={vendedor} onElegir={setVendedor} etiqueta="Vendió" />
+            )}
+            {errores.idUsuarioVendedor && (
+              <p className="mt-1 text-xs text-red">{errores.idUsuarioVendedor}</p>
+            )}
+          </div>
 
           {/* -- El comprador ------------------------------------------------- */}
           <div className="sm:col-span-2">
@@ -463,20 +479,12 @@ function FormularioVenta({
           </div>
 
           {conCuenta ? (
-            <CampoSelect
-              etiqueta="Quién compró"
-              value={datos.idUsuarioComprador}
-              onChange={cambiar('idUsuarioComprador')}
-              error={errores.compradorIdentificado}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí a la persona</option>
-              {personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.apellido}, {p.nombre}
-                </option>
-              ))}
-            </CampoSelect>
+            <div className="sm:col-span-2">
+              <BuscadorDePersonas elegida={comprador} onElegir={setComprador} etiqueta="Quién compró" />
+              {errores.compradorIdentificado && (
+                <p className="mt-1 text-xs text-red">{errores.compradorIdentificado}</p>
+              )}
+            </div>
           ) : (
             <>
               <Campo

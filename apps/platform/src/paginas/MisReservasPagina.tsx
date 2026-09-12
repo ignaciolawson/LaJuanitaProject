@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
-import { misReprogramaciones, misReservas } from '../api/portal'
+import { miProxima, misReprogramaciones, misReservas } from '../api/portal'
 import type { ReprogramacionResumen, ReservaDelPortal } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -53,6 +53,13 @@ export function MisReservasPagina() {
   const [desde, setDesde] = useState(() => lunesDe(ahora))
   const [reservas, setReservas] = useState<ReservaDelPortal[]>([])
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
+  /**
+   * Lo próximo, **sin ventana** (§17 · H1): viene del servidor y no se calcula
+   * sobre las cuatro semanas de abajo. Antes sí, y la clase de dentro de seis
+   * semanas no era "la próxima" para nadie — ni se podía pedir, con el techo
+   * de 62 días del endpoint. Se pide una vez: no cambia al pasar de semana.
+   */
+  const [proxima, setProxima] = useState<ReservaDelPortal | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
 
@@ -66,9 +73,14 @@ export function MisReservasPagina() {
     try {
       // Las dos juntas: sin los pedidos, una clase con uno pendiente ofrecería
       // el botón otra vez y el backend contestaría que ya hay uno esperando.
-      const [agenda, mios] = await Promise.all([misReservas(desde, hasta), misReprogramaciones()])
+      const [agenda, mios, siguiente] = await Promise.all([
+        misReservas(desde, hasta),
+        misReprogramaciones(),
+        miProxima(),
+      ])
       setReservas(agenda)
       setPedidos(mios)
+      setProxima(siguiente.reserva)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudieron cargar tus reservas.')
     } finally {
@@ -96,12 +108,8 @@ export function MisReservasPagina() {
    *
    * Una cancelada o reprogramada **no** es la próxima aunque figure primera en
    * la lista: la lista las muestra porque son historia de la persona, y esta
-   * pieza contesta otra pregunta.
+   * pieza contesta otra pregunta. Esa regla la aplica el servidor (`proxima`).
    */
-  const proxima = reservas
-    .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
-    .filter((r) => r.fecha >= ahora)
-    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))[0]
 
   /**
    * Las dos listas (§12 · B1): las clases y lo que alquilaste.
@@ -270,7 +278,7 @@ function Asistencia({ estado }: { estado: ReservaDelPortal['miAsistencia'] }) {
  * El horario está apartado y falta abonarlo (`mejoras.md` §13 · C1).
  *
  * **Dice el plazo con la hora y no sólo el día**, y no es un detalle: el plazo es
- * el menor entre 24 horas y el inicio de la franja, así que puede vencer esta
+ * el menor entre 72 horas (P73) y el inicio de la franja, así que puede vencer esta
  * misma tarde. "Vence el 03/09" sobre algo que se cae a las 10 de la mañana es
  * información que hace perder el horario.
  *

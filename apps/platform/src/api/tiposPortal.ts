@@ -30,6 +30,15 @@ import type {
  * esa lista, se agrega del lado del backend y con intención — no alcanza con
  * pedirlo acá.
  */
+/**
+ * Lo próximo que tengo, sin ventana (§17 · H1). Espeja `ProximaDelPortal`.
+ * `reserva` en `null` es "no tenés nada por delante", que es una respuesta y
+ * no un error.
+ */
+export type ProximaDelPortal = {
+  reserva: ReservaDelPortal | null
+}
+
 export type ReservaDelPortal = {
   idReserva: number
   sala: string
@@ -204,6 +213,7 @@ export type TipoNotificacion =
   | 'RELEASE_PROXIMO'
   | 'FICHA_SIN_ATENDER'
   | 'PREINSCRIPCION_VENCIDA'
+  | 'PREINSCRIPCION_CANCELADA'
 
 export type NotificacionResumen = {
   idNotificacion: number

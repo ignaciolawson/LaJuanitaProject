@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { ApiError } from '../api/cliente'
-import { miAgenda, misClasesDictadas } from '../api/docencia'
+import { miAgenda, miProximaClase, misClasesDictadas } from '../api/docencia'
 import { misReprogramaciones } from '../api/portal'
 import type { ReservaResumen } from '../api/tiposAdmin'
-import type { ClasesDictadas } from '../api/tiposDocencia'
+import type { AlumnoEnLaClase, ClasesDictadas, ProximaClase } from '../api/tiposDocencia'
 import type { ReprogramacionResumen } from '../api/tiposPortal'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -13,6 +13,7 @@ import { diaYMes, hhmm, hoy, lunesDe, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 import { Movida } from '../componentes/Movida'
+import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { Proxima } from '../componentes/Proxima'
 
 /**
@@ -41,6 +42,12 @@ export function MiAgendaPagina() {
   const [clases, setClases] = useState<ReservaResumen[]>([])
   const [dictadas, setDictadas] = useState<ClasesDictadas | null>(null)
   const [pedidos, setPedidos] = useState<ReprogramacionResumen[]>([])
+  /**
+   * Lo próximo, **sin ventana y con quiénes vienen** (§17 · H1 · H2): lo dice el
+   * servidor, no se calcula sobre las cuatro semanas de abajo — la clase de
+   * dentro de seis semanas no era "la próxima" para nadie.
+   */
+  const [proxima, setProxima] = useState<ProximaClase | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
 
@@ -57,14 +64,16 @@ export function MiAgendaPagina() {
     try {
       // Las dos preguntas son del mismo período a propósito: el resumen cuenta
       // lo que la lista de arriba muestra, así que no pueden discrepar.
-      const [agenda, resumen, mios] = await Promise.all([
+      const [agenda, resumen, mios, siguiente] = await Promise.all([
         miAgenda(desde, hasta),
         misClasesDictadas(desde, hasta),
         misReprogramaciones(),
+        miProximaClase(),
       ])
       setClases(agenda)
       setDictadas(resumen)
       setPedidos(mios)
+      setProxima(siguiente)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cargar tu agenda.')
     } finally {
@@ -86,15 +95,8 @@ export function MiAgendaPagina() {
     if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
   }
 
-  const proxima = clases
-    .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
-    .filter((r) => r.fecha >= ahora)
-    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))[0]
-
   return (
     <div>
-      {/* La primera que sigue en pie y todavía no pasó. Una cancelada o
-          reprogramada no es "la próxima" aunque figure primera. */}
       <CabeceraDePagina
         titulo="Mi agenda"
         aclaracion={<>{cargando ? 'Cargando…' : `Del ${diaYMes(desde)} al ${diaYMes(hasta)}`}</>}
@@ -125,15 +127,16 @@ export function MiAgendaPagina() {
       {/* La misma pieza que ve el alumno en "Mis reservas", del lado de quien
           da la clase: lo que un profesor viene a saber es cuándo tiene la
           próxima y con quién, no a leer la lista entera del período. */}
-      {proxima && (
+      {proxima?.clase && (
         <Proxima
           className="mb-6"
           hoy={ahora}
-          fecha={proxima.fecha}
-          horaInicio={proxima.horaInicio}
-          horaFin={proxima.horaFin}
-          titulo={proxima.tipoUso}
-          detalle={proxima.sala}
+          fecha={proxima.clase.fecha}
+          horaInicio={proxima.clase.horaInicio}
+          horaFin={proxima.clase.horaFin}
+          titulo={proxima.clase.tipoUso}
+          detalle={proxima.clase.sala}
+          renglones={proxima.alumnos.map(renglonDelAlumno)}
         />
       )}
 
@@ -258,4 +261,24 @@ function Resumen({ dictadas }: { dictadas: ClasesDictadas }) {
       )}
     </section>
   )
+}
+
+/**
+ * Un renglón por alumno en el cuadro (§17 · H2): *"Camila Ríos · DJ intermedio ·
+ * clase 3 de 8"*. Sin inscripción —gente anotada en un alquiler— queda el
+ * nombre solo: "clase null de null" no se escribe.
+ */
+function renglonDelAlumno(a: AlumnoEnLaClase): string {
+  const partes = [`${a.nombre} ${a.apellido}`]
+  if (a.disciplina) {
+    partes.push(
+      a.nivel
+        ? `${NOMBRE_DE_DISCIPLINA[a.disciplina]} ${a.nivel.toLowerCase()}`
+        : NOMBRE_DE_DISCIPLINA[a.disciplina],
+    )
+  }
+  if (a.numeroDeClase != null && a.clasesContratadas != null) {
+    partes.push(`clase ${a.numeroDeClase} de ${a.clasesContratadas}`)
+  }
+  return partes.join(' · ')
 }

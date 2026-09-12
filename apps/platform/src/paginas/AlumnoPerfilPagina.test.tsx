@@ -87,6 +87,7 @@ const CUENTA_VACIA = {
   saldos: [],
   contratos: [],
   pagos: [],
+  pendientes: [],
 }
 
 function alumno(cambios: Partial<AlumnoResumen> = {}): AlumnoResumen {
@@ -476,6 +477,7 @@ describe('el estado de cuenta', () => {
           saldo: 170000,
           senado: false,
           saldado: false,
+          cobradoEnOtraMoneda: null,
         },
       ],
     } as never)

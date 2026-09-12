@@ -399,7 +399,7 @@ describe('anotar a alguien en una clase', () => {
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
@@ -431,7 +431,7 @@ describe('anotar a alguien en una clase', () => {
     )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
 
     // El curso de la reserva, con lo que le queda.
     expect(await screen.findByText(/le quedan 5/)).toBeDefined()
@@ -452,7 +452,7 @@ describe('anotar a alguien en una clase', () => {
     )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
 
     expect(await screen.findByText(/No tiene una inscripción vigente de DJ/)).toBeDefined()
     expect(screen.getByText(/Cargala en Inscripciones/)).toBeDefined()
@@ -473,7 +473,7 @@ describe('anotar a alguien en una clase', () => {
     )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     expect(
@@ -499,7 +499,7 @@ describe('anotar a alguien en una clase', () => {
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
 
@@ -544,7 +544,7 @@ describe('anotar a alguien en una clase', () => {
     ])
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
     expect(await screen.findByText(/Ríos/)).toBeDefined()
@@ -632,7 +632,7 @@ describe('el alta carga la clase junto con su alumno', () => {
     const user = await abrirAlta()
 
     await elegir(user, 'Para qué', '1')
-    await elegir(user, 'Quién', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     // Se espera a que la pantalla resuelva contra qué descuenta: es lo que dice
     // que ya llegaron las inscripciones del alumno. Antes esta espera miraba el
     // valor del `<select>` "Descuenta de", que ya no existe (§12 · C1).
@@ -659,10 +659,12 @@ describe('el alta carga la clase junto con su alumno', () => {
 
     await elegir(user, 'Para qué', '9')
 
-    expect(screen.queryByLabelText('Quién')).toBeNull()
+    expect(screen.queryByLabelText(/^Quién\*?$/)).toBeNull()
     expect(await screen.findByLabelText('Quién paga')).toBeDefined()
 
-    await elegir(user, 'Quién paga', '30')
+    // Se busca entre las cuentas (§17 · H8), no se elige de la primera página.
+    await user.type(screen.getByLabelText('Quién paga'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila/ }))
     await user.type(screen.getByLabelText('Monto'), '45000')
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 

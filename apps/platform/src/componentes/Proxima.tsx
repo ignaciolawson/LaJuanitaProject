@@ -19,6 +19,7 @@ export function Proxima({
   horaFin,
   titulo,
   detalle,
+  renglones = [],
   hoy,
   className = '',
 }: {
@@ -29,6 +30,12 @@ export function Proxima({
   titulo: string
   /** Sala, profesor, con quién. */
   detalle?: string
+  /**
+   * Quiénes vienen, un renglón por persona (§17 · H2): *"Camila Ríos · DJ
+   * intermedio · clase 3 de 8"*. Lo pide el profesor y no el alumno — para el
+   * alumno "con quién" es el profesor, que ya va en `detalle`.
+   */
+  renglones?: string[]
   /**
    * El día de hoy, en ISO.
    *
@@ -56,6 +63,14 @@ export function Proxima({
         {titulo}
         {detalle && <span className="text-shell-tenue"> · {detalle}</span>}
       </p>
+
+      {renglones.length > 0 && (
+        <ul className="relative mt-2 space-y-0.5 text-sm">
+          {renglones.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
 
       <p className="t-mono relative mt-1.5 text-shell-tenue">{fechaLarga(fecha)}</p>
     </section>

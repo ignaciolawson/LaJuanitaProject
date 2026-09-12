@@ -1,6 +1,7 @@
 package com.lajuanita.backend.docencia;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -8,8 +9,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,7 @@ import com.lajuanita.backend.docencia.dto.ClasesDictadas;
 import com.lajuanita.backend.docencia.dto.CursoDelAlumno;
 import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.docencia.dto.NotaResumen;
+import com.lajuanita.backend.docencia.dto.ProximaClase;
 import com.lajuanita.backend.docencia.dto.SeguimientoRequest;
 import com.lajuanita.backend.docencia.dto.SeguimientoResumen;
 import com.lajuanita.backend.inscripcion.Disciplina;
@@ -129,6 +133,67 @@ public class DocenciaService {
                         porReserva.getOrDefault(r.getId(), List.of()),
                         movidas.getOrDefault(r.getId(), 0)))
                 .toList();
+    }
+
+    /**
+     * La próxima clase que doy, sin ventana, con quiénes vienen (§17 · H1 · H2).
+     *
+     * <p>Lo que el profesor abre la agenda para saber es cuándo tiene la que
+     * sigue y con quién — y "con quién" quiere decir nombre, nivel y por qué clase
+     * va cada uno, que {@link ReservaResumen} no trae: ahí viaja la disciplina, y
+     * el número de clase es un ordinal que sólo pide este cuadro (meterlo en cada
+     * participante lo pagarían las 28×N filas del calendario).
+     *
+     * <p>El número se cuenta con la definición de {@code contarClasesConsumidas}
+     * cortada por fecha y hora ({@link ReservaParticipanteRepository#numeroDeClase}):
+     * si esto dijera "clase 3" y el contador de restantes dijera otra cosa, el
+     * mismo alumno tendría dos historias.
+     */
+    @Transactional(readOnly = true)
+    public ProximaClase miProximaClase(Long idUsuario, LocalDate hoy, LocalTime ahora) {
+        Profesor yo = miDocencia(idUsuario);
+
+        List<Reserva> primera = reservas.proximaDelProfesor(yo.getId(), hoy, ahora,
+                EstadoReserva.OCUPAN_LA_SALA, PageRequest.of(0, 1));
+        if (primera.isEmpty()) {
+            return new ProximaClase(null, List.of());
+        }
+        Reserva r = primera.get(0);
+
+        List<ParticipanteResumen> quienes = participantesDe(List.of(r))
+                .getOrDefault(r.getId(), List.of());
+        int movidas = cambios.movidasDe(List.of(r.getId())).getOrDefault(r.getId(), 0);
+
+        // Las inscripciones de quienes vienen, para el nivel y el "de 8"; y su
+        // ordinal, en una consulta para todos y no una por alumno.
+        List<Long> idsInscripcion = quienes.stream()
+                .map(ParticipanteResumen::idInscripcion)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<Long, Inscripcion> inscripcionPorId = new HashMap<>();
+        Map<Long, Integer> numeroPorInscripcion = new HashMap<>();
+        if (!idsInscripcion.isEmpty()) {
+            inscripciones.findAllById(idsInscripcion).forEach(i -> inscripcionPorId.put(i.getId(), i));
+            for (Object[] fila : participantes.numeroDeClase(idsInscripcion, r.getFecha(),
+                    r.getHoraInicio(), EstadoAsistencia.CANCELADA, EstadoReserva.OCUPAN_LA_SALA)) {
+                numeroPorInscripcion.put(((Number) fila[0]).longValue(), ((Number) fila[1]).intValue());
+            }
+        }
+
+        List<ProximaClase.AlumnoEnLaClase> alumnos = quienes.stream()
+                .filter(p -> p.estadoAsistencia() != EstadoAsistencia.CANCELADA)
+                .map(p -> {
+                    Inscripcion i = p.idInscripcion() == null ? null : inscripcionPorId.get(p.idInscripcion());
+                    return new ProximaClase.AlumnoEnLaClase(
+                            p.idUsuario(), p.nombre(), p.apellido(),
+                            p.disciplina(),
+                            i == null ? null : i.getNivel(),
+                            i == null ? null : numeroPorInscripcion.getOrDefault(i.getId(), 1),
+                            i == null ? null : Integer.valueOf(i.getClasesContratadas()));
+                })
+                .toList();
+
+        return new ProximaClase(ReservaResumen.de(r, quienes, movidas), alumnos);
     }
 
     /**

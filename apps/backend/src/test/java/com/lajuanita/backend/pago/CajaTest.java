@@ -503,16 +503,27 @@ class CajaTest {
                         org.hamcrest.Matchers.contains((Object) null)));
     }
 
-    /** Sólo lo cobrado EN LA MONEDA del contrato cancela: la misma cuenta que el estado de cuenta. */
+    /**
+     * Sólo lo cobrado EN LA MONEDA del contrato cancela: la misma cuenta que el
+     * estado de cuenta. Desde `V31` un pago así ya no puede nacer, así que la
+     * fila se fabrica apagando el trigger un instante — es lo que la base de
+     * producción va a tener el día que corra la migración.
+     */
     @Test
-    void un_pago_en_otra_moneda_no_descuenta_el_saldo_del_programa() throws Exception {
+    void un_pago_legado_en_otra_moneda_no_descuenta_el_saldo_del_programa() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion curso = inscripcionDe(alumno, "180000");
-        mvc.perform(pagar("""
-                {"idUsuario":%d,"idInscripcion":%d,"monto":180000,"moneda":"USD","cotizacionDolar":1,
-                 "medioPago":"EFECTIVO","estadoPago":"PAGADO"}
-                """.formatted(alumno.getUsuario().getId(), curso.getId())))
-                .andExpect(status().isCreated());
+        em.flush();
+        jdbc.execute("ALTER TABLE pago DISABLE TRIGGER pago_en_la_moneda_del_contrato");
+        try {
+            jdbc.update("""
+                    INSERT INTO pago (id_usuario, id_inscripcion, monto, moneda, cotizacion_dolar,
+                                      medio_pago, estado_pago)
+                    VALUES (?, ?, 180000, 'USD', 1, 'EFECTIVO', 'PAGADO')
+                    """, alumno.getUsuario().getId(), curso.getId());
+        } finally {
+            jdbc.execute("ALTER TABLE pago ENABLE TRIGGER pago_en_la_moneda_del_contrato");
+        }
 
         deudores()
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(curso.getId()))
@@ -645,7 +656,8 @@ class CajaTest {
     private ResultActions cobrar(String monto, Moneda moneda, EstadoPago estado, String medio)
             throws Exception {
         Alumno alumno = alumnoNuevo();
-        Inscripcion curso = inscripcionDe(alumno, "1000000");
+        // El contrato en la moneda del pago: desde `V31` no puede ser de otra.
+        Inscripcion curso = inscripcionDe(alumno, "1000000", moneda);
 
         return mvc.perform(pagar("""
                 {"idUsuario":%d,"idInscripcion":%d,"monto":%s,"moneda":"%s",%s
@@ -723,13 +735,20 @@ class CajaTest {
     }
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio) {
+        return inscripcionDe(alumno, precio, Moneda.ARS);
+    }
+
+    private Inscripcion inscripcionDe(Alumno alumno, String precio, Moneda moneda) {
         Inscripcion inscripcion = new Inscripcion();
         inscripcion.setAlumno(alumno);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setNivel(Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);
         inscripcion.setPrecioTotal(new BigDecimal(precio));
-        inscripcion.setMoneda(Moneda.ARS);
+        inscripcion.setMoneda(moneda);
+        if (moneda == Moneda.USD) {
+            inscripcion.setCotizacionDolar(new BigDecimal("1200"));
+        }
         return inscripciones.save(inscripcion);
     }
 

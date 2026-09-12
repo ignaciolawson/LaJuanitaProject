@@ -56,7 +56,7 @@ import {
   linkDeWhatsapp,
   mensajeConLaClave,
   mensajeDeCabinaApartada,
-  saludoDeContacto, mensajeDeInscripcion } from '../componentes/whatsapp'
+  mensajeDeInscripcion } from '../componentes/whatsapp'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -197,6 +197,21 @@ export function SolicitantesPagina() {
     void cargar()
   }, [cargar])
 
+  function enLaLista(idSolicitante: number): boolean {
+    return fichas.some((f) => f.idSolicitante === idSolicitante)
+  }
+
+  /** Cerrar el resultado es lo que recarga: recién ahí la ficha atendida se va. */
+  async function cerrarCabina() {
+    setCabinaApartada(null)
+    await cargar()
+  }
+
+  async function cerrarInscripcion() {
+    setAlumnoInscripto(null)
+    await cargar()
+  }
+
   async function darleCuenta(ficha: SolicitanteResumen) {
     setError(null)
     try {
@@ -207,12 +222,19 @@ export function SolicitantesPagina() {
     }
   }
 
+  /**
+   * ⚠️ **Apartar e inscribir NO recargan la lista: recarga el "Listo" del
+   * resultado** (§17 · H6). Las dos cierran la ficha en el servidor, así que
+   * recargar acá la saca del filtro por defecto en el mismo instante en que
+   * aparece lo único que hay que leer —la seña, el plazo, la contraseña—.
+   * Mientras el resultado está abierto, la tarjeta se queda donde estaba con
+   * el resultado en el lugar del formulario; al cerrarlo, se va con la recarga.
+   */
   async function apartar(id: number, datos: Parameters<typeof apartarleLaCabina>[1]) {
     setError(null)
     try {
       setCabinaApartada(await apartarleLaCabina(id, datos))
       setApartando(null)
-      await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo apartar la cabina.')
     }
@@ -223,7 +245,6 @@ export function SolicitantesPagina() {
     try {
       setAlumnoInscripto(await inscribirDesdeElBuzon(id, datos))
       setInscribiendo(null)
-      await cargar()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo inscribir.')
     }
@@ -238,6 +259,22 @@ export function SolicitantesPagina() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo cerrar la ficha.')
     }
+  }
+
+  /** Si la ficha tiene su botón de un click —apartar o inscribir— a la vista. */
+  function tieneGemelo(f: SolicitanteResumen): boolean {
+    return (
+      (SE_APARTA[f.interes] !== null && salas.length > 0) ||
+      (f.interes === 'CURSO' && programas.length > 0)
+    )
+  }
+
+  /** Si hay un resultado abierto sobre esta ficha: ya se atendió, no se vuelve a ofrecer nada. */
+  function conResultado(idSolicitante: number): boolean {
+    return (
+      cabinaApartada?.ficha.idSolicitante === idSolicitante ||
+      alumnoInscripto?.ficha.idSolicitante === idSolicitante
+    )
   }
 
   async function descartar(id: number, motivo: string) {
@@ -290,19 +327,24 @@ export function SolicitantesPagina() {
         </div>
       )}
 
-      {cabinaApartada && (
-        <CabinaLista resultado={cabinaApartada} onCerrar={() => setCabinaApartada(null)} />
+      {/* Los resultados van ADENTRO de la tarjeta de su ficha (§17 · H6), en el
+          lugar del formulario que los produjo. Arriba quedan sólo de respaldo:
+          si la ficha ya no está en la lista —se cambió el filtro o la página
+          con el resultado abierto—, lo importante (la contraseña, que no se
+          vuelve a ver) tiene que seguir en pantalla igual. */}
+      {cabinaApartada && !enLaLista(cabinaApartada.ficha.idSolicitante) && (
+        <CabinaLista resultado={cabinaApartada} onCerrar={() => void cerrarCabina()} />
       )}
 
-      {alumnoInscripto && (
+      {alumnoInscripto && !enLaLista(alumnoInscripto.ficha.idSolicitante) && (
         <InscripcionLista
           resultado={alumnoInscripto}
           profesores={profesores}
-          onCerrar={() => setAlumnoInscripto(null)}
+          onCerrar={() => void cerrarInscripcion()}
         />
       )}
 
-      {cuentaRecienCreada && (
+      {cuentaRecienCreada && !enLaLista(cuentaRecienCreada.solicitante.idSolicitante) && (
         <CuentaLista
           resultado={cuentaRecienCreada}
           onCerrar={() => setRecienConvertida(null)}
@@ -355,7 +397,7 @@ export function SolicitantesPagina() {
                   {etapaDeLaFicha(f).texto}
                 </Etiqueta>
 
-                {f.estado === 'PENDIENTE' && puedeResolver && (
+                {f.estado === 'PENDIENTE' && puedeResolver && !conResultado(f.idSolicitante) && (
                   <div className="mt-2 flex flex-wrap justify-end gap-2">
                     {/* Sólo si todavía no tiene: darle cuenta dos veces no rompe
                         nada, pero ofrecerlo cuando ya la tiene es un botón que no
@@ -391,31 +433,27 @@ export function SolicitantesPagina() {
                       </Boton>
                     )}
 
-                    {f.idUsuario === null && (
+                    {/* "Crearle la cuenta" ya no está acá (§17 · H5, P75): la cuenta
+                        la crea el alta de un click. Sobrevive adentro del panel de
+                        cerrar, en la única rama donde hace falta —una ficha sin
+                        cuenta no tiene candidatos—. */}
+
+                    {/* ⚠️ **"Ya se lo cargué" queda sólo donde no hay gemelo de un
+                        click** (P75): EQUIPOS, y curso o cabina cuando el catálogo
+                        no cargó. Con el gemelo a la vista era un segundo camino
+                        para lo mismo, y el que no hacía el trabajo. Sigue sin
+                        depender de la cuenta (P54): sin ella, el panel lo dice y
+                        ofrece crearla ahí. */}
+                    {!tieneGemelo(f) && (
                       <Boton
-                        variante={
-                          SE_APARTA[f.interes] || (f.interes === 'CURSO' && programas.length > 0)
-                            ? 'secundario'
-                            : 'principal'
+                        variante="secundario"
+                        onClick={() =>
+                          setCerrando(cerrando === f.idSolicitante ? null : f.idSolicitante)
                         }
-                        onClick={() => void darleCuenta(f)}
                       >
-                        Crearle la cuenta
+                        Ya se lo cargué
                       </Boton>
                     )}
-
-                    {/* ⚠️ **Se ofrece SIEMPRE, tenga cuenta o no.** Condicionarlo a
-                        la cuenta la volvería un requisito para cerrar la ficha, que
-                        es justo lo que P54 sacó del medio. Sin cuenta no hay
-                        candidatos y el panel lo dice — con la salida al lado. */}
-                    <Boton
-                      variante="secundario"
-                      onClick={() =>
-                        setCerrando(cerrando === f.idSolicitante ? null : f.idSolicitante)
-                      }
-                    >
-                      Ya se lo cargué
-                    </Boton>
 
                     <Boton variante="secundario" onClick={() => setDescartando(f.idSolicitante)}>
                       Descartar
@@ -462,6 +500,32 @@ export function SolicitantesPagina() {
                   ficha={f}
                   onCerrar={() => setCerrando(null)}
                   onConfirmar={(destino) => void atender(f.idSolicitante, destino)}
+                  onDarleCuenta={() => void darleCuenta(f)}
+                />
+              </div>
+            )}
+
+            {cabinaApartada?.ficha.idSolicitante === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <CabinaLista resultado={cabinaApartada} onCerrar={() => void cerrarCabina()} />
+              </div>
+            )}
+
+            {alumnoInscripto?.ficha.idSolicitante === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <InscripcionLista
+                  resultado={alumnoInscripto}
+                  profesores={profesores}
+                  onCerrar={() => void cerrarInscripcion()}
+                />
+              </div>
+            )}
+
+            {cuentaRecienCreada?.solicitante.idSolicitante === f.idSolicitante && (
+              <div className="mt-4 border-t border-linea pt-4">
+                <CuentaLista
+                  resultado={cuentaRecienCreada}
+                  onCerrar={() => setRecienConvertida(null)}
                 />
               </div>
             )}
@@ -694,7 +758,7 @@ function ApartarLaCabinaForm({
       <p className="mb-4 text-sm text-tenue">
         El horario queda tomado y la deuda anotada a nombre de {ficha.nombre}: aparece en{' '}
         <strong className="text-texto">Deudores</strong> hasta que cobres. Tiene{' '}
-        <strong className="text-texto">24 horas</strong> para abonar —o hasta que empiece la
+        <strong className="text-texto">72 horas</strong> para abonar —o hasta que empiece la
         franja, lo que pase antes— y si no, el horario se libera solo.{' '}
         {ficha.idUsuario === null && 'La cuenta se crea en el mismo movimiento.'}
       </p>
@@ -1179,10 +1243,13 @@ function CerrarLaFicha({
   ficha,
   onCerrar,
   onConfirmar,
+  onDarleCuenta,
 }: {
   ficha: SolicitanteResumen
   onCerrar: () => void
   onConfirmar: (destino: DestinoDeLaFicha) => void
+  /** Crearle la cuenta desde acá: la única rama donde el botón sigue existiendo (P75). */
+  onDarleCuenta: () => void
 }) {
   const [candidatos, setCandidatos] = useState<CandidatoDeLaFicha[] | null>(null)
   const [elegido, setElegido] = useState<string>('')
@@ -1203,7 +1270,10 @@ function CerrarLaFicha({
     return () => {
       vigente = false
     }
-  }, [ficha.idSolicitante, setError])
+    // `idUsuario` también: la cuenta se puede crear desde este mismo panel, y
+    // los candidatos salen de ella. Sin la dependencia, el panel seguiría
+    // diciendo "creale la cuenta primero" con la cuenta ya creada.
+  }, [ficha.idSolicitante, ficha.idUsuario, setError])
 
   const sigue = DONDE_SIGUE[ficha.interes]
 
@@ -1240,7 +1310,10 @@ function CerrarLaFicha({
             <>
               Esta ficha todavía no tiene cuenta, y lo que se ofrece acá sale de ella.{' '}
               <strong className="text-texto">Creale la cuenta primero</strong> y después cargale lo
-              que pidió.
+              que pidió.{' '}
+              <Boton type="button" variante="enlace" onClick={onDarleCuenta}>
+                Crearle la cuenta
+              </Boton>
             </>
           ) : (
             <>
@@ -1326,11 +1399,6 @@ const NOMBRE_DE_PANTALLA: Record<string, string> = {
 function Telefono({ ficha }: { ficha: SolicitanteResumen }) {
   const [copiado, setCopiado] = useState(false)
 
-  const link = linkDeWhatsapp(
-    ficha.telefono,
-    saludoDeContacto(ficha.nombre, NOMBRE_DE_INTERES[ficha.interes]),
-  )
-
   async function copiar() {
     try {
       await navigator.clipboard.writeText(ficha.telefono)
@@ -1346,17 +1414,12 @@ function Telefono({ ficha }: { ficha: SolicitanteResumen }) {
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
       <span className="select-all font-mono text-base tabular-nums">{ficha.telefono}</span>
 
+      {/* Sin "Escribirle" desde §17 · H5: el WhatsApp que sirve es el del
+          resultado, con el mensaje entero armado. Un saludo vacío al lado del
+          número era un segundo botón para el mismo teléfono. */}
       <Boton variante="enlace" type="button" onClick={() => void copiar()}>
         {copiado ? 'Copiado' : 'Copiar'}
       </Boton>
-
-      {link ? (
-        <EnlaceDeWhatsapp href={link}>Escribirle</EnlaceDeWhatsapp>
-      ) : (
-        <span className="text-xs text-apagado">
-          Ese número no se puede abrir en WhatsApp: copialo y buscalo a mano.
-        </span>
-      )}
     </div>
   )
 }

@@ -9,10 +9,8 @@ import {
   cobrarPago,
   editarPago,
   invalidarComprobante,
-  listarAlumnos,
   listarInscripciones,
   listarPagos,
-  listarUsuarios,
   listarVentas,
   registrarPago,
   totalesPorLinea,
@@ -52,6 +50,8 @@ import { fecha, hoy } from '../componentes/semana'
 import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
+import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
+import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const ESTADOS: EstadoPago[] = ['SENADO', 'PAGADO', 'DEBE', 'VENCIDO', 'ANULADO']
@@ -845,21 +845,26 @@ function FormularioPago({
   // Catálogos. Cada uno se pide cuando su destino se elige, no todos al abrir:
   // traer la agenda, las ventas y los trabajos para cargar un pago de un curso son
   // tres viajes para llenar selectores que nadie va a abrir.
-  const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
+  /**
+   * ⚠️ El alumno y la persona que paga se ELIGEN BUSCANDO, no de un `<select>`
+   * (§17 · H8). Los dos desplegables cargaban `pagina: 0` del listado —veinte
+   * filas— y el alumno veintiuno no existía para este formulario, sin que nada
+   * avisara. `BuscadorDePersonas` lo tenía escrito en su cabecera como el modo
+   * de falla que existe para evitar.
+   */
+  const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
+  const [persona, setPersona] = useState<UsuarioResumen | null>(null)
   const [contratos, setContratos] = useState<InscripcionResumen[]>([])
   const [reservas, setReservas] = useState<ReservaResumen[]>([])
   const [trabajos, setTrabajos] = useState<TrabajoResumen[]>([])
   const [ventas, setVentas] = useState<VentaResumen[]>([])
-  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
 
   const [conCuenta, setConCuenta] = useState(true)
   const [datos, setDatos] = useState({
-    idAlumno: '',
     idInscripcion: '',
     idReserva: '',
     idTrabajoMastering: '',
     idVentaEquipo: '',
-    idUsuario: '',
     nombrePagadorExterno: '',
     contactoPagadorExterno: '',
     monto: '',
@@ -887,23 +892,16 @@ function FormularioPago({
 
   const esCurso = destino === 'INSCRIPCION'
 
-  useEffect(() => {
-    if (!esCurso) return
-    listarAlumnos({ pagina: 0 })
-      .then((r) => setAlumnos(r.contenido))
-      .catch(() => setErrorGeneral('No se pudo cargar el listado de alumnos.'))
-  }, [esCurso])
-
   // Las inscripciones del alumno elegido: son las que puede saldar.
   useEffect(() => {
-    if (!datos.idAlumno) {
+    if (!alumno) {
       setContratos([])
       return
     }
-    listarInscripciones({ idAlumno: Number(datos.idAlumno) })
+    listarInscripciones({ idAlumno: alumno.idAlumno })
       .then((r) => setContratos(r.contenido))
       .catch(() => setErrorGeneral('No se pudieron cargar las inscripciones.'))
-  }, [datos.idAlumno])
+  }, [alumno])
 
   useEffect(() => {
     if (destino !== 'RESERVA') return
@@ -926,20 +924,21 @@ function FormularioPago({
       .catch(() => setErrorGeneral('No se pudieron cargar las ventas.'))
   }, [destino])
 
-  // Las personas con cuenta, para los tres destinos donde el pagador es libre.
-  useEffect(() => {
-    if (esCurso) return
-    listarUsuarios({ pagina: 0 })
-      .then((r) => setPersonas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudo cargar el listado de personas.'))
-  }, [esCurso])
-
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
   }
 
-  const alumno = alumnos.find((a) => String(a.idAlumno) === datos.idAlumno)
+  const contratoElegido = contratos.find((i) => String(i.idInscripcion) === datos.idInscripcion)
+
+  // La moneda sigue al contrato (`V31`): al elegir el curso, se fija.
+  useEffect(() => {
+    if (contratoElegido) {
+      setDatos((previo) =>
+        previo.moneda === contratoElegido.moneda ? previo : { ...previo, moneda: contratoElegido.moneda },
+      )
+    }
+  }, [contratoElegido])
 
   async function onSubmit(evento: React.FormEvent) {
     evento.preventDefault()
@@ -947,7 +946,7 @@ function FormularioPago({
     const locales: Record<string, string> = {}
 
     if (esCurso) {
-      if (!datos.idAlumno) locales.idAlumno = 'Elegí de quién es el pago.'
+      if (!alumno) locales.idAlumno = 'Elegí de quién es el pago.'
       if (!datos.idInscripcion) locales.destinoUnico = 'Elegí qué curso salda este pago.'
     } else {
       if (destino === 'RESERVA' && !datos.idReserva) {
@@ -960,7 +959,7 @@ function FormularioPago({
         locales.destinoUnico = 'Elegí qué venta salda este pago.'
       }
       // Espeja `pago_pagador_identificado` (`V19`): cuenta o nombre escrito.
-      if (conCuenta && !datos.idUsuario) locales.pagadorIdentificado = 'Elegí quién paga.'
+      if (conCuenta && !persona) locales.pagadorIdentificado = 'Elegí quién paga.'
       if (!conCuenta && !datos.nombrePagadorExterno.trim()) {
         locales.pagadorIdentificado = 'Escribí el nombre de quien paga.'
       }
@@ -992,7 +991,7 @@ function FormularioPago({
         idUsuario: esCurso
           ? alumno!.idUsuario
           : conCuenta
-            ? Number(datos.idUsuario)
+            ? persona!.id
             : undefined,
         nombrePagadorExterno:
           esCurso || conCuenta ? undefined : datos.nombrePagadorExterno.trim(),
@@ -1076,21 +1075,15 @@ function FormularioPago({
 
           {esCurso && (
             <>
-              <CampoSelect
-                etiqueta="Alumno"
-                value={datos.idAlumno}
-                onChange={(e) =>
-                  setDatos((previo) => ({ ...previo, idAlumno: e.target.value, idInscripcion: '' }))
-                }
+              <SelectorDeAlumno
+                elegido={alumno}
+                onElegir={(a) => {
+                  setAlumno(a)
+                  setDatos((previo) => ({ ...previo, idInscripcion: '' }))
+                }}
                 error={errores.idAlumno}
-              >
-                <option value="">Elegí uno</option>
-                {alumnos.map((a) => (
-                  <option key={a.idAlumno} value={a.idAlumno}>
-                    {a.apellido}, {a.nombre}
-                  </option>
-                ))}
-              </CampoSelect>
+                autoFocus={false}
+              />
 
               <CampoSelect
                 etiqueta="Cuál curso"
@@ -1099,7 +1092,7 @@ function FormularioPago({
                 error={errores.destinoUnico}
               >
                 <option value="">
-                  {datos.idAlumno ? 'Elegí el curso' : 'Elegí primero el alumno'}
+                  {alumno ? 'Elegí el curso' : 'Elegí primero el alumno'}
                 </option>
                 {contratos.map((i) => (
                   <option key={i.idInscripcion} value={i.idInscripcion}>
@@ -1201,19 +1194,13 @@ function FormularioPago({
               </div>
 
               {conCuenta ? (
-                <CampoSelect
-                  etiqueta="Persona"
-                  value={datos.idUsuario}
-                  onChange={cambiar('idUsuario')}
-                  className="sm:col-span-2"
-                >
-                  <option value="">Elegí una</option>
-                  {personas.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.apellido}, {p.nombre} — {p.email}
-                    </option>
-                  ))}
-                </CampoSelect>
+                <div className="sm:col-span-2">
+                  <BuscadorDePersonas
+                    elegida={persona}
+                    onElegir={setPersona}
+                    etiqueta="Persona"
+                  />
+                </div>
               ) : (
                 <>
                   <Campo
@@ -1240,10 +1227,24 @@ function FormularioPago({
             error={errores.monto}
           />
 
-          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-            <option value="ARS">Pesos</option>
-            <option value="USD">Dólares</option>
-          </CampoSelect>
+          {/* ⚠️ Con un curso elegido la moneda es la del contrato y no se elige
+              (`V31`, P74): un pago en otra moneda no lo cancela —el sistema no
+              convierte— y el backend lo rechaza. Ofrecer el selector era
+              ofrecer el bug de §17 · H4. */}
+          {esCurso && contratoElegido ? (
+            <div>
+              <span className="t-mono text-tenue">Moneda</span>
+              <div className="mt-1.5 py-2 text-sm">
+                {contratoElegido.moneda === 'USD' ? 'Dólares' : 'Pesos'}
+                <span className="text-tenue"> — la del contrato</span>
+              </div>
+            </div>
+          ) : (
+            <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+              <option value="ARS">Pesos</option>
+              <option value="USD">Dólares</option>
+            </CampoSelect>
+          )}
 
           {datos.moneda === 'USD' && (
             <Campo

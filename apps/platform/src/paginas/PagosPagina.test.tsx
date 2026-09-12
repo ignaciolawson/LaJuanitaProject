@@ -534,20 +534,85 @@ describe('el alta', () => {
     return user
   }
 
-  /** La regla del esquema: sin cotización, un importe en dólares no se reconstruye. */
+  /**
+   * ⚠️ §17 · H8: el alumno se elige BUSCANDO, no de un `<select>` con la
+   * primera página adentro. Verificado poniendo el bug de vuelta: con el
+   * `<select>` de `pagina: 0`, el alumno que el listado devuelve sólo al
+   * buscarlo no aparecía en ninguna opción.
+   */
+  it('el alumno se busca contra el servidor, no se elige de la primera página', async () => {
+    const user = await abrir()
+    vi.mocked(listarAlumnos).mockImplementation(async ({ buscar }) =>
+      pagina(
+        buscar?.startsWith('Dua')
+          ? [{ idAlumno: 21, idUsuario: 40, nombre: 'Martín', apellido: 'Duarte', email: 'm@ejemplo.com' }]
+          : [],
+      ) as never,
+    )
+
+    await user.type(screen.getByLabelText(/^Alumno/), 'Dua')
+    await user.click(await screen.findByRole('button', { name: /Duarte, Martín/ }))
+
+    expect(screen.getByText('Duarte, Martín')).toBeDefined()
+    expect(vi.mocked(listarAlumnos).mock.calls.some(([o]) => o.buscar === 'Dua')).toBe(true)
+  })
+
+  /** Lo mismo para quien paga un alquiler o un trabajo: se busca entre las cuentas. */
+  it('quien paga se busca entre las cuentas', async () => {
+    const user = await abrir()
+    vi.mocked(listarUsuarios).mockResolvedValue(
+      pagina([
+        { id: 77, nombre: 'Nico', apellido: 'Arce', email: 'nico@ejemplo.com', telefono: null, rol: 'USUARIO', activo: true, debeCambiarPassword: false },
+      ]) as never,
+    )
+    await elegir(user, 'Qué salda', 'RESERVA')
+
+    await user.type(screen.getByLabelText('Persona'), 'Ar')
+    await user.click(await screen.findByRole('button', { name: /Nico Arce/ }))
+
+    expect(screen.getByText('Nico Arce')).toBeDefined()
+  })
+
+  /**
+   * La regla del esquema: sin cotización, un importe en dólares no se reconstruye.
+   * El contrato es en dólares, así que la moneda viene puesta (`V31`): un pago
+   * de curso ya no elige moneda.
+   */
   it('en dólares pide la cotización y no manda sin ella', async () => {
     const user = await abrir()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([
+        { idInscripcion: 5, disciplina: 'DJ', nivel: 'INICIAL', precioTotal: 300, moneda: 'USD' },
+      ]) as never,
+    )
 
-    await elegir(user, 'Alumno', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '150')
-    await elegir(user, 'Moneda', 'USD')
+    expect(await screen.findByText(/la del contrato/)).toBeDefined()
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(
       await screen.findByText('Un pago en dólares necesita la cotización del día.'),
     ).toBeDefined()
     expect(registrarPago).not.toHaveBeenCalled()
+  })
+
+  /**
+   * ⚠️ `V31` (P74, §17 · H4): con el curso elegido la moneda es la del contrato
+   * y no se elige. Ofrecer el selector era ofrecer el bug: la seña en USD
+   * sobre un contrato en pesos activaba la inscripción con cobrado cero.
+   * Verificado poniendo el bug de vuelta: con el `<select>` este caso va a rojo.
+   */
+  it('con el curso elegido, la moneda es la del contrato y no se elige', async () => {
+    const user = await abrir()
+
+    expect(screen.getByLabelText('Moneda')).toBeDefined()
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
+    await elegir(user, 'Cuál curso', '5')
+
+    expect(await screen.findByText(/la del contrato/)).toBeDefined()
+    expect(screen.queryByLabelText('Moneda')).toBeNull()
   })
 
   /** El campo de cotización solo aparece cuando hace falta: casi todo se cobra en pesos. */
@@ -562,7 +627,7 @@ describe('el alta', () => {
   it('un descuento sin justificación no se manda', async () => {
     const user = await abrir()
 
-    await elegir(user, 'Alumno', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.type(screen.getByLabelText(/Descuento/), '20')
@@ -577,7 +642,7 @@ describe('el alta', () => {
     const user = await abrir()
     vi.mocked(registrarPago).mockResolvedValue(pago())
 
-    await elegir(user, 'Alumno', '3')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
     await elegir(user, 'Cuál curso', '5')
     await user.type(screen.getByLabelText('Monto'), '90000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))

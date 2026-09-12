@@ -3,13 +3,14 @@ import { Link } from 'react-router'
 
 import { agenda, listarDeudores, listarSolicitantes } from '../api/administracion'
 import { ApiError } from '../api/cliente'
+import type { Deudor } from '../api/tiposAdmin'
 import { miAgenda, misAlumnos } from '../api/docencia'
 import {
   listarSolicitudes,
   miEstadoDeCuenta,
   misCursos,
   misMateriales,
-  misReservas,
+  miProxima,
   misSolicitudes,
 } from '../api/portal'
 import { resumenFinanciero } from '../api/tablero'
@@ -17,8 +18,8 @@ import { useUsuario } from '../auth/contexto'
 import { Abanico } from '../componentes/Abanico'
 import { Bloque, Grupo } from '../componentes/Bloque'
 import { importe } from '../componentes/dinero'
-import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL } from '../componentes/presentacion'
-import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
+import { NOMBRE_DE_DISCIPLINA, NOMBRE_DE_ROL, cuando } from '../componentes/presentacion'
+import { fecha, hhmm, hoy } from '../componentes/semana'
 import { PERFILES, fraseDelDia } from '../datos/frases'
 import { puedeOperar, puedeVerElTableroCompleto } from '../layout/menu'
 
@@ -63,13 +64,15 @@ export function InicioPagina() {
   // identidad del rango y los efectos volverían a pedir para siempre.
   const [rango] = useState(() => ({
     hoy: hoy(),
-    enUnMes: sumarDias(hoy(), 28),
     primeroDelMes: hoy().slice(0, 7) + '-01',
   }))
 
-  // Un solo pedido de reservas alimenta dos tarjetas —la próxima reserva y la
-  // próxima clase—, que es la diferencia entre lo que uno alquila y lo que cursa.
-  const reservas = useDato(() => misReservas(rango.hoy, rango.enUnMes))
+  // Lo próximo, SIN ventana (§17 · H1): antes se calculaba sobre las cuatro
+  // semanas de `misReservas`, y la clase de dentro de seis no era "la próxima"
+  // para nadie. Dos pedidos —cualquier reserva, y sólo clases— porque son dos
+  // tarjetas: la diferencia entre lo que uno alquila y lo que cursa.
+  const proximaReserva = useDato(() => miProxima())
+  const proximaClase = useDato(() => miProxima(true), usuario.esAlumno)
   const cuenta = useDato(() => miEstadoDeCuenta())
   const pedidos = useDato(() => misSolicitudes())
 
@@ -101,10 +104,6 @@ export function InicioPagina() {
    */
   const destacada = opera ? 'deudores' : usuario.esProfesor ? 'clases' : 'reserva'
 
-  const proximas = (reservas.dato ?? [])
-    .filter((r) => r.estado !== 'CANCELADA' && r.estado !== 'REPROGRAMADA')
-    .sort((a, b) => (a.fecha + a.horaInicio).localeCompare(b.fecha + b.horaInicio))
-
   /**
    * Los grupos del Inicio, y **en qué orden los ve cada perfil**.
    *
@@ -130,14 +129,14 @@ export function InicioPagina() {
           <Tarjeta
             titulo="Mi próxima reserva"
             destacado={destacada === 'reserva'}
-            estado={reservas}
+            estado={proximaReserva}
             enlace={['/mis-reservas', 'Ver mis reservas']}
           >
-            {() =>
-              proximas.length === 0 ? (
+            {(p) =>
+              p.reserva === null ? (
                 <Nada>No tenés nada agendado.</Nada>
               ) : (
-                <Cuando reserva={proximas[0]} />
+                <Cuando reserva={p.reserva} />
               )
             }
           </Tarjeta>
@@ -164,21 +163,28 @@ export function InicioPagina() {
             }}
           </Tarjeta>
 
+          {/* ⚠️ Lee `pendientes` y no `saldos` (§17 · H3): `saldos` son las
+              filas de `pago`, y desde P72 la seña de un programa no es una fila
+              — un preinscripto veía "Estás al día" mientras Deudores lo tenía
+              "sin señar". `pendientes` es la lista de Deudores acotada a la
+              persona, así que las dos pantallas no pueden decir cosas
+              distintas. La vencida sigue hasta que Mica cobre o cancele, o
+              hasta las tres semanas en que se cancela sola (P73). */}
           <Tarjeta titulo="Lo que debo" estado={cuenta} enlace={['/mis-pagos', 'Ver mi cuenta']}>
-            {(c) => {
-              const debe = c.saldos.filter((s) => s.adeudado > 0)
-              return debe.length === 0 ? (
+            {(c) =>
+              c.pendientes.length === 0 ? (
                 <Nada>Estás al día.</Nada>
               ) : (
-                <ul>
-                  {debe.map((s) => (
-                    <li key={s.moneda} className="t-dato text-acento">
-                      {importe(s.adeudado, s.moneda)}
+                <ul className="space-y-2">
+                  {c.pendientes.map((d) => (
+                    <li key={`${d.moneda}-${d.idInscripcion ?? 'pago'}`}>
+                      <p className="t-dato text-acento">{importe(d.adeudado, d.moneda)}</p>
+                      <p className="text-sm text-tenue">{queDebo(d)}</p>
                     </li>
                   ))}
                 </ul>
               )
-            }}
+            }
           </Tarjeta>
         </Tarjetas>
       </Grupo>
@@ -218,13 +224,12 @@ export function InicioPagina() {
 
             <Tarjeta
               titulo="Mi próxima clase"
-              estado={reservas}
+              estado={proximaClase}
               enlace={['/mis-reservas', 'Ver mis reservas']}
             >
-              {() => {
-                const clase = proximas.find((r) => r.esClase)
-                return clase ? <Cuando reserva={clase} /> : <Nada>No tenés clases agendadas.</Nada>
-              }}
+              {(p) =>
+                p.reserva ? <Cuando reserva={p.reserva} /> : <Nada>No tenés clases agendadas.</Nada>
+              }
             </Tarjeta>
 
             {/* Se llama "el último" y no "material nuevo": no hay marca de leído en
@@ -663,6 +668,26 @@ function Tarjetas({ children }: { children: ReactNode }) {
 /** El vacío de una tarjeta. Se muestra, no se esconde. */
 function Nada({ children }: { children: ReactNode }) {
   return <p className="text-sm text-tenue">{children}</p>
+}
+
+/**
+ * Qué es cada cosa que debo, en una línea (§17 · H3): *"Seña de DJ · hasta el
+ * 13/09 12:41"*, *"Venció el 13/09 — hablá con el estudio"*, *"Resto de
+ * Producción"*, *"Deuda anotada"*. La preinscripta dice su plazo porque es lo
+ * que decide si hay que apurarse; el resto no tiene plazo (P72).
+ */
+function queDebo(d: Deudor): string {
+  if (d.motivo === 'SIN_SENIAR') {
+    const programa = `Seña de ${NOMBRE_DE_DISCIPLINA[d.disciplina!]}`
+    if (!d.vence) return programa
+    return d.vencido
+      ? `${programa} · venció el ${cuando(d.vence)} — hablá con el estudio`
+      : `${programa} · hasta el ${cuando(d.vence)}`
+  }
+  if (d.motivo === 'FALTA_EL_RESTO') {
+    return `Resto de ${NOMBRE_DE_DISCIPLINA[d.disciplina!]}`
+  }
+  return d.cantidadDePagos === 1 ? 'Deuda anotada' : `${d.cantidadDePagos} pagos pendientes`
 }
 
 function Cuando({

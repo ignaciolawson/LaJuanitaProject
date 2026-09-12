@@ -1,6 +1,7 @@
 package com.lajuanita.backend.docencia;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,6 +26,7 @@ import com.lajuanita.backend.docencia.dto.ClasesDictadas;
 import com.lajuanita.backend.docencia.dto.CorreccionNotaRequest;
 import com.lajuanita.backend.docencia.dto.MaterialResumen;
 import com.lajuanita.backend.docencia.dto.NotaResumen;
+import com.lajuanita.backend.docencia.dto.ProximaClase;
 import com.lajuanita.backend.docencia.dto.SeguimientoRequest;
 import com.lajuanita.backend.docencia.dto.SeguimientoResumen;
 import com.lajuanita.backend.reserva.dto.ReservaResumen;
@@ -78,6 +80,12 @@ public class DocenciaController {
      *
      * <p>Cuenta, no liquida: P20 sigue abierta. Ver {@link ClasesDictadas}.
      */
+    /** La próxima clase que doy, sin ventana, con quiénes vienen (§17 · H1 · H2). */
+    @GetMapping("/proxima")
+    public ProximaClase miProximaClase(Authentication quienPide) {
+        return docencia.miProximaClase(Autoridades.idDe(quienPide), LocalDate.now(), LocalTime.now());
+    }
+
     @GetMapping("/clases")
     public ClasesDictadas misClases(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,

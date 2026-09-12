@@ -8,12 +8,10 @@ import {
   cambiarAsistencia,
   cambiarEstadoReserva,
   editarReserva,
-  listarAlumnos,
   listarInscripciones,
   listarProfesores,
   listarSalas,
   listarTiposUso,
-  listarUsuarios,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
@@ -52,6 +50,8 @@ import {
 } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
+import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
@@ -605,39 +605,29 @@ function Detalle({
  * "anotar a alguien" del detalle, para quien se suma después. Duplicarlo serían
  * dos lugares donde arreglar la carga de cursos.
  *
- * `activo` es lo que dispara la carga del listado de alumnos, y por eso es un
- * parámetro y no un `useEffect` suelto: son ~80 alumnos que no hacen falta hasta
- * que el formulario esté abierto, ni nunca si lo que se carga es un alquiler.
+ * ⚠️ **El alumno se elige BUSCANDO, con `SelectorDeAlumno`** (§17 · H8). Hasta
+ * ahí esto cargaba `listarAlumnos({ pagina: 0 })` en un `<select>`: la primera
+ * página, veinte filas, y el alumno veintiuno no se podía anotar en ninguna
+ * clase — sin que nada avisara.
  */
-function useParticipante(activo: boolean, disciplina: string | null) {
-  const [alumnos, setAlumnos] = useState<AlumnoResumen[]>([])
+function useParticipante(disciplina: string | null) {
+  const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
   const [cursos, setCursos] = useState<InscripcionResumen[]>([])
-  const [idAlumno, setIdAlumno] = useState('')
-  // `useState` pelado: si el catálogo no cargó, el desplegable queda vacío y este
-  // mensaje es la única explicación de por qué. Limpiarlo deja un `<select>` sin
-  // opciones y sin motivo.
+  // `useState` pelado: si las inscripciones no cargaron, "Descuenta de" queda
+  // vacío y este mensaje es la única explicación de por qué.
   const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!activo) return
-    listarAlumnos({ pagina: 0 })
-      .then((r) => setAlumnos(r.contenido))
-      .catch(() => setErrorDeCarga('No se pudo cargar el listado de alumnos.'))
-  }, [activo])
 
   // Solo las vigentes: anotar una clase contra un curso terminado no descuenta
   // nada real, y ofrecerlo es ofrecer un error de carga.
   useEffect(() => {
-    if (!idAlumno) {
+    if (!alumno) {
       setCursos([])
       return
     }
-    listarInscripciones({ idAlumno: Number(idAlumno), estado: 'ACTIVA' })
+    listarInscripciones({ idAlumno: alumno.idAlumno, estado: 'ACTIVA' })
       .then((r) => setCursos(r.contenido))
       .catch(() => setErrorDeCarga('No se pudieron cargar las inscripciones.'))
-  }, [idAlumno])
-
-  const alumno = alumnos.find((a) => String(a.idAlumno) === idAlumno)
+  }, [alumno])
 
   /**
    * Contra qué curso va a descontar esta clase — **como dato, no como control**
@@ -655,15 +645,14 @@ function useParticipante(activo: boolean, disciplina: string | null) {
     disciplina === null ? null : (cursos.find((c) => c.disciplina === disciplina) ?? null)
 
   return {
-    alumnos,
     cursos,
-    idAlumno,
-    setIdAlumno,
+    alumno,
+    setAlumno,
     disciplina,
     cursoQueDescuenta,
     errorDeCarga,
     limpiar() {
-      setIdAlumno('')
+      setAlumno(null)
     },
     /** Listo para el cuerpo del pedido, o null si todavía no eligió a nadie. */
     elegido: alumno ? { idUsuario: alumno.idUsuario } : null,
@@ -695,19 +684,13 @@ function CamposDeParticipante({
 }) {
   return (
     <>
-      <CampoSelect
+      <SelectorDeAlumno
         etiqueta="Quién"
-        value={selector.idAlumno}
-        onChange={(e) => selector.setIdAlumno(e.target.value)}
+        elegido={selector.alumno}
+        onElegir={selector.setAlumno}
         error={error}
-      >
-        <option value="">Elegí un alumno</option>
-        {selector.alumnos.map((a) => (
-          <option key={a.idAlumno} value={a.idAlumno}>
-            {a.apellido}, {a.nombre}
-          </option>
-        ))}
-      </CampoSelect>
+        autoFocus={false}
+      />
 
       <DescuentaDe selector={selector} />
     </>
@@ -724,7 +707,7 @@ function CamposDeParticipante({
  * de completar el formulario.
  */
 function DescuentaDe({ selector }: { selector: ReturnType<typeof useParticipante> }) {
-  const { disciplina, idAlumno, cursoQueDescuenta } = selector
+  const { disciplina, alumno, cursoQueDescuenta } = selector
 
   return (
     <div>
@@ -734,7 +717,7 @@ function DescuentaDe({ selector }: { selector: ReturnType<typeof useParticipante
           // Un alquiler de cabina, una grabación, un mastering. Antes esto era la
           // opción vacía de un desplegable; ahora es lo que el catálogo dice.
           <span className="text-tenue">No descuenta clases</span>
-        ) : !idAlumno ? (
+        ) : !alumno ? (
           <span className="text-apagado">Elegí un alumno</span>
         ) : cursoQueDescuenta ? (
           <>
@@ -789,7 +772,7 @@ function FormularioParticipante({
   const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
   const tipo = tipos.find((t) => t.idTipoUso === reserva.idTipoUso)
-  const selector = useParticipante(abierto, tipo?.disciplina ?? null)
+  const selector = useParticipante(tipo?.disciplina ?? null)
 
   async function anotar(evento: React.FormEvent) {
     evento.preventDefault()
@@ -910,7 +893,7 @@ function FormularioReserva({
    */
   const pideParticipante = !reserva && (tipo?.esClase ?? false)
   // De qué curso descuenta lo dice el catálogo, no quien carga (`V22`).
-  const participante = useParticipante(pideParticipante, tipo?.disciplina ?? null)
+  const participante = useParticipante(tipo?.disciplina ?? null)
 
   /**
    * El otro camino del dinero de `V10`, y el espejo exacto del de arriba.
@@ -924,8 +907,9 @@ function FormularioReserva({
    * caso), así que es el único uso que no la pide.
    */
   const pideSena = !reserva && tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+  /** Quién paga la seña: se busca entre las cuentas (§17 · H8), no se lista. */
+  const [pagador, setPagador] = useState<UsuarioResumen | null>(null)
   const [sena, setSena] = useState({
-    idUsuario: '',
     monto: '',
     moneda: 'ARS' as Moneda,
     cotizacionDolar: '',
@@ -940,16 +924,6 @@ function FormularioReserva({
    * está mirando la transferencia en ese momento — `mejoras.md` §9.9.
    */
   const [comprobante, setComprobante] = useState<File | null>(null)
-  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
-
-  // Quien alquila puede no ser alumno de nada -- es la decisión de `usuario` como
-  // raíz-- así que acá se listan usuarios y no alumnos.
-  useEffect(() => {
-    if (!pideSena) return
-    listarUsuarios({ pagina: 0 })
-      .then((r) => setPersonas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudo cargar el listado de personas.'))
-  }, [pideSena])
 
   function cambiarSena(campo: keyof typeof sena) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -993,7 +967,7 @@ function FormularioReserva({
     // La misma regla por el otro camino: sin inscripción que lo cubra, lo que
     // sostiene la reserva es el pago, y `V10` lo exige al COMMIT.
     if (pideSena) {
-      if (!sena.idUsuario) locales.senaIdUsuario = 'Decí quién paga la seña.'
+      if (!pagador) locales.senaIdUsuario = 'Decí quién paga la seña.'
       if (!sena.monto || Number(sena.monto) <= 0) {
         locales.senaMonto = 'Poné el monto de la seña.'
       }
@@ -1031,7 +1005,7 @@ function FormularioReserva({
           participantes: participante.elegido ? [participante.elegido] : undefined,
           sena: pideSena
             ? {
-                idUsuario: Number(sena.idUsuario),
+                idUsuario: pagador!.id,
                 monto: Number(sena.monto),
                 moneda: sena.moneda,
                 cotizacionDolar: sena.cotizacionDolar ? Number(sena.cotizacionDolar) : null,
@@ -1145,19 +1119,19 @@ function FormularioReserva({
                 </span>
               </p>
 
-              <CampoSelect
-                etiqueta="Quién paga"
-                value={sena.idUsuario}
-                onChange={cambiarSena('idUsuario')}
-                error={errores.senaIdUsuario}
-              >
-                <option value="">Elegí a la persona</option>
-                {personas.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.apellido}, {p.nombre}
-                  </option>
-                ))}
-              </CampoSelect>
+              {/* Quien alquila puede no ser alumno de nada —es la decisión de
+                  `usuario` como raíz— así que se busca entre las cuentas y no
+                  entre los alumnos. */}
+              <div className="sm:col-span-2">
+                <BuscadorDePersonas
+                  elegida={pagador}
+                  onElegir={setPagador}
+                  etiqueta="Quién paga"
+                />
+                {errores.senaIdUsuario && (
+                  <p className="mt-1 text-xs text-red">{errores.senaIdUsuario}</p>
+                )}
+              </div>
 
               <Campo
                 etiqueta="Monto"

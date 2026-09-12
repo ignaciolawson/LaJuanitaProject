@@ -41,9 +41,11 @@ function cuenta(cambios: Partial<EstadoDeCuenta> = {}): EstadoDeCuenta {
         saldo: 90000,
         senado: true,
         saldado: false,
+        cobradoEnOtraMoneda: null,
       },
     ],
     pagos: [],
+    pendientes: [],
     ...cambios,
   }
 }
@@ -124,6 +126,7 @@ describe('los contratos', () => {
             saldo: 170000,
             senado: false,
             saldado: false,
+            cobradoEnOtraMoneda: null,
           },
         ],
       }),
@@ -149,6 +152,7 @@ describe('los contratos', () => {
             saldo: 0,
             senado: true,
             saldado: true,
+            cobradoEnOtraMoneda: null,
           },
         ],
       }),
@@ -178,6 +182,7 @@ describe('los contratos', () => {
             saldo: 0,
             senado: true,
             saldado: true,
+            cobradoEnOtraMoneda: null,
           },
           {
             idInscripcion: 6,
@@ -190,6 +195,7 @@ describe('los contratos', () => {
             saldo: 300000,
             senado: false,
             saldado: false,
+            cobradoEnOtraMoneda: null,
           },
         ],
       }),

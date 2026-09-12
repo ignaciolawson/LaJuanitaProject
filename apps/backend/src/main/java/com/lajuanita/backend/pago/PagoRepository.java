@@ -336,6 +336,11 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
      *       pagos con cuenta ese campo es {@code NULL} y no cambia nada.</li>
      * </ol>
      *
+     * <p>{@code idUsuario} acota a una persona (§17 · H3): el estado de cuenta
+     * muestra <i>"lo que debo"</i> con esta misma consulta y no con otra, para
+     * que el alumno y Deudores no puedan decir cosas distintas de la misma
+     * deuda. En {@code null} trae a todos, como siempre.
+     *
      * @return filas {@code [id_usuario, nombre_externo, contacto_externo, moneda, adeudado, cantidad, desde]}
      */
     @Query("""
@@ -343,11 +348,13 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                    p.moneda, SUM(p.monto), COUNT(p), MIN(p.fechaPago)
             FROM Pago p LEFT JOIN p.usuario u
             WHERE p.estadoPago IN :adeudados
+              AND (:idUsuario IS NULL OR u.id = :idUsuario)
               AND """ + DeudaCobrable.JPQL + """
             GROUP BY u.id, p.nombrePagadorExterno, p.moneda
             ORDER BY MIN(p.fechaPago)
             """)
-    List<Object[]> deudores(@Param("adeudados") Iterable<EstadoPago> adeudados);
+    List<Object[]> deudores(@Param("adeudados") Iterable<EstadoPago> adeudados,
+            @Param("idUsuario") Long idUsuario);
 
     /**
      * Pasar a {@code VENCIDO} la deuda que ya cruzó los 7 días.

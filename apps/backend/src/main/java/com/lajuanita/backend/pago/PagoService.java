@@ -268,7 +268,19 @@ public class PagoService {
                 throw new SolicitudInvalidaException(
                         "Para saldar un curso el pago tiene que ir a nombre de la cuenta del alumno.");
             }
-            pago.setInscripcion(buscarInscripcion(solicitud.idInscripcion(), pago.getUsuario()));
+            Inscripcion contrato = buscarInscripcion(solicitud.idInscripcion(), pago.getUsuario());
+            // `V31` (P74): el pago de un programa va en la moneda del contrato. El
+            // trigger lo sostiene; esto existe para que el 409 diga qué hacer
+            // antes de que la fila viaje, y para que la seña en USD sobre un
+            // contrato en pesos no vuelva a activar una preinscripción con
+            // cobrado cero en su moneda — que fue el bug de §17 · H4.
+            if (contrato.getMoneda() != solicitud.moneda()) {
+                throw new SolicitudInvalidaException(
+                        "El pago de un programa va en la moneda del contrato: esta inscripción es en "
+                                + contrato.getMoneda() + " y el pago vino en " + solicitud.moneda()
+                                + ". Si se paga en otra moneda, editá el contrato a esa moneda.");
+            }
+            pago.setInscripcion(contrato);
         }
         if (solicitud.idReserva() != null) {
             pago.setReserva(buscarReserva(solicitud.idReserva()));
@@ -503,9 +515,11 @@ public class PagoService {
             }
         }
 
+        // Lo que debe, con la definición de Deudores y no con otra (§17 · H3).
         return new EstadoDeCuenta(persona.getId(), persona.getNombre(), persona.getApellido(),
                 persona.getEmail(), saldos, contratosDe(idUsuario),
-                suyos.stream().map(PagoResumen::de).toList());
+                suyos.stream().map(PagoResumen::de).toList(),
+                deudores(idUsuario));
     }
 
     /** Las inscripciones de la persona, cada una con cuánto lleva cobrado. */
@@ -525,11 +539,16 @@ public class PagoService {
 
         return contratos.stream().map(inscripcion -> {
             // Solo lo cobrado EN LA MONEDA DEL CONTRATO cancela el contrato.
-            BigDecimal pagadoAcá = cobrado
-                    .getOrDefault(inscripcion.getId(), Map.of())
-                    .getOrDefault(inscripcion.getMoneda().name(), BigDecimal.ZERO);
+            Map<String, BigDecimal> porMoneda = cobrado.getOrDefault(inscripcion.getId(), Map.of());
+            BigDecimal pagadoAcá = porMoneda.getOrDefault(inscripcion.getMoneda().name(), BigDecimal.ZERO);
             BigDecimal total = inscripcion.getPrecioTotal();
             BigDecimal saldo = total.subtract(pagadoAcá);
+            // Lo que entró en la otra moneda no cancela nada (§2.3) pero se dice
+            // (§17 · H4): desde `V31` sólo puede ser una fila anterior a la regla.
+            BigDecimal enOtra = porMoneda.entrySet().stream()
+                    .filter(e -> !e.getKey().equals(inscripcion.getMoneda().name()))
+                    .map(Map.Entry::getValue)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             return new ContratoDelAlumno(
                     inscripcion.getId(),
@@ -542,7 +561,8 @@ public class PagoService {
                     Importe.normalizar(saldo),
                     // El 50% de §13: si ya lo cubrió, la seña está hecha.
                     pagadoAcá.multiply(BigDecimal.TWO).compareTo(total) >= 0,
-                    saldo.signum() <= 0);
+                    saldo.signum() <= 0,
+                    enOtra.signum() == 0 ? null : Importe.normalizar(enOtra));
         }).toList();
     }
 
@@ -602,8 +622,21 @@ public class PagoService {
     /** Quién debe, cuánto y hace cuántos días (§6, pantalla 4). */
     @Transactional(readOnly = true)
     public List<Deudor> deudores() {
+        return deudores(null);
+    }
+
+    /**
+     * Lo mismo, acotado a una persona (§17 · H3) — o a todas con {@code null}.
+     *
+     * <p><b>Es UNA consulta y no dos</b>: "Lo que debo" del portal se arma con
+     * esta misma lista filtrada, así que el alumno no puede ver "al día" mientras
+     * Deudores lo tiene como "sin señar". Antes la tarjeta leía sólo las filas
+     * de {@code pago}, y desde P72 la seña no es una fila.
+     */
+    @Transactional(readOnly = true)
+    public List<Deudor> deudores(Long idUsuario) {
         LocalDate hoy = LocalDate.now();
-        List<Object[]> filas = pagos.deudores(EstadoPago.ADEUDADOS);
+        List<Object[]> filas = pagos.deudores(EstadoPago.ADEUDADOS, idUsuario);
         // Sin retorno temprano: desde P72 hay una segunda fuente, y con la
         // primera vacía —que es lo normal en un estudio al día— la segunda es
         // la única. Un `return List.of()` acá dejó a las preinscriptas fuera de
@@ -644,7 +677,7 @@ public class PagoService {
                     MotivoDeDeuda.DEUDA_ANOTADA, null, null, null);
         }).collect(Collectors.toCollection(ArrayList::new));
 
-        lista.addAll(inscripcionesConPlataPendiente(hoy));
+        lista.addAll(inscripcionesConPlataPendiente(hoy, idUsuario));
         return lista;
     }
 
@@ -659,9 +692,10 @@ public class PagoService {
      * antes de empezar, sin fecha (P72). Una fila DEBE por ese saldo diría
      * "Deuda vencida" a la semana para alguien que arranca en tres.
      */
-    private List<Deudor> inscripcionesConPlataPendiente(LocalDate hoy) {
-        List<Inscripcion> candidatas = inscripciones.conPlataPosiblementePendiente(
-                EstadoInscripcion.ABIERTAS);
+    private List<Deudor> inscripcionesConPlataPendiente(LocalDate hoy, Long idUsuario) {
+        List<Inscripcion> candidatas = idUsuario == null
+                ? inscripciones.conPlataPosiblementePendiente(EstadoInscripcion.ABIERTAS)
+                : inscripciones.conPlataPosiblementePendienteDe(idUsuario, EstadoInscripcion.ABIERTAS);
         if (candidatas.isEmpty()) {
             return List.of();
         }

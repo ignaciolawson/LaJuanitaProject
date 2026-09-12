@@ -360,13 +360,16 @@ SELECT probar('33','pago apuntando a DOS destinos a la vez','FALLA',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,id_reserva,monto,medio_pago)
     SELECT v.u_juan,v.ins_juan,(SELECT id_reserva FROM reserva LIMIT 1),50000,'EFECTIVO' FROM v$q$);
 
+-- Contra una reserva y no contra la inscripcion de Juan, desde V31: su contrato
+-- es en pesos, y un pago en USD ahi fallaria por la moneda antes de llegar a la
+-- cotizacion -- el 34 pasaria por el motivo equivocado y el 35 iria a FALLA.
 SELECT probar('34','pago en USD sin cotizacion','FALLA',
- $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,medio_pago)
-    SELECT u_juan,ins_juan,100,'USD','PAYPAL' FROM v$q$);
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,medio_pago)
+    SELECT u_juan,(SELECT id_reserva FROM reserva LIMIT 1),100,'USD','PAYPAL' FROM v$q$);
 
 SELECT probar('35','pago en USD con cotizacion','ANDA',
- $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago)
-    SELECT u_juan,ins_juan,100,'USD',1450.50,'PAYPAL' FROM v$q$);
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_juan,(SELECT id_reserva FROM reserva LIMIT 1),100,'USD',1450.50,'PAYPAL' FROM v$q$);
 
 SELECT probar('36','descuento sin justificacion escrita','FALLA',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,descuento_porcentaje)
@@ -2305,6 +2308,60 @@ SELECT probar('264','una preinscripta se cancela sin cobrar nada','ANDA',
  $q$UPDATE inscripcion SET estado='CANCELADA', vence_preinscripcion=NULL
      WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='MENTORIA'
        AND estado='PREINSCRIPTA'$q$);
+
+
+-- =============================================================================
+-- EL PAGO DE UN PROGRAMA VA EN LA MONEDA DEL CONTRATO  (`V31`, §17 · H4, P74)
+--
+-- Deudores cuenta solo lo cobrado en la moneda del contrato (§2.3, nunca se
+-- convierte) y `V30` §4 (c) activaba la preinscripta con un pago en cualquier
+-- moneda: una senia en USD sobre un contrato en pesos dejaba una inscripcion
+-- activa con cobrado cero en su moneda. La regla cierra las dos lecturas: el
+-- pago que apunta a una inscripcion lleva su moneda, al nacer y al editarse.
+--
+-- Fixture propio: un contrato en pesos y otro en dolares, del alumno de la
+-- seccion anterior.
+-- =============================================================================
+
+INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,moneda,cotizacion_dolar)
+SELECT al_pre,'PRODUCCION',16,500,'USD',1450 FROM v_pre;
+
+CREATE VIEW v_moneda AS SELECT
+ (SELECT i.id_inscripcion FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ') AS ins_pesos,
+ (SELECT i.id_inscripcion FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='PRODUCCION') AS ins_dolares;
+
+SELECT probar_mensaje('265','pago en USD sobre un contrato en pesos',
+ 'moneda del contrato',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_pre,ins_pesos,100,'USD',1450,'PAYPAL' FROM v_pre, v_moneda$q$);
+
+SELECT probar_mensaje('266','pago en pesos sobre un contrato en dolares',
+ 'moneda del contrato',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,medio_pago)
+    SELECT u_pre,ins_dolares,100000,'ARS','EFECTIVO' FROM v_pre, v_moneda$q$);
+
+SELECT probar('267','pago en la moneda del contrato','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago,concepto)
+    SELECT u_pre,ins_dolares,250,'USD',1450,'PAYPAL','senia en dolares' FROM v_pre, v_moneda$q$);
+
+-- Al editarse tambien: cambiarle la moneda a un pago ya cargado es la misma
+-- mentira por otra puerta (V19 §2 deja editar; V31 mira `moneda` en el UPDATE).
+SELECT probar_mensaje('268','ESQUIVE: cargarlo bien y cambiarle la moneda despues',
+ 'moneda del contrato',
+ $q$UPDATE pago SET moneda='ARS', cotizacion_dolar=NULL, id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE concepto='senia en dolares'$q$);
+
+-- Y apuntarlo a otra inscripcion de otra moneda, idem.
+SELECT probar_mensaje('269','ESQUIVE: apuntar el pago a un contrato de otra moneda',
+ 'moneda del contrato',
+ $q$UPDATE pago SET id_inscripcion=(SELECT ins_pesos FROM v_moneda), id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE concepto='senia en dolares'$q$);
+
+-- Un pago sin inscripcion (una reserva, un trabajo) no la mira: la moneda
+-- libre sigue siendo libre donde no hay contrato.
+SELECT probar('270','pago en USD sobre una reserva, sin contrato que mirar','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_pre,(SELECT id_reserva FROM reserva LIMIT 1),50,'USD',1450,'PAYPAL' FROM v_pre$q$);
 
 
 -- =============================================================================

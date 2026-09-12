@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -232,6 +232,46 @@ describe('entregar el premaster', () => {
         'Cliente de mucha exposición, paga en el mes',
       ),
     )
+  })
+})
+
+/**
+ * §17 · H8: quien paga se BUSCA entre las cuentas. El `<select>` que había
+ * cargaba la primera página del listado (veinte personas) y el resto no existía
+ * para el cobro. Con el cliente del trabajo ya con cuenta, viene puesto y se
+ * puede cambiar.
+ */
+describe('registrar cobro', () => {
+  it('a nombre del cliente del trabajo, y se puede cambiar buscando', async () => {
+    vi.mocked(listarTrabajos).mockResolvedValue({
+      contenido: [trabajo({ idClienteUsuario: 30, cliente: 'Camila Ríos', clienteTieneCuenta: true })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(listarUsuarios).mockResolvedValue({
+      contenido: [
+        { id: 77, nombre: 'Nico', apellido: 'Arce', email: 'nico@ejemplo.com', telefono: null, rol: 'USUARIO', activo: true, debeCambiarPassword: false },
+      ],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    await userEvent.click(await screen.findByText('Nocturno'))
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar cobro' }))
+
+    const formulario = screen.getByRole('heading', { name: 'Registrar cobro' }).closest('form')!
+    expect(within(formulario).getByText('Camila Ríos')).toBeDefined()
+
+    await userEvent.click(within(formulario).getByRole('button', { name: 'Cambiar' }))
+    await userEvent.type(screen.getByLabelText('A nombre de'), 'Ar')
+    await userEvent.click(await screen.findByRole('button', { name: /Nico Arce/ }))
+
+    expect(within(formulario).getByText('Nico Arce')).toBeDefined()
   })
 })
 

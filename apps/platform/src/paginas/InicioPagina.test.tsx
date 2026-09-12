@@ -29,7 +29,7 @@ import { InicioPagina } from './InicioPagina'
  */
 
 vi.mock('../api/portal', () => ({
-  misReservas: vi.fn(),
+  miProxima: vi.fn(),
   miEstadoDeCuenta: vi.fn(),
   misSolicitudes: vi.fn(),
   misCursos: vi.fn(),
@@ -64,7 +64,7 @@ const PAGINA_VACIA = { contenido: [], pagina: 0, tamanio: 20, totalElementos: 0,
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(portal.misReservas).mockResolvedValue([])
+  vi.mocked(portal.miProxima).mockResolvedValue({ reserva: null })
   vi.mocked(portal.misSolicitudes).mockResolvedValue([])
   vi.mocked(portal.misCursos).mockResolvedValue([])
   vi.mocked(portal.misMateriales).mockResolvedValue([])
@@ -77,6 +77,7 @@ beforeEach(() => {
     saldos: [],
     contratos: [],
     pagos: [],
+    pendientes: [],
   })
   vi.mocked(admin.agenda).mockResolvedValue([])
   vi.mocked(admin.listarDeudores).mockResolvedValue([])
@@ -247,6 +248,106 @@ describe('qué ve cada perfil', () => {
 
     expect(await screen.findByText('Operación')).toBeDefined()
     expect(screen.getByText('Mis clases')).toBeDefined()
+  })
+})
+
+/**
+ * §17 · H3: "Lo que debo" lee `pendientes` —la lista de Deudores acotada a la
+ * persona— y no `saldos`. La seña de un programa no es una fila de pago (P72),
+ * así que con `saldos` un preinscripto veía "Estás al día" mientras Deudores lo
+ * tenía "sin señar". Verificado poniendo el bug de vuelta: con `saldos` este
+ * caso va a rojo.
+ */
+describe('lo que debo', () => {
+  it('muestra la seña pendiente de un programa, con su plazo, aunque no haya fila de pago', async () => {
+    vi.mocked(portal.miEstadoDeCuenta).mockResolvedValue({
+      idUsuario: 1,
+      nombre: 'Prueba',
+      apellido: 'Prueba',
+      email: 'prueba@lajuanita.local',
+      saldos: [],
+      contratos: [],
+      pagos: [],
+      pendientes: [
+        {
+          idUsuario: 1,
+          nombre: 'Prueba',
+          apellido: 'Prueba',
+          email: 'prueba@lajuanita.local',
+          telefono: null,
+          moneda: 'ARS',
+          adeudado: 220000,
+          cantidadDePagos: 0,
+          desde: '2026-09-12',
+          diasDeAtraso: 0,
+          vencido: false,
+          motivo: 'SIN_SENIAR',
+          idInscripcion: 5,
+          disciplina: 'PRODUCCION',
+          vence: '2026-09-13T12:41:00-03:00',
+        },
+        {
+          idUsuario: 1,
+          nombre: 'Prueba',
+          apellido: 'Prueba',
+          email: 'prueba@lajuanita.local',
+          telefono: null,
+          moneda: 'ARS',
+          adeudado: 85000,
+          cantidadDePagos: 0,
+          desde: '2026-08-01',
+          diasDeAtraso: 42,
+          vencido: false,
+          motivo: 'FALTA_EL_RESTO',
+          idInscripcion: 6,
+          disciplina: 'DJ',
+          vence: null,
+        },
+      ],
+    })
+    montar('USUARIO')
+
+    expect(await screen.findByText('$ 220.000,00')).toBeDefined()
+    expect(screen.getByText('Seña de Producción · hasta el 13/09 12:41')).toBeDefined()
+    expect(screen.getByText('$ 85.000,00')).toBeDefined()
+    expect(screen.getByText('Resto de DJ')).toBeDefined()
+    expect(screen.queryByText('Estás al día.')).toBeNull()
+  })
+
+  it('la seña vencida lo dice y manda a hablar con el estudio', async () => {
+    vi.mocked(portal.miEstadoDeCuenta).mockResolvedValue({
+      idUsuario: 1,
+      nombre: 'Prueba',
+      apellido: 'Prueba',
+      email: 'prueba@lajuanita.local',
+      saldos: [],
+      contratos: [],
+      pagos: [],
+      pendientes: [
+        {
+          idUsuario: 1,
+          nombre: 'Prueba',
+          apellido: 'Prueba',
+          email: 'prueba@lajuanita.local',
+          telefono: null,
+          moneda: 'ARS',
+          adeudado: 220000,
+          cantidadDePagos: 0,
+          desde: '2026-09-10',
+          diasDeAtraso: 2,
+          vencido: true,
+          motivo: 'SIN_SENIAR',
+          idInscripcion: 5,
+          disciplina: 'PRODUCCION',
+          vence: '2026-09-11T12:41:00-03:00',
+        },
+      ],
+    })
+    montar('USUARIO')
+
+    expect(
+      await screen.findByText('Seña de Producción · venció el 11/09 12:41 — hablá con el estudio'),
+    ).toBeDefined()
   })
 })
 

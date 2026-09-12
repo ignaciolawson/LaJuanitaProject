@@ -212,7 +212,7 @@ export function mensajeConLaClave(
  *
  * **El plazo va sí o sí, y va escrito como fecha y hora.** Un *"te apartamos la
  * sala"* sin vencimiento deja tranquilo a quien lo lee sobre un horario que se
- * libera solo en 24 horas: es la peor forma de perder una venta, porque nadie se
+ * libera solo en 72 horas (P73; eran 24): es la peor forma de perder una venta, porque nadie se
  * entera hasta que ya pasó.
  *
  * ⚠️ **Antes eran dos mensajes, a propósito, y la decisión se revirtió con

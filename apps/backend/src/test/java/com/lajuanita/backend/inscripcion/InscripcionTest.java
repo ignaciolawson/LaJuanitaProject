@@ -83,6 +83,9 @@ class InscripcionTest {
     private InscripcionRepository inscripciones;
 
     @Autowired
+    private InscripcionService servicio;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     @Autowired
@@ -601,6 +604,59 @@ class InscripcionTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("CANCELADA"))
                 .andExpect(jsonPath("$.vencePreinscripcion").doesNotExist());
+    }
+
+    /**
+     * La sexta regla del scheduler (P73, §17 · H3): la preinscripta con más de
+     * tres semanas del alta se cancela sola y avisa a la persona <b>una vez</b>,
+     * con la clave del hecho. La de diez días no se toca: entre las 24 hs y las
+     * tres semanas manda Mica (P61).
+     */
+    @Test
+    void una_preinscripta_abandonada_se_cancela_sola_a_las_tres_semanas() throws Exception {
+        Alumno abandonada = alumnoNuevo();
+        Alumno reciente = alumnoNuevo();
+        long vieja = preinscribirDj(abandonada);
+        long nueva = preinscribirDj(reciente);
+        jdbc.update("UPDATE inscripcion SET fecha_creacion = now() - interval '22 days' WHERE id_inscripcion = ?", vieja);
+        jdbc.update("UPDATE inscripcion SET fecha_creacion = now() - interval '10 days' WHERE id_inscripcion = ?", nueva);
+
+        assertThat(servicio.cancelarLasAbandonadas()).isEqualTo(1);
+        em.clear();
+
+        assertThat(jdbc.queryForObject("SELECT estado FROM inscripcion WHERE id_inscripcion = ?",
+                String.class, vieja)).isEqualTo("CANCELADA");
+        assertThat(jdbc.queryForObject("SELECT estado FROM inscripcion WHERE id_inscripcion = ?",
+                String.class, nueva)).isEqualTo("PREINSCRIPTA");
+
+        // Le avisó a la persona, con la clave del hecho: correrlo de nuevo no
+        // cancela nada más ni escribe un segundo aviso.
+        assertThat(servicio.cancelarLasAbandonadas()).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM notificacion WHERE id_usuario_destino = ? AND tipo = 'PREINSCRIPCION_CANCELADA'",
+                Integer.class, abandonada.getUsuario().getId())).isEqualTo(1);
+    }
+
+    /**
+     * §17 · H3: "Lo que debo" del estado de cuenta es la lista de Deudores
+     * acotada a la persona — la seña de la preinscripta aparece ahí aunque no
+     * haya ninguna fila de pago (P72), y la del vecino no.
+     */
+    @Test
+    void el_estado_de_cuenta_dice_la_senia_pendiente_con_la_definicion_de_deudores() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Alumno vecino = alumnoNuevo();
+        long id = preinscribirDj(alumno);
+        preinscribirDj(vecino);
+
+        mvc.perform(get("/api/pagos/estado-de-cuenta/" + alumno.getUsuario().getId())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saldos.length()").value(0))
+                .andExpect(jsonPath("$.pendientes.length()").value(1))
+                .andExpect(jsonPath("$.pendientes[0].motivo").value("SIN_SENIAR"))
+                .andExpect(jsonPath("$.pendientes[0].idInscripcion").value(id))
+                .andExpect(jsonPath("$.pendientes[0].adeudado").value(180000.0));
     }
 
     /** (b) de la escalera: ni pausar ni completar lo que no empezó. */

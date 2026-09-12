@@ -1,5 +1,7 @@
 package com.lajuanita.backend.portal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +62,7 @@ class PortalTest {
     private static final LocalDate CLASE = LocalDate.of(2028, 4, 3);
 
     @Autowired private MockMvc mvc;
+    @Autowired private PortalService portal;
     @Autowired private JwtEncoder codificador;
     @Autowired private UsuarioRepository usuarios;
     @Autowired private AlumnoRepository alumnos;
@@ -306,6 +310,56 @@ class PortalTest {
                 .andExpect(jsonPath("$[0].profesor").doesNotExist())
                 .andExpect(jsonPath("$[0].participantes").doesNotExist())
                 .andExpect(jsonPath("$[0].tipoUso").doesNotExist());
+    }
+
+    // == Lo próximo, sin ventana (§17 · H1) ===================================
+
+    /**
+     * La clase de {@code CLASE} está a más de un año: {@code misReservas} no la
+     * puede ni pedir (techo de 62 días), y para el cuadro de arriba del portal
+     * era como si no existiera. "Mi próxima" no tiene ventana — y sigue siendo
+     * mía y no del vecino, que es la única pregunta de esta suite.
+     */
+    @Test
+    void mi_proxima_no_tiene_ventana_y_no_es_la_del_vecino() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno);
+        Usuario otro = crear(Rol.USUARIO);
+
+        cargarClase(alumno.getUsuario().getId(), inscripcion.getId(), "10:00", "11:30");
+
+        mvc.perform(get("/api/me/proxima").header("Authorization", credencialPara(alumno.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reserva.tipoUso").value("Clase de DJ"))
+                .andExpect(jsonPath("$.reserva.fecha").value(CLASE.toString()))
+                .andExpect(jsonPath("$.reserva.miAsistencia").value("PENDIENTE"));
+
+        // Pedida como alquiler, esa misma clase no es lo próximo: son dos tarjetas.
+        mvc.perform(get("/api/me/proxima").param("esClase", "false")
+                .header("Authorization", credencialPara(alumno.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reserva").value(nullValue()));
+
+        mvc.perform(get("/api/me/proxima").header("Authorization", credencialPara(otro)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reserva").value(nullValue()));
+    }
+
+    /**
+     * "Todavía no terminó" mira el reloj: la clase de hoy a las 10, a las 15 ya
+     * pasó. El reloj entra por parámetro justamente para poder ponerlo acá.
+     */
+    @Test
+    void lo_que_ya_termino_hoy_no_es_lo_proximo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno);
+        cargarClase(alumno.getUsuario().getId(), inscripcion.getId(), "10:00", "11:30");
+        Long yo = alumno.getUsuario().getId();
+
+        assertThat(portal.miProxima(yo, null, CLASE, LocalTime.of(9, 0)).reserva()).isNotNull();
+        assertThat(portal.miProxima(yo, null, CLASE, LocalTime.of(11, 0)).reserva())
+                .as("mientras dura, sigue siendo lo próximo").isNotNull();
+        assertThat(portal.miProxima(yo, null, CLASE, LocalTime.of(15, 0)).reserva()).isNull();
     }
 
     // =========================================================================

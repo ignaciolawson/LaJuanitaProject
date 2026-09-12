@@ -359,13 +359,15 @@ public class ReservaService {
     }
 
     /**
-     * Hasta cuándo se aguanta un horario sin cobrarlo (P43/P44).
+     * Hasta cuándo se aguanta un horario sin cobrarlo (P43/P44) — <b>72 horas
+     * desde P73</b> (§17 · H3; eran 24). Sigue siendo el menor entre el plazo y
+     * el inicio de la franja (P44).
      *
      * <p>Es configurable por si el estudio quiere apretar o aflojar el plazo, y
      * tiene un default porque una regla de negocio que sólo existe en un archivo de
      * configuración es una regla que nadie encuentra.
      */
-    @Value("${lajuanita.prereserva.horas:24}")
+    @Value("${lajuanita.prereserva.horas:72}")
     private long horasDePrereserva;
 
     /**

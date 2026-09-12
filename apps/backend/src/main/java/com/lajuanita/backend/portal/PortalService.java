@@ -1,6 +1,7 @@
 package com.lajuanita.backend.portal;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -8,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ import com.lajuanita.backend.pago.dto.EstadoDeCuenta;
 import com.lajuanita.backend.portal.dto.CatalogoParaPedir;
 import com.lajuanita.backend.portal.dto.FranjaOcupada;
 import com.lajuanita.backend.portal.dto.ProgresoDelCurso;
+import com.lajuanita.backend.portal.dto.ProximaDelPortal;
 import com.lajuanita.backend.portal.dto.ReservaDelPortal;
 import com.lajuanita.backend.reserva.EstadoAsistencia;
 import com.lajuanita.backend.reserva.EstadoReserva;
@@ -159,6 +162,40 @@ public class PortalService {
                 .map(r -> ReservaDelPortal.de(r, miAsistencia.get(r.getId()),
                         movidas.getOrDefault(r.getId(), 0)))
                 .toList();
+    }
+
+    /**
+     * Lo próximo que tengo, sin ventana (§17 · H1).
+     *
+     * <p>{@link #misReservas} pide un rango y lo acota a {@value #MAXIMO_DE_DIAS}
+     * días; el cuadro de arriba del portal se calculaba sobre esa ventana, así que
+     * la clase de dentro de seis semanas no era "la próxima" para nadie. La
+     * pregunta no tiene ventana y esta consulta tampoco: la primera que ocupa su
+     * lugar y todavía no terminó, con la misma definición de "mía".
+     *
+     * <p>El reloj entra por parámetro para que la prueba pueda ponerlo donde
+     * quiera (la lección de {@code CajaPagina}, del lado del servidor).
+     *
+     * @param esClase {@code null} para cualquiera; el Inicio separa clase de alquiler
+     */
+    @Transactional(readOnly = true)
+    public ProximaDelPortal miProxima(Long idUsuario, Boolean esClase, LocalDate hoy, LocalTime ahora) {
+        List<Reserva> primera = reservas.proximaDeLaPersona(idUsuario, hoy, ahora, esClase,
+                EstadoReserva.OCUPAN_LA_SALA, EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON,
+                PageRequest.of(0, 1));
+        if (primera.isEmpty()) {
+            return new ProximaDelPortal(null);
+        }
+        Reserva r = primera.get(0);
+
+        EstadoAsistencia miAsistencia = participantes.deLaPersona(idUsuario, r.getFecha(), r.getFecha())
+                .stream()
+                .filter(p -> p.getReserva().getId().equals(r.getId()))
+                .map(ReservaParticipante::getEstadoAsistencia)
+                .findFirst()
+                .orElse(null);
+        int movidas = cambios.movidasDe(List.of(r.getId())).getOrDefault(r.getId(), 0);
+        return new ProximaDelPortal(ReservaDelPortal.de(r, miAsistencia, movidas));
     }
 
     /**

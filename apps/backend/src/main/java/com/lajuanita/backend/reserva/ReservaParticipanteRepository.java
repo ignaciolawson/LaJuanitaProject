@@ -1,6 +1,7 @@
 package com.lajuanita.backend.reserva;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +52,35 @@ public interface ReservaParticipanteRepository extends JpaRepository<ReservaPart
     List<ReservaParticipante> deLaPersona(@Param("idUsuario") Long idUsuario,
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta);
+
+    /**
+     * Qué número de clase es, para cada inscripción, la clase que empieza en
+     * ese momento: cuántas participaciones suyas hay hasta esa fecha y hora
+     * inclusive (§17 · H2, <i>"por qué clase van"</i>).
+     *
+     * <p>⚠️ <b>Cuenta con la definición de {@code contarClasesConsumidas}</b> —no
+     * canceladas, en reservas que ocupan su lugar— y tiene que seguir haciéndolo:
+     * si esto dijera "clase 3" y el contador de clases restantes dijera que
+     * consumió 4, el mismo alumno tendría dos historias. La única diferencia es
+     * el corte por fecha y hora, que es lo que convierte la cuenta en un ordinal.
+     *
+     * @return filas {@code [id_inscripcion, cantidad]}
+     */
+    @Query("""
+            SELECT p.inscripcion.id, count(p)
+            FROM ReservaParticipante p
+            JOIN p.reserva r
+            WHERE p.inscripcion.id IN :ids
+              AND p.estadoAsistencia <> :cancelada
+              AND r.estado IN :ocupan
+              AND (r.fecha < :fecha OR (r.fecha = :fecha AND r.horaInicio <= :hora))
+            GROUP BY p.inscripcion.id
+            """)
+    List<Object[]> numeroDeClase(@Param("ids") Collection<Long> ids,
+            @Param("fecha") LocalDate fecha,
+            @Param("hora") LocalTime hora,
+            @Param("cancelada") EstadoAsistencia cancelada,
+            @Param("ocupan") Collection<EstadoReserva> ocupan);
 
     /**
      * La participación de una inscripción en una reserva, si existe (`V23`).

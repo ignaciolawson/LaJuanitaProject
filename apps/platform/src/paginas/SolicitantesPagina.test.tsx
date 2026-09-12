@@ -4,11 +4,12 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual as Actual } from '../api/tipos'
-import type {
-  CabinaApartada,
-  CandidatoDeLaFicha,
-  ConversionRealizada,
-  SolicitanteResumen,
+import {
+  type CabinaApartada,
+  type CandidatoDeLaFicha,
+  type ConversionRealizada,
+  type SolicitanteResumen,
+  etapaDeLaFicha,
 } from '../api/tiposAdmin'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { elegir } from '../pruebas/elegir'
@@ -20,9 +21,13 @@ import { SolicitantesPagina } from './SolicitantesPagina'
  * Lo que estos casos cuidan es lo que hace que la ficha sirva para algo:
  *
  * - Que **la contraseña temporal se vea** cuando la cuenta se creó. Es la única
- *   del sistema que no se puede volver a consultar, y al convertir la ficha
- *   desaparece del filtro por defecto: si se muestra dentro de la fila, se va con
- *   ella y hay que resetear una cuenta recién creada.
+ *   del sistema que no se puede volver a consultar. Desde §17 · H6 el resultado
+ *   se muestra **adentro de la tarjeta, en el lugar del formulario**, y es el
+ *   "Listo" el que recarga la lista: si la recarga fuera automática, la ficha
+ *   —ya atendida— se iría del filtro por defecto con la contraseña adentro.
+ * - Que **"Crearle la cuenta" y "Ya se lo cargué" existan sólo donde no hay
+ *   botón de un click** (§17 · H5, P75): con "Inscribirlo" o "Apartarle la
+ *   cabina" a la vista, son un segundo camino para lo mismo.
  * - Que **cuando la persona ya tenía cuenta la pantalla lo diga**, en vez de
  *   dejar el hueco donde iba la contraseña. Un campo vacío ahí hace que quien
  *   atiende espere un dato que no existe.
@@ -333,21 +338,64 @@ describe('el buzón', () => {
     montar('DIRECTIVO')
 
     expect(await screen.findByText('Ríos, Camila')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Crearle la cuenta' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Inscribirlo' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Descartar' })).toBeNull()
   })
 })
 
+/**
+ * Crear la cuenta sin cargarle nada (§17 · H5, P75).
+ *
+ * ⚠️ **El botón vive adentro del panel de "Ya se lo cargué", en la rama sin
+ * cuenta, y ese panel sólo existe donde no hay gemelo de un click.** Una
+ * consulta por equipos es el caso: no hay "Venderle", la venta se carga en su
+ * pantalla y la ficha se cierra eligiéndola — y los candidatos salen de la
+ * cuenta, así que sin cuenta el panel tiene que poder crearla ahí mismo.
+ */
 describe('convertir la ficha en cuenta', () => {
-  it('muestra la contraseña temporal, que no se puede volver a ver', async () => {
-    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
-    montar()
+  const EQUIPOS = ficha({ interes: 'EQUIPOS', detalle: 'Pioneer DDJ-400' })
 
+  beforeEach(() => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [EQUIPOS],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+  })
+
+  /** Abre el panel y aprieta el botón que hay adentro. */
+  async function crearLaCuenta() {
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
+  }
+
+  it('muestra la contraseña temporal, que no se puede volver a ver', async () => {
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
+      conversion({ solicitante: ficha({ ...EQUIPOS, idUsuario: 40 }) }),
+    )
+    montar()
+    await crearLaCuenta()
 
     await waitFor(() => expect(screen.getByText('lluvia-42-roja')).toBeDefined())
     expect(screen.getByText(/Cuenta creada para Camila Ríos/)).toBeDefined()
     expect(screen.getByText(/No se puede volver a ver/)).toBeDefined()
+  })
+
+  /**
+   * **El botón no está en la fila de la ficha**: ahí sólo hay lo que hace el
+   * trabajo. Y en una ficha de curso —que tiene "Inscribirlo"— no está en
+   * ningún lado, porque el alta ya crea la cuenta.
+   */
+  it('el botón está sólo adentro del panel, y no en una ficha con botón de un click', async () => {
+    montar()
+
+    expect(await screen.findByText('Ríos, Camila')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Crearle la cuenta' })).toBeNull()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ya se lo cargué' }))
+    expect(await screen.findByRole('button', { name: 'Crearle la cuenta' })).toBeDefined()
   })
 
   /**
@@ -357,11 +405,14 @@ describe('convertir la ficha en cuenta', () => {
    */
   it('cuando la persona ya tenía cuenta lo dice, en vez de dejar el hueco', async () => {
     vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
-      conversion({ passwordTemporal: null, cuentaNueva: false }),
+      conversion({
+        solicitante: ficha({ ...EQUIPOS, idUsuario: 40 }),
+        passwordTemporal: null,
+        cuentaNueva: false,
+      }),
     )
     montar()
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
+    await crearLaCuenta()
 
     await waitFor(() => expect(screen.getByText(/ya tenía cuenta/)).toBeDefined())
     expect(screen.getByText(/No hay contraseña que mandarle/)).toBeDefined()
@@ -373,26 +424,50 @@ describe('convertir la ficha en cuenta', () => {
    * entre dieciséis pantallas.
    */
   it('dice a dónde sigue el trámite según qué pidió', async () => {
-    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
+      conversion({ solicitante: ficha({ ...EQUIPOS, idUsuario: 40 }) }),
+    )
     montar()
+    await crearLaCuenta()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
-
-    await waitFor(() => expect(screen.getByText(/Cargale la inscripción/)).toBeDefined())
-    expect(screen.getByRole('link', { name: 'Inscripciones' }).getAttribute('href')).toBe(
-      '/admin/inscripciones',
+    await waitFor(() => expect(screen.getByText(/Cargale la venta/)).toBeDefined())
+    expect(screen.getByRole('link', { name: 'Venta de equipos' }).getAttribute('href')).toBe(
+      '/admin/ventas',
     )
   })
 
-  it('una consulta por equipos manda a la pantalla de ventas', async () => {
+  /**
+   * ⚠️ **El resultado va adentro de la tarjeta, no arriba** (§17 · H6): la
+   * contraseña aparece donde se apretó el botón. Y el panel de cerrar, que
+   * sigue abierto debajo, vuelve a buscar candidatos con la cuenta nueva — sin
+   * eso diría "creale la cuenta primero" con la cuenta ya creada.
+   */
+  it('la cuenta aparece en la tarjeta, y el panel vuelve a buscar qué cargarle', async () => {
     vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
-      conversion({ solicitante: ficha({ idUsuario: 40, interes: 'EQUIPOS' }) }),
+      conversion({ solicitante: ficha({ ...EQUIPOS, idUsuario: 40 }) }),
     )
+    vi.mocked(listarSolicitantes)
+      .mockResolvedValueOnce({
+        contenido: [EQUIPOS],
+        pagina: 0,
+        tamanio: 20,
+        totalElementos: 1,
+        totalPaginas: 1,
+      })
+      .mockResolvedValue({
+        contenido: [ficha({ ...EQUIPOS, idUsuario: 40 })],
+        pagina: 0,
+        tamanio: 20,
+        totalElementos: 1,
+        totalPaginas: 1,
+      })
     montar()
+    await crearLaCuenta()
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
-
-    await waitFor(() => expect(screen.getByText(/Cargale la venta/)).toBeDefined())
+    const tarjeta = (await screen.findByText('lluvia-42-roja')).closest('li')!
+    expect(within(tarjeta).getByText('Ríos, Camila')).toBeDefined()
+    // Con la cuenta ya puesta, la segunda búsqueda de candidatos.
+    await waitFor(() => expect(candidatosDeLaFicha).toHaveBeenCalledTimes(2))
   })
 })
 
@@ -441,15 +516,17 @@ describe('escribirle por WhatsApp', () => {
     return url.searchParams.get('text') ?? ''
   }
 
-  it('ofrece escribirle, con el saludo que nombra lo que pidió', async () => {
+  /**
+   * ⚠️ **Al lado del número ya no hay "Escribirle"** (§17 · H5). El WhatsApp
+   * que sirve es el del resultado, con el mensaje entero; el saludo vacío era
+   * un segundo botón para el mismo teléfono. El número sigue grande y copiable.
+   */
+  it('no ofrece escribirle al lado del número', async () => {
     montar()
 
-    const enlace = await screen.findByRole('link', { name: 'Escribirle' })
-
-    expect(enlace.getAttribute('href')).toContain('wa.me/5491155554444')
-    expect(mensajeDe(enlace)).toContain('Camila')
-    // "Un curso" en la ficha, "un curso" adentro de la oración.
-    expect(mensajeDe(enlace)).toContain('un curso')
+    expect(await screen.findByText('11-5555-4444')).toBeDefined()
+    expect(screen.queryByRole('link', { name: 'Escribirle' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Copiar' })).toBeDefined()
   })
 
   /**
@@ -458,9 +535,19 @@ describe('escribirle por WhatsApp', () => {
    * la misma repregunta.
    */
   it('manda la clave temporal escrita, sin tipearla', async () => {
-    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(conversion())
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'EQUIPOS' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
+      conversion({ solicitante: ficha({ interes: 'EQUIPOS', idUsuario: 40 }) }),
+    )
     montar()
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
 
     const enlace = await screen.findByRole('link', { name: 'Mandarle la clave por WhatsApp' })
@@ -471,20 +558,33 @@ describe('escribirle por WhatsApp', () => {
   /**
    * ⚠️ **La mitad que importa: con un número que no se puede leer NO hay botón.**
    * Si acá apareciera un link, abriría WhatsApp con un número inválido y quien
-   * atiende creería que escribió.
+   * atiende creería que escribió. Desde §17 · H5 el único WhatsApp está en el
+   * resultado, así que es ahí donde se mira.
    */
-  it('con un teléfono ilegible lo dice y no ofrece el link', async () => {
+  it('con un teléfono ilegible el resultado lo dice y no ofrece el link', async () => {
     vi.mocked(listarSolicitantes).mockResolvedValue({
-      contenido: [ficha({ telefono: 'no tengo, escribime por Instagram' })],
+      contenido: [ficha({ interes: 'EQUIPOS', telefono: 'no tengo, escribime por Instagram' })],
       pagina: 0,
       tamanio: 20,
       totalElementos: 1,
       totalPaginas: 1,
     })
+    vi.mocked(darleCuentaAlSolicitante).mockResolvedValue(
+      conversion({
+        solicitante: ficha({
+          interes: 'EQUIPOS',
+          idUsuario: 40,
+          telefono: 'no tengo, escribime por Instagram',
+        }),
+      }),
+    )
     montar()
 
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Crearle la cuenta' }))
+
     expect(await screen.findByText(/no se puede abrir en WhatsApp/)).toBeDefined()
-    expect(screen.queryByRole('link', { name: 'Escribirle' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).toBeNull()
   })
 
   it('copia el número al portapapeles', async () => {
@@ -659,12 +759,27 @@ describe('escribirle por WhatsApp', () => {
    * camino equivalente —cargar la inscripción— todavía se hace en su pantalla, y
    * ponerle el nombre del trabajo sin hacer el trabajo sería un botón que miente.
    */
-  it('una ficha de curso no ofrece apartar, ofrece inscribir', async () => {
+  it('una ficha de curso no ofrece apartar, ofrece inscribir — y nada más', async () => {
     montar()
 
-    expect(await screen.findByRole('button', { name: 'Crearle la cuenta' })).toBeDefined()
+    expect(await screen.findByRole('button', { name: 'Inscribirlo' })).toBeDefined()
     expect(screen.queryByRole('button', { name: /Apartarle/ })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Inscribirlo' })).toBeDefined()
+    // Con el gemelo a la vista, los dos caminos viejos no se ofrecen (P75).
+    expect(screen.queryByRole('button', { name: 'Ya se lo cargué' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Crearle la cuenta' })).toBeNull()
+  })
+
+  /**
+   * ⚠️ **Sin el catálogo, el camino viejo vuelve a ofrecerse.** El gemelo de un
+   * click depende de que los programas hayan cargado; si no cargaron, la ficha
+   * de curso no puede quedarse sin forma de cerrarse.
+   */
+  it('con el catálogo caído, la ficha de curso ofrece "Ya se lo cargué"', async () => {
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
+    montar()
+
+    expect(await screen.findByRole('button', { name: 'Ya se lo cargué' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Inscribirlo' })).toBeNull()
   })
 
   // == Inscribir desde la ficha: el gemelo de apartar (Fase 6) ==============
@@ -751,6 +866,20 @@ describe('escribirle por WhatsApp', () => {
     expect(mensaje).toContain('85.000')
     expect(mensaje).toContain('13/09/2026 10:00')
     expect(mensaje).toContain('A7K2M9')
+
+    // ⚠️ **Y está ADENTRO de la tarjeta de Camila, en el lugar del formulario**
+    // (§17 · H6): la lista no se recargó —una sola llamada— y la ficha sigue
+    // en pantalla con su resultado. Los botones de la fila ya no están: la
+    // ficha se atendió.
+    const tarjeta = screen.getByText('A7K2M9').closest('li')!
+    expect(within(tarjeta).getByText('Ríos, Camila')).toBeDefined()
+    expect(within(tarjeta).queryByRole('button', { name: 'Inscribirlo' })).toBeNull()
+    expect(listarSolicitantes).toHaveBeenCalledTimes(1)
+
+    // El "Listo" es lo que recarga: recién ahí la ficha atendida se va.
+    await user.click(within(tarjeta).getByRole('button', { name: 'Listo' }))
+    await waitFor(() => expect(listarSolicitantes).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText('A7K2M9')).toBeNull()
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================
@@ -771,6 +900,8 @@ describe('escribirle por WhatsApp', () => {
       totalElementos: 1,
       totalPaginas: 1,
     })
+    // Sin catálogo no hay "Inscribirlo", y el camino viejo se ofrece (P75).
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
     vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato()])
     vi.mocked(atenderSolicitante).mockResolvedValue(ficha({ estado: 'ATENDIDO' }))
     montar()
@@ -799,6 +930,8 @@ describe('escribirle por WhatsApp', () => {
       totalElementos: 1,
       totalPaginas: 1,
     })
+    // Sin catálogo no hay "Inscribirlo", y el camino viejo se ofrece (P75).
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
     vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato()])
     montar()
 
@@ -829,6 +962,8 @@ describe('escribirle por WhatsApp', () => {
       totalElementos: 1,
       totalPaginas: 1,
     })
+    // Sin catálogo no hay "Inscribirlo", y el camino viejo se ofrece (P75).
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
     vi.mocked(candidatosDeLaFicha).mockResolvedValue([candidato({ cuando: null })])
     montar()
 
@@ -869,13 +1004,15 @@ describe('escribirle por WhatsApp', () => {
    * lado.** Una lista vacía sin explicación se lee como *el sistema perdió los
    * datos*; es el mismo criterio que los bloques con aviso de la ficha del alumno.
    */
-  it('una ficha sin cuenta explica por qué no hay nada para elegir', async () => {
+  it('una ficha sin cuenta explica por qué no hay nada para elegir, con la salida al lado', async () => {
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
     vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
     montar()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
 
     expect(await screen.findByText(/todavía no tiene cuenta/)).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Crearle la cuenta' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'Cerrar la ficha' })).toHaveProperty('disabled', true)
   })
 
@@ -891,6 +1028,8 @@ describe('escribirle por WhatsApp', () => {
       totalElementos: 1,
       totalPaginas: 1,
     })
+    // Sin catálogo no hay "Inscribirlo", y el camino viejo se ofrece (P75).
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
     vi.mocked(candidatosDeLaFicha).mockResolvedValue([])
     montar()
 
@@ -934,5 +1073,15 @@ describe('escribirle por WhatsApp', () => {
     montar()
 
     expect(await screen.findByText(texto)).toBeDefined()
+  })
+
+  /**
+   * P75 (§17 · H7): la vencida sin señar ya NO es una etapa abierta — se lee en
+   * gris, como una atendida. P56 la dejaba abierta "para una decisión" que ni
+   * la pantalla ni la base dejaban tomar.
+   */
+  it('la vencida sin señar se lee cerrada, no en rojo', () => {
+    expect(etapaDeLaFicha(ficha({ estado: 'ATENDIDO', estadoDeLaReserva: 'CANCELADA' })).abierta).toBe(false)
+    expect(etapaDeLaFicha(ficha({ estado: 'ATENDIDO', estadoDeLaReserva: 'PRECONFIRMADA' })).abierta).toBe(true)
   })
 })

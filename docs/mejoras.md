@@ -4871,20 +4871,24 @@ desarrollo. Todo commiteado, suites verdes, `tsc -b`, builds y linters limpios.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-12)
 
-🟢 **ESTADO: DESTRABADA. Las cuatro ⏳ se contestaron el mismo día
-(`platform.md` §23, P73–P75) y la Fase 1 arrancó el 2026-09-12.** H3 creció con
-P73 (72 hs para la cabina, cancelación automática a las 3 semanas para los
-programas); el resto quedó como se adoptó.
+✅ **ESTADO: CERRADA el 2026-09-12, el mismo día que se abrió — las tres
+fases, nueve de nueve.** Las cuatro ⏳ se contestaron en el día (`platform.md`
+§23, P73–P75) y H3 creció con P73 (72 hs para la cabina, cancelación
+automática a las 3 semanas para los programas). Una migración, **`V31`,
+aplicada**; la del admin sembrado pasa a **`V32`** (sexto corrimiento). Suites
+al cierre: **699 backend · 617 front · 290 + 68 SQL** sobre 31 migraciones;
+`tsc -b`, el build y el linter del panel limpios. **Lo que dejó para la
+siguiente está al final de la sección.**
 
 ---
 
 ### El triage
 
-| Grupo | Qué significa | Cuántos | Cuáles |
-|---|---|---|---|
-| 🟢 **A** | Pantalla, texto y estilo | **3** | H5 · H6 · H9 |
-| 🟡 **B** | Funcionalidad, sin tocar el schema | **5** | H1 · H2 · H3 · H7 · H8 |
-| 🔴 **C** | Toca una regla del negocio o el schema | **1** | H4 (`V31`) |
+| Grupo | Qué significa | Cuántos | Cuáles | Estado |
+|---|---|---|---|---|
+| 🟢 **A** | Pantalla, texto y estilo | **3** | H5 · H6 · H9 | ✅ Fase 1, 2026-09-12 |
+| 🟡 **B** | Funcionalidad, sin tocar el schema | **5** | H1 · H2 · H3 · H7 · H8 | ✅ Fase 2, 2026-09-12 |
+| 🔴 **C** | Toca una regla del negocio o el schema | **1** | H4 (`V31`) | ✅ Fase 3, 2026-09-12 |
 
 ⚠️ **Dos de los puntos son más grandes que como llegaron, y conviene saberlo
 antes de estimar.** **H8** (*"un buscador arriba de las listas largas"*) no es
@@ -5155,7 +5159,7 @@ linters) y **cada punto se cierra por separado**.
 ⚠️ **Una migración, `V31`, y la del admin sembrado se corre por SEXTA vez**: ya
 no es `V31`. Va a ser `V32`. No la anotes con número.
 
-#### Fase 1 · Grupo A — H5 · H6 · H9
+#### ✅ Fase 1 · Grupo A — H5 · H6 · H9 — cerrada el 2026-09-12
 
 - **H5** — se van *"Escribirle"* y *"Crearle la cuenta"*; *"Ya se lo cargué"*
   queda sólo donde no hay gemelo de un click (⏳). Los casos que buscaban los
@@ -5168,7 +5172,7 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
   vieja. Encabezado *"N personas · M deudas"*. Los casos que contaban filas
   cuentan personas o deudas según lo que afirman.
 
-#### Fase 2 · Grupo B — H1 + H2 · H3 · H7 · H8
+#### ✅ Fase 2 · Grupo B — H1 + H2 · H3 · H7 · H8 — cerrada el 2026-09-12
 
 - **H1 + H2, juntos** porque es un endpoint: `GET /api/me/proxima[?esClase=]` y
   `GET /api/me/profesor/proxima`, sin ventana, la primera reserva que ocupa su
@@ -5191,7 +5195,7 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
   los buscadores. **Caso que pone el bug de vuelta**: una persona en la página 2
   del listado tiene que ser elegible.
 
-#### Fase 3 · Grupo C — H4 (`V31`)
+#### ✅ Fase 3 · Grupo C — H4 (`V31`) — cerrada el 2026-09-12
 
 - **`V31__el_pago_de_un_programa_va_en_su_moneda.sql`**: trigger `BEFORE INSERT
   OR UPDATE` sobre `pago` — con `id_inscripcion`, `moneda` = la de la
@@ -5207,6 +5211,74 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
 - **La 13231 se corrige a mano**: editar la inscripción a USD. No es migración.
 
 ---
+
+### Lo que decidió al ejecutarse, y no estaba en el plan
+
+- **H6 — el resultado en la tarjeta obligó a diferir la recarga.** Apartar e
+  inscribir cierran la ficha en el servidor, y la lista se recargaba en el
+  mismo `await`: la tarjeta desaparecía del filtro por defecto con el resultado
+  adentro. Ahora **el "Listo" es lo que recarga**; los bloques de arriba quedan
+  sólo de respaldo, para cuando la ficha ya no está en la lista (se cambió de
+  filtro o de página con el resultado abierto). Un caso pinea que después de
+  preinscribir `listarSolicitantes` se llamó una sola vez.
+- **H5 — "Crearle la cuenta" no pudo irse del todo.** El panel de "Ya se lo
+  cargué" busca candidatos por `id_usuario` y a una ficha sin cuenta le decía
+  *"creale la cuenta primero"*: sin el botón era una instrucción sin cómo.
+  Vive adentro de esa rama, y el panel vuelve a buscar candidatos cuando la
+  ficha gana la cuenta (`ficha.idUsuario` en las dependencias del efecto).
+- **H1 + H2 — "todavía no terminó" mira el reloj, no sólo el día.** La clase
+  de hoy a las 10, a las 15 ya pasó; el front comparaba fechas. El reloj entra
+  por parámetro a los dos servicios para poder ponerlo en la prueba (la lección
+  de `CajaPagina`, del lado del servidor). Y el número de clase se cuenta con
+  la definición de `contarClasesConsumidas` cortada por fecha y hora
+  (`ReservaParticipanteRepository.numeroDeClase`), no con otra.
+- **H3 — "Lo que debo" es literalmente Deudores acotado a la persona.**
+  `PagoService.deudores(Long idUsuario)` es la misma función con un filtro
+  (`null` = todos), y `EstadoDeCuenta.pendientes` la llama. `saldos` sigue
+  siendo historia por moneda (P46: el estado de cuenta muestra lo que ya no se
+  cobra); la tarjeta del Inicio dejó de leerlo.
+- **P73 — la sexta regla del scheduler va en su propio método**, como el
+  vencimiento de las prereservas: cambia estado, y una excepción escribiendo
+  avisos no puede impedir que se cancele ni al revés. Corre a las 8:05, después
+  de la corrida de avisos, para que la alerta de la quinta regla llegue antes
+  que el final. Sin firma: la inscripción no tiene autor de cambio de estado.
+- **H7 — el caso nuevo cancela la reserva por SQL y necesita `em.clear()`.**
+  La primera lectura (`?abiertas=true`) ve el UPDATE porque es JPQL contra la
+  base; la segunda (`?estado=ATENDIDO`) traía la entidad de la sesión y decía
+  `PRECONFIRMADA`. Es la misma trampa de las entidades en sesión que `V21`
+  encontró del otro lado.
+- **H8 — eran SIETE `<select>`, no seis, y dos más de otra familia.** El
+  séptimo era el comprador y el vendedor de Ventas (`listarUsuarios({ pagina:
+  0 })`, dos controles en un formulario). Y **quedan dos de la misma forma que
+  NO son de personas**: *"qué trabajo salda"* y *"qué venta salda"* en Pagos
+  cargan `listarTrabajos`/`listarVentas` página 0 — un trabajo o una venta más
+  vieja que veinte no se puede saldar desde ahí. Necesitan una búsqueda por
+  texto que esos endpoints no tienen; queda anotado para la siguiente.
+- **V31 — cuatro casos de las suites SQL pagaban en USD un contrato en pesos**
+  (34, 35, C04, C05: la cotización del dólar). Con el trigger, dos habrían
+  pasado por el motivo equivocado —el trigger rechaza antes que el CHECK— y uno
+  habría ido a FALLA. Se movieron a una reserva, donde no hay contrato que
+  mirar. Y **tres casos Java hacían lo mismo** (`PagoTest`, `CajaTest` ×2): los
+  dos que afirmaban *"en otra moneda no cancela"* ahora fabrican la fila legada
+  **apagando el trigger un instante** (el precedente del caso 225), porque es lo
+  que la base de producción va a tener el día que corra la migración.
+- **V31 — el estado de cuenta dice lo cobrado en la otra moneda**
+  (`ContratoDelAlumno.cobradoEnOtraMoneda`): desde la regla sólo puede ser una
+  fila anterior a ella, y sin decirlo un contrato "sin seña" al lado de tres
+  pagos que entraron no se entiende. La 13231 es exactamente eso.
+
+### Lo que esta barrida deja para la siguiente
+
+- **Los dos `<select>` de Pagos que no son de personas** (trabajo y venta que
+  salda un pago): página 0, veinte filas. Piden búsqueda por texto en
+  `listarTrabajos` y `listarVentas`.
+- **"Venderle" desde el buzón** — el tercer gemelo de un click (venta + ficha
+  cerrada). Hasta que exista, EQUIPOS cierra por "Ya se lo cargué" (P75).
+- **La inscripción 13231 de la base de desarrollo**: editarla a USD desde
+  Inscripciones y sale sola de Deudores. No es código.
+- ⚠️ **El backend de desarrollo que estaba levantado durante la barrida es
+  anterior a todo esto**: sin reiniciarlo, `/api/me/proxima` contesta *"No
+  static resource"* y Mi agenda, Mis reservas y el Inicio se rompen.
 
 ### Lo que esta barrida ya enseñó, antes de ejecutar nada
 
@@ -5228,15 +5300,17 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
 
 ## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
 
-🟡 **LA QUINTA BARRIDA (§17) ESTÁ ABIERTA desde el 2026-09-12, el mismo día
-que cerró la §16: nueve hallazgos, analizados y verificados en código y en la
-base de desarrollo, con el plan por fases armado y NADA ejecutado.** Leer la
-§17 primero: tres fases (A: H5 · H6 · H9 → B: H1+H2 · H3 · H7 · H8 → C: H4,
-`V31`), **las cuatro ⏳ contestadas** (`platform.md` §23, P73–P75 — y P73
-agrandó H3: 72 hs para la cabina, cancelación sola a las 3 semanas para el
-programa), y tres cosas que ya enseñó. ⚠️ Si H4 va a la base, **la migración del admin
-sembrado se corre por SEXTA vez: `V32`**. Lo que sigue abajo es el estado en
-que la §16 dejó todo, y sigue siendo cierto.
+✅ **LA QUINTA BARRIDA (§17) ESTÁ CERRADA: nueve de nueve el 2026-09-12, el
+mismo día que se abrió** — Fase 1 (A: H5 · H6 · H9), Fase 2 (B: H1+H2 · H3 ·
+H7 · H8) y Fase 3 (C: H4). Las decisiones son `platform.md` §23, P73–P75.
+**`V31` es la última migración, aplicada**; la próxima libre es `V32` y **el
+admin sembrado pasa a `V32`** (sexto corrimiento). Suites: **699 backend · 617
+front · 290 + 68 SQL** sobre 31 migraciones. Lo que dejó para la siguiente
+está al final de la §17: los dos `<select>` de Pagos que no son de personas,
+"Venderle" desde el buzón, y la 13231 a mano. ⚠️ **El backend levantado durante
+la sesión es anterior a los endpoints nuevos: reiniciarlo antes de probar.**
+Lo que sigue abajo es el estado en que la §16 dejó todo, y sigue siendo cierto
+salvo los números de las suites y de la migración.
 
 ✅ **LA CUARTA BARRIDA (§16) ESTÁ CERRADA: once de doce el 2026-09-12** — las
 Fases 0 a 4 el 2026-09-11, la 5 y la 6 el 2026-09-12; el doceavo (B2 2.1, grupos
@@ -5306,8 +5380,8 @@ landing genera **20 páginas** desde A7. **Vuelve a ser cierto que no queda
 producto por construir** — hasta la próxima barrida. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. **La §17**, abierta el 2026-09-12 — nueve hallazgos, plan armado, nada ejecutado. (La §16 cerró ese mismo día; lo que dejó para más adelante sigue pendiente: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)
-2. **Desactivar el admin sembrado**, ahora `V31` — o `V32` si la §17 escribe la suya.
+1. ~~**La §17**~~ — cerrada el 2026-09-12, el mismo día. Lo que dejó: los dos `<select>` de Pagos (trabajo/venta) a página 0, "Venderle" desde el buzón, la 13231 a mano. (Y lo de la §16 sigue: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)
+2. **Desactivar el admin sembrado**, ahora `V32`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 
 ⚠️ **Y una cosa que la §15 dejó anotada y la §16 agrava** (`platform.md` §21 ·

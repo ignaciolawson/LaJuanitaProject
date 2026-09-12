@@ -32,12 +32,14 @@ vi.mock('../componentes/semana', async (importarReal) => ({
 }))
 
 vi.mock('../api/portal', () => ({
+  miProxima: vi.fn(),
   misReservas: vi.fn(),
   misReprogramaciones: vi.fn(),
   pedirMoverLaClase: vi.fn(),
 }))
 
-const { misReservas, misReprogramaciones, pedirMoverLaClase } = await import('../api/portal')
+const { miProxima, misReservas, misReprogramaciones, pedirMoverLaClase } =
+  await import('../api/portal')
 
 function reserva(cambios: Partial<ReservaDelPortal> = {}): ReservaDelPortal {
   return {
@@ -61,6 +63,7 @@ function reserva(cambios: Partial<ReservaDelPortal> = {}): ReservaDelPortal {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(misReservas).mockResolvedValue([reserva()])
+  vi.mocked(miProxima).mockResolvedValue({ reserva: reserva() })
   vi.mocked(misReprogramaciones).mockResolvedValue([])
 })
 
@@ -104,6 +107,32 @@ describe('el listado', () => {
     expect(await screen.findByText('Lo próximo')).toBeDefined()
   })
 
+  /**
+   * ⚠️ **Lo próximo viene del servidor, sin ventana** (§17 · H1). Antes se
+   * calculaba sobre las cuatro semanas de la lista, y la clase de dentro de
+   * seis no era "la próxima" para nadie. Acá la lista está vacía y el cuadro
+   * igual la muestra: son dos preguntas y dos pedidos.
+   */
+  it('lo próximo no depende de las cuatro semanas de la lista', async () => {
+    vi.mocked(misReservas).mockResolvedValue([])
+    vi.mocked(miProxima).mockResolvedValue({
+      reserva: reserva({ fecha: '2027-01-11', tipoUso: 'Clase de DJ' }),
+    })
+    render(<MisReservasPagina />)
+
+    expect(await screen.findByText('Lo próximo')).toBeDefined()
+    expect(screen.getByText(/11 de enero/)).toBeDefined()
+    expect(screen.getByText(/No tenés nada agendado en estas cuatro semanas/)).toBeDefined()
+  })
+
+  it('sin nada por delante no dibuja el cuadro', async () => {
+    vi.mocked(miProxima).mockResolvedValue({ reserva: null })
+    render(<MisReservasPagina />)
+
+    expect(await screen.findByText('Clase de DJ')).toBeDefined()
+    expect(screen.queryByText('Lo próximo')).toBeNull()
+  })
+
   it('avisa cuando no hay nada agendado', async () => {
     vi.mocked(misReservas).mockResolvedValue([])
     render(<MisReservasPagina />)
@@ -115,11 +144,14 @@ describe('el listado', () => {
 describe('lo que pasó con cada una', () => {
   it('una clase cancelada se muestra, marcada', async () => {
     vi.mocked(misReservas).mockResolvedValue([reserva({ estado: 'CANCELADA' })])
+    // Una cancelada NO es "lo próximo": esa regla la aplica el servidor (§17 ·
+    // H1), que acá contesta "nada por delante". No sale de la lista y no se destaca.
+    vi.mocked(miProxima).mockResolvedValue({ reserva: null })
     render(<MisReservasPagina />)
 
     expect(await screen.findByText('Cancelada')).toBeDefined()
-    // Una cancelada NO es "lo próximo": no sale de la lista y no se destaca.
     expect(screen.getByText('Clase de DJ')).toBeDefined()
+    expect(screen.queryByText('Lo próximo')).toBeNull()
   })
 
   it('dice si faltaste', async () => {
@@ -275,7 +307,11 @@ describe('la división por dentro (§12 · B1)', () => {
     // La pregunta que contesta es "cuándo tengo que venir al estudio", y venir a
     // una clase o a la cabina que reservaste es venir igual. Con dos próximas
     // habría que comparar dos fechas para saber cuál es antes, que es el trabajo
-    // que esa pieza vino a ahorrar.
+    // que esa pieza vino a ahorrar. Desde §17 · H1 la elige el servidor, y la
+    // pantalla la pide SIN `esClase`: pedirla con él sería partirla en dos.
+    vi.mocked(miProxima).mockResolvedValue({
+      reserva: reserva({ idReserva: 2, esClase: false, fecha: '2026-09-08', tipoUso: 'Alquiler de cabina', profesor: null }),
+    })
     vi.mocked(misReservas).mockResolvedValue([
       reserva({ idReserva: 1, esClase: true, fecha: '2026-09-20', tipoUso: 'Clase de DJ' }),
       reserva({
@@ -291,6 +327,7 @@ describe('la división por dentro (§12 · B1)', () => {
     await screen.findByRole('heading', { name: 'Mis clases' })
     // La cabina es antes, así que es la destacada aunque no sea una clase.
     expect(screen.getAllByText(/Alquiler de cabina/).length).toBeGreaterThan(1)
+    expect(vi.mocked(miProxima).mock.calls[0]).toEqual([])
   })
 })
 

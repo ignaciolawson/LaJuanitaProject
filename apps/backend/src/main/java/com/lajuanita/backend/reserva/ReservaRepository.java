@@ -1,10 +1,12 @@
 package com.lajuanita.backend.reserva;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -148,6 +150,74 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("hasta") LocalDate hasta,
             @Param("cancelada") EstadoAsistencia cancelada,
             @Param("entraron") Iterable<EstadoPago> entraron);
+
+    /**
+     * <b>Mi próxima</b>: la primera reserva que ocupa su lugar y todavía no
+     * terminó, de la persona, <b>sin ventana</b> (§17 · H1).
+     *
+     * <p>Existe porque {@link #deLaPersona} pide un rango y el portal lo acota a
+     * 62 días: la clase dentro de seis semanas no era "la próxima" para nadie.
+     * La pregunta con la que alguien abre el portal —<i>¿cuándo es la que
+     * sigue?</i>— no tiene ventana, así que la consulta tampoco. Misma
+     * definición de "mía" que {@code deLaPersona}, pegada a ella a propósito.
+     *
+     * <p>"Todavía no terminó" mira fecha y hora: la clase de hoy a las 10, a las
+     * 15 ya pasó, y decir que es lo próximo es mentirle a quien mira el reloj.
+     * Y sólo lo que ocupa su lugar ({@link EstadoReserva#OCUPAN_LA_SALA}): una
+     * cancelada no es lo próximo aunque sea la más cercana.
+     *
+     * @param esClase {@code null} para cualquier reserva; {@code TRUE}/{@code FALSE}
+     *        para separar la clase del alquiler, que es como el Inicio las muestra
+     * @param limite {@code PageRequest.of(0, 1)}: se quiere una
+     */
+    @Query("""
+            SELECT r FROM Reserva r
+            JOIN FETCH r.sala
+            JOIN FETCH r.tipoUso t
+            LEFT JOIN FETCH r.profesor p
+            LEFT JOIN FETCH p.usuario
+            WHERE (r.fecha > :hoy OR (r.fecha = :hoy AND r.horaFin >= :ahora))
+              AND r.estado IN :ocupan
+              AND (:esClase IS NULL OR t.esClase = :esClase)
+              AND (EXISTS (SELECT 1 FROM ReservaParticipante rp
+                           WHERE rp.reserva = r
+                             AND rp.usuario.id = :idUsuario
+                             AND rp.estadoAsistencia <> :cancelada)
+                OR EXISTS (SELECT 1 FROM Pago g
+                           WHERE g.reserva = r
+                             AND g.usuario.id = :idUsuario
+                             AND g.estadoPago IN :entraron))
+            ORDER BY r.fecha, r.horaInicio
+            """)
+    List<Reserva> proximaDeLaPersona(@Param("idUsuario") Long idUsuario,
+            @Param("hoy") LocalDate hoy,
+            @Param("ahora") LocalTime ahora,
+            @Param("esClase") Boolean esClase,
+            @Param("ocupan") Iterable<EstadoReserva> ocupan,
+            @Param("cancelada") EstadoAsistencia cancelada,
+            @Param("entraron") Iterable<EstadoPago> entraron,
+            Pageable limite);
+
+    /**
+     * La próxima clase que doy, sin ventana (§17 · H1) — la mitad del profesor de
+     * {@link #proximaDeLaPersona}, con la misma lectura de "todavía no terminó".
+     */
+    @Query("""
+            SELECT r FROM Reserva r
+            JOIN FETCH r.sala
+            JOIN FETCH r.tipoUso
+            JOIN FETCH r.profesor p
+            JOIN FETCH p.usuario
+            WHERE p.id = :idProfesor
+              AND (r.fecha > :hoy OR (r.fecha = :hoy AND r.horaFin >= :ahora))
+              AND r.estado IN :ocupan
+            ORDER BY r.fecha, r.horaInicio
+            """)
+    List<Reserva> proximaDelProfesor(@Param("idProfesor") Long idProfesor,
+            @Param("hoy") LocalDate hoy,
+            @Param("ahora") LocalTime ahora,
+            @Param("ocupan") Iterable<EstadoReserva> ocupan,
+            Pageable limite);
 
     /**
      * ¿ESTA reserva es de esta persona?

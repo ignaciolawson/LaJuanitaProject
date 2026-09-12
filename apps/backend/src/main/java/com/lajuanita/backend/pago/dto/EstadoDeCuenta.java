@@ -31,7 +31,15 @@ public record EstadoDeCuenta(
         List<ContratoDelAlumno> contratos,
 
         /** Todos sus pagos, del más nuevo al más viejo. */
-        List<PagoResumen> pagos) {
+        List<PagoResumen> pagos,
+        /**
+         * Lo que esta persona debe HOY, con la definición de Deudores (§17 · H3):
+         * las deudas anotadas cobrables más lo que falta de sus programas —la
+         * seña con plazo, el resto sin plazo (P72)—. {@code saldos} es historia
+         * por moneda y sigue mostrando lo que ya no se cobra (P46); esto es lo
+         * que hay que ir a pagar.
+         */
+        List<Deudor> pendientes) {
 
     public record SaldoPorMoneda(
             String moneda,
@@ -59,6 +67,14 @@ public record EstadoDeCuenta(
             BigDecimal saldo,
             /** Si ya cubrió el 50% que §13 exige antes de reservar. */
             boolean senado,
-            boolean saldado) {
+            boolean saldado,
+            /**
+             * Lo cobrado sobre este contrato en la OTRA moneda, si hay (§17 · H4).
+             * Desde `V31` no puede nacer un pago así; las filas anteriores a la
+             * regla siguen existiendo, y sin decirlo el estado de cuenta muestra
+             * un contrato "sin señar" al lado de tres pagos que sí entraron.
+             * {@code null} cuando no hay nada.
+             */
+            BigDecimal cobradoEnOtraMoneda) {
     }
 }

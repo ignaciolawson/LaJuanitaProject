@@ -13,13 +13,23 @@ package com.lajuanita.backend.solicitante;
  * <ul>
  *   <li>nadie la atendió ({@code PENDIENTE}), <b>tenga o no cuenta</b>; o
  *   <li>se le apartó una sala y <b>todavía falta la seña</b>
- *       ({@code PRECONFIRMADA}); o
- *   <li>esa prereserva <b>se venció sin pagar</b> ({@code CANCELADA}), que es una
- *       ficha que necesita una decisión: apartar de nuevo, o descartar.
+ *       ({@code PRECONFIRMADA}).
  * </ul>
  *
  * <p>Una inscripción o una venta cierran la ficha en el acto: no queda nada
  * esperando detrás. Una reserva confirmada, también.
+ *
+ * <p>⚠️ <b>La prereserva que se venció sin pagar ({@code CANCELADA}) YA NO cuenta
+ * como abierta</b> (P75, §17 · H7; reabre P56). P56 la había dejado adentro
+ * como <i>"una ficha que necesita una decisión: apartar de nuevo, o
+ * descartar"</i> — y ninguna de las dos era posible: la pantalla dibuja los
+ * botones sólo para {@code PENDIENTE}, y el trigger {@code
+ * solicitante_resuelto_es_final} (`V13` §4) rechaza cualquier UPDATE sobre una
+ * ficha resuelta. Se cerró la definición sin probar la salida, y las fichas
+ * quedaban abiertas para siempre sin nada que apretar. Ahora quedan en "Ya
+ * atendidas" con su etiqueta, el aviso de prereserva vencida (P57) ya le llegó
+ * a administración, y quien vuelve manda el formulario de nuevo — que es lo
+ * que el propio trigger dice en su mensaje.
  *
  * <h2>Por qué es una constante y no un {@code WHERE} suelto</h2>
  *
@@ -53,6 +63,5 @@ public final class FichaAbierta {
             "(s.estado = com.lajuanita.backend.solicitante.EstadoSolicitante.PENDIENTE"
                     + " OR EXISTS (SELECT 1 FROM Reserva r"
                     + " WHERE r = s.reserva"
-                    + " AND r.estado IN (com.lajuanita.backend.reserva.EstadoReserva.PRECONFIRMADA,"
-                    + " com.lajuanita.backend.reserva.EstadoReserva.CANCELADA)))";
+                    + " AND r.estado = com.lajuanita.backend.reserva.EstadoReserva.PRECONFIRMADA))";
 }

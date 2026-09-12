@@ -34,6 +34,11 @@ import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
 import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 import com.lajuanita.backend.dinero.Moneda;
+import com.lajuanita.backend.notificacion.NotificacionService;
+import com.lajuanita.backend.notificacion.TipoNotificacion;
+import com.lajuanita.backend.usuario.Rol;
+import com.lajuanita.backend.usuario.Usuario;
+import com.lajuanita.backend.usuario.UsuarioRepository;
 
 /**
  * El curso contratado: qué cursa cada alumno, con quién, cuántas clases y por
@@ -69,16 +74,95 @@ public class InscripcionService {
     @Value("${lajuanita.preinscripcion.horas:24}")
     private long horasDePreinscripcion;
 
+    /**
+     * A los cuántos días del alta una preinscripción sin señar se cancela sola
+     * (P73, §17 · H3: <i>"ponele 3 semanas"</i>). Es el límite automático que
+     * Ignacio ofreció para que un preinscripto que nunca contestó no viva en
+     * Deudores para siempre; hasta ahí, la cancela Mica a mano (P61).
+     */
+    @Value("${lajuanita.preinscripcion.cancelacion-dias:21}")
+    private long diasParaCancelarSola;
+
+    private final NotificacionService avisos;
+    private final UsuarioRepository usuarios;
+
     public InscripcionService(InscripcionRepository inscripciones,
             AlumnoRepository alumnos,
             ProfesorRepository profesores,
             ProgramaService programas,
-            PagoService pagos) {
+            PagoService pagos,
+            NotificacionService avisos,
+            UsuarioRepository usuarios) {
         this.inscripciones = inscripciones;
         this.alumnos = alumnos;
         this.profesores = profesores;
         this.programas = programas;
         this.pagos = pagos;
+        this.avisos = avisos;
+        this.usuarios = usuarios;
+    }
+
+    /**
+     * La sexta regla del scheduler (P73): la preinscripta que pasó
+     * {@code diasParaCancelarSola} desde el alta sin la seña se cancela sola.
+     *
+     * <p>Es el espejo de {@code ReservaService.vencerLasPrereservas} con dos
+     * diferencias que son la decisión: <b>el reloj es de días y no de horas</b>
+     * (no hay horario que liberar — P60, sin cupo —, sólo Deudores que limpiar),
+     * y <b>entre las 24 hs y las tres semanas manda Mica</b> (P61 · P72): la
+     * alerta de la quinta regla ya la avisó, y ella cobró o no. Esto es el
+     * final para lo que nadie resolvió.
+     *
+     * <p>Sale por la escalera de `V30` (PREINSCRIPTA → CANCELADA está permitido)
+     * sin firma: la inscripción no tiene autor de cambio de estado, a diferencia
+     * de la reserva. Avisa a las dos partes por motivos distintos —la persona
+     * creía estar anotada; administración pierde una fila de Deudores sin haber
+     * cobrado— con la clave del hecho, así que correrlo dos veces avisa una.
+     *
+     * @return cuántas se cancelaron
+     */
+    @Transactional
+    public int cancelarLasAbandonadas() {
+        OffsetDateTime limite = OffsetDateTime.now().minusDays(diasParaCancelarSola);
+        List<Inscripcion> abandonadas = inscripciones.preinscripcionesAbandonadas(
+                EstadoInscripcion.PREINSCRIPTA, limite);
+
+        for (Inscripcion i : abandonadas) {
+            i.pasarA(EstadoInscripcion.CANCELADA);
+            avisarQueSeCancelo(i);
+        }
+        // La escalera de `V30` es inmediata: sin el flush, un rechazo llegaría
+        // como un 500 desde afuera del método, sin dónde explicarlo.
+        inscripciones.flush();
+        return abandonadas.size();
+    }
+
+    private void avisarQueSeCancelo(Inscripcion i) {
+        Usuario persona = i.getAlumno().getUsuario();
+        String programa = i.getDisciplina().name();
+        String clave = "PREINSCRIPCION_CANCELADA:i=" + i.getId();
+
+        if (!avisos.yaAvisados(List.of(clave)).contains(clave)) {
+            avisos.avisar(persona,
+                    TipoNotificacion.PREINSCRIPCION_CANCELADA,
+                    "Se canceló tu preinscripción a " + programa,
+                    "Pasaron " + diasParaCancelarSola + " días sin la seña, así que tu lugar en "
+                            + programa + " quedó cancelado. Si todavía querés hacerlo, "
+                            + "escribinos y te anotamos de nuevo.",
+                    "/mis-cursos",
+                    clave);
+        }
+
+        for (Usuario admin : usuarios.activosConRol(List.of(Rol.ADMIN, Rol.STAFF))) {
+            avisos.avisar(admin,
+                    TipoNotificacion.PREINSCRIPCION_CANCELADA,
+                    "Preinscripción cancelada por abandono: " + persona.getNombre() + " "
+                            + persona.getApellido(),
+                    persona.getNombre() + " " + persona.getApellido() + " se anotó a " + programa
+                            + " hace más de " + diasParaCancelarSola
+                            + " días y nunca señó: la preinscripción se canceló sola y salió de Deudores.",
+                    "/admin/inscripciones");
+        }
     }
 
     /**

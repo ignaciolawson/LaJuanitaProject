@@ -286,13 +286,16 @@ SELECT probar('C03','trabajo_mastering con precio_acordado NEGATIVO','FALLA',
 
 -- Cotización 0: no lanza error en ningún lado y hace desaparecer del balance
 -- todo importe en USD.
+-- Contra la reserva y no contra la inscripcion de Juan, desde V31: su contrato
+-- es en pesos y el trigger de la moneda rechazaria antes que el CHECK de la
+-- cotizacion -- los dos pasarian por el motivo equivocado.
 SELECT probar('C04','pago en USD con cotizacion CERO','FALLA',
- $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago)
-    SELECT u_juan,ins_juan,100,'USD',0,'PAYPAL' FROM v$q$);
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_juan,(SELECT id_reserva FROM reserva WHERE fecha='2027-03-01' LIMIT 1),100,'USD',0,'PAYPAL' FROM v$q$);
 
 SELECT probar('C05','pago en USD con cotizacion NEGATIVA','FALLA',
- $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago)
-    SELECT u_juan,ins_juan,100,'USD',-1450,'PAYPAL' FROM v$q$);
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_juan,(SELECT id_reserva FROM reserva WHERE fecha='2027-03-01' LIMIT 1),100,'USD',-1450,'PAYPAL' FROM v$q$);
 
 SELECT probar('C06','inscripcion en USD con cotizacion CERO','FALLA',
  $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,moneda,cotizacion_dolar)
@@ -697,6 +700,37 @@ SELECT probar_mensaje('J05','ESQUIVE: cancelar para escaparse de la regla y volv
  'no vuelve atras',
  $q$UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ900';
     UPDATE release SET estado='EN_DISTRIBUCION' WHERE codigo_release='LJ900'$q$);
+
+
+-- =============================================================================
+-- K. LA SENIA EN OTRA MONEDA  (`V31`, §17 · H4, P74)
+--
+-- El ataque que Ignacio hizo sin querer: senia en USD sobre un contrato en
+-- pesos. Antes de V31 entraba, activaba la preinscripcion (V30 §4 c mira que
+-- haya un pago, no en que moneda) y Deudores seguia diciendo "sin seniar"
+-- porque cuenta solo la moneda del contrato: el estado y la cuenta decian
+-- cosas distintas de la misma fila.
+-- =============================================================================
+
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol,telefono)
+ VALUES ('Moneda','Cruzada','moneda@adv.local','x','USUARIO','11-5555-0031');
+INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='moneda@adv.local';
+INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
+SELECT a.id_alumno,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours'
+  FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='moneda@adv.local';
+
+SELECT probar_mensaje('K01','senia en USD sobre una preinscripcion en pesos',
+ 'moneda del contrato',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago,estado_pago)
+    SELECT u.id_usuario,i.id_inscripcion,100,'USD',1450,'PAYPAL','SENADO'
+      FROM usuario u JOIN alumno a USING(id_usuario) JOIN inscripcion i USING(id_alumno)
+     WHERE u.email='moneda@adv.local'$q$);
+
+-- Y por lo tanto la preinscripcion sigue sin poder activarse: no hay pago.
+SELECT probar_mensaje('K02','activarla despues del intento en USD',
+ 'tiene que estar cobrada la senia',
+ $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
+    WHERE id_alumno=(SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='moneda@adv.local')$q$);
 
 
 -- =============================================================================

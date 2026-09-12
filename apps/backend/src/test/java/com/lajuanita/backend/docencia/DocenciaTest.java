@@ -2,6 +2,7 @@ package com.lajuanita.backend.docencia;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.docencia.dto.ProximaClase;
 import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.profesor.ProfesorRepository;
@@ -69,6 +73,7 @@ class DocenciaTest {
     private static final LocalDate CLASE = LocalDate.of(2028, 6, 5);
 
     @Autowired private MockMvc mvc;
+    @Autowired private DocenciaService docencia;
     @Autowired private JwtEncoder codificador;
     @Autowired private UsuarioRepository usuarios;
     @Autowired private AlumnoRepository alumnos;
@@ -559,6 +564,54 @@ class DocenciaTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].participantes.length()").value(1));
+    }
+
+    /**
+     * §17 · H1 y H2: la próxima clase que doy, sin ventana, con quiénes vienen.
+     *
+     * <p>{@code CLASE} está a más de un año, así que la agenda de cuatro semanas
+     * no la ve. Y el cuadro dice lo que el profesor quiere saber: quién, de qué
+     * nivel y por qué clase va — <b>"clase 2 de 8"</b> porque hubo una a la
+     * mañana, contada con la misma definición que las clases consumidas.
+     */
+    @Test
+    void mi_proxima_clase_dice_quienes_vienen_y_por_que_clase_van() throws Exception {
+        Profesor yo = profesorNuevo();
+        Profesor otro = profesorNuevo();
+        Alumno alumno = alumnoNuevo();
+        Inscripcion inscripcion = inscripcionDe(alumno, yo);
+        inscripcion.setNivel(Nivel.INTERMEDIO);
+        inscripciones.save(inscripcion);
+
+        cargarClase(yo, alumno, inscripcion, sala1, "10:00", "11:30");
+        cargarClase(yo, alumno, inscripcion, sala1, "16:00", "17:30");
+
+        // A las 12 la de la mañana ya pasó: lo próximo es la de las 16.
+        ProximaClase proxima = docencia.miProximaClase(yo.getUsuario().getId(), CLASE, LocalTime.of(12, 0));
+        assertThat(proxima.clase()).isNotNull();
+        assertThat(proxima.clase().horaInicio()).isEqualTo(LocalTime.of(16, 0));
+        assertThat(proxima.alumnos()).hasSize(1);
+        ProximaClase.AlumnoEnLaClase quien = proxima.alumnos().get(0);
+        assertThat(quien.idUsuario()).isEqualTo(alumno.getUsuario().getId());
+        assertThat(quien.nivel()).isEqualTo(Nivel.INTERMEDIO);
+        assertThat(quien.numeroDeClase()).isEqualTo(2);
+        assertThat(quien.clasesContratadas()).isEqualTo(8);
+
+        // A las 9, la próxima es la primera, y es la clase 1.
+        assertThat(docencia.miProximaClase(yo.getUsuario().getId(), CLASE, LocalTime.of(9, 0))
+                .alumnos().get(0).numeroDeClase()).isEqualTo(1);
+
+        // El otro profesor no tiene nada por delante: no es un 404, es "nada".
+        mvc.perform(get("/api/me/profesor/proxima").header("Authorization", credencialPara(otro)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clase").value(nullValue()))
+                .andExpect(jsonPath("$.alumnos.length()").value(0));
+
+        // Y por la API, la mía llega con sus alumnos.
+        mvc.perform(get("/api/me/profesor/proxima").header("Authorization", credencialPara(yo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clase.fecha").value(CLASE.toString()))
+                .andExpect(jsonPath("$.alumnos[0].nivel").value("INTERMEDIO"));
     }
 
     @Test

@@ -714,6 +714,45 @@ class SolicitanteTest {
     }
 
     /**
+     * P75 (§17 · H7): la ficha cuya prereserva se venció sin señar <b>sale sola
+     * de lo que falta hacer</b>, y el contador del sidebar dice lo mismo que la
+     * lista. Antes quedaba abierta para siempre: sin botones (sólo PENDIENTE los
+     * tiene) y sin UPDATE posible (`V13` §4).
+     */
+    @Test
+    void una_ficha_cuya_prereserva_se_vencio_sale_sola_del_buzon_abierto() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+        String cuerpo = apartar(ficha, "20:00").andReturn().getResponse().getContentAsString();
+        long idReserva = ((Number) JsonPath.read(cuerpo, "$.reserva.idReserva")).longValue();
+
+        // Apartada y sin señar: abierta, y el contador la cuenta.
+        mvc.perform(get("/api/solicitantes?abiertas=true").header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)]".formatted(ficha)).isNotEmpty());
+        long abiertasAntes = jdbc.queryForObject(
+                "SELECT count(*) FROM solicitante s WHERE s.estado = 'PENDIENTE' OR EXISTS "
+                        + "(SELECT 1 FROM reserva r WHERE r.id_reserva = s.id_reserva AND r.estado = 'PRECONFIRMADA')",
+                Long.class);
+
+        // Se vence: lo que hace el scheduler, por SQL para no depender del reloj.
+        jdbc.update("UPDATE reserva SET estado = 'CANCELADA', vence_preconfirmacion = NULL, "
+                + "id_usuario_modifico = id_usuario_creo WHERE id_reserva = ?", idReserva);
+        // El UPDATE fue por SQL: la entidad en sesión sigue diciendo PRECONFIRMADA.
+        em.clear();
+
+        mvc.perform(get("/api/solicitantes?abiertas=true").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)]".formatted(ficha)).isEmpty());
+        // Sigue existiendo, atendida, con su reserva cancelada a la vista.
+        mvc.perform(get("/api/solicitantes?estado=ATENDIDO").header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)].estadoDeLaReserva".formatted(ficha))
+                        .value("CANCELADA"));
+        // Y el contador bajó con la lista: es la misma definición.
+        mvc.perform(get("/api/pendientes").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.buzon").value(abiertasAntes - 1));
+    }
+
+    /**
      * <b>Al que pidió se lo anota como participante</b>, aunque un alquiler no sea
      * una clase.
      *

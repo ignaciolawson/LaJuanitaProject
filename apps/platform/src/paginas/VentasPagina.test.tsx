@@ -174,7 +174,8 @@ describe('registrar una venta', () => {
 
     await user.type(screen.getByLabelText(/^Modelo/), 'DDJ-FLX4')
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await elegir(user, 'Quién compró', '30')
+    await user.type(screen.getByLabelText('Quién compró'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila Ríos/ }))
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
@@ -187,6 +188,32 @@ describe('registrar una venta', () => {
     })
     // Quien carga es quien vendió, salvo que se cambie: viene puesto.
     expect(cuerpo.idUsuarioVendedor).toBe(1)
+  })
+
+  /**
+   * §17 · H8: quien vendió viene puesto y se cambia BUSCANDO entre las cuentas —
+   * el `<select>` que había cargaba la primera página del listado y el resto no
+   * existía para el formulario.
+   */
+  it('quien vendió se cambia buscando', async () => {
+    const user = await abrirAlta()
+
+    await user.type(screen.getByLabelText(/^Modelo/), 'DDJ-FLX4')
+    await user.type(screen.getByLabelText('Precio'), '450000')
+    await user.type(screen.getByLabelText('Quién compró'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila Ríos/ }))
+
+    // Dos "Cambiar": el del vendedor (primero en el formulario) y el del
+    // comprador ya elegido.
+    const cambiar = screen.getAllByRole('button', { name: 'Cambiar' })
+    await user.click(cambiar[0])
+    await user.type(screen.getByLabelText('Vendió'), 'Mi')
+    await user.click(await screen.findByRole('button', { name: /Micaela Prueba/ }))
+    await user.click(screen.getByRole('button', { name: 'Registrar' }))
+
+    await waitFor(() => expect(registrarVenta).toHaveBeenCalled())
+    expect(vi.mocked(registrarVenta).mock.calls[0][0].idUsuarioVendedor).toBe(1)
+    expect(vi.mocked(listarUsuarios).mock.calls.some(([o]) => o.buscar === 'Mi')).toBe(true)
   })
 
   /**
@@ -261,7 +288,8 @@ describe('registrar una venta', () => {
 
     await user.type(screen.getByLabelText(/^Modelo/), 'DDJ-FLX4')
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await elegir(user, 'Quién compró', '30')
+    await user.type(screen.getByLabelText('Quién compró'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila Ríos/ }))
     await user.click(screen.getByLabelText('Ya se cobró'))
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
@@ -285,7 +313,8 @@ describe('registrar una venta', () => {
     const user = await abrirAlta()
 
     await user.type(screen.getByLabelText('Precio'), '450000')
-    await elegir(user, 'Quién compró', '30')
+    await user.type(screen.getByLabelText('Quién compró'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila Ríos/ }))
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(await screen.findByText('Poné el modelo del equipo.')).toBeDefined()
@@ -299,7 +328,8 @@ describe('registrar una venta', () => {
     await user.type(screen.getByLabelText(/^Modelo/), 'CDJ-3000')
     await user.type(screen.getByLabelText('Precio'), '2400')
     await elegir(user, 'Moneda', 'USD')
-    await elegir(user, 'Quién compró', '30')
+    await user.type(screen.getByLabelText('Quién compró'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila Ríos/ }))
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 
     expect(await screen.findByText(/necesita la cotización del día/)).toBeDefined()

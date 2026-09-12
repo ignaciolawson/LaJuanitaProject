@@ -518,6 +518,11 @@ export type EstadoDeCuenta = {
   saldos: SaldoPorMoneda[]
   contratos: ContratoDelAlumno[]
   pagos: PagoResumen[]
+  /**
+   * Lo que debe HOY, con la definición de Deudores (§17 · H3): las mismas filas
+   * que esa pantalla, acotadas a la persona. `saldos` es historia por moneda.
+   */
+  pendientes: Deudor[]
 }
 
 export type SaldoPorMoneda = { moneda: Moneda; pagado: number; adeudado: number }
@@ -534,6 +539,12 @@ export type ContratoDelAlumno = {
   /** Si cubrió el 50% que §13 exige antes de reservar. */
   senado: boolean
   saldado: boolean
+  /**
+   * Lo cobrado en la OTRA moneda, si hay (§17 · H4). Desde `V31` no puede
+   * nacer un pago así; las filas anteriores se dicen para que un contrato "sin
+   * seña" al lado de un pago que sí entró se entienda. `null` si no hay.
+   */
+  cobradoEnOtraMoneda: number | null
 }
 
 /** La caja de un período, una fila por moneda. Espeja `CajaDelPeriodo`. */
@@ -915,8 +926,12 @@ export function etapaDeLaFicha(ficha: SolicitanteResumen): {
   if (ficha.estadoDeLaReserva === 'PRECONFIRMADA') {
     return { texto: 'Apartada · falta la seña', abierta: true }
   }
+  // Se venció sin señar: atendida y con su reserva cancelada. **Ya no está
+  // abierta** (P75, §17 · H7): P56 la dejaba abierta "para una decisión" y
+  // ninguna se podía tomar — ni botón ni UPDATE (`V13` §4). Queda en "Ya
+  // atendidas" con la etiqueta gris, y quien vuelve manda el formulario de nuevo.
   if (ficha.estadoDeLaReserva === 'CANCELADA') {
-    return { texto: 'Se venció sin señar', abierta: true }
+    return { texto: 'Se venció sin señar', abierta: false }
   }
   return { texto: 'Atendida', abierta: false }
 }

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { listarUsuarios } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import {
   cambiarEstadoDelTrabajo,
@@ -35,6 +34,7 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
 const TIPOS: TipoTrabajo[] = ['MIX', 'MASTER', 'MIX_MASTER']
@@ -305,10 +305,10 @@ function FormularioAlta({
   onCerrar: () => void
   onGuardado: () => void
 }) {
-  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
+  /** El cliente con cuenta se busca (§17 · H8), no se elige de la primera página. */
+  const [cliente, setCliente] = useState<UsuarioResumen | null>(null)
   const [conCuenta, setConCuenta] = useState(false)
   const [datos, setDatos] = useState({
-    idClienteUsuario: '',
     nombreClienteExterno: '',
     contactoClienteExterno: '',
     tipoTrabajo: 'MIX_MASTER' as TipoTrabajo,
@@ -324,12 +324,6 @@ function FormularioAlta({
   const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
-  useEffect(() => {
-    listarUsuarios({ pagina: 0 })
-      .then((r) => setPersonas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudo cargar el listado de personas.'))
-  }, [])
-
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
@@ -341,7 +335,7 @@ function FormularioAlta({
     const locales: Record<string, string> = {}
     if (!datos.nombreTrack.trim()) locales.nombreTrack = 'Poné el nombre del track.'
     // Espeja `trabajo_cliente_identificado`.
-    if (conCuenta && !datos.idClienteUsuario) locales.clienteIdentificado = 'Elegí al cliente.'
+    if (conCuenta && !cliente) locales.clienteIdentificado = 'Elegí al cliente.'
     if (!conCuenta && !datos.nombreClienteExterno.trim()) {
       locales.clienteIdentificado = 'Escribí el nombre del cliente.'
     }
@@ -356,7 +350,7 @@ function FormularioAlta({
 
     try {
       await registrarTrabajo({
-        idClienteUsuario: conCuenta ? Number(datos.idClienteUsuario) : undefined,
+        idClienteUsuario: conCuenta ? cliente!.id : undefined,
         nombreClienteExterno: conCuenta ? undefined : datos.nombreClienteExterno.trim(),
         contactoClienteExterno: conCuenta
           ? undefined
@@ -398,20 +392,12 @@ function FormularioAlta({
 
         <div className="grid gap-4 sm:grid-cols-2">
           {conCuenta ? (
-            <CampoSelect
-              etiqueta="Cliente"
-              value={datos.idClienteUsuario}
-              onChange={cambiar('idClienteUsuario')}
-              error={errores.clienteIdentificado}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí…</option>
-              {personas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre} {p.apellido}
-                </option>
-              ))}
-            </CampoSelect>
+            <div className="sm:col-span-2">
+              <BuscadorDePersonas elegida={cliente} onElegir={setCliente} etiqueta="Cliente" />
+              {errores.clienteIdentificado && (
+                <p className="mt-1 text-xs text-red">{errores.clienteIdentificado}</p>
+              )}
+            </div>
           ) : (
             <>
               <Campo
@@ -843,7 +829,14 @@ function FormularioCobro({
   onCerrar: () => void
   onCobrado: (trabajo: TrabajoResumen) => void
 }) {
-  const [personas, setPersonas] = useState<UsuarioResumen[]>([])
+  /**
+   * A nombre de quién: el cliente del trabajo si tiene cuenta, y si no —o si se
+   * quiere otro— se busca entre las cuentas (§17 · H8). El `<select>` que había
+   * cargaba la primera página del listado, veinte personas, y el resto no
+   * existía para este formulario.
+   */
+  const [pagador, setPagador] = useState<UsuarioResumen | null>(null)
+  const [cambiando, setCambiando] = useState(false)
   const [datos, setDatos] = useState({
     idUsuario: trabajo.idClienteUsuario ? String(trabajo.idClienteUsuario) : '',
     monto: trabajo.precioAcordado?.toString() ?? '',
@@ -855,16 +848,12 @@ function FormularioCobro({
   const [error, setError] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
 
-  useEffect(() => {
-    listarUsuarios({ pagina: 0 })
-      .then((r) => setPersonas(r.contenido))
-      .catch(() => setError('No se pudo cargar el listado de personas.'))
-  }, [])
-
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
   }
+
+  const clienteDelTrabajo = trabajo.idClienteUsuario !== null && !cambiando
 
   async function onSubmit(evento: React.FormEvent) {
     evento.preventDefault()
@@ -912,20 +901,36 @@ function FormularioCobro({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <CampoSelect
-          etiqueta="A nombre de"
-          value={datos.idUsuario}
-          onChange={cambiar('idUsuario')}
-          error={errores.idUsuario}
-          className="sm:col-span-2"
-        >
-          <option value="">Elegí…</option>
-          {personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nombre} {p.apellido}
-            </option>
-          ))}
-        </CampoSelect>
+        <div className="sm:col-span-2">
+          {clienteDelTrabajo ? (
+            <div>
+              <span className="t-mono text-tenue">A nombre de</span>
+              <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
+                <strong className="font-medium">{trabajo.cliente}</strong>
+                <Boton
+                  variante="enlace"
+                  type="button"
+                  onClick={() => {
+                    setCambiando(true)
+                    setDatos((previo) => ({ ...previo, idUsuario: '' }))
+                  }}
+                >
+                  Cambiar
+                </Boton>
+              </div>
+            </div>
+          ) : (
+            <BuscadorDePersonas
+              elegida={pagador}
+              onElegir={(p) => {
+                setPagador(p)
+                setDatos((previo) => ({ ...previo, idUsuario: p ? String(p.id) : '' }))
+              }}
+              etiqueta="A nombre de"
+            />
+          )}
+          {errores.idUsuario && <p className="mt-1 text-xs text-red">{errores.idUsuario}</p>}
+        </div>
 
         <Campo
           etiqueta="Monto"
