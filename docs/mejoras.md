@@ -5298,7 +5298,7 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
 
 ---
 
-## ⚠️ DÓNDE RETOMAR (la §16 destrabada, 2026-09-10 — estado al 2026-09-11)
+## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **LA QUINTA BARRIDA (§17) ESTÁ CERRADA: nueve de nueve el 2026-09-12, el
 mismo día que se abrió** — Fase 1 (A: H5 · H6 · H9), Fase 2 (B: H1+H2 · H3 ·
@@ -5307,8 +5307,10 @@ H7 · H8) y Fase 3 (C: H4). Las decisiones son `platform.md` §23, P73–P75.
 admin sembrado pasa a `V32`** (sexto corrimiento). Suites: **699 backend · 617
 front · 290 + 68 SQL** sobre 31 migraciones. Lo que dejó para la siguiente
 está al final de la §17: los dos `<select>` de Pagos que no son de personas,
-"Venderle" desde el buzón, y la 13231 a mano. ⚠️ **El backend levantado durante
-la sesión es anterior a los endpoints nuevos: reiniciarlo antes de probar.**
+"Venderle" desde el buzón, y la 13231 a mano. ✅ **El circuito completo se
+reinició el mismo 2026-09-12** (Postgres, backend, landing en :3000, plataforma
+en :5173) — `/api/me/proxima` ya contesta `200`. La próxima sesión arranca con
+todo levantado y validado; si se cerró la terminal, es el único paso que falta.
 Lo que sigue abajo es el estado en que la §16 dejó todo, y sigue siendo cierto
 salvo los números de las suites y de la migración.
 

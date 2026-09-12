@@ -1,35 +1,33 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-12 (noche) — leé esto y después, si hace falta, el resto
 
-✅ **LA CUARTA BARRIDA (`mejoras.md` §16) ESTÁ CERRADA: once de doce el
-2026-09-12** — Fases 0 a 4 el 2026-09-11, 5 y 6 el 2026-09-12; el doceavo (los
-grupos de a 3) diferido por Ignacio a la siguiente. Tres migraciones, las tres
-aplicadas (`V28` catálogo · `V29` ficha · `V30` preinscripción); las decisiones
-son `platform.md` §22, P59–P72. **No hay ninguna fase por ejecutar**: lo que
-sigue es lo de siempre — Ignacio usa el sistema y trae hallazgos.
+✅ **LA QUINTA BARRIDA (`mejoras.md` §17) ESTÁ CERRADA: nueve de nueve,
+abierta y cerrada el mismo 2026-09-12.** Una migración aplicada (`V31` — un pago
+de un programa va en la moneda del contrato, P74); las decisiones son
+`platform.md` §23, P73–P75. **No hay ninguna fase por ejecutar.** Y la cuarta
+(§16) sigue cerrada desde el mismo día: once de doce, el doceavo (grupos de a 3)
+diferido por Ignacio.
 
-⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
-**seña para los programas** (una política de cobro, no una corrección) y **el alta
-completa del alumno desde el buzón**. Así que la frase de las sesiones anteriores
-—*"no queda nada de producto por construir"*— **dejó de ser cierta el 2026-09-10**.
+**Suites: 699 backend · 617 front · 290 + 68 SQL, sobre 31 migraciones.** `tsc -b`,
+los dos builds y los dos linters limpios. **El circuito completo (Postgres,
+backend, landing en :3000, plataforma en :5173) se reinició y verificó el mismo
+2026-09-12** — queda arriba para la próxima sesión.
 
-Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** (§12,
-§13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
-cinco fases)** están cerrados y commiteados.
-
-**Suites: 691 backend · 603 front · 284 + 66 SQL, sobre 30 migraciones.** `tsc -b`,
-los dos builds y los dos linters limpios.
+Lo que sigue en pie: los ocho módulos, el rediseño, las **cuatro barridas** (§12,
+§13, §14, §16) y **la mejora del circuito del buzón (§15)** están cerrados y
+commiteados.
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
-| ✅ 0 | ~~**La §16 está ABIERTA y con plan**~~ — **cerrada el 2026-09-12**, once de doce. Trajo dos cambios de política (seña en programas — supera a P33 —, alta completa desde el buzón) y **cerró P13** | [`mejoras.md`](mejoras.md) §16 |
+| ✅ 0 | ~~**La §17 está abierta**~~ — **cerrada el 2026-09-12**, nueve de nueve. Trajo `V31` (pago en la moneda del contrato) y los plazos nuevos de P73 (cabina 72 hs, preinscripción abandonada se cancela sola a los 21 días) | [`mejoras.md`](mejoras.md) §17 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
-| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
-| 🟢 4 | **La barrida siguiente a la §16**, con tres cosas ya anotadas: los **grupos de a 3** (Ignacio los difirió; reabren P7), **el precio de las reservas** (la mitad de P13 que falta: sin él, *"seña abonada, falta el resto"* no se puede decir de una cabina — P72), y **la "deuda viva" del tablero**, que sigue leyendo sólo las deudas anotadas y no ve los saldos de programas | [`mejoras.md`](mejoras.md) §16 · Fase 6 · `platform.md` P72 |
+| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27` ni `V31`: ahora `V32`** — un número que se movió seis veces, no lo anotes fijo | §1 de acá |
+| 🟢 4 | **La barrida siguiente**, con cinco cosas ya anotadas: los **grupos de a 3** (reabren P7), **el precio de las reservas** (P72, la mitad de P13 que falta), **la "deuda viva" del tablero** (sigue sin ver los saldos de programas), y de la §17: **los dos `<select>` de Pagos que no son de personas** (trabajo/venta que salda un pago, sin búsqueda por texto) y **"Venderle" desde el buzón** (el tercer gemelo de un click, para EQUIPOS) | [`mejoras.md`](mejoras.md) §16 · Fase 6 y §17 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
+| 🟢 7 | **La inscripción 13231 de la base de desarrollo** tiene una seña en USD sobre un contrato en pesos (anterior a `V31`): editarla a USD desde Inscripciones y sale sola de Deudores. No es código | §17 de `mejoras.md` |
 
 ⚠️ **Lo primero a mirar si el buzón empieza a hacer ruido** (`platform.md` §21 ·
 P57): el aviso de prereserva vencida le llega a **todos** los ADMIN y STAFF —
