@@ -58,7 +58,7 @@ export function ArtistasPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar])
+  }, [buscar, setError])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)

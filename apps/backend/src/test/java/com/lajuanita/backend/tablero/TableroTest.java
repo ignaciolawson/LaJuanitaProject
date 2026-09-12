@@ -331,17 +331,36 @@ class TableroTest {
      */
     @Test
     void la_deuda_de_otro_periodo_igual_se_ve() throws Exception {
+        // La línea de base se toma con la inscripción ya creada: su saldo sin
+        // cobrar también es deuda viva (abajo), y acá lo que se mide es la anotada.
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno);
         BigDecimal antes = pendienteEnPesos();
 
-        Alumno alumno = alumnoNuevo();
         mvc.perform(pagar("""
                 {"idUsuario":%d,"idInscripcion":%d,"monto":45000,"moneda":"ARS",
                  "medioPago":"EFECTIVO","estadoPago":"DEBE","fechaPago":"%s"}
-                """.formatted(alumno.getUsuario().getId(), inscripcionDe(alumno).getId(),
+                """.formatted(alumno.getUsuario().getId(), curso.getId(),
                 HASTA.plusDays(200))))
                 .andExpect(status().isCreated());
 
         assertThat(pendienteEnPesos()).isEqualByComparingTo(antes.add(new BigDecimal("45000")));
+    }
+
+    /**
+     * <b>Lo que falta pagar de un programa es deuda viva aunque nadie lo haya
+     * anotado</b> (P72). El tablero tenía su propia consulta sobre {@code pago} y
+     * no veía esta fuente: Deudores decía doce y la tarjeta decía cero. Ahora los
+     * dos suman la misma lista, y este caso va rojo si el tablero vuelve a tener
+     * la suya.
+     */
+    @Test
+    void el_saldo_de_una_inscripcion_sin_anotar_es_deuda_viva() throws Exception {
+        BigDecimal antes = pendienteEnPesos();
+
+        inscripcionDe(alumnoNuevo());   // $100.000, ni una fila de pago
+
+        assertThat(pendienteEnPesos()).isEqualByComparingTo(antes.add(new BigDecimal("100000")));
     }
 
     // == Retención ============================================================

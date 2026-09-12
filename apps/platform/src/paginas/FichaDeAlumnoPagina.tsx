@@ -98,7 +98,7 @@ export function FichaDeAlumnoPagina() {
     } finally {
       setCargando(false)
     }
-  }, [idAlumno])
+  }, [idAlumno, setError])
 
   useEffect(() => {
     void cargar()

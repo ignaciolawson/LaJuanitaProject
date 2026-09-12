@@ -152,8 +152,10 @@ public record Tablero(
     /**
      * La deuda viva, por moneda. <b>Foto de hoy, no del período.</b>
      *
-     * <p>{@code vencido} es el subconjunto que además pasó los 7 días (§6) — el
-     * mismo hecho sobre el que el disparador de avisos escribe su alerta.
+     * <p>Es la lista de Deudores sumada: {@code cantidad} son sus renglones — una
+     * deuda anotada por persona, o una inscripción con saldo (P72) — y
+     * {@code vencido} el subconjunto que además pasó su plazo: los 7 días de §6
+     * para la deuda anotada, {@code vence_preinscripcion} para la seña.
      */
     public record CobrosPendientes(
             String moneda,

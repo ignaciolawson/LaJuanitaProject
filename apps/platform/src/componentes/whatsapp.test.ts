@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  categoriasDeEquipos,
   linkDeWhatsapp,
   mensajeConLaClave,
   mensajeDeCabinaApartada,
+  mensajeDeEquipos,
   mensajeDeInscripcion,
   numeroParaWhatsapp,
-  saludoDeContacto,
 } from './whatsapp'
 
 /**
@@ -92,11 +93,104 @@ describe('el link', () => {
 })
 
 describe('los mensajes', () => {
-  it('el saludo nombra el servicio que la persona pidió', () => {
-    const saludo = saludoDeContacto('Juan', 'Alquilar la cabina')
+  /**
+   * **Un mensaje se lee por los párrafos** (2026-09-12): el que Ignacio recibió
+   * de prueba era un solo ladrillo de texto con la seña, la clave y el portal
+   * pegados. Cada bloque va separado por una línea en blanco, empieza con un
+   * emoji que dice de qué habla, y el abanico —el de la marca— abre y cierra.
+   */
+  it('van en párrafos separados por una línea en blanco, con el abanico al abrir y al cerrar', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Juan',
+      programa: 'DJ',
+      profesor: 'Tomás Ghezzi',
+      importe: '$ 85.000',
+      vence: '13/09/2026 10:00',
+      cuenta: { email: 'juan@mail.com', passwordTemporal: 'A7K2M9' },
+    })
 
-    expect(saludo).toContain('Juan')
-    expect(saludo).toContain('alquilar la cabina')
+    const bloques = mensaje.split('\n\n')
+    // Saludo · seña · cuenta · portal · despedida.
+    expect(bloques).toHaveLength(5)
+    expect(bloques[0]).toMatch(/^¡Hola Juan! 🪭/)
+    expect(bloques[1]).toMatch(/^💸/)
+    expect(bloques[2]).toMatch(/^🔑/)
+    expect(bloques[3]).toMatch(/^📲/)
+    expect(bloques[4]).toMatch(/🪭$/)
+    // Y ningún bloque opcional deja dos líneas en blanco al faltar.
+    expect(mensaje).not.toContain('\n\n\n')
+  })
+
+  it('sin cuenta nueva el bloque de la clave se va sin dejar hueco', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Juan',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 85.000',
+      vence: '13/09/2026 10:00',
+      cuenta: null,
+    })
+
+    expect(mensaje.split('\n\n')).toHaveLength(4)
+    expect(mensaje).not.toContain('\n\n\n')
+  })
+
+  /**
+   * **Para equipos el primer mensaje es el trabajo** (2026-09-12): la venta se
+   * maneja por WhatsApp y el sistema no tiene nada que crear hasta que exista.
+   * Lo que sí sabe es qué marcó la persona, y eso es lo que el mensaje nombra.
+   */
+  it('el de equipos nombra lo que la persona marcó en la web', () => {
+    const mensaje = mensajeDeEquipos('Fermín', ['Controladores', 'Auriculares'])
+
+    expect(mensaje).toMatch(/^¡Hola Fermín! 🪭/)
+    expect(mensaje).toContain('estás buscando controladores y auriculares')
+    expect(mensaje).toContain('Pioneer')
+    expect(mensaje).toMatch(/🪭$/)
+  })
+
+  it('el de equipos con una sola categoría, o con tres, enumera bien', () => {
+    expect(mensajeDeEquipos('Ana', ['Monitores de estudio'])).toContain(
+      'buscando monitores de estudio.',
+    )
+    expect(mensajeDeEquipos('Ana', ['Controladores', 'Monitores de estudio', 'Accesorios'])).toContain(
+      'buscando controladores, monitores de estudio y accesorios.',
+    )
+  })
+
+  it('el de equipos sin categorías pregunta qué busca en vez de inventar', () => {
+    const mensaje = mensajeDeEquipos('Ana', [])
+
+    expect(mensaje).toContain('Contanos qué estás buscando')
+    expect(mensaje).not.toContain('Vimos que')
+  })
+
+  /**
+   * ⚠️ **Escrito con el string exacto que arma `GearInquiryForm` en la landing**,
+   * a mano y no importado: las categorías viajan adentro de `detalle` con un
+   * formato que fija la landing, y este caso existe para enterarse el día que
+   * ese formato cambie — igual que `credencial.test.ts` con la clave del storage.
+   */
+  it('lee las categorías del detalle tal como lo arma la landing', () => {
+    expect(
+      categoriasDeEquipos('Controladores, Auriculares · arrancando · presupuesto definido'),
+    ).toEqual(['Controladores', 'Auriculares'])
+    expect(categoriasDeEquipos('Accesorios · ya toca · presupuesto sin definir')).toEqual([
+      'Accesorios',
+    ])
+  })
+
+  /**
+   * Nivel y presupuesto tienen valor por defecto en la landing, así que sin
+   * categorías marcadas el detalle tiene dos segmentos y no tres. Y cualquier
+   * otra cosa —una ficha vieja, un formato que cambió— degrada a "sin
+   * categorías": el mensaje pregunta, nunca dice algo raro.
+   */
+  it('sin categorías marcadas, o con un detalle que no es el de equipos, devuelve vacío', () => {
+    expect(categoriasDeEquipos('arrancando · presupuesto definido')).toEqual([])
+    expect(categoriasDeEquipos('Programa DJ · presencial')).toEqual([])
+    expect(categoriasDeEquipos(null)).toEqual([])
+    expect(categoriasDeEquipos('')).toEqual([])
   })
 
   /**

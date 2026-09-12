@@ -116,7 +116,7 @@ export function PagosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, moneda, grupo, pagina])
+  }, [buscar, estado, moneda, grupo, pagina, setError])
 
   /**
    * Los números de la barra, en un pedido aparte del listado.
@@ -901,28 +901,28 @@ function FormularioPago({
     listarInscripciones({ idAlumno: alumno.idAlumno })
       .then((r) => setContratos(r.contenido))
       .catch(() => setErrorGeneral('No se pudieron cargar las inscripciones.'))
-  }, [alumno])
+  }, [alumno, setErrorGeneral])
 
   useEffect(() => {
     if (destino !== 'RESERVA') return
     agenda({ desde: haceDias(DIAS_ATRAS), hasta: haceDias(-DIAS_ADELANTE) })
       .then(setReservas)
       .catch(() => setErrorGeneral('No se pudo cargar la agenda.'))
-  }, [destino])
+  }, [destino, setErrorGeneral])
 
   useEffect(() => {
     if (destino !== 'TRABAJO_MASTERING') return
     listarTrabajos({ pagina: 0 })
       .then((r) => setTrabajos(r.contenido))
       .catch(() => setErrorGeneral('No se pudieron cargar los trabajos.'))
-  }, [destino])
+  }, [destino, setErrorGeneral])
 
   useEffect(() => {
     if (destino !== 'VENTA_EQUIPO') return
     listarVentas({ pagina: 0 })
       .then((r) => setVentas(r.contenido))
       .catch(() => setErrorGeneral('No se pudieron cargar las ventas.'))
-  }, [destino])
+  }, [destino, setErrorGeneral])
 
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>

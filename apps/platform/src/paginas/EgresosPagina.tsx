@@ -76,7 +76,7 @@ export function EgresosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, destino, pagina])
+  }, [buscar, destino, pagina, setError])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)
@@ -340,7 +340,7 @@ function FormularioEgreso({
     listarProfesores(true)
       .then(setProfesores)
       .catch(() => setErrorGeneral('No se pudo cargar el listado de profesores.'))
-  }, [])
+  }, [setErrorGeneral])
 
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>

@@ -98,7 +98,7 @@ export function MixMasteringPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, pagina])
+  }, [buscar, estado, pagina, setError])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)

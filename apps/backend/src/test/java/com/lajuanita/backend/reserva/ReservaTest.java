@@ -360,7 +360,7 @@ class ReservaTest {
     @Test
     void no_se_pueden_dar_mas_clases_que_las_contratadas() throws Exception {
         Alumno alumno = alumnoNuevo();
-        Inscripcion inscripcion = inscripcionDe(alumno, 1);
+        inscripcionDe(alumno, 1);
 
         long primera = idDe(mvc.perform(alta(sala1, claseDj, LUNES, "10:00", "11:30"))
                 .andExpect(status().isCreated()));
@@ -598,7 +598,7 @@ class ReservaTest {
     @Test
     void una_clase_cargada_con_su_alumno_tiene_plata_detras() throws Exception {
         Alumno alumno = alumnoNuevo();
-        Inscripcion inscripcion = inscripcionDe(alumno, 8);
+        inscripcionDe(alumno, 8);
 
         mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
                 participante(alumno.getUsuario().getId())))
@@ -819,7 +819,7 @@ class ReservaTest {
     @Test
     void cancelar_una_clase_no_choca_con_la_regla_de_la_sena() throws Exception {
         Alumno alumno = alumnoNuevo();
-        Inscripcion inscripcion = inscripcionDe(alumno, 8);
+        inscripcionDe(alumno, 8);
         long id = idDe(mvc.perform(altaConParticipantes(sala1, claseDj, LUNES, "10:00", "11:30",
                 participante(alumno.getUsuario().getId())))
                 .andExpect(status().isCreated()));

@@ -76,7 +76,7 @@ export function TableroPagina() {
     listarSalas(true)
       .then(setSalas)
       .catch(() => setError('No se pudo cargar el catálogo de salas.'))
-  }, [completo])
+  }, [completo, setError])
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -107,7 +107,7 @@ export function TableroPagina() {
     } finally {
       setCargando(false)
     }
-  }, [completo, desde, hasta, idSala])
+  }, [completo, desde, hasta, idSala, setError])
 
   useEffect(() => {
     void cargar()

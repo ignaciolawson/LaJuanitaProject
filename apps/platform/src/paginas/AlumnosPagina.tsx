@@ -78,7 +78,7 @@ export function AlumnosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, estado, disciplina, nivelCurso, pagina])
+  }, [buscar, estado, disciplina, nivelCurso, pagina, setError])
 
   // Espera a que la persona deje de tipear antes de pedir: sin esto, cada
   // tecla dispara una consulta.

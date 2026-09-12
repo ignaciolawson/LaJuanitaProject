@@ -12,7 +12,6 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.lajuanita.backend.pago.dto.PagoResumen;
 import com.lajuanita.backend.tablero.LineaDeNegocio;
 
 public interface PagoRepository extends JpaRepository<Pago, Long> {
@@ -349,7 +348,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             FROM Pago p LEFT JOIN p.usuario u
             WHERE p.estadoPago IN :adeudados
               AND (:idUsuario IS NULL OR u.id = :idUsuario)
-              AND """ + DeudaCobrable.JPQL + """
+              AND\s""" + DeudaCobrable.JPQL + """
             GROUP BY u.id, p.nombrePagadorExterno, p.moneda
             ORDER BY MIN(p.fechaPago)
             """)

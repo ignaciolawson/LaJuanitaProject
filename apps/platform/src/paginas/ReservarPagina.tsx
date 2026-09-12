@@ -59,7 +59,7 @@ export function ReservarPagina() {
     return () => {
       vigente = false
     }
-  }, [])
+  }, [setError])
 
   // Las salas donde ese uso está permitido. Es la matriz de §2.6 aplicada del
   // lado del formulario: ofrecer "grabación en Sala 1" es ofrecer un pedido que

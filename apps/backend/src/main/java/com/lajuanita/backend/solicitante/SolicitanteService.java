@@ -296,6 +296,18 @@ public class SolicitanteService {
      * anotar en la ficha contra qué se cerró, y P54 mantiene que la cuenta se
      * crea siempre.
      *
+     * <h2>Salvo equipos, donde la venta no necesita cuenta</h2>
+     *
+     * <p>La venta de equipos se maneja por WhatsApp sin crearle cuenta a nadie
+     * (2026-09-12): la ficha se contesta con el mensaje, la charla sigue afuera y
+     * el sistema entra cuando la venta existe, cargada a nombre escrito
+     * ({@code venta_comprador_identificado}). Así que para una ficha de
+     * {@code EQUIPOS} se ofrecen además <b>las ventas sin cuenta cargadas desde
+     * que llegó</b> —con la misma ventana hacia atrás que las reservas—, con el
+     * nombre del comprador en la descripción. <b>Sigue sin cruzarse por
+     * nombre</b>: son todas las de la ventana y elige una persona mirando, que
+     * es lo que este buzón siempre hizo.
+     *
      * <h2>La ventana de las reservas</h2>
      *
      * <p>{@code deLaPersona} filtra por la fecha de la reserva, así que hay que
@@ -313,23 +325,26 @@ public class SolicitanteService {
         Solicitante ficha = fichas.porIdConDetalle(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la ficha " + id + "."));
 
-        Usuario cuenta = ficha.getUsuario();
-        if (cuenta == null) {
-            return List.of();
-        }
-
         LocalDate llegada = ficha.getFechaCreacion().toLocalDate();
         List<CandidatoDeLaFicha> candidatos = new ArrayList<>();
 
-        reservas.deLaPersona(cuenta.getId(), llegada.minusMonths(1), llegada.plusYears(1),
-                EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON)
-                .forEach(r -> candidatos.add(CandidatoDeLaFicha.de(r)));
+        Usuario cuenta = ficha.getUsuario();
+        if (cuenta != null) {
+            reservas.deLaPersona(cuenta.getId(), llegada.minusMonths(1), llegada.plusYears(1),
+                    EstadoAsistencia.CANCELADA, EstadoPago.ENTRARON)
+                    .forEach(r -> candidatos.add(CandidatoDeLaFicha.de(r)));
 
-        inscripciones.deLaPersona(cuenta.getId())
-                .forEach(i -> candidatos.add(CandidatoDeLaFicha.de(i)));
+            inscripciones.deLaPersona(cuenta.getId())
+                    .forEach(i -> candidatos.add(CandidatoDeLaFicha.de(i)));
 
-        ventas.deLaPersona(cuenta.getId())
-                .forEach(v -> candidatos.add(CandidatoDeLaFicha.de(v)));
+            ventas.deLaPersona(cuenta.getId())
+                    .forEach(v -> candidatos.add(CandidatoDeLaFicha.de(v)));
+        }
+
+        if (ficha.getInteres() == InteresDelSolicitante.EQUIPOS) {
+            ventas.aCompradorSinCuentaDesde(llegada.minusMonths(1))
+                    .forEach(v -> candidatos.add(CandidatoDeLaFicha.de(v)));
+        }
 
         return candidatos;
     }

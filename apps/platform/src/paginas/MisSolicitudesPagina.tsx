@@ -33,7 +33,7 @@ export function MisSolicitudesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [setError])
 
   useEffect(() => {
     void cargar()

@@ -349,8 +349,9 @@ describe('el buzón', () => {
  * ⚠️ **El botón vive adentro del panel de "Ya se lo cargué", en la rama sin
  * cuenta, y ese panel sólo existe donde no hay gemelo de un click.** Una
  * consulta por equipos es el caso: no hay "Venderle", la venta se carga en su
- * pantalla y la ficha se cierra eligiéndola — y los candidatos salen de la
- * cuenta, así que sin cuenta el panel tiene que poder crearla ahí mismo.
+ * pantalla y la ficha se cierra eligiéndola. Para equipos la cuenta **no hace
+ * falta** desde el 2026-09-12 —la venta se carga a nombre escrito—, así que el
+ * panel la ofrece como opción y no como paso previo; el botón sigue ahí.
  */
 describe('convertir la ficha en cuenta', () => {
   const EQUIPOS = ficha({ interes: 'EQUIPOS', detalle: 'Pioneer DDJ-400' })
@@ -399,6 +400,37 @@ describe('convertir la ficha en cuenta', () => {
   })
 
   /**
+   * **Para equipos la cuenta es opción, no requisito** (2026-09-12): la venta
+   * se carga con el nombre del comprador y se maneja por WhatsApp. El panel lo
+   * dice —y deja de decir "creale la cuenta primero", que mandaba a crear algo
+   * que no hacía falta para nada.
+   */
+  it('para equipos el panel dice que la venta no necesita cuenta', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+
+    expect(await screen.findByText(/no hace falta cuenta/)).toBeDefined()
+    expect(screen.queryByText(/Creale la cuenta primero/)).toBeNull()
+    expect(screen.getByRole('link', { name: 'Venta de equipos' })).toBeDefined()
+  })
+
+  it('para un curso sin gemelo, en cambio, la cuenta sigue siendo el paso previo', async () => {
+    // Sin catálogo de programas no hay "Inscribirlo", y aparece el panel.
+    vi.mocked(listarProgramas).mockRejectedValue(new Error('caído'))
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'CURSO' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+    await userEvent.click(await screen.findByRole('button', { name: 'Ya se lo cargué' }))
+
+    expect(await screen.findByText(/Creale la cuenta primero/)).toBeDefined()
+  })
+
+  /**
    * **El otro camino, que no es un borde raro**: un alumno que cursa hace un año
    * y pide la cabina desde la web llega exactamente así. Lo que se prueba es que
    * la pantalla lo cuente, en vez de dejar vacío el lugar de la contraseña.
@@ -430,10 +462,11 @@ describe('convertir la ficha en cuenta', () => {
     montar()
     await crearLaCuenta()
 
-    await waitFor(() => expect(screen.getByText(/Cargale la venta/)).toBeDefined())
-    expect(screen.getByRole('link', { name: 'Venta de equipos' }).getAttribute('href')).toBe(
-      '/admin/ventas',
-    )
+    // Lo dicen los dos: el resultado de la cuenta y, debajo, el panel de cerrar.
+    await waitFor(() => expect(screen.getAllByText(/Cargale la venta/).length).toBeGreaterThan(0))
+    const enlaces = screen.getAllByRole('link', { name: 'Venta de equipos' })
+    expect(enlaces.length).toBeGreaterThan(0)
+    expect(enlaces.every((e) => e.getAttribute('href') === '/admin/ventas')).toBe(true)
   })
 
   /**
@@ -525,8 +558,50 @@ describe('escribirle por WhatsApp', () => {
     montar()
 
     expect(await screen.findByText('11-5555-4444')).toBeDefined()
-    expect(screen.queryByRole('link', { name: 'Escribirle' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Escribirle/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'Copiar' })).toBeDefined()
+  })
+
+  /**
+   * ⚠️ **Para equipos, escribirle ES el trabajo** (2026-09-12): la venta se
+   * maneja por WhatsApp sin cuenta de por medio, así que el botón va en la
+   * ficha misma y de principal — y el mensaje ya dice lo que la persona marcó
+   * en la web, leído del detalle tal como lo arma `GearInquiryForm`.
+   */
+  it('en una ficha de equipos ofrece escribirle con lo que marcó en la web', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [
+        ficha({
+          interes: 'EQUIPOS',
+          detalle: 'Controladores, Auriculares · arrancando · presupuesto definido',
+        }),
+      ],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    const enlace = await screen.findByRole('link', { name: 'Escribirle por WhatsApp' })
+    expect(enlace.getAttribute('href')).toMatch(/^https:\/\/wa\.me\/5491155554444\?text=/)
+    expect(mensajeDe(enlace)).toContain('¡Hola Camila!')
+    expect(mensajeDe(enlace)).toContain('controladores y auriculares')
+  })
+
+  it('con un teléfono ilegible la ficha de equipos no ofrece escribirle', async () => {
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ interes: 'EQUIPOS', telefono: 'no tengo, escribime por Instagram' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    montar()
+
+    expect(await screen.findByText('Ríos, Camila')).toBeDefined()
+    expect(screen.queryByRole('link', { name: /WhatsApp/ })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ya se lo cargué' })).toBeDefined()
   })
 
   /**

@@ -44,7 +44,7 @@ export function BloqueosPagina() {
     listarSalas(true)
       .then(setSalas)
       .catch(() => setError('No se pudo cargar el catálogo de salas.'))
-  }, [])
+  }, [setError])
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -63,7 +63,7 @@ export function BloqueosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [idSala, verVencidos])
+  }, [idSala, verVencidos, setError])
 
   useEffect(() => {
     void cargar()

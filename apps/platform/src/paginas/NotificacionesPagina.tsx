@@ -49,7 +49,7 @@ export function NotificacionesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [setError])
 
   useEffect(() => {
     void cargar()

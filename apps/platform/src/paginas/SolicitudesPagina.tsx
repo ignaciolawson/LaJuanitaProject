@@ -60,7 +60,7 @@ export function SolicitudesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [estado])
+  }, [estado, setError])
 
   useEffect(() => {
     void cargar()

@@ -40,7 +40,7 @@ export function UsoDeSalasPagina() {
     listarSalas(true)
       .then(setSalas)
       .catch(() => setError('No se pudo cargar el catálogo de salas.'))
-  }, [])
+  }, [setError])
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -56,7 +56,7 @@ export function UsoDeSalasPagina() {
     } finally {
       setCargando(false)
     }
-  }, [desde, hasta, idSala])
+  }, [desde, hasta, idSala, setError])
 
   useEffect(() => {
     void cargar()

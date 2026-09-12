@@ -124,7 +124,7 @@ export function CalendarioPagina() {
         setProfesores(p)
       })
       .catch(() => setError('No se pudo cargar el catálogo de salas.'))
-  }, [])
+  }, [setError])
 
   /**
    * La semana que se está mirando, con los filtros puestos.
@@ -171,7 +171,7 @@ export function CalendarioPagina() {
     } finally {
       setCargando(false)
     }
-  }, [traerAgenda])
+  }, [traerAgenda, setError])
 
   useEffect(() => {
     void cargar()

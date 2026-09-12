@@ -81,8 +81,8 @@ public interface VentaEquipoRepository extends JpaRepository<VentaEquipo, Long> 
      * adivinar: dos "Juan Pérez" son dos personas, y una ficha cerrada contra la
      * venta del otro es peor que una ficha que sigue abierta — la primera se ve
      * resuelta. Quien usa esto es el buzón, que ofrece candidatos para cerrar una
-     * ficha; si la venta se cargó a nombre escrito, la ficha se cierra después de
-     * crearle la cuenta.
+     * ficha; si la venta se cargó a nombre escrito, la ofrece
+     * {@link #aCompradorSinCuentaDesde} y la elige una persona.
      *
      * <p>Trae las anuladas también: que la venta se anuló es exactamente lo que
      * quien mira necesita ver antes de cerrar una ficha contra ella.
@@ -93,4 +93,23 @@ public interface VentaEquipoRepository extends JpaRepository<VentaEquipo, Long> 
             ORDER BY v.fechaVenta DESC, v.id DESC
             """)
     List<VentaEquipo> deLaPersona(@Param("idUsuario") Long idUsuario);
+
+    /**
+     * Las ventas a nombre escrito —sin cuenta— desde una fecha.
+     *
+     * <p>Es la otra mitad de {@link #deLaPersona}, y <b>no cruza por nombre
+     * tampoco</b>: devuelve todas las de la ventana y quien cierra la ficha elige
+     * mirando el nombre del comprador, que viaja en la descripción. Existe porque
+     * la venta de equipos se maneja por WhatsApp sin crearle cuenta a nadie
+     * (2026-09-12), así que la venta que una ficha produjo casi siempre está acá
+     * y no en la otra consulta. Sin esto, cerrar esa ficha exigía una cuenta que
+     * nadie necesitaba para nada más.
+     */
+    @Query("""
+            SELECT v FROM VentaEquipo v
+            WHERE v.comprador IS NULL
+              AND v.fechaVenta >= :desde
+            ORDER BY v.fechaVenta DESC, v.id DESC
+            """)
+    List<VentaEquipo> aCompradorSinCuentaDesde(@Param("desde") LocalDate desde);
 }

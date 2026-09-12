@@ -53,10 +53,13 @@ import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
 import { fecha } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import {
+  categoriasDeEquipos,
   linkDeWhatsapp,
   mensajeConLaClave,
   mensajeDeCabinaApartada,
-  mensajeDeInscripcion } from '../componentes/whatsapp'
+  mensajeDeEquipos,
+  mensajeDeInscripcion,
+} from '../componentes/whatsapp'
 
 /**
  * El buzón: lo que llega de los formularios de la landing (hallazgo #7, `V20`).
@@ -191,7 +194,7 @@ export function SolicitantesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [filtro, pagina])
+  }, [filtro, pagina, setError])
 
   useEffect(() => {
     void cargar()
@@ -407,9 +410,8 @@ export function SolicitantesPagina() {
                         acción principal de la pantalla era la secundaria de la
                         realidad, y eso solo ya hacía sentir pesado el recorrido. Para
                         la cabina el botón además *hace* el trabajo — cuenta, reserva
-                        apartada y ficha cerrada en un movimiento. Para curso y
-                        equipos todavía no existe ese camino, así que sigue diciendo
-                        lo que realmente hace. */}
+                        apartada y ficha cerrada en un movimiento; para el curso,
+                        "Inscribirlo". */}
                     {SE_APARTA[f.interes] && salas.length > 0 && (
                       <Boton
                         onClick={() =>
@@ -432,6 +434,17 @@ export function SolicitantesPagina() {
                         Inscribirlo
                       </Boton>
                     )}
+
+                    {/* ⚠️ **Para equipos el trabajo es escribirle** (2026-09-12), y
+                        por eso el WhatsApp va acá, de principal, y no adentro de
+                        un resultado como en la cabina y el curso: no hay
+                        resultado. La venta se maneja entera por WhatsApp —qué
+                        busca, qué hay en Pioneer, a cuánto— sin crearle cuenta a
+                        nadie; el sistema entra recién cuando la venta existe, se
+                        carga en Ventas (con el nombre del comprador alcanza) y la
+                        ficha se cierra con "Ya se lo cargué" apuntando a ella.
+                        El mensaje ya nombra lo que marcó en la web. */}
+                    {f.interes === 'EQUIPOS' && <EscribirlePorEquipos ficha={f} />}
 
                     {/* "Crearle la cuenta" ya no está acá (§17 · H5, P75): la cuenta
                         la crea el alta de un click. Sobrevive adentro del panel de
@@ -1306,7 +1319,12 @@ function CerrarLaFicha({
         <p className="text-sm text-tenue">Buscando…</p>
       ) : candidatos.length === 0 ? (
         <p className="text-sm text-tenue">
-          {ficha.idUsuario === null ? (
+          {/* Para equipos la cuenta no es el paso que falta (2026-09-12): la
+              venta se carga con el nombre del comprador, y el servidor ofrece
+              acá las ventas sin cuenta cargadas desde que llegó la ficha. Así
+              que sin candidatos lo que falta es la venta; la cuenta queda como
+              opción para quien la quiera, no como requisito. */}
+          {ficha.idUsuario === null && ficha.interes !== 'EQUIPOS' ? (
             <>
               Esta ficha todavía no tiene cuenta, y lo que se ofrece acá sale de ella.{' '}
               <strong className="text-texto">Creale la cuenta primero</strong> y después cargale lo
@@ -1323,8 +1341,19 @@ function CerrarLaFicha({
                   {sigue.texto} en{' '}
                   <Link to={sigue.ruta} className="text-acento underline underline-offset-2">
                     {NOMBRE_DE_PANTALLA[sigue.ruta]}
-                  </Link>{' '}
+                  </Link>
+                  {ficha.interes === 'EQUIPOS' &&
+                    ' —con el nombre del comprador alcanza, no hace falta cuenta—'}{' '}
                   y volvé acá a cerrar la ficha.
+                </>
+              )}
+              {ficha.idUsuario === null && (
+                <>
+                  {' '}
+                  Si igual quiere entrar al sistema,{' '}
+                  <Boton type="button" variante="enlace" onClick={onDarleCuenta}>
+                    Crearle la cuenta
+                  </Boton>
                 </>
               )}
             </>
@@ -1429,19 +1458,57 @@ function Telefono({ ficha }: { ficha: SolicitanteResumen }) {
  *
  * Es un `<a>` y no un `<button>` **a propósito**: abre otra aplicación, así que
  * tiene que poder abrirse en otra pestaña, copiarse y todo lo que un link hace.
- * Se dibuja como el botón secundario para que se lea como una acción, que es lo
- * que es.
+ * Se dibuja como un botón para que se lea como una acción, que es lo que es:
+ * secundario adentro de un resultado, donde lo principal ya pasó; principal en
+ * la ficha de equipos, donde escribir ES el trabajo.
  */
-function EnlaceDeWhatsapp({ href, children }: { href: string; children: React.ReactNode }) {
+function EnlaceDeWhatsapp({
+  href,
+  variante = 'secundario',
+  children,
+}: {
+  href: string
+  variante?: 'principal' | 'secundario'
+  children: React.ReactNode
+}) {
+  const estilo =
+    variante === 'principal'
+      ? 'rounded-md bg-accion px-4 py-2.5 text-sm text-accion-texto hover:bg-red hover:text-bone'
+      : 'rounded-md border border-linea-control bg-superficie px-3 py-1.5 text-xs text-texto hover:border-red hover:text-acento'
   return (
     <a
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      className="rounded-md border border-linea-control bg-superficie px-3 py-1.5 text-xs font-medium text-texto transition-colors hover:border-red hover:text-acento"
+      className={`inline-block font-medium transition-colors ${estilo}`}
     >
       {children}
     </a>
+  )
+}
+
+/**
+ * La acción de una ficha de equipos: escribirle, con el mensaje ya armado con lo
+ * que marcó en la web (2026-09-12).
+ *
+ * Es un link y no cambia nada en el sistema —la ficha sigue abierta, porque
+ * todavía no se le cargó nada—, y eso está bien: *abierta* es "le debemos algo",
+ * y hasta que la venta exista o se descarte, se le debe la charla. Sin número
+ * legible no se ofrece, por lo mismo que en los resultados: un `wa.me` roto es
+ * peor que ninguno, y el número grande para copiar ya está arriba.
+ */
+function EscribirlePorEquipos({ ficha }: { ficha: SolicitanteResumen }) {
+  const link = linkDeWhatsapp(
+    ficha.telefono,
+    mensajeDeEquipos(ficha.nombre, categoriasDeEquipos(ficha.detalle)),
+  )
+  if (!link) {
+    return null
+  }
+  return (
+    <EnlaceDeWhatsapp href={link} variante="principal">
+      Escribirle por WhatsApp
+    </EnlaceDeWhatsapp>
   )
 }
 

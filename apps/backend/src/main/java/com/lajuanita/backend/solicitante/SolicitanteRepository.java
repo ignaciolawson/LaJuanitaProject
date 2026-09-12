@@ -32,7 +32,7 @@ public interface SolicitanteRepository extends JpaRepository<Solicitante, Long> 
             LEFT JOIN FETCH s.usuario
             LEFT JOIN FETCH s.reserva
             WHERE (:estado IS NULL OR s.estado = :estado)
-              AND (:soloAbiertas = FALSE OR """ + FichaAbierta.JPQL + """
+              AND (:soloAbiertas = FALSE OR\s""" + FichaAbierta.JPQL + """
                   )
             ORDER BY s.fechaCreacion, s.id
             """)

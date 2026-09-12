@@ -96,7 +96,7 @@ export function InscripcionesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, disciplina, estado, pagina])
+  }, [buscar, disciplina, estado, pagina, setError])
 
   // Espera a que la persona deje de tipear antes de pedir, igual que en Alumnos.
   useEffect(() => {

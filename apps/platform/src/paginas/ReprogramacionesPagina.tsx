@@ -78,7 +78,7 @@ export function ReprogramacionesPagina() {
     } finally {
       setCargando(false)
     }
-  }, [estado, pagina])
+  }, [estado, pagina, setError])
 
   useEffect(() => {
     void cargar()

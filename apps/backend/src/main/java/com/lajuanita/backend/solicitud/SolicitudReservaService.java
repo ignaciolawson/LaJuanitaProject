@@ -19,7 +19,6 @@ import com.lajuanita.backend.reserva.dto.AltaPreconfirmacionRequest;
 import com.lajuanita.backend.reserva.dto.AltaReservaRequest;
 import com.lajuanita.backend.reserva.dto.AltaSenaRequest;
 import com.lajuanita.backend.reserva.dto.ReservaCreada;
-import com.lajuanita.backend.reserva.dto.ReservaResumen;
 import com.lajuanita.backend.sala.Sala;
 import com.lajuanita.backend.sala.SalaRepository;
 import com.lajuanita.backend.sala.TipoUso;

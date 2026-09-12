@@ -130,17 +130,48 @@ function dondeSeEntra(): string {
 }
 
 /**
- * El primer contacto, para una ficha que nadie atendió todavía.
+ * Los emojis de la casa, en un solo lugar.
  *
- * **Nombra el servicio que la persona pidió**, que es justamente lo que quien
- * atiende tendría que ir a buscar a la ficha antes de escribir. No cierra nada ni
- * promete nada: es la puerta de la conversación, y sigue a mano.
+ * **El abanico es la marca** —es el ícono del logo y La Juanita lo usa en todo
+ * lo que escribe—, así que abre y cierra cada mensaje. El resto dice de qué
+ * habla cada párrafo, uno por bloque y no más: un mensaje que va a leer alguien
+ * en el teléfono se lee por los párrafos, y el emoji al frente es lo que hace
+ * que el párrafo de la seña no se confunda con el de la clave.
+ *
+ * ⚠️ El abanico (`U+1FAAD`) es de Unicode 15 (2022). Un teléfono muy viejo lo
+ * dibuja como un cuadrado; se acepta, porque es el emoji de la marca y no hay
+ * otro.
  */
-export function saludoDeContacto(nombre: string, queQuiere: string): string {
-  return (
-    `¡Hola ${nombre}! Te escribimos de La Juanita Studio por tu consulta ` +
-    `sobre ${queQuiere.toLowerCase()}.`
-  )
+const ABANICO = '🪭'
+const MUSICA = '🎧'
+const EQUIPOS = '🎛️'
+const PLATA = '💸'
+const PLAZO = '⏰'
+const CLAVE = '🔑'
+const PORTAL = '📲'
+const CORAZON = '❤️'
+
+/** El saludo: nombre y abanico. */
+function saludo(nombre: string): string {
+  return `¡Hola ${nombre}! ${ABANICO}`
+}
+
+/** Y la despedida, siempre igual: la marca en el color de la marca. */
+const DESPEDIDA = `Cualquier duda, contestá por acá. ¡Te esperamos! ${CORAZON}${ABANICO}`
+
+/**
+ * Los párrafos de un mensaje, separados por una línea en blanco.
+ *
+ * Cada párrafo es una lista de líneas; una línea en blanco entre párrafos es lo
+ * que WhatsApp necesita para que se lean como bloques y no como un solo ladrillo
+ * de texto. Un párrafo vacío (`[]`) no deja hueco: así los bloques opcionales se
+ * sacan sin dejar dos líneas en blanco seguidas.
+ */
+function parrafos(...bloques: string[][]): string {
+  return bloques
+    .filter((b) => b.length > 0)
+    .map((b) => b.join('\n'))
+    .join('\n\n')
 }
 
 /**
@@ -151,9 +182,10 @@ export function saludoDeContacto(nombre: string, queQuiere: string): string {
  * volver a ver: si se tipea mal, la persona no entra, escribe de nuevo, y hay
  * que generarle otra desde Personas. Acá la escribe el sistema.
  *
- * Es un bloque y no un mensaje porque va adentro de dos: solo, cuando lo único
- * que pasó fue crear la cuenta, y como segundo bloque del de la cabina (P71).
- * Escrito una vez, no puede decir una cosa en un lado y otra en el otro.
+ * Es un bloque y no un mensaje porque va adentro de tres: solo, cuando lo único
+ * que pasó fue crear la cuenta, y como segundo bloque del de la cabina y del de
+ * la inscripción (P71). Escrito una vez, no puede decir una cosa en un lado y
+ * otra en el otro.
  */
 function bloqueDeLaCuenta(email: string, passwordTemporal: string): string[] {
   return [
@@ -161,6 +193,19 @@ function bloqueDeLaCuenta(email: string, passwordTemporal: string): string[] {
     `Usuario: ${email}`,
     `Contraseña: ${passwordTemporal}`,
     'Te la va a pedir cambiar la primera vez que entres, y vence a los 7 días.',
+  ]
+}
+
+/** El bloque de arriba con su encabezado, cuando la cuenta va después de otra cosa. */
+function bloqueDeLaCuentaNueva(
+  cuenta: { email: string; passwordTemporal: string } | null,
+): string[] {
+  if (!cuenta) {
+    return []
+  }
+  return [
+    `${CLAVE} Además te creamos tu cuenta en La Juanita Studio.`,
+    ...bloqueDeLaCuenta(cuenta.email, cuenta.passwordTemporal),
   ]
 }
 
@@ -176,9 +221,9 @@ function bloqueDeLaCuenta(email: string, passwordTemporal: string): string[] {
  * que el portal no hace, la persona lo descubre sola.
  */
 const QUE_PUEDE_HACER =
-  'Desde tu cuenta vas a poder ver tus reservas y las que hagas después, pedir la ' +
-  'cabina para otro día, ver tus pagos y descargar los comprobantes, y avisarnos ' +
-  'si un día no podés venir.'
+  `${PORTAL} Desde tu cuenta vas a poder ver tus reservas y las que hagas después, ` +
+  'pedir la cabina para otro día, ver tus pagos y descargar los comprobantes, y ' +
+  'avisarnos si un día no podés venir.'
 
 /**
  * El mensaje de una cuenta recién creada, cuando eso fue lo único que pasó.
@@ -192,13 +237,84 @@ export function mensajeConLaClave(
   email: string,
   passwordTemporal: string,
 ): string {
-  return [
-    `¡Hola ${nombre}! Te creamos tu cuenta en La Juanita Studio.`,
-    '',
-    ...bloqueDeLaCuenta(email, passwordTemporal),
-    '',
-    `${QUE_PUEDE_HACER} ¡Te esperamos!`,
-  ].join('\n')
+  return parrafos(
+    [`${saludo(nombre)} Te creamos tu cuenta en La Juanita Studio. ${CLAVE}`],
+    bloqueDeLaCuenta(email, passwordTemporal),
+    [QUE_PUEDE_HACER],
+    [DESPEDIDA],
+  )
+}
+
+/**
+ * El primer mensaje a quien consultó por equipos, **armado con lo que marcó en
+ * la web**.
+ *
+ * ⚠️ **Para equipos éste ES el trabajo**, y no un saludo previo (decidido el
+ * 2026-09-12). La venta de equipos se maneja por WhatsApp de punta a punta —qué
+ * busca, qué tiene, qué hay en Pioneer, a cuánto— y el sistema no tiene nada
+ * que crear hasta que la venta existe: no hay cuenta que darle (no hace falta
+ * para vender, y `venta_equipo` acepta un comprador sin cuenta desde `V1`) ni
+ * reserva que apartar. Lo que sí sabe el sistema es el nombre y **qué marcó**,
+ * y eso es lo que le ahorra a quien atiende ir a leer la ficha antes de escribir.
+ *
+ * Con las categorías, el mensaje las nombra (*"controladores y auriculares"*);
+ * sin ellas —no marcó ninguna, o la ficha es de antes de que la web las
+ * mandara— pregunta qué busca, que es lo que se preguntaría igual.
+ */
+export function mensajeDeEquipos(nombre: string, categorias: string[]): string {
+  const busca =
+    categorias.length > 0
+      ? `Vimos que estás buscando ${enumerar(categorias)}. Contanos un poco más de qué ` +
+        'tenés en mente y te pasamos opciones y precios actualizados.'
+      : 'Contanos qué estás buscando y te pasamos opciones y precios actualizados.'
+
+  return parrafos(
+    [`${saludo(nombre)} Te escribimos de La Juanita Studio por tu consulta de equipos. ${EQUIPOS}`],
+    [busca, 'Los equipos se piden a Pioneer, así que la disponibilidad te la confirmamos por acá.'],
+    [`¡Quedamos atentos! ${CORAZON}${ABANICO}`],
+  )
+}
+
+/** `['Controladores', 'Auriculares']` → `controladores y auriculares`. */
+function enumerar(cosas: string[]): string {
+  const bajas = cosas.map((c) => c.toLowerCase())
+  if (bajas.length === 1) {
+    return bajas[0]
+  }
+  return `${bajas.slice(0, -1).join(', ')} y ${bajas[bajas.length - 1]}`
+}
+
+/**
+ * Las categorías que la persona marcó en el formulario de equipos, leídas del
+ * `detalle` de la ficha.
+ *
+ * ⚠️ **Esto acopla dos builds por un formato de texto**, y está escrito acá a
+ * propósito en vez de en una columna: las categorías viven en `detalle` desde
+ * `V20` —"lo que sólo un formulario pregunta sigue en `detalle`", `V29`— y una
+ * migración para un saludo no se justifica. El formato es el de
+ * `GearInquiryForm` en la landing: `categorías · nivel · presupuesto`, con las
+ * categorías separadas por coma, y **nivel y presupuesto siempre presentes**
+ * porque los dos tienen valor por defecto. Así que con tres segmentos el primero
+ * son las categorías, y con dos no marcó ninguna.
+ *
+ * Si la landing cambia ese formato, esto devuelve vacío y el mensaje pregunta
+ * qué busca en vez de decir una cosa rara: **degrada a la variante genérica,
+ * nunca a un mensaje que miente**. `whatsapp.test.ts` lo pincha con el string
+ * exacto que la landing produce, por lo mismo que `credencial.test.ts` escribe
+ * la clave del storage a mano.
+ */
+export function categoriasDeEquipos(detalle: string | null | undefined): string[] {
+  if (!detalle) {
+    return []
+  }
+  const segmentos = detalle.split(' · ')
+  if (segmentos.length !== 3) {
+    return []
+  }
+  return segmentos[0]
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
 }
 
 /**
@@ -240,21 +356,16 @@ export function mensajeDeCabinaApartada(datos: {
   cuenta: { email: string; passwordTemporal: string } | null
 }): string {
   const { nombre, sala, cuando, importe, vence, cuenta } = datos
-  return [
-    `¡Hola ${nombre}! Te apartamos ${sala} para el ${cuando}.`,
-    '',
-    `Para confirmarla hay que abonar ${importe} antes del ${vence}.`,
-    'Pasado ese plazo el horario se libera. Cualquier duda, contestá por acá.',
-    ...(cuenta
-      ? [
-          '',
-          'Además te creamos tu cuenta en La Juanita Studio.',
-          ...bloqueDeLaCuenta(cuenta.email, cuenta.passwordTemporal),
-        ]
-      : []),
-    '',
-    `${QUE_PUEDE_HACER} ¡Te esperamos!`,
-  ].join('\n')
+  return parrafos(
+    [`${saludo(nombre)} Te apartamos ${sala} para el ${cuando}. ${MUSICA}`],
+    [
+      `${PLATA} Para confirmarla hay que abonar ${importe} antes del ${vence}.`,
+      `${PLAZO} Pasado ese plazo el horario se libera.`,
+    ],
+    bloqueDeLaCuentaNueva(cuenta),
+    [QUE_PUEDE_HACER],
+    [DESPEDIDA],
+  )
 }
 
 /**
@@ -280,24 +391,19 @@ export function mensajeDeInscripcion(datos: {
   cuenta: { email: string; passwordTemporal: string } | null
 }): string {
   const { nombre, programa, profesor, importe, vence, cuenta } = datos
-  return [
-    `¡Hola ${nombre}! Te anotamos en ${programa}${profesor ? ` con ${profesor}` : ''}.`,
-    '',
-    ...(vence
+  return parrafos(
+    [`${saludo(nombre)} Te anotamos en ${programa}${profesor ? ` con ${profesor}` : ''}. ${MUSICA}`],
+    vence
       ? [
-          `Para confirmar tu lugar hay que abonar la seña de ${importe} antes del ${vence}.`,
-          'El resto se paga antes de la primera clase. Cualquier duda, contestá por acá.',
+          `${PLATA} Para confirmar tu lugar hay que abonar la seña de ${importe} antes del ${vence}.`,
+          'El resto se paga antes de la primera clase.',
         ]
-      : ['No hay nada que abonar para arrancar. Cualquier duda, contestá por acá.']),
-    ...(cuenta
-      ? [
-          '',
-          'Además te creamos tu cuenta en La Juanita Studio.',
-          ...bloqueDeLaCuenta(cuenta.email, cuenta.passwordTemporal),
-        ]
-      : []),
-    '',
-    `${QUE_PUEDE_HACER} También vas a poder seguir el avance de tu curso clase por clase ` +
-      'y ver el material que te deje tu profe. ¡Te esperamos!',
-  ].join('\n')
+      : [`${PLATA} No hay nada que abonar para arrancar.`],
+    bloqueDeLaCuentaNueva(cuenta),
+    [
+      `${QUE_PUEDE_HACER} También vas a poder seguir el avance de tu curso clase por clase ` +
+        'y ver el material que te deje tu profe.',
+    ],
+    [DESPEDIDA],
+  )
 }

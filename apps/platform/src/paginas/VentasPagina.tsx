@@ -81,7 +81,7 @@ export function VentasPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, pagina])
+  }, [buscar, pagina, setError])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)

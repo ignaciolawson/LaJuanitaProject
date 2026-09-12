@@ -106,11 +106,21 @@ public record CandidatoDeLaFicha(
                 });
     }
 
-    /** Una venta a esa persona: los equipos por los que consultó. */
+    /**
+     * Una venta: los equipos por los que consultó.
+     *
+     * <p><b>A nombre escrito, el nombre va en la descripción</b>: esas ventas se
+     * ofrecen a toda ficha de equipos de la ventana y no a "esa persona", así
+     * que el nombre es el dato con el que se elige. Con cuenta no hace falta —
+     * la lista ya es la suya.
+     */
     public static CandidatoDeLaFicha de(VentaEquipo venta) {
         String equipo = venta.getMarca() == null
                 ? venta.getModeloEquipo()
                 : venta.getMarca() + " " + venta.getModeloEquipo();
+        if (venta.getComprador() == null) {
+            equipo += " · a " + venta.getNombreCompradorExterno();
+        }
 
         return new CandidatoDeLaFicha(
                 DestinoRequest.Tipo.VENTA,

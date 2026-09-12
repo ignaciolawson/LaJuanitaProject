@@ -53,7 +53,7 @@ export function DeudoresPagina() {
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [setError])
 
   useEffect(() => {
     void cargar()

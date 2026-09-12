@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +22,7 @@ import com.lajuanita.backend.inscripcion.EstadoInscripcion;
 import com.lajuanita.backend.mastering.EstadoTrabajo;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.PagoService;
-import com.lajuanita.backend.pago.dto.CajaDelPeriodo;
+import com.lajuanita.backend.pago.dto.Deudor;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.sello.EstadoRelease;
 import com.lajuanita.backend.tablero.dto.ResumenFinanciero;
@@ -343,26 +344,37 @@ public class TableroService {
         return new Ocupacion(List.copyOf(horas), franjas);
     }
 
-    /** Foto de hoy: la plata que se anotó y no entró. Las dos monedas, siempre. */
+    /**
+     * Foto de hoy: la deuda viva, por moneda. Las dos monedas, siempre.
+     *
+     * <p><b>Es la lista de Deudores sumada, no una consulta propia.</b> Hasta la
+     * §17 el tablero contaba sólo las filas de {@code pago} anotadas, y desde P72
+     * Deudores tiene una segunda fuente —las inscripciones con plata pendiente,
+     * calculadas— que el tablero no veía: la pantalla decía doce deudores y esta
+     * tarjeta decía cero. Dos definiciones de un mismo hecho, el patrón de
+     * {@code V12}; ahora el número de acá es el de {@code /admin/deudores} y el
+     * del contador del menú, porque los tres leen la misma lista.
+     */
     private List<CobrosPendientes> cobrosPendientes() {
-        List<String> adeudados = EstadoPago.ADEUDADOS.stream().map(Enum::name).toList();
-
-        Map<String, Object[]> porMoneda = new HashMap<>();
-        for (Object[] fila : tablero.cobrosPendientes(adeudados)) {
-            porMoneda.put((String) fila[0], fila);
-        }
+        Map<String, List<Deudor>> porMoneda = pagos.deudores().stream()
+                .collect(Collectors.groupingBy(Deudor::moneda));
 
         List<CobrosPendientes> filas = new ArrayList<>();
         for (Moneda moneda : Moneda.values()) {
-            Object[] fila = porMoneda.get(moneda.name());
+            List<Deudor> deudas = porMoneda.getOrDefault(moneda.name(), List.of());
+            List<Deudor> vencidas = deudas.stream().filter(Deudor::vencido).toList();
             filas.add(new CobrosPendientes(
                     moneda.name(),
-                    fila == null ? SIN_PLATA : (BigDecimal) fila[1],
-                    fila == null ? 0 : ((Number) fila[2]).longValue(),
-                    fila == null ? SIN_PLATA : (BigDecimal) fila[3],
-                    fila == null ? 0 : ((Number) fila[4]).longValue()));
+                    sumar(deudas),
+                    deudas.size(),
+                    sumar(vencidas),
+                    vencidas.size()));
         }
         return filas;
+    }
+
+    private static BigDecimal sumar(List<Deudor> deudas) {
+        return deudas.stream().map(Deudor::adeudado).reduce(SIN_PLATA, BigDecimal::add);
     }
 
     /**

@@ -28,7 +28,6 @@ import com.lajuanita.backend.docencia.dto.NotaResumen;
 import com.lajuanita.backend.docencia.dto.ProximaClase;
 import com.lajuanita.backend.docencia.dto.SeguimientoRequest;
 import com.lajuanita.backend.docencia.dto.SeguimientoResumen;
-import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.EstadoInscripcion;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;

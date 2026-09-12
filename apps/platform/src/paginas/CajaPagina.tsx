@@ -47,7 +47,7 @@ export function CajaPagina() {
     } finally {
       setCargando(false)
     }
-  }, [desde, hasta])
+  }, [desde, hasta, setError])
 
   useEffect(() => {
     void cargar()

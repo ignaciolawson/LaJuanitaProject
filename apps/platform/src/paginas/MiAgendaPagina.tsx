@@ -79,7 +79,7 @@ export function MiAgendaPagina() {
     } finally {
       setCargando(false)
     }
-  }, [desde, hasta])
+  }, [desde, hasta, setError])
 
   useEffect(() => {
     void cargar()

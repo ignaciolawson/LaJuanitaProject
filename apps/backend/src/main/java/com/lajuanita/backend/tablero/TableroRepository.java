@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-import com.lajuanita.backend.pago.DeudaCobrable;
 import com.lajuanita.backend.pago.Pago;
 
 /**
@@ -171,34 +170,11 @@ public interface TableroRepository extends Repository<Pago, Long> {
             @Param("ocupan") Iterable<String> ocupan);
 
     // == 4. Cobros pendientes ==================================================
-
-    /**
-     * Lo que se anotó como deuda y todavía no entró, por moneda.
-     *
-     * <p><b>No mira el período tampoco</b>, y por la misma razón que los alumnos
-     * activos: una deuda de febrero sigue siendo una deuda hoy. Si se filtrara por
-     * el período elegido, mirar el tablero de agosto haría desaparecer lo que se
-     * debe desde marzo — que es precisamente la plata que hay que ir a buscar.
-     *
-     * <p>{@code VENCIDO} son las que además pasaron los 7 días (§6). Las dos
-     * juntas son {@code ADEUDADOS}; se devuelven separadas porque son dos llamadas
-     * distintas de la dirección.
-     *
-     * @return filas {@code [moneda, monto, cantidad, monto_vencido, cantidad_vencida]}
-     */
-    @Query(value = """
-            SELECT p.moneda,
-                   sum(p.monto)                                                      AS monto,
-                   count(*)                                                          AS cantidad,
-                   coalesce(sum(p.monto) FILTER (WHERE p.estado_pago = 'VENCIDO'), 0) AS vencido,
-                   count(*) FILTER (WHERE p.estado_pago = 'VENCIDO')                 AS cantidad_vencida
-            FROM pago p
-            WHERE p.estado_pago IN (:adeudados)
-              AND """ + DeudaCobrable.SQL + """
-            GROUP BY p.moneda
-            ORDER BY p.moneda
-            """, nativeQuery = true)
-    List<Object[]> cobrosPendientes(@Param("adeudados") Iterable<String> adeudados);
+    //
+    // No hay consulta: el tablero suma la lista de `PagoService.deudores()`, la
+    // misma que dibuja /admin/deudores. Tuvo una propia hasta la §17 y contaba
+    // sólo las filas de `pago` anotadas — desde P72 la seña pendiente no es una
+    // fila, y el tablero decía cero con doce deudores en la pantalla.
 
     // == 5. Tasa de retención ==================================================
 

@@ -82,7 +82,7 @@ export function AlumnoPerfilPagina() {
     } finally {
       setCargando(false)
     }
-  }, [idAlumno, pagina])
+  }, [idAlumno, pagina, setError])
 
   useEffect(() => {
     void cargar()
@@ -298,7 +298,7 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
         ),
       )
       .finally(() => setCargando(false))
-  }, [idAlumno])
+  }, [idAlumno, setError])
 
   return (
     <section className="mt-8">
@@ -395,7 +395,7 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
         setError(e instanceof ApiError ? e.message : 'No se pudo cargar el historial.'),
       )
       .finally(() => setCargando(false))
-  }, [idUsuario])
+  }, [idUsuario, setError])
 
   // La suma del contador de cada clase (P69): el que movió cuatro veces se
   // veía igual que el que movió una, y la ficha es donde se mira el patrón. Es

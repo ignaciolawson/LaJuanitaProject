@@ -305,10 +305,43 @@ class SolicitanteTest {
      */
     @Test
     void una_ficha_sin_cuenta_no_tiene_candidatos() throws Exception {
-        mvc.perform(get("/api/solicitantes/" + mandarUnaFicha("EQUIPOS") + "/candidatos")
+        mvc.perform(get("/api/solicitantes/" + mandarUnaFicha("CURSO") + "/candidatos")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * <b>La excepción: una ficha de equipos ofrece las ventas a nombre escrito</b>
+     * (2026-09-12). La venta se maneja por WhatsApp sin crearle cuenta a nadie,
+     * así que la venta que la ficha produjo casi siempre es una sin cuenta — y
+     * sin esto, cerrarla exigía una cuenta que no hacía falta para nada más. El
+     * nombre del comprador viaja en la descripción, porque es con lo que se elige.
+     */
+    @Test
+    void una_ficha_de_equipos_sin_cuenta_ofrece_las_ventas_a_nombre_escrito() throws Exception {
+        long ficha = mandarUnaFicha("EQUIPOS");
+        long venta = unaVenta();
+
+        mvc.perform(get("/api/solicitantes/" + ficha + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)].tipo".formatted(venta)).value("VENTA"))
+                .andExpect(jsonPath("$[?(@.id == %d)].descripcion".formatted(venta))
+                        .value(Matchers.contains("DDJ-400 · a Comprador de prueba")));
+    }
+
+    /** El par: a una ficha que no es de equipos, esas ventas no le aparecen. */
+    @Test
+    void las_ventas_a_nombre_escrito_no_se_ofrecen_a_una_ficha_de_otra_cosa() throws Exception {
+        long ficha = mandarUnaFicha("ALQUILER_CABINA");
+        darleCuenta(ficha);
+        long venta = unaVenta();
+
+        mvc.perform(get("/api/solicitantes/" + ficha + "/candidatos")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == %d)]".formatted(venta)).isEmpty());
     }
 
     /**

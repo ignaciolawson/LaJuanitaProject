@@ -73,7 +73,7 @@ export function SubirMaterialPagina() {
     } finally {
       setCargando(false)
     }
-  }, [])
+  }, [setError])
 
   useEffect(() => {
     void cargar()
