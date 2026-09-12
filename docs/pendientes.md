@@ -3,13 +3,14 @@
 ## ⚡ ESTADO AL 2026-09-11 — leé esto y después, si hace falta, el resto
 
 🟢 **HAY UNA BARRIDA ABIERTA Y CON PLAN: `mejoras.md` §16, la cuarta** (2026-09-10).
-**Doce hallazgos, diez ejecutados —las Fases 0 a 4 cerraron el 2026-09-11—,
-las quince decisiones de negocio cerradas el mismo día** (`platform.md` §22 ·
-P59–P71) **y el plan por fases escrito** — seis fases, tres migraciones (`V28`
-catálogo de programas ✅ aplicada · `V29` ficha ✅ aplicada · `V30`
-preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 5 (C3,
-`V30`) — y antes de escribirla, confirmar con Ignacio la segunda ⏳ de P59
-(saldo visible vs. candado), que decide si `V30` lleva un trigger más.
+**Doce hallazgos, once ejecutados —las Fases 0 a 4 cerraron el 2026-09-11 y
+la 5 el 2026-09-12—, las quince decisiones de negocio cerradas el 2026-09-11 y
+P72 el 2026-09-12** (`platform.md` §22) **y el plan por fases escrito** — seis
+fases, tres migraciones, **las tres aplicadas** (`V28` catálogo · `V29` ficha ·
+`V30` preinscripción). Es lo primero a leer al volver; lo próximo es la Fase 6
+(la última: seña en el alta, Deudores con dos fuentes, alta desde el buzón,
+quinta regla del scheduler — sin migración). ⚠️ **Leer P72 antes que el plan de
+la Fase 6**: lo reescribió.
 
 ⚠️ **Y esta barrida sí trae producto nuevo**, a diferencia de las tres anteriores:
 **seña para los programas** (una política de cobro, no una corrección) y **el alta
@@ -20,8 +21,8 @@ Lo que sí sigue en pie: los ocho módulos, el rediseño, las **tres barridas** 
 §13, §14) y **la mejora del circuito del buzón (§15, cerrada el 2026-09-06 con sus
 cinco fases)** están cerrados y commiteados.
 
-**Suites: 662 backend · 590 front · 269 + 66 SQL, sobre 29 migraciones.** `tsc -b`,
-los dos builds y los dos linters limpios. **Árbol limpio.**
+**Suites: 670 backend · 593 front · 284 + 66 SQL, sobre 30 migraciones.** `tsc -b`,
+los dos builds y los dos linters limpios.
 
 | | Qué | Dónde vive el detalle |
 |---|---|---|
@@ -29,7 +30,7 @@ los dos builds y los dos linters limpios. **Árbol limpio.**
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26` ni `V27`** — ver abajo | §1 de acá |
-| 🟢 4 | **La barrida siguiente a la §16**: los **grupos de a 3**, que Ignacio difirió explícitamente | [`mejoras.md`](mejoras.md) §16 · B2 2.1 |
+| 🟢 4 | **La barrida siguiente a la §16**: los **grupos de a 3**, que Ignacio difirió explícitamente, y **el precio de las reservas** (la mitad de P13 que falta: sin él, *"seña abonada, falta el resto"* no se puede decir de una cabina — P72) | [`mejoras.md`](mejoras.md) §16 · B2 2.1 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
 

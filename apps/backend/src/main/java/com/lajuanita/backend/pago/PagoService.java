@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
+import com.lajuanita.backend.inscripcion.EstadoInscripcion;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.pago.dto.AltaPagoRequest;
@@ -289,7 +290,23 @@ public class PagoService {
             pago.setFechaPago(solicitud.fechaPago());
         }
 
-        return PagoResumen.de(pagos.saveAndFlush(pago));
+        Pago guardado = pagos.saveAndFlush(pago);
+
+        // La seña de una preinscripción la activa en el mismo movimiento (`V30`,
+        // P72). Es el único camino a ACTIVA que la escalera acepta —exige un
+        // pago SENADO/PAGADO detrás—, y partirlo en dos deja preinscripciones
+        // pagas que nadie activó, con el plazo corriendo sobre plata que ya
+        // entró: el mismo argumento por el que el cobro de una prereserva
+        // confirma la reserva. El orden importa: el pago ya viajó (saveAndFlush)
+        // antes del UPDATE, así que el trigger lo encuentra.
+        Inscripcion inscripcion = guardado.getInscripcion();
+        if (inscripcion != null && inscripcion.estaPreinscripta()
+                && EstadoPago.ENTRARON.contains(guardado.getEstadoPago())) {
+            inscripcion.pasarA(EstadoInscripcion.ACTIVA);
+            pagos.flush();
+        }
+
+        return PagoResumen.de(guardado);
     }
 
     /**

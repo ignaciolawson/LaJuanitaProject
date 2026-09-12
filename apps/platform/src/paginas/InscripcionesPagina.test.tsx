@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -73,6 +73,7 @@ function inscripcion(cambios: Partial<InscripcionResumen> = {}): InscripcionResu
     moneda: 'ARS',
     cotizacionDolar: null,
     fechaInicio: '2026-09-01',
+    vencePreinscripcion: null,
     estado: 'ACTIVA',
     notas: null,
     ...cambios,
@@ -405,6 +406,59 @@ describe('estados vacíos y de error', () => {
     expect(
       await screen.findByText('Ese alumno ya tiene una inscripción activa en esa disciplina.'),
     ).toBeDefined()
+  })
+})
+
+describe('la preinscripción (V30)', () => {
+  /**
+   * La escalera de `V30` §4 leída desde el `<select>`: una preinscripta sólo
+   * ofrece cancelar —a ACTIVA se llega registrando la seña, nunca a mano— y
+   * ninguna otra ofrece volver a preinscripta. Verificado poniendo el bug de
+   * vuelta: con `ESTADOS` pelado en el select, los dos `not.toContain` caen.
+   */
+  it('una preinscripta dice hasta cuándo señar y sólo se puede cancelar desde el select', async () => {
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      paginaDe([
+        inscripcion({
+          estado: 'PREINSCRIPTA',
+          vencePreinscripcion: '2099-01-15T18:00:00-03:00',
+        }),
+      ]),
+    )
+    montar('STAFF')
+
+    expect(await screen.findByText(/Señar antes del 15\/01 18:00/)).toBeDefined()
+
+    const select = await screen.findByLabelText(/Cambiar estado de la inscripción/)
+    const opciones = within(select)
+      .getAllByRole('option')
+      .map((o) => (o as HTMLOptionElement).value)
+    expect(opciones).toEqual(['PREINSCRIPTA', 'CANCELADA'])
+  })
+
+  it('con el plazo pasado lo dice, en vez de mostrar una fecha vieja', async () => {
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      paginaDe([
+        inscripcion({
+          estado: 'PREINSCRIPTA',
+          vencePreinscripcion: '2020-01-15T18:00:00-03:00',
+        }),
+      ]),
+    )
+    montar('STAFF')
+
+    expect(await screen.findByText('Venció el plazo para señar')).toBeDefined()
+  })
+
+  it('una activa no ofrece volver a preinscripta', async () => {
+    montar('STAFF')
+
+    const select = await screen.findByLabelText(/Cambiar estado de la inscripción/)
+    const opciones = within(select)
+      .getAllByRole('option')
+      .map((o) => (o as HTMLOptionElement).value)
+    expect(opciones).not.toContain('PREINSCRIPTA')
+    expect(opciones).toContain('ACTIVA')
   })
 })
 

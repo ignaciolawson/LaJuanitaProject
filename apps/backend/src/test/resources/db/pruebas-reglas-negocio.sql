@@ -2197,6 +2197,117 @@ SELECT probar('249','una modalidad que no existe','FALLA',
 
 
 -- =============================================================================
+-- LA PREINSCRIPCION  (`V30`, §16 · C3, P59 · P60 · P61 · P72)
+--
+-- Un estado mas de `inscripcion`: anotada sin senia, con 24 hs para pagarla, y
+-- todavia no cursa. Lo que la base sostiene sola: que tenga plazo (y solo ella),
+-- que no se acumulen dos abiertas en la misma disciplina, y la escalera -- se
+-- entra al nacer, se sale a ACTIVA (con plata cobrada detras) o a CANCELADA. Y
+-- lo que NO sostiene a proposito: la vuelta de `V11`, porque no hay cupo y por
+-- lo tanto no hay victima (P60).
+--
+-- Fixture propio: un alumno nuevo, para no depender de que disciplinas les
+-- quedan libres a Juan y Ana despues de 250 casos.
+-- =============================================================================
+
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol,telefono)
+ VALUES ('Pre','Inscripto','pre@test.local','x','USUARIO','11-5555-0030');
+INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='pre@test.local';
+
+CREATE VIEW v_pre AS SELECT
+ (SELECT id_usuario FROM usuario WHERE email='pre@test.local') AS u_pre,
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u ON u.id_usuario=a.id_usuario
+   WHERE u.email='pre@test.local') AS al_pre;
+
+-- Nace preinscripta con su plazo.
+SELECT probar('250','nace preinscripta, con vencimiento','ANDA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
+    SELECT al_pre,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+
+-- El CHECK en los dos sentidos (la forma de V24 §3).
+SELECT probar('251','preinscripta sin plazo','FALLA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado)
+    SELECT al_pre,'PRODUCCION',16,440000,'PREINSCRIPTA' FROM v_pre$q$);
+
+SELECT probar('252','activa con un plazo que no le corresponde','FALLA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
+    SELECT al_pre,'PRODUCCION',16,440000,'ACTIVA',now()+interval '24 hours' FROM v_pre$q$);
+
+-- El indice unico ampliado: ni una segunda preinscripta ni una activa encima.
+SELECT probar('253','una segunda preinscripcion a la misma disciplina','FALLA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
+    SELECT al_pre,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+
+SELECT probar('254','una activa encima de la preinscripta','FALLA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
+    SELECT al_pre,'DJ',8,170000 FROM v_pre$q$);
+
+-- (c) A ACTIVA sin un peso cobrado, no. Es lo que la pantalla de inscripciones
+-- permitia con un clic en el <select> de estados.
+SELECT probar_mensaje('255','activarla sin senia cobrada',
+ 'tiene que estar cobrada la senia',
+ $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
+    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+
+-- Una deuda anotada no es plata cobrada (la leccion de V12), asi que tampoco.
+SELECT probar('256','anotarle una deuda de senia','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,estado_pago,concepto)
+    SELECT u_pre,i.id_inscripcion,85000,'EFECTIVO','DEBE','senia anotada'
+      FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ'$q$);
+
+SELECT probar_mensaje('257','activarla con la senia solo anotada',
+ 'tiene que estar cobrada la senia',
+ $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
+    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+
+-- (b) Tampoco a PAUSADA ni a COMPLETADA: de la preinscripcion se sale seniando
+-- o cancelando.
+SELECT probar_mensaje('258','pausar una preinscripta',
+ 'solo puede activarse',
+ $q$UPDATE inscripcion SET estado='PAUSADA', vence_preinscripcion=NULL
+    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+
+-- Llega la senia cobrada, y ahora si.
+SELECT probar('259','cobrar la senia','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,estado_pago,concepto)
+    SELECT u_pre,i.id_inscripcion,85000,'EFECTIVO','SENADO','senia'
+      FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ'$q$);
+
+SELECT probar('260','activarla con la senia cobrada','ANDA',
+ $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
+    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+
+-- (a) Y no se vuelve: a la preinscripcion se entra solo al nacer.
+SELECT probar_mensaje('261','volverla a preinscripta',
+ 'se entra solo al crearla',
+ $q$UPDATE inscripcion SET estado='PREINSCRIPTA', vence_preinscripcion=now()+interval '24 hours'
+    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+
+-- ⚠️ Lo que NO se cierra, a proposito (P60): anular la senia despues de activar
+-- ANDA. No hay cupo, asi que no hay victima; el estado de cuenta dice que debe
+-- el 100%, que es la verdad. Si algun dia hay cupo, este caso pasa a FALLA con
+-- una migracion que lo decida.
+SELECT probar('262','anular la senia despues de activar (no hay vuelta de V11, a proposito)','ANDA',
+ $q$UPDATE pago SET estado_pago='ANULADO', id_usuario_anula=(SELECT u_mica FROM v),
+       fecha_anulacion=now(), motivo_anulacion='se arrepintio'
+    WHERE id_inscripcion=(SELECT i.id_inscripcion FROM v_pre, inscripcion i
+                          WHERE i.id_alumno=al_pre AND i.disciplina='DJ')
+      AND estado_pago='SENADO'$q$);
+
+-- La otra salida: cancelar una preinscripta, sin plata, anda. Dos casos y no
+-- un CTE: un UPDATE no ve la fila que el CTE de la misma sentencia inserto, y
+-- el guardian de "un ANDA afecta filas" lo dijo.
+SELECT probar('263','otra preinscripta, a mentoria','ANDA',
+ $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
+    SELECT al_pre,'MENTORIA',4,100000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+
+SELECT probar('264','una preinscripta se cancela sin cobrar nada','ANDA',
+ $q$UPDATE inscripcion SET estado='CANCELADA', vence_preinscripcion=NULL
+     WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='MENTORIA'
+       AND estado='PREINSCRIPTA'$q$);
+
+
+-- =============================================================================
 -- RESUMEN
 -- =============================================================================
 \echo ''

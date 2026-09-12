@@ -1,10 +1,10 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-11, migraciones V1..V29.
+// ✅ AL DÍA AL 2026-09-12, migraciones V1..V30.
 //
 // **Verificado contra el catálogo de una base con las 27 migraciones
-// aplicadas** (V28 y V29 se agregaron a mano el día que se escribieron, con
+// aplicadas** (V28, V29 y V30 se agregaron a mano el día que se escribieron, con
 // las columnas copiadas de la migración), no contra las migraciones leídas de
 // memoria: son 29 tablas y
 // coinciden columna por columna. Es la regla que este proyecto aprendió a los
@@ -51,6 +51,9 @@
 //     V29  `solicitante` gana disciplina, experiencia y modalidad: lo que el
 //          formulario de programas pregunta, como campos y no en `detalle`.
 //          Nullable, con CHECK, sin atar a `interes`
+//     V30  `inscripcion` gana el estado PREINSCRIPTA y `vence_preinscripcion`
+//          (CHECK de ida y vuelta), el índice único se amplía a ACTIVA +
+//          PREINSCRIPTA, y una escalera con tres reglas
 //
 // Historia de las tablas: eran 23 al 2026-08-19 y son 29 desde V28. Las seis
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),
@@ -318,9 +321,16 @@ Table inscripcion {
   moneda              varchar(3)    [not null, default: 'ARS', note: 'ARS / USD']
   cotizacion_dolar    decimal(14,4) [note: 'Obligatoria si moneda = USD']
   fecha_inicio        date
-  estado              varchar(20)   [not null, default: 'ACTIVA', note: 'ACTIVA / COMPLETADA / CANCELADA / PAUSADA']
+  estado              varchar(20)   [not null, default: 'ACTIVA', note: 'PREINSCRIPTA (V30) / ACTIVA / COMPLETADA / CANCELADA / PAUSADA. VIGENTES = ACTIVA + PAUSADA; el índice único mira ACTIVA + PREINSCRIPTA']
   notas               text
   fecha_creacion      timestamptz   [not null]
+
+  // V30 -- LA PREINSCRIPCIÓN (P59 · P60 · P72). Sólo PREINSCRIPTA lo tiene, y
+  // ella siempre (CHECK de ida y vuelta, la forma de V24). 24 hs para señar; al
+  // vencer NO se cancela sola, avisa (P61). La escalera (trigger): se entra al
+  // nacer, se sale a ACTIVA sólo con un pago SENADO/PAGADO detrás, o a
+  // CANCELADA. Sin la vuelta de V11 a propósito: no hay cupo, no hay víctima.
+  vence_preinscripcion timestamptz
   id_usuario_baja_nivel bigint      [ref: > usuario.id_usuario, note: 'V9: quién decidió bajar el nivel']
   fecha_baja_nivel    timestamptz   [note: 'V9: tiene que ser NUEVA en cada baja, no la de la anterior']
   motivo_baja_nivel   text          [note: 'V9: obligatorio al bajar de nivel']

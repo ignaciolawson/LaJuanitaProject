@@ -2157,10 +2157,10 @@ programas (P33 sigue valiendo para lo que decía de Mix & Mastering).
 
 **Lo que NO decide, y se adopta así hasta que Ignacio diga otra cosa:**
 
-- ⏳ **El plazo de la seña.** *"Misma lógica que las reservas"* se lee como **las
+- ⏳ → ✅ **P72**: 24 horas, confirmadas. **El plazo de la seña.** *"Misma lógica que las reservas"* se lee como **las
   mismas 24 horas de `V24`**. Si un curso que arranca en tres semanas merece más,
   es un número que se cambia en un lugar.
-- ⏳ **"Antes de empezar pagás el resto" es VISIBLE, no un candado.** El saldo
+- ⏳ → ✅ **P72**: visible, sin fecha, y en Deudores como *"seña abonada, falta el resto"*. **"Antes de empezar pagás el resto" es VISIBLE, no un candado.** El saldo
   queda como deuda con vencimiento en la fecha de inicio, aparece en Deudores y
   la alerta de deuda de `V17` la cubre. **No se agrega un trigger que impida
   cargar la primera clase con saldo pendiente**, por dos motivos: sería la forma
@@ -2207,9 +2207,9 @@ se comunicará con el cliente, sino sí, se cancela."*
 acá no hay nada que devolver (P60), así que **el sistema no cancela**. Al vencer,
 la deuda de la seña pasa a `VENCIDO` y **el scheduler avisa a administración**
 —una alerta por hecho, clave por inscripción, como las otras cuatro reglas de
-`V17`—; Mica llama, y cancela o cobra. ⏳ Se adopta esta lectura porque la frase
-la sostiene; si Ignacio quería cancelación automática, es un `UPDATE` más en el
-mismo scheduler y se agrega.
+`V17`—; Mica llama, y cancela o cobra. ⏳ → ✅ **P72 lo confirmó**: avisa y Mica
+decide; no se cancela sola. (Y con P72 la seña no es una fila de deuda: lo que
+"pasa a vencido" es la preinscripción, por `vence_preinscripcion`.)
 
 ⚠️ **Consecuencia que ya estaba anotada y se agrava**: los avisos le llegan a
 **todos** los ADMIN y STAFF (P57). Con preinscripciones vencidas sumadas a las
@@ -2417,6 +2417,96 @@ que sepa qué puede hacer desde ella.
 
 ---
 
+### ✅ P72 — Cómo se ve lo que falta pagar de un programa: la seña con plazo, el saldo sin plazo, y las dos en Deudores · **cierra las dos ⏳ de P59 y la de P61** (2026-09-12)
+
+Se preguntó antes de escribir `V30`, porque una migración no se corrige después.
+Ignacio contestó en dos pasos y el segundo corrige al primero; **vale el
+segundo**, que es el que describe el circuito entero:
+
+**Textual (primer paso):** *"Pensándolo bien, no pongamos fecha de abono
+restante, porque por ejemplo, quizás Micaela está agendando alumnos para
+arrancar el mes que viene… con lo que es programas que no haya una deadline,
+que se cargue cuando quiera."*
+
+**Textual (segundo paso, el que vale):** *"Cuando vos te anotás en el programa
+primero figurás preinscripto, como sin abonar seña pero tenés el lugar
+'guardado' por llegar primero, pero tenés 24 hs para abonar la seña, sino perdés
+tu 'prioridad', ahí estás en Deudores por no abonar la seña; después abonás la
+seña (50%) antes de las 24 hs, ahí confirmás tu cupo pero seguís en Deudores
+pero con otro estado, como 'seña abonada, falta restante' o algo así, porque
+todavía no abonaste el 100% del programa. Mismo caso para reservas."*
+
+Y a las otras dos preguntas: el saldo es **sólo visible, no candado**, y la
+preinscripción vencida **avisa y Mica decide**, no se cancela sola.
+
+**Lo que decide:**
+
+1. **La seña tiene 24 horas** — la primera ⏳ de P59 queda como estaba. La
+   frase *"sin deadline"* del primer paso es **del saldo**, no de la seña: lo
+   que Ignacio no quiere es que alguien anotado para el mes que viene aparezca
+   como moroso por el 50% restante. `inscripcion.vence_preinscripcion` va en
+   `V30` con la forma de `V24`.
+2. **El saldo restante no tiene fecha.** Se paga *"cuando quiera"*, antes de
+   empezar, y **nunca se vuelve una deuda vencida** ni dispara una alerta. Es
+   visible (segunda ⏳ de P59 confirmada: no hay candado).
+3. **Las dos situaciones se ven en Deudores, con estados distintos**: *"sin
+   señar"* (preinscripta; dice cuánto falta para el plazo, o que ya venció) y
+   *"seña abonada, falta el resto"* (activa con `cobrado < precio_total`; sin
+   reloj). ⚠️ **Es la corrección a P60**, que había dicho que la preinscripta
+   *"sí está en Deudores"* pensando en una deuda anotada: está, pero **como
+   inscripción, no como pago**.
+4. **La preinscripción vencida NO se cancela sola** (P61 confirmada). *"Perdés
+   tu prioridad"* no tiene sobre qué actuar mientras no haya cupo (P60): hoy
+   quiere decir *"venció, Mica llama y cobra o cancela"*. El día que aparezca el
+   cupo, la prioridad pasa a ser real y se decide con él.
+
+**La forma que se adopta, y por qué no es la del plan de §16 · Fase 6:**
+
+⚠️ **Lo que falta pagar de un programa se CALCULA desde la inscripción
+(`precio_total − cobrado`), no se anota como una fila `DEBE` en `pago`.** El
+plan decía *"deuda de la seña que vence en 24 hs"* y *"deuda del saldo con
+vencimiento en la fecha de inicio"*, y las dos chocan con lo decidido acá:
+Deudores define *"vencida"* como **7 días desde la fila más vieja**
+(`PagoService.DIAS_PARA_VENCER`) y el scheduler marca `VENCIDO` con esa misma
+regla (`PagoRepository.marcarVencidos`). Una fila `DEBE` por el saldo se
+volvería *"Deuda vencida: Juan"* a la semana, para alguien que arranca en tres
+— **exactamente el ruido que el punto 2 prohíbe**. Y la del saldo no puede
+llevar fecha porque no la tiene.
+
+Lo que sí existe ya, y se reusa: **el estado de cuenta calcula por inscripción
+precio total · cobrado · saldo** sin ninguna fila de deuda. Deudores pasa a
+tener **dos fuentes**: las filas `DEBE`/`VENCIDO` de siempre (con su reloj de
+7 días, intactas) y **las inscripciones con plata pendiente** — preinscriptas
+(*"sin señar"*, vencida cuando `vence_preinscripcion` pasó) y activas con
+saldo (*"seña abonada, falta el resto"*, nunca vencida). Consecuencias:
+
+- **Ninguna fila de `pago` nace con la preinscripción.** La seña se registra
+  cuando llega, como `SENADO`, y eso es lo que sube la inscripción a `ACTIVA`
+  (la escalera de `V30` exige un pago `SENADO`/`PAGADO` detrás). Sin fila `DEBE`
+  no hay nada que `marcarVencidos` pueda tocar por error, y `V10`–`V12` no
+  cambian: a una inscripción nunca le hizo falta un pago para respaldar sus
+  clases.
+- **`PATCH /api/pagos/{id}/cobro` no se extiende** como decía el plan — no hay
+  deuda que cobrar. Lo que cambia es el registro del pago: un `SENADO` sobre
+  una `PREINSCRIPTA` la activa en el mismo movimiento.
+- **La quinta regla del scheduler sigue** (P61): preinscripción vencida →
+  alerta a administración, clave `PREINSCRIPCION_VENCIDA:i=<id>`, sin cancelar.
+- **Una inscripción activa con pago parcial anterior a esta tanda** aparece en
+  Deudores como *"falta el resto"*. No es un efecto colateral: es la regla
+  (*"todavía no abonaste el 100%"*) aplicada a lo que ya había.
+
+⚠️ **"Mismo caso para reservas" NO se puede hacer hoy, y queda anotado para
+la barrida siguiente.** Para decir *"seña abonada, falta el resto"* de una
+cabina hay que saber cuánto es el total, y **`reserva` no tiene precio** — es
+la mitad de P13 que `V28` no cerró (cerró la de los programas). Lo que hace
+falta es una lista de precios de alquiler (por hora, por tipo de uso) y una
+columna `reserva.precio_total` copiada al reservar, con el mismo criterio de
+`V28` §2. Con eso, el circuito de la cabina queda idéntico al de los programas
+sin ninguna decisión nueva. Hasta entonces, la cabina sigue como `V24` la dejó:
+prereserva 24 hs con su deuda anotada, y confirmada al cobrar la seña.
+
+---
+
 ### Lo que esta tanda deja anotado para la barrida siguiente
 
 - **P7 (autogenerar las clases semanales) NO se tocó**, aunque §16 la señala
@@ -2424,4 +2514,7 @@ que sepa qué puede hacer desde ella.
 - **El cupo** (P60) puede aparecer. Si aparece, es el sentido fuerte de "guardar
   el lugar" y se decide como módulo.
 - **El candado del saldo** (P59, segunda ⏳) puede volverse duro. Es una migración
-  con su propia decisión, no un ajuste de ésta.
+  con su propia decisión, no un ajuste de ésta. P72 lo confirmó visible.
+- **El precio de las reservas** — la mitad de P13 que falta. Sin él, *"seña
+  abonada, falta el resto"* no se puede decir de una cabina (P72). Lista de
+  precios de alquiler + `reserva.precio_total` copiado al reservar.

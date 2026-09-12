@@ -3,9 +3,11 @@ package com.lajuanita.backend.bandeja.dto;
 /**
  * Lo que está esperando que alguien de administración lo mire.
  *
- * <p>Son las tres bandejas del sistema, y las tres tienen la misma forma: del
- * otro lado hay una persona esperando una respuesta. El sidebar las dibuja como
- * un número al lado de su ítem del menú.
+ * <p>Son las tres bandejas del sistema —del otro lado hay una persona
+ * esperando una respuesta— más los deudores, que es lo contrario: gente a la
+ * que administración le tiene que ir a cobrar (pedido de Ignacio, 2026-09-12:
+ * <i>"ponele también como notificación un (1) o (2) para que Mica vea"</i>). El
+ * sidebar los dibuja como un número al lado de su ítem del menú.
  *
  * <p><b>Son números y no listas.</b> El menú solo necesita saber cuántos hay; la
  * lista ya la dibuja cada pantalla, y traerla de nuevo para contarla sería traer
@@ -23,5 +25,12 @@ public record Pendientes(
         /** Pedidos de cambio de horario sin resolver. */
         long pedidosDeCambio,
         /** Fichas del buzón de la web que nadie atendió todavía. */
-        long buzon) {
+        long buzon,
+        /**
+         * Cuántas personas figuran en Deudores. <b>Es la misma lista que la
+         * pantalla</b> ({@code PagoService.deudores()}), contada — no una segunda
+         * consulta de "quién debe" — así que el día que Deudores sume las
+         * preinscripciones sin señar (P72), este número las trae solo.
+         */
+        long deudores) {
 }

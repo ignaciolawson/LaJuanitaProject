@@ -301,22 +301,26 @@ describe('los contadores del menú (§13 · B1)', () => {
    * lo dibuja `Layout`: si el número viviera acá, `menuPara` dejaría de ser una
    * función pura y pasaría a depender de que dos pedidos hayan vuelto.
    */
-  it('los cuatro ítems con bandeja declaran su clave, y ningún otro', () => {
+  it('los cinco ítems con contador declaran su clave, y ningún otro', () => {
     const conContador = menuPara(usuario({ rol: 'ADMIN' }))
       .flatMap((grupo) => grupo.items)
       .filter((item) => item.contador !== undefined)
 
+    // Cuatro bandejas —alguien espera una respuesta— y Deudores, que es lo
+    // contrario: plata que hay que ir a buscar (Ignacio, 2026-09-12).
     expect(conContador.map((item) => item.etiqueta)).toEqual([
       'Notificaciones',
       'Buzón de la web',
       'Pedidos de sala',
       'Pedidos de cambio',
+      'Deudores',
     ])
     expect(conContador.map((item) => item.contador)).toEqual([
       'notificaciones',
       'buzon',
       'pedidosDeSala',
       'pedidosDeCambio',
+      'deudores',
     ])
   })
 

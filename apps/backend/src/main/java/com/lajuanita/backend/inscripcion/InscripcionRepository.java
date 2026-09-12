@@ -23,9 +23,9 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * un mensaje entendible en vez de una violación de constraint, igual que en
      * el alta de alumno.
      */
-    boolean existsByAlumnoIdAndDisciplinaAndEstado(Long idAlumno,
+    boolean existsByAlumnoIdAndDisciplinaAndEstadoIn(Long idAlumno,
             Disciplina disciplina,
-            EstadoInscripcion estado);
+            java.util.Collection<EstadoInscripcion> estados);
 
     /**
      * Listado con buscador y cuatro filtros, todos opcionales: en null, no

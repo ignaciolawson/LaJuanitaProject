@@ -87,7 +87,8 @@ class BandejaTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.pedidosDeSala").isNumber())
                 .andExpect(jsonPath("$.pedidosDeCambio").isNumber())
-                .andExpect(jsonPath("$.buzon").isNumber());
+                .andExpect(jsonPath("$.buzon").isNumber())
+                .andExpect(jsonPath("$.deudores").isNumber());
     }
 
     // == Qué cuentan =========================================================

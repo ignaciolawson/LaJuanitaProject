@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.bandeja.dto.Pendientes;
+import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.solicitante.SolicitanteRepository;
 import com.lajuanita.backend.solicitud.EstadoReprogramacion;
 import com.lajuanita.backend.solicitud.EstadoSolicitud;
@@ -25,13 +26,16 @@ public class BandejaService {
     private final SolicitudReservaRepository pedidosDeSala;
     private final SolicitudReprogramacionRepository pedidosDeCambio;
     private final SolicitanteRepository buzon;
+    private final PagoService pagos;
 
     public BandejaService(SolicitudReservaRepository pedidosDeSala,
             SolicitudReprogramacionRepository pedidosDeCambio,
-            SolicitanteRepository buzon) {
+            SolicitanteRepository buzon,
+            PagoService pagos) {
         this.pedidosDeSala = pedidosDeSala;
         this.pedidosDeCambio = pedidosDeCambio;
         this.buzon = buzon;
+        this.pagos = pagos;
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +48,11 @@ public class BandejaService {
                 // mismo punto —al crear la cuenta— así que las dos cosas que
                 // existen para que no se pierda nadie se apagaban juntas. Las dos
                 // leen `FichaAbierta` ahora.
-                buzon.contarAbiertas());
+                buzon.contarAbiertas(),
+                // La lista de la pantalla, contada. Es más caro que un COUNT y
+                // vale la pena: es la única forma de que el número y la lista no
+                // puedan discrepar — la regla de "cuando el conjunto ya tiene
+                // nombre, usá el nombre", aplicada a una definición entera.
+                pagos.deudores().size());
     }
 }

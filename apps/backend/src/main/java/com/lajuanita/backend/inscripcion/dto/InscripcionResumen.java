@@ -2,6 +2,7 @@ package com.lajuanita.backend.inscripcion.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.EstadoInscripcion;
@@ -40,6 +41,8 @@ public record InscripcionResumen(
         BigDecimal cotizacionDolar,
         LocalDate fechaInicio,
         EstadoInscripcion estado,
+        /** Sólo con valor en PREINSCRIPTA (`V30`): hasta cuándo puede señarse. */
+        OffsetDateTime vencePreinscripcion,
         String notas) {
 
     public static InscripcionResumen de(Inscripcion inscripcion, int consumidas) {
@@ -73,6 +76,7 @@ public record InscripcionResumen(
                 inscripcion.getCotizacionDolar(),
                 inscripcion.getFechaInicio(),
                 inscripcion.getEstado(),
+                inscripcion.getVencePreinscripcion(),
                 inscripcion.getNotas());
     }
 }

@@ -39,6 +39,7 @@ export type ClaveDePendiente =
   | 'pedidosDeSala'
   | 'pedidosDeCambio'
   | 'buzon'
+  | 'deudores'
 
 export type ItemMenu = {
   etiqueta: string
@@ -198,7 +199,16 @@ const MENU: GrupoMenu[] = [
     items: [
       { etiqueta: 'Pagos', ruta: '/admin/pagos', visible: puedeAdministrar, disponible: true },
       { etiqueta: 'Caja', ruta: '/admin/caja', visible: puedeAdministrar, disponible: true },
-      { etiqueta: 'Deudores', ruta: '/admin/deudores', visible: puedeAdministrar, disponible: true },
+      {
+        etiqueta: 'Deudores',
+        ruta: '/admin/deudores',
+        visible: puedeAdministrar,
+        disponible: true,
+        // No es una bandeja —nadie espera una respuesta— pero es plata que hay
+        // que ir a buscar, y Mica no abre la pantalla si nada le dice que hay
+        // algo (Ignacio, 2026-09-12).
+        contador: 'deudores',
+      },
       { etiqueta: 'Egresos', ruta: '/admin/egresos', visible: puedeAdministrar, disponible: true },
       {
         // Cae en Dinero y no en un grupo de "servicios" porque es del Módulo 3 y

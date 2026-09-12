@@ -206,7 +206,12 @@ export type ProfesorResumen = {
 export type Disciplina = 'DJ' | 'PRODUCCION' | 'MENTORIA'
 export type Nivel = 'INICIAL' | 'INTERMEDIO' | 'AVANZADO'
 export type Moneda = 'ARS' | 'USD'
-export type EstadoInscripcion = 'ACTIVA' | 'COMPLETADA' | 'CANCELADA' | 'PAUSADA'
+/**
+ * `PREINSCRIPTA` desde `V30` (P59 · P60): anotada sin señar, con 24 hs, y
+ * todavía no cursa. Se sale sólo a `ACTIVA` —registrando la seña, que la
+ * activa sola— o a `CANCELADA`; la base rechaza lo demás con su propio texto.
+ */
+export type EstadoInscripcion = 'PREINSCRIPTA' | 'ACTIVA' | 'COMPLETADA' | 'CANCELADA' | 'PAUSADA'
 
 /**
  * Cómo se vende un programa (`V28`, P63). Espeja `Cobro`.
@@ -297,6 +302,8 @@ export type InscripcionResumen = {
   cotizacionDolar: number | null
   fechaInicio: string | null
   estado: EstadoInscripcion
+  /** Sólo con valor en `PREINSCRIPTA`: hasta cuándo puede señarse (`V30`). */
+  vencePreinscripcion: string | null
   notas: string | null
 }
 
@@ -991,4 +998,6 @@ export type Pendientes = {
   pedidosDeSala: number
   pedidosDeCambio: number
   buzon: number
+  /** Cuántas personas figuran en Deudores — la lista de la pantalla, contada. */
+  deudores: number
 }

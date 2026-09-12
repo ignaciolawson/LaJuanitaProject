@@ -62,6 +62,7 @@ beforeEach(() => {
     pedidosDeSala: 0,
     pedidosDeCambio: 0,
     buzon: 0,
+    deudores: 0,
   })
 })
 
@@ -72,6 +73,7 @@ describe('los contadores del menú', () => {
       pedidosDeSala: 3,
       pedidosDeCambio: 2,
       buzon: 5,
+      deudores: 7,
     })
     montar('ADMIN')
 
@@ -80,6 +82,9 @@ describe('los contadores del menú', () => {
     expect(item('Pedidos de sala').textContent).toContain('3')
     expect(item('Pedidos de cambio').textContent).toContain('2')
     expect(item('Buzón de la web').textContent).toContain('5')
+    // Deudores no es una bandeja —nadie espera una respuesta— pero es plata que
+    // hay que ir a buscar, y sin el número Mica no abre la pantalla (2026-09-12).
+    expect(item('Deudores').textContent).toContain('7')
   })
 
   it('no dibuja nada cuando el contador está en cero', async () => {
@@ -92,6 +97,7 @@ describe('los contadores del menú', () => {
     await screen.findByLabelText('4 sin resolver')
     expect(item('Pedidos de sala').textContent).toBe('Pedidos de sala')
     expect(item('Buzón de la web').textContent).toBe('Buzón de la web')
+    expect(item('Deudores').textContent).toBe('Deudores')
   })
 
   it('un contador que no se pudo traer deja el ítem como estaba, sin romper el menú', async () => {

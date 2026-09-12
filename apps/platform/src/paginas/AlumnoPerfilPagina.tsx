@@ -225,6 +225,8 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
 
 function EtiquetaEstado({ estado }: { estado: EstadoInscripcion }) {
   const estilo = {
+    // Falta la seña: pide algo de quien mira, por eso el acento (`V30`).
+    PREINSCRIPTA: 'border-red/40 text-acento',
     ACTIVA: 'border-texto/20 text-texto',
     COMPLETADA: 'border-linea text-apagado',
     PAUSADA: 'border-linea text-apagado',

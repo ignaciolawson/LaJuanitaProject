@@ -121,7 +121,11 @@ public class ManejadorDeErrores {
             Map.entry("inscripcion_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),
             Map.entry("inscripcion_clases_positivas", "La cantidad de clases tiene que ser mayor a cero."),
             Map.entry("inscripcion_una_activa_por_disciplina",
-                    "Ese alumno ya tiene una inscripción activa en esa disciplina."),
+                    "Ese alumno ya tiene una inscripción abierta en esa disciplina (activa o preinscripta)."),
+            // La preinscripción (V30).
+            Map.entry("inscripcion_estado_valido", "Ese estado de inscripción no existe."),
+            Map.entry("inscripcion_preinscripta_vence",
+                    "Una preinscripción tiene plazo para señarse, y sólo una preinscripción lo tiene."),
             Map.entry("solicitud_reserva_uso_permitido_en_sala",
                     "Esa sala no se usa para ese tipo de actividad."),
             Map.entry("solicitud_reserva_horas_validas",

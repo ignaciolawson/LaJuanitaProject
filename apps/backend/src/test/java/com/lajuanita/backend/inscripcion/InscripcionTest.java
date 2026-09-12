@@ -264,7 +264,7 @@ class InscripcionTest {
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail")
-                        .value("Ese alumno ya tiene una inscripción activa en esa disciplina."));
+                        .value("Ese alumno ya tiene una inscripción abierta en esa disciplina (activa o preinscripta)."));
     }
 
     // == Plata ================================================================
@@ -442,6 +442,142 @@ class InscripcionTest {
                 "UPDATE inscripcion SET nivel = 'INICIAL' WHERE id_inscripcion = ?", id))
                 .isInstanceOf(DataAccessException.class)
                 .hasMessageContaining("id_usuario_baja_nivel");
+    }
+
+    // == La preinscripción (`V30`, P59 · P60 · P72) ============================
+    //
+    // Hasta la Fase 6 ningún alta escribe PREINSCRIPTA —el alta desde el buzón
+    // y la seña opcional del alta de inscripciones llegan ahí—, así que la
+    // fixture nace por SQL, igual que la fila legada del caso 225 de la suite.
+    // Lo que estos casos pinean es la escalera y el único camino a ACTIVA.
+
+    /**
+     * ⚠️ El caso central: activar a mano, sin que haya entrado un peso, es lo
+     * que el {@code <select>} de estados permitía con un clic y P59 vino a
+     * impedir. La base contesta con su propio texto.
+     */
+    @Test
+    void una_preinscripta_no_se_activa_a_mano_sin_la_senia_cobrada() throws Exception {
+        long id = preinscribirDj(alumnoNuevo());
+
+        mvc.perform(patch("/api/inscripciones/" + id + "/estado?estado=ACTIVA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("cobrada la senia")));
+    }
+
+    /**
+     * El camino que sí: registrar la seña (SENADO) la activa en el mismo
+     * movimiento y el plazo se va con el estado (P72). Partirlo en dos deja
+     * preinscripciones pagas que nadie activó, con el plazo corriendo sobre
+     * plata que ya entró.
+     */
+    @Test
+    void cobrar_la_senia_activa_la_preinscripcion_y_le_saca_el_plazo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long id = preinscribirDj(alumno);
+
+        mvc.perform(post("/api/pagos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idUsuario":%d,"idInscripcion":%d,"monto":90000,"moneda":"ARS",
+                         "medioPago":"EFECTIVO","estadoPago":"SENADO"}
+                        """.formatted(alumno.getUsuario().getId(), id)))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/inscripciones/" + id).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ACTIVA"))
+                .andExpect(jsonPath("$.vencePreinscripcion").doesNotExist());
+    }
+
+    /** Una deuda anotada no es plata cobrada (la lección de `V12`): no activa. */
+    @Test
+    void una_deuda_anotada_no_activa_la_preinscripcion() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long id = preinscribirDj(alumno);
+
+        mvc.perform(post("/api/pagos")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idUsuario":%d,"idInscripcion":%d,"monto":90000,"moneda":"ARS",
+                         "medioPago":"EFECTIVO","estadoPago":"DEBE"}
+                        """.formatted(alumno.getUsuario().getId(), id)))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/inscripciones/" + id).header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.estado").value("PREINSCRIPTA"))
+                .andExpect(jsonPath("$.vencePreinscripcion").isNotEmpty());
+    }
+
+    /** La otra salida: cancelarla no pide plata, y también se lleva el plazo. */
+    @Test
+    void una_preinscripta_se_cancela_sin_cobrar_nada() throws Exception {
+        long id = preinscribirDj(alumnoNuevo());
+
+        mvc.perform(patch("/api/inscripciones/" + id + "/estado?estado=CANCELADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("CANCELADA"))
+                .andExpect(jsonPath("$.vencePreinscripcion").doesNotExist());
+    }
+
+    /** (b) de la escalera: ni pausar ni completar lo que no empezó. */
+    @Test
+    void una_preinscripta_no_se_pausa() throws Exception {
+        long id = preinscribirDj(alumnoNuevo());
+
+        mvc.perform(patch("/api/inscripciones/" + id + "/estado?estado=PAUSADA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("solo puede activarse")));
+    }
+
+    /** (a): a la preinscripción se entra sólo al nacer. */
+    @Test
+    void una_activa_no_vuelve_a_preinscripta() throws Exception {
+        long id = inscribirDj(alumnoNuevo(), null);
+
+        mvc.perform(patch("/api/inscripciones/" + id + "/estado?estado=PREINSCRIPTA")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("se entra solo al crearla")));
+    }
+
+    /**
+     * El índice único mira ACTIVA y PREINSCRIPTA desde `V30`: una preinscripta
+     * ocupa el lugar de su disciplina aunque no curse, y el mensaje lo dice.
+     */
+    @Test
+    void una_preinscripta_ocupa_el_lugar_de_su_disciplina() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        preinscribirDj(alumno);
+
+        mvc.perform(alta("""
+                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                """.formatted(alumno.getId())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errores.disciplina").value(
+                        org.hamcrest.Matchers.containsString("preinscripta")));
+    }
+
+    /** Y no cursa: no está entre las vigentes que lista el filtro por estado. */
+    @Test
+    void una_preinscripta_no_es_una_inscripcion_vigente() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        preinscribirDj(alumno);
+
+        mvc.perform(get("/api/inscripciones?idAlumno=" + alumno.getId() + "&estado=ACTIVA")
+                .header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.totalElementos").value(0));
+        mvc.perform(get("/api/inscripciones?idAlumno=" + alumno.getId() + "&estado=PREINSCRIPTA")
+                .header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.totalElementos").value(1));
     }
 
     // == Edición ==============================================================
@@ -750,6 +886,20 @@ class InscripcionTest {
                 {"idAlumno":%d,"disciplina":"DJ","nivel":%s,"precioTotal":180000}
                 """.formatted(alumno.getId(), nivelJson)))
                 .andExpect(status().isCreated()));
+    }
+
+    /**
+     * Nace preinscripta, por SQL: hasta la Fase 6 no hay alta que lo escriba.
+     * Se flushea antes para que el alumno exista del lado de la base.
+     */
+    private long preinscribirDj(Alumno alumno) {
+        em.flush();
+        return jdbc.queryForObject("""
+                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
+                                         estado, vence_preinscripcion)
+                VALUES (?, 'DJ', 8, 180000, 'PREINSCRIPTA', now() + interval '24 hours')
+                RETURNING id_inscripcion
+                """, Long.class, alumno.getId());
     }
 
     /** Sin parsear JSON: el id es lo único que hace falta y el DTO es plano. */

@@ -103,8 +103,47 @@ public class Inscripcion {
     @Column(name = "estado", nullable = false, length = 20)
     private EstadoInscripcion estado = EstadoInscripcion.ACTIVA;
 
+    /**
+     * Hasta cuándo puede señarse (`V30`, P72: 24 horas). Sólo tiene valor en
+     * {@link EstadoInscripcion#PREINSCRIPTA} y la base lo exige en los dos
+     * sentidos ({@code inscripcion_preinscripta_vence}), así que <b>no se
+     * escribe suelto</b>: va con el estado, en {@link #preinscribir} y
+     * {@link #pasarA}. Es la forma de `V24` aplicada a la inscripción.
+     */
+    @Column(name = "vence_preinscripcion")
+    private OffsetDateTime vencePreinscripcion;
+
     @Column(name = "notas", columnDefinition = "text")
     private String notas;
+
+    // == Las escrituras que van juntas (`V30`) ================================
+
+    /** Nace sin señar, con su plazo. Sólo al crearla: la escalera no deja volver. */
+    public void preinscribir(OffsetDateTime vence) {
+        this.estado = EstadoInscripcion.PREINSCRIPTA;
+        this.vencePreinscripcion = vence;
+    }
+
+    /**
+     * Cambia el estado, y si sale de la preinscripción se lleva el plazo con
+     * ella. Escribir sólo {@code estado} deja el CHECK de ida y vuelta
+     * rechazando la fila con un 500 en vez de una excepción con sentido; el
+     * mismo cuidado que {@code Solicitante#atender}.
+     *
+     * <p>Lo que <b>no</b> hace es decidir si el cambio es legal: eso es la
+     * escalera de `V30` §4, que rechaza volver a preinscripta, salir a otro
+     * estado que no sea ACTIVA o CANCELADA, y activar sin un pago cobrado detrás.
+     */
+    public void pasarA(EstadoInscripcion nuevo) {
+        this.estado = nuevo;
+        if (nuevo != EstadoInscripcion.PREINSCRIPTA) {
+            this.vencePreinscripcion = null;
+        }
+    }
+
+    public boolean estaPreinscripta() {
+        return estado == EstadoInscripcion.PREINSCRIPTA;
+    }
 
     /** La escribe el DEFAULT de la base, no la aplicación. */
     @Column(name = "fecha_creacion", nullable = false, insertable = false, updatable = false)

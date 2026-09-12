@@ -28,14 +28,31 @@ import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
-import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import { NOMBRE_DE_DISCIPLINA, capitalizar, cuando } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
 const NIVELES: Nivel[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
-const ESTADOS: EstadoInscripcion[] = ['ACTIVA', 'COMPLETADA', 'PAUSADA', 'CANCELADA']
+const ESTADOS: EstadoInscripcion[] = ['PREINSCRIPTA', 'ACTIVA', 'COMPLETADA', 'PAUSADA', 'CANCELADA']
+
+/**
+ * A qué estados se puede pasar desde cada uno, con el `<select>`.
+ *
+ * Es la escalera de `V30` §4 leída desde la pantalla, no una segunda copia de
+ * la regla: la base rechaza igual lo que no esté acá. Lo que se gana es no
+ * ofrecer lo que va a fallar. **A `PREINSCRIPTA` no se vuelve** (se entra sólo
+ * al nacer), y **de `PREINSCRIPTA` a `ACTIVA` no se pasa desde acá**: eso lo
+ * hace registrar la seña en Pagos, que la activa sola — un `<select>` que la
+ * active a mano es exactamente lo que P59 vino a impedir.
+ */
+function estadosPosibles(desde: EstadoInscripcion): EstadoInscripcion[] {
+  if (desde === 'PREINSCRIPTA') {
+    return ['PREINSCRIPTA', 'CANCELADA']
+  }
+  return ESTADOS.filter((e) => e !== 'PREINSCRIPTA')
+}
 
 /**
  * Módulo 1 — el curso contratado de cada alumno.
@@ -218,6 +235,7 @@ export function InscripcionesPagina() {
                 </Celda>
                 <Celda>
                   <Etiqueta estado={i.estado} />
+                  <PlazoDeSenia inscripcion={i} />
                 </Celda>
                 <Celda>
                   {puedeEscribir && (
@@ -235,7 +253,7 @@ export function InscripcionesPagina() {
                         aria-label={`Cambiar estado de la inscripción de ${i.nombre} ${i.apellido}`}
                         className={CONTROL_DE_FILTRO}
                       >
-                        {ESTADOS.map((e) => (
+                        {estadosPosibles(i.estado).map((e) => (
                           <option key={e} value={e}>
                             {capitalizar(e)}
                           </option>
@@ -266,8 +284,14 @@ export function InscripcionesPagina() {
   )
 }
 
+/**
+ * La preinscripta lleva el acento porque pide algo de quien mira — falta la
+ * seña, y con plazo—; la cancelada lo lleva porque ya lo llevaba. Es la
+ * regla del rojo como bisturí: lo que pide acción, no lo que describe.
+ */
 function Etiqueta({ estado }: { estado: EstadoInscripcion }) {
   const estilo = {
+    PREINSCRIPTA: 'border-red/40 text-acento',
     ACTIVA: 'border-texto/20 text-texto',
     COMPLETADA: 'border-linea text-apagado',
     PAUSADA: 'border-linea text-apagado',
@@ -278,6 +302,24 @@ function Etiqueta({ estado }: { estado: EstadoInscripcion }) {
     <span className={`rounded-full border px-2 py-0.5 text-[11px] uppercase tracking-wide ${estilo}`}>
       {capitalizar(estado)}
     </span>
+  )
+}
+
+/**
+ * Hasta cuándo puede señarse (`V30`, P72: 24 hs). Sólo la preinscripta lo
+ * tiene. Dice "venció" en vez de una fecha pasada porque lo que quien mira
+ * necesita saber es si hay que llamar, no hacer la resta.
+ */
+function PlazoDeSenia({ inscripcion }: { inscripcion: InscripcionResumen }) {
+  if (inscripcion.estado !== 'PREINSCRIPTA' || !inscripcion.vencePreinscripcion) {
+    return null
+  }
+  const vence = new Date(inscripcion.vencePreinscripcion)
+  const vencio = vence.getTime() < Date.now()
+  return (
+    <div className={`mt-0.5 text-xs ${vencio ? 'text-acento' : 'text-tenue'}`}>
+      {vencio ? 'Venció el plazo para señar' : `Señar antes del ${cuando(inscripcion.vencePreinscripcion)}`}
+    </div>
   )
 }
 

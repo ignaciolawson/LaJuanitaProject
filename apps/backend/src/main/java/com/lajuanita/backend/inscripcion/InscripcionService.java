@@ -68,11 +68,13 @@ public class InscripcionService {
                         "No existe el alumno " + solicitud.idAlumno() + "."));
 
         // El índice único parcial es quien decide; esto es para que el mensaje
-        // nombre el problema real y no una violación de constraint.
-        if (inscripciones.existsByAlumnoIdAndDisciplinaAndEstado(
-                alumno.getId(), solicitud.disciplina(), EstadoInscripcion.ACTIVA)) {
+        // nombre el problema real y no una violación de constraint. Desde `V30`
+        // el índice mira ACTIVA y PREINSCRIPTA (`ABIERTAS`), y el mensaje lo dice.
+        if (inscripciones.existsByAlumnoIdAndDisciplinaAndEstadoIn(
+                alumno.getId(), solicitud.disciplina(), EstadoInscripcion.ABIERTAS)) {
             throw new DatoDuplicadoException("disciplina",
-                    "Ese alumno ya tiene una inscripción activa en esa disciplina.");
+                    "Ese alumno ya tiene una inscripción abierta en esa disciplina "
+                    + "(activa o preinscripta).");
         }
 
         Inscripcion inscripcion = new Inscripcion();
@@ -161,11 +163,17 @@ public class InscripcionService {
      * <p>Volver a {@code ACTIVA} puede chocar con el índice único si en el medio
      * se abrió otra de la misma disciplina. Eso sale como 409 con su mensaje,
      * que es exactamente lo que hay que decirle a quien lo intenta.
+     *
+     * <p><b>Sobre una preinscripta, la base decide</b> (`V30` §4): a ACTIVA sólo
+     * con la seña cobrada —y para eso el camino es registrar el pago, que la
+     * activa solo—, a CANCELADA siempre, a cualquier otra cosa nunca. El 409
+     * trae el texto del trigger. Acá no se duplica esa regla: el
+     * {@code pasarA} sólo se ocupa de que el plazo se vaya con el estado.
      */
     @Transactional
     public InscripcionResumen cambiarEstado(Long id, EstadoInscripcion estado) {
         Inscripcion inscripcion = buscar(id);
-        inscripcion.setEstado(estado);
+        inscripcion.pasarA(estado);
         empujarALaBase();
         return InscripcionResumen.de(inscripcion,
                 clasesConsumidas(List.of(inscripcion)).getOrDefault(id, 0));

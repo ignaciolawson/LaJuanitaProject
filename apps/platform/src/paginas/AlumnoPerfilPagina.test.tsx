@@ -126,6 +126,7 @@ function inscripcion(cambios: Partial<InscripcionResumen> = {}): InscripcionResu
     moneda: 'ARS',
     cotizacionDolar: null,
     fechaInicio: '2026-09-01',
+    vencePreinscripcion: null,
     estado: 'ACTIVA',
     notas: null,
     ...cambios,
