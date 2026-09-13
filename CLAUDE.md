@@ -150,8 +150,9 @@ docs/
 ├── operacion.md   backup, tested restore, deploy, migration failures
 └── sistema-gestion-plan.md   plan + settled decisions for platform/backend
 scripts/
-├── backup.sh      pg_dump with retention, for cron
-└── pruebas-sql.sh the two SQL suites against throwaway databases
+├── backup.sh              pg_dump with retention, for cron
+├── pruebas-sql.sh         the two SQL suites against throwaway databases
+└── completar-lockfile.py  adds the other platforms' native packages a Windows npm leaves out of the lockfile
 .github/workflows/ci.yml   the pipeline
 ```
 
@@ -195,6 +196,20 @@ docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanit
 ./scripts/pruebas-sql.sh   # the two SQL suites on throwaway databases
 ./scripts/backup.sh        # pg_dump with retention — see docs/operacion.md
 ```
+
+⚠️ **Two rules for anything that has to run on the Linux CI runner, both learned by having
+the CI red for a month without anyone noticing (2026-09-13, `docs/pendientes.md` §3.9):**
+
+- **A new `.sh` needs its execute bit set in git by hand** — `git update-index --chmod=+x
+  scripts/nuevo.sh` — because Windows has no such bit and a script committed from here lands
+  as `100644`: it runs on this machine and answers *"Permission denied"* on Linux.
+  `.gitattributes` already forces LF; it cannot set the mode.
+- **After any `npm install`/`npm update` that touched `package-lock.json`, run
+  `python scripts/completar-lockfile.py` before committing it.** npm on Windows records only
+  the Windows native binaries (npm/cli#4828) and `npm ci` on Linux then fails to load Vite;
+  the script adds the other platforms' entries without changing a version. To be sure,
+  rehearse the job: `git archive HEAD | tar -x -C <tmp>`, copy the lockfile, and
+  `docker run --rm -v <tmp>:/w -w /w node:22 npm ci` — what the runner does, in ~2 min.
 
 **To see the platform running you need all three up**, in this order: `docker compose up -d`,
 then `mvn spring-boot:run` in `apps/backend` (:8080), then `npm run dev:platform` — **from the
@@ -298,7 +313,9 @@ lockfile change on Linux before pushing it** — `git archive HEAD` into a temp 
 `docker run node:22 npm ci` is a full rehearsal of the job (the whole front suite passed
 654/654 there, in ~17 min through the bind mount). The `mvn test` step was always green, so
 the *"proves the migrations apply to an empty database"* claim did hold; the SQL suites and
-the front never ran in CI until this fix.
+the front never ran in CI until this fix. **First green run: `c33c230`, 2026-09-13.** The
+completion script is now `scripts/completar-lockfile.py`, and the two rules are in the
+Commands section above.
 
 **Operations live in `docs/operacion.md`**: backup, **a restore that was actually
 rehearsed**, and what to do when a migration fails. The restore rehearsal is worth knowing

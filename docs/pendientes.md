@@ -559,8 +559,12 @@ Windows y sólo aparecen en el runner de Linux:
 
 Verificado en Linux antes de subirlo: `npm ci` + los 654 tests del front, los
 dos builds y los dos linters en un contenedor `node:22` sobre un `git archive`
-del repo; las suites SQL, 290 + 68, localmente. **El próximo push es el primer
-run verde del proyecto.** Lo que el CI *sí* venía probando era `mvn test` — ese
+del repo; las suites SQL, 290 + 68, localmente. **Primer run verde del proyecto:
+`c33c230`, el mismo día.** Para que no vuelva: el script que completa el lockfile
+quedó en `scripts/completar-lockfile.py` (idempotente, se corre después de
+cualquier `npm install` que toque el lock), y las dos reglas —bit de ejecución a
+mano en cada `.sh` nuevo, lockfile completado y ensayado en Docker antes de
+subirlo— están en la sección *Commands* de `CLAUDE.md`. Lo que el CI *sí* venía probando era `mvn test` — ese
 paso siempre pasó, así que la afirmación de que las migraciones aplican sobre una
 base vacía se sostuvo; las suites SQL y el front nunca habían corrido ahí.
 
