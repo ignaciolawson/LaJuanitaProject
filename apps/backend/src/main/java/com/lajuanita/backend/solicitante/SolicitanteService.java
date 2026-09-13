@@ -53,7 +53,6 @@ import com.lajuanita.backend.usuario.UsuarioService;
 import com.lajuanita.backend.usuario.dto.AltaUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.Pagina;
 import com.lajuanita.backend.usuario.dto.UsuarioCreado;
-import com.lajuanita.backend.usuario.dto.UsuarioResumen;
 import com.lajuanita.backend.venta.VentaEquipoRepository;
 
 /**
