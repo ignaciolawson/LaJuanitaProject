@@ -41,6 +41,7 @@ import {
   type ProgramaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
+import { EnlaceDeWhatsapp } from '../componentes/EnlaceDeWhatsapp'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -1450,40 +1451,6 @@ function Telefono({ ficha }: { ficha: SolicitanteResumen }) {
         {copiado ? 'Copiado' : 'Copiar'}
       </Boton>
     </div>
-  )
-}
-
-/**
- * El link a WhatsApp.
- *
- * Es un `<a>` y no un `<button>` **a propósito**: abre otra aplicación, así que
- * tiene que poder abrirse en otra pestaña, copiarse y todo lo que un link hace.
- * Se dibuja como un botón para que se lea como una acción, que es lo que es:
- * secundario adentro de un resultado, donde lo principal ya pasó; principal en
- * la ficha de equipos, donde escribir ES el trabajo.
- */
-function EnlaceDeWhatsapp({
-  href,
-  variante = 'secundario',
-  children,
-}: {
-  href: string
-  variante?: 'principal' | 'secundario'
-  children: React.ReactNode
-}) {
-  const estilo =
-    variante === 'principal'
-      ? 'rounded-md bg-accion px-4 py-2.5 text-sm text-accion-texto hover:bg-red hover:text-bone'
-      : 'rounded-md border border-linea-control bg-superficie px-3 py-1.5 text-xs text-texto hover:border-red hover:text-acento'
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      className={`inline-block font-medium transition-colors ${estilo}`}
-    >
-      {children}
-    </a>
   )
 }
 

@@ -128,8 +128,11 @@ beforeEach(() => {
       apellido: 'Ghezzi',
       nombreCompleto: 'Tomás Ghezzi',
       email: 'tomas@lajuanita.local',
+      telefono: null,
       especialidad: null,
       activo: true,
+      cuentaActiva: true,
+      debeCambiarPassword: false,
     },
   ])
   vi.mocked(listarAlumnos).mockResolvedValue(paginaDe([alumno()]))

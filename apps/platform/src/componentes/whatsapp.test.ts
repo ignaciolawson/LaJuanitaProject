@@ -4,7 +4,9 @@ import {
   categoriasDeEquipos,
   linkDeWhatsapp,
   mensajeConLaClave,
+  mensajeConLaClaveDeProfesor,
   mensajeDeCabinaApartada,
+  mensajeDeClaveReseteada,
   mensajeDeEquipos,
   mensajeDeInscripcion,
   numeroParaWhatsapp,
@@ -204,6 +206,34 @@ describe('los mensajes', () => {
     expect(mensaje).toContain('A7K2M9')
     expect(mensaje).toContain('juan@mail.com')
     expect(mensaje).toContain('cambiar')
+    expect(mensaje).toContain('7 días')
+  })
+
+  /**
+   * La clave reseteada no dice *te creamos tu cuenta* —ya la tenía— y sí dice
+   * el plazo dos veces: en el bloque de la cuenta y en su propio párrafo, porque
+   * es lo que Ignacio pidió que el mensaje avise (2026-09-12).
+   */
+  it('el de la clave reseteada dice que es nueva, no que la cuenta es nueva, y que vence', () => {
+    const mensaje = mensajeDeClaveReseteada('Juan', 'juan@mail.com', 'B8L3N0')
+
+    expect(mensaje).toContain('B8L3N0')
+    expect(mensaje).toContain('juan@mail.com')
+    expect(mensaje).toContain('contraseña nueva')
+    expect(mensaje).not.toContain('Te creamos tu cuenta')
+    expect(mensaje).toContain('vence')
+    expect(mensaje).toMatch(/7 días, la contraseña vence/)
+    // Sin el bloque del portal: ya sabe para qué usa la cuenta.
+    expect(mensaje).not.toContain('Desde tu cuenta vas a poder')
+  })
+
+  it('el de la cuenta de un profe habla de dar clases, no de reservar cabina', () => {
+    const mensaje = mensajeConLaClaveDeProfesor('Ghezz', 'ghezz@mail.com', 'C9M4P1')
+
+    expect(mensaje).toContain('C9M4P1')
+    expect(mensaje).toContain('cuenta de profe')
+    expect(mensaje).toContain('agenda de clases')
+    expect(mensaje).not.toContain('pedir la cabina')
     expect(mensaje).toContain('7 días')
   })
 

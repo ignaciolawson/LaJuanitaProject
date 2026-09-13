@@ -236,8 +236,13 @@ export type ProfesorResumen = {
   /** Ya armado del servidor, para que no haya tres formas del mismo nombre. */
   nombreCompleto: string
   email: string
+  telefono: string | null
   especialidad: string | null
+  /** La RELACIÓN: si da clases. De baja sigue viendo su historial. */
   activo: boolean
+  /** La CUENTA: si puede entrar. Son dos cosas y la pantalla de Profesores muestra las dos. */
+  cuentaActiva: boolean
+  debeCambiarPassword: boolean
 }
 
 // -- Inscripciones ----------------------------------------------------------

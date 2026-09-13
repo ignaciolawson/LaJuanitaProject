@@ -146,6 +146,11 @@ class ProfesorTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.profesor.email").value(email))
                 .andExpect(jsonPath("$.profesor.especialidad").value("Ableton"))
+                // La fila dice las dos cosas que la pantalla administra: la relación
+                // y la cuenta. Recién creada, la cuenta está activa con la clave temporal.
+                .andExpect(jsonPath("$.profesor.activo").value(true))
+                .andExpect(jsonPath("$.profesor.cuentaActiva").value(true))
+                .andExpect(jsonPath("$.profesor.debeCambiarPassword").value(true))
                 .andExpect(jsonPath("$.passwordTemporal").isNotEmpty());
 
         Usuario creado = usuarios.findByEmailIgnoreCase(email).orElseThrow();

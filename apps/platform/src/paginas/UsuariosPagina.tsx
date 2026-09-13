@@ -12,10 +12,11 @@ import type { Rol } from '../api/tipos'
 import type { GrupoDeCuentas, UsuarioResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
-import { Bloque, Hueco } from '../componentes/Bloque'
+import { Bloque } from '../componentes/Bloque'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
+import { PasswordNueva, type MotivoDeLaClave } from '../componentes/PasswordNueva'
 import { useUsuario } from '../auth/contexto'
 import { puedeOperar } from '../layout/menu'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
@@ -56,9 +57,13 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
   const [creando, setCreando] = useState(false)
   const [editando, setEditando] = useState<UsuarioResumen | null>(null)
 
-  const [passwordGenerada, setPasswordGenerada] = useState<{ de: string; valor: string } | null>(
-    null,
-  )
+  // La clave recién generada, con la persona entera: el botón de WhatsApp
+  // necesita el teléfono y el mail, no sólo el nombre para el título.
+  const [passwordGenerada, setPasswordGenerada] = useState<{
+    de: UsuarioResumen
+    valor: string
+    motivo: MotivoDeLaClave
+  } | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -100,8 +105,9 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
     try {
       const resultado = await resetearPasswordUsuario(usuario.id)
       setPasswordGenerada({
-        de: `${usuario.nombre} ${usuario.apellido}`,
+        de: resultado.usuario,
         valor: resultado.passwordTemporal,
+        motivo: 'reseteo',
       })
       await cargar()
     } catch (e) {
@@ -154,6 +160,7 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
         <PasswordNueva
           de={passwordGenerada.de}
           valor={passwordGenerada.valor}
+          motivo={passwordGenerada.motivo}
           onCerrar={() => setPasswordGenerada(null)}
         />
       )}
@@ -162,9 +169,9 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
         <FormularioCuenta
           puedeAsignarRol={yo.rol === 'ADMIN'}
           onCerrar={() => setCreando(false)}
-          onCreada={(nombre, password) => {
+          onCreada={(usuario, password) => {
             setCreando(false)
-            setPasswordGenerada({ de: nombre, valor: password })
+            setPasswordGenerada({ de: usuario, valor: password, motivo: 'cuenta-nueva' })
             void cargar()
           }}
         />
@@ -279,39 +286,6 @@ function Accion({ onClick, children }: { onClick: () => void; children: React.Re
 }
 
 /**
- * La contraseña temporal, mostrada una sola vez.
- *
- * Sirve para el alta y para el reseteo: es el mismo hecho —el sistema generó una
- * credencial que hay que pasar por WhatsApp— y no se puede volver a consultar.
- */
-function PasswordNueva({
-  de,
-  valor,
-  onCerrar,
-}: {
-  de: string
-  valor: string
-  onCerrar: () => void
-}) {
-  return (
-    <Bloque titulo={<>Contraseña de {de}</>} className="mb-6">
-      <p className="mt-2 text-sm leading-relaxed text-tenue">
-        Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
-        <strong className="text-texto">vence a los 7 días</strong> si no la usa.{' '}
-        <strong className="text-texto">No se puede volver a ver:</strong> si se pierde, hay que
-        generar otra.
-      </p>
-      <Hueco className="mt-3 font-mono text-lg tracking-wider">
-        {valor}
-      </Hueco>
-      <Boton className="mt-4" onClick={onCerrar}>
-        Listo
-      </Boton>
-    </Bloque>
-  )
-}
-
-/**
  * Alta de una cuenta desde administración.
  *
  * Es el único camino que permite crear a alguien con rol, y hasta ahora no
@@ -325,7 +299,7 @@ function FormularioCuenta({
 }: {
   puedeAsignarRol: boolean
   onCerrar: () => void
-  onCreada: (nombre: string, password: string) => void
+  onCreada: (usuario: UsuarioResumen, password: string) => void
 }) {
   const [datos, setDatos] = useState({
     nombre: '',
@@ -359,10 +333,7 @@ function FormularioCuenta({
         // backend. Acá directamente no se le ofrece el campo.
         rol: puedeAsignarRol ? datos.rol : undefined,
       })
-      onCreada(
-        `${resultado.usuario.nombre} ${resultado.usuario.apellido}`,
-        resultado.passwordTemporal,
-      )
+      onCreada(resultado.usuario, resultado.passwordTemporal)
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.errores) setErrores(e.errores)

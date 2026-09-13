@@ -2704,6 +2704,26 @@ gastó plata en la juanita que no es alumno, ni profe, ni directivo, ni etc."*
    Programas (lo que se vende y a cuánto), Inscripciones (el contrato). Es el
    embudo entero. *"Gestión de negocio"* era el panel completo; *"Academia"*
    dejaba afuera al buzón, que también recibe cabina y equipos.
+6. **Profesores tiene lo mismo que Equipo, y la clave reseteada se manda por
+   WhatsApp** (agregado la misma noche, al probar la §19: *"quiero que equipo
+   y profesores tengan lo mismo, fijate que equipo tiene sección de editar,
+   restablecer contraseña y desactivar, aparte de un lugar para poder buscar
+   y profesores sólo tiene editar […] cuando se restablece la contraseña,
+   poné el botoncito de mandarle por wpp, con el msj de que se vence a los 7
+   días"*). Las acciones de **cuenta** —editar los datos de la persona,
+   resetear la contraseña, desactivar— se ofrecen desde la fila del profesor
+   y van a la cuenta (`/api/usuarios/{idUsuario}`), no al profesor; la de la
+   **relación** (*sigue dando clases*) sigue adentro de Editar. La fila dice
+   las dos cosas por separado —*De baja* es que no da clases, *cuenta
+   desactivada* es que no entra— porque son dos hechos: un profe de baja con
+   la cuenta activa sigue viendo el historial de lo que dictó. La búsqueda
+   filtra en la pantalla, no en el servidor, por lo mismo que la lista no
+   pagina (la nómina del estudio, `ProfesorRepository`). Y **toda contraseña
+   temporal que el sistema muestra —alta o reseteo, en Directorio, Equipo,
+   Profesores— lleva el botón de WhatsApp** con el mensaje escrito por el
+   sistema; el del reseteo dice que es una clave nueva de una cuenta que ya
+   existía y **que vence a los 7 días** (`V8`), y no promete el portal, que la
+   persona ya conoce.
 
 **Lo que NO cambia:** los dos ejes del modelo (rol y relaciones), quién
 otorga cada uno, las rutas del backend, y que un cliente sin cuenta sigue sin

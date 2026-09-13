@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -24,7 +25,7 @@ vi.mock('../api/administracion', () => ({
   resetearPasswordUsuario: vi.fn(),
 }))
 
-const { listarUsuarios } = await import('../api/administracion')
+const { listarUsuarios, resetearPasswordUsuario } = await import('../api/administracion')
 
 function yo(rol: UsuarioActual['rol']): UsuarioActual {
   return {
@@ -122,6 +123,32 @@ describe('el Directorio', () => {
 
     await waitFor(() => expect(listarUsuarios).toHaveBeenCalled())
     expect(vi.mocked(listarUsuarios).mock.lastCall?.[0]).toMatchObject({ grupo: 'TODOS' })
+  })
+})
+
+describe('resetear la contraseña', () => {
+  it('la muestra una vez con el WhatsApp que dice que vence a los 7 días', async () => {
+    const nico = cuenta({ telefono: '11 5555-5555' })
+    vi.mocked(listarUsuarios).mockResolvedValue(pagina([nico]))
+    vi.mocked(resetearPasswordUsuario).mockResolvedValue({
+      usuario: { ...nico, debeCambiarPassword: true },
+      passwordTemporal: 'clave-reseteada-3',
+    })
+    montar()
+    await screen.findByText('Arce, Nico')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Resetear contraseña' }))
+
+    expect(resetearPasswordUsuario).toHaveBeenCalledWith(50)
+    expect(await screen.findByText('clave-reseteada-3')).toBeDefined()
+    const href = screen
+      .getByRole('link', { name: 'Mandarle la clave por WhatsApp' })
+      .getAttribute('href')!
+    const texto = decodeURIComponent(href.split('text=')[1])
+    expect(href.startsWith('https://wa.me/5491155555555?')).toBe(true)
+    expect(texto).toContain('clave-reseteada-3')
+    expect(texto).toContain('nico@ejemplo.com')
+    expect(texto).toContain('7 días')
   })
 })
 

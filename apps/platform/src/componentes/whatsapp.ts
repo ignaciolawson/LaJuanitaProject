@@ -246,6 +246,63 @@ export function mensajeConLaClave(
 }
 
 /**
+ * Lo que un profesor puede hacer desde su cuenta, dicho igual que
+ * {@link QUE_PUEDE_HACER} y por lo mismo: con lo que el portal del profesor
+ * tiene de verdad (Mi agenda, Mis alumnos, Subir material — Módulo 5), no con lo
+ * que suena bien. A un profe que además alquila cabina le sirve lo otro también,
+ * pero la cuenta que se le crea desde Profesores se le crea **para dar clases**,
+ * y el mensaje dice eso.
+ */
+const QUE_PUEDE_HACER_UN_PROFE =
+  `${PORTAL} Desde tu cuenta vas a ver tu agenda de clases, a tus alumnos con el ` +
+  'avance de cada uno, y vas a poder dejarles material y notas de cada clase.'
+
+/**
+ * El mensaje de la cuenta recién creada **para un profesor** (P77): el mismo
+ * molde que {@link mensajeConLaClave} con el tercer bloque dicho para quien da
+ * clases. Escrito aparte y no con un `if` adentro del otro para que cada mensaje
+ * se lea entero de una vez.
+ */
+export function mensajeConLaClaveDeProfesor(
+  nombre: string,
+  email: string,
+  passwordTemporal: string,
+): string {
+  return parrafos(
+    [`${saludo(nombre)} Te creamos tu cuenta de profe en La Juanita Studio. ${CLAVE}`],
+    bloqueDeLaCuenta(email, passwordTemporal),
+    [QUE_PUEDE_HACER_UN_PROFE],
+    [DESPEDIDA],
+  )
+}
+
+/**
+ * El mensaje de una contraseña **reseteada**: la persona ya tenía cuenta y la
+ * perdió, o la temporal se le venció (7 días, `V8`).
+ *
+ * Es otro mensaje y no {@link mensajeConLaClave} con otra primera línea, porque
+ * las dos cosas que ese mensaje dice —*te creamos tu cuenta* y *esto es lo que
+ * podés hacer desde ahí*— acá son falsas o de más: la cuenta ya existía y la
+ * persona ya sabe para qué la usa. Lo que sí va, y va sí o sí, es **el plazo**:
+ * una clave reseteada que no se usa en 7 días vuelve a vencer, y quien la pidió
+ * por WhatsApp un viernes puede leerla el lunes y entrar el otro lunes — y ahí
+ * escribe de nuevo preguntando por qué no entra. Decirlo en el mensaje es lo que
+ * ahorra esa segunda vuelta.
+ */
+export function mensajeDeClaveReseteada(
+  nombre: string,
+  email: string,
+  passwordTemporal: string,
+): string {
+  return parrafos(
+    [`${saludo(nombre)} Te generamos una contraseña nueva para tu cuenta en La Juanita Studio. ${CLAVE}`],
+    bloqueDeLaCuenta(email, passwordTemporal),
+    [`${PLAZO} Si no entrás antes de los 7 días, la contraseña vence y hay que pedir otra.`],
+    [DESPEDIDA],
+  )
+}
+
+/**
  * El primer mensaje a quien consultó por equipos, **armado con lo que marcó en
  * la web**.
  *

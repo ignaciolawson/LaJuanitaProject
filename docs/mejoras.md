@@ -5446,12 +5446,15 @@ otro. Siete casos en `whatsapp.test.ts`, el primero sobre la forma
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-12, noche)
 
-✅ **ESTADO: CERRADA la misma noche del 2026-09-12 — los cinco puntos, sin
-migración.** Decisión: **P77** (`platform.md` §25). Suites al cierre: **711
-backend · 644 front · 290 + 68 SQL** sobre 31 migraciones; `tsc -b`, lint y
-build limpios. ⚠️ **El backend de desarrollo se reinició** con este código:
-`/api/clientes` y `?grupo=EQUIPO` contestan. Lo que decidió y encontró al
-ejecutarse está al final de la sección.
+✅ **ESTADO: CERRADA la misma noche del 2026-09-12 — los cinco puntos y un
+sexto que Ignacio trajo al probarla (J6), sin migración.** Decisión: **P77**
+(`platform.md` §25, seis puntos). Suites al cierre: **711 backend · 654
+front · 290 + 68 SQL** sobre 31 migraciones; `tsc -b`, lint y build limpios.
+⚠️ **El backend de desarrollo se reinició** con este código: `/api/clientes`,
+`?grupo=EQUIPO` y el `ProfesorResumen` con `cuentaActiva` contestan. Lo que
+decidió y encontró al ejecutarse está al final de la sección. ⏳ **Un hallazgo
+abierto de la misma noche, que no es del código: los emojis del mensaje de
+WhatsApp le llegan como `?`** — ver *Lo que encontró*.
 
 ### El hallazgo, y por qué tiene razón
 
@@ -5472,6 +5475,7 @@ un botón escondido en la fila del listado de cuentas.
 | ✅ J3 | **Clientes**: quien gastó plata (`ENTRARON`) y no es alumno, profe ni equipo; con cuenta o a nombre escrito | `GET /api/clientes`, paquete `cliente`, una consulta nativa sobre `pago` |
 | ✅ J4 | **Directorio**: la pantalla de cuentas, renombrada, con las relaciones (alumno · profesor) a la vista | `/admin/usuarios` con `esAlumno`/`esProfesor` en `UsuarioResumen` |
 | ✅ J5 | **Comercial**: Buzón de la web · Programas · Inscripciones | `menu.ts` |
+| ✅ J6 | **Profesores tiene lo mismo que Equipo** (buscar · editar a la persona · resetear contraseña · desactivar cuenta) **y la clave reseteada se manda por WhatsApp con el aviso de que vence a los 7 días** — pedido al probar J1 (P77 · 6) | `ProfesorResumen` gana `telefono`/`cuentaActiva`/`debeCambiarPassword`; `componentes/PasswordNueva.tsx` y `EnlaceDeWhatsapp.tsx` compartidos; `mensajeDeClaveReseteada` y `mensajeConLaClaveDeProfesor` en `whatsapp.ts` |
 
 **Dos cosas que el plan fija antes de tocar código:**
 
@@ -5531,6 +5535,31 @@ un botón escondido en la fila del listado de cuentas.
 - **Los textos que decían "Personas" o "Usuarios" ahora dicen "Directorio"**:
   `BuscadorDePersonas` (*"Creásela primero en Directorio"*), el formulario de
   edición de Alumnos, y los tres bloques de contraseña del buzón.
+- **J6 — la clave temporal se muestra con UN bloque en todo el sistema**
+  (`componentes/PasswordNueva.tsx`), con el botón de WhatsApp adentro. Había
+  tres copias del mismo bloque —Directorio, Profesores y `CuentaLista` del
+  buzón— y sólo la del buzón tenía el botón; el pedido de Ignacio era ponerlo
+  en el reseteo, y la forma de que no vuelva a faltar en la próxima pantalla
+  es que el bloque sea uno. `EnlaceDeWhatsapp` salió del buzón a
+  `componentes/` por lo mismo. El bloque decide el mensaje por el **motivo**
+  (`cuenta-nueva` · `profesor-nuevo` · `reseteo`): el del reseteo no dice *te
+  creamos tu cuenta* ni promete el portal —la cuenta ya existía—, y sí dice
+  en su propio párrafo que **vence a los 7 días**; el del profe habla de la
+  agenda y los alumnos, no de reservar cabina. Sin teléfono legible no hay
+  link y el bloque lo dice, la regla de `whatsapp.ts`.
+- **J6 — editar a un profesor son dos pedidos, cada uno sólo si lo suyo
+  cambió.** Los datos de la persona van a `PUT /api/usuarios/{idUsuario}` y
+  la especialidad y la baja a `PUT /api/profesores/{id}`. Se mandan por
+  separado y condicionados porque **un STAFF no puede tocar la cuenta de un
+  STAFF** (`verificarQuePuedeTocarEstaCuenta`): si corregir la especialidad
+  de Ghezz mandara también la cuenta, un STAFF se comería un 403 por un dato
+  que no tocó. Sin transacción entre los dos, y está bien: lo que quedó
+  guardado es verdad igual, y el error dice qué faltó.
+- **J6 — `ProfesorResumen` lleva `activo` Y `cuentaActiva`, y la fila los
+  dibuja aparte** (*De baja* · *cuenta desactivada*). Son dos hechos: la
+  relación y la cuenta. *"Desactivar"* en Profesores se llama **"Desactivar
+  cuenta"** para que nadie lo lea como dar de baja al profe, que es la
+  casilla de adentro de Editar.
 
 ### Lo que encontró
 
@@ -5543,14 +5572,30 @@ un botón escondido en la fila del listado de cuentas.
   la base de desarrollo no puede afirmar cantidades de datos que no creó.**
 - **`tsc -b` encontró cinco fixtures** que no conocían `esAlumno`/`esProfesor`
   (Mix & Mastering, Solicitantes ×2, Ventas ×2) — el compilador haciendo el
-  trabajo que el comentario de `UsuarioResumen` le pide.
+  trabajo que el comentario de `UsuarioResumen` le pide. Y tres más con J6
+  (`ProfesorResumen`: Inscripciones, Solicitantes, la propia suite).
+- ⏳ **Los emojis del mensaje de WhatsApp le llegan a Ignacio como `?`**
+  (*"fijate que los emojis del msj de wpp figura con ? cuando los mando"*).
+  **Del lado nuestro está verificado que no es el código**: el archivo es
+  UTF-8 correcto (`🪭` = `F0 9F AA AD`, comprobado byte a byte), el
+  `encodeURIComponent` produce `%F0%9F%AA%AD` y el `wa.me` lo decodifica de
+  vuelta al mismo emoji (probado con `new URL(...).searchParams`); las suites
+  de `whatsapp.test.ts` y las nuevas de Profesores leen el `href` y encuentran
+  el texto entero. Lo que falta saber es **dónde** se ve el `?`: la sospecha
+  es **WhatsApp Desktop para Windows**, que al abrir un `whatsapp://send?text=`
+  con emojis fuera del plano básico (los `U+1Fxxx`: 🪭 🎧 🎛️ 💸 🔑 📲) los
+  pierde — y el `❤️` (U+2764, plano básico) se vería bien. Si es eso, no hay
+  encoding que lo arregle desde acá; la salida es abrir el link con WhatsApp
+  Web o desde el teléfono. Preguntado: qué cliente usa y si el corazón sí se
+  ve. **No se tocó nada** hasta tener esa respuesta: cambiar el encoding a
+  ciegas es la clase de arreglo que rompe lo que hoy anda en el teléfono.
 
 ### Al cierre
 
 Suites: **711 backend** (ProfesorTest 13 · DirectorioTest 2 · ClienteTest 5,
-todos nuevos o crecidos) · **644 front** (ProfesoresPagina 6 ·
-UsuariosPagina 5 · ClientesPagina 5 · menu +1). `tsc -b`, lint y build
-limpios. Sin migración.
+todos nuevos o crecidos) · **654 front** (ProfesoresPagina 13 ·
+UsuariosPagina 6 · ClientesPagina 5 · menu +1 · whatsapp +2). `tsc -b`, lint
+y build limpios. Sin migración.
 
 ---
 
