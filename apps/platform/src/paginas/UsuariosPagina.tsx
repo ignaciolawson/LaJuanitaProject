@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import {
-  altaProfesor,
   altaUsuario,
   cambiarActivoUsuario,
-  editarProfesor,
   editarUsuario,
-  listarProfesores,
   listarUsuarios,
   resetearPasswordUsuario,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import type { Rol } from '../api/tipos'
-import type { ProfesorResumen, UsuarioResumen } from '../api/tiposAdmin'
+import type { GrupoDeCuentas, UsuarioResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque, Hueco } from '../componentes/Bloque'
@@ -29,16 +26,24 @@ import { NOMBRE_DE_ROL } from '../componentes/presentacion'
 const ROLES = Object.keys(NOMBRE_DE_ROL) as Rol[]
 
 /**
- * Todas las personas con cuenta, sean alumnos o no.
+ * El Directorio —todas las personas con cuenta— y, con `grupo`, una de sus
+ * partes: el Equipo (P77).
  *
- * Es la pantalla que hace visible la decisión de arquitectura del sistema: acá
- * aparece gente que alquiló una cabina una vez y nunca cursó nada. En el modelo
- * original, que trataba al alumno como el usuario del sistema, esa gente no
- * existía.
+ * Es la única pantalla donde una persona se ve **entera**, con sus dos ejes: el
+ * rol (permisos, lo que Spring Security lee) y las relaciones (alumno,
+ * profesor — lo que arma el portal). Acá se otorga el rol y se administra la
+ * cuenta; las relaciones se dan en Alumnos y Profesores, que son sus índices.
+ * Hasta la §19 esta pantalla se llamaba "Personas" y tenía un botón *"Hacer
+ * profesor"* por fila — el modelo asomando por la pantalla en vez del trámite.
+ *
+ * Con `grupo="EQUIPO"` lista sólo los roles administrativos, con el admin
+ * adentro (P77 · 2), y **filtra el servidor**: hacerlo acá sobre una página de
+ * veinte sería el listado que miente a los veintiuno.
  */
-export function UsuariosPagina() {
+export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) {
   const yo = useUsuario()
   const puedeEscribir = puedeOperar(yo)
+  const esEquipo = grupo === 'EQUIPO'
 
   const [usuarios, setUsuarios] = useState<UsuarioResumen[]>([])
   const [total, setTotal] = useState(0)
@@ -51,39 +56,6 @@ export function UsuariosPagina() {
   const [creando, setCreando] = useState(false)
   const [editando, setEditando] = useState<UsuarioResumen | null>(null)
 
-  /**
-   * Quiénes son profesores, para poder decirlo en cada fila.
-   *
-   * ⚠️ **Se cruza acá y no viene en `UsuarioResumen`, a propósito.** Ponerlo en
-   * el DTO obliga a resolver la relación por fila —un N+1— o a meter un join en
-   * un listado paginado, y lo que se gana es un booleano. La lista de profesores
-   * **no pagina y no va a paginar**: su tamaño lo decide la nómina del estudio,
-   * que son unas pocas personas, y eso está escrito en `ProfesorRepository` con
-   * todas las letras. Traerla entera es un pedido chico y fijo.
-   *
-   * Con `incluirInactivos` porque acá interesa **la relación**, no si sigue
-   * dando clases: alguien de baja ya es profesor, y ofrecerle "Hacer profesor"
-   * terminaría en el 409 del UNIQUE.
-   */
-  const [profesores, setProfesores] = useState<ProfesorResumen[]>([])
-  const [tocandoProfesor, setTocandoProfesor] = useState<UsuarioResumen | null>(null)
-
-  const cargarProfesores = useCallback(async () => {
-    // Sin `catch` que avise: que falle esta lista no puede romper la pantalla de
-    // usuarios, que sirve para otras cinco cosas. Se degrada a no mostrar la
-    // columna, no a un error rojo sobre un listado que cargó bien.
-    try {
-      setProfesores(await listarProfesores(true))
-    } catch {
-      setProfesores([])
-    }
-  }, [])
-
-  useEffect(() => {
-    void cargarProfesores()
-  }, [cargarProfesores])
-
-  const profesorDe = (idUsuario: number) => profesores.find((p) => p.idUsuario === idUsuario)
   const [passwordGenerada, setPasswordGenerada] = useState<{ de: string; valor: string } | null>(
     null,
   )
@@ -92,7 +64,7 @@ export function UsuariosPagina() {
     setCargando(true)
     setError(null)
     try {
-      const resultado = await listarUsuarios({ buscar, pagina })
+      const resultado = await listarUsuarios({ buscar, pagina, grupo })
       setUsuarios(resultado.contenido)
       setTotal(resultado.totalElementos)
       setTotalPaginas(resultado.totalPaginas)
@@ -101,7 +73,7 @@ export function UsuariosPagina() {
     } finally {
       setCargando(false)
     }
-  }, [buscar, pagina, setError])
+  }, [buscar, pagina, grupo, setError])
 
   useEffect(() => {
     const id = setTimeout(cargar, 250)
@@ -140,12 +112,26 @@ export function UsuariosPagina() {
   return (
     <div>
       <CabeceraDePagina
-        titulo="Personas"
-        aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'cuenta' : 'cuentas'}`} · incluye a
-            quien solo alquila cabina o compra equipos</>}
-        acciones={<>{/* DIRECTIVO lee todo y no escribe nada: no se le ofrece lo que el
-            backend le va a negar. Quien autoriza sigue siendo el backend. */}
-        {puedeEscribir && <Boton onClick={() => setCreando(true)}>Nueva cuenta</Boton>}</>}
+        titulo={esEquipo ? 'Equipo' : 'Directorio'}
+        aclaracion={
+          <>
+            {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'cuenta' : 'cuentas'}`}
+            {esEquipo
+              ? ' · quienes administran La Juanita: admin, dirección y staff'
+              : ' · todas las personas con cuenta, sean lo que sean para el estudio'}
+          </>
+        }
+        acciones={
+          <>
+            {/* DIRECTIVO lee todo y no escribe nada: no se le ofrece lo que el
+                backend le va a negar. Y en Equipo el alta sólo se le ofrece al
+                ADMIN, porque sólo él puede dar un rol: una cuenta creada por
+                STAFF nace USUARIO y no aparecería en esta lista. */}
+            {puedeEscribir && (!esEquipo || yo.rol === 'ADMIN') && (
+              <Boton onClick={() => setCreando(true)}>Nueva cuenta</Boton>
+            )}
+          </>
+        }
       />
 
       <AvisoSoloLectura />
@@ -197,28 +183,14 @@ export function UsuariosPagina() {
         />
       )}
 
-      {tocandoProfesor && (
-        <FormularioProfesor
-          usuario={tocandoProfesor}
-          profesor={profesorDe(tocandoProfesor.id)}
-          onCerrar={() => setTocandoProfesor(null)}
-          onGuardado={() => {
-            setTocandoProfesor(null)
-            // Sólo la lista de profesores: el listado de usuarios no cambió, y
-            // recargarlo haría saltar la página que se está mirando.
-            void cargarProfesores()
-          }}
-        />
-      )}
-
-      {/* ⚠️ **"Rol" y "Profesor" son DOS EJES y por eso son dos columnas.**
-          Permisos (qué puede administrar) y relaciones de negocio (si da clases)
-          son independientes desde el primer commit de este sistema: Ghezz es
-          STAFF *y* profesor *y* alquila cabina, sin ninguna contradicción.
-          Mostrarlos en una sola columna los haría ver como valores de la misma
-          cosa, que es exactamente el modelo equivocado que este proyecto
-          corrigió al principio. */}
-      <Tabla columnas={['Persona', 'Contacto', 'Rol', 'Profesor', 'Estado', '']}>
+      {/* ⚠️ **"Rol" y "Relaciones" son DOS EJES y por eso son dos columnas.**
+          Permisos (qué puede administrar) y relaciones de negocio (si cursa, si
+          da clases) son independientes desde el primer commit de este sistema:
+          Ghezz es STAFF *y* profesor *y* alquila cabina, sin ninguna
+          contradicción. Mostrarlos en una sola columna los haría ver como
+          valores de la misma cosa, que es exactamente el modelo equivocado que
+          este proyecto corrigió al principio. */}
+      <Tabla columnas={['Persona', 'Contacto', 'Rol', 'Relaciones', 'Estado', '']}>
             {usuarios.map((u) => (
               <tr key={u.id}>
                 <Celda>
@@ -236,7 +208,7 @@ export function UsuariosPagina() {
                 </Celda>
                 <Celda className="text-tenue">{NOMBRE_DE_ROL[u.rol] ?? u.rol}</Celda>
                 <Celda className="text-tenue">
-                  <RelacionDeProfesor profesor={profesorDe(u.id)} />
+                  <Relaciones usuario={u} />
                 </Celda>
                 <Celda>
                   <span
@@ -251,9 +223,6 @@ export function UsuariosPagina() {
                   {puedeEscribir && (
                     <div className="flex justify-end gap-3 whitespace-nowrap">
                       <Accion onClick={() => setEditando(u)}>Editar</Accion>
-                      <Accion onClick={() => setTocandoProfesor(u)}>
-                        {profesorDe(u.id) ? 'Profesor…' : 'Hacer profesor'}
-                      </Accion>
                       <Accion onClick={() => void resetearPassword(u)}>Resetear contraseña</Accion>
                       {/* Desactivarse a uno mismo deja a la persona afuera en el
                           pedido siguiente. El backend lo rechaza; acá además no
@@ -287,139 +256,16 @@ export function UsuariosPagina() {
 }
 
 /**
- * Si esta persona da clases, dicho en la fila.
+ * Qué es esta persona para el estudio, dicho en la fila. Vacío es "sólo tiene
+ * cuenta": alguien que alquiló una cabina o se registró desde la web.
  *
- * **De baja NO es "no es profesor"**, y por eso son tres estados y no dos: la
- * fila sigue existiendo, su portal de profesor sigue abierto para ver el
- * historial de lo que dictó, y lo único que cambia es que no se la ofrece al
- * armar una inscripción nueva. Dibujarla como "—" haría que alguien intente
- * hacerla profesor otra vez y se coma el 409 del índice único.
+ * Es un dato y no un botón: la relación se da en Alumnos y en Profesores, que
+ * son sus índices (P77). Acá se la ve, para que la persona se lea entera.
  */
-function RelacionDeProfesor({ profesor }: { profesor?: ProfesorResumen }) {
-  if (!profesor) return <span className="text-apagado">—</span>
-
-  return (
-    <div>
-      <div>{profesor.especialidad ?? 'Sin especialidad'}</div>
-      {!profesor.activo && <div className="text-xs text-apagado">De baja</div>}
-    </div>
-  )
-}
-
-/**
- * Darle —o corregirle— la relación de profesor a una persona.
- *
- * ⚠️ **Esto no existía en ninguna capa hasta el 2026-09-05** (§14 · B2).
- * `/api/profesores` tenía un solo GET: seis pantallas del Módulo 5, el selector
- * de la inscripción y la agenda del profesor leían una tabla que **nada sabía
- * poblar**, así que la única forma de que alguien fuera profesor era un INSERT a
- * mano. Nada fallaba, porque una capacidad que no existe no tiene nada que
- * romper. Lo encontró Ignacio preguntando lo más simple: *"¿cómo se lo da de
- * alta como profe?"*.
- *
- * **Vive acá y no en una pantalla propia** porque ser profesor es una relación
- * de una persona, y ésta es la pantalla de las personas — la misma donde se
- * otorga el rol, que es el otro eje. Es lo que el modelo de este proyecto dice
- * desde el principio: *una fila de `profesor` se crea dándole la relación a un
- * `usuario`*.
- */
-function FormularioProfesor({
-  usuario,
-  profesor,
-  onCerrar,
-  onGuardado,
-}: {
-  usuario: UsuarioResumen
-  profesor?: ProfesorResumen
-  onCerrar: () => void
-  onGuardado: () => void
-}) {
-  const [especialidad, setEspecialidad] = useState(profesor?.especialidad ?? '')
-  const [activo, setActivo] = useState(profesor?.activo ?? true)
-  const [error, setError] = useErrorPasajero()
-  const [guardando, setGuardando] = useState(false)
-
-  async function onSubmit(evento: React.FormEvent) {
-    evento.preventDefault()
-    setGuardando(true)
-    setError(null)
-    try {
-      if (profesor) {
-        await editarProfesor(profesor.idProfesor, { especialidad: especialidad || null, activo })
-      } else {
-        await altaProfesor({ idUsuario: usuario.id, especialidad: especialidad || undefined })
-      }
-      onGuardado()
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo guardar.')
-      setGuardando(false)
-    }
-  }
-
-  return (
-    <Bloque titulo={profesor ? 'Profesor' : 'Hacer profesor'} className="mb-6">
-      <form onSubmit={onSubmit} noValidate>
-        <p className="mb-4 text-sm text-tenue">
-          <span className="font-medium text-texto">
-            {usuario.nombre} {usuario.apellido}
-          </span>
-          {!profesor && (
-            <>
-              {' '}
-              va a poder ver <span className="text-texto">Mi agenda</span>,{' '}
-              <span className="text-texto">Mis alumnos</span> y{' '}
-              <span className="text-texto">Subir material</span> la próxima vez que entre.
-            </>
-          )}
-        </p>
-
-        <Campo
-          etiqueta="Especialidad"
-          value={especialidad}
-          onChange={(e) => setEspecialidad(e.target.value)}
-          placeholder="DJ, Producción, Ableton…"
-          ayuda="Opcional. Es una nota para adentro, no cambia ningún permiso."
-          autoFocus
-        />
-
-        {/* Sólo al editar: alguien recién hecho profesor está activo por
-            definición, y ofrecer la casilla en el alta invita a crear una
-            relación nacida de baja, que no le sirve a nadie. */}
-        {profesor && (
-          <label className="mt-4 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={activo}
-              onChange={(e) => setActivo(e.target.checked)}
-              className="mt-1"
-            />
-            <span>
-              Sigue dando clases
-              <span className="block text-xs text-tenue">
-                Destildado no se ofrece al armar una inscripción nueva. La relación no se
-                borra: sigue viendo el historial de las clases que dio.
-              </span>
-            </span>
-          </label>
-        )}
-
-        {error && (
-          <div className="mt-4">
-            <Aviso>{error}</Aviso>
-          </div>
-        )}
-
-        <div className="mt-5 flex gap-3">
-          <Boton type="submit" disabled={guardando}>
-            {guardando ? 'Guardando…' : profesor ? 'Guardar' : 'Hacer profesor'}
-          </Boton>
-          <Boton type="button" variante="secundario" onClick={onCerrar}>
-            Cancelar
-          </Boton>
-        </div>
-      </form>
-    </Bloque>
-  )
+function Relaciones({ usuario }: { usuario: UsuarioResumen }) {
+  const cuales = [usuario.esAlumno && 'Alumno', usuario.esProfesor && 'Profesor'].filter(Boolean)
+  if (cuales.length === 0) return <span className="text-apagado">—</span>
+  return <>{cuales.join(' · ')}</>
 }
 
 function Accion({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {

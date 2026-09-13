@@ -5435,7 +5435,136 @@ otro. Siete casos en `whatsapp.test.ts`, el primero sobre la forma
 
 ---
 
+## 19. La SÉPTIMA barrida de correcciones — abierta el 2026-09-12
+
+> Un solo hallazgo de Ignacio, traído la misma noche que cerró la §18, y con
+> forma de propuesta más que de bug: *"no me convence el botón 'hacer
+> profesor' en la lista de personas"*. Es una reorganización del grupo
+> **Personas** del menú en cinco pantallas y un grupo nuevo, **Comercial**.
+> La decisión es **P77** (`platform.md` §25), cerrada en la conversación
+> antes de escribir una línea. Grupo **B** entero: sin migración.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-12, noche)
+
+✅ **ESTADO: CERRADA la misma noche del 2026-09-12 — los cinco puntos, sin
+migración.** Decisión: **P77** (`platform.md` §25). Suites al cierre: **711
+backend · 644 front · 290 + 68 SQL** sobre 31 migraciones; `tsc -b`, lint y
+build limpios. ⚠️ **El backend de desarrollo se reinició** con este código:
+`/api/clientes` y `?grupo=EQUIPO` contestan. Lo que decidió y encontró al
+ejecutarse está al final de la sección.
+
+### El hallazgo, y por qué tiene razón
+
+*"Hacer profesor"* es un botón que **expone el modelo en vez del trámite**. El
+modelo dice que una persona tiene dos ejes —rol y relaciones— y eso está bien
+adentro; pero Mica no piensa *"le agrego la relación profesor a un usuario"*,
+piensa *"doy de alta un profe"*. Alumnos ya tiene la forma correcta: índice
+propio, alta que busca a la persona o le crea la cuenta. Profesores tenía el
+backend entero desde §14 · B2 y **ninguna pantalla**: la relación se daba con
+un botón escondido en la fila del listado de cuentas.
+
+### El plan
+
+| | Qué | Dónde |
+|---|---|---|
+| ✅ J1 | **Profesores** con pantalla propia: listado, alta con el molde de Alumnos (*"¿ya tiene cuenta?"*), edición. *"Hacer profesor"* se va del Directorio | `/admin/profesores`; `AltaProfesorRequest` gana `usuarioNuevo` como el del alumno |
+| ✅ J2 | **Equipo**: ADMIN + DIRECTIVO + STAFF, donde se cambia el rol | `/admin/equipo` = el listado de cuentas filtrado **por el servidor** (`grupo=EQUIPO`) |
+| ✅ J3 | **Clientes**: quien gastó plata (`ENTRARON`) y no es alumno, profe ni equipo; con cuenta o a nombre escrito | `GET /api/clientes`, paquete `cliente`, una consulta nativa sobre `pago` |
+| ✅ J4 | **Directorio**: la pantalla de cuentas, renombrada, con las relaciones (alumno · profesor) a la vista | `/admin/usuarios` con `esAlumno`/`esProfesor` en `UsuarioResumen` |
+| ✅ J5 | **Comercial**: Buzón de la web · Programas · Inscripciones | `menu.ts` |
+
+**Dos cosas que el plan fija antes de tocar código:**
+
+- **Equipo y Clientes filtran en el servidor, nunca en la pantalla.** Filtrar
+  del lado del cliente sobre una página de veinte es un listado que miente a
+  los veintiuno — H8 de la §17, seis veces en tres pantallas. Y la definición
+  de *cliente* vive en **una** consulta, para que el número de la pantalla y
+  el de cualquier otro lector futuro (el tablero, un export) no puedan
+  discrepar: el patrón de `V12`.
+- **`esAlumno`/`esProfesor` en `UsuarioResumen` se resuelven en bloque, no por
+  fila.** El comentario de `UsuariosPagina` había rechazado ponerlos en el DTO
+  *"porque obliga a un N+1"*; con dos consultas `IN (:ids)` por página el
+  costo es fijo y el dato viaja con la fila, que es lo que el Directorio
+  necesita para ser el Directorio.
+
+### Lo que decidió al ejecutarse, y no estaba en el plan
+
+- **`AltaProfesorRequest` gana el camino de cuenta nueva, y su javadoc decía
+  por qué no lo tenía.** *"La relación se otorga desde `/admin/usuarios`,
+  parado sobre la fila de una persona que existe"* — la premisa exacta que
+  P77 dio vuelta. Ahora es el molde de `AltaAlumnoRequest` (`idUsuario` o
+  `usuarioNuevo`, una transacción, `AltaProfesorResultado` con la contraseña
+  sólo si nació una cuenta), y los tres casos de `ProfesorTest` que miraban
+  `$.idUsuario` en la raíz pasaron a `$.profesor.idUsuario`. Un STAFF que crea
+  la cuenta del profe no puede darle rol, igual que en el alta de alumno.
+- **Las relaciones viajan en `UsuarioResumen`, en bloque.** El comentario de
+  `UsuariosPagina` las había dejado fuera del DTO *"porque obliga a un N+1"*, y
+  era cierto sólo de a una: `UsuarioService.listar` resuelve `esAlumno` y
+  `esProfesor` con dos consultas `IN (:ids)` por página
+  (`AlumnoRepository.idsDeUsuarioConRelacion`, `ProfesorRepository` ídem), y
+  `resumenDe` hace las dos `exists` para una sola persona. Los seis lugares
+  que construían el DTO de una fila pasan por ahí; `SolicitanteService`
+  también.
+- **`GrupoDeCuentas` es un enum del backend, no un `rol=` suelto**: TODOS y
+  EQUIPO (ADMIN + DIRECTIVO + STAFF). La definición de "equipo" vive una vez.
+- **Clientes es una consulta nativa con un `UNION ALL` y un `WITH`**
+  (`ClienteRepository.CLIENTES`), paginada con `countQuery` como
+  `PagoRepository.idsListados`. Las dos mitades salen de `pago` porque desde
+  `V19` un pago puede ir a nombre escrito; la de los sin cuenta agrupa por
+  `lower(btrim(nombre_pagador_externo))` y lleva `min(contacto)`. Usa
+  `LineaDeNegocio.EXPRESION` y `JOINS` sin copiarlos, con
+  `string_agg(DISTINCT …)` para decir qué compró cada uno. **No lleva total**:
+  dos monedas no se suman, y la plata de una persona ya tiene su pantalla (el
+  estado de cuenta, a donde lleva el nombre).
+- ⚠️ **Hibernate 7 entrega `LocalDate` para una columna `DATE` en una consulta
+  nativa**, no `java.sql.Date`: el primer mapeo de `ClienteService` hizo
+  `(Date) f[7]` y explotó con `ClassCastException`. Los otros mapeos nativos
+  del proyecto ya lo sabían (`PagoService.deudores` hace `(LocalDate)
+  fila[6]`).
+- **El rol STAFF dejó de mostrarse como "Equipo"** (`NOMBRE_DE_ROL`): una
+  fila que dijera "Equipo" adentro de la pantalla Equipo confundiría el rol
+  con el grupo. Ahora se lee "Staff", que es como Ignacio lo nombra.
+- **Equipo y Directorio son una sola pantalla con `grupo`**
+  (`UsuariosPagina`), con `key` por ruta para que cambiar de una a otra no
+  arrastre la página y la búsqueda. En Equipo el alta sólo se le ofrece al
+  ADMIN: una cuenta creada por STAFF nace USUARIO y no aparecería en la lista.
+- **Los textos que decían "Personas" o "Usuarios" ahora dicen "Directorio"**:
+  `BuscadorDePersonas` (*"Creásela primero en Directorio"*), el formulario de
+  edición de Alumnos, y los tres bloques de contraseña del buzón.
+
+### Lo que encontró
+
+- ⚠️ **`VentaEquipoTest.una_venta_sin_marca_ni_categoria_igual_se_encuentra`
+  dependía de los datos de la base de desarrollo**: buscaba `XDJ` y esperaba
+  exactamente una venta, y esa misma noche Ignacio cargó una *"Pioneer
+  xdj-rr"* probando el flujo de equipos de la §18. Cayó en la primera corrida
+  completa de esta barrida, sin relación con ella. Ahora vende un modelo con
+  UUID y lo busca por él — la regla de siempre: **una suite que corre contra
+  la base de desarrollo no puede afirmar cantidades de datos que no creó.**
+- **`tsc -b` encontró cinco fixtures** que no conocían `esAlumno`/`esProfesor`
+  (Mix & Mastering, Solicitantes ×2, Ventas ×2) — el compilador haciendo el
+  trabajo que el comentario de `UsuarioResumen` le pide.
+
+### Al cierre
+
+Suites: **711 backend** (ProfesorTest 13 · DirectorioTest 2 · ClienteTest 5,
+todos nuevos o crecidos) · **644 front** (ProfesoresPagina 6 ·
+UsuariosPagina 5 · ClientesPagina 5 · menu +1). `tsc -b`, lint y build
+limpios. Sin migración.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **Y LA SÉPTIMA (§19) TAMBIÉN, LA MISMA NOCHE: cinco de cinco, sin
+migración, con P77** (`platform.md` §25) — Personas son cinco pantallas
+(Alumnos · Profesores · Equipo · Clientes · Directorio) y Comercial es un grupo
+nuevo (Buzón · Programas · Inscripciones). *"Hacer profesor"* se fue; el alta
+de profesor tiene el molde del alumno; **cliente = quien gastó plata
+(`ENTRARON`) y no es alumno, profe ni equipo, con cuenta o a nombre escrito**;
+el rol STAFF se lee "Staff". Suites: **711 backend · 644 front**. ⚠️ Un caso
+de `VentaEquipoTest` dependía de los datos de la base de desarrollo y cayó por
+una venta real cargada esa noche: ya busca un modelo único.
 
 ✅ **LA SEXTA BARRIDA (§18) TAMBIÉN ESTÁ CERRADA: tres de tres, la noche del
 2026-09-12, sin migración** — el KPI de cobros pendientes lee la lista de

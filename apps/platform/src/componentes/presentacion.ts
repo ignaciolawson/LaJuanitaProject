@@ -25,11 +25,15 @@ export const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
  * uno de los lugares que hay que tocar para agregar un rol (ver `CLAUDE.md`),
  * pero ahora es **uno** en vez de dos, y el `Record<Rol, string>` hace que el
  * compilador sea el que avisa.
+ *
+ * STAFF se lee "Staff" y no "Equipo" desde P77: Equipo es ahora la pantalla
+ * que lista a los tres roles administrativos, y una fila que dijera "Equipo"
+ * adentro de Equipo confundiría el rol con el grupo.
  */
 export const NOMBRE_DE_ROL: Record<Rol, string> = {
   ADMIN: 'Administración',
   DIRECTIVO: 'Dirección',
-  STAFF: 'Equipo',
+  STAFF: 'Staff',
   USUARIO: 'Usuario',
 }
 

@@ -3,6 +3,7 @@ package com.lajuanita.backend.profesor;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,8 +14,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
+import com.lajuanita.backend.profesor.ProfesorService.AltaProfesorResultado;
 import com.lajuanita.backend.profesor.dto.AltaProfesorRequest;
 import com.lajuanita.backend.profesor.dto.EdicionProfesorRequest;
 import com.lajuanita.backend.profesor.dto.ProfesorResumen;
@@ -69,8 +72,11 @@ public class ProfesorController {
     @PostMapping
     @PuedeOperar
     @ResponseStatus(HttpStatus.CREATED)
-    public ProfesorResumen alta(@Valid @RequestBody AltaProfesorRequest solicitud) {
-        return profesores.alta(solicitud);
+    public AltaProfesorResultado alta(@Valid @RequestBody AltaProfesorRequest solicitud,
+            Authentication quienPide) {
+        // Un STAFF que crea la cuenta del profe no puede darle rol: lo mismo que
+        // en el alta de alumno y en /api/usuarios.
+        return profesores.alta(solicitud, Autoridades.esAdmin(quienPide));
     }
 
     /**

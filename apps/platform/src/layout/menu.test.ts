@@ -119,7 +119,8 @@ describe('regla 3 — el rol', () => {
     const visibles = etiquetas(usuario({ rol: 'USUARIO' }))
 
     expect(visibles).not.toContain('Alumnos')
-    expect(visibles).not.toContain('Personas')
+    expect(visibles).not.toContain('Directorio')
+    expect(visibles).not.toContain('Clientes')
     expect(visibles).not.toContain('Tablero')
   })
 
@@ -254,13 +255,14 @@ describe('la recorrida por rol', () => {
     expect(inventario(usuario({ esAlumno: true, esProfesor: true })).total).toBe(8 + 5)
   })
 
-  it('los tres perfiles que administran ven los mismos cinco dominios', () => {
+  it('los tres perfiles que administran ven los mismos seis dominios', () => {
     // ⚠️ Lo que separa a DIRECTIVO de los otros dos NO es qué pantallas ve
     // —ve todas— sino que no tiene botones de escritura adentro. Si alguna
     // vez alguien "arregla" el menú escondiéndole secciones, este caso cae.
     const dominios = [
       'Mi cuenta',
       'Personas',
+      'Comercial',
       'Salas y agenda',
       'Dinero',
       'Sello y mastering',
@@ -270,8 +272,21 @@ describe('la recorrida por rol', () => {
     for (const rol of ['ADMIN', 'DIRECTIVO', 'STAFF'] as Rol[]) {
       const { total, grupos } = inventario(usuario({ rol }))
       expect(grupos).toEqual(dominios)
-      expect(total).toBe(8 + 19)
+      // 22 desde P77: Personas se partió en cinco y Comercial se llevó tres.
+      expect(total).toBe(8 + 22)
     }
+  })
+
+  it('Personas son las cinco pantallas de P77, y Comercial el embudo', () => {
+    // "Hacer profesor" era un botón escondido en la fila del listado de
+    // cuentas: el modelo asomando por la pantalla. Cada relación tiene su
+    // índice, y el Directorio es donde una persona se ve entera.
+    const grupos = menuPara(usuario({ rol: 'STAFF' }))
+    const personas = grupos.find((g) => g.titulo === 'Personas')!.items.map((i) => i.etiqueta)
+    const comercial = grupos.find((g) => g.titulo === 'Comercial')!.items.map((i) => i.etiqueta)
+
+    expect(personas).toEqual(['Alumnos', 'Profesores', 'Equipo', 'Clientes', 'Directorio'])
+    expect(comercial).toEqual(['Buzón de la web', 'Programas', 'Inscripciones'])
   })
 
   it('los grupos van en orden de negocio y no de construcción de los módulos', () => {
@@ -279,7 +294,8 @@ describe('la recorrida por rol', () => {
     // nadie navega "el módulo 6", navega "necesito cobrar".
     const { grupos } = inventario(usuario({ rol: 'ADMIN' }))
 
-    expect(grupos.indexOf('Personas')).toBeLessThan(grupos.indexOf('Dinero'))
+    expect(grupos.indexOf('Personas')).toBeLessThan(grupos.indexOf('Comercial'))
+    expect(grupos.indexOf('Comercial')).toBeLessThan(grupos.indexOf('Dinero'))
     expect(grupos.indexOf('Dinero')).toBeLessThan(grupos.indexOf('Dirección'))
   })
 
@@ -288,7 +304,7 @@ describe('la recorrida por rol', () => {
     const ghezz = usuario({ rol: 'STAFF', esProfesor: true })
     const { total, grupos } = inventario(ghezz)
 
-    expect(total).toBe(8 + 3 + 19)
+    expect(total).toBe(8 + 3 + 22)
     expect(grupos).toContain('Mi formación')
     expect(grupos).toContain('Dinero')
   })

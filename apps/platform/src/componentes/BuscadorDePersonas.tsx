@@ -136,7 +136,7 @@ export function BuscadorDePersonas({
           {!buscando && resultados.length === 0 && (
             <p className="px-3 py-2 text-xs text-tenue">
               Nadie con ese nombre tiene cuenta. Creásela primero en{' '}
-              <span className="font-medium">Usuarios</span>.
+              <span className="font-medium">Directorio</span>.
             </p>
           )}
 

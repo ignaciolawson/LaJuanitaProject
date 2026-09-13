@@ -232,7 +232,7 @@ public class SolicitanteService {
         if (yaExiste != null) {
             ficha.darleCuenta(yaExiste);
             return new ConversionRealizada(
-                    SolicitanteResumen.de(ficha), UsuarioResumen.de(yaExiste), null, false);
+                    SolicitanteResumen.de(ficha), cuentas.resumenDe(yaExiste), null, false);
         }
 
         UsuarioCreado creada = cuentas.altaPorAdministracion(

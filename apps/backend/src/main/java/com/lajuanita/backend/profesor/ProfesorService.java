@@ -10,8 +10,11 @@ import com.lajuanita.backend.profesor.dto.EdicionProfesorRequest;
 import com.lajuanita.backend.profesor.dto.ProfesorResumen;
 import com.lajuanita.backend.usuario.DatoDuplicadoException;
 import com.lajuanita.backend.usuario.RecursoNoEncontradoException;
+import com.lajuanita.backend.usuario.SolicitudInvalidaException;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
+import com.lajuanita.backend.usuario.UsuarioService;
+import com.lajuanita.backend.usuario.dto.UsuarioCreado;
 
 /**
  * La relación de profesor.
@@ -36,10 +39,13 @@ public class ProfesorService {
 
     private final ProfesorRepository profesores;
     private final UsuarioRepository usuarios;
+    private final UsuarioService usuarioService;
 
-    public ProfesorService(ProfesorRepository profesores, UsuarioRepository usuarios) {
+    public ProfesorService(ProfesorRepository profesores, UsuarioRepository usuarios,
+            UsuarioService usuarioService) {
         this.profesores = profesores;
         this.usuarios = usuarios;
+        this.usuarioService = usuarioService;
     }
 
     @Transactional(readOnly = true)
@@ -48,7 +54,11 @@ public class ProfesorService {
     }
 
     /**
-     * Convierte en profesor a alguien que ya tiene cuenta.
+     * Da de alta un profesor: a alguien que ya tiene cuenta, o creándole la
+     * cuenta en el mismo movimiento (P77, el molde de {@code AlumnoService.alta}).
+     *
+     * <p>Los dos caminos en una transacción: si la relación falla, la cuenta
+     * recién creada se deshace con ella y no queda un usuario huérfano.
      *
      * <p>El chequeo de duplicado es <b>para el mensaje</b>: quien manda es el
      * {@code UNIQUE} sobre {@code profesor.id_usuario} de `V1`, y entre esta
@@ -61,12 +71,29 @@ public class ProfesorService {
      * por la existencia de esta fila, así que el menú del portal —Mi agenda, Mis
      * alumnos, Subir material— le aparece sola. No hay un segundo lugar donde
      * "habilitarlo".
+     *
+     * @return el profesor y, si se creó una cuenta nueva, su contraseña temporal
      */
     @Transactional
-    public ProfesorResumen alta(AltaProfesorRequest solicitud) {
-        Usuario usuario = usuarios.findById(solicitud.idUsuario())
-                .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + solicitud.idUsuario() + "."));
+    public AltaProfesorResultado alta(AltaProfesorRequest solicitud, boolean puedeAsignarRoles) {
+        if (!solicitud.tieneExactamenteUnCamino()) {
+            throw new SolicitudInvalidaException(
+                    "Mandá `idUsuario` (persona que ya tiene cuenta) o `usuarioNuevo` (cuenta a crear), pero no los dos.");
+        }
+
+        String passwordTemporal = null;
+        Usuario usuario;
+
+        if (solicitud.idUsuario() != null) {
+            usuario = usuarios.findById(solicitud.idUsuario())
+                    .orElseThrow(() -> new RecursoNoEncontradoException(
+                            "No existe el usuario " + solicitud.idUsuario() + "."));
+        } else {
+            UsuarioCreado creado = usuarioService.altaPorAdministracion(
+                    solicitud.usuarioNuevo(), puedeAsignarRoles);
+            passwordTemporal = creado.passwordTemporal();
+            usuario = usuarios.findById(creado.usuario().id()).orElseThrow();
+        }
 
         if (profesores.existsByUsuarioId(usuario.getId())) {
             throw new DatoDuplicadoException("idUsuario", "Esa persona ya es profesor.");
@@ -77,7 +104,11 @@ public class ProfesorService {
         profesor.setEspecialidad(normalizar(solicitud.especialidad()));
         profesor.setActivo(true);
 
-        return ProfesorResumen.de(profesores.save(profesor));
+        return new AltaProfesorResultado(ProfesorResumen.de(profesores.save(profesor)), passwordTemporal);
+    }
+
+    /** Lo que devuelve el alta: la fila, y la contraseña sólo si nació una cuenta. */
+    public record AltaProfesorResultado(ProfesorResumen profesor, String passwordTemporal) {
     }
 
     /**

@@ -18,6 +18,39 @@ export type UsuarioResumen = {
   rol: Rol
   activo: boolean
   debeCambiarPassword: boolean
+  /**
+   * Los dos ejes de la persona, con la fila (P77): el rol de arriba son los
+   * permisos; esto es qué relación tiene con el estudio. Profesor de baja
+   * sigue siendo profesor — la relación existe, lo que cambió es `activo`.
+   */
+  esAlumno: boolean
+  esProfesor: boolean
+}
+
+/**
+ * Qué parte del Directorio pide una pantalla (P77). Espeja `GrupoDeCuentas`:
+ * `EQUIPO` son los tres roles administrativos, con el ADMIN adentro.
+ */
+export type GrupoDeCuentas = 'TODOS' | 'EQUIPO'
+
+/**
+ * Una fila de Clientes (P77 · 3). Espeja `ClienteResumen`.
+ *
+ * Sin `idUsuario` es alguien que pagó a nombre escrito: `nombre` es el texto
+ * tal como se escribió, no hay `apellido` ni `email`, y `contacto` es lo que se
+ * anotó al cobrar. Sus pagos vienen agrupados por ese nombre normalizado.
+ */
+export type ClienteResumen = {
+  idUsuario: number | null
+  nombre: string
+  apellido: string | null
+  email: string | null
+  telefono: string | null
+  contacto: string | null
+  pagos: number
+  primeraCompra: string
+  ultimaCompra: string
+  lineas: LineaDeNegocio[]
 }
 
 /**
@@ -61,6 +94,12 @@ export type AlumnoResumen = {
 export type AltaAlumnoResultado = {
   alumno: AlumnoResumen
   /** Solo viene cuando el alta creó una cuenta nueva. */
+  passwordTemporal: string | null
+}
+
+/** Espeja `AltaProfesorResultado`: la misma forma que el alumno (P77). */
+export type AltaProfesorResultado = {
+  profesor: ProfesorResumen
   passwordTemporal: string | null
 }
 

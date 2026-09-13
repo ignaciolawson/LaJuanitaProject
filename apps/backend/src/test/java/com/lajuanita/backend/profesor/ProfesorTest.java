@@ -1,5 +1,6 @@
 package com.lajuanita.backend.profesor;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -117,9 +118,55 @@ class ProfesorTest {
                         {"idUsuario":%d,"especialidad":"Producción"}
                         """.formatted(pepe.getId())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.idUsuario").value(pepe.getId()))
-                .andExpect(jsonPath("$.especialidad").value("Producción"))
-                .andExpect(jsonPath("$.activo").value(true));
+                .andExpect(jsonPath("$.profesor.idUsuario").value(pepe.getId()))
+                .andExpect(jsonPath("$.profesor.especialidad").value("Producción"))
+                .andExpect(jsonPath("$.profesor.activo").value(true))
+                // Tenía cuenta: no nació ninguna, así que no hay contraseña que pasar.
+                .andExpect(jsonPath("$.passwordTemporal").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    /**
+     * El otro camino (P77): un profe nuevo que no tiene cuenta —un invitado, o
+     * alguien que nunca alquiló nada— se da de alta con la cuenta en el mismo
+     * pedido, como el alumno. La contraseña temporal se muestra una vez, para
+     * pasarla por WhatsApp, y la relación queda puesta: su portal de profesor
+     * abre en el primer login.
+     */
+    @Test
+    void un_profesor_sin_cuenta_se_da_de_alta_con_la_cuenta_en_el_mismo_pedido() throws Exception {
+        String email = "profe-nuevo-" + UUID.randomUUID() + "@lajuanita.local";
+
+        mvc.perform(post("/api/profesores")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"usuarioNuevo":{"nombre":"Lucas","apellido":"Ferreyra","email":"%s"},
+                         "especialidad":"Ableton"}
+                        """.formatted(email)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.profesor.email").value(email))
+                .andExpect(jsonPath("$.profesor.especialidad").value("Ableton"))
+                .andExpect(jsonPath("$.passwordTemporal").isNotEmpty());
+
+        Usuario creado = usuarios.findByEmailIgnoreCase(email).orElseThrow();
+        assertThat(profesores.existsByUsuarioId(creado.getId()))
+                .as("la relación queda puesta en el mismo movimiento que la cuenta")
+                .isTrue();
+        assertThat(creado.isDebeCambiarPassword()).isTrue();
+    }
+
+    /** Uno de los dos caminos, y sólo uno: los dos juntos son un 400 con su texto. */
+    @Test
+    void mandar_los_dos_caminos_se_rechaza() throws Exception {
+        mvc.perform(post("/api/profesores")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"idUsuario":%d,
+                         "usuarioNuevo":{"nombre":"Doble","apellido":"Camino","email":"doble-%s@lajuanita.local"}}
+                        """.formatted(crear(Rol.USUARIO).getId(), UUID.randomUUID())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").isNotEmpty());
     }
 
     /**

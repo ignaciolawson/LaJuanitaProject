@@ -4,6 +4,9 @@ import type { MaterialResumen, NotaDeAlumno } from './tiposDocencia'
 import type {
   ComprobanteResumen,
   AltaAlumnoResultado,
+  AltaProfesorResultado,
+  ClienteResumen,
+  GrupoDeCuentas,
   AlumnoResumen,
   BloqueoResumen,
   CajaDelPeriodo,
@@ -89,6 +92,13 @@ export type AltaAlumno = {
   instagram?: string
 }
 
+/** Espeja `AltaProfesorRequest`: o `idUsuario`, o `usuarioNuevo`. Nunca los dos (P77). */
+export type AltaProfesor = {
+  idUsuario?: number
+  usuarioNuevo?: { nombre: string; apellido: string; email: string; telefono?: string }
+  especialidad?: string
+}
+
 /** Espeja `EdicionAlumnoRequest`. No toca nombre ni contacto: eso es del `usuario`. */
 export type EdicionAlumno = {
   nivelIngreso?: NivelIngreso | ''
@@ -170,9 +180,30 @@ function query(parametros: Record<string, string | number | undefined | null>): 
 
 // -- Usuarios ---------------------------------------------------------------
 
-export function listarUsuarios(opciones: { buscar?: string; pagina?: number }) {
+/**
+ * Una página del Directorio, o de una de sus partes (P77).
+ *
+ * `grupo` lo filtra **el servidor**: Equipo son los roles administrativos y la
+ * definición vive en `GrupoDeCuentas` del backend. Filtrar acá sobre una página
+ * de veinte sería el listado que miente a los veintiuno (§17 · H8).
+ */
+export function listarUsuarios(opciones: {
+  buscar?: string
+  pagina?: number
+  grupo?: GrupoDeCuentas
+}) {
   return pedir<Pagina<UsuarioResumen>>(
-    `/api/usuarios${query({ buscar: opciones.buscar, pagina: opciones.pagina })}`,
+    `/api/usuarios${query({ buscar: opciones.buscar, pagina: opciones.pagina, grupo: opciones.grupo })}`,
+  )
+}
+
+/**
+ * Clientes (P77 · 3): quien gastó plata y no es alumno, profe ni equipo. La
+ * definición —un pago que entró— vive en una sola consulta del backend.
+ */
+export function listarClientes(opciones: { buscar?: string; pagina?: number }) {
+  return pedir<Pagina<ClienteResumen>>(
+    `/api/clientes${query({ buscar: opciones.buscar, pagina: opciones.pagina })}`,
   )
 }
 
@@ -266,20 +297,20 @@ export function listarProfesores(incluirInactivos = false) {
 }
 
 /**
- * Convertir en profesor a alguien que ya tiene cuenta (§14 · B2).
+ * Dar de alta un profesor: a alguien que ya tiene cuenta, o creándole la cuenta
+ * en el mismo pedido (P77, el molde del alta de alumno).
  *
- * ⚠️ **Esto no existía en ninguna capa hasta el 2026-09-05**: `/api/profesores`
- * tenía un solo GET, así que la única forma de que alguien fuera profesor era un
- * INSERT a mano en la base. Seis pantallas del Módulo 5 leían una tabla que nada
- * sabía poblar.
+ * ⚠️ **Esto no existía en ninguna capa hasta el 2026-09-05** (§14 · B2):
+ * `/api/profesores` tenía un solo GET, así que la única forma de que alguien
+ * fuera profesor era un INSERT a mano en la base. Seis pantallas del Módulo 5
+ * leían una tabla que nada sabía poblar. Y hasta P77 se otorgaba con un botón
+ * escondido en la fila del listado de cuentas.
  *
- * Se otorga desde `/admin/usuarios`, parado sobre la persona, porque **ser
- * profesor es una relación y no un rol** — los dos ejes de la misma persona, que
- * es exactamente lo que esa pantalla administra. Le abre el portal del profesor
+ * **Ser profesor es una relación y no un rol**: le abre el portal del profesor
  * en su pedido siguiente, sin tocar nada más.
  */
-export function altaProfesor(datos: { idUsuario: number; especialidad?: string }) {
-  return pedir<ProfesorResumen>('/api/profesores', { metodo: 'POST', cuerpo: datos })
+export function altaProfesor(datos: AltaProfesor) {
+  return pedir<AltaProfesorResultado>('/api/profesores', { metodo: 'POST', cuerpo: datos })
 }
 
 /**

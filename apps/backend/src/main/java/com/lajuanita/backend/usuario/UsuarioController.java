@@ -51,11 +51,12 @@ public class UsuarioController {
     @PuedeLeerAdministracion
     public Pagina<UsuarioResumen> listar(
             @RequestParam(required = false) String buscar,
+            @RequestParam(defaultValue = "TODOS") GrupoDeCuentas grupo,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "20") int tamanio) {
 
         Pageable paginado = PageRequest.of(Math.max(pagina, 0), Pagina.acotarTamanio(tamanio));
-        return Pagina.de(usuarios.listar(buscar, paginado));
+        return Pagina.de(usuarios.listar(buscar, grupo, paginado));
     }
 
     @GetMapping("/{id}")

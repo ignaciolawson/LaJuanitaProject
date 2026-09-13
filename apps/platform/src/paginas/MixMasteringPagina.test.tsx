@@ -252,7 +252,7 @@ describe('registrar cobro', () => {
     })
     vi.mocked(listarUsuarios).mockResolvedValue({
       contenido: [
-        { id: 77, nombre: 'Nico', apellido: 'Arce', email: 'nico@ejemplo.com', telefono: null, rol: 'USUARIO', activo: true, debeCambiarPassword: false },
+        { id: 77, nombre: 'Nico', apellido: 'Arce', email: 'nico@ejemplo.com', telefono: null, rol: 'USUARIO', activo: true, debeCambiarPassword: false, esAlumno: false, esProfesor: false },
       ],
       pagina: 0,
       tamanio: 20,

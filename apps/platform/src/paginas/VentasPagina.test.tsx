@@ -31,11 +31,11 @@ const { anularVenta, listarUsuarios, listarVentas, registrarVenta } =
 const PERSONAS: UsuarioResumen[] = [
   {
     id: 1, nombre: 'Micaela', apellido: 'Prueba', email: 'm@e.com', telefono: null,
-    rol: 'STAFF', activo: true, debeCambiarPassword: false,
+    rol: 'STAFF', activo: true, debeCambiarPassword: false, esAlumno: false, esProfesor: false,
   },
   {
     id: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', telefono: null,
-    rol: 'USUARIO', activo: true, debeCambiarPassword: false,
+    rol: 'USUARIO', activo: true, debeCambiarPassword: false, esAlumno: false, esProfesor: false,
   },
 ]
 

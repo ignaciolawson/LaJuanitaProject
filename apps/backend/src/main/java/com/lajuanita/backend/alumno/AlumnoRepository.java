@@ -161,6 +161,14 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
               AND i.estado IN :vigentes
             ORDER BY i.alumno.id, i.disciplina
             """)
+
     List<Object[]> disciplinasVigentes(@Param("ids") Collection<Long> ids,
             @Param("vigentes") Collection<EstadoInscripcion> vigentes);
+
+    /**
+     * De estas cuentas, cuáles tienen fila de alumno. Una consulta por página
+     * del Directorio, no una por fila (P77).
+     */
+    @Query("SELECT a.usuario.id FROM Alumno a WHERE a.usuario.id IN :ids")
+    List<Long> idsDeUsuarioConRelacion(@Param("ids") Collection<Long> ids);
 }

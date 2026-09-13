@@ -350,7 +350,7 @@ function FormularioEdicion({
     <Bloque titulo={<>Editar a {alumno.nombre} {alumno.apellido}</>} className="mb-6">
       <form onSubmit={onSubmit} noValidate>
         <p className="mb-4 text-xs text-apagado">
-          El nombre y el contacto se editan desde Personas: son datos de la cuenta, no del alumno.
+          El nombre y el contacto se editan desde el Directorio: son datos de la cuenta, no del alumno.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">

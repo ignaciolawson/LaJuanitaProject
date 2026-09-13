@@ -948,7 +948,7 @@ function CabinaLista({
           <p className="mt-5 text-sm leading-relaxed text-tenue">
             Además le creamos la cuenta.{' '}
             <strong className="text-texto">La contraseña no se puede volver a ver:</strong> si se
-            pierde, hay que generar otra desde Personas.
+            pierde, hay que generar otra desde el Directorio.
           </p>
           <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
@@ -1201,7 +1201,7 @@ function InscripcionLista({
           <p className="mt-5 text-sm leading-relaxed text-tenue">
             Además le creamos la cuenta.{' '}
             <strong className="text-texto">La contraseña no se puede volver a ver:</strong> si se
-            pierde, hay que generar otra desde Personas.
+            pierde, hay que generar otra desde el Directorio.
           </p>
           <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}
@@ -1551,7 +1551,7 @@ function CuentaLista({
             Pasásela por WhatsApp. El sistema le va a pedir que la cambie cuando entre, y{' '}
             <strong className="text-texto">vence a los 7 días</strong> si no la usa.{' '}
             <strong className="text-texto">No se puede volver a ver:</strong> si se pierde, hay que
-            generar otra desde Personas.
+            generar otra desde el Directorio.
           </p>
           <Hueco className="mt-3 font-mono text-lg tracking-wider">
             {resultado.passwordTemporal}

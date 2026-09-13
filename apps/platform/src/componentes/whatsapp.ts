@@ -180,7 +180,7 @@ function parrafos(...bloques: string[][]): string {
  *
  * **Éste es el bloque que justifica todo el archivo.** La contraseña no se puede
  * volver a ver: si se tipea mal, la persona no entra, escribe de nuevo, y hay
- * que generarle otra desde Personas. Acá la escribe el sistema.
+ * que generarle otra desde el Directorio. Acá la escribe el sistema.
  *
  * Es un bloque y no un mensaje porque va adentro de tres: solo, cuando lo único
  * que pasó fue crear la cuenta, y como segundo bloque del de la cabina y del de

@@ -1,5 +1,6 @@
 package com.lajuanita.backend.profesor;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,6 +29,13 @@ public interface ProfesorRepository extends JpaRepository<Profesor, Long> {
             ORDER BY LOWER(u.apellido), LOWER(u.nombre)
             """)
     List<Profesor> listar(@Param("incluirInactivos") boolean incluirInactivos);
+
+    /**
+     * De estas cuentas, cuáles tienen fila de profesor —de baja o no: la
+     * relación existe igual. Una consulta por página del Directorio (P77).
+     */
+    @Query("SELECT p.usuario.id FROM Profesor p WHERE p.usuario.id IN :ids")
+    List<Long> idsDeUsuarioConRelacion(@Param("ids") Collection<Long> ids);
 
     /**
      * Responde "¿esta persona da clases?" para armar el menú del portal.

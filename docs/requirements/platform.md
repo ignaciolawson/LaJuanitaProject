@@ -2650,3 +2650,61 @@ que el msj default sea acorde a eso."*
 **Lo que NO cambia:** la venta se carga en `/admin/ventas` como siempre, con su
 pago en la misma transacción si lo hubo; M&M sigue fuera del buzón (Módulo 6);
 y la cabina y el curso siguen cerrándose con sus gemelos de un click (P58, P66).
+
+## 25. Decisiones cerradas el 2026-09-12 (novena tanda) — la séptima barrida
+
+> Una sola, con cuatro partes, cerrada en la misma conversación en que se
+> propuso. Reorganiza el grupo "Personas" del menú y define por primera vez
+> qué es un *cliente* para este sistema.
+
+### ✅ P77 — Personas se parte en cinco pantallas, Comercial es un grupo nuevo, y cliente es quien gastó plata
+
+**Textual:** *"No me convence el botón 'hacer profesor' en la lista de
+personas […] tal vez así como alumnos tiene un índice propio con pantalla
+propia hacer lo mismo para profes, incluso tmb con staff, directivos […] y en
+vez de personas que se llame clientes y ahí ponemos a los usuarios normales o
+gente que compró algo […] y después hacemos 'directorio' que ahí es donde
+están tooodos juntos […] lo que es Buzón de la web, programas e inscripciones
+que estén en un índice nuevo."* Y a las dos preguntas: *"1. adentro. 2. si los
+sin cuenta están registrados y guardados sí mandale, clientes es todo lo que
+gastó plata en la juanita que no es alumno, ni profe, ni directivo, ni etc."*
+
+**Lo que decide:**
+
+1. **Profesores tiene pantalla propia, con el molde de Alumnos.** Listado,
+   alta (*"¿ya tiene cuenta?"* → buscar a la persona, o crearle la cuenta en
+   el mismo movimiento, como el alumno) y edición de la relación. *"Hacer
+   profesor"* se va del listado de cuentas: era el modelo asomando por la
+   pantalla —*"agregarle la relación a un usuario"*— y el trámite es *"dar de
+   alta un profe"*. El modelo no cambia: sigue siendo una relación de una
+   persona con cuenta, y el backend sigue siendo `/api/profesores`.
+2. **Equipo es una pantalla, no tres, y el admin va adentro.** ADMIN,
+   DIRECTIVO y STAFF —la gente que administra La Juanita— en un listado donde
+   se cambia el rol (sólo el ADMIN, como siempre). Staff y directivo son
+   *roles*, no relaciones; van a ser dos o tres personas cada uno, y dos
+   pantallas para eso es ruido. Ghezz aparece en Profesores *y* en Equipo, y
+   está bien: es las dos cosas.
+3. **Cliente = quien gastó plata y no es alumno, profe ni equipo.** *"Gastó
+   plata"* ya tiene nombre en este sistema: un pago en `EstadoPago.ENTRARON`
+   (SENADO/PAGADO), la misma definición con que `V12` decide si una reserva
+   tiene plata detrás. Entran **con cuenta** (un `usuario` de rol USUARIO sin
+   fila de `alumno` ni de `profesor`) **y a nombre escrito** (los pagos con
+   `id_usuario` nulo desde `V19`: compradores de equipos, clientes externos
+   de M&M). Una cuenta que se registró sola y nunca pagó **no** es cliente:
+   está en el Directorio. ⚠️ Los sin cuenta **se agrupan por el nombre
+   escrito** (normalizado: sin mayúsculas ni espacios de más), y eso se dice
+   en pantalla: dos formas de escribir el mismo nombre son dos filas. No hay
+   identidad detrás, y cruzar por nombre para *unir* sería inventarla — este
+   sistema nunca lo hizo (`V27`: se elige, no se cruza). Agrupar para *listar*
+   es lo máximo que se puede afirmar.
+4. **Directorio es la pantalla de cuentas de hoy, renombrada**: todos los que
+   tienen cuenta, con sus dos ejes (rol y relaciones) a la vista. Es la única
+   pantalla donde una persona se ve entera.
+5. **El grupo nuevo se llama "Comercial"**: Buzón de la web (quien pregunta),
+   Programas (lo que se vende y a cuánto), Inscripciones (el contrato). Es el
+   embudo entero. *"Gestión de negocio"* era el panel completo; *"Academia"*
+   dejaba afuera al buzón, que también recibe cabina y equipos.
+
+**Lo que NO cambia:** los dos ejes del modelo (rol y relaciones), quién
+otorga cada uno, las rutas del backend, y que un cliente sin cuenta sigue sin
+identidad — Clientes lo *muestra*, no lo *crea*.

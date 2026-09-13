@@ -1,12 +1,18 @@
 package com.lajuanita.backend.usuario;
 
+import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.config.RegistroDeEventos;
+import com.lajuanita.backend.profesor.ProfesorRepository;
 import com.lajuanita.backend.usuario.dto.AltaUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.EdicionUsuarioRequest;
 import com.lajuanita.backend.usuario.dto.RegistroRequest;
@@ -38,11 +44,18 @@ public class UsuarioService {
     private final GeneradorDePassword generadorDePassword;
     private final RegistroDeEventos eventos;
 
+    private final AlumnoRepository alumnos;
+    private final ProfesorRepository profesores;
+
     public UsuarioService(UsuarioRepository usuarios,
             PasswordEncoder passwordEncoder,
             GeneradorDePassword generadorDePassword,
-            RegistroDeEventos eventos) {
+            RegistroDeEventos eventos,
+            AlumnoRepository alumnos,
+            ProfesorRepository profesores) {
         this.usuarios = usuarios;
+        this.alumnos = alumnos;
+        this.profesores = profesores;
         this.passwordEncoder = passwordEncoder;
         this.generadorDePassword = generadorDePassword;
         this.eventos = eventos;
@@ -101,7 +114,7 @@ public class UsuarioService {
 
         Usuario guardado = usuarios.save(usuario);
         eventos.cuentaCreada(guardado.getId(), guardado.getEmail(), "alta por administracion");
-        return new UsuarioCreado(UsuarioResumen.de(guardado), passwordTemporal);
+        return new UsuarioCreado(resumenDe(guardado), passwordTemporal);
     }
 
     /**
@@ -130,7 +143,7 @@ public class UsuarioService {
         usuario.marcarPasswordTemporal(passwordEncoder.encode(passwordTemporal));
 
         eventos.passwordReseteada(idDeQuienPide, usuario.getId());
-        return new UsuarioCreado(UsuarioResumen.de(usuario), passwordTemporal);
+        return new UsuarioCreado(resumenDe(usuario), passwordTemporal);
     }
 
     @Transactional
@@ -156,7 +169,7 @@ public class UsuarioService {
             usuario.setRol(solicitud.rol());
         }
 
-        return UsuarioResumen.de(usuario);
+        return resumenDe(usuario);
     }
 
     /**
@@ -200,7 +213,7 @@ public class UsuarioService {
         }
 
         usuario.setActivo(activo);
-        return UsuarioResumen.de(usuario);
+        return resumenDe(usuario);
     }
 
     /**
@@ -219,14 +232,35 @@ public class UsuarioService {
         }
     }
 
+    /**
+     * Una página del Directorio, o de una de sus partes (P77).
+     *
+     * <p>Las relaciones de cada fila —alumno, profesor— se resuelven <b>en
+     * bloque</b>: dos consultas {@code IN (:ids)} por página, no dos por fila.
+     * Es lo que vuelve razonable llevarlas en el DTO.
+     */
     @Transactional(readOnly = true)
-    public Page<UsuarioResumen> listar(String buscar, Pageable paginado) {
-        return usuarios.buscar(Busqueda.patron(buscar), paginado).map(UsuarioResumen::de);
+    public Page<UsuarioResumen> listar(String buscar, GrupoDeCuentas grupo, Pageable paginado) {
+        Page<Usuario> pagina = usuarios.buscar(Busqueda.patron(buscar), grupo.roles(), paginado);
+
+        List<Long> ids = pagina.map(Usuario::getId).toList();
+        Set<Long> conAlumno = ids.isEmpty() ? Set.of() : new HashSet<>(alumnos.idsDeUsuarioConRelacion(ids));
+        Set<Long> conProfesor = ids.isEmpty() ? Set.of() : new HashSet<>(profesores.idsDeUsuarioConRelacion(ids));
+
+        return pagina.map(u -> UsuarioResumen.de(u, conAlumno.contains(u.getId()), conProfesor.contains(u.getId())));
+    }
+
+    /** Una sola persona con sus dos ejes: acá sí, una consulta por relación. */
+    @Transactional(readOnly = true)
+    public UsuarioResumen resumenDe(Usuario usuario) {
+        return UsuarioResumen.de(usuario,
+                alumnos.existsByUsuarioId(usuario.getId()),
+                profesores.existsByUsuarioId(usuario.getId()));
     }
 
     @Transactional(readOnly = true)
     public UsuarioResumen porId(Long id) {
-        return UsuarioResumen.de(buscar(id));
+        return resumenDe(buscar(id));
     }
 
     // -------------------------------------------------------------------------

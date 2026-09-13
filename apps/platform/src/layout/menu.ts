@@ -107,7 +107,7 @@ const MENU: GrupoMenu[] = [
     ],
   },
   // ─────────────────────────────────────────────────────────────────────
-  // Administración: CINCO grupos por dominio, no uno solo con 18 ítems.
+  // Administración: SEIS grupos por dominio, no uno solo con 18 ítems.
   //
   // Eran 18 corridos bajo un título, y estaban en **orden de construcción de los
   // módulos**, que es el orden en que se fueron agregando y no el orden en que
@@ -123,34 +123,77 @@ const MENU: GrupoMenu[] = [
   // sobre lo que puede.
   // ─────────────────────────────────────────────────────────────────────
   {
+    // Las personas, partidas por lo que son para el estudio (P77). Hasta la §19
+    // eran dos pantallas —Alumnos y un listado de cuentas— y el resto se
+    // otorgaba con botones escondidos en las filas de la segunda ("Hacer
+    // profesor"): el modelo asomando por la pantalla en vez del trámite. Ahora
+    // cada relación tiene su índice, con el molde de Alumnos, y el Directorio es
+    // la única pantalla donde una persona se ve entera, con sus dos ejes.
     titulo: 'Personas',
+    items: [
+      { etiqueta: 'Alumnos', ruta: '/admin/alumnos', visible: puedeAdministrar, disponible: true },
+      {
+        etiqueta: 'Profesores',
+        ruta: '/admin/profesores',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
+        // Los roles administrativos —ADMIN, DIRECTIVO, STAFF— en una sola
+        // pantalla y con el admin adentro (P77 · 2): son dos o tres personas por
+        // rol, y es parte del equipo aunque sea uno.
+        etiqueta: 'Equipo',
+        ruta: '/admin/equipo',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
+        // Quien gastó plata y no es ninguna de las otras tres cosas (P77 · 3),
+        // con cuenta o a nombre escrito. Es la pantalla que hace visible la
+        // decisión de arquitectura del sistema: gente que alquiló la cabina una
+        // vez o compró un equipo y nunca cursó nada.
+        etiqueta: 'Clientes',
+        ruta: '/admin/clientes',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+      {
+        etiqueta: 'Directorio',
+        ruta: '/admin/usuarios',
+        visible: puedeAdministrar,
+        disponible: true,
+      },
+    ],
+  },
+  {
+    // El embudo comercial entero (P77 · 5): quien pregunta, lo que se vende, el
+    // contrato. Hasta la §19 los tres vivían en Personas. "Gestión de negocio"
+    // era el panel completo; "Academia" dejaba afuera al buzón, que recibe
+    // cabina y equipos además de cursos.
+    titulo: 'Comercial',
     items: [
       {
         // El buzón de la web (hallazgo #7) abre el grupo, y no está puesto al
         // azar: **es lo primero que hay que mirar a la mañana** —del otro lado
         // hay alguien esperando que lo llamen— y es la única pantalla del sistema
-        // cuyo contenido lo escribe gente de afuera. Además es de dónde salen las
-        // personas nuevas, así que el dominio es este y no "servicios".
+        // cuyo contenido lo escribe gente de afuera.
         etiqueta: 'Buzón de la web',
         ruta: '/admin/buzon',
         visible: puedeAdministrar,
         contador: 'buzon',
         disponible: true,
       },
-      { etiqueta: 'Alumnos', ruta: '/admin/alumnos', visible: puedeAdministrar, disponible: true },
       {
-        etiqueta: 'Inscripciones',
-        ruta: '/admin/inscripciones',
+        // El catálogo (`V28`, P63): qué se vende y a cuánto. Al lado de
+        // Inscripciones, que es quien lo lee, y se edita cuando cambia un precio.
+        etiqueta: 'Programas',
+        ruta: '/admin/programas',
         visible: puedeAdministrar,
         disponible: true,
       },
-      { etiqueta: 'Personas', ruta: '/admin/usuarios', visible: puedeAdministrar, disponible: true },
       {
-        // El catálogo (`V28`, P63): qué se vende y a cuánto. Va en Personas y no
-        // en Dinero porque es lo que se INSCRIBE, y se edita cuando cambia un
-        // precio — al lado de Inscripciones, que es quien lo lee.
-        etiqueta: 'Programas',
-        ruta: '/admin/programas',
+        etiqueta: 'Inscripciones',
+        ruta: '/admin/inscripciones',
         visible: puedeAdministrar,
         disponible: true,
       },

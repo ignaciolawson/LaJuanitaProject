@@ -21,6 +21,7 @@ commiteados.
 | | Qué | Dónde vive el detalle |
 |---|---|---|
 | ✅ 0 | ~~**La §17 está abierta**~~ — **cerrada el 2026-09-12**, nueve de nueve. Trajo `V31` (pago en la moneda del contrato) y los plazos nuevos de P73 (cabina 72 hs, preinscripción abandonada se cancela sola a los 21 días) | [`mejoras.md`](mejoras.md) §17 |
+| ✅ 0c | **La §19, cerrada la misma noche**, cinco de cinco, sin migración (P77): Personas en cinco pantallas —Alumnos · Profesores · Equipo · Clientes · Directorio—, Comercial como grupo nuevo, *cliente* definido por primera vez (quien gastó plata y no es alumno, profe ni equipo) | [`mejoras.md`](mejoras.md) §19 |
 | ✅ 0b | **La §18, cerrada la misma noche**, tres de tres, sin migración: el KPI de cobros pendientes lee Deudores, equipos por WhatsApp sin cuenta (P76), mensajes en párrafos con el abanico. ⚠️ Código en `d24a0ff`, documentado una sesión después | [`mejoras.md`](mejoras.md) §18 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |

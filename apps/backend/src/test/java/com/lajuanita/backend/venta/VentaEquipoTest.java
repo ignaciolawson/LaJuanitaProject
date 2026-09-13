@@ -285,14 +285,17 @@ class VentaEquipoTest {
     @Test
     void una_venta_sin_marca_ni_categoria_igual_se_encuentra() throws Exception {
         Usuario vendedor = crear(Rol.STAFF);
+        // Un modelo único: la base de desarrollo tiene ventas reales, y el
+        // 2026-09-12 una "xdj-rr" cargada esa noche hizo que "XDJ" diera dos.
+        String modelo = "XDJ-RX3-" + UUID.randomUUID().toString().substring(0, 8);
 
         mvc.perform(vender("""
                 {"nombreCompradorExterno":"Externo","idUsuarioVendedor":%d,
-                 "modeloEquipo":"XDJ-RX3","precio":900000,"moneda":"ARS"}
-                """.formatted(vendedor.getId())))
+                 "modeloEquipo":"%s","precio":900000,"moneda":"ARS"}
+                """.formatted(vendedor.getId(), modelo)))
                 .andExpect(status().isCreated());
 
-        mvc.perform(get("/api/ventas?buscar=XDJ").header("Authorization", comoStaff()))
+        mvc.perform(get("/api/ventas?buscar=" + modelo).header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElementos").value(1));
     }

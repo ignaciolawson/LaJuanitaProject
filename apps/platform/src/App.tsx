@@ -42,6 +42,8 @@ import { RegistroPagina } from './paginas/RegistroPagina'
 import { UsoDeSalasPagina } from './paginas/UsoDeSalasPagina'
 import { TableroPagina } from './paginas/TableroPagina'
 import { UsuariosPagina } from './paginas/UsuariosPagina'
+import { ProfesoresPagina } from './paginas/ProfesoresPagina'
+import { ClientesPagina } from './paginas/ClientesPagina'
 
 export default function App() {
   return (
@@ -122,7 +124,14 @@ function Rutas() {
           <Route path="/admin/sello" element={<SelloPagina />} />
           <Route path="/admin/artistas" element={<ArtistasPagina />} />
           <Route path="/admin/tablero" element={<TableroPagina />} />
-          <Route path="/admin/usuarios" element={<UsuariosPagina />} />
+          {/* Personas (P77): cada relación con su índice, y el Directorio con
+              todos. Equipo y Directorio son la misma pantalla con otro grupo;
+              el `key` es para que cambiar de una a otra no arrastre la página
+              y la búsqueda de la anterior. */}
+          <Route path="/admin/profesores" element={<ProfesoresPagina />} />
+          <Route path="/admin/equipo" element={<UsuariosPagina key="equipo" grupo="EQUIPO" />} />
+          <Route path="/admin/clientes" element={<ClientesPagina />} />
+          <Route path="/admin/usuarios" element={<UsuariosPagina key="directorio" />} />
         </Route>
       </Route>
 
