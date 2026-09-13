@@ -538,3 +538,29 @@ se contestan cuando algo las necesite.
   posts son arrays de bloques tipados —la forma del Portable Text de Sanity— así
   que migrar es reemplazar `data/posts.ts` por un fetch, no reescribir las páginas.
   ⚠️ `generateStaticParams` va a necesitar revalidación.
+
+### 3.9 · El CI nunca había estado verde — ✅ ARREGLADO el 2026-09-13
+
+Ignacio preguntó por *"un problema en 2 commits del pasado"* que GitHub le marcaba
+en cada push. No eran dos: **98 de los últimos 100 runs fallaban, desde que el
+workflow existe** (2026-08-14). Las dos causas son artefactos de desarrollar en
+Windows y sólo aparecen en el runner de Linux:
+
+- **`scripts/pruebas-sql.sh` estaba en git sin bit de ejecución** (`100644`).
+  Windows no tiene ese bit, así que acá siempre corrió; en Linux, *"Permission
+  denied"* (exit 126) en cada push. Fijado con `git update-index --chmod=+x` en
+  los dos scripts. `.gitattributes` ya forzaba LF en `*.sh` — la otra mitad de la
+  misma trampa, resuelta en agosto sin resolver ésta.
+- **`package-lock.json` sólo registraba los binarios nativos de Windows** (bug
+  npm/cli#4828): `npm ci` en Linux no instalaba `@tailwindcss/oxide-linux-x64-gnu`
+  y Vite moría antes del primer test. Se completó con las 92 entradas que faltaban
+  (Linux, Mac, ARM, musl) **sin cambiar ninguna versión**; el detalle de por qué
+  `npm install --package-lock-only` no lo arregla está en `CLAUDE.md`.
+
+Verificado en Linux antes de subirlo: `npm ci` + los 654 tests del front, los
+dos builds y los dos linters en un contenedor `node:22` sobre un `git archive`
+del repo; las suites SQL, 290 + 68, localmente. **El próximo push es el primer
+run verde del proyecto.** Lo que el CI *sí* venía probando era `mvn test` — ese
+paso siempre pasó, así que la afirmación de que las migraciones aplican sobre una
+base vacía se sostuvo; las suites SQL y el front nunca habían corrido ahí.
+
