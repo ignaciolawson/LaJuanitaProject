@@ -277,6 +277,29 @@ linters, and the platform's Vitest suite. The SQL script has a second mode for e
 this: with `PGHOST` set it uses `psql` directly instead of `docker exec`, because in
 Actions Postgres is a service, not a container you can exec into.
 
+⚠️ **That paragraph was aspirational for a month: CI had NEVER been green** — 98 failures in
+the last 100 runs when Ignacio asked on 2026-09-13, and the two causes were both
+Windows-only-development artefacts that no local run can see. (1) **`scripts/pruebas-sql.sh`
+was committed with mode `100644`** — Windows has no execute bit, so the script ran here and
+the Linux runner answered *"Permission denied"* (exit 126) on every push since 2026-08-14.
+Fixed with `git update-index --chmod=+x` on both scripts; **`.gitattributes` already forced
+LF on `*.sh`, which was the other half of the same trap.** (2) **`package-lock.json` only
+recorded the Windows native binaries** (`@tailwindcss/oxide-win32-x64-msvc`, and the same
+for esbuild, rolldown, Next's swc, oxlint) — npm/cli#4828: a lockfile written on Windows
+omits the other platforms' optional packages, so `npm ci` on Linux installs nothing for
+Linux and Vite dies on *"Cannot find module '@tailwindcss/oxide-linux-x64-gnu'"* before a
+single test runs. **`npm install --package-lock-only` does not repair it** — with a lockfile
+present npm trusts it, and even with the lockfile deleted it rebuilds from the Windows
+`node_modules` and comes out Windows-only again; only a fresh resolution in a clean directory
+records every platform, and that drifts every version. The fix that changed no version:
+a script that reads each package's `optionalDependencies` from the lockfile and adds the
+92 missing leaf entries (version, tarball, integrity, `os`/`cpu`) from `npm view`. **Verify a
+lockfile change on Linux before pushing it** — `git archive HEAD` into a temp dir plus
+`docker run node:22 npm ci` is a full rehearsal of the job (the whole front suite passed
+654/654 there, in ~17 min through the bind mount). The `mvn test` step was always green, so
+the *"proves the migrations apply to an empty database"* claim did hold; the SQL suites and
+the front never ran in CI until this fix.
+
 **Operations live in `docs/operacion.md`**: backup, **a restore that was actually
 rehearsed**, and what to do when a migration fails. The restore rehearsal is worth knowing
 about before you need it — it verified that the restored database keeps its *rules*, not
