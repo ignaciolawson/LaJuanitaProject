@@ -2592,8 +2592,10 @@ nombra, y la 13231 se corrige editando la inscripción a USD.
   sólo adentro del panel de cerrar la ficha**, en la rama sin cuenta —ahí es
   instrucción sin cómo si no está—. *"Ya se lo cargué"* **queda sólo donde no
   hay gemelo de un click**: EQUIPOS, y CURSO/CABINA cuando el catálogo o las
-  salas no cargaron. Un *"Venderle"* (venta + ficha cerrada en un movimiento)
-  queda anotado para otra barrida.
+  salas no cargaron. ~~Un *"Venderle"* (venta + ficha cerrada en un movimiento)
+  queda anotado para otra barrida.~~ **La mitad de EQUIPOS la corrige P76 la
+  misma noche**: no hay "Venderle" porque la venta no pasa por el sistema
+  hasta que existe; la ficha se cierra eligiendo la venta a nombre escrito.
 - **Reabre P56 en su tercer punto**: la ficha cuya prereserva se venció sin
   señar **deja de contar como abierta**. `FichaAbierta` mira sólo `PENDIENTE` y
   `PRECONFIRMADA`. Queda en *"Ya atendidas"* con su etiqueta gris *"Se venció
@@ -2601,3 +2603,50 @@ nombra, y la 13231 se corrige editando la inscripción a USD.
   formulario de nuevo. P56 había pedido *"una decisión: apartar de nuevo, o
   descartar"* y el trigger de `V13` §4 no dejaba tomar ninguna de las dos — se
   cerró la definición y no se probó la salida.
+
+## 24. Decisiones cerradas el 2026-09-12 (octava tanda) — la sexta barrida
+
+> Una sola, traída la misma noche que cerró la §23. Corrige la mitad de
+> EQUIPOS de P75, que había dejado *"Venderle"* anotado para otra barrida:
+> no hace falta, porque la venta de equipos no pasa por el sistema hasta
+> que existe.
+
+### ✅ P76 — Equipos se maneja por WhatsApp, sin cuenta; el sistema entra cuando la venta existe
+
+**Textual:** *"vamos a rediseñar lo que es venta de equipos, llega la
+solicitud al buzón de la página y que simplemente Mica le mande un msj a
+través del botón que desarrollamos, que ni tenga que crearle cuenta, que
+gestione todo ella x wpp, obviamente dsp si hay una venta o algo así lo
+cargará dsp en el sistema registrando un pago y demás. que el msj sea
+personalizado según lo que seleccionó en la landing, por ejemplo si mandó un
+formulario que quiere controlador y auriculares seleccionando los cuadrados,
+que el msj default sea acorde a eso."*
+
+**Lo que decide:**
+
+1. **Escribirle ES atender una ficha de EQUIPOS.** El WhatsApp es la acción
+   principal de la ficha —no un secundario adentro de un resultado, como en la
+   cabina y el curso— porque no hay resultado: qué busca, qué hay en Pioneer y
+   a cuánto se conversa por WhatsApp, y el sistema no tiene nada que crear
+   hasta que la venta existe. La ficha **sigue abierta** mientras tanto:
+   *abierta* es "le debemos algo", y se le debe hasta que se le carga la venta.
+2. **El mensaje nombra lo que marcó en la web.** Las categorías del formulario
+   de equipos (*"controladores y auriculares"*) van en el primer mensaje; sin
+   categorías, pregunta qué busca. Se leen del `detalle` de la ficha con el
+   formato que la landing produce — no hay columna nueva, porque una migración
+   para un saludo no se justifica (`mejoras.md` §18 · I2, con la trampa del
+   acople entre builds).
+3. **No se le crea cuenta.** Ni para escribirle ni para cerrar la ficha:
+   `venta_equipo` acepta un comprador a nombre escrito desde `V1`, y la ficha
+   se cierra eligiendo esa venta (`V27`: eligiendo, nunca tipeando un id) entre
+   las ventas sin cuenta cargadas desde que llegó. *"Crearle la cuenta"* queda
+   como opción para quien la quiera, no como requisito.
+4. **"Venderle" no se construye.** Un gemelo de un click une *crear la cosa +
+   cerrar la ficha* cuando pasan en el mismo movimiento (la cabina, el curso);
+   la venta de equipos pasa días después y por otro canal. La mitad de P75 que
+   decía *"EQUIPOS cierra por 'Ya se lo cargué' hasta que exista Venderle"*
+   queda reemplazada por el punto 3.
+
+**Lo que NO cambia:** la venta se carga en `/admin/ventas` como siempre, con su
+pago en la misma transacción si lo hubo; M&M sigue fuera del buzón (Módulo 6);
+y la cabina y el curso siguen cerrándose con sus gemelos de un click (P58, P66).

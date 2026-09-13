@@ -5272,8 +5272,10 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
 - **Los dos `<select>` de Pagos que no son de personas** (trabajo y venta que
   salda un pago): página 0, veinte filas. Piden búsqueda por texto en
   `listarTrabajos` y `listarVentas`.
-- **"Venderle" desde el buzón** — el tercer gemelo de un click (venta + ficha
-  cerrada). Hasta que exista, EQUIPOS cierra por "Ya se lo cargué" (P75).
+- ~~**"Venderle" desde el buzón** — el tercer gemelo de un click (venta + ficha
+  cerrada). Hasta que exista, EQUIPOS cierra por "Ya se lo cargué" (P75).~~
+  **Cerrado por el otro lado en la §18 (P76)**: equipos se maneja por WhatsApp
+  sin cuenta, y la ficha se cierra eligiendo la venta a nombre escrito.
 - **La inscripción 13231 de la base de desarrollo**: editarla a USD desde
   Inscripciones y sale sola de Deudores. No es código.
 - ⚠️ **El backend de desarrollo que estaba levantado durante la barrida es
@@ -5298,7 +5300,152 @@ no es `V31`. Va a ser `V32`. No la anotes con número.
 
 ---
 
+## 18. La SEXTA barrida de correcciones — abierta y cerrada el 2026-09-12
+
+> Ignacio la trajo la misma noche que cerró la §17, con tres puntos, y se
+> ejecutó en la sesión siguiente — **el código y sus casos quedaron en el
+> commit `d24a0ff` ("Debug + Algunos cambios"), y esta sección se escribió
+> después**, porque a esa sesión se le acabó el contexto antes de documentar.
+> Dos de los tres puntos eran cosas que la §16 y la §17 habían *dejado para la
+> siguiente*: la "deuda viva" del tablero y el cierre de una ficha de equipos.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-12, noche)
+
+✅ **ESTADO: CERRADA — tres de tres, sin migración.** Una decisión nueva,
+**P76** (`platform.md` §24), que corrige la mitad de EQUIPOS de P75. Suites
+al cierre: **702 backend · 627 front · 290 + 68 SQL** sobre 31 migraciones
+(los tres casos nuevos del backend y los once del front son de esta barrida).
+**No deja nada para la siguiente** salvo lo que ya estaba: grupos de a 3, el
+precio de las reservas, los dos `<select>` de Pagos, la 13231 a mano.
+
+### El triage
+
+| | Hallazgo | Grupo | Por qué |
+|---|---|---|---|
+| I1 | El KPI de cobros pendientes del tablero dice cero con doce deudores en pantalla | **B** | Una consulta con la definición vieja; sin esquema |
+| I2 | La venta de equipos se maneja por WhatsApp: mensaje armado con lo que marcó en la web, sin crearle cuenta | **B** + decisión | Cambia un flujo (P75 · EQUIPOS), no una regla de la base |
+| I3 | El mensaje del buzón, en párrafos y con los emojis de la casa | **A** | Texto |
+
+### Punto por punto
+
+#### 🟡 I1 · El tablero no veía la segunda fuente de Deudores
+
+**Verificado**: `TableroRepository.cobrosPendientes` sumaba las filas de
+`pago` en `ADEUDADOS` — la definición de Deudores **hasta la §16**. Desde P72
+Deudores tiene una segunda fuente, **calculada**
+(`InscripcionRepository.conPlataPosiblementePendiente` contra
+`cobradoPorInscripcion`), que no es una fila de `pago` y que la consulta del
+tablero no podía ver. Es el patrón de `V12` otra vez —dos definiciones de un
+mismo hecho— y la §16 lo había anotado como *"lo que deja para la siguiente"*
+en vez de cerrarlo.
+
+**Hecho**: la consulta se fue. `TableroService` suma **la lista de
+`PagoService.deudores()`**, la misma que dibuja `/admin/deudores` y la que
+cuenta el contador del menú (`Pendientes.deudores`): los tres leen una lista,
+así que no pueden volver a discrepar. `cantidad` son sus renglones (una deuda
+anotada por persona, o una inscripción con saldo) y `vencido` el subconjunto
+que pasó su plazo — los 7 días de §6 para la anotada, `vence_preinscripcion`
+para la seña; el saldo restante de una activa nunca (P72). El comentario que
+queda en `TableroRepository` dice por qué no hay consulta, para que nadie la
+vuelva a escribir *"por eficiencia"*. Caso:
+`TableroTest.el_saldo_de_una_inscripcion_sin_anotar_es_deuda_viva`.
+
+#### 🟡 I2 · Equipos: escribirle ES el trabajo, y la ficha se cierra con una venta sin cuenta
+
+**Textual**: *"que simplemente mica le mande un msj a través del botón que
+desarrollamos, que ni tenga que crearle cuenta, que gestione todo ella x wpp,
+obviamente dsp si hay una venta o algo así lo cargará dsp en el sistema
+registrando un pago y demás. que el msj sea personalizado según lo que
+seleccionó en la landing"*. Es **P76**.
+
+**Lo que decide, y lo que cambió por eso:**
+
+- **El WhatsApp es la acción principal de una ficha de EQUIPOS**, no un
+  secundario adentro de un resultado como en la cabina y el curso — porque no
+  hay resultado: nada se crea hasta que la venta existe. `EscribirlePorEquipos`
+  en `SolicitantesPagina`, con `EnlaceDeWhatsapp` en variante `principal`. Es
+  un link y no toca el sistema: la ficha **sigue abierta**, y está bien —
+  *abierta* es "le debemos algo", y hasta que se le cargue la venta se le debe.
+- **El mensaje nombra lo que marcó en la web** (`mensajeDeEquipos`):
+  *"Vimos que estás buscando controladores y auriculares…"*, y sin categorías
+  pregunta qué busca. ⚠️ Las categorías se leen del `detalle` de la ficha
+  (`categoriasDeEquipos`), **acoplando dos builds por un formato de texto** a
+  propósito: viven ahí desde `V20` ("lo que sólo un formulario pregunta sigue
+  en `detalle`", `V29`) y una migración para un saludo no se justifica. El
+  formato es el de `GearInquiryForm`: `categorías · nivel · presupuesto`, con
+  nivel y presupuesto **siempre presentes** porque tienen valor por defecto —
+  tres segmentos, el primero son las categorías; dos, no marcó ninguna. Si la
+  landing cambia el formato, **degrada a la variante genérica, nunca a un
+  mensaje que miente**; `whatsapp.test.ts` lo pincha con el string exacto que
+  la landing produce, por lo mismo que `credencial.test.ts` escribe la clave
+  del storage a mano.
+- **La cuenta deja de ser el paso previo para cerrar la ficha.** `V27` cierra
+  una ficha *eligiendo* lo que produjo, y `candidatosDe` sólo buscaba lo de la
+  cuenta — sin cuenta, lista vacía, y el panel mandaba a crearla. Para una venta
+  que se cargó a nombre escrito (`venta_equipo` lo acepta desde `V1`) eso
+  exigía una cuenta que nadie necesitaba para nada. Ahora
+  `VentaEquipoRepository.aCompradorSinCuentaDesde` ofrece **las ventas sin
+  cuenta cargadas desde un mes antes de que llegara la ficha**, sólo para
+  fichas de EQUIPOS, y `CandidatoDeLaFicha` lleva el nombre del comprador en
+  la descripción para que quien cierra elija mirándolo — **no cruza por
+  nombre**: elegir es de una persona, como siempre desde `V27`. El panel dice
+  *"con el nombre del comprador alcanza, no hace falta cuenta"* y *"Crearle la
+  cuenta"* queda como opción, no como requisito. Casos:
+  `SolicitanteTest.una_ficha_de_equipos_sin_cuenta_ofrece_las_ventas_a_nombre_escrito`
+  y `…no_se_ofrecen_a_una_ficha_de_otra_cosa` (la pareja de siempre: lo mío y
+  lo del vecino).
+- **"Venderle" —el tercer gemelo de un click— ya no hace falta**, y por eso no
+  se construyó: un gemelo une *crear la cosa + cerrar la ficha* cuando las dos
+  pasan en el mismo movimiento; acá la venta pasa días después y por otro
+  canal. Lo que quedaba abierto de P75 era esto, y P76 lo cierra por el otro
+  lado.
+
+#### 🟢 I3 · El mensaje, en párrafos y con la marca
+
+**Textual**: *"hagámoslo más lindo, dividido en párrafos según lo que se
+comunica, ponerle emojis, por ejemplo la juanita usa mucho el emoji del
+abanico"*.
+
+**Hecho** en `whatsapp.ts`: `parrafos()` arma cada mensaje de bloques
+separados por una línea en blanco (lo que WhatsApp necesita para que se lea
+por bloques y no como un ladrillo), y **un bloque vacío no deja hueco** — así
+el de la cuenta se saca sin dejar dos líneas en blanco seguidas. Los emojis
+viven en un solo lugar: **el abanico (`U+1FAAD`) abre y cierra cada mensaje
+porque es la marca** —es el ícono del logo—, y el resto dice de qué habla cada
+párrafo, uno por bloque y no más (💸 la plata, ⏰ el plazo, 🔑 la clave, 📲 el
+portal, 🎧 la clase, 🎛️ los equipos). ⚠️ El abanico es de Unicode 15 (2022):
+un teléfono muy viejo lo dibuja como un cuadrado, y se acepta porque no hay
+otro. Siete casos en `whatsapp.test.ts`, el primero sobre la forma
+(*"van en párrafos… con el abanico al abrir y al cerrar"*).
+
+### Lo que esta barrida enseñó
+
+- **Lo que una barrida "deja para la siguiente" tiene que quedar anotado con
+  su síntoma, no con su nombre.** *"La deuda viva del tablero"* estaba
+  anotado; *"el tablero dice cero con doce deudores"* es lo que Ignacio vio, y
+  lo que hubiera hecho que se cerrara en la §16.
+- **Un gemelo de un click no es la respuesta a toda ficha.** Cabina y curso se
+  cierran en el mismo movimiento en que se crea la cosa; equipos no, y forzar
+  un "Venderle" hubiera sido dibujar un formulario de venta adentro del buzón
+  para un trámite que pasa por WhatsApp.
+- ⚠️ **A una sesión se le puede acabar el contexto entre el commit y el
+  documento.** Esta sección existe porque Ignacio preguntó *"no sé si lo
+  documentaste"*. La regla que sale de acá: **documentar por punto, no al
+  final** — cada hallazgo cerrado se escribe antes de abrir el siguiente.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **LA SEXTA BARRIDA (§18) TAMBIÉN ESTÁ CERRADA: tres de tres, la noche del
+2026-09-12, sin migración** — el KPI de cobros pendientes lee la lista de
+Deudores, equipos se maneja por WhatsApp sin cuenta (**P76**, `platform.md`
+§24) con el mensaje armado con lo que marcó en la web, y los mensajes van en
+párrafos con el abanico. Suites: **702 backend · 627 front**. ⚠️ Su código es
+el commit `d24a0ff`; la sección se escribió en la sesión siguiente. De lo que
+las §16 y §17 dejaban, **ya no quedan** ni la "deuda viva" del tablero ni
+"Venderle"; sí los grupos de a 3, el precio de las reservas, los dos `<select>`
+de Pagos y la 13231 a mano.
 
 ✅ **LA QUINTA BARRIDA (§17) ESTÁ CERRADA: nueve de nueve el 2026-09-12, el
 mismo día que se abrió** — Fase 1 (A: H5 · H6 · H9), Fase 2 (B: H1+H2 · H3 ·
@@ -5382,7 +5529,7 @@ landing genera **20 páginas** desde A7. **Vuelve a ser cierto que no queda
 producto por construir** — hasta la próxima barrida. Lo que sigue abierto en todo el proyecto está en
 `docs/pendientes.md`:
 
-1. ~~**La §17**~~ — cerrada el 2026-09-12, el mismo día. Lo que dejó: los dos `<select>` de Pagos (trabajo/venta) a página 0, "Venderle" desde el buzón, la 13231 a mano. (Y lo de la §16 sigue: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)
+1. ~~**La §17**~~ — cerrada el 2026-09-12, el mismo día. ~~Lo que dejó: los dos `<select>` de Pagos (trabajo/venta) a página 0, "Venderle" desde el buzón, la 13231 a mano. (Y lo de la §16 sigue: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)~~ **La §18 (misma noche) cerró "Venderle" y la deuda viva del tablero.** Quedan: los dos `<select>` de Pagos, la 13231 a mano, los grupos de a 3 y el precio de las reservas.
 2. **Desactivar el admin sembrado**, ahora `V32`.
 3. **El deploy de octubre**, que espera la decisión de hosting.
 
