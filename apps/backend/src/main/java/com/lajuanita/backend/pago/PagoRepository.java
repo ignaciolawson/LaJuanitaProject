@@ -348,7 +348,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             FROM Pago p LEFT JOIN p.usuario u
             WHERE p.estadoPago IN :adeudados
               AND (:idUsuario IS NULL OR u.id = :idUsuario)
-              AND\s""" + DeudaCobrable.JPQL + """
+              AND """ + DeudaCobrable.JPQL + """
             GROUP BY u.id, p.nombrePagadorExterno, p.moneda
             ORDER BY MIN(p.fechaPago)
             """)

@@ -6,6 +6,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,7 @@ import jakarta.validation.Valid;
  * menú está hardcodeado del lado del cliente.
  */
 @RestController
+@RequestMapping("/api/me")
 public class MeController {
 
     private final SesionService sesiones;
@@ -28,7 +30,7 @@ public class MeController {
         this.sesiones = sesiones;
     }
 
-    @GetMapping("/api/me")
+    @GetMapping
     public UsuarioActual me(@AuthenticationPrincipal Jwt token) {
         // El `sub` lo escribió TokenService con el id del usuario, y la firma ya
         // fue verificada por Spring antes de llegar acá. Aun así se pasa como
@@ -53,13 +55,13 @@ public class MeController {
      * el id sale del token. Devuelve el {@link UsuarioActual} completo para que
      * el front actualice el encabezado sin volver a pedir {@code /api/me}.
      */
-    @PutMapping("/api/me/perfil")
+    @PutMapping("/perfil")
     public UsuarioActual editarPerfil(@AuthenticationPrincipal Jwt token,
             @Valid @RequestBody EdicionPerfilRequest solicitud) {
         return sesiones.editarPerfil(token.getSubject(), solicitud);
     }
 
-    @PostMapping("/api/me/password")
+    @PostMapping("/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cambiarPassword(@AuthenticationPrincipal Jwt token,
             @Valid @RequestBody CambioPasswordRequest solicitud) {

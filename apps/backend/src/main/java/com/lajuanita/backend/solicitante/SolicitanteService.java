@@ -4,6 +4,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -325,7 +326,7 @@ public class SolicitanteService {
         Solicitante ficha = fichas.porIdConDetalle(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la ficha " + id + "."));
 
-        LocalDate llegada = ficha.getFechaCreacion().toLocalDate();
+        LocalDate llegada = ficha.getFechaCreacion().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
         List<CandidatoDeLaFicha> candidatos = new ArrayList<>();
 
         Usuario cuenta = ficha.getUsuario();

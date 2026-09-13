@@ -141,7 +141,7 @@ public class AlumnoService {
     }
 
     /**
-     * Cambia el estado del alumno. Desactivar conserva TODO su historial: es
+     * Cambia el estado del alumno. Desactivar conserva <b>todo</b> su historial: es
      * una regla dura del módulo, y por eso ninguna FK usa ON DELETE CASCADE.
      */
     @Transactional

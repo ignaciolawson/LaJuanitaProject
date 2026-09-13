@@ -3,6 +3,7 @@ package com.lajuanita.backend.pago;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -720,7 +721,10 @@ public class PagoService {
                 continue;
             }
             Usuario persona = i.getAlumno().getUsuario();
-            LocalDate desde = i.getFechaCreacion().toLocalDate();
+            // En la zona del estudio, no en la del offset con que vuelve de la base
+            // (UTC): entre las 21 y las 24 hora local ya es "mañana" en UTC, y sin
+            // esta conversión el atraso daba un día menos justo en ese rango.
+            LocalDate desde = i.getFechaCreacion().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
             int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
             boolean preinscripta = i.estaPreinscripta();
 
