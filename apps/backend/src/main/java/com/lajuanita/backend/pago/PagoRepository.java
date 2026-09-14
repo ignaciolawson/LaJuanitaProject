@@ -260,6 +260,20 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             @Param("anulado") EstadoPago anulado);
 
     /**
+     * Los cobros de un trabajo de M&M que entraron a nombre escrito (P82).
+     *
+     * <p>Son los que siguen al trabajo cuando se le asigna una cuenta creada
+     * después: si quedaran a nombre escrito, la persona vería el trabajo en su
+     * portal y no vería lo que pagó, y Clientes la mostraría dos veces.
+     */
+    @Query("""
+            SELECT p FROM Pago p
+            WHERE p.idTrabajoMastering = :idTrabajo
+              AND p.usuario IS NULL
+            """)
+    List<Pago> aNombreEscritoDeTrabajo(@Param("idTrabajo") Long idTrabajo);
+
+    /**
      * Cuánto entró contra cada uno de estos trabajos de M&M, por moneda.
      *
      * <p>Una sola consulta para la página entera, como {@link #ventasConPago}, y

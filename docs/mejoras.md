@@ -5611,9 +5611,9 @@ y build limpios. Sin migración.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-14)
 
-✅ **ESTADO: CERRADA el mismo 2026-09-14 — seis de seis, una migración
-(`V32`, aplicada).** Decisiones: **P78–P81** (`platform.md` §26). Suites al
-cierre: **724 backend · 664 front · 295 + 68 SQL** sobre 32 migraciones;
+✅ **ESTADO: CERRADA el mismo 2026-09-14 — siete de siete (K7 se sumó al
+probar K4), una migración (`V32`, aplicada).** Decisiones: **P78–P82**
+(`platform.md` §26). Suites al cierre: **726 backend · 666 front · 295 + 68 SQL** sobre 32 migraciones;
 `tsc -b`, lint (las dos advertencias de siempre) y build limpios. ⚠️ **El
 backend de desarrollo se reinició** con este código y el circuito nuevo se
 probó de punta a punta contra la base de desarrollo con el trabajo **2251**
@@ -5677,6 +5677,7 @@ migración. Queda anotado, no hecho.
 | 2 | **K4** | B | M&M: el cobro hereda el cliente del trabajo (P78); cobrar/liberar un cancelado se rechaza |
 | 2 | **K5** | B | M&M: estados por acciones (P79) — `/confirmacion`, `/entrega`, `/cancelacion`; `/estado` se va; `DEBE` lo escribe el scheduler; `profesorAsignado` en los formularios |
 | 3 | **K6** | C | M&M: la moneda del cobro es la del trabajo (P81) — `V32`, el espejo de `V31`; el admin sembrado pasa a `V33` |
+| 2 | **K7** | B | M&M: asignarle a un trabajo a nombre escrito la cuenta que se creó después, con sus cobros (P82) — pedido de Ignacio al ver K4 |
 
 
 ### Lo que hizo cada punto, y lo que encontró al ejecutarse
@@ -5780,6 +5781,18 @@ inscripción de USD a ARS con una seña en USD deja la misma mentira que `V31`
 vino a evitar. Queda para la próxima barrida. **El admin sembrado pasa a
 `V33`** (séptimo corrimiento).
 
+**✅ K7 — la cuenta que se creó después (P82), agregado por Ignacio al ver
+K4.** `PUT /api/mastering/{id}/cliente` (`AsignacionDeCuentaRequest`),
+`MasteringService.asignarCuenta`: sólo para un trabajo sin cuenta; le pone la
+cuenta y recorre `PagoRepository.aNombreEscritoDeTrabajo` poniéndoles la
+cuenta y `firmarEdicion(autor)` — sin la firma, `pago_edicion_con_autor`
+(`V19` §2, mira `id_usuario`) rechaza el UPDATE. En la ficha, *"Asignarle una
+cuenta"* abre un `Hueco` con el `BuscadorDePersonas` y el aviso de que la
+plata va con el trabajo. Dos casos de backend (el trabajo y su cobro pasan, y
+el portal lo muestra con `em.clear()`; un trabajo con cuenta se rechaza) y dos
+de front. Probado en vivo sobre el 2251: pasó a *Prueba V29* con su pago de
+USD 100 firmado por el admin.
+
 ### Lo que encontró que no era de la §20
 
 - ⚠️ **Dos casos de `AvisosTest` cayeron solos el 2026-09-14 por el
@@ -5800,8 +5813,8 @@ vino a evitar. Queda para la próxima barrida. **El admin sembrado pasa a
 
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
-✅ **Y LA OCTAVA (§20) TAMBIÉN, EL 2026-09-14: seis de seis, con `V32`
-(P78–P81, `platform.md` §26).** Mix & Mastering rehecho por dentro sin tocar
+✅ **Y LA OCTAVA (§20) TAMBIÉN, EL 2026-09-14: siete de siete, con `V32`
+(P78–P82, `platform.md` §26).** Mix & Mastering rehecho por dentro sin tocar
 su tabla: el cobro hereda el cliente del trabajo (con cuenta o a nombre
 escrito — tres pagos de clientes externos estaban a nombre de tres
 empleados), los estados se mueven por acciones (confirmar · entregar con
@@ -5809,8 +5822,10 @@ fecha · cobrar · cancelar) y `DEBE` lo escribe el scheduler, el master se
 llama *"la canción terminada"* y el premaster *"el archivo para
 discográficas"* en las tres pantallas, el expediente se lee y se edita con
 *Editar*, las notas van en `CampoTexto`, y el pago de un trabajo va en su
-moneda (`V32`, la gemela de `V31`). Del tablero salió el filtro de salas.
-Suites: **724 backend · 664 front · 295 + 68 SQL** sobre 32 migraciones. **El
+moneda (`V32`, la gemela de `V31`); y a un trabajo a nombre escrito se le
+asigna la cuenta que se creó después, con sus cobros (P82). Del tablero salió
+el filtro de salas. Suites: **726 backend · 666 front · 295 + 68 SQL** sobre 32
+migraciones. **El
 admin sembrado pasa a `V33`** (séptimo corrimiento). ⚠️ Dos casos de
 `AvisosTest` cayeron solos por el calendario (tres preinscripciones reales
 vencieron el 13/09): ya afirman sobre su propia clave. Para la siguiente:

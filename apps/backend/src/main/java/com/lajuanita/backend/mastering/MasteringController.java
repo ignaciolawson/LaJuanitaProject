@@ -17,6 +17,7 @@ import com.lajuanita.backend.config.Autoridades;
 import com.lajuanita.backend.config.PuedeLeerAdministracion;
 import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.mastering.dto.AltaTrabajoRequest;
+import com.lajuanita.backend.mastering.dto.AsignacionDeCuentaRequest;
 import com.lajuanita.backend.mastering.dto.CobroRequest;
 import com.lajuanita.backend.mastering.dto.EdicionTrabajoRequest;
 import com.lajuanita.backend.mastering.dto.EntregaRequest;
@@ -32,9 +33,9 @@ import jakarta.validation.Valid;
  * <p>Permisos como el resto de lo financiero: <b>cargar y mover</b> es ADMIN·STAFF,
  * <b>leer</b> suma DIRECTIVO. Ghezz opera como STAFF.
  *
- * <p><b>Siete endpoints de escritura y ninguno es un PUT genérico</b>, y eso es el
- * diseño: editar el expediente, confirmar, entregar, cancelar, sumar una revisión,
- * liberar el premaster y cobrar son siete hechos distintos. Metidos en un solo PUT, liberar un
+ * <p><b>Ocho endpoints de escritura y ninguno es un PUT genérico</b>, y eso es el
+ * diseño: editar el expediente, asignarle una cuenta, confirmar, entregar, cancelar,
+ * sumar una revisión, liberar el premaster y cobrar son ocho hechos distintos. Metidos en un solo PUT, liberar un
  * premaster sería mandar un booleano en true junto con el resto del formulario — sin
  * motivo, sin autor y sin nada que distinga "lo liberé" de "guardé la ficha".
  *
@@ -81,6 +82,15 @@ public class MasteringController {
     public TrabajoResumen editar(@PathVariable Long id,
             @Valid @RequestBody EdicionTrabajoRequest solicitud) {
         return mastering.editar(id, solicitud);
+    }
+
+    /** Le asigna una cuenta a un trabajo cargado a nombre escrito. Ver {@link AsignacionDeCuentaRequest}. */
+    @PutMapping("/{id}/cliente")
+    @PuedeOperar
+    public TrabajoResumen asignarCuenta(@PathVariable Long id,
+            @Valid @RequestBody AsignacionDeCuentaRequest solicitud,
+            Authentication quienPide) {
+        return mastering.asignarCuenta(id, solicitud.idUsuario(), Autoridades.idDe(quienPide));
     }
 
     /**

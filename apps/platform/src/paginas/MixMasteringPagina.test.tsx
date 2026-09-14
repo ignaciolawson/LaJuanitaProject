@@ -28,6 +28,7 @@ import { MixMasteringPagina } from './MixMasteringPagina'
 
 vi.mock('../api/mastering', () => ({
   listarTrabajos: vi.fn(),
+  asignarCuentaDelTrabajo: vi.fn(),
   registrarTrabajo: vi.fn(),
   editarTrabajo: vi.fn(),
   confirmarTrabajo: vi.fn(),
@@ -40,6 +41,7 @@ vi.mock('../api/mastering', () => ({
 vi.mock('../api/administracion', () => ({ listarUsuarios: vi.fn(), listarProfesores: vi.fn() }))
 
 const {
+  asignarCuentaDelTrabajo,
   cancelarTrabajo,
   cobrarTrabajo,
   confirmarTrabajo,
@@ -442,6 +444,49 @@ describe('el expediente', () => {
     // Guardado, vuelve a la ficha.
     expect(await screen.findByText('ahora sí')).toBeDefined()
     expect(screen.queryByRole('button', { name: 'Guardar cambios' })).toBeNull()
+  })
+})
+
+/**
+ * P82: la cuenta que se creó DESPUÉS del trabajo. Se elige con el buscador —nunca
+ * se cruza por nombre— y el texto avisa que los cobros van con el trabajo.
+ */
+describe('asignarle una cuenta', () => {
+  it('un trabajo a nombre escrito ofrece asignarle una cuenta, buscándola', async () => {
+    listar(trabajo({ cobrado: 50 }))
+    vi.mocked(listarUsuarios).mockResolvedValue({
+      contenido: [
+        { id: 77, nombre: 'Jeff', apellido: 'Beck', email: 'jeff@ejemplo.com', telefono: null, rol: 'USUARIO', activo: true, debeCambiarPassword: false, esAlumno: false, esProfesor: false },
+      ],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(asignarCuentaDelTrabajo).mockResolvedValue(
+      trabajo({ idClienteUsuario: 77, cliente: 'Jeff Beck', clienteTieneCuenta: true, cobrado: 50 }),
+    )
+    montar()
+
+    await userEvent.click(await screen.findByText('Nocturno'))
+    await userEvent.click(screen.getByRole('button', { name: 'Asignarle una cuenta' }))
+    expect(screen.getByText(/junto con lo que ya pagó/)).toBeDefined()
+
+    await userEvent.type(screen.getByLabelText('Cuenta'), 'Je')
+    await userEvent.click(await screen.findByRole('button', { name: /Jeff Beck/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+
+    await waitFor(() => expect(asignarCuentaDelTrabajo).toHaveBeenCalledWith(1, 77))
+    // Con cuenta, la oferta desaparece.
+    expect(screen.queryByRole('button', { name: 'Asignarle una cuenta' })).toBeNull()
+  })
+
+  it('un trabajo con cuenta no lo ofrece', async () => {
+    listar(trabajo({ idClienteUsuario: 30, cliente: 'Camila Ríos', clienteTieneCuenta: true }))
+    montar()
+
+    await userEvent.click(await screen.findByText('Nocturno'))
+    expect(screen.queryByRole('button', { name: 'Asignarle una cuenta' })).toBeNull()
   })
 })
 

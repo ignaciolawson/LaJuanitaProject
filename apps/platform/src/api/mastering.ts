@@ -19,9 +19,9 @@ import type {
  * backend son dos controllers, pero son un solo módulo: separarlos acá obligaría a
  * abrir dos archivos para entender una pantalla.
  *
- * **Siete operaciones de escritura y ninguna es un PUT genérico**: editar el
- * expediente, confirmar, entregar, cancelar, sumar una revisión, liberar el
- * premaster y cobrar son siete hechos distintos. Metidos en un solo guardado, liberar un premaster
+ * **Ocho operaciones de escritura y ninguna es un PUT genérico**: editar el
+ * expediente, asignarle una cuenta, confirmar, entregar, cancelar, sumar una
+ * revisión, liberar el premaster y cobrar son ocho hechos distintos. Metidos en un solo guardado, liberar un premaster
  * sería un checkbox más del formulario — sin motivo, sin autor, y sin nada que
  * distinga "lo entregué" de "guardé la ficha".
  */
@@ -53,6 +53,17 @@ export function registrarTrabajo(datos: AltaTrabajo) {
 /** El expediente: presupuesto, fechas y links. No el estado ni la liberación. */
 export function editarTrabajo(id: number, datos: EdicionTrabajo) {
   return pedir<TrabajoResumen>(`/api/mastering/${id}`, { metodo: 'PUT', cuerpo: datos })
+}
+
+/**
+ * Le asigna una cuenta a un trabajo cargado a nombre escrito (P82): la cuenta
+ * se le creó DESPUÉS del trabajo. Los cobros a su nombre escrito van con él.
+ */
+export function asignarCuentaDelTrabajo(id: number, idUsuario: number) {
+  return pedir<TrabajoResumen>(`/api/mastering/${id}/cliente`, {
+    metodo: 'PUT',
+    cuerpo: { idUsuario },
+  })
 }
 
 /**

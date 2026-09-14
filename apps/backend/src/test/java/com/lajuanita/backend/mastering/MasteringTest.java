@@ -481,6 +481,43 @@ class MasteringTest {
     // == El cliente ==========================================================
 
     /**
+     * <b>P82: la cuenta creada después del trabajo.</b> Se le hace el trabajo a
+     * alguien sin cuenta, se cobra a su nombre escrito, y meses después se le crea
+     * la cuenta: el trabajo pasa a la cuenta <b>con sus cobros</b>, y aparece en su
+     * portal. Sin la segunda mitad, la persona vería el trabajo y no lo que pagó.
+     */
+    @Test
+    void asignarle_una_cuenta_lleva_el_trabajo_y_sus_cobros() throws Exception {
+        long trabajo = alta(null, "Jeff Beck");
+        cobrar(trabajo, "50.00").andExpect(status().isCreated());
+        Usuario cuenta = crear(Rol.USUARIO);
+
+        asignarCuenta(trabajo, cuenta.getId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.idClienteUsuario").value(cuenta.getId()))
+                .andExpect(jsonPath("$.clienteTieneCuenta").value(true))
+                .andExpect(jsonPath("$.cobrado").value(50.00));
+
+        var pago = jdbc.queryForMap(
+                "SELECT id_usuario, id_usuario_modifico FROM pago WHERE id_trabajo_mastering = ?", trabajo);
+        assertThat(pago.get("id_usuario")).isEqualTo(cuenta.getId());
+        assertThat(pago.get("id_usuario_modifico")).isNotNull();   // `V19` §2: la edición queda firmada
+
+        em.clear();
+        mvc.perform(get("/api/me/mastering").header("Authorization", credencialPara(cuenta)))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].idTrabajo").value(trabajo));
+    }
+
+    /** Sólo para los cargados a nombre escrito: de una cuenta a otra es mover plata entre dos personas. */
+    @Test
+    void no_se_reasigna_un_trabajo_que_ya_tiene_cuenta() throws Exception {
+        long trabajo = alta(crear(Rol.USUARIO).getId(), null);
+
+        asignarCuenta(trabajo, crear(Rol.USUARIO).getId()).andExpect(status().isBadRequest());
+    }
+
+    /**
      * <b>La contracara de `usuario` como raíz.</b> La mayoría de los clientes de
      * M&M mandan un track y nunca se registran; exigirles cuenta sería inventarles
      * una para poder anotar el trabajo.
@@ -573,6 +610,13 @@ class MasteringTest {
                 .content("""
                         {"monto":%s,"cotizacionDolar":1000,"medioPago":"TRANSFERENCIA"}
                         """.formatted(monto)));
+    }
+
+    private ResultActions asignarCuenta(long trabajo, long idUsuario) throws Exception {
+        return mvc.perform(put("/api/mastering/" + trabajo + "/cliente")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"idUsuario\":" + idUsuario + "}"));
     }
 
     private ResultActions confirmar(long trabajo) throws Exception {

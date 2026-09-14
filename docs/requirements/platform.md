@@ -2731,8 +2731,8 @@ identidad — Clientes lo *muestra*, no lo *crea*.
 
 ## 26. Decisiones cerradas el 2026-09-14 (décima tanda) — la octava barrida
 
-> Cuatro, todas sobre **Mix & Mastering**, cerradas en la misma conversación en
-> que Ignacio trajo el hallazgo. La pregunta no venía con solución —*"sé que se
+> Cinco, todas sobre **Mix & Mastering**, cerradas en la misma conversación en
+> que Ignacio trajo el hallazgo (la quinta, P82, al ver la cuarta). La pregunta no venía con solución —*"sé que se
 > puede mejorar pero no sé cuánto, es lo menos intuitivo que tiene el sistema"*—
 > así que el diagnóstico se hizo primero, contra la base de desarrollo, y cada
 > decisión se le propuso con su lectura recomendada. Ninguna necesita
@@ -2862,6 +2862,27 @@ base para las inscripciones y en Java para los trabajos, "pagar en la moneda
 del contrato" significa una cosa en Pagos y otra en M&M. En la base de
 desarrollo no hay ninguna fila que la viole. **El admin sembrado pasa a
 `V33`** (séptimo corrimiento).
+
+### ✅ P82 — Un trabajo cargado a nombre escrito se le puede asignar a la cuenta que se creó después, y sus cobros van con él
+
+**Textual, al ver P78:** *"ponele que le hacemos un trabajo a una persona sin
+cuenta y después se la creamos, no le figura en Mis trabajos obviamente,
+podríamos hacer que el trabajo […] agregarle la opción de asignárselo a otra
+persona y ahí poner a alguien y ese alguien será la persona a la cual le
+creamos la cuenta DESPUÉS de haberle hecho el trabajo."*
+
+**Lo que decide:** `PUT /api/mastering/{id}/cliente` con la cuenta elegida
+**con el buscador** (nunca cruzando por nombre: `V27`), sólo para un trabajo
+que hoy no tiene cuenta. El trabajo pasa a esa cuenta **y los cobros que
+entraron a su nombre escrito también** —`pago.id_usuario` = la cuenta, firmados
+como toda edición de un pago (`V19` §2)—, porque si quedaran a nombre escrito
+la persona vería el trabajo en su portal y no vería lo que pagó, y Clientes la
+mostraría dos veces (la cuenta y el nombre). El nombre escrito queda en la fila
+del pago como rastro de cómo entró. En la pantalla es *"Asignarle una cuenta"*
+en la ficha de un trabajo sin cuenta, y el texto dice que la plata va con él.
+
+**Lo que NO hace:** mover un trabajo de una cuenta a otra. Eso es mover plata
+entre dos personas y es otra conversación; el endpoint lo rechaza.
 
 **Y lo que la barrida sacó del tablero, que no es una decisión sino un pedido
 directo:** *"quitar del tablero el tipo de sala"* — es el filtro *"Todas las

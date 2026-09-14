@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../api/cliente'
 import { listarProfesores } from '../api/administracion'
 import {
+  asignarCuentaDelTrabajo,
   cancelarTrabajo,
   cobrarTrabajo,
   confirmarTrabajo,
@@ -633,6 +634,8 @@ function Detalle({
         <Ficha
           trabajo={trabajo}
           onEditar={puedeEscribir ? () => setEditando(true) : undefined}
+          onCambiado={onCambiado}
+          onError={onError}
         />
       )}
 
@@ -668,7 +671,18 @@ function Link({ url, vacio }: { url: string | null; vacio: string }) {
 }
 
 /** El expediente como se lee: datos, links y las notas enteras. */
-function Ficha({ trabajo, onEditar }: { trabajo: TrabajoResumen; onEditar?: () => void }) {
+function Ficha({
+  trabajo,
+  onEditar,
+  onCambiado,
+  onError,
+}: {
+  trabajo: TrabajoResumen
+  /** Sin esto no hay botones: es la ficha de un DIRECTIVO. */
+  onEditar?: () => void
+  onCambiado: (trabajo: TrabajoResumen) => void
+  onError: (mensaje: string) => void
+}) {
   const t = trabajo
   return (
     <div>
@@ -680,6 +694,9 @@ function Ficha({ trabajo, onEditar }: { trabajo: TrabajoResumen; onEditar?: () =
               {' '}
               · sin cuenta{t.contactoClienteExterno && ` · ${t.contactoClienteExterno}`}
             </span>
+          )}
+          {!t.clienteTieneCuenta && onEditar && (
+            <AsignarCuenta trabajo={t} onCambiado={onCambiado} onError={onError} />
           )}
         </Dato>
         <Dato etiqueta="Quién lo hace">
@@ -755,6 +772,70 @@ function Ficha({ trabajo, onEditar }: { trabajo: TrabajoResumen; onEditar?: () =
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Asignarle una cuenta a un trabajo cargado a nombre escrito (P82).
+ *
+ * **El caso**: se le hace el trabajo a alguien sin cuenta y la cuenta se le crea
+ * después — hasta acá el trabajo no aparecía en su portal y no había forma de
+ * que apareciera. **Los cobros a su nombre escrito van con él**, y el texto lo
+ * dice: si quedaran a nombre escrito, la persona vería el trabajo y no lo que
+ * pagó. Se elige a la persona con el buscador, nunca se cruza por nombre.
+ */
+function AsignarCuenta({
+  trabajo,
+  onCambiado,
+  onError,
+}: {
+  trabajo: TrabajoResumen
+  onCambiado: (trabajo: TrabajoResumen) => void
+  onError: (mensaje: string) => void
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [cuenta, setCuenta] = useState<UsuarioResumen | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  if (!abierto) {
+    return (
+      <div className="mt-1">
+        <Boton variante="enlace" onClick={() => setAbierto(true)}>
+          Asignarle una cuenta
+        </Boton>
+      </div>
+    )
+  }
+
+  async function confirmar() {
+    if (!cuenta) return
+    setEnviando(true)
+    try {
+      onCambiado(await asignarCuentaDelTrabajo(trabajo.idTrabajo, cuenta.id))
+      setAbierto(false)
+    } catch (e) {
+      onError(e instanceof ApiError ? e.message : 'No se pudo asignar la cuenta.')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <Hueco className="mt-2 text-sm">
+      <p className="mb-3 text-xs text-tenue">
+        Para cuando la cuenta se creó después del trabajo. El trabajo pasa a esa cuenta
+        {trabajo.cobrado !== null && ' junto con lo que ya pagó'}, y le aparece en su portal.
+      </p>
+      <BuscadorDePersonas elegida={cuenta} onElegir={setCuenta} etiqueta="Cuenta" />
+      <div className="mt-3 flex gap-2">
+        <Boton tamaño="chico" disabled={!cuenta || enviando} onClick={() => void confirmar()}>
+          Asignar
+        </Boton>
+        <Boton tamaño="chico" variante="secundario" onClick={() => setAbierto(false)}>
+          Volver
+        </Boton>
+      </div>
+    </Hueco>
   )
 }
 

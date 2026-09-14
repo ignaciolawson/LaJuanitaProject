@@ -2,15 +2,16 @@
 
 ## ⚡ ESTADO AL 2026-09-14 — leé esto y después, si hace falta, el resto
 
-✅ **LA OCTAVA BARRIDA (`mejoras.md` §20) ESTÁ CERRADA: seis de seis, abierta y
+✅ **LA OCTAVA BARRIDA (`mejoras.md` §20) ESTÁ CERRADA: siete de siete, abierta y
 cerrada el mismo 2026-09-14.** Mix & Mastering rehecho por dentro sin tocar su
-tabla (P78–P81, `platform.md` §26): el cobro hereda el cliente del trabajo —con
+tabla (P78–P82, `platform.md` §26): el cobro hereda el cliente del trabajo —con
 cuenta o a nombre escrito; **tres pagos de clientes externos estaban a nombre de
 tres empleados**—, los estados se mueven por acciones y `DEBE` lo escribe el
 scheduler, los entregables se llaman por lo que son, el expediente se lee, y el
-pago de un trabajo va en su moneda (**`V32`**, la gemela de `V31`). Del tablero
-salió el filtro de salas. **Suites: 724 backend · 664 front · 295 + 68 SQL, sobre
-32 migraciones.** El backend de desarrollo está reiniciado con este código; el
+pago de un trabajo va en su moneda (**`V32`**, la gemela de `V31`), y a un trabajo
+a nombre escrito se le asigna la cuenta creada después, con sus cobros (P82). Del
+tablero salió el filtro de salas. **Suites: 726 backend · 666 front · 295 + 68 SQL,
+sobre 32 migraciones.** El backend de desarrollo está reiniciado con este código; el
 trabajo **2251** quedó en la base como prueba viva del circuito. ⚠️ **El admin
 sembrado pasa a `V33`** (séptimo corrimiento). Dos cosas nuevas para la
 siguiente barrida, en §4: editar la moneda de una inscripción con pagos adentro,

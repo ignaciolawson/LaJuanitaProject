@@ -208,6 +208,41 @@ public class MasteringService {
     }
 
     /**
+     * Le asigna una cuenta a un trabajo cargado a nombre escrito (P82).
+     *
+     * <p><b>El caso real</b>: se le hace el trabajo a alguien sin cuenta y la
+     * cuenta se le crea después — hasta acá el trabajo no aparecía en su portal y
+     * no había forma de que apareciera. <b>Y los cobros van con él</b>: los que
+     * entraron a su nombre escrito pasan a la cuenta, firmados como toda edición
+     * de un pago (`V19` §2), porque si quedaran a nombre escrito la persona vería
+     * el trabajo y no lo que pagó, y Clientes la mostraría dos veces. El nombre
+     * escrito queda en la fila del pago como rastro de cómo entró; con cuenta,
+     * el DTO muestra la cuenta.
+     *
+     * <p><b>Sólo para un trabajo sin cuenta.</b> Mover un trabajo de una cuenta a
+     * otra es mover plata entre dos personas, y eso es otra conversación.
+     */
+    @Transactional
+    public TrabajoResumen asignarCuenta(Long id, Long idUsuario, Long idAutor) {
+        TrabajoMastering trabajo = buscar(id);
+
+        if (trabajo.getCliente() != null) {
+            throw new SolicitudInvalidaException(
+                    "Ese trabajo ya está a nombre de una cuenta. Esto es para los que se cargaron a nombre escrito.");
+        }
+        Usuario cuenta = buscarPersona(idUsuario);
+
+        trabajo.setCliente(cuenta);
+        for (var pago : pagosLeidos.aNombreEscritoDeTrabajo(id)) {
+            pago.setUsuario(cuenta);
+            pago.firmarEdicion(idAutor);
+        }
+        trabajos.flush();
+
+        return TrabajoResumen.de(trabajo, cobradoDe(List.of(trabajo)).get(id));
+    }
+
+    /**
      * Confirma el presupuesto: {@code A_CONFIRMAR → EN_PROCESO} (P79 · 1).
      *
      * <p>Exige precio acordado, y eso es lo que distingue "confirmado" de "a
