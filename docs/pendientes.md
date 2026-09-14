@@ -1,6 +1,22 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-12 (noche) — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-14 — leé esto y después, si hace falta, el resto
+
+✅ **LA OCTAVA BARRIDA (`mejoras.md` §20) ESTÁ CERRADA: seis de seis, abierta y
+cerrada el mismo 2026-09-14.** Mix & Mastering rehecho por dentro sin tocar su
+tabla (P78–P81, `platform.md` §26): el cobro hereda el cliente del trabajo —con
+cuenta o a nombre escrito; **tres pagos de clientes externos estaban a nombre de
+tres empleados**—, los estados se mueven por acciones y `DEBE` lo escribe el
+scheduler, los entregables se llaman por lo que son, el expediente se lee, y el
+pago de un trabajo va en su moneda (**`V32`**, la gemela de `V31`). Del tablero
+salió el filtro de salas. **Suites: 724 backend · 664 front · 295 + 68 SQL, sobre
+32 migraciones.** El backend de desarrollo está reiniciado con este código; el
+trabajo **2251** quedó en la base como prueba viva del circuito. ⚠️ **El admin
+sembrado pasa a `V33`** (séptimo corrimiento). Dos cosas nuevas para la
+siguiente barrida, en §4: editar la moneda de una inscripción con pagos adentro,
+y el candado del premaster que libera con cualquier pago.
+
+### Lo que decía al 2026-09-12 (noche), y sigue valiendo salvo los números
 
 ✅ **LA QUINTA BARRIDA (`mejoras.md` §17) ESTÁ CERRADA: nueve de nueve,
 abierta y cerrada el mismo 2026-09-12.** Una migración aplicada (`V31` — un pago
@@ -25,7 +41,7 @@ commiteados.
 | ✅ 0b | **La §18, cerrada la misma noche**, tres de tres, sin migración: el KPI de cobros pendientes lee Deudores, equipos por WhatsApp sin cuenta (P76), mensajes en párrafos con el abanico. ⚠️ Código en `d24a0ff`, documentado una sesión después | [`mejoras.md`](mejoras.md) §18 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
-| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27` ni `V31`: ahora `V32`** — un número que se movió seis veces, no lo anotes fijo | §1 de acá |
+| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27`, `V31` ni `V32`: ahora `V33`** — un número que se movió siete veces, no lo anotes fijo | §1 de acá |
 | 🟢 4 | **La barrida siguiente**, con tres cosas ya anotadas (eran cinco; la §18 cerró dos): los **grupos de a 3** (reabren P7), **el precio de las reservas** (P72, la mitad de P13 que falta), ~~**la "deuda viva" del tablero**~~ (cerrada en §18: lee la lista de Deudores), y de la §17: **los dos `<select>` de Pagos que no son de personas** (trabajo/venta que salda un pago, sin búsqueda por texto) y ~~**"Venderle" desde el buzón**~~ (cerrado por el otro lado en §18 · P76: equipos va por WhatsApp sin cuenta) (el tercer gemelo de un click, para EQUIPOS) | [`mejoras.md`](mejoras.md) §16 · Fase 6 y §17 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
@@ -488,6 +504,21 @@ barrerlas con una consulta. No molestan salvo en el selector de personas.
 esquema. Una migración que borre fichas correría en producción.
 
 ## ⚪ 4. Decisiones que siguen sin contestar
+
+⚠️ **Dos que dejó la §20 (2026-09-14), las dos sobre plata en dos monedas:**
+
+- **Editar la moneda de una inscripción con pagos adentro no lo cierra nadie.**
+  `V31` mira el pago que entra, no el contrato que cambia: una inscripción en
+  USD con su seña en USD que se edita a ARS deja exactamente la mentira que
+  `V31` vino a evitar (cobrado cero en la moneda del contrato, estado ACTIVA).
+  Para M&M lo cierra `MasteringService.editar` desde la §20; para
+  `InscripcionService` es la misma línea, y probablemente el mismo argumento
+  que dejó `V32` en la base y no sólo en Java. Sin decisión que tomar: es hacerlo.
+- **El candado del premaster libera con *cualquier* pago PAGADO**, no con el
+  precio cubierto (`V1` §8.4): con cobros parciales —que son un caso real en
+  M&M—, USD 10 sobre USD 300 libera el archivo. Es la regla que dio Ghezz
+  (*"cuando me pagan"*) y cambiarla es decisión suya más una migración que
+  reescriba el trigger contra `cobradoDe`. Preguntarle, no asumir.
 
 **La §16 cerró una de éstas el 2026-09-10 — P13, la más consecuente — y dejó
 otra señalada para la barrida siguiente — P7, que los grupos de a 3 van a

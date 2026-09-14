@@ -1,8 +1,8 @@
 package com.lajuanita.backend.mastering.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
-import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.MedioPago;
 
 import jakarta.validation.constraints.NotNull;
@@ -22,26 +22,26 @@ import jakarta.validation.constraints.Positive;
  * parcial es un caso real y no una rareza. Lo que no se puede es cobrar sin decir
  * cuánto.
  *
- * <p>{@code idUsuario} es obligatorio y no sale del trabajo: {@code pago.id_usuario}
- * es NOT NULL, y <b>la mitad de los clientes de M&M no tienen cuenta</b>. Un
- * trabajo de un cliente externo se cobra a nombre de quien lo recibió — la pantalla
- * lo dice antes de dejar mandar el pedido, en vez de armar un request que la base
- * va a rechazar.
+ * <p><b>No trae a nombre de quién ni en qué moneda, y las dos ausencias son la
+ * §20.</b> El pago va a nombre del cliente del trabajo —con cuenta o a nombre
+ * escrito, `V19`— porque el trabajo ya lo identifica (P78): hasta esta barrida el
+ * request traía un {@code idUsuario} obligatorio y tres trabajos de clientes
+ * externos quedaron cobrados a nombre de tres empleados. Y va en la moneda del
+ * trabajo (P81, `V32`), así que tampoco hay moneda que elegir; lo que sí puede
+ * hacer falta es la cotización, si el trabajo es en dólares.
  */
 public record CobroRequest(
-
-        @NotNull(message = "Decí a nombre de quién queda el pago.")
-        Long idUsuario,
 
         @NotNull(message = "Poné el monto.")
         @Positive(message = "El monto tiene que ser mayor a cero.")
         BigDecimal monto,
 
-        @NotNull(message = "Elegí la moneda.")
-        Moneda moneda,
-
+        /** Obligatoria si el trabajo es en USD: lo exige {@code pago_usd_con_cotizacion}. */
         BigDecimal cotizacionDolar,
 
         @NotNull(message = "Decí cómo se pagó.")
-        MedioPago medioPago) {
+        MedioPago medioPago,
+
+        /** Vacío = hoy. Puede ser anterior: la carga y el hecho son dos fechas. */
+        LocalDate fechaPago) {
 }

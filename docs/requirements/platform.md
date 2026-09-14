@@ -2728,3 +2728,144 @@ gastó plata en la juanita que no es alumno, ni profe, ni directivo, ni etc."*
 **Lo que NO cambia:** los dos ejes del modelo (rol y relaciones), quién
 otorga cada uno, las rutas del backend, y que un cliente sin cuenta sigue sin
 identidad — Clientes lo *muestra*, no lo *crea*.
+
+## 26. Decisiones cerradas el 2026-09-14 (décima tanda) — la octava barrida
+
+> Cuatro, todas sobre **Mix & Mastering**, cerradas en la misma conversación en
+> que Ignacio trajo el hallazgo. La pregunta no venía con solución —*"sé que se
+> puede mejorar pero no sé cuánto, es lo menos intuitivo que tiene el sistema"*—
+> así que el diagnóstico se hizo primero, contra la base de desarrollo, y cada
+> decisión se le propuso con su lectura recomendada. Ninguna necesita
+> migración salvo P81, que es la gemela de P74.
+
+**Textual, el hallazgo:** *"Revisar el proceso de mix y mastering todo en
+general, pero de forma específica ver el tema de los cobros a personas sin
+cuenta, que las notas internas no sea en formato renglón sino una caja de
+texto, que sea más legible, los estados están medio raros, lo de guardar
+cambios también, no hay un slot para el producto terminado tipo ya la canción
+mixeada y masterizada, solo está el premaster, etc. Buscar defectos de esta
+sección."*
+
+### ✅ P78 — El cobro de un trabajo va a nombre del cliente del trabajo, con cuenta o a nombre escrito
+
+**Lo que había, medido en la base de desarrollo:** `V19` hizo nullable
+`pago.id_usuario` —motivada por la venta de equipos a un comprador sin cuenta—
+y M&M nunca lo adoptó: `CobroRequest.idUsuario` siguió `@NotNull`, y el
+formulario decía *"Este cliente no tiene cuenta […] Elegí a quién imputarlo"*.
+El resultado son tres pagos de tres clientes externos en el estado de cuenta
+de tres empleados: el trabajo de **Jeff Beck** (USD 1345) cobrado a nombre de
+**Ghezz**, el de **Goobe** a nombre del **Administrador**, el de **Bautista
+Foresti** a nombre de **Ignacio**. Y en Clientes (P77), que lista a los sin
+cuenta *por el nombre escrito del pago*, esos tres no existen — la plata está,
+la persona no. **No era un botón que faltaba: el formulario obligaba a
+mentir.**
+
+**Lo que decide:** el cobro **hereda el cliente del trabajo**, que la fila ya
+identifica por uno de dos caminos (`trabajo_cliente_identificado`): si tiene
+cuenta, `pago.id_usuario`; si no, `nombre_pagador_externo` +
+`contacto_pagador_externo` copiados del trabajo — exactamente lo que hace la
+venta desde `V19`. `CobroRequest` pierde `idUsuario` y el formulario **deja
+de preguntar** a nombre de quién: no hay decisión que tomar. Los tres pagos
+mal imputados son datos de desarrollo y no se tocan; en producción no hay
+ninguno.
+
+**Y un cobro sobre un trabajo cancelado se rechaza**: no había guarda, y
+plata contra un trabajo que se declara inexistente es la incoherencia que la
+anulación de ventas ya evita del otro lado.
+
+### ✅ P79 — Los estados se mueven por acciones, no por un `<select>`; DEBE lo escribe el scheduler
+
+**Lo que había:** un `<select>` *"Mover a"* con los seis estados de `V1`
+menos el actual, y el trigger `trabajo_estado_solo_avanza` rechazando los que
+van para atrás. Los estados **mezclan dos ejes** —el avance del trabajo (a
+confirmar → en proceso → entregado) y la plata (debe / pagado), que ya vive
+en `pago` y la pantalla ya calcula (*"cobrado X de Y"*)— y **"entregado" se
+decía de tres formas que nada ataba**: el estado `ENTREGADO`, la fecha
+`fecha_entrega_real` (un campo a mano del formulario) y `premaster_liberado`.
+Consecuencia medida: **los tres trabajos ENTREGADO de la base tienen la fecha
+vacía, y la alerta de §9 (*"7 días desde la entrega sin pago"*) exige la
+fecha — nunca iba a sonar.** Y `DEBE` no lo escribía ninguna línea del
+sistema: era una opción del `<select>`, el mismo hallazgo que `VENCIDO` en
+`V17`.
+
+**Lo que decide** (sin migración: los seis estados y el trigger de `V1` §8.5
+quedan; cambia *quién los escribe*):
+
+1. **Confirmar** — `A_CONFIRMAR → EN_PROCESO`. Exige precio acordado: un
+   trabajo se confirma cuando se cerró el presupuesto, que es para lo que
+   existía *"a confirmar"*.
+2. **Entregar** — `EN_PROCESO → ENTREGADO`, pide la fecha (hoy por defecto,
+   puede ser anterior: la carga y el hecho son dos fechas, como `fechaPago`)
+   y **la escribe en `fecha_entrega_real`** en el mismo movimiento. Exige el
+   link del master cargado, por el mismo argumento que liberar exige el del
+   premaster: entregar lo que no está cargado es una pantalla que dice
+   "listo" y no le da nada al cliente. **Si lo cobrado ya cubre el precio,
+   entra directo en `PAGADO`** — hoy un trabajo pagado por adelantado se
+   quedaba en ENTREGADO y había que moverlo a mano.
+3. **Registrar cobro** — como hasta ahora: `PAGADO` cuando lo cobrado en la
+   moneda del trabajo cubre el precio (P81 hace que siempre sea comparable).
+4. **Cancelar** — desde cualquier estado, con confirmación y sin motivo (la
+   tabla no tiene dónde guardarlo; pedir una frase que se descarta es peor
+   que no pedirla — el mismo criterio que el release).
+5. **`DEBE` lo escribe el scheduler**: la regla que hoy *avisa* a los 7 días
+   de entregado sin cobrar también **marca** el trabajo, como
+   `PagoRepository.marcarVencidos` hace con las deudas. `ENTREGADO → DEBE` es
+   el mismo escalón para el trigger. Con esto `DEBE` tiene por primera vez
+   una definición: *entregado hace más de 7 días y sin cobrar del todo*.
+6. **El `PATCH /{id}/estado` genérico desaparece.** Con él, "PAGADO sólo por
+   un cobro" tendría una puerta de atrás.
+7. **`fecha_entrega_real` sigue en el formulario de edición como corrección**
+   —la fecha estaba mal—, pero el servicio la rechaza en un trabajo que no se
+   entregó (*"la fecha la pone Entregar"*) y rechaza vaciarla en uno que sí.
+
+**Lo que NO cambia:** la escalera de `V1`, el candado del premaster y su
+excepción con motivo, y que M&M es el único servicio que puede quedar en
+debe.
+
+### ✅ P80 — Dos entregables, con nombre: el master es la canción terminada, el premaster el archivo para discográficas
+
+**Lo que había:** el slot del producto terminado **existía** —`url_master`,
+"Link del master"— y la pantalla lo describía como *"se entrega para
+revisión"*, mientras la fila del tablero mostraba sólo *"Premaster
+retenido"*. Leído así, el master parece un borrador y el único entregable
+parece el premaster; Ignacio concluyó que faltaba un slot para *"la canción
+ya mixeada y masterizada"*. P22 lo tiene textual de Ghezz: *"Yo entrego el
+master. Cuando me pagan, recién ahí les doy el premaster, que es lo que
+necesitan para discográficas."* **El master ES la canción terminada.** La
+pantalla hizo que pareciera que faltaba.
+
+**Lo que decide:** los dos slots quedan y **se nombran por lo que son**, en
+las tres pantallas — el alta y la edición (*"Master — la canción terminada.
+El cliente la ve apenas se carga."* / *"Premaster — el archivo para
+discográficas. Se retiene hasta el pago."*), la fila del tablero (muestra los
+dos: cargado o no, retenido o entregado) y el portal del cliente, donde
+"premaster" a secas es jerga. Sin migración. Si el flujo de Ghezz alguna vez
+tiene un tercer archivo, es una columna nueva y se decide entonces.
+
+### ✅ P81 — El cobro de un trabajo va en la moneda del trabajo (la gemela de P74)
+
+**Lo que había:** un trabajo en USD se podía cobrar en ARS, y ese pago quedaba
+**invisible** en *"cobrado"* — `cobradoDe` descarta lo que está en otra
+moneda porque no hay cotización con qué compararlo (§2.3: el sistema nunca
+convierte). Es el patrón de `V12`/`V31` otra vez: dos definiciones de "está
+pagado", una en el estado y otra en la aritmética, y la pantalla diciendo
+*"sin cobrar"* sobre un pago que existe.
+
+**Lo que decide:** la misma regla que P74 para los programas — **un pago que
+apunta a un trabajo lleva la moneda del trabajo.** El formulario fija la
+moneda a la del trabajo; quien paga pesos por un precio en dólares carga el
+pago en USD con la cotización del día (el campo existe exactamente para eso,
+`V1`: *"la cotización que importa es la del día del cobro"*). Y es un
+**trigger** (`V32`, el espejo de `V31` sobre `id_trabajo_mastering`) y no
+sólo el servicio, por el argumento de `V25` con `V21`: si la regla vive en la
+base para las inscripciones y en Java para los trabajos, "pagar en la moneda
+del contrato" significa una cosa en Pagos y otra en M&M. En la base de
+desarrollo no hay ninguna fila que la viole. **El admin sembrado pasa a
+`V33`** (séptimo corrimiento).
+
+**Y lo que la barrida sacó del tablero, que no es una decisión sino un pedido
+directo:** *"quitar del tablero el tipo de sala"* — es el filtro *"Todas las
+salas"* de la grilla de ocupación en `/admin/tablero`. Se saca de la pantalla;
+el parámetro `idSala` del endpoint y la línea *"Sala: …"* de la trazabilidad
+del export quedan (siguen siendo verdad: "todas"), porque el pedido es sobre
+lo que se ve.

@@ -143,6 +143,9 @@ public class AvisoService {
         // Primero se escribe el estado, después se avisa. Al revés, un aviso
         // podría hablar de una deuda que la corrida todavía no marcó vencida.
         int vencidos = pagos.marcarVencidos(limite);
+        // Lo mismo para M&M (P79 · 5): un trabajo entregado hace más de 7 días y
+        // sin cobrar pasa a DEBE con la misma condición con que se avisa abajo.
+        int enDebe = trabajos.marcarEnDebe(limite);
 
         List<Aviso> pendientes = new ArrayList<>();
         int deudas = agregarDeudasVencidas(pendientes, hoy);
@@ -153,7 +156,7 @@ public class AvisoService {
 
         int[] escritos = escribir(pendientes);
 
-        return new ResumenDeAvisos(hoy, vencidos, deudas, entregas, lanzamientos,
+        return new ResumenDeAvisos(hoy, vencidos, enDebe, deudas, entregas, lanzamientos,
                 sinContestar, preinscripciones, escritos[0], escritos[1]);
     }
 

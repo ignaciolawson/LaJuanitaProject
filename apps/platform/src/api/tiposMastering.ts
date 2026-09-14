@@ -22,8 +22,9 @@ export const NOMBRE_DE_TIPO: Record<TipoTrabajo, string> = {
  * El estado del trabajo.
  *
  * ⚠️ **Solo avanzan.** Lo sostiene un trigger (`V1` §8.5), no la pantalla: un
- * trabajo ya cobrado que vuelve a "en proceso" descuadra los ingresos. La
- * pantalla ofrece los que se pueden y el backend rechaza el resto con su mensaje.
+ * trabajo ya cobrado que vuelve a "en proceso" descuadra los ingresos. Y desde
+ * la §20 (P79) **no hay un "mover a"**: cada estado lo escribe un hecho —
+ * confirmar, entregar, cobrar, cancelar— y `DEBE` lo escribe el scheduler.
  *
  * `ENTREGADO` y `DEBE` son **el mismo escalón**: la misma etapa vista desde la
  * plata. Se puede ir de una a la otra en cualquier dirección. `CANCELADO` está
@@ -42,6 +43,7 @@ export const NOMBRE_DE_ESTADO: Record<EstadoTrabajo, string> = {
   EN_PROCESO: 'En proceso',
   ENTREGADO: 'Entregado',
   PAGADO: 'Pagado',
+  /** Entregado hace más de 7 días y sin cobrar del todo: lo escribe el scheduler (P79). */
   DEBE: 'Debe',
   CANCELADO: 'Cancelado',
 }
@@ -152,14 +154,17 @@ export type EdicionTrabajo = {
 /**
  * Espeja `CobroRequest`.
  *
- * `idUsuario` **es obligatorio y no sale del trabajo**: `pago.id_usuario` es NOT
- * NULL y la mitad de los clientes de M&M no tienen cuenta. La pantalla lo dice
- * antes de dejar mandar el pedido.
+ * **Ni a nombre de quién ni en qué moneda** (§20 · P78 · P81): el pago va a
+ * nombre del cliente del trabajo —cuenta o nombre escrito, como la venta desde
+ * `V19`— y en la moneda del trabajo. Hasta la §20 llevaba un `idUsuario`
+ * obligatorio, y tres trabajos de clientes externos quedaron cobrados a nombre
+ * de tres empleados.
  */
 export type CobroTrabajo = {
-  idUsuario: number
   monto: number
-  moneda: Moneda
+  /** Obligatoria si el trabajo es en dólares. */
   cotizacionDolar?: number
   medioPago: MedioPago
+  /** Vacío = hoy. */
+  fechaPago?: string
 }

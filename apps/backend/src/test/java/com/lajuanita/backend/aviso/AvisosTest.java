@@ -315,10 +315,14 @@ class AvisosTest {
         Usuario staff = crear(Rol.STAFF);
         long id = preinscripcionQueVencio(crear(Rol.USUARIO), 3);
 
-        ResumenDeAvisos resumen = avisos.generar();
+        avisos.generar();
         em.flush();
 
-        assertThat(resumen.preinscripcionesVencidas()).isEqualTo(1);
+        // ⚠️ No se afirma `resumen.preinscripcionesVencidas() == 1`: ese número
+        // cuenta TODA la base, y la de desarrollo tiene preinscripciones reales
+        // que vencen con el calendario — el 2026-09-14 eran tres y este caso cayó
+        // solo, como `MisReservasPagina.test` en la §16. Se afirma sobre la clave
+        // del hecho que el caso creó, que es lo que la cabecera de la suite pide.
         assertThat(avisosCon("PREINSCRIPCION_VENCIDA:i=" + id, staff)).isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "SELECT estado FROM inscripcion WHERE id_inscripcion = ?", String.class, id))
@@ -373,10 +377,12 @@ class AvisosTest {
                 RETURNING id_inscripcion
                 """, Long.class, idAlumno);
 
-        ResumenDeAvisos resumen = avisos.generar();
+        avisos.generar();
         em.flush();
 
-        assertThat(resumen.preinscripcionesVencidas()).isZero();
+        // Sobre la clave del caso y no sobre el total de la corrida: ver
+        // `una_preinscripcion_vencida_avisa_y_no_se_cancela`, la base de
+        // desarrollo tiene preinscripciones que vencen solas.
         assertThat(jdbc.queryForObject("""
                 SELECT count(*) FROM notificacion
                  WHERE id_usuario_destino = ? AND clave_evento LIKE ?
@@ -709,7 +715,10 @@ class AvisosTest {
      * deuda no dispara además el aviso de entrega impaga y cada caso mide una cosa.
      */
     private long pagoAdeudado(Usuario deudor, int dias) {
-        long trabajo = trabajoDe("A_CONFIRMAR", null);
+        // En pesos, como la deuda: desde `V32` (P81) un pago va en la moneda de
+        // su trabajo, y el fixture cargó durante un mes una deuda en ARS contra un
+        // trabajo en USD sin que nada lo dijera.
+        long trabajo = trabajoDe("A_CONFIRMAR", null, "ARS");
 
         return jdbc.queryForObject("""
                 INSERT INTO pago (id_usuario, id_trabajo_mastering, monto, moneda, medio_pago,
@@ -746,12 +755,16 @@ class AvisosTest {
     }
 
     private long trabajoDe(String estado, LocalDate entrega) {
+        return trabajoDe(estado, entrega, "USD");
+    }
+
+    private long trabajoDe(String estado, LocalDate entrega, String moneda) {
         return jdbc.queryForObject("""
                 INSERT INTO trabajo_mastering (nombre_cliente_externo, tipo_trabajo, nombre_track,
                                                precio_acordado, moneda, estado, fecha_entrega_real)
-                VALUES (?, 'MIX_MASTER', 'Tema de prueba', 150.00, 'USD', ?, ?)
+                VALUES (?, 'MIX_MASTER', 'Tema de prueba', 150.00, ?, ?, ?)
                 RETURNING id_trabajo
-                """, Long.class, "Cliente " + UUID.randomUUID(), estado, entrega);
+                """, Long.class, "Cliente " + UUID.randomUUID(), moneda, estado, entrega);
     }
 
     /**

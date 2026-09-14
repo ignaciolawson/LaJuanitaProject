@@ -14,14 +14,8 @@ import type { ResumenFinanciero, Tablero } from './tiposTablero'
  * cada pedido. Acá solo se evita pedir algo que va a volver 403.
  */
 
-export function tableroCompleto(opciones: { desde: string; hasta: string; idSala?: number }) {
-  return pedir<Tablero>(
-    `/api/tablero${query({
-      desde: opciones.desde,
-      hasta: opciones.hasta,
-      idSala: opciones.idSala,
-    })}`,
-  )
+export function tableroCompleto(opciones: { desde: string; hasta: string }) {
+  return pedir<Tablero>(`/api/tablero${query({ desde: opciones.desde, hasta: opciones.hasta })}`)
 }
 
 export function resumenFinanciero(desde: string, hasta: string) {
@@ -47,14 +41,10 @@ export function resumenFinanciero(desde: string, hasta: string) {
  */
 export async function descargarTablero(
   formato: 'xlsx' | 'pdf',
-  opciones: { desde: string; hasta: string; idSala?: number },
+  opciones: { desde: string; hasta: string },
 ): Promise<void> {
   const respuesta = await fetch(
-    `/api/tablero/exportacion.${formato}${query({
-      desde: opciones.desde,
-      hasta: opciones.hasta,
-      idSala: opciones.idSala,
-    })}`,
+    `/api/tablero/exportacion.${formato}${query({ desde: opciones.desde, hasta: opciones.hasta })}`,
     { headers: cabeceraDeCredencial() },
   )
 

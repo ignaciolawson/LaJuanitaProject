@@ -66,12 +66,16 @@ describe('el premaster', () => {
    * **La regla del módulo, vista desde el cliente.** El master se baja apenas
    * está; el premaster no, y la pantalla dice qué falta para que esté. Esa frase
    * no es decoración: sin ella el cliente ve que falta algo y no sabe qué hacer.
+   *
+   * Los enlaces dicen qué es cada archivo (P80): "la canción terminada (master)" y
+   * "el archivo para discográficas (premaster)". A secas, las dos palabras son
+   * jerga para quien manda un tema.
    */
   it('sin liberar no ofrece el link y explica qué falta', async () => {
     render(<MisTrabajosPagina />)
 
-    expect(await screen.findByRole('link', { name: 'Bajar el master' })).toBeDefined()
-    expect(screen.queryByRole('link', { name: 'Bajar el premaster' })).toBeNull()
+    expect(await screen.findByRole('link', { name: /Bajar la canción terminada/ })).toBeDefined()
+    expect(screen.queryByRole('link', { name: /Bajar el archivo para discográficas/ })).toBeNull()
     expect(screen.getByText(/se entrega una vez registrado el pago/i)).toBeDefined()
   })
 
@@ -81,7 +85,7 @@ describe('el premaster', () => {
     ])
     render(<MisTrabajosPagina />)
 
-    const enlace = await screen.findByRole('link', { name: 'Bajar el premaster' })
+    const enlace = await screen.findByRole('link', { name: /Bajar el archivo para discográficas/ })
     expect(enlace.getAttribute('href')).toBe('https://drive.example/premaster')
   })
 
@@ -96,7 +100,7 @@ describe('el premaster', () => {
     render(<MisTrabajosPagina />)
 
     await screen.findByText('Nocturno')
-    expect(screen.queryByRole('link', { name: 'Bajar el premaster' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Bajar el archivo para discográficas/ })).toBeNull()
   })
 })
 

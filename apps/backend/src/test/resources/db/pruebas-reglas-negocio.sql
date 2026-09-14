@@ -407,8 +407,12 @@ SELECT probar('40','medio de pago inexistente','FALLA',
 -- =============================================================================
 INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado)
  VALUES ('Bob Tosh','MASTER','Vente','EN_PROCESO');
-INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado)
- VALUES ('Joe','MIX','Segundo Track','ENTREGADO');
+-- En pesos explícitos desde V32: el pago de abajo va en ARS (el default de
+-- `pago`) y el trabajo nacía en USD (el default de `trabajo_mastering`) — el
+-- cruce que V32 prohíbe, y que este fixture hizo durante un mes sin que nada lo
+-- dijera.
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda)
+ VALUES ('Joe','MIX','Segundo Track','ENTREGADO','ARS');
 
 SELECT probar('41','trabajo sin cliente identificado','FALLA',
  $q$INSERT INTO trabajo_mastering (tipo_trabajo,nombre_track) VALUES ('MIX','Anonimo')$q$);
@@ -2362,6 +2366,51 @@ SELECT probar_mensaje('269','ESQUIVE: apuntar el pago a un contrato de otra mone
 SELECT probar('270','pago en USD sobre una reserva, sin contrato que mirar','ANDA',
  $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
     SELECT u_pre,(SELECT id_reserva FROM reserva LIMIT 1),50,'USD',1450,'PAYPAL' FROM v_pre$q$);
+
+
+-- =============================================================================
+-- EL COBRO DE UN TRABAJO VA EN LA MONEDA DEL TRABAJO  (`V32`, §20 · K6, P81)
+--
+-- El espejo de V31 para Mix & Mastering. `cobradoDe` suma solo lo que entro en
+-- la moneda del trabajo (§2.3, nunca se convierte), asi que un pago en la otra
+-- era invisible en pantalla: "sin cobrar" sobre plata que estaba en la caja.
+--
+-- Fixture propio: un trabajo en dolares y otro en pesos, de un cliente externo.
+-- =============================================================================
+
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda,precio_acordado)
+ VALUES ('Jeff Beck','MIX_MASTER','Moneda USD','ENTREGADO','USD',300);
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda,precio_acordado)
+ VALUES ('Jeff Beck','MIX_MASTER','Moneda ARS','ENTREGADO','ARS',300000);
+
+CREATE VIEW v_moneda_t AS SELECT
+ (SELECT id_trabajo FROM trabajo_mastering WHERE nombre_track='Moneda USD') AS t_dolares,
+ (SELECT id_trabajo FROM trabajo_mastering WHERE nombre_track='Moneda ARS') AS t_pesos;
+
+SELECT probar_mensaje('271','pago en pesos sobre un trabajo en dolares',
+ 'moneda del trabajo',
+ $q$INSERT INTO pago (nombre_pagador_externo,id_trabajo_mastering,monto,moneda,medio_pago)
+    SELECT 'Jeff Beck',t_dolares,100000,'ARS','EFECTIVO' FROM v_moneda_t$q$);
+
+SELECT probar_mensaje('272','pago en USD sobre un trabajo en pesos',
+ 'moneda del trabajo',
+ $q$INSERT INTO pago (nombre_pagador_externo,id_trabajo_mastering,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT 'Jeff Beck',t_pesos,100,'USD',1450,'PAYPAL' FROM v_moneda_t$q$);
+
+SELECT probar('273','pago en la moneda del trabajo, a nombre escrito (P78)','ANDA',
+ $q$INSERT INTO pago (nombre_pagador_externo,id_trabajo_mastering,monto,moneda,cotizacion_dolar,medio_pago,concepto)
+    SELECT 'Jeff Beck',t_dolares,150,'USD',1450,'PAYPAL','mitad del master' FROM v_moneda_t$q$);
+
+-- Al editarse tambien (V19 §2 deja editar; V32 mira `moneda` en el UPDATE).
+SELECT probar_mensaje('274','ESQUIVE: cargarlo bien y cambiarle la moneda despues',
+ 'moneda del trabajo',
+ $q$UPDATE pago SET moneda='ARS', cotizacion_dolar=NULL, id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE concepto='mitad del master'$q$);
+
+SELECT probar_mensaje('275','ESQUIVE: apuntar el pago a un trabajo de otra moneda',
+ 'moneda del trabajo',
+ $q$UPDATE pago SET id_trabajo_mastering=(SELECT t_pesos FROM v_moneda_t), id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE concepto='mitad del master'$q$);
 
 
 -- =============================================================================

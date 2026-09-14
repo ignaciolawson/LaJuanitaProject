@@ -19,9 +19,9 @@ import type {
  * backend son dos controllers, pero son un solo módulo: separarlos acá obligaría a
  * abrir dos archivos para entender una pantalla.
  *
- * **Cinco operaciones de escritura y ninguna es un PUT genérico**: editar el
- * expediente, mover el estado, sumar una revisión, liberar el premaster y cobrar
- * son cinco hechos distintos. Metidos en un solo guardado, liberar un premaster
+ * **Siete operaciones de escritura y ninguna es un PUT genérico**: editar el
+ * expediente, confirmar, entregar, cancelar, sumar una revisión, liberar el
+ * premaster y cobrar son siete hechos distintos. Metidos en un solo guardado, liberar un premaster
  * sería un checkbox más del formulario — sin motivo, sin autor, y sin nada que
  * distinga "lo entregué" de "guardé la ficha".
  */
@@ -55,11 +55,25 @@ export function editarTrabajo(id: number, datos: EdicionTrabajo) {
   return pedir<TrabajoResumen>(`/api/mastering/${id}`, { metodo: 'PUT', cuerpo: datos })
 }
 
-/** Solo avanza. Un retroceso vuelve como 409 con el texto del trigger. */
-export function cambiarEstadoDelTrabajo(id: number, estado: EstadoTrabajo) {
-  return pedir<TrabajoResumen>(`/api/mastering/${id}/estado?estado=${estado}`, {
-    metodo: 'PATCH',
+/**
+ * Los tres hechos que mueven el estado (P79). Reemplazan al "mover a" genérico:
+ * con él, "PAGADO sólo por un cobro" tenía puerta de atrás.
+ */
+export function confirmarTrabajo(id: number) {
+  return pedir<TrabajoResumen>(`/api/mastering/${id}/confirmacion`, { metodo: 'POST' })
+}
+
+/** Entrega el master: escribe estado y fecha juntos. `fecha` vacía = hoy. */
+export function entregarTrabajo(id: number, fecha?: string) {
+  return pedir<TrabajoResumen>(`/api/mastering/${id}/entrega`, {
+    metodo: 'POST',
+    cuerpo: { fecha },
   })
+}
+
+/** Desde cualquier estado. Con plata viva detrás el backend rechaza: primero se anula el pago. */
+export function cancelarTrabajo(id: number) {
+  return pedir<TrabajoResumen>(`/api/mastering/${id}/cancelacion`, { metodo: 'POST' })
 }
 
 /**

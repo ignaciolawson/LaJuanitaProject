@@ -30,6 +30,8 @@ import java.time.LocalDate;
 public record ResumenDeAvisos(
         LocalDate fecha,
         int pagosVencidos,
+        /** Trabajos de M&M que pasaron a {@code DEBE} en esta corrida (P79 · 5). */
+        int trabajosEnDebe,
         int deudoresAvisados,
         int entregasAvisadas,
         int lanzamientosAvisados,

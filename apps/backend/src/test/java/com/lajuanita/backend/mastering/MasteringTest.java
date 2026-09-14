@@ -1,5 +1,7 @@
 package com.lajuanita.backend.mastering;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -25,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.aviso.AvisoService;
 import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -63,6 +67,7 @@ class MasteringTest {
     @Autowired private UsuarioRepository usuarios;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private EntityManager em;
+    @Autowired private AvisoService avisos;
 
     // == La regla del módulo =================================================
 
@@ -224,26 +229,153 @@ class MasteringTest {
                 .andExpect(jsonPath("$.revisionesIncluidas").value(3));
     }
 
-    // == Estados =============================================================
+    // == Estados (P79: por acciones, no por un <select>) ======================
 
+    /**
+     * La escalera sigue viviendo en `V1` §8.5, y desde la §20 ningún endpoint la
+     * pisa para atrás — así que el caso la ataca por SQL, igual que la regla de
+     * propiedad de `V1` §8.2 en `ReservaTest`: borrarlo dejaría un trigger vivo sin
+     * nadie mirándolo.
+     */
     @Test
     void el_estado_no_retrocede() throws Exception {
-        long trabajo = alta(null, "Cliente Externo");
-        cambiarEstado(trabajo, "EN_PROCESO").andExpect(status().isOk());
-        cambiarEstado(trabajo, "ENTREGADO").andExpect(status().isOk());
+        long trabajo = trabajoConPremasterCargado();
+        entregar(trabajo, null).andExpect(status().isOk());
 
-        cambiarEstado(trabajo, "EN_PROCESO").andExpect(status().isConflict());
+        assertThatThrownBy(() -> jdbc.update(
+                "UPDATE trabajo_mastering SET estado = 'EN_PROCESO' WHERE id_trabajo = ?", trabajo))
+                .hasMessageContaining("no puede retroceder");
     }
 
     /** Se cancela desde donde sea: `V1` §8.5 deja CANCELADO fuera de la escalera. */
     @Test
     void se_puede_cancelar_desde_cualquier_estado() throws Exception {
-        long trabajo = alta(null, "Cliente Externo");
-        cambiarEstado(trabajo, "ENTREGADO").andExpect(status().isOk());
+        long trabajo = trabajoConPremasterCargado();
+        entregar(trabajo, null).andExpect(status().isOk());
 
-        cambiarEstado(trabajo, "CANCELADO")
+        cancelar(trabajo)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("CANCELADO"));
+    }
+
+    /**
+     * <b>Con plata viva detrás no se cancela</b>: primero se anula el pago. Es la
+     * regla de la venta de equipos, del otro lado — cancelar con el cobro adentro
+     * deja la caja contando plata contra algo que se declara inexistente.
+     */
+    @Test
+    void no_se_cancela_un_trabajo_con_cobros() throws Exception {
+        long trabajo = trabajoConPremasterCargado();
+        cobrar(trabajo, "50.00").andExpect(status().isCreated());
+
+        cancelar(trabajo).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void un_trabajo_cancelado_no_se_cobra() throws Exception {
+        long trabajo = alta(null, "Cliente Externo");
+        cancelar(trabajo).andExpect(status().isOk());
+
+        cobrar(trabajo, "50.00").andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void confirmar_exige_precio() throws Exception {
+        long sinPrecio = idDe(mvc.perform(post("/api/mastering")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombreClienteExterno":"Fulano","tipoTrabajo":"MIX","nombreTrack":"Tema"}
+                        """))
+                .andExpect(status().isCreated()), "\"idTrabajo\":");
+
+        confirmar(sinPrecio).andExpect(status().isBadRequest());
+        confirmar(alta(null, "Cliente Externo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("EN_PROCESO"));
+    }
+
+    /**
+     * <b>El hallazgo de la §20 que motivó P79:</b> "entregado" se decía de tres
+     * formas —estado, fecha, premaster— y nada las ataba. Los tres trabajos
+     * ENTREGADO de la base de desarrollo tenían la fecha vacía, y el aviso de los
+     * 7 días la exige: nunca iba a sonar. Ahora la entrega escribe las dos juntas.
+     */
+    @Test
+    void entregar_escribe_el_estado_y_la_fecha_juntos() throws Exception {
+        long trabajo = trabajoConPremasterCargado();
+
+        entregar(trabajo, "2026-09-10")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("ENTREGADO"))
+                .andExpect(jsonPath("$.fechaEntregaReal").value("2026-09-10"));
+
+        entregar(trabajo, null).andExpect(status().isBadRequest());   // ya está entregado
+    }
+
+    @Test
+    void sin_fecha_la_entrega_es_hoy() throws Exception {
+        long trabajo = trabajoConPremasterCargado();
+
+        entregar(trabajo, null)
+                .andExpect(jsonPath("$.fechaEntregaReal").value(LocalDate.now().toString()));
+    }
+
+    /** Lo que no está cargado no se entrega — el mismo argumento que liberar. */
+    @Test
+    void no_se_entrega_sin_el_link_del_master() throws Exception {
+        long trabajo = alta(null, "Cliente Externo");
+
+        entregar(trabajo, null).andExpect(status().isBadRequest());
+    }
+
+    /** Un trabajo pagado por adelantado se quedaba en ENTREGADO y había que moverlo a mano. */
+    @Test
+    void entregar_algo_ya_cobrado_lo_deja_pagado() throws Exception {
+        long trabajo = trabajoConPremasterCargado();
+        cobrar(trabajo, "150.00").andExpect(jsonPath("$.estado").value("A_CONFIRMAR"));
+
+        entregar(trabajo, null).andExpect(jsonPath("$.estado").value("PAGADO"));
+    }
+
+    /**
+     * La fecha de entrega la pone Entregar (P79 · 7). En el formulario sólo se
+     * corrige: ponerla a mano en un trabajo en proceso era la tercera definición
+     * de "entregado", y borrarla en uno entregado dejaba el aviso sin desde cuándo.
+     */
+    @Test
+    void la_fecha_de_entrega_no_se_pone_a_mano_ni_se_borra() throws Exception {
+        long trabajo = alta(null, "Cliente Externo");
+        editar(trabajo, "\"fechaEntregaReal\":\"2026-09-01\",").andExpect(status().isBadRequest());
+
+        editarConPremaster(trabajo);
+        entregar(trabajo, "2026-09-10").andExpect(status().isOk());
+
+        editar(trabajo, "").andExpect(status().isBadRequest());
+        editar(trabajo, "\"fechaEntregaReal\":\"2026-09-11\",")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fechaEntregaReal").value("2026-09-11"));
+    }
+
+    /**
+     * <b>DEBE tiene por primera vez quién lo escriba</b> (P79 · 5): el scheduler,
+     * con la misma condición con que avisa. Hasta la §20 era una opción del
+     * `<select>` — el hallazgo de `VENCIDO` en `V17`, otra vez.
+     */
+    @Test
+    void el_scheduler_pasa_a_debe_lo_entregado_hace_mas_de_7_dias() throws Exception {
+        long viejo = trabajoConPremasterCargado();
+        entregar(viejo, LocalDate.now().minusDays(8).toString()).andExpect(status().isOk());
+        long reciente = trabajoConPremasterCargado();
+        entregar(reciente, LocalDate.now().minusDays(2).toString()).andExpect(status().isOk());
+
+        avisos.generar();
+        em.clear();
+
+        mvc.perform(get("/api/mastering/" + viejo).header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.estado").value("DEBE"));
+        mvc.perform(get("/api/mastering/" + reciente).header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.estado").value("ENTREGADO"));
     }
 
     // == El cobro ============================================================
@@ -255,8 +387,8 @@ class MasteringTest {
      */
     @Test
     void cobrar_el_total_de_un_trabajo_entregado_lo_deja_pagado() throws Exception {
-        long trabajo = alta(null, "Cliente Externo");
-        cambiarEstado(trabajo, "ENTREGADO").andExpect(status().isOk());
+        long trabajo = trabajoConPremasterCargado();
+        entregar(trabajo, null).andExpect(status().isOk());
 
         cobrar(trabajo, "150.00")
                 .andExpect(status().isCreated())
@@ -267,7 +399,7 @@ class MasteringTest {
     @Test
     void cobrar_algo_todavia_en_proceso_no_mueve_el_estado() throws Exception {
         long trabajo = alta(null, "Cliente Externo");
-        cambiarEstado(trabajo, "EN_PROCESO").andExpect(status().isOk());
+        confirmar(trabajo).andExpect(status().isOk());
 
         cobrar(trabajo, "150.00")
                 .andExpect(jsonPath("$.estado").value("EN_PROCESO"))
@@ -276,12 +408,74 @@ class MasteringTest {
 
     @Test
     void un_cobro_parcial_deja_el_trabajo_donde_estaba() throws Exception {
-        long trabajo = alta(null, "Cliente Externo");
-        cambiarEstado(trabajo, "ENTREGADO").andExpect(status().isOk());
+        long trabajo = trabajoConPremasterCargado();
+        entregar(trabajo, null).andExpect(status().isOk());
 
         cobrar(trabajo, "50.00")
                 .andExpect(jsonPath("$.estado").value("ENTREGADO"))
                 .andExpect(jsonPath("$.cobrado").value(50.00));
+    }
+
+    /**
+     * <b>P78, medido antes de escribirlo:</b> tres trabajos de clientes externos
+     * de la base de desarrollo estaban cobrados a nombre de tres empleados, porque
+     * el request exigía una cuenta y el formulario decía "elegí a quién imputarlo".
+     * El pago hereda el cliente del trabajo por el camino que el trabajo ya tiene.
+     */
+    @Test
+    void el_cobro_de_un_cliente_externo_queda_a_su_nombre() throws Exception {
+        long trabajo = alta(null, "Jeff Beck");
+        cobrar(trabajo, "50.00").andExpect(status().isCreated());
+
+        var pago = jdbc.queryForMap(
+                "SELECT id_usuario, nombre_pagador_externo FROM pago WHERE id_trabajo_mastering = ?",
+                trabajo);
+        assertThat(pago.get("id_usuario")).isNull();
+        assertThat(pago.get("nombre_pagador_externo")).isEqualTo("Jeff Beck");
+    }
+
+    @Test
+    void el_cobro_de_un_cliente_con_cuenta_queda_en_su_cuenta() throws Exception {
+        Usuario cliente = crear(Rol.USUARIO);
+        long trabajo = alta(cliente.getId(), null);
+        cobrar(trabajo, "50.00").andExpect(status().isCreated());
+
+        assertThat(jdbc.queryForObject(
+                "SELECT id_usuario FROM pago WHERE id_trabajo_mastering = ?", Long.class, trabajo))
+                .isEqualTo(cliente.getId());
+    }
+
+    /**
+     * <b>P81 / `V32`</b>: el pago va en la moneda del trabajo, y lo sostiene la
+     * base — el cobro desde este módulo ya no puede disentir, pero `/api/pagos`
+     * sí, y ahí es donde el trigger habla.
+     */
+    @Test
+    void la_base_rechaza_un_pago_en_otra_moneda_que_el_trabajo() throws Exception {
+        long trabajo = alta(null, "Cliente Externo");   // USD
+
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO pago (nombre_pagador_externo, id_trabajo_mastering, concepto, monto,
+                                  moneda, medio_pago, estado_pago, fecha_pago)
+                VALUES ('Cliente Externo', ?, 'M&M', 50000, 'ARS', 'EFECTIVO', 'PAGADO', CURRENT_DATE)
+                """, trabajo))
+                .hasMessageContaining("moneda del trabajo");
+    }
+
+    /** La otra puerta: cambiarle la moneda al trabajo con plata adentro. La cierra el servicio. */
+    @Test
+    void no_se_cambia_la_moneda_de_un_trabajo_con_cobros() throws Exception {
+        long trabajo = alta(null, "Cliente Externo");
+        cobrar(trabajo, "50.00").andExpect(status().isCreated());
+
+        mvc.perform(put("/api/mastering/" + trabajo)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"tipoTrabajo":"MIX_MASTER","nombreTrack":"Tema de prueba",
+                         "precioAcordado":150000,"moneda":"ARS","revisionesIncluidas":3}
+                        """))
+                .andExpect(status().isBadRequest());
     }
 
     // == El cliente ==========================================================
@@ -372,22 +566,44 @@ class MasteringTest {
     }
 
     private ResultActions cobrar(long trabajo, String monto) throws Exception {
-        // El pago necesita una cuenta aunque el trabajo sea de un cliente externo:
-        // `pago.id_usuario` es NOT NULL. Es la asimetría que la pantalla avisa.
-        Usuario quienCobra = crear(Rol.USUARIO);
-
+        // Ni a nombre de quién ni en qué moneda (P78 · P81): las dos salen del trabajo.
         return mvc.perform(post("/api/mastering/" + trabajo + "/cobro")
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idUsuario":%d,"monto":%s,"moneda":"USD","cotizacionDolar":1000,
-                         "medioPago":"TRANSFERENCIA"}
-                        """.formatted(quienCobra.getId(), monto)));
+                        {"monto":%s,"cotizacionDolar":1000,"medioPago":"TRANSFERENCIA"}
+                        """.formatted(monto)));
     }
 
-    private ResultActions cambiarEstado(long trabajo, String estado) throws Exception {
-        return mvc.perform(patch("/api/mastering/" + trabajo + "/estado?estado=" + estado)
+    private ResultActions confirmar(long trabajo) throws Exception {
+        return mvc.perform(post("/api/mastering/" + trabajo + "/confirmacion")
                 .header("Authorization", comoStaff()));
+    }
+
+    private ResultActions entregar(long trabajo, String fecha) throws Exception {
+        String cuerpo = fecha == null ? "{}" : "{\"fecha\":\"" + fecha + "\"}";
+        return mvc.perform(post("/api/mastering/" + trabajo + "/entrega")
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo));
+    }
+
+    private ResultActions cancelar(long trabajo) throws Exception {
+        return mvc.perform(post("/api/mastering/" + trabajo + "/cancelacion")
+                .header("Authorization", comoStaff()));
+    }
+
+    /** Edita con el expediente de siempre más lo que se le pase adelante (con su coma). */
+    private ResultActions editar(long trabajo, String extra) throws Exception {
+        return mvc.perform(put("/api/mastering/" + trabajo)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {%s"tipoTrabajo":"MIX_MASTER","nombreTrack":"Tema de prueba",
+                         "precioAcordado":150.00,"moneda":"USD","revisionesIncluidas":3,
+                         "urlMaster":"https://drive.example/master",
+                         "urlPremaster":"https://drive.example/premaster"}
+                        """.formatted(extra)));
     }
 
     private long idDe(ResultActions resultado, String clave) throws Exception {

@@ -5599,7 +5599,224 @@ y build limpios. Sin migración.
 
 ---
 
+## 20. La OCTAVA barrida de correcciones — abierta el 2026-09-14
+
+> Dos hallazgos de Ignacio, del 2026-09-14. El primero es el más grande que
+> trajo una barrida desde la §15, y vino sin solución a propósito: *"Revisar el
+> proceso de mix y mastering todo en general […] Buscar defectos de esta
+> sección. Sé que no te estoy dando una solución concreta […] es lo menos
+> intuitivo que tiene el sistema."* El segundo es un pedido directo: *"quitar
+> del tablero el tipo de sala"*. Las decisiones son **P78–P81**
+> (`platform.md` §26), cerradas en la conversación antes de escribir código.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-14)
+
+✅ **ESTADO: CERRADA el mismo 2026-09-14 — seis de seis, una migración
+(`V32`, aplicada).** Decisiones: **P78–P81** (`platform.md` §26). Suites al
+cierre: **724 backend · 664 front · 295 + 68 SQL** sobre 32 migraciones;
+`tsc -b`, lint (las dos advertencias de siempre) y build limpios. ⚠️ **El
+backend de desarrollo se reinició** con este código y el circuito nuevo se
+probó de punta a punta contra la base de desarrollo con el trabajo **2251**
+(*"Track de la octava barrida"*, cliente sin cuenta *Prueba S20*): confirmar
+→ entregar rechazado sin master → entregar con fecha 01/09 → cobro de USD 100
+**a nombre escrito** (`pago.id_usuario` NULL, `nombre_pagador_externo`
+"Prueba S20") → cancelar rechazado con plata adentro → una corrida del
+scheduler lo pasó a **DEBE** y avisó. Queda en la base como prueba viva, igual
+que la ficha #808 en la §16; no se puede borrar ni cancelar (tiene cobro), y
+está bien que sea así. **El admin sembrado pasa a `V33`.** Lo que dejó para la
+siguiente está en *Lo que encontró que no era de la §20*: editar la moneda de
+una **inscripción** con pagos adentro (el hueco simétrico de `V31`), y los
+contadores globales de `ResumenDeAvisos` en los tests.
+
+### El diagnóstico, antes de decidir nada
+
+Se leyó el módulo entero —`mastering`, las dos pantallas, `V1` §8.4/§8.5,
+`V6` §6, `V15`, `V16`, el aviso de `AvisoService`— y se miró la base de
+desarrollo, que estaba levantada. Lo que salió, en orden de gravedad:
+
+1. **Los cobros a gente sin cuenta imputaban la plata a un empleado.** `V19`
+   abrió `pago.id_usuario` (por la venta de equipos) y M&M no lo adoptó:
+   `CobroRequest.idUsuario` `@NotNull`, formulario que dice *"elegí a quién
+   imputarlo"*. Medido: el trabajo de Jeff Beck (USD 1345) a nombre de Ghezz,
+   el de Goobe a nombre del Administrador, el de Bautista Foresti a nombre de
+   Ignacio. Tres clientes que en Clientes (P77) no existen. → **P78**.
+2. **"Entregado" se decía de tres formas y nada las ataba** (estado ·
+   `fecha_entrega_real` a mano · `premaster_liberado`). Los tres trabajos
+   ENTREGADO de la base tienen la fecha vacía, y la alerta de los 7 días la
+   exige: **nunca iba a sonar**. `DEBE` no lo escribía nadie (el hallazgo de
+   `VENCIDO` en `V17`, otra vez). Un trabajo pagado por adelantado se quedaba
+   en ENTREGADO al entregarlo. → **P79**.
+3. **El producto terminado tenía slot y la pantalla lo escondía**: "Link del
+   master — *se entrega para revisión*" y una fila que sólo decía "Premaster
+   retenido". P22 (Ghezz textual): el master ES la canción terminada. → **P80**.
+4. **Un pago en otra moneda que el trabajo era invisible en "cobrado"** —
+   `cobradoDe` lo descarta sin cotización. El patrón de `V31`. → **P81**.
+5. **El expediente se lee como un formulario**: once campos siempre
+   editables con "Guardar cambios", y los hechos (mover, revisión, liberar,
+   cobrar) abajo. Notas internas en un `<input>` de una línea.
+6. Menores, encontrados en el camino: `profesorAsignado` no lo carga ningún
+   formulario y **editar lo borra** si estaba (el request lo manda vacío);
+   cobrar y liberar sobre un trabajo CANCELADO no se rechaza; el portal dice
+   *"el premaster se entrega una vez registrado el pago"* también en un
+   trabajo cancelado; la fila dice "Premaster retenido" en un trabajo que
+   todavía no tiene nada cargado.
+
+**Lo que NO es un defecto y se dejó:** el candado del premaster mira que
+exista *un* pago PAGADO y no que cubra el precio (`V1` §8.4). Con cobros
+parciales reales eso libera con USD 10 sobre USD 300 — pero es la regla que
+Ghezz dio (*"cuando me pagan"*) y cambiarla es una decisión suya más una
+migración. Queda anotado, no hecho.
+
+### El plan
+
+| Fase | Punto | Grupo | Qué |
+|---|---|---|---|
+| 1 | **K1** | A | Tablero: sacar el filtro *"Todas las salas"* de la ocupación (pantalla; el endpoint conserva `idSala`) |
+| 1 | **K2** | A | M&M: los dos entregables con nombre (P80) en alta, edición, fila y portal; notas internas en caja de texto (`CampoTexto`, nuevo en `Campo.tsx`) |
+| 1 | **K3** | A | M&M: el expediente se lee, no se llena — ficha con datos y links, *"Editar"* abre el formulario, las acciones son el bloque principal |
+| 2 | **K4** | B | M&M: el cobro hereda el cliente del trabajo (P78); cobrar/liberar un cancelado se rechaza |
+| 2 | **K5** | B | M&M: estados por acciones (P79) — `/confirmacion`, `/entrega`, `/cancelacion`; `/estado` se va; `DEBE` lo escribe el scheduler; `profesorAsignado` en los formularios |
+| 3 | **K6** | C | M&M: la moneda del cobro es la del trabajo (P81) — `V32`, el espejo de `V31`; el admin sembrado pasa a `V33` |
+
+
+### Lo que hizo cada punto, y lo que encontró al ejecutarse
+
+⚠️ **El orden de ejecución no fue A → B → C sino backend primero y la pantalla
+una sola vez al final**, y es a propósito: K2, K3, K4 y K5 tocan la misma
+pantalla (`MixMasteringPagina.tsx`), y escribirla contra la API vieja para
+reescribirla contra la nueva era hacer dos veces el trabajo. El triage A/B/C
+ordena la *decisión* (qué necesita migración, qué no); la ejecución siguió la
+dependencia.
+
+**✅ K1 — el filtro de salas fuera del tablero.** El `<select>` *"Todas las
+salas"* ya no está en `/admin/tablero`; `tableroCompleto` y `descargarTablero`
+dejaron de mandar `idSala`, y la pantalla ya no pide el catálogo de salas.
+**El backend no se tocó**: `GET /api/tablero?idSala=` y la línea *"Sala: …"* de
+la trazabilidad del export siguen (dicen "todas", que es verdad). 19/19 en
+`TableroPagina.test`.
+
+**✅ K2 — los dos entregables con nombre (P80) y las notas en caja.**
+`MASTER`/`PREMASTER` son dos constantes al tope de la pantalla —etiqueta y
+ayuda— y las usan el alta, la edición y la ficha: *"Master — la canción
+terminada · Lo que el cliente escucha. Lo ve en su portal apenas se carga el
+link."* / *"Premaster — el archivo para discográficas · Se retiene: el cliente
+no lo ve hasta que se libera, con el pago registrado."* La fila muestra los
+dos (`Master cargado / sin cargar` · `Premaster retenido / sin cargar /
+entregado / Liberado sin pago`). En el portal los enlaces dicen *"Bajar la
+canción terminada (master)"* y *"Bajar el archivo para discográficas
+(premaster)"*, y **un trabajo cancelado ya no promete el premaster**. Las
+notas internas van en **`CampoTexto`**, nuevo en `Campo.tsx` (el tercer
+control del sistema de diseño junto a `Campo` y `CampoSelect`); los tres
+`<textarea>` a mano de `FichaDeAlumnoPagina` quedan como estaban — son
+candidatos, no parte de esta barrida.
+
+**✅ K3 — el expediente se lee.** `Detalle` tiene tres partes: `Ficha` (los
+datos en una grilla, los links como links, las notas enteras con
+`whitespace-pre-wrap`, *"Liberado sin pago · motivo"* si aplica),
+`FormularioExpediente` (se abre con *Editar*, se cierra con *Guardar cambios*
+o *Cancelar*, y al guardar vuelve a la ficha con lo que devolvió el backend) y
+`Acciones` (el bloque *"Qué pasó con este trabajo"*, que ahora es el
+principal). La fecha de entrega real **sólo aparece en el formulario cuando el
+trabajo ya se entregó**, y dice *"La puso Entregar. Corregila sólo si estaba
+mal."*; la moneda queda deshabilitada con cobros adentro. ⚠️ Un detalle de
+tests que cuesta un intento: **`getByLabelText('Notas internas')` exacto no
+encuentra el `<textarea>`**, porque el texto del `<label>` incluye el contenido
+del área y la ayuda — con `<input>` el valor no es texto y el problema no
+existe. Regex.
+
+**✅ K4 — el cobro hereda el cliente (P78).** `CobroRequest` es ahora `monto ·
+cotizacionDolar · medioPago · fechaPago`; `MasteringService.cobrar` arma el
+`AltaPagoRequest` con `cliente.getId()` si hay cuenta y, si no, con
+`nombreClienteExterno` + `contactoClienteExterno` del trabajo — el molde de
+`VentaEquipoService.registrarElCobro`, que es donde `V19` nació. El
+formulario dice a nombre de quién y en qué moneda va, y no pregunta ninguna
+de las dos; el monto viene prellenado con **lo que falta** (precio − cobrado)
+y la cotización se pide sólo en USD. Un cobro sobre un trabajo CANCELADO da
+400. Casos: `el_cobro_de_un_cliente_externo_queda_a_su_nombre` (lee `pago`
+por SQL: `id_usuario IS NULL`, `nombre_pagador_externo = 'Jeff Beck'`) y
+`…con_cuenta_queda_en_su_cuenta`.
+
+**✅ K5 — estados por acciones (P79).** Tres endpoints nuevos y uno menos:
+`POST /{id}/confirmacion` (exige precio), `POST /{id}/entrega` (cuerpo
+`{fecha}` opcional = hoy, no futura; exige precio y `url_master`; escribe
+`fecha_entrega_real` y `ENTREGADO`, o `PAGADO` si lo cobrado ya cubre),
+`POST /{id}/cancelacion` (rechaza con cobros vivos — *"Anulá primero los
+pagos, desde Pagos"*), y **`PATCH /{id}/estado` ya no existe**. `editar`
+rechaza una fecha de entrega en un trabajo no entregado y rechaza borrarla en
+uno entregado (`estaEntregado` = estado ENTREGADO/DEBE/PAGADO **o** fecha
+escrita — la segunda mitad cubre las filas anteriores a la barrida).
+`registrarRevision` y `liberarPremaster` rechazan un cancelado.
+**`TrabajoMasteringRepository.marcarEnDebe(limite)`** corre en
+`AvisoService.generar()` al lado de `marcarVencidos`, con la condición exacta
+de `entregadosSinCobrarAntesDe`; `ResumenDeAvisos` ganó `trabajosEnDebe` y el
+log del scheduler lo dice. `profesorAsignado` ahora se carga (alta y edición,
+`SelectorDeProfesor` sobre `listarProfesores()`), con lo que editar deja de
+borrarlo. En la pantalla, `Acciones` ofrece por estado: A_CONFIRMAR →
+*Confirmar presupuesto*; EN_PROCESO → *Entregar el master* (un formulario
+chico con la fecha); ENTREGADO/DEBE → *Registrar cobro* principal y *Liberar
+el premaster*; PAGADO → *Liberar el premaster* principal; *Cancelar el
+trabajo* sólo sin cobros y con confirmación en un `Hueco` (el molde del
+release); CANCELADO → una línea y nada más. El test
+`el_estado_no_retrocede` **ataca el trigger por SQL** ahora que ningún
+endpoint lo pisa — borrarlo dejaba `V1` §8.5 sin nadie mirándolo (el
+precedente de `V1` §8.2 en `ReservaTest`).
+
+**✅ K6 — `V32__el_cobro_de_un_trabajo_va_en_su_moneda.sql` (P81), aplicada.**
+El espejo de `V31`: `pago_en_la_moneda_del_trabajo`, `BEFORE INSERT OR UPDATE
+OF moneda, id_trabajo_mastering ON pago`, con el NOTICE de filas que ya la
+violan (cero en la base de desarrollo). Cinco casos SQL (271–275: las dos
+direcciones, el camino bueno a nombre escrito, y los dos esquives por
+UPDATE). ⚠️ **Lo que encontró: tres fixtures cargaban desde hacía un mes un
+pago en ARS contra un trabajo en USD sin que nada lo dijera** — `pago.moneda`
+defaultea `'ARS'` y `trabajo_mastering.moneda` defaultea `'USD'`, así que un
+INSERT que no nombra la moneda en ninguno de los dos produce el cruce solo.
+Uno por suite SQL (*Segundo Track* y *Candado*, ahora con `moneda='ARS'`
+explícita y un comentario) y el `pagoAdeudado` de `AvisosTest`, que ahora
+crea su trabajo en pesos. Y **el hueco simétrico que `V32` no cubre y `V31`
+tampoco**: cambiar la moneda del *contrato* con pagos adentro. Para M&M lo
+cierra `MasteringService.editar` (*"ya tiene cobros en USD: no se le puede
+cambiar la moneda"*); **para inscripciones nadie lo cierra** — editar una
+inscripción de USD a ARS con una seña en USD deja la misma mentira que `V31`
+vino a evitar. Queda para la próxima barrida. **El admin sembrado pasa a
+`V33`** (séptimo corrimiento).
+
+### Lo que encontró que no era de la §20
+
+- ⚠️ **Dos casos de `AvisosTest` cayeron solos el 2026-09-14 por el
+  calendario**, no por esta barrida: `una_preinscripcion_vencida_avisa_y_no_se_cancela`
+  y `el_saldo_de_un_programa_activo_no_avisa_nunca` afirmaban
+  `resumen.preinscripcionesVencidas()` — el total de la corrida sobre TODA la
+  base— y la de desarrollo tiene tres preinscripciones reales (13229, 13232,
+  13233) que vencieron el 2026-09-13 a las 15:xx. Estaban verdes el 12 porque
+  el plazo no había pasado. Es §9.6 del calendario otra vez, en la versión
+  *"la base de desarrollo envejece"*, y la cabecera de la propia suite ya lo
+  prohibía (*"ninguno cuenta filas globales"*). Ahora afirman sobre la clave
+  del hecho que el caso creó. **El resto del `ResumenDeAvisos` tiene la misma
+  forma** (`pagosVencidos`, `deudoresAvisados`, `entregasAvisadas`…): cualquier
+  caso que le pida un número exacto va a caer el día que la base tenga uno más.
+- El candado del premaster mira que exista *un* pago PAGADO, no que cubra el
+  precio (`V1` §8.4): con cobros parciales, USD 10 sobre USD 300 libera. Es la
+  regla que dio Ghezz y cambiarla es decisión suya más migración. Anotado.
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **Y LA OCTAVA (§20) TAMBIÉN, EL 2026-09-14: seis de seis, con `V32`
+(P78–P81, `platform.md` §26).** Mix & Mastering rehecho por dentro sin tocar
+su tabla: el cobro hereda el cliente del trabajo (con cuenta o a nombre
+escrito — tres pagos de clientes externos estaban a nombre de tres
+empleados), los estados se mueven por acciones (confirmar · entregar con
+fecha · cobrar · cancelar) y `DEBE` lo escribe el scheduler, el master se
+llama *"la canción terminada"* y el premaster *"el archivo para
+discográficas"* en las tres pantallas, el expediente se lee y se edita con
+*Editar*, las notas van en `CampoTexto`, y el pago de un trabajo va en su
+moneda (`V32`, la gemela de `V31`). Del tablero salió el filtro de salas.
+Suites: **724 backend · 664 front · 295 + 68 SQL** sobre 32 migraciones. **El
+admin sembrado pasa a `V33`** (séptimo corrimiento). ⚠️ Dos casos de
+`AvisosTest` cayeron solos por el calendario (tres preinscripciones reales
+vencieron el 13/09): ya afirman sobre su propia clave. Para la siguiente:
+editar la moneda de una inscripción con pagos adentro (nadie lo cierra), y el
+candado del premaster que libera con *cualquier* pago y no con el precio
+cubierto (regla de Ghezz; decisión suya si cambia).
 
 ✅ **Y LA SÉPTIMA (§19) TAMBIÉN, LA MISMA NOCHE: cinco de cinco, sin
 migración, con P77** (`platform.md` §25) — Personas son cinco pantallas
@@ -5704,7 +5921,7 @@ producto por construir** — hasta la próxima barrida. Lo que sigue abierto en 
 `docs/pendientes.md`:
 
 1. ~~**La §17**~~ — cerrada el 2026-09-12, el mismo día. ~~Lo que dejó: los dos `<select>` de Pagos (trabajo/venta) a página 0, "Venderle" desde el buzón, la 13231 a mano. (Y lo de la §16 sigue: grupos de a 3, el precio de las reservas, la deuda viva del tablero.)~~ **La §18 (misma noche) cerró "Venderle" y la deuda viva del tablero.** Quedan: los dos `<select>` de Pagos, la 13231 a mano, los grupos de a 3 y el precio de las reservas.
-2. **Desactivar el admin sembrado**, ahora `V32`.
+2. **Desactivar el admin sembrado**, ahora `V33` (la §20 aplicó `V32`).
 3. **El deploy de octubre**, que espera la decisión de hosting.
 
 ⚠️ **Y una cosa que la §15 dejó anotada y la §16 agrava** (`platform.md` §21 ·

@@ -91,10 +91,12 @@ public class AvisosAutomaticos {
     public void correr() {
         try {
             ResumenDeAvisos resumen = avisos.generar();
-            log.info("Avisos automáticos: {} pagos pasaron a VENCIDO; {} deudas, {} entregas impagas, "
+            log.info("Avisos automáticos: {} pagos pasaron a VENCIDO y {} trabajos a DEBE; "
+                    + "{} deudas, {} entregas impagas, "
                     + "{} lanzamientos próximos y {} preinscripciones vencidas; "
                     + "{} notificaciones escritas y {} ya estaban.",
-                    resumen.pagosVencidos(), resumen.deudoresAvisados(), resumen.entregasAvisadas(),
+                    resumen.pagosVencidos(), resumen.trabajosEnDebe(),
+                    resumen.deudoresAvisados(), resumen.entregasAvisadas(),
                     resumen.lanzamientosAvisados(), resumen.preinscripcionesVencidas(),
                     resumen.avisosEscritos(), resumen.avisosOmitidos());
         } catch (RuntimeException e) {

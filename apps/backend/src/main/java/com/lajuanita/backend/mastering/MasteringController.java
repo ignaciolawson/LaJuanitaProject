@@ -19,6 +19,7 @@ import com.lajuanita.backend.config.PuedeOperar;
 import com.lajuanita.backend.mastering.dto.AltaTrabajoRequest;
 import com.lajuanita.backend.mastering.dto.CobroRequest;
 import com.lajuanita.backend.mastering.dto.EdicionTrabajoRequest;
+import com.lajuanita.backend.mastering.dto.EntregaRequest;
 import com.lajuanita.backend.mastering.dto.LiberacionRequest;
 import com.lajuanita.backend.mastering.dto.TrabajoResumen;
 import com.lajuanita.backend.usuario.dto.Pagina;
@@ -31,9 +32,9 @@ import jakarta.validation.Valid;
  * <p>Permisos como el resto de lo financiero: <b>cargar y mover</b> es ADMIN·STAFF,
  * <b>leer</b> suma DIRECTIVO. Ghezz opera como STAFF.
  *
- * <p><b>Cinco endpoints de escritura y ninguno es un PUT genérico</b>, y eso es el
- * diseño: editar el expediente, avanzar el estado, sumar una revisión, liberar el
- * premaster y cobrar son cinco hechos distintos. Metidos en un solo PUT, liberar un
+ * <p><b>Siete endpoints de escritura y ninguno es un PUT genérico</b>, y eso es el
+ * diseño: editar el expediente, confirmar, entregar, cancelar, sumar una revisión,
+ * liberar el premaster y cobrar son siete hechos distintos. Metidos en un solo PUT, liberar un
  * premaster sería mandar un booleano en true junto con el resto del formulario — sin
  * motivo, sin autor y sin nada que distinga "lo liberé" de "guardé la ficha".
  *
@@ -82,11 +83,32 @@ public class MasteringController {
         return mastering.editar(id, solicitud);
     }
 
-    /** Solo avanza: lo verifica el trigger de `V1` §8.5, no este método. */
-    @PatchMapping("/{id}/estado")
+    /**
+     * Confirma el presupuesto: {@code A_CONFIRMAR → EN_PROCESO}. Exige precio.
+     *
+     * <p>Los tres de abajo reemplazan al {@code PATCH /{id}/estado} genérico desde
+     * la §20 (P79): con un "mover a" cualquiera, "PAGADO sólo por un cobro" tenía
+     * puerta de atrás. La escalera de `V1` §8.5 sigue rechazando desde psql.
+     */
+    @PostMapping("/{id}/confirmacion")
     @PuedeOperar
-    public TrabajoResumen cambiarEstado(@PathVariable Long id, @RequestParam EstadoTrabajo estado) {
-        return mastering.cambiarEstado(id, estado);
+    public TrabajoResumen confirmar(@PathVariable Long id) {
+        return mastering.confirmar(id);
+    }
+
+    /** Entrega el master: escribe estado y fecha juntos. Ver {@link EntregaRequest}. */
+    @PostMapping("/{id}/entrega")
+    @PuedeOperar
+    public TrabajoResumen entregar(@PathVariable Long id,
+            @RequestBody(required = false) EntregaRequest solicitud) {
+        return mastering.entregar(id, solicitud == null ? null : solicitud.fecha());
+    }
+
+    /** Cancela desde cualquier estado. Con plata viva detrás, primero se anula el pago. */
+    @PostMapping("/{id}/cancelacion")
+    @PuedeOperar
+    public TrabajoResumen cancelar(@PathVariable Long id) {
+        return mastering.cancelar(id);
     }
 
     /** Suma una. Puede pasarse de las incluidas: esa es la alerta de §9. */

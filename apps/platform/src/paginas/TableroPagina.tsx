@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
-import { listarSalas } from '../api/administracion'
 import { ApiError } from '../api/cliente'
 import { descargarTablero, resumenFinanciero, tableroCompleto } from '../api/tablero'
-import type { CajaDelPeriodo, SalaResumen } from '../api/tiposAdmin'
+import type { CajaDelPeriodo } from '../api/tiposAdmin'
 import type {
   CobrosPendientes,
   Conversion,
@@ -17,7 +16,6 @@ import { DIAS_DE_LA_SEMANA, NOMBRE_DE_LINEA } from '../api/tiposTablero'
 import { useUsuario } from '../auth/contexto'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo } from '../componentes/Campo'
 import { importe } from '../componentes/dinero'
 import {
@@ -61,33 +59,20 @@ export function TableroPagina() {
 
   const [desde, setDesde] = useState(() => primerDiaDelMes())
   const [hasta, setHasta] = useState(() => hoy())
-  const [idSala, setIdSala] = useState<number | ''>('')
 
   const [tablero, setTablero] = useState<Tablero | null>(null)
   const [caja, setCaja] = useState<CajaDelPeriodo[]>([])
   const [pendientes, setPendientes] = useState<CobrosPendientes[]>([])
-  const [salas, setSalas] = useState<SalaResumen[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
   const [bajando, setBajando] = useState<'xlsx' | 'pdf' | null>(null)
-
-  useEffect(() => {
-    if (!completo) return
-    listarSalas(true)
-      .then(setSalas)
-      .catch(() => setError('No se pudo cargar el catálogo de salas.'))
-  }, [completo, setError])
 
   const cargar = useCallback(async () => {
     setCargando(true)
     setError(null)
     try {
       if (completo) {
-        const datos = await tableroCompleto({
-          desde,
-          hasta,
-          idSala: idSala === '' ? undefined : idSala,
-        })
+        const datos = await tableroCompleto({ desde, hasta })
         setTablero(datos)
         setCaja(datos.caja)
         setPendientes(datos.pendientes)
@@ -107,7 +92,7 @@ export function TableroPagina() {
     } finally {
       setCargando(false)
     }
-  }, [completo, desde, hasta, idSala, setError])
+  }, [completo, desde, hasta, setError])
 
   useEffect(() => {
     void cargar()
@@ -115,19 +100,17 @@ export function TableroPagina() {
 
   const rango = `desde=${desde}&hasta=${hasta}`
 
-  // La exportación hereda EXACTAMENTE los filtros de la pantalla, incluida la
-  // sala: se exporta lo que estás mirando (§15). Y el archivo lo dice adentro,
-  // en su cabecera de trazabilidad, que es lo que lo hace defendible tres meses
-  // después en una reunión.
+  // La exportación hereda EXACTAMENTE los filtros de la pantalla: se exporta lo
+  // que estás mirando (§15). Y el archivo lo dice adentro, en su cabecera de
+  // trazabilidad, que es lo que lo hace defendible tres meses después en una
+  // reunión. (El filtro por sala se sacó de la pantalla en la §20 · K1, a pedido;
+  // el endpoint sigue aceptando `idSala` y la trazabilidad sigue diciendo
+  // "Sala: todas", que es verdad.)
   async function bajar(formato: 'xlsx' | 'pdf') {
     setBajando(formato)
     setError(null)
     try {
-      await descargarTablero(formato, {
-        desde,
-        hasta,
-        idSala: idSala === '' ? undefined : idSala,
-      })
+      await descargarTablero(formato, { desde, hasta })
     } catch {
       setError('No se pudo generar el archivo.')
     } finally {
@@ -160,22 +143,6 @@ export function TableroPagina() {
           onChange={(e) => setHasta(e.target.value)}
           className="w-40"
         />
-        {completo && (
-          <select
-            value={idSala}
-            onChange={(e) => setIdSala(e.target.value === '' ? '' : Number(e.target.value))}
-            aria-label="Filtrar la ocupación por sala"
-            className={CONTROL_DE_FILTRO}
-          >
-            <option value="">Todas las salas</option>
-            {salas.map((s) => (
-              <option key={s.idSala} value={s.idSala}>
-                {s.nombre}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="flex gap-2">
           <Boton variante="secundario" onClick={() => mes(setDesde, setHasta)}>
             Este mes

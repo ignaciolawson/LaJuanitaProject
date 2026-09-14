@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
-import type { CajaDelPeriodo, SalaResumen } from '../api/tiposAdmin'
+import type { CajaDelPeriodo } from '../api/tiposAdmin'
 import type { CobrosPendientes, Conversion, Retencion, Tablero } from '../api/tiposTablero'
 import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { TableroPagina } from './TableroPagina'
@@ -32,16 +32,8 @@ vi.mock('../api/tablero', () => ({
   descargarTablero: vi.fn(),
 }))
 
-vi.mock('../api/administracion', () => ({
-  listarSalas: vi.fn(),
-}))
-
 const { descargarTablero, resumenFinanciero, tableroCompleto } = await import('../api/tablero')
-const { listarSalas } = await import('../api/administracion')
 
-const SALAS: SalaResumen[] = [
-  { idSala: 1, nombre: 'Sala 1', descripcion: null, activa: true, orden: 1, usosPermitidos: [] },
-]
 
 function usuario(rol: UsuarioActual['rol']): UsuarioActual {
   return {
@@ -183,7 +175,6 @@ function montar(rol: UsuarioActual['rol']) {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  vi.mocked(listarSalas).mockResolvedValue(SALAS)
   vi.mocked(tableroCompleto).mockResolvedValue(tablero())
   vi.mocked(descargarTablero).mockResolvedValue()
   vi.mocked(resumenFinanciero).mockResolvedValue({
@@ -379,7 +370,7 @@ describe('cuando algo falla', () => {
 
 describe('la exportación', () => {
   /**
-   * **Hereda los filtros de la pantalla, incluida la sala.** Es el requisito
+   * **Hereda los filtros de la pantalla.** Es el requisito
    * textual de §15: se exporta lo que estás mirando y no un volcado fijo que
    * después hay que recortar a mano en Excel. Si esto se rompe, el archivo se
    * genera igual y trae otros números que los de la pantalla — que es la peor

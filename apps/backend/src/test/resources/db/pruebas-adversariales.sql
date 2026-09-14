@@ -328,8 +328,11 @@ SELECT probar('D01b','revisiones_realizadas negativas','FALLA',
     VALUES ('X','MIX','Revisiones negativas',3,-1)$q$);
 
 -- El candado del premaster, atacado por atrás: pago → libero → anulo el pago.
-INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado)
-VALUES ('Cliente','MASTER','Candado','ENTREGADO');
+-- En pesos explícitos desde V32: el trabajo nace en USD por defecto y el pago
+-- en ARS por defecto, y esa pareja —que este fixture cargó durante un mes sin
+-- que nada lo dijera— es exactamente lo que V32 rechaza.
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda)
+VALUES ('Cliente','MASTER','Candado','ENTREGADO','ARS');
 INSERT INTO pago (id_usuario,id_trabajo_mastering,monto,medio_pago,estado_pago)
 SELECT v.u_juan,t.id_trabajo,50000,'EFECTIVO','PAGADO'
 FROM v, trabajo_mastering t WHERE t.nombre_track='Candado';

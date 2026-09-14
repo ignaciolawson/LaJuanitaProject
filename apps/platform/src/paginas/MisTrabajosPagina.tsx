@@ -116,36 +116,46 @@ export function MisTrabajosPagina() {
                 {t.revisionesRealizadas} de {t.revisionesIncluidas} revisiones usadas
               </p>
 
-              <div className="mt-3 flex flex-wrap gap-4 border-t border-linea pt-3 text-sm">
-                {t.urlMaster && (
-                  <a
-                    href={t.urlMaster}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline underline-offset-2 hover:text-acento"
-                  >
-                    Bajar el master
-                  </a>
-                )}
+              {/* Los dos entregables con su nombre (P80): "master" y "premaster" a
+                  secas son jerga. El master es la canción terminada y se ve apenas
+                  está; el premaster es el archivo para discográficas y se entrega
+                  con el pago registrado — y el texto de "todavía no" explica esa
+                  regla en vez de mostrar un botón apagado. Un trabajo cancelado no
+                  promete nada. */}
+              {!caido && (
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-linea pt-3 text-sm">
+                  {t.urlMaster ? (
+                    <a
+                      href={t.urlMaster}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2 hover:text-acento"
+                    >
+                      Bajar la canción terminada (master)
+                    </a>
+                  ) : (
+                    <span className="text-xs text-apagado">
+                      La canción terminada (master) todavía no está.
+                    </span>
+                  )}
 
-                {t.premasterLiberado && t.urlPremaster ? (
-                  <a
-                    href={t.urlPremaster}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium underline underline-offset-2 hover:text-acento"
-                  >
-                    Bajar el premaster
-                  </a>
-                ) : (
-                  // Explica la regla en vez de mostrar un botón apagado: el
-                  // premaster se entrega cuando el pago está registrado, y quien
-                  // lee esto tiene que poder saber qué falta.
-                  <span className="text-xs text-apagado">
-                    El premaster se entrega una vez registrado el pago.
-                  </span>
-                )}
-              </div>
+                  {t.premasterLiberado && t.urlPremaster ? (
+                    <a
+                      href={t.urlPremaster}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium underline underline-offset-2 hover:text-acento"
+                    >
+                      Bajar el archivo para discográficas (premaster)
+                    </a>
+                  ) : (
+                    <span className="text-xs text-apagado">
+                      El archivo para discográficas (premaster) se entrega una vez registrado el
+                      pago.
+                    </span>
+                  )}
+                </div>
+              )}
             </li>
           )
         })}

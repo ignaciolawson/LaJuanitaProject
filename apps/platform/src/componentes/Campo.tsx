@@ -1,4 +1,4 @@
-import type { InputHTMLAttributes, ReactNode } from 'react'
+import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
 import { CONTROL_DE_FORMULARIO } from './controles'
 
 /**
@@ -88,6 +88,50 @@ export function CampoSelect({
           {error}
         </span>
       )}
+    </label>
+  )
+}
+
+/**
+ * Igual que Campo pero para un `<textarea>`: notas, motivos, observaciones.
+ *
+ * Existe desde la §20 (K2), cuando las notas internas de Mix & Mastering iban
+ * en un `<input>` de una línea y Ignacio pidió *"que sea una caja de texto, más
+ * legible"*. Había tres `<textarea>` escritos a mano en `FichaDeAlumnoPagina`,
+ * los tres con la clase de filtro y sin etiqueta propia; éste es el que va con
+ * `Campo`. Sin `resize` horizontal: una caja que se ensancha rompe la grilla.
+ */
+export function CampoTexto({
+  etiqueta,
+  error,
+  ayuda,
+  className,
+  ...area
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  etiqueta: string
+  error?: string
+  ayuda?: ReactNode
+}) {
+  return (
+    <label className={`block ${className ?? ''}`}>
+      <span className="t-mono text-tenue">
+        {etiqueta}
+        {area.required && <span className="ml-0.5 text-acento">*</span>}
+      </span>
+
+      <textarea
+        rows={3}
+        {...area}
+        aria-invalid={error ? true : undefined}
+        className={`${BASE} resize-y ${error ? 'border-red' : 'border-linea-control'}`}
+      />
+
+      {error && (
+        <span role="alert" className="mt-1 block text-xs text-acento">
+          {error}
+        </span>
+      )}
+      {!error && ayuda && <span className="mt-1 block text-xs text-apagado">{ayuda}</span>}
     </label>
   )
 }

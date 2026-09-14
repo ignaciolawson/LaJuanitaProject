@@ -1,6 +1,7 @@
 package com.lajuanita.backend.mastering;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,11 +45,17 @@ import com.lajuanita.backend.usuario.dto.Pagina;
  * <p><b>Lo que sí decide acá, y no podría decidirlo la base:</b>
  *
  * <ul>
- *   <li><b>No se libera un premaster que no está cargado.</b> La base solo mira el
- *       pago; liberar con {@code url_premaster} vacío es marcar como entregado algo
- *       que no existe, y el cliente ve un estado que no le da nada.
- *   <li><b>Cobrar puede mover el estado a {@code PAGADO}</b>, con tres condiciones.
- *       Ver {@link #cobrar}.
+ *   <li><b>No se libera un premaster que no está cargado</b>, ni se entrega un
+ *       master que no lo está. La base solo mira el pago; liberar con
+ *       {@code url_premaster} vacío es marcar como entregado algo que no existe,
+ *       y el cliente ve un estado que no le da nada.
+ *   <li><b>Quién escribe cada estado</b> (P79, §20). Desde la octava barrida no
+ *       hay un "mover a" genérico: {@link #confirmar}, {@link #entregar} y
+ *       {@link #cancelar} son tres hechos con su condición, {@code PAGADO} lo
+ *       escriben sólo {@link #cobrar} y {@link #entregar} cuando lo cobrado cubre
+ *       el precio, y {@code DEBE} lo escribe el scheduler
+ *       ({@code TrabajoMasteringRepository.marcarEnDebe}). La escalera de `V1`
+ *       §8.5 sigue siendo la que rechaza desde psql; esto es la forma.
  * </ul>
  */
 @Service
@@ -147,10 +154,41 @@ public class MasteringService {
      *
      * <p>No toca el estado, ni las revisiones hechas, ni la liberación: los tres
      * tienen su propia operación porque los tres son un hecho, no un dato.
+     *
+     * <p><b>Dos cosas que este método rechaza desde la §20, y por qué:</b>
+     *
+     * <ul>
+     *   <li><b>La fecha de entrega la pone {@link #entregar}</b> (P79 · 7). Acá
+     *       sólo se <i>corrige</i> —el trabajo ya está entregado y la fecha estaba
+     *       mal—; ponerla a mano en uno que no se entregó era la tercera forma de
+     *       decir "entregado" sin que nada la atara a las otras dos, y borrarla en
+     *       uno entregado dejaba el aviso de los 7 días sin desde cuándo contar.
+     *   <li><b>La moneda no se cambia con plata adentro</b> (P81). El trigger de
+     *       `V32` mira el pago que se inserta, no el trabajo que se edita: sin esto,
+     *       cobrar en USD y después pasar el trabajo a ARS es la misma mentira por
+     *       otra puerta — y "cobrado" volvería a ignorar un pago que existe.
+     * </ul>
      */
     @Transactional
     public TrabajoResumen editar(Long id, EdicionTrabajoRequest solicitud) {
         TrabajoMastering trabajo = buscar(id);
+        BigDecimal cobrado = cobradoDe(List.of(trabajo)).get(id);
+
+        if (solicitud.moneda() != trabajo.getMoneda() && cobrado != null) {
+            throw new SolicitudInvalidaException(
+                    "Ese trabajo ya tiene cobros en " + trabajo.getMoneda()
+                            + ": no se le puede cambiar la moneda. Anulá primero los pagos, desde Pagos.");
+        }
+
+        boolean entregado = estaEntregado(trabajo);
+        if (!entregado && solicitud.fechaEntregaReal() != null) {
+            throw new SolicitudInvalidaException(
+                    "La fecha de entrega la pone \"Entregar\": ese trabajo todavía no se entregó.");
+        }
+        if (entregado && solicitud.fechaEntregaReal() == null) {
+            throw new SolicitudInvalidaException(
+                    "Un trabajo entregado tiene fecha de entrega: corregila, no la borres.");
+        }
 
         trabajo.setProfesorAsignado(buscarProfesor(solicitud.idProfesorAsignado()));
         trabajo.setTipoTrabajo(solicitud.tipoTrabajo());
@@ -166,27 +204,108 @@ public class MasteringService {
         trabajo.setUrlPremaster(normalizar(solicitud.urlPremaster()));
         trabajo.setNotasInternas(normalizar(solicitud.notasInternas()));
 
+        return TrabajoResumen.de(trabajo, cobrado);
+    }
+
+    /**
+     * Confirma el presupuesto: {@code A_CONFIRMAR → EN_PROCESO} (P79 · 1).
+     *
+     * <p>Exige precio acordado, y eso es lo que distingue "confirmado" de "a
+     * confirmar": un trabajo entra sin precio porque se está presupuestando, y se
+     * confirma cuando el presupuesto cerró.
+     */
+    @Transactional
+    public TrabajoResumen confirmar(Long id) {
+        TrabajoMastering trabajo = buscar(id);
+
+        rechazarSiCancelado(trabajo, "confirmar");
+        if (trabajo.getEstado() != EstadoTrabajo.A_CONFIRMAR) {
+            throw new SolicitudInvalidaException("Ese trabajo ya está confirmado.");
+        }
+        exigirPrecio(trabajo, "confirmarlo");
+
+        trabajo.setEstado(EstadoTrabajo.EN_PROCESO);
+        trabajos.flush();
+
         return TrabajoResumen.de(trabajo, cobradoDe(List.of(trabajo)).get(id));
     }
 
     /**
-     * Mueve el estado.
+     * Registra la entrega del master (P79 · 2). <b>Es el hecho que antes se decía
+     * de tres formas y nada ataba</b>: el estado, la fecha y el link.
      *
-     * <p><b>Quien decide si el movimiento vale es el trigger</b>
-     * ({@code trabajo_estado_solo_avanza}), no este método: un trabajo cobrado que
-     * vuelve a "en proceso" descuadra los ingresos, y esa regla es de las que el
-     * proyecto pone en la base para que valga también desde psql.
+     * <p>Escribe {@code fecha_entrega_real} en el mismo movimiento que el estado —
+     * los tres trabajos ENTREGADO de la base de desarrollo tenían la fecha vacía,
+     * y el aviso de §9 (<i>"7 días desde la entrega sin pago"</i>) la exige: nunca
+     * iba a sonar. La fecha puede ser anterior a hoy (la carga y el hecho son dos
+     * fechas, como {@code fechaPago}) y no puede ser futura: una entrega que
+     * todavía no pasó no se registra.
      *
-     * <p>El {@code flush} está para que hable acá y no al commit: sin él, el 409 con
-     * el texto del trigger llegaría como un 500 sin explicación.
+     * <p>Exige el link del master cargado, por el mismo argumento que
+     * {@link #liberarPremaster} exige el del premaster: para el cliente, un
+     * trabajo "entregado" sin link es una pantalla que dice "listo" y no le da
+     * nada. Y exige precio, porque desde acá lo que queda es cobrar.
+     *
+     * <p><b>Si lo cobrado ya cubre el precio, entra directo en {@code PAGADO}.</b>
+     * Un trabajo pagado por adelantado se quedaba en ENTREGADO y había que
+     * moverlo a mano — con el `<select>` que esta barrida sacó.
      */
     @Transactional
-    public TrabajoResumen cambiarEstado(Long id, EstadoTrabajo estado) {
+    public TrabajoResumen entregar(Long id, LocalDate fecha) {
         TrabajoMastering trabajo = buscar(id);
-        trabajo.setEstado(estado);
+
+        rechazarSiCancelado(trabajo, "entregar");
+        if (estaEntregado(trabajo)) {
+            throw new SolicitudInvalidaException("Ese trabajo ya está entregado.");
+        }
+        exigirPrecio(trabajo, "entregarlo");
+        if (normalizar(trabajo.getUrlMaster()) == null) {
+            throw new SolicitudInvalidaException(
+                    "Todavía no cargaste el link del master: no hay nada que entregar.");
+        }
+
+        LocalDate entrega = fecha == null ? LocalDate.now() : fecha;
+        if (entrega.isAfter(LocalDate.now())) {
+            throw new SolicitudInvalidaException("La fecha de entrega no puede ser futura.");
+        }
+
+        trabajo.setFechaEntregaReal(entrega);
+        trabajo.setEstado(EstadoTrabajo.ENTREGADO);
+        BigDecimal cobrado = cobradoDe(List.of(trabajo)).get(id);
+        if (quedaCubierto(trabajo, cobrado)) {
+            trabajo.setEstado(EstadoTrabajo.PAGADO);
+        }
         trabajos.flush();
 
-        return TrabajoResumen.de(trabajo, cobradoDe(List.of(trabajo)).get(id));
+        return TrabajoResumen.de(trabajo, cobrado);
+    }
+
+    /**
+     * Cancela el trabajo (P79 · 4). Es la única baja: `V6` §7 prohíbe borrar.
+     *
+     * <p><b>Con plata viva detrás no se cancela</b>: primero se anula el pago, desde
+     * Pagos. Es la misma regla que {@code VentaEquipoService.anular}, y por lo
+     * mismo — un trabajo cancelado con su cobro vivo deja la plata contada en la
+     * caja contra algo que se declara inexistente, y cascadear haría que una
+     * acción firmada por una persona dé de baja una fila firmada por otra.
+     */
+    @Transactional
+    public TrabajoResumen cancelar(Long id) {
+        TrabajoMastering trabajo = buscar(id);
+
+        if (trabajo.getEstado() == EstadoTrabajo.CANCELADO) {
+            throw new SolicitudInvalidaException("Ese trabajo ya está cancelado.");
+        }
+        BigDecimal cobrado = cobradoDe(List.of(trabajo)).get(id);
+        if (cobrado != null) {
+            throw new SolicitudInvalidaException(
+                    "Ese trabajo tiene cobros registrados. Anulá primero los pagos, desde Pagos.");
+        }
+
+        trabajo.setEstado(EstadoTrabajo.CANCELADO);
+        trabajos.flush();
+
+        return TrabajoResumen.de(trabajo, null);
     }
 
     /**
@@ -205,10 +324,7 @@ public class MasteringService {
     public TrabajoResumen registrarRevision(Long id) {
         TrabajoMastering trabajo = buscar(id);
 
-        if (trabajo.getEstado() == EstadoTrabajo.CANCELADO) {
-            throw new SolicitudInvalidaException(
-                    "Ese trabajo está cancelado: no se le pueden cargar revisiones.");
-        }
+        rechazarSiCancelado(trabajo, "cargarle revisiones a");
 
         trabajo.registrarRevision();
         return TrabajoResumen.de(trabajo, cobradoDe(List.of(trabajo)).get(id));
@@ -231,6 +347,7 @@ public class MasteringService {
     public TrabajoResumen liberarPremaster(Long id, String motivo, Long idAutor) {
         TrabajoMastering trabajo = buscar(id);
 
+        rechazarSiCancelado(trabajo, "liberar el premaster de");
         if (normalizar(trabajo.getUrlPremaster()) == null) {
             throw new SolicitudInvalidaException(
                     "Todavía no cargaste el link del premaster: no hay nada que liberar.");
@@ -249,6 +366,21 @@ public class MasteringService {
      * cobro de una venta— porque las reglas de la plata son suyas y una segunda
      * copia es la que se olvida de una.
      *
+     * <p><b>El pago va a nombre del cliente del trabajo, con cuenta o a nombre
+     * escrito</b> (P78). Hasta la §20 el request traía un {@code idUsuario}
+     * obligatorio y el formulario decía <i>"elegí a quién imputarlo"</i>: `V19`
+     * había abierto {@code pago.id_usuario} para la venta a un comprador sin cuenta
+     * y este módulo nunca lo adoptó. Medido en la base de desarrollo: tres
+     * trabajos de tres clientes externos cobrados a nombre de tres empleados. El
+     * trabajo ya identifica al cliente por uno de dos caminos
+     * ({@code trabajo_cliente_identificado}); el pago hereda ese mismo camino, que
+     * es exactamente lo que hace {@code VentaEquipoService.registrarElCobro}.
+     *
+     * <p><b>Y va en la moneda del trabajo</b> (P81, `V32`): el request no trae
+     * moneda porque no hay decisión que tomar. Quien paga pesos por un precio en
+     * dólares carga el pago en USD con la cotización del día — el campo existe
+     * para eso desde `V1`.
+     *
      * <p><b>El estado pasa a {@code PAGADO} solo si se dan las tres condiciones</b>,
      * y ninguna sobra:
      *
@@ -256,36 +388,35 @@ public class MasteringService {
      *   <li><b>El trabajo ya está entregado</b> ({@code ENTREGADO} o {@code DEBE}).
      *       Una seña sobre algo en proceso no lo vuelve un trabajo terminado, y
      *       {@code PAGADO} es el final de la escalera, no una etiqueta de plata.
+     *       Si se cobra antes, {@link #entregar} lo lleva a PAGADO al entregar.
      *   <li><b>Hay precio acordado.</b> Sin él no hay contra qué comparar.
-     *   <li><b>Lo cobrado en la moneda del trabajo alcanza el precio.</b> Un pago en
-     *       pesos contra un trabajo en dólares no se convierte: no hay cotización
-     *       que el sistema pueda inventar, y sumarlos daría un número que no es
-     *       plata de ninguna de las dos monedas.
+     *   <li><b>Lo cobrado alcanza el precio.</b> Con P81 siempre está en la misma
+     *       moneda, así que la comparación ya no puede ignorar un pago.
      * </ol>
      *
      * <p>Si no se dan, el estado queda donde estaba y la pantalla muestra
-     * "cobrado X de Y" — que es información, no un error. Mover el estado a mano
-     * sigue estando disponible.
+     * "cobrado X de Y" — que es información, no un error.
      */
     @Transactional
     public TrabajoResumen cobrar(Long id, CobroRequest solicitud, Long idAutor) {
         TrabajoMastering trabajo = buscar(id);
 
+        rechazarSiCancelado(trabajo, "cobrar");
+
+        Usuario cliente = trabajo.getCliente();
         pagos.registrar(new AltaPagoRequest(
-                solicitud.idUsuario(),
-                // El cobro de M&M sigue pidiendo cuenta: `AltaCobroRequest.idUsuario`
-                // es `@NotNull` porque la pantalla ya obliga a elegir a nombre de
-                // quién va. Los dos huecos son los del pagador externo de `V19`.
-                null, null,
+                cliente == null ? null : cliente.getId(),
+                cliente == null ? trabajo.getNombreClienteExterno() : null,
+                cliente == null ? trabajo.getContactoClienteExterno() : null,
                 null, null, trabajo.getId(), null,
                 "Mix & Mastering: " + trabajo.getNombreTrack(),
                 solicitud.monto(),
-                solicitud.moneda(),
+                trabajo.getMoneda(),
                 solicitud.cotizacionDolar(),
                 solicitud.medioPago(),
                 null, null,
                 EstadoPago.PAGADO,
-                null),
+                solicitud.fechaPago()),
                 idAutor);
 
         BigDecimal cobrado = cobradoDe(List.of(trabajo)).get(id);
@@ -297,13 +428,37 @@ public class MasteringService {
     }
 
     private boolean quedaCubierto(TrabajoMastering trabajo, BigDecimal cobrado) {
-        boolean entregado = trabajo.getEstado() == EstadoTrabajo.ENTREGADO
-                || trabajo.getEstado() == EstadoTrabajo.DEBE;
-
-        return entregado
+        return estaEntregado(trabajo)
+                && trabajo.getEstado() != EstadoTrabajo.CANCELADO
                 && trabajo.getPrecioAcordado() != null
                 && cobrado != null
                 && cobrado.compareTo(trabajo.getPrecioAcordado()) >= 0;
+    }
+
+    /**
+     * "Entregado" es una sola pregunta desde la §20: el estado llegó a la entrega
+     * <b>o</b> la fecha está escrita. Las dos cosas las escribe {@link #entregar}
+     * juntas; la segunda mitad cubre las filas anteriores a la barrida.
+     */
+    private boolean estaEntregado(TrabajoMastering trabajo) {
+        return switch (trabajo.getEstado()) {
+            case ENTREGADO, DEBE, PAGADO -> true;
+            case A_CONFIRMAR, EN_PROCESO, CANCELADO -> trabajo.getFechaEntregaReal() != null;
+        };
+    }
+
+    private void rechazarSiCancelado(TrabajoMastering trabajo, String accion) {
+        if (trabajo.getEstado() == EstadoTrabajo.CANCELADO) {
+            throw new SolicitudInvalidaException(
+                    "Ese trabajo está cancelado: no se puede " + accion + " un trabajo cancelado.");
+        }
+    }
+
+    private void exigirPrecio(TrabajoMastering trabajo, String para) {
+        if (trabajo.getPrecioAcordado() == null) {
+            throw new SolicitudInvalidaException(
+                    "Ese trabajo no tiene precio acordado: cargalo antes de " + para + ".");
+        }
     }
 
     // == Auxiliares ==========================================================

@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -95,4 +96,28 @@ public interface TrabajoMasteringRepository extends JpaRepository<TrabajoMasteri
             ORDER BY t.fechaEntregaReal
             """)
     List<TrabajoMastering> entregadosSinCobrarAntesDe(@Param("limite") LocalDate limite);
+
+    /**
+     * Pasa a {@code DEBE} lo entregado hace más de 7 días y sin cobrar (P79 · 5).
+     *
+     * <p><b>Hasta la §20 ninguna línea del sistema escribía {@code DEBE}</b>: era
+     * una opción del {@code <select>} de la pantalla, el mismo hallazgo que
+     * {@code VENCIDO} en `V17`. Ahora lo escribe el scheduler con la misma
+     * condición con que avisa —{@link #entregadosSinCobrarAntesDe}—, así que el
+     * estado y el aviso no pueden decir cosas distintas. {@code ENTREGADO → DEBE}
+     * es el mismo escalón para el trigger de `V1` §8.5.
+     *
+     * <p>Es idempotente como {@code PagoRepository.marcarVencidos}: lo que ya está
+     * en {@code DEBE} no matchea, y correrlo diez veces es lo mismo que una.
+     *
+     * @return cuántas filas cambiaron
+     */
+    @Modifying
+    @Query("""
+            UPDATE TrabajoMastering t SET t.estado = com.lajuanita.backend.mastering.EstadoTrabajo.DEBE
+            WHERE t.estado = com.lajuanita.backend.mastering.EstadoTrabajo.ENTREGADO
+              AND t.fechaEntregaReal IS NOT NULL
+              AND t.fechaEntregaReal < :limite
+            """)
+    int marcarEnDebe(@Param("limite") LocalDate limite);
 }
