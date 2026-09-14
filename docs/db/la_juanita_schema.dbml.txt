@@ -1,7 +1,7 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-12, migraciones V1..V30.
+// ✅ AL DÍA AL 2026-09-14, migraciones V1..V32 (V31 y V32 son sólo triggers).
 //
 // **Verificado contra el catálogo de una base con las 27 migraciones
 // aplicadas** (V28, V29 y V30 se agregaron a mano el día que se escribieron, con
@@ -54,6 +54,10 @@
 //     V30  `inscripcion` gana el estado PREINSCRIPTA y `vence_preinscripcion`
 //          (CHECK de ida y vuelta), el índice único se amplía a ACTIVA +
 //          PREINSCRIPTA, y una escalera con tres reglas
+//     V31  trigger en `pago`: un pago con id_inscripcion va en la moneda del
+//          contrato (P74). Sin columnas
+//     V32  trigger en `pago`: un pago con id_trabajo_mastering va en la moneda
+//          del trabajo (P81), el espejo de V31. Sin columnas
 //
 // Historia de las tablas: eran 23 al 2026-08-19 y son 29 desde V28. Las seis
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),

@@ -5611,6 +5611,35 @@ y build limpios. Sin migración.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-14)
 
+⚠️ **PARA ARRANCAR LA PRÓXIMA SESIÓN (escrito al cerrar ésta, 2026-09-14):**
+
+- **La §20 está commiteada en dos tramos, por Ignacio, el mismo día:**
+  `50847bc` *"Coreccion tablero y M&M"* (K1–K6, `V32`) y `565829b` *"M&M
+  correccion"* (K7, P82). Lo único que quedó fuera es esta nota de cierre y las
+  dos líneas de `V31`/`V32` en el DBML (`docs/db/la_juanita_schema.dbml.txt`,
+  sólo triggers, sin columnas) — van en el commit siguiente.
+- **El backend de desarrollo está levantado con este código** desde una
+  ventana `cmd` oculta (`mvn spring-boot:run`); si se cerró la sesión de
+  Windows hay que relevantarlo. `V32` ya está aplicada en la base de desarrollo
+  (Flyway la corrió al arrancar los tests).
+- **Datos de prueba que quedaron en la base**, a propósito: el trabajo **2251**
+  (*"Track de la octava barrida"*, ahora a nombre de la cuenta *Prueba V29*,
+  en DEBE, con un cobro de USD 100 firmado por el admin — no se puede borrar ni
+  cancelar); y una corrida a mano del scheduler (`POST /api/avisos/ejecutar`)
+  escribió **16 notificaciones** en las bandejas de ADMIN/STAFF: la entrega
+  impaga del 2251 y las tres preinscripciones vencidas (13229, 13232, 13233).
+  Los tres pagos mal imputados de antes de P78 (Jeff Beck a nombre de Ghezz,
+  etc.) **siguen como estaban**: son datos de desarrollo y P78 decidió no
+  tocarlos.
+- **Lo que Ignacio todavía no vio en el navegador**: la pantalla de M&M entera
+  se reescribió (ficha + Editar, acciones por estado, cobro sin "a nombre de",
+  "Asignarle una cuenta") y se probó por API y por tests, **no mirándola**. Es
+  lo primero que conviene que abra — `/admin/mix-mastering` en :5173/app/ — y
+  que traiga lo que le parezca raro.
+- Pendientes anotados para la siguiente barrida, en `pendientes.md` §4: editar
+  la moneda de una **inscripción** con pagos adentro (nadie lo cierra), y el
+  candado del premaster que libera con cualquier pago (preguntarle a Ghezz).
+
 ✅ **ESTADO: CERRADA el mismo 2026-09-14 — siete de siete (K7 se sumó al
 probar K4), una migración (`V32`, aplicada).** Decisiones: **P78–P82**
 (`platform.md` §26). Suites al cierre: **726 backend · 666 front · 295 + 68 SQL** sobre 32 migraciones;

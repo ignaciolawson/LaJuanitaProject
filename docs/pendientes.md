@@ -17,6 +17,11 @@ sembrado pasa a `V33`** (séptimo corrimiento). Dos cosas nuevas para la
 siguiente barrida, en §4: editar la moneda de una inscripción con pagos adentro,
 y el candado del premaster que libera con cualquier pago.
 
+La §20 está commiteada en `50847bc` (K1–K6, `V32`) y `565829b` (K7, P82). El
+backend de desarrollo quedó levantado con ese código desde una ventana oculta.
+En la base quedaron el trabajo 2251 y 16 notificaciones de una corrida a mano
+del scheduler (§3.8).
+
 ### Lo que decía al 2026-09-12 (noche), y sigue valiendo salvo los números
 
 ✅ **LA QUINTA BARRIDA (`mejoras.md` §17) ESTÁ CERRADA: nueve de nueve,
@@ -482,6 +487,16 @@ medias** — y anotalo mirando el archivo.
 ---
 
 ### 3.8 · La base de desarrollo, después de la sesión del 2026-09-07
+
+⚠️ **Sumado el 2026-09-14 (§20):** el trabajo de M&M **2251** (*"Track de la
+octava barrida"*, cuenta *Prueba V29*, DEBE, cobro de USD 100) es prueba viva
+del circuito nuevo y no se puede borrar ni cancelar; una corrida a mano del
+scheduler escribió 16 notificaciones a ADMIN/STAFF (una entrega impaga y tres
+preinscripciones vencidas: 13229, 13232, 13233 — reales, vencidas el 13/09,
+Mica-de-desarrollo tiene que decidir o cancelarlas desde Inscripciones). Los
+tres pagos de M&M mal imputados antes de P78 (8457 a Ghezz, 4753 al admin, 4749
+a Ignacio) siguen así a propósito.
+
 
 **El buzón se vació a mano** (12 fichas de prueba: *"Prueba Humo"*, `gggg ggg`,
 `wswwwqsa@qsas.ccc`…). Ninguna había producido nada —las tres FK de `V27` estaban
