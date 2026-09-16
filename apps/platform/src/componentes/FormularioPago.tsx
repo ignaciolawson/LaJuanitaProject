@@ -522,6 +522,8 @@ export function FormularioPago({
             value={datos.monto}
             onChange={cambiar('monto')}
             error={errores.monto}
+            // Desde Deudores es lo único que hay que mirar: el cursor va ahí.
+            autoFocus={prellenado}
           />
 
           {/* ⚠️ Con un curso elegido la moneda es la del contrato y no se elige

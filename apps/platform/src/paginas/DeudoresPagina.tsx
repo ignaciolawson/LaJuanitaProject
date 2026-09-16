@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { cobrarPago, listarDeudores } from '../api/administracion'
@@ -55,6 +55,15 @@ export function DeudoresPagina() {
   const puedeEscribir = usePuedeEscribir()
   /** La deuda sobre la que se está registrando un pago, ya traducida al formulario. */
   const [registrando, setRegistrando] = useState<PagoPrellenado | null>(null)
+  const formulario = useRef<HTMLDivElement>(null)
+
+  // El formulario se abre ARRIBA de la tabla y el botón que lo abre puede estar
+  // veinte filas más abajo: sin esto el click no muestra nada y parece que no
+  // hizo nada (Ignacio, 2026-09-15). `scrollIntoView` no existe en jsdom, de
+  // ahí el `?.`.
+  useEffect(() => {
+    if (registrando) formulario.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }, [registrando])
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -113,14 +122,16 @@ export function DeudoresPagina() {
       )}
 
       {registrando && (
-        <FormularioPago
-          inicial={registrando}
-          onCerrar={() => setRegistrando(null)}
-          onGuardado={() => {
-            setRegistrando(null)
-            void cargar()
-          }}
-        />
+        <div ref={formulario}>
+          <FormularioPago
+            inicial={registrando}
+            onCerrar={() => setRegistrando(null)}
+            onGuardado={() => {
+              setRegistrando(null)
+              void cargar()
+            }}
+          />
+        </div>
       )}
 
       <Tabla
