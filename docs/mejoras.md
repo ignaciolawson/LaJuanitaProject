@@ -6036,6 +6036,29 @@ entrar. Ahora es `V35`.
   que no son de personas, la 13231 a mano (ahora sí se puede: anular el pago
   en pesos y editar a USD).
 
+### L2 bis · El formulario prellenado no se veía (2026-09-15, la misma tarde)
+
+Ignacio, minutos después de probar el circuito: *"cuando pones registrar pago
+en deudores, hace que vaya para arriba automático, porque clickeo y nunca me
+doy cuenta que se abrió un layout a no ser que vaya para arriba"*. El
+formulario se abre **arriba de la tabla** y el botón que lo abre puede estar
+veinte filas más abajo — clickear no movía la pantalla y parecía que no había
+pasado nada, el mismo modo de falla de un formulario que "no abre".
+
+Dos líneas en `DeudoresPagina.tsx`: un `ref` en el contenedor del formulario y
+un `useEffect` que, cuando `registrando` deja de ser `null`, hace
+`scrollIntoView({ behavior: 'smooth', block: 'start' })`. Y en
+`FormularioPago.tsx`, el campo **Monto** —lo único que hay que llenar cuando
+viene prellenado— recibe el foco (`autoFocus={prellenado}`). Las dos cosas
+juntas: la pantalla sube sola y el cursor ya está donde hay que escribir.
+
+⚠️ `scrollIntoView` no existe en jsdom, de ahí el `?.` — sin él los 14 casos de
+`DeudoresPagina.test.tsx` hubieran reventado con *"scrollIntoView is not a
+function"*. Sin código nuevo que probar (es una llamada a una API del DOM que
+jsdom no implementa), no se agregó un caso — los 63 existentes entre
+`DeudoresPagina.test.tsx` y `PagosPagina.test.tsx` siguen en verde con el
+`?.` puesto.
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y
@@ -6050,9 +6073,13 @@ se libera con el precio cubierto. Encontró que el tablero contaba una cuota
 anotada encima del saldo del programa. Suites: **740 backend · 669
 front · 310 + 68 SQL** sobre 34 migraciones. **El admin sembrado pasa a `V35`.**
 ⚠️ El backend de desarrollo está reiniciado con este código y la cabina 12146
-quedó con precio como prueba viva. Lo que dejó: `ReservaDelPortal` sin precio,
-las reservas de antes de `V33` sin precio hasta que se editen, y la clave nueva
-del aviso de deuda va a re-avisar una vez en dev.
+quedó con precio como prueba viva. **La misma tarde, un micro-ajuste (L2
+bis)**: el formulario prellenado se abría arriba de la tabla y el click que lo
+abre puede estar veinte filas más abajo, así que parecía que no pasaba nada —
+`DeudoresPagina.tsx` ahora hace `scrollIntoView` cuando se abre, y el campo
+Monto recibe el foco. Lo que dejó: `ReservaDelPortal` sin precio, las reservas
+de antes de `V33` sin precio hasta que se editen, y la clave nueva del aviso
+de deuda va a re-avisar una vez en dev.
 
 
 ✅ **Y LA OCTAVA (§20) TAMBIÉN, EL 2026-09-14: siete de siete, con `V32`

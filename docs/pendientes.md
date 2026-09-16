@@ -14,9 +14,12 @@ SQL sobre 34 migraciones.** El backend de desarrollo está reiniciado con este
 código; la cabina **12146** quedó con precio como prueba viva. ⚠️ **El admin
 sembrado pasa a `V35`** (octavo corrimiento). De §4 se cerró *editar la moneda
 de una inscripción con pagos adentro* (`V33` §3, para las tres tablas) y el
-candado del premaster (Ignacio lo decidió, P86). Queda anotado en §21: las
-reservas de antes de `V33` no reclaman deuda hasta que se les cargue el precio
-editándolas, y `ReservaDelPortal` no lleva el precio todavía.
+candado del premaster (Ignacio lo decidió, P86). **La misma tarde, un
+micro-ajuste**: el formulario prellenado de Deudores se abría arriba de la
+tabla sin que el click lo mostrara — ahora sube solo (`scrollIntoView`) y el
+campo Monto queda enfocado. Queda anotado en §21: las reservas de antes de
+`V33` no reclaman deuda hasta que se les cargue el precio editándolas, y
+`ReservaDelPortal` no lleva el precio todavía.
 
 ### Lo que decía al 2026-09-14, y sigue valiendo salvo los números
 
