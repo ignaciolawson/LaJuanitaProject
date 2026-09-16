@@ -6079,6 +6079,17 @@ tamaño de TODO el listado no prueba el fixture, prueba la base** — y una que
 pasa por los datos de otros es la que CI, con la base vacía, va a tirar.
 Suites siguen en **740 backend**.
 
+Para que no vuelva (Ignacio: *"hace lo que quieras para que no vuelva a ocurrir
+y estar siempre en verde"*), la misma noche: **`scripts/pruebas-backend.sh`**
+crea una base descartable, corre `mvn test` apuntándole con `DB_URL` y la borra
+al salir — la única forma local de ver lo que CI ve. Corrido entero: 740/740
+contra base vacía, o sea que éste era el único caso con esa forma. Y **`gh` quedó
+instalado y logueado** para mirar los runs desde acá (`gh run list`,
+`gh run view <id> --log-failed`). La regla —correr el script antes de commitear
+algo que toque tests o consultas del backend— es la tercera de CI en
+`CLAUDE.md` · *Commands*; el detalle en `pendientes.md` §3.9. Commit `a79155a`,
+CI verde verificado.
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y

@@ -640,3 +640,15 @@ subirlo— están en la sección *Commands* de `CLAUDE.md`. Lo que el CI *sí* v
 paso siempre pasó, así que la afirmación de que las migraciones aplican sobre una
 base vacía se sostuvo; las suites SQL y el front nunca habían corrido ahí.
 
+**Y una tercera causa, dos días después (2026-09-15), que no es de Windows sino
+de los datos**: `mvn test` corre acá contra la base de desarrollo, con meses de
+filas, y CI contra una recién creada. Un caso que afirmaba `length() > 0` sobre
+todo el listado de Pagos pasaba acá por los pagos de otros y daba cero allá —
+tres pushes rojos de la §21 que esta máquina no podía ver. Para que no vuelva:
+**`scripts/pruebas-backend.sh`** corre la suite Java contra una base descartable
+vacía (la crea, le pasa `DB_URL`, la borra), y se corre antes de commitear algo
+que toque tests o consultas del backend; `gh` quedó instalado y logueado para
+mirar los runs desde acá. La regla del caso: afirmar sobre el id propio del
+fixture, nunca sobre el tamaño de un listado global. Detalle en `mejoras.md`
+§21, último bloque.
+
