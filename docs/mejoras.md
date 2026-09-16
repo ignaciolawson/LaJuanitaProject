@@ -6059,6 +6059,26 @@ jsdom no implementa), no se agregó un caso — los 63 existentes entre
 `DeudoresPagina.test.tsx` y `PagosPagina.test.tsx` siguen en verde con el
 `?.` puesto.
 
+### El único rojo de la §21 lo vio CI y no esta máquina (2026-09-15, a la noche)
+
+Ignacio: *"CI / Backend + base de datos está dando en rojo de nuevo"* — los
+tres pushes de la barrida (`2b7398e`, `612e085`, `09519a8`), un solo caso:
+`PagoTest.sin_solapa_elegida_vienen_todos_los_pagos`. Pagaba **$90.000 sobre
+una inscripción de $180.000** y esperaba `contenido.length() > 0` en
+`/api/pagos`; desde P85 esa mitad no está en Pagos, está en Deudores. La
+barrida corrigió los dos casos vecinos con el mismo fixture (*"Entero, no la
+mitad"*) y a éste no, porque **acá pasaba igual**: la base de dev tiene
+cientos de pagos cerrados y el listado nunca daba cero. En CI, con la base
+vacía, sí.
+
+Arreglo: paga entero y busca **su propio `idPago`** en el listado (con
+`buscar` por apellido, que no toca el camino del `grupo` que el caso pinta).
+Verificado con el bug puesto de vuelta: rojo contra la base llena. **La
+lección es la de `AvisosTest` en la §20 con otra cara: una aserción sobre el
+tamaño de TODO el listado no prueba el fixture, prueba la base** — y una que
+pasa por los datos de otros es la que CI, con la base vacía, va a tirar.
+Suites siguen en **740 backend**.
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y

@@ -551,16 +551,23 @@ class PagoTest {
      * la lista vacía sería un error de sintaxis en Postgres, así que sin grupo se
      * le pasan <b>las seis líneas</b>. Si alguien "simplificara" eso a null o a una
      * lista vacía, el listado entero deja de andar — o peor, vuelve vacío.
+     *
+     * <p>El pago es entero y el caso busca <b>su propio</b> id: desde P85 una mitad
+     * vive en Deudores y no acá, y un {@code length() > 0} sobre todo el listado
+     * pasaba en la base de dev gracias a los pagos de otros — en CI, con la base
+     * vacía, daba cero. Fue el único rojo de la §21 y no se vio acá por eso.
      */
     @Test
     void sin_solapa_elegida_vienen_todos_los_pagos() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
-        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+        long idPago = idDe(mvc.perform(pagarInscripcion(alumno, curso, "180000"))
+                .andExpect(status().isCreated()));
 
-        mvc.perform(get("/api/pagos").header("Authorization", comoStaff()))
+        mvc.perform(get("/api/pagos").param("buscar", alumno.getUsuario().getApellido())
+                .header("Authorization", comoStaff()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.contenido.length()").value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)]".formatted(idPago)).isNotEmpty())
                 .andExpect(jsonPath("$.totalElementos").value(org.hamcrest.Matchers.greaterThan(0)));
     }
 
