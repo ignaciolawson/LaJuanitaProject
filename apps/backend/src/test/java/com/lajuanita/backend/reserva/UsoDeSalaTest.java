@@ -281,8 +281,17 @@ class UsoDeSalaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
-                        """.formatted(idSala, idTipoUso, fecha, desde, hasta));
+                        {"idSala":%d,"idTipoUso":%d,%s"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
+                        """.formatted(idSala, idTipoUso, precioSi(idTipoUso), fecha, desde, hasta));
+    }
+
+    /**
+     * El precio de un alquiler o una grabación (`V33`, P83): el alta lo exige
+     * en lo que no es clase, y una clase no lo lleva. El helper lo pone según
+     * el tipo para que cada caso siga midiendo lo suyo.
+     */
+    private String precioSi(Long idTipoUso) {
+        return idTipoUso.equals(alquiler) ? "\"precioTotal\":90000,\"moneda\":\"ARS\"," : "";
     }
 
     private void cambiarEstado(long idReserva, String estado) throws Exception {

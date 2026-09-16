@@ -200,9 +200,10 @@ export function SolicitudesPagina() {
  * servidor. Aceptarlo acá sería poder acreditar la seña de uno contra la cuenta
  * de otro.
  *
- * **El monto se escribe a mano y no se calcula.** El precio de un alquiler sale
- * de horas × una tarifa que el sistema todavía no tiene (P13, lo único que sigue
- * abierto del Módulo 3). Cuando exista, el 50% pasa a ser una cuenta.
+ * **El precio total va primero y la seña sale de él** (`V33`, P83): el 50%,
+ * que hasta la novena barrida sostenía quien cargaba. Con el precio en la
+ * reserva, Deudores sabe cuánto falta después de la seña. Escribir la seña a
+ * mano sigue valiendo (una seña distinta se arregla por WhatsApp).
  */
 function FormularioDeSena({
   onCancelar,
@@ -211,6 +212,7 @@ function FormularioDeSena({
   onCancelar: () => void
   onConfirmar: (
     sena: {
+      precioTotal: number
       monto: number
       moneda: Moneda
       cotizacionDolar?: number
@@ -226,7 +228,10 @@ function FormularioDeSena({
     comprobante: File | null,
   ) => void
 }) {
+  const [precioTotal, setPrecioTotal] = useState('')
   const [monto, setMonto] = useState('')
+  /** Si escribieron la seña a mano, el 50% deja de pisarla. */
+  const [montoTocado, setMontoTocado] = useState(false)
   const [moneda, setMoneda] = useState<Moneda>('ARS')
   const [cotizacion, setCotizacion] = useState('')
   const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
@@ -277,13 +282,30 @@ function FormularioDeSena({
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* El precio entero va primero (`V33`, P83): la seña sale de acá —el 50%,
+            que hasta hoy sostenía quien cargaba— y es lo que deja a Deudores decir
+            cuánto falta después. Escribir la seña a mano sigue valiendo. */}
+        <Campo
+          etiqueta="Precio total"
+          type="number"
+          min="1"
+          step="0.01"
+          value={precioTotal}
+          onChange={(e) => {
+            setPrecioTotal(e.target.value)
+            if (!montoTocado) setMonto(e.target.value ? String(Number(e.target.value) / 2) : '')
+          }}
+        />
         <Campo
           etiqueta={apartando ? 'Monto a abonar' : 'Monto de la seña'}
           type="number"
           min="1"
           step="0.01"
           value={monto}
-          onChange={(e) => setMonto(e.target.value)}
+          onChange={(e) => {
+            setMontoTocado(true)
+            setMonto(e.target.value)
+          }}
         />
         <CampoSelect
           etiqueta="Moneda"
@@ -366,6 +388,10 @@ function FormularioDeSena({
         <Boton
           type="button"
           onClick={() => {
+            if (!precioTotal || Number(precioTotal) <= 0) {
+              setError('Poné el precio total de la reserva.')
+              return
+            }
             if (!monto || Number(monto) <= 0) {
               setError(apartando ? 'Poné el monto a abonar.' : 'Poné el monto de la seña.')
               return
@@ -376,6 +402,7 @@ function FormularioDeSena({
             }
             onConfirmar(
               {
+                precioTotal: Number(precioTotal),
                 monto: Number(monto),
                 moneda,
                 cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,

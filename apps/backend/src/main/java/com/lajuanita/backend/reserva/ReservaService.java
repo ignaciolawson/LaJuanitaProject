@@ -26,6 +26,7 @@ import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.pago.EstadoPago;
+import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.AltaPagoRequest;
 import com.lajuanita.backend.profesor.Profesor;
@@ -84,6 +85,9 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  */
 @Service
 public class ReservaService {
+
+    /** El único uso que no es clase y tampoco lleva precio en la reserva (`V10`, `V33`). */
+    static final String MIX_MASTERING = "MIX_MASTERING";
 
     /**
      * Techo del rango de la agenda.
@@ -255,6 +259,20 @@ public class ReservaService {
         reserva.setNotas(normalizar(solicitud.notas()));
         reserva.setMotivoReprogramacion(normalizar(solicitud.motivoReprogramacion()));
         reserva.setIdUsuarioCreo(idAutor);
+
+        // El precio (`V33`, P83): lo exige un alquiler, lo rechaza una clase, y la
+        // seña —o la deuda que la aparta— tiene que venir en su moneda. Todo
+        // antes del save: el trigger de `V33` §2 rechazaría el pago después de
+        // insertada la reserva, con un mensaje que no dice qué formulario
+        // arreglar.
+        verificarElPrecio(reserva.getTipoUso(), solicitud.precioTotal(), solicitud.moneda());
+        if (solicitud.sena() != null) {
+            verificarLaMonedaDeLaPlata(solicitud.moneda(), solicitud.sena().moneda(), "la seña");
+        }
+        if (solicitud.preconfirmacion() != null) {
+            verificarLaMonedaDeLaPlata(solicitud.moneda(), solicitud.preconfirmacion().moneda(), "la deuda");
+        }
+        reserva.ponerPrecio(solicitud.precioTotal(), solicitud.moneda());
 
         // ⚠️ ANTES del save, y esto costó nueve casos rojos. La escalera de `V24`
         // §5 prohíbe que un UPDATE ponga PRECONFIRMADA —a la prereserva se entra
@@ -433,6 +451,21 @@ public class ReservaService {
         reserva.setHoraInicio(solicitud.horaInicio());
         reserva.setHoraFin(solicitud.horaFin());
         reserva.setNotas(normalizar(solicitud.notas()));
+
+        // El precio se edita como cualquier campo (`V33`): así una reserva de
+        // antes de la migración lo recibe. Lo que NO se edita libremente es la
+        // moneda con pagos vivos en otra — `V33` §3 lo rechaza; se dice acá
+        // primero para que el 409 explique qué hacer (anular y recargar).
+        verificarElPrecio(reserva.getTipoUso(), solicitud.precioTotal(), solicitud.moneda());
+        if (reserva.getMoneda() != null && solicitud.moneda() != null
+                && reserva.getMoneda() != solicitud.moneda()
+                && pagos.hayPagosVivosEnOtraMoneda(reserva.getId(), solicitud.moneda())) {
+            throw new SolicitudInvalidaException(
+                    "No se le puede cambiar la moneda a esta reserva: tiene pagos vivos en "
+                            + reserva.getMoneda() + ". Si está en la moneda equivocada, primero anulá "
+                            + "esos pagos y recargalos en la nueva.");
+        }
+        reserva.ponerPrecio(solicitud.precioTotal(), solicitud.moneda());
         // Sin esto, `V7` rechaza el UPDATE. Va siempre, aunque el pedido no haya
         // cambiado nada de lo auditado: es más barato que adivinar qué cambió.
         reserva.setIdUsuarioModifico(idAutor);
@@ -805,6 +838,46 @@ public class ReservaService {
         return ReservaResumen.de(reserva,
                 participantesDe(List.of(reserva)).getOrDefault(reserva.getId(), List.of()),
                 cambios.movidasDe(List.of(reserva.getId())).getOrDefault(reserva.getId(), 0));
+    }
+
+    /**
+     * Quién lleva precio y quién no (`V33`, P83).
+     *
+     * <p>Una <b>clase</b> no: su plata es la inscripción, y un precio acá sería
+     * la segunda definición de siempre. Un <b>alquiler o una grabación</b> sí,
+     * porque sin número Deudores no puede decir cuánto falta — que es lo que
+     * motivó la barrida. <b>Mix & Mastering</b> queda afuera de las dos: su
+     * precio vive en el trabajo, la misma excepción por catálogo de `V10`.
+     *
+     * <p>Es del servicio y no de la base a propósito: no protege plata (eso lo
+     * hacen `V10`–`V12` y `V33` §2), protege que el precio esté donde se lee.
+     */
+    static void verificarElPrecio(TipoUso tipoUso, BigDecimal precioTotal, Moneda moneda) {
+        if (tipoUso.isEsClase()) {
+            if (precioTotal != null) {
+                throw new SolicitudInvalidaException(
+                        "Una clase no lleva precio: la plata de una clase es la de la inscripción.");
+            }
+            return;
+        }
+        if (MIX_MASTERING.equals(tipoUso.getCodigo())) {
+            return;
+        }
+        if (precioTotal == null || moneda == null) {
+            throw new SolicitudInvalidaException(
+                    "Un alquiler o una grabación necesita el precio total y su moneda: "
+                            + "sin eso no se puede saber cuánto falta cobrar.");
+        }
+    }
+
+    /** La seña (o la deuda) de una reserva con precio va en la moneda de la reserva (`V33` §2). */
+    private static void verificarLaMonedaDeLaPlata(Moneda deLaReserva, Moneda delPago, String que) {
+        if (deLaReserva != null && delPago != null && deLaReserva != delPago) {
+            throw new SolicitudInvalidaException(
+                    "El pago de una reserva va en la moneda de la reserva: la reserva es en "
+                            + deLaReserva + " y " + que + " vino en " + delPago
+                            + ". Si se paga en otra moneda, cargá la reserva en esa moneda.");
+        }
     }
 
     private Reserva buscar(Long id) {

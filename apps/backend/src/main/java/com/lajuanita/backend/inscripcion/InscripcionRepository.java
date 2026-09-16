@@ -126,24 +126,6 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
     List<Inscripcion> deLaPersona(@Param("idUsuario") Long idUsuario);
 
     /**
-     * Las inscripciones que pueden tener plata pendiente, para Deudores (P72):
-     * preinscriptas (les falta la seña) y activas (puede faltarles el resto).
-     * Con precio, porque una beca no debe nada. Cuánto falta lo calcula el
-     * servicio contra lo cobrado — la misma cuenta que el estado de cuenta.
-     *
-     * <p>PAUSADA queda afuera a propósito: no cursa, y perseguirle el saldo a
-     * alguien que frenó el curso es una decisión que nadie tomó.
-     */
-    @Query("""
-            SELECT i FROM Inscripcion i
-            JOIN FETCH i.alumno a JOIN FETCH a.usuario
-            WHERE i.estado IN :estados AND i.precioTotal > 0
-            ORDER BY i.fechaCreacion
-            """)
-    List<Inscripcion> conPlataPosiblementePendiente(
-            @Param("estados") Collection<EstadoInscripcion> estados);
-
-    /**
      * Las preinscripciones abandonadas (P73): siguen sin señar pasado el límite
      * desde el alta. Se cuentan desde {@code fechaCreacion} y no desde el
      * vencimiento de la seña porque el límite es "tres semanas del alta", y las
@@ -158,16 +140,10 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
             @Param("preinscripta") EstadoInscripcion preinscripta,
             @Param("limite") OffsetDateTime limite);
 
-    /** La misma pregunta, para una persona (§17 · H3): lo que ve en "Lo que debo". */
-    @Query("""
-            SELECT i FROM Inscripcion i
-            JOIN FETCH i.alumno a JOIN FETCH a.usuario u
-            WHERE u.id = :idUsuario AND i.estado IN :estados AND i.precioTotal > 0
-            ORDER BY i.fechaCreacion
-            """)
-    List<Inscripcion> conPlataPosiblementePendienteDe(
-            @Param("idUsuario") Long idUsuario,
-            @Param("estados") Collection<EstadoInscripcion> estados);
+    // Hasta la novena barrida acá vivían `conPlataPosiblementePendiente` y su
+    // variante por persona, la segunda fuente de Deudores. Desde P84 esa cuenta
+    // es `SaldoPendiente` (paquete `pago`), en SQL y para las cuatro cosas que
+    // un pago salda, y la lee también el listado de Pagos.
 
     /**
      * Las inscripciones vigentes de un conjunto de alumnos, en una consulta.

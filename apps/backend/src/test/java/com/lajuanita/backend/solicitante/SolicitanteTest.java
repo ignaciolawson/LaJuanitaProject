@@ -1030,7 +1030,7 @@ class SolicitanteTest {
     private String pedidoDeCabina(Long idTipoUso, String desde) {
         return """
                 {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s",
-                 "duracionMinutos":60,"monto":15000,"moneda":"ARS",
+                 "duracionMinutos":60,"precioTotal":30000,"monto":15000,"moneda":"ARS",
                  "medioPago":"TRANSFERENCIA","mensaje":"Te esperamos"}
                 """.formatted(idDeSala("Sala 1"), idTipoUso, DENTRO_DE_UN_MES, desde);
     }

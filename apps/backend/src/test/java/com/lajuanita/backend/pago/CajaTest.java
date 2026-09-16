@@ -402,11 +402,19 @@ class CajaTest {
         anotarDeuda(alumno, curso, "20000", LocalDate.now());
 
         long id = alumno.getUsuario().getId();
+        // Desde P84 las anotadas van de a una: dos filas, cada una con su fecha
+        // y su atraso. La vieja sigue diciendo 90 días —no la rejuvenece la
+        // nueva— y la pantalla ordena a la persona por la más vieja.
         deudores()
                 .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].desde".formatted(id))
-                        .value(vieja.toString()))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].adeudado".formatted(id)).value(40000.00))
-                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].diasDeAtraso".formatted(id)).value(90));
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(vieja.toString(), LocalDate.now().toString())))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].adeudado".formatted(id))
+                        .value(org.hamcrest.Matchers.contains(20000.00, 20000.00)))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'DEUDA_ANOTADA')].diasDeAtraso".formatted(id))
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(90, 0)))
+                // Y el resto del programa sin anotar: 180.000 menos las dos cuotas.
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'FALTA_EL_RESTO')].adeudado".formatted(id))
+                        .value(140000.00));
     }
 
     /** La regla dura de §6: pasados los 7 días, la deuda está vencida. */
@@ -440,7 +448,7 @@ class CajaTest {
     /**
      * Una preinscripta figura como "sin señar", con su plazo y su disciplina, y
      * <b>no está vencida</b> mientras el plazo corre. Es una inscripción, no un
-     * pago: {@code cantidadDePagos} es 0.
+     * pago: no hay {@code idPago} que cobrar.
      */
     @Test
     void una_preinscripta_figura_como_sin_seniar_con_su_plazo() throws Exception {
@@ -453,7 +461,7 @@ class CajaTest {
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].idUsuario".formatted(id)).value((int) usuario))
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(id)).value(180000.00))
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].disciplina".formatted(id)).value("DJ"))
-                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].cantidadDePagos".formatted(id)).value(0))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].idPago".formatted(id)).value(org.hamcrest.Matchers.contains((Object) null)))
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vence".formatted(id)).isNotEmpty())
                 .andExpect(jsonPath("$[?(@.idInscripcion == %d)].vencido".formatted(id)).value(false));
     }

@@ -344,7 +344,15 @@ class TableroTest {
                 HASTA.plusDays(200))))
                 .andExpect(status().isCreated());
 
-        assertThat(pendienteEnPesos()).isEqualByComparingTo(antes.add(new BigDecimal("45000")));
+        // ⚠️ La cuota anotada es PARTE del saldo del programa, no algo encima
+        // (P84): el total no se mueve. Antes de la novena barrida este caso
+        // esperaba `antes + 45000`, y era la misma plata contada dos veces —
+        // el saldo calculado de la inscripción y la cuota anotada sobre ella.
+        assertThat(pendienteEnPesos()).isEqualByComparingTo(antes);
+        // Y lo anotado sí se ve como tal, con su fecha fuera del período.
+        mvc.perform(get("/api/pagos/deudores").header("Authorization", comoAdmin()))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d && @.motivo == 'DEUDA_ANOTADA')].adeudado"
+                        .formatted(curso.getId())).value(45000.00));
     }
 
     /**
@@ -657,9 +665,18 @@ class TableroTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
-                        """.formatted(idSala, idTipoUso, fecha, desde, hasta)))
+                        {"idSala":%d,"idTipoUso":%d,%s"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
+                        """.formatted(idSala, idTipoUso, precioSi(idTipoUso), fecha, desde, hasta)))
                 .andExpect(status().isCreated());
+    }
+
+    /**
+     * El precio de un alquiler o una grabación (`V33`, P83): el alta lo exige
+     * en lo que no es clase, y una clase no lo lleva. El helper lo pone según
+     * el tipo para que cada caso siga midiendo lo suyo.
+     */
+    private String precioSi(Long idTipoUso) {
+        return idTipoUso.equals(alquiler) ? "\"precioTotal\":90000,\"moneda\":\"ARS\"," : "";
     }
 
     private void pagarReserva(Usuario quien, long idReserva, String monto) throws Exception {

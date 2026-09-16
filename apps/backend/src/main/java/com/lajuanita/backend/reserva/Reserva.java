@@ -1,9 +1,11 @@
 package com.lajuanita.backend.reserva;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
+import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.sala.Sala;
 import com.lajuanita.backend.sala.TipoUso;
@@ -112,6 +114,27 @@ public class Reserva {
     private String notas;
 
     /**
+     * El precio de un alquiler o una grabación (`V33`, P83), y su moneda.
+     *
+     * <p><b>Los dos o ninguno</b> ({@code reserva_precio_con_moneda}), y sólo en
+     * lo que no es clase: la plata de una clase es la de la inscripción, y un
+     * segundo precio acá sería la segunda definición de siempre. Las reservas
+     * de antes de `V33` no tienen precio y no reclaman deuda; la edición lo
+     * puede cargar después.
+     *
+     * <p>Con precio, Deudores calcula lo que falta ({@code SaldoPendiente}), el
+     * pago que apunta acá va en esta moneda (`V33` §2) y la moneda no se cambia
+     * con pagos vivos en otra (`V33` §3). Por eso se escriben juntos, por
+     * {@link #ponerPrecio}.
+     */
+    @Column(name = "precio_total", precision = 14, scale = 2)
+    private BigDecimal precioTotal;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moneda", length = 3)
+    private Moneda moneda;
+
+    /**
      * Ninguna clase se pierde (P2): cuando una se reprograma, la reserva nueva
      * apunta acá a la que reemplaza, y la vieja queda
      * {@link EstadoReserva#REPROGRAMADA}. Un índice único impide que dos digan
@@ -177,5 +200,19 @@ public class Reserva {
     /** ¿Está esperando que entre la plata? */
     public boolean estaPreconfirmada() {
         return estado == EstadoReserva.PRECONFIRMADA;
+    }
+
+    /**
+     * El precio y su moneda, juntos (`V33` §1: los dos o ninguno). Con
+     * {@code null} en los dos, la reserva queda sin precio y no reclama deuda.
+     */
+    public void ponerPrecio(BigDecimal precioTotal, Moneda moneda) {
+        this.precioTotal = precioTotal;
+        this.moneda = moneda;
+    }
+
+    /** ¿Tiene un precio contra el que comparar lo cobrado? */
+    public boolean tienePrecio() {
+        return precioTotal != null;
     }
 }

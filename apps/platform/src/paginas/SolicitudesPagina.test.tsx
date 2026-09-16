@@ -149,7 +149,8 @@ describe('aprobar es cobrar', () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
-    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '50000')
+    // La seña se prellena al 50% del precio: 25000.
     await userEvent.upload(screen.getByLabelText('Comprobante'), archivo)
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
@@ -163,17 +164,26 @@ describe('aprobar es cobrar', () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
-    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '25000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '50000')
+    // La seña se prellena al 50% del precio: 25000.
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())
     expect(adjuntarComprobante).not.toHaveBeenCalled()
   })
 
-  it('no deja confirmar sin monto', async () => {
+  it('no deja confirmar sin precio ni sin monto', async () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
+
+    expect(screen.getByRole('alert').textContent).toContain('Poné el precio total')
+    expect(vi.mocked(aprobarSolicitud)).not.toHaveBeenCalled()
+
+    // Con precio pero la seña borrada a mano: la seña también hace falta.
+    await userEvent.type(screen.getByLabelText('Precio total'), '50000')
+    await userEvent.clear(screen.getByLabelText(/Monto de la seña/))
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     expect(screen.getByRole('alert').textContent).toContain('Poné el monto de la seña')
@@ -185,7 +195,7 @@ describe('aprobar es cobrar', () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
-    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '100')
+    await userEvent.type(screen.getByLabelText('Precio total'), '200')
     await elegir(userEvent, 'Moneda', 'USD')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
@@ -204,12 +214,13 @@ describe('aprobar es cobrar', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
     await userEvent.click(screen.getByRole('radio', { name: 'Ya pagó: cobrar ahora' }))
-    await userEvent.type(screen.getByLabelText(/Monto de la seña/), '15000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '30000')
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar y crear la reserva' }))
 
     const [id, sena] = vi.mocked(aprobarSolicitud).mock.calls[0]
     expect(id).toBe(7)
     expect(sena).toEqual({
+      precioTotal: 30000,
       monto: 15000,
       moneda: 'ARS',
       cotizacionDolar: undefined,
@@ -284,7 +295,7 @@ describe('apartar el horario sin cobrar (§13 · C1)', () => {
     montar()
 
     await userEvent.click(await screen.findByRole('button', { name: 'Confirmar el pedido' }))
-    await userEvent.type(screen.getByLabelText(/Monto a abonar/), '45000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '90000')
     await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
 
     await waitFor(() => expect(aprobarSolicitud).toHaveBeenCalled())

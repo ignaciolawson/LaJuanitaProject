@@ -147,6 +147,8 @@ export type AltaSolicitud = {
  * seña de uno contra la cuenta de otro.
  */
 export type Aprobacion = {
+  /** El precio total de la reserva (`V33`, P83), en la moneda de la seña. */
+  precioTotal: number
   monto: number
   moneda: Moneda
   cotizacionDolar?: number

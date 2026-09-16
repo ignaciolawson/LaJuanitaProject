@@ -464,6 +464,13 @@ export type AltaReserva = {
    * El `idReserva` no va acá: lo pone el servidor con la reserva recién creada.
    */
   sena?: AltaSena
+  /**
+   * El precio y su moneda (`V33`, P83): lo exige un alquiler o una grabación,
+   * lo rechaza una clase. La seña va en esta moneda y la pantalla la prellena
+   * al 50%.
+   */
+  precioTotal?: number
+  moneda?: Moneda
 }
 
 /** Espeja `AltaSenaRequest`. */
@@ -484,6 +491,9 @@ export type EdicionReserva = {
   horaInicio: string
   horaFin: string
   notas?: string
+  /** Como en el alta (`V33`). La moneda no cambia con pagos vivos en otra. */
+  precioTotal?: number
+  moneda?: Moneda
 }
 
 /**

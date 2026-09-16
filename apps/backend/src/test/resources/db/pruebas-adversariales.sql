@@ -331,8 +331,10 @@ SELECT probar('D01b','revisiones_realizadas negativas','FALLA',
 -- En pesos explícitos desde V32: el trabajo nace en USD por defecto y el pago
 -- en ARS por defecto, y esa pareja —que este fixture cargó durante un mes sin
 -- que nada lo dijera— es exactamente lo que V32 rechaza.
-INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda)
-VALUES ('Cliente','MASTER','Candado','ENTREGADO','ARS');
+-- Y con precio desde V34: el candado se abre cuando lo cobrado lo cubre, asi
+-- que el pago que lo respalda es el que lo cubre entero.
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda,precio_acordado)
+VALUES ('Cliente','MASTER','Candado','ENTREGADO','ARS',50000);
 INSERT INTO pago (id_usuario,id_trabajo_mastering,monto,medio_pago,estado_pago)
 SELECT v.u_juan,t.id_trabajo,50000,'EFECTIVO','PAGADO'
 FROM v, trabajo_mastering t WHERE t.nombre_track='Candado';

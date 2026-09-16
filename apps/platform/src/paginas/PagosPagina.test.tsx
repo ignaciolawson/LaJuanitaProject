@@ -52,7 +52,6 @@ const {
   listarVentas,
   registrarPago,
   totalesPorLinea,
-  cobrarPago,
 } = await import('../api/administracion')
 const { listarTrabajos } = await import('../api/mastering')
 
@@ -931,43 +930,26 @@ describe('los comprobantes', () => {
 })
 
 /**
- * Cobrar una deuda anotada (`mejoras.md` §13 · C1).
- *
- * **Esta acción no existía**, y la prereserva la puso en evidencia: el estado de
- * un pago no se edita —y por buenos motivos— así que el único camino para una fila
- * en DEBE era anularla y volver a cargarla. Con la deuda de una prereserva eso no
- * puede funcionar: anularla la dejaría sin nada detrás y la base la rechaza.
+ * "Cobrar" ya no está acá (`mejoras.md` §21 · L2, P85): una deuda anotada no se
+ * lista en Pagos —vive en Deudores, con su botón—. Lo que este bloque fija es
+ * que el listado no lo ofrezca por ningún estado, y que DEBE y VENCIDO no sean
+ * filtros: Pagos es lo cerrado.
  */
-describe('cobrar una deuda (§13 · C1)', () => {
-  it('sólo se ofrece sobre lo que está anotado como deuda', async () => {
+describe('Pagos es lo cerrado (P85)', () => {
+  it('no ofrece Cobrar ni siquiera sobre una fila en DEBE que llegara', async () => {
     vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ estadoPago: 'DEBE', entro: false })]))
-    montar()
-
-    expect(await screen.findByRole('button', { name: 'Cobrar' })).toBeDefined()
-  })
-
-  it('no se ofrece sobre un pago que ya entró', async () => {
-    // Corregir un pago cobrado es anularlo, que deja la explicación escrita. Un
-    // "Cobrar" sobre algo ya cobrado sería un segundo camino a la misma
-    // transición, con menos exigencia — que es como se termina cobrando dos veces.
     montar()
 
     await screen.findByText('DJ · INICIAL')
     expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
   })
 
-  it('cobrar manda el pedido y vuelve a traer la lista', async () => {
-    // Se recarga entera y no se parchea la fila: si esa deuda sostenía una
-    // prereserva, el backend además confirmó la reserva, así que lo que cambió no
-    // es sólo este renglón.
-    vi.mocked(listarPagos).mockResolvedValue(pagina([pago({ estadoPago: 'DEBE', entro: false })]))
-    vi.mocked(cobrarPago).mockResolvedValue(pago({ estadoPago: 'PAGADO' }))
-
-    const user = userEvent.setup()
+  it('el filtro de estado no tiene DEBE ni VENCIDO', async () => {
     montar()
-    await user.click(await screen.findByRole('button', { name: 'Cobrar' }))
-
-    await waitFor(() => expect(cobrarPago).toHaveBeenCalledWith(1))
-    expect(vi.mocked(listarPagos).mock.calls.length).toBeGreaterThan(1)
+    const estado = await screen.findByLabelText('Filtrar por estado')
+    const valores = Array.from((estado as HTMLSelectElement).options).map((o) => o.value)
+    expect(valores).not.toContain('DEBE')
+    expect(valores).not.toContain('VENCIDO')
+    expect(valores).toContain('ANULADO')
   })
 })

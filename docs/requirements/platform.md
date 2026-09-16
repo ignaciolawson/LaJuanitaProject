@@ -2890,3 +2890,135 @@ salas"* de la grilla de ocupación en `/admin/tablero`. Se saca de la pantalla;
 el parámetro `idSala` del endpoint y la línea *"Sala: …"* de la trazabilidad
 del export quedan (siguen siendo verdad: "todas"), porque el pedido es sobre
 lo que se ve.
+
+## 27. Decisiones cerradas el 2026-09-15 (undécima tanda) — la novena barrida
+
+> Cuatro, todas sobre **la plata que falta**, cerradas en la conversación en
+> que Ignacio trajo cinco *"correcciones rápidas"* que no lo eran: dos tocan
+> el schema y la tercera redefine qué muestra Pagos y qué muestra Deudores. Las
+> tres preguntas que se le hicieron antes de escribir se contestaron con la
+> lectura recomendada. Dos migraciones: `V33` (el precio de una reserva y la
+> moneda de lo que tiene plata adentro) y `V34` (el candado del premaster).
+
+**Textual, los hallazgos:** *"recién señé una cabina y eso fue a pagos y no
+figura en deudores, todo lo que no está pagado al completo va en deudores"* ·
+*"sacar el botón 'cobrar' en la sección de pagos a alguien que figura en debe"*
+· *"que en la sección pagos solo van ahí los que ya se cobraron al 100%, todo lo
+demás a deudores, o sea gente que no pagó la totalidad de algo"* · *"si Ghezz
+decía que liberaba el premaster cuando le pagaban, que lo pueda liberar cuando
+se cubre todo el pago"* · y sobre el admin sembrado, *"no sé qué es pero hacelo
+si querés"* — que se **contestó y no se hizo**: es la cuenta con la que Ignacio
+entra hoy, y desactivarla va pegada al deploy.
+
+### ✅ P83 — Una reserva que no es clase tiene precio, y su pago va en su moneda
+
+**Lo que había:** `reserva` no tenía precio ni moneda. La seña de un alquiler
+se escribía a mano (`AltaSenaRequest`: *"el 50% lo sostiene quien carga"*) y
+Deudores no podía decir *"seña abonada, falta el resto"* de una cabina porque no
+había de qué restar — es exactamente lo que P72 dejó anotado como *"mismo caso
+para reservas"* y no pudo construir. La cabina que Ignacio señó estaba en Pagos
+y en ningún otro lado.
+
+**Lo que decide:**
+
+1. **`reserva.precio_total` y `reserva.moneda`**, nullable las dos y atadas
+   (`V33` §1): las reservas anteriores no tienen precio y no se les inventa;
+   una sin precio **no reclama deuda** (no hay número que reclamar) y su
+   edición lo puede cargar después. **Una reserva que no es clase nace con
+   precio** — el alta lo exige, salvo `MIX_MASTERING`, cuyo precio vive en el
+   trabajo (la misma excepción por catálogo de `V10`). **Una clase no lo
+   lleva**: su plata es la de la inscripción y un segundo precio sería la
+   segunda definición de siempre. Eso lo sostiene el servicio, no la base:
+   no protege plata, protege coherencia.
+2. **El pago de una reserva con precio va en su moneda** (`V33` §2), la
+   tercera gemela de `V31`/`V32` y por el mismo argumento: sin la regla una
+   cabina en dólares señada en pesos dice *"cobrado cero"*. La seña se prellena
+   al 50% del precio, que era la regla de P8 desde el principio y hasta hoy
+   la sostenía quien cargaba.
+3. **No se le cambia la moneda a nada que tenga plata adentro** (`V33` §3),
+   y esto cierra **para las tres tablas** —inscripción, reserva, trabajo— el
+   hueco simétrico que `V31`/`V32` dejaron y `pendientes.md` §4 anotaba: un
+   contrato en USD con su seña en USD editado a ARS deja cobrado cero en la
+   moneda del contrato con estado ACTIVA. La regla exacta es *"después del
+   cambio, ningún pago vivo puede quedar en otra moneda"*: se puede corregir
+   la moneda de un contrato mal cargado **si todos sus pagos ya están en la
+   nueva**, que es lo que arregla la 13231 (anular el pago en pesos, editar a
+   USD). Para M&M `MasteringService.editar` ya lo hacía en Java; ahora lo
+   hace la base para los tres, y Java lo repite antes por el mensaje.
+
+### ✅ P84 — "Lo que falta cobrar" es UNA definición, sobre las cuatro cosas que un pago salda
+
+**Lo que había:** Deudores tenía dos fuentes —las deudas anotadas
+(`DEBE`/`VENCIDO`) y las inscripciones con saldo, calculadas— y **nada más**.
+Una reserva señada, un trabajo entregado a medio cobrar o una venta sin cobro
+no eran deuda para el sistema, aunque `pago_tiene_destino` diga que un pago
+salda exactamente una de esas cuatro cosas.
+
+**Lo que decide:** **una persona debe cuando alguna de sus cosas no está
+cubierta en su moneda** — inscripción (ACTIVA o PREINSCRIPTA, como hasta ahora;
+PAUSADA sigue afuera a propósito), **reserva con precio** que ocupa su franja,
+**trabajo de M&M entregado** (ENTREGADO o DEBE) con precio, y **venta no
+anulada**. *Cubierta* es `cobrado en su moneda ≥ precio`, con `ENTRARON` y sin
+convertir nunca (§2.3). Esa definición se escribe **una sola vez, en SQL**
+(`SaldoPendiente`, en el paquete `pago`), y la leen Deudores, el contador de
+la bandeja, el tablero, el estado de cuenta, el scheduler **y el listado de
+Pagos** (P85). Si se escribiera dos veces, un pago que Pagos oculta y Deudores
+no lista es plata invisible: el patrón `V12`.
+
+Tres cortes, decididos y no obvios:
+
+- **Un trabajo de M&M es deuda desde que se entrega**, no desde que se
+  confirma el precio (Ignacio, 2026-09-15). Coincide con la regla que ya
+  existe —`DEBE` lo escribe el scheduler a los 7 días de entregado sin
+  cobrar— y con P8: M&M no tiene seña obligatoria, Ghezz decide caso por
+  caso, y un adelanto parcial antes de entregar no es una deuda.
+- **Una cosa con una deuda anotada viva se lista por esa deuda, y sólo por
+  ella.** La prereserva es el caso: su seña es una fila `DEBE` (el 50%) y su
+  precio es el 100%; listar las dos es contar la seña dos veces. Mientras la
+  seña no entró, lo que se debe *ahora* es la seña, con su plazo; el resto
+  aparece cuando la seña se cobra.
+- **Las deudas anotadas van de a una**, no agrupadas por persona y moneda
+  como hasta hoy: cada fila `DEBE` es un hecho con su importe, su concepto y
+  su botón de cobrar (P85), y la pantalla ya agrupa por persona (§17 · H9).
+  El aviso del scheduler pasa a identificar el hecho por el pago
+  (`DEUDA:p=<id>`), que es más exacto que persona + moneda + fecha.
+
+### ✅ P85 — Pagos es lo cerrado, Deudores es lo que hay que ir a buscar; "Cobrar" vive en Deudores
+
+**Lo que decide:** el listado de Pagos muestra **lo que ya está cobrado al
+100%** —un pago cuyo destino está cubierto (P84)— más los anulados, que son
+historia. Todo lo demás está en Deudores: la seña de un curso hasta que entra
+el resto, la seña de una cabina, una deuda anotada. **Las dos pantallas son
+complementarias por construcción**, porque leen la misma definición: un pago
+`SENADO`/`PAGADO` está en Pagos si y sólo si su cosa no está en Deudores. Los
+filtros de estado de Pagos pierden `DEBE` y `VENCIDO`; las solapas por línea y
+sus totales llevan el mismo filtro. **La caja no cambia**: suma lo que entró,
+como siempre. **El estado de cuenta de una persona tampoco**: es su historia
+completa.
+
+Consecuencia que conviene saber: un adelanto parcial sobre un trabajo de M&M
+**no entregado** aparece en Pagos (no es deuda, P84), con su estado `Señado`
+a la vista; y los pagos de una inscripción `PAUSADA` también.
+
+**"Cobrar" se muda de Pagos a Deudores** (Ignacio, 2026-09-15: *sacarlo* de
+Pagos; la lectura de mudarlo y no borrarlo es porque una deuda anotada que
+sostiene una prereserva volvería a ser incobrable salvo anular y recargar,
+que es lo que §13 · C1 vino a arreglar). Deudores pasa a tener acciones, una
+por cosa: sobre una deuda anotada, cobrarla (`PATCH /api/pagos/{id}/cobro`,
+que confirma la prereserva en el mismo acto, como hasta hoy); sobre una cosa
+con saldo, **registrar el pago con el formulario de Pagos prellenado** — la
+cosa, la persona, la moneda y el saldo. Es el mismo formulario, no una copia.
+
+### ✅ P86 — El premaster se libera cuando lo cobrado cubre el precio
+
+**Lo que había:** `V1` §8.4 libera con *cualquier* pago en `PAGADO`. Con
+cobros parciales —reales en M&M— USD 10 sobre USD 300 liberaba el archivo. Era
+la regla de Ghezz leída al pie de la letra (*"cuando me pagan"*).
+
+**Lo que decide (Ignacio, 2026-09-15):** *"que lo pueda liberar cuando se
+cubre todo el pago"*. `V34` reescribe el trigger: se libera cuando **la suma de
+lo que entró (`ENTRARON`) en la moneda del trabajo cubre `precio_acordado`**
+— la misma cuenta que `cobradoDe` y que P79 usa para pasar a `PAGADO`. Un
+trabajo sin precio no tiene nada que cubrir, así que no se libera por esta
+vía. **La salida con motivo queda** (`liberado_sin_pago`): Ghezz sigue
+teniendo cintura con quien la necesita, firmada.

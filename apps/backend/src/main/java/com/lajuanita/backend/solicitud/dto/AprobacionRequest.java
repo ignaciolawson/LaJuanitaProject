@@ -44,6 +44,16 @@ import jakarta.validation.constraints.Positive;
  */
 public record AprobacionRequest(
 
+        /**
+         * El precio total de lo que se aprueba (`V33`, P83), en la misma moneda
+         * que la seña. Es lo que deja a Deudores decir cuánto falta después de
+         * la seña; sin él la reserva no reclama nada. Exigido: lo que se aprueba
+         * acá es siempre un alquiler o una grabación (P17).
+         */
+        @NotNull(message = "Poné el precio total de la reserva.")
+        @Positive(message = "El precio tiene que ser mayor a cero.")
+        BigDecimal precioTotal,
+
         @NotNull(message = "Poné el monto de la seña.")
         @Positive(message = "El monto tiene que ser mayor a cero.")
         BigDecimal monto,

@@ -388,7 +388,7 @@ class PagoTest {
     void el_pago_sin_cuenta_aparece_en_el_listado() throws Exception {
         mvc.perform(pagar("""
                 {"nombrePagadorExterno":"Aparezco Igual","idVentaEquipo":%d,
-                 "monto":123456,"moneda":"ARS","medioPago":"EFECTIVO"}
+                 "monto":900000,"moneda":"ARS","medioPago":"EFECTIVO"}
                 """.formatted(ventaNueva())))
                 .andExpect(status().isCreated());
 
@@ -397,6 +397,85 @@ class PagoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contenido.length()").value(1))
                 .andExpect(jsonPath("$.contenido[0].pagador").value("Aparezco Igual"));
+    }
+
+    // -- Pagos es lo cerrado, Deudores es lo que falta (`mejoras.md` §21 · L3, P85) --
+
+    /**
+     * <b>Una seña no está en Pagos mientras falte el resto: está en Deudores.</b>
+     * Las dos pantallas leen la misma definición ({@code SaldoPendiente}), así
+     * que son complementarias por construcción — este caso mira las dos, porque
+     * la falla que importa es que un pago no esté en ninguna.
+     */
+    @Test
+    void la_senia_de_un_curso_esta_en_deudores_y_no_en_pagos_hasta_que_entra_el_resto() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        String apellido = alumno.getUsuario().getApellido();
+        long id = alumno.getUsuario().getId();
+
+        long senia = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(get("/api/pagos").param("buscar", apellido)
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)]".formatted(senia)).isEmpty());
+        mvc.perform(get("/api/pagos/deudores").header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'FALTA_EL_RESTO')].adeudado".formatted(id))
+                        .value(90000.00))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d && @.motivo == 'FALTA_EL_RESTO')].cobrado".formatted(id))
+                        .value(90000.00));
+
+        // Entra el resto: las dos filas pasan a Pagos y la persona sale de Deudores.
+        long resto = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(get("/api/pagos").param("buscar", apellido)
+                .header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)]".formatted(senia)).isNotEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)]".formatted(resto)).isNotEmpty());
+        mvc.perform(get("/api/pagos/deudores").header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d)]".formatted(id)).isEmpty());
+    }
+
+    /** Un anulado es historia y se muestra aunque su cosa siga debiendo. */
+    @Test
+    void un_pago_anulado_se_lista_aunque_la_cosa_siga_debiendo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long senia = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+                .andExpect(status().isCreated()));
+        mvc.perform(anular(senia, "Se cargó mal")).andExpect(status().isOk());
+
+        mvc.perform(get("/api/pagos").param("buscar", alumno.getUsuario().getApellido())
+                .header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)].estadoPago".formatted(senia)).value("ANULADO"));
+    }
+
+    /**
+     * Una deuda anotada no está en Pagos: vive en Deudores con su botón de
+     * cobrar (P85). Antes el listado la traía con un "Cobrar" al lado.
+     */
+    @Test
+    void una_deuda_anotada_no_esta_en_pagos_y_si_en_deudores_con_su_id() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
+        long deuda = idDe(mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":30000,"moneda":"ARS",
+                 "medioPago":"EFECTIVO","estadoPago":"DEBE","concepto":"primera cuota"}
+                """.formatted(alumno.getUsuario().getId(), curso.getId())))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(get("/api/pagos").param("buscar", alumno.getUsuario().getApellido())
+                .header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$.contenido[?(@.idPago == %d)]".formatted(deuda)).isEmpty());
+        mvc.perform(get("/api/pagos/deudores").header("Authorization", comoStaff()))
+                .andExpect(jsonPath("$[?(@.idPago == %d)].motivo".formatted(deuda)).value("DEUDA_ANOTADA"))
+                .andExpect(jsonPath("$[?(@.idPago == %d)].detalle".formatted(deuda)).value("primera cuota"))
+                // Y el resto sin anotar, aparte: 180.000 − 30.000 anotados.
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d && @.motivo == 'FALTA_EL_RESTO')].adeudado"
+                        .formatted(curso.getId())).value(150000.00));
     }
 
     // -- Dividir la pantalla por dentro (`mejoras.md` §13 · B2) ---------------
@@ -421,11 +500,13 @@ class PagoTest {
     void el_listado_se_divide_en_solapas() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
-        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+        // Pagados enteros: desde P85 el listado es lo cubierto, y una mitad
+        // estaría en Deudores y no acá.
+        mvc.perform(pagarInscripcion(alumno, curso, "180000")).andExpect(status().isCreated());
 
         mvc.perform(pagar("""
                 {"nombrePagadorExterno":"Compra Equipos","idVentaEquipo":%d,
-                 "monto":50000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                 "monto":900000,"moneda":"ARS","medioPago":"EFECTIVO"}
                 """.formatted(ventaNueva())))
                 .andExpect(status().isCreated());
 
@@ -500,7 +581,9 @@ class PagoTest {
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
         String buscar = alumno.getUsuario().getApellido();
 
-        long idPago = idDe(mvc.perform(pagarInscripcion(alumno, curso, "90000"))
+        // Entero, no la mitad: la barra cuenta lo que el listado muestra, y desde
+        // P85 eso es lo cubierto.
+        long idPago = idDe(mvc.perform(pagarInscripcion(alumno, curso, "180000"))
                 .andExpect(status().isCreated()));
 
         // El apellido es único por caso, así que la barra tiene exactamente una
@@ -514,7 +597,7 @@ class PagoTest {
                 .andExpect(jsonPath("$[0].linea").value("CURSOS"))
                 .andExpect(jsonPath("$[0].moneda").value("ARS"))
                 .andExpect(jsonPath("$[0].cantidad").value(1))
-                .andExpect(jsonPath("$[0].entraron").value(90000.00));
+                .andExpect(jsonPath("$[0].entraron").value(180000.00));
 
         mvc.perform(anular(idPago, "El monto era otro")).andExpect(status().isOk());
 
@@ -552,7 +635,7 @@ class PagoTest {
     void la_linea_de_negocio_cruza_el_tipo_de_uso_y_no_se_queda_en_el_destino() throws Exception {
         Alumno alumno = alumnoNuevo();
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
-        mvc.perform(pagarInscripcion(alumno, curso, "90000")).andExpect(status().isCreated());
+        mvc.perform(pagarInscripcion(alumno, curso, "180000")).andExpect(status().isCreated());
 
         mvc.perform(get("/api/pagos").param("destino", "INSCRIPCION")
                 .header("Authorization", comoStaff()))
@@ -563,7 +646,7 @@ class PagoTest {
         // CASE: el destino explícito, antes de mirar ninguna reserva.
         mvc.perform(pagar("""
                 {"nombrePagadorExterno":"Compra Equipos","idVentaEquipo":%d,
-                 "monto":50000,"moneda":"ARS","medioPago":"EFECTIVO"}
+                 "monto":900000,"moneda":"ARS","medioPago":"EFECTIVO"}
                 """.formatted(ventaNueva())))
                 .andExpect(status().isCreated());
 

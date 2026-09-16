@@ -179,7 +179,12 @@ public class SolicitudReprogramacionService {
                 nuevaFranja.fecha(),
                 nuevaFranja.horaInicio(),
                 nuevaFranja.horaFin(),
-                reserva.getNotas()),
+                reserva.getNotas(),
+                // Y el precio también queda como estaba (`V33`): la plata no se
+                // entera de que la reserva se movió — es el argumento entero de
+                // mover en el lugar y no recrear.
+                reserva.getPrecioTotal(),
+                reserva.getMoneda()),
                 idAutor);
 
         solicitud.aprobar(buscarUsuario(idAutor), normalizar(nuevaFranja.respuesta()));

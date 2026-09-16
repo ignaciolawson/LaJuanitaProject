@@ -260,7 +260,8 @@ class SolicitudReprogramacionTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
+                        {"idSala":%d,"idTipoUso":%d,"precioTotal":90000,"moneda":"ARS",
+                         "fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
                          "participantes":[{"idUsuario":%d}],
                          "sena":{"idUsuario":%d,"monto":45000,"moneda":"ARS","medioPago":"EFECTIVO"}}
                         """.formatted(sala1, alquiler, EL_DIA,

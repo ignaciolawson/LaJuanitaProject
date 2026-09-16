@@ -710,7 +710,10 @@ function ApartarLaCabinaForm({
   const [dia, setDia] = useState(ficha.fechaPreferida ?? '')
   const [hora, setHora] = useState(ficha.horaPreferida?.slice(0, 5) ?? '')
   const [duracion, setDuracion] = useState(String(ficha.duracionMinutos ?? 60))
+  const [precioTotal, setPrecioTotal] = useState('')
   const [monto, setMonto] = useState('')
+  /** Si escribieron el monto a mano, el 50% deja de pisarlo. */
+  const [montoTocado, setMontoTocado] = useState(false)
   const [moneda, setMoneda] = useState<Moneda>('ARS')
   const [cotizacion, setCotizacion] = useState('')
   const [medioPago, setMedioPago] = useState<MedioPago>('TRANSFERENCIA')
@@ -745,6 +748,10 @@ function ApartarLaCabinaForm({
           setError('Poné el día y la hora.')
           return
         }
+        if (!precioTotal || Number(precioTotal) <= 0) {
+          setError('Poné el precio total de la reserva.')
+          return
+        }
         if (!monto || Number(monto) <= 0) {
           setError('Poné el monto que hay que abonar.')
           return
@@ -759,6 +766,7 @@ function ApartarLaCabinaForm({
           fecha: dia,
           horaInicio: hora,
           duracionMinutos: Number(duracion),
+          precioTotal: Number(precioTotal),
           monto: Number(monto),
           moneda,
           cotizacionDolar: cotizacion ? Number(cotizacion) : undefined,
@@ -817,13 +825,30 @@ function ApartarLaCabinaForm({
           onChange={(e) => setHora(e.target.value)}
         />
 
+        {/* El precio entero va primero (`V33`, P83): la seña sale de acá —el 50%,
+            que hasta hoy sostenía quien cargaba— y es lo que deja a Deudores decir
+            cuánto falta después. Escribir la seña a mano sigue valiendo. */}
+        <Campo
+          etiqueta="Precio total"
+          type="number"
+          min="1"
+          step="0.01"
+          value={precioTotal}
+          onChange={(e) => {
+            setPrecioTotal(e.target.value)
+            if (!montoTocado) setMonto(e.target.value ? String(Number(e.target.value) / 2) : '')
+          }}
+        />
         <Campo
           etiqueta="Monto a abonar"
           type="number"
           min="1"
           step="0.01"
           value={monto}
-          onChange={(e) => setMonto(e.target.value)}
+          onChange={(e) => {
+            setMontoTocado(true)
+            setMonto(e.target.value)
+          }}
         />
         <CampoSelect
           etiqueta="Moneda"

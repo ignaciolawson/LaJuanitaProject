@@ -1,6 +1,7 @@
 package com.lajuanita.backend.pago;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -10,8 +11,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -620,6 +619,18 @@ public class PagoService {
         }).toList();
     }
 
+    /** `V33` §3, preguntado antes por el mensaje: ver {@code PagoRepository#hayVivosEnOtraMonedaDeReserva}. */
+    @Transactional(readOnly = true)
+    public boolean hayPagosVivosEnOtraMoneda(Long idReserva, Moneda moneda) {
+        return pagos.hayVivosEnOtraMonedaDeReserva(idReserva, moneda);
+    }
+
+    /** Lo mismo para una inscripción — el hueco que `pendientes.md` §4 anotaba. */
+    @Transactional(readOnly = true)
+    public boolean hayPagosVivosEnOtraMonedaDeInscripcion(Long idInscripcion, Moneda moneda) {
+        return pagos.hayVivosEnOtraMonedaDeInscripcion(idInscripcion, moneda);
+    }
+
     /** Quién debe, cuánto y hace cuántos días (§6, pantalla 4). */
     @Transactional(readOnly = true)
     public List<Deudor> deudores() {
@@ -631,112 +642,134 @@ public class PagoService {
      *
      * <p><b>Es UNA consulta y no dos</b>: "Lo que debo" del portal se arma con
      * esta misma lista filtrada, así que el alumno no puede ver "al día" mientras
-     * Deudores lo tiene como "sin señar". Antes la tarjeta leía sólo las filas
-     * de {@code pago}, y desde P72 la seña no es una fila.
+     * Deudores lo tiene como "sin señar".
+     *
+     * <p><b>Dos fuentes, una fila por cosa</b> (P84): las deudas anotadas, de a
+     * una, y las cosas con saldo que {@link SaldoPendiente} calcula — inscripción,
+     * reserva con precio, trabajo entregado, venta. La segunda fuente es la misma
+     * subconsulta que filtra el listado de Pagos (P85), y por eso las dos
+     * pantallas no pueden contradecirse: un pago está en Pagos si y sólo si su
+     * cosa no está acá. Y las dos fuentes no se pisan: la fila calculada trae
+     * el saldo <b>sin anotar</b> —la prereserva se lee como "la seña, con su
+     * plazo" (anotada) más "falta el resto" (calculada), y la suma es el precio.
      */
     @Transactional(readOnly = true)
     public List<Deudor> deudores(Long idUsuario) {
         LocalDate hoy = LocalDate.now();
-        List<Object[]> filas = pagos.deudores(EstadoPago.ADEUDADOS, idUsuario);
-        // Sin retorno temprano: desde P72 hay una segunda fuente, y con la
-        // primera vacía —que es lo normal en un estudio al día— la segunda es
-        // la única. Un `return List.of()` acá dejó a las preinscriptas fuera de
-        // Deudores en la primera corrida de los casos.
+        List<Object[]> anotadas = pagos.deudasAnotadas(
+                EstadoPago.ADEUDADOS.stream().map(Enum::name).toList(), idUsuario);
+        List<Object[]> conSaldo = pagos.cosasConSaldo(idUsuario);
+        // Sin retorno temprano con la primera vacía: en un estudio al día la
+        // primera fuente es vacía y la segunda es la única. Un `return List.of()`
+        // acá dejó a las preinscriptas fuera de Deudores en la §16.
 
-        // Desde `V19` una fila puede no tener cuenta detrás, así que solo se piden
-        // las que sí la tienen. Sin el filtro, el `findAllById` recibe un null y
-        // revienta antes de llegar a armar la respuesta.
+        // Las personas de las dos listas, en una consulta. Desde `V19` una fila
+        // puede no tener cuenta, así que sólo se piden las que sí la tienen.
         Map<Long, Usuario> personas = new HashMap<>();
-        usuarios.findAllById(filas.stream()
-                        .map(f -> f[0])
-                        .filter(Objects::nonNull)
-                        .map(id -> ((Number) id).longValue())
-                        .toList())
-                .forEach(u -> personas.put(u.getId(), u));
+        List<Long> ids = new ArrayList<>();
+        anotadas.forEach(f -> { if (f[1] != null) ids.add(((Number) f[1]).longValue()); });
+        conSaldo.forEach(f -> { if (f[7] != null) ids.add(((Number) f[7]).longValue()); });
+        if (!ids.isEmpty()) {
+            usuarios.findAllById(ids).forEach(u -> personas.put(u.getId(), u));
+        }
 
-        List<Deudor> lista = filas.stream().map(fila -> {
-            LocalDate desde = (LocalDate) fila[6];
+        List<Deudor> lista = new ArrayList<>();
+        for (Object[] f : anotadas) {
+            LocalDate desde = (LocalDate) f[6];
             int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
-            Moneda moneda = (Moneda) fila[3];
-            BigDecimal adeudado = Importe.normalizar((BigDecimal) fila[4]);
-            long cuantos = ((Number) fila[5]).longValue();
+            String concepto = (String) f[7];
+            lista.add(conPersona(personas, f[1], (String) f[2], (String) f[3],
+                    (String) f[4], Importe.normalizar((BigDecimal) f[5]), desde, dias,
+                    dias > DIAS_PARA_VENCER, MotivoDeDeuda.DEUDA_ANOTADA,
+                    concepto == null ? "Deuda anotada" : concepto,
+                    ((Number) f[0]).longValue(),
+                    aLong(f[8]), aLong(f[9]), aLong(f[10]), aLong(f[11]),
+                    null, null, null, null));
+        }
 
-            // El deudor sin cuenta entra con lo único que se sabe de él: su nombre
-            // y su contacto. **No se lo omite** — una deuda que no aparece en esta
-            // pantalla es una deuda que nadie va a ir a cobrar, y es exactamente el
-            // modo de falla que `mejoras.md` §9.1 anota como el riesgo de `V19`.
-            if (fila[0] == null) {
-                return new Deudor(null, (String) fila[1], null, null, (String) fila[2],
-                        moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER,
-                        MotivoDeDeuda.DEUDA_ANOTADA, null, null, null);
-            }
+        OffsetDateTime ahora = OffsetDateTime.now();
+        for (Object[] f : conSaldo) {
+            String destino = (String) f[0];
+            long idDestino = ((Number) f[1]).longValue();
+            // En la zona del estudio, no en la del offset con que vuelve de la
+            // base (UTC): entre las 21 y las 24 hora local ya es "mañana" en UTC,
+            // y sin esta conversión el atraso daba un día menos justo en ese
+            // rango (§17). El DATE no necesita conversión: no tiene hora.
+            LocalDate desde = f[11] != null
+                    ? (LocalDate) f[11]
+                    : enLaZonaDelEstudio(f[10]).toLocalDate();
+            int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
+            OffsetDateTime vence = f[13] == null ? null : enLaZonaDelEstudio(f[13]);
+            boolean preinscripta = Boolean.TRUE.equals(f[14]);
+            // Lo que falta SIN ANOTAR: la deuda anotada de esta misma cosa ya
+            // está en la lista por su cuenta, y sumar las dos es contarla dos
+            // veces — el tablero lo hacía hasta P84.
+            BigDecimal sinAnotar = ((BigDecimal) f[5]).subtract((BigDecimal) f[6]);
 
-            Usuario persona = personas.get(((Number) fila[0]).longValue());
-            return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
-                    persona.getEmail(), persona.getTelefono(),
-                    moneda.name(), adeudado, cuantos, desde, dias, dias > DIAS_PARA_VENCER,
-                    MotivoDeDeuda.DEUDA_ANOTADA, null, null, null);
-        }).collect(Collectors.toCollection(ArrayList::new));
+            MotivoDeDeuda motivo = switch (destino) {
+                case SaldoPendiente.INSCRIPCION -> preinscripta ? MotivoDeDeuda.SIN_SENIAR : MotivoDeDeuda.FALTA_EL_RESTO;
+                case SaldoPendiente.RESERVA -> MotivoDeDeuda.RESERVA_A_SALDAR;
+                case SaldoPendiente.TRABAJO -> MotivoDeDeuda.TRABAJO_A_COBRAR;
+                default -> MotivoDeDeuda.VENTA_A_COBRAR;
+            };
+            // Sólo la preinscripción vence: el resto de un programa no tiene fecha
+            // (P72), la seña de una cabina ya la sostiene, y el reloj de un
+            // trabajo lo lleva el scheduler.
+            boolean vencido = preinscripta && vence != null && vence.isBefore(ahora);
 
-        lista.addAll(inscripcionesConPlataPendiente(hoy, idUsuario));
+            lista.add(conPersona(personas, f[7], (String) f[8], (String) f[9],
+                    (String) f[2], Importe.normalizar(sinAnotar), desde, dias, vencido,
+                    motivo, (String) f[12], null,
+                    SaldoPendiente.INSCRIPCION.equals(destino) ? idDestino : null,
+                    SaldoPendiente.RESERVA.equals(destino) ? idDestino : null,
+                    SaldoPendiente.TRABAJO.equals(destino) ? idDestino : null,
+                    SaldoPendiente.VENTA.equals(destino) ? idDestino : null,
+                    Importe.normalizar((BigDecimal) f[3]), Importe.normalizar((BigDecimal) f[4]),
+                    preinscripta ? vence : null,
+                    SaldoPendiente.INSCRIPCION.equals(destino) ? (String) f[12] : null));
+        }
         return lista;
     }
 
     /**
-     * La segunda fuente de Deudores (P72): lo que falta pagar de un programa,
-     * <b>calculado desde la inscripción</b> y nunca anotado como {@code pago}.
-     *
-     * <p>Es la misma cuenta que {@link #contratosDe}: sólo lo cobrado <b>en la
-     * moneda del contrato</b> lo cancela. Dos situaciones, y la diferencia es el
-     * reloj: la preinscripta vence cuando pasó {@code vence_preinscripcion} (y
-     * avisa, P61); la activa con saldo <b>no vence nunca</b> — el resto se paga
-     * antes de empezar, sin fecha (P72). Una fila DEBE por ese saldo diría
-     * "Deuda vencida" a la semana para alguien que arranca en tres.
+     * Arma la fila con la persona que corresponda: la cuenta, o el nombre y el
+     * contacto escritos. <b>El deudor sin cuenta no se omite</b> — una deuda
+     * que no aparece en esta pantalla es una deuda que nadie va a ir a cobrar,
+     * el modo de falla que `mejoras.md` §9.1 anota como el riesgo de `V19`.
      */
-    private List<Deudor> inscripcionesConPlataPendiente(LocalDate hoy, Long idUsuario) {
-        List<Inscripcion> candidatas = idUsuario == null
-                ? inscripciones.conPlataPosiblementePendiente(EstadoInscripcion.ABIERTAS)
-                : inscripciones.conPlataPosiblementePendienteDe(idUsuario, EstadoInscripcion.ABIERTAS);
-        if (candidatas.isEmpty()) {
-            return List.of();
+    private static Deudor conPersona(Map<Long, Usuario> personas, Object idUsuario,
+            String nombreExterno, String contactoExterno,
+            String moneda, BigDecimal adeudado, LocalDate desde, int dias, boolean vencido,
+            MotivoDeDeuda motivo, String detalle, Long idPago,
+            Long idInscripcion, Long idReserva, Long idTrabajo, Long idVenta,
+            BigDecimal precio, BigDecimal cobrado, OffsetDateTime vence, String disciplina) {
+        Usuario persona = idUsuario == null ? null : personas.get(((Number) idUsuario).longValue());
+        if (persona == null) {
+            return new Deudor(null, nombreExterno, null, null, contactoExterno,
+                    moneda, adeudado, desde, dias, vencido, motivo, detalle, idPago,
+                    idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina);
         }
+        return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
+                persona.getEmail(), persona.getTelefono(),
+                moneda, adeudado, desde, dias, vencido, motivo, detalle, idPago,
+                idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina);
+    }
 
-        Map<Long, BigDecimal> cobradoEnSuMoneda = new HashMap<>();
-        List<Long> ids = candidatas.stream().map(Inscripcion::getId).toList();
-        Map<Long, Inscripcion> porId = new HashMap<>();
-        candidatas.forEach(i -> porId.put(i.getId(), i));
-        for (Object[] fila : pagos.cobradoPorInscripcion(ids, EstadoPago.ENTRARON)) {
-            long id = ((Number) fila[0]).longValue();
-            if (((Moneda) fila[1]) == porId.get(id).getMoneda()) {
-                cobradoEnSuMoneda.merge(id, (BigDecimal) fila[2], BigDecimal::add);
-            }
+    /**
+     * Un {@code TIMESTAMPTZ} leído por una consulta nativa, en la zona del
+     * estudio. ⚠️ Hibernate 7 lo devuelve como {@link Instant} en nativa (y como
+     * {@link OffsetDateTime} en UTC en JPQL): las dos formas entran acá, y las
+     * dos salen en la zona local antes de que alguien les pida el día.
+     */
+    private static OffsetDateTime enLaZonaDelEstudio(Object crudo) {
+        if (crudo instanceof Instant instante) {
+            return instante.atZone(ZoneId.systemDefault()).toOffsetDateTime();
         }
+        return ((OffsetDateTime) crudo).atZoneSameInstant(ZoneId.systemDefault()).toOffsetDateTime();
+    }
 
-        OffsetDateTime ahora = OffsetDateTime.now();
-        List<Deudor> lista = new ArrayList<>();
-        for (Inscripcion i : candidatas) {
-            BigDecimal saldo = i.getPrecioTotal()
-                    .subtract(cobradoEnSuMoneda.getOrDefault(i.getId(), BigDecimal.ZERO));
-            if (saldo.signum() <= 0) {
-                continue;
-            }
-            Usuario persona = i.getAlumno().getUsuario();
-            // En la zona del estudio, no en la del offset con que vuelve de la base
-            // (UTC): entre las 21 y las 24 hora local ya es "mañana" en UTC, y sin
-            // esta conversión el atraso daba un día menos justo en ese rango.
-            LocalDate desde = i.getFechaCreacion().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
-            int dias = (int) ChronoUnit.DAYS.between(desde, hoy);
-            boolean preinscripta = i.estaPreinscripta();
-
-            lista.add(new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
-                    persona.getEmail(), persona.getTelefono(),
-                    i.getMoneda().name(), Importe.normalizar(saldo), 0, desde, dias,
-                    preinscripta && i.getVencePreinscripcion().isBefore(ahora),
-                    preinscripta ? MotivoDeDeuda.SIN_SENIAR : MotivoDeDeuda.FALTA_EL_RESTO,
-                    i.getId(), i.getDisciplina().name(),
-                    preinscripta ? i.getVencePreinscripcion() : null));
-        }
-        return lista;
+    private static Long aLong(Object o) {
+        return o == null ? null : ((Number) o).longValue();
     }
 
     // -------------------------------------------------------------------------

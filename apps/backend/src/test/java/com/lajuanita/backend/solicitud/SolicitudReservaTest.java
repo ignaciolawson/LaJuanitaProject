@@ -217,7 +217,7 @@ class SolicitudReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
+                        {"precioTotal":50000,"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
                         """))
                 .andExpect(status().isOk())
                 // `$.solicitud.` desde `V21`: aprobar devuelve `AprobacionRealizada`
@@ -266,7 +266,7 @@ class SolicitudReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
+                        {"precioTotal":50000,"monto":25000,"moneda":"ARS","medioPago":"TRANSFERENCIA"}
                         """))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
@@ -288,7 +288,7 @@ class SolicitudReservaTest {
         mvc.perform(patch("/api/solicitudes-reserva/" + id + "/aprobacion")
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
+                .content("{\"precioTotal\":20000,\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
                 .andExpect(status().isOk());
 
         mvc.perform(get("/api/me/notificaciones").header("Authorization", credencialPara(quienPide)))
@@ -357,7 +357,7 @@ class SolicitudReservaTest {
         mvc.perform(patch("/api/solicitudes-reserva/" + id + "/aprobacion")
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
+                .content("{\"precioTotal\":20000,\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -371,7 +371,7 @@ class SolicitudReservaTest {
         mvc.perform(patch("/api/solicitudes-reserva/" + id + "/aprobacion")
                 .header("Authorization", credencialPara(quienPide))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
+                .content("{\"precioTotal\":20000,\"monto\":10000,\"moneda\":\"ARS\",\"medioPago\":\"EFECTIVO\"}"))
                 .andExpect(status().isForbidden());
 
         mvc.perform(get("/api/solicitudes-reserva").header("Authorization", credencialPara(quienPide)))

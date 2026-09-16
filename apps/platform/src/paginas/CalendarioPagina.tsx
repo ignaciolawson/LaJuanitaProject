@@ -48,6 +48,7 @@ import {
   rangoLegible,
   sumarDias,
 } from '../componentes/semana'
+import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
@@ -533,6 +534,18 @@ function Detalle({
           <p className="text-sm text-tenue">
             {reserva.profesor ?? <span className="text-apagado">Sin profesor asignado</span>}
           </p>
+          {/* El precio (`V33`), sólo en lo que no es clase. Una de antes de la
+              migración lo dice en vez de omitirlo: cargarlo es editarla, y lo que
+              falte después de la seña se ve en Deudores. */}
+          {!reserva.esClase && (
+            <p className="text-sm text-tenue">
+              {reserva.precioTotal !== null && reserva.moneda !== null ? (
+                <>Precio total {importe(reserva.precioTotal, reserva.moneda)}</>
+              ) : (
+                <span className="text-apagado">Sin precio cargado — editala para ponerlo</span>
+              )}
+            </p>
+          )}
           {reserva.notas && <p className="mt-2 text-sm">{reserva.notas}</p>}
         </div>
         <Boton variante="enlace"
@@ -907,6 +920,17 @@ function FormularioReserva({
    * caso), así que es el único uso que no la pide.
    */
   const pideSena = !reserva && tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+  /**
+   * El precio (`V33`, P83): lo lleva lo mismo que lleva seña —un alquiler o una
+   * grabación—, **también al editar**, que es por donde una reserva de antes de
+   * `V33` lo recibe. Con él Deudores sabe cuánto falta, y la seña se prellena al
+   * 50%: la regla de P8 que hasta hoy sostenía quien cargaba.
+   */
+  const pidePrecio = tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+  const [precio, setPrecio] = useState({
+    total: reserva?.precioTotal != null ? String(reserva.precioTotal) : '',
+    moneda: (reserva?.moneda ?? 'ARS') as Moneda,
+  })
   /** Quién paga la seña: se busca entre las cuentas (§17 · H8), no se lista. */
   const [pagador, setPagador] = useState<UsuarioResumen | null>(null)
   const [sena, setSena] = useState({
@@ -915,6 +939,21 @@ function FormularioReserva({
     cotizacionDolar: '',
     medioPago: 'EFECTIVO' as MedioPago,
   })
+  /** Si alguien escribió la seña a mano, el 50% deja de pisarla. */
+  const [senaTocada, setSenaTocada] = useState(false)
+
+  function cambiarPrecio(campo: 'total' | 'moneda') {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const valor = e.target.value
+      setPrecio((previo) => ({ ...previo, [campo]: valor }))
+      // La seña sigue al precio: su moneda es la de la reserva (`V33` §2) y
+      // su monto la mitad, salvo que ya lo hayan escrito.
+      if (campo === 'moneda') setSena((previo) => ({ ...previo, moneda: valor as Moneda }))
+      if (campo === 'total' && !senaTocada) {
+        setSena((previo) => ({ ...previo, monto: valor ? String(Number(valor) / 2) : '' }))
+      }
+    }
+  }
   /**
    * El comprobante de la seña, si lo hay.
    *
@@ -926,8 +965,10 @@ function FormularioReserva({
   const [comprobante, setComprobante] = useState<File | null>(null)
 
   function cambiarSena(campo: keyof typeof sena) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (campo === 'monto') setSenaTocada(true)
       setSena((previo) => ({ ...previo, [campo]: e.target.value }))
+    }
   }
 
   // Solo los usos habilitados para esa sala: la matriz de §2.6. La FK compuesta
@@ -966,6 +1007,9 @@ function FormularioReserva({
     }
     // La misma regla por el otro camino: sin inscripción que lo cubra, lo que
     // sostiene la reserva es el pago, y `V10` lo exige al COMMIT.
+    if (pidePrecio && (!precio.total || Number(precio.total) <= 0)) {
+      locales.precioTotal = 'Poné el precio total: sin él no se sabe cuánto falta cobrar.'
+    }
     if (pideSena) {
       if (!pagador) locales.senaIdUsuario = 'Decí quién paga la seña.'
       if (!sena.monto || Number(sena.monto) <= 0) {
@@ -992,6 +1036,10 @@ function FormularioReserva({
       horaInicio: datos.horaInicio,
       horaFin: datos.horaFin,
       notas: datos.notas || undefined,
+      // Sólo lo que no es clase lo lleva; una clase con precio la rechaza el
+      // servidor, así que no se manda ni vacío.
+      precioTotal: pidePrecio ? Number(precio.total) : undefined,
+      moneda: pidePrecio ? precio.moneda : undefined,
     }
 
     try {
@@ -1107,6 +1155,35 @@ function FormularioReserva({
             </>
           )}
 
+          {/* El precio (`V33`): es lo que deja a Deudores decir cuánto falta. Va
+              antes que la seña porque la seña sale de acá. */}
+          {pidePrecio && (
+            <>
+              <p className="mt-2 sm:col-span-2">
+                <span className="text-xs font-semibold text-tenue">El precio</span>
+                <span className="ml-2 text-xs text-tenue">
+                  Lo que cuesta entero. Lo que falte después de la seña aparece en Deudores.
+                </span>
+              </p>
+              <Campo
+                etiqueta="Precio total"
+                type="number"
+                step="0.01"
+                value={precio.total}
+                onChange={cambiarPrecio('total')}
+                error={errores.precioTotal}
+              />
+              <CampoSelect
+                etiqueta="Moneda de la reserva"
+                value={precio.moneda}
+                onChange={cambiarPrecio('moneda')}
+              >
+                <option value="ARS">Pesos</option>
+                <option value="USD">Dólares</option>
+              </CampoSelect>
+            </>
+          )}
+
           {/* El otro camino del dinero. La leyenda dice el porqué en una línea:
               sin esto la reserva no tiene con qué existir, y el rechazo llegaría
               recién al guardar, escrito por un trigger. */}
@@ -1115,7 +1192,7 @@ function FormularioReserva({
               <p className="mt-2 sm:col-span-2">
                 <span className="text-xs font-semibold text-tenue">La seña</span>
                 <span className="ml-2 text-xs text-tenue">
-                  Sin seña no se aparta el horario. Es el 50% del total.
+                  Sin seña no se aparta el horario. Es el 50% del total, en la moneda de la reserva.
                 </span>
               </p>
 
@@ -1142,10 +1219,15 @@ function FormularioReserva({
                 error={errores.senaMonto}
               />
 
-              <CampoSelect etiqueta="Moneda" value={sena.moneda} onChange={cambiarSena('moneda')}>
-                <option value="ARS">Pesos</option>
-                <option value="USD">Dólares</option>
-              </CampoSelect>
+              {/* La moneda de la seña es la de la reserva (`V33` §2): se dice, no se
+                  elige — ofrecer el selector era ofrecer el bug de §17 · H4. */}
+              <div>
+                <span className="t-mono text-tenue">Moneda</span>
+                <div className="mt-1.5 py-2 text-sm">
+                  {sena.moneda === 'USD' ? 'Dólares' : 'Pesos'}
+                  <span className="text-tenue"> — la de la reserva</span>
+                </div>
+              </div>
 
               <CampoSelect
                 etiqueta="Cómo pagó"

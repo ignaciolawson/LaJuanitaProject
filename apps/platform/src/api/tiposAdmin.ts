@@ -218,6 +218,13 @@ export type ReservaResumen = {
   /** Cuántas veces se aprobó cambiarla de día (P69). Agrupado en la consulta. */
   vecesMovida: number
   participantes: ParticipanteResumen[]
+  /**
+   * El precio de un alquiler o una grabación, y su moneda (`V33`, P83). **Null
+   * en una clase** —su plata es la inscripción— y en las reservas de antes de
+   * `V33`, que no reclaman deuda hasta que alguien se lo cargue editándolas.
+   */
+  precioTotal: number | null
+  moneda: Moneda | null
 }
 
 // -- Profesores -------------------------------------------------------------
@@ -604,7 +611,10 @@ export type CajaDelPeriodo = {
   porMedio: { medioPago: MedioPago; monto: number; cantidad: number }[]
 }
 
-/** Espeja `Deudor`. `diasDeAtraso` se cuenta desde el renglón más viejo. */
+/**
+ * Espeja `Deudor`: **una fila por cosa que se debe**, no por persona (P84). La
+ * pantalla agrupa por persona.
+ */
 export type Deudor = {
   /**
    * **Null si el deudor no tiene cuenta** (`V19`). Entra igual a esta pantalla:
@@ -617,32 +627,52 @@ export type Deudor = {
   email: string | null
   telefono: string | null
   moneda: Moneda
+  /** Lo que falta: el monto de la deuda anotada, o `precio − cobrado`. */
   adeudado: number
-  /** 0 para las dos fuentes de inscripción: no hay pago anotado. */
-  cantidadDePagos: number
   desde: string
   diasDeAtraso: number
   vencido: boolean
 
   /**
-   * Por qué figura (P72). Deudores tiene DOS fuentes desde la §16 · Fase 6:
-   * las deudas anotadas de siempre (con reloj de 7 días) y las inscripciones
-   * con plata pendiente — `SIN_SENIAR` (preinscripta, con su plazo) y
-   * `FALTA_EL_RESTO` (activa con saldo, **sin plazo, nunca vencida**).
+   * Por qué figura. Dos fuentes: la deuda anotada (una fila de `pago` en
+   * DEBE/VENCIDO, con `idPago`, que se cobra con `cobrarPago`) y las
+   * calculadas (una cosa con precio a la que lo cobrado no le alcanza, que se
+   * cobran registrando el pago que falta con el formulario de Pagos).
    */
   motivo: MotivoDeDeuda
+  /** Qué es, para leerlo: la disciplina, la reserva con su día, el track, el equipo. */
+  detalle: string
+  /** Sólo en `DEUDA_ANOTADA`. */
+  idPago: number | null
+  /** Exactamente uno en las calculadas; en la anotada, el destino del pago. */
   idInscripcion: number | null
+  idReserva: number | null
+  idTrabajoMastering: number | null
+  idVentaEquipo: number | null
+  /** El precio de la cosa y lo que ya entró en su moneda; null en la anotada. */
+  precio: number | null
+  cobrado: number | null
+  /** La disciplina, cuando la deuda es de un programa; null en las demás. */
   disciplina: Disciplina | null
   /** Sólo para `SIN_SENIAR`: hasta cuándo puede señar. */
   vence: string | null
 }
 
-export type MotivoDeDeuda = 'DEUDA_ANOTADA' | 'SIN_SENIAR' | 'FALTA_EL_RESTO'
+export type MotivoDeDeuda =
+  | 'DEUDA_ANOTADA'
+  | 'SIN_SENIAR'
+  | 'FALTA_EL_RESTO'
+  | 'RESERVA_A_SALDAR'
+  | 'TRABAJO_A_COBRAR'
+  | 'VENTA_A_COBRAR'
 
 export const NOMBRE_DE_MOTIVO: Record<MotivoDeDeuda, string> = {
   DEUDA_ANOTADA: 'Deuda anotada',
   SIN_SENIAR: 'Sin señar',
   FALTA_EL_RESTO: 'Seña abonada, falta el resto',
+  RESERVA_A_SALDAR: 'Seña abonada, falta el resto',
+  TRABAJO_A_COBRAR: 'Entregado, falta cobrar',
+  VENTA_A_COBRAR: 'Venta sin cobrar',
 }
 
 /** Espeja `EgresoResumen`. */
@@ -1033,6 +1063,8 @@ export type ApartarLaCabina = {
   fecha: string
   horaInicio: string
   duracionMinutos: number
+  /** El precio total de la cabina (`V33`, P83): el monto a abonar es una parte. */
+  precioTotal: number
   monto: number
   moneda: Moneda
   cotizacionDolar?: number

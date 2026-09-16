@@ -1,7 +1,8 @@
 // ============================================================================
 // LA JUANITA STUDIO / MUSIC — Modelo de datos (v4)
 //
-// ✅ AL DÍA AL 2026-09-14, migraciones V1..V32 (V31 y V32 son sólo triggers).
+// ✅ AL DÍA AL 2026-09-15, migraciones V1..V34 (V31, V32 y V34 son sólo triggers;
+// V33 agrega dos columnas a `reserva` y tres triggers).
 //
 // **Verificado contra el catálogo de una base con las 27 migraciones
 // aplicadas** (V28, V29 y V30 se agregaron a mano el día que se escribieron, con
@@ -58,6 +59,14 @@
 //          contrato (P74). Sin columnas
 //     V32  trigger en `pago`: un pago con id_trabajo_mastering va en la moneda
 //          del trabajo (P81), el espejo de V31. Sin columnas
+//     V33  `reserva.precio_total` + `reserva.moneda` (P83, las dos o ninguna);
+//          trigger en `pago`: un pago con id_reserva va en la moneda de la
+//          reserva (la tercera gemela); y UNA función con tres triggers —en
+//          `inscripcion`, `reserva` y `trabajo_mastering`— que no deja cambiar
+//          la moneda si quedaría un pago vivo en otra
+//     V34  reescribe `verificar_liberacion_premaster()` (V1 §8.4): el premaster
+//          se libera cuando lo cobrado en la moneda del trabajo cubre
+//          precio_acordado, o con liberado_sin_pago y motivo (P86). Sin columnas
 //
 // Historia de las tablas: eran 23 al 2026-08-19 y son 29 desde V28. Las seis
 // que entraron son `aparicion_release` (V18), `solicitante` (V20),
@@ -368,6 +377,8 @@ Table reserva {
   hora_fin              time        [not null]
   estado                varchar(20) [not null, default: 'CONFIRMADA', note: 'PRECONFIRMADA / CONFIRMADA / MODIFICADA / CANCELADA / REPROGRAMADA / FINALIZADA']
   vence_preconfirmacion timestamptz [note: 'V24: hasta cuándo está apartado el horario sin pagar. NULL en todo lo que no sea PRECONFIRMADA, y viceversa.']
+  precio_total          numeric(14,2) [note: 'V33 (P83): el precio de un alquiler o una grabación. NULL en una clase (su plata es la inscripción) y en las de antes de V33. CHECK > 0, y las dos con moneda o ninguna.']
+  moneda                varchar(3)  [note: 'V33: ARS / USD. Un pago con id_reserva lleva esta moneda; no cambia con pagos vivos en otra.']
   notas                 text
   id_reserva_recupera   bigint      [ref: > reserva.id_reserva, note: 'A qué clase reemplaza esta']
   motivo_reprogramacion text

@@ -5840,7 +5840,220 @@ USD 100 firmado por el admin.
   precio (`V1` §8.4): con cobros parciales, USD 10 sobre USD 300 libera. Es la
   regla que dio Ghezz y cambiarla es decisión suya más migración. Anotado.
 
+## 21. La NOVENA barrida de correcciones — abierta el 2026-09-15
+
+> Cinco puntos de Ignacio, traídos como *"algunas correcciones rápidas"*, el
+> 2026-09-15. No eran rápidas: **dos tocan el schema y la tercera redefine el
+> reparto entre Pagos y Deudores.** Las decisiones son **P83–P86**
+> (`platform.md` §27), cerradas en la conversación antes de escribir código —
+> tres preguntas, tres lecturas recomendadas aceptadas. El quinto punto (el
+> admin sembrado) se contestó y no se hizo: es la cuenta con la que él entra.
+
+### El diagnóstico, antes de decidir nada
+
+1. **La cabina señada no está en Deudores porque `reserva` no tiene precio.**
+   Deudores resta lo cobrado de `inscripcion.precio_total`; para una reserva no
+   hay de qué restar. Es el *"mismo caso para reservas"* que P72 dejó anotado y
+   la §16 no pudo construir. → **L1 / P83**.
+2. **"Cobrar" en Pagos existe por §13 · C1**: una fila `DEBE` que sostiene una
+   prereserva no tenía otra forma de cobrarse. Sacarlo sin ponerlo en otro lado
+   deja la prereserva incobrable. Deudores no tiene hoy **ninguna** acción.
+   → **L2 / P85**.
+3. **Pagos y Deudores no son complementarios**: un pago está en Pagos siempre
+   y en Deudores a veces, según la fuente. Hacer que Pagos muestre sólo lo
+   cobrado al 100% exige que *"cuánto falta"* sea una definición que lean las
+   dos pantallas — hoy son dos fuentes en Java, una por inscripción. Y de las
+   cuatro cosas que un pago salda (`pago_tiene_destino`), sólo la inscripción
+   sabe decir cuánto le falta. → **L3 / P84**.
+4. **El candado del premaster libera con cualquier pago PAGADO** (`V1` §8.4).
+   Ya estaba anotado en `pendientes.md` §4 como decisión de Ghezz; Ignacio la
+   tomó. → **L4 / P86**.
+5. **El admin sembrado (`V3`)** es `admin@lajuanita.local`, la credencial de
+   desarrollo del repo. Desactivarla hoy deja a Ignacio sin entrar. → no se
+   hace; va con el deploy, y ahora es `V35`.
+
+### El triage
+
+| # | Qué | Grupo | Migración |
+|---|---|---|---|
+| L1 | El precio de una reserva que no es clase; su pago va en su moneda; la moneda de nada con plata adentro se cambia | 🔴 C | `V33` |
+| L4 | El premaster se libera con el precio cubierto | 🔴 C | `V34` |
+| L3 | `SaldoPendiente`: una definición SQL de "cuánto falta" para las cuatro cosas; Deudores la lee; Pagos lista sólo lo cubierto | 🟡 B | — |
+| L2 | "Cobrar" se muda a Deudores: cobrar una deuda anotada, o registrar el pago prellenado sobre una cosa con saldo | 🟡 B / 🟢 A | — |
+| L5 | El alta y la edición de reservas piden el precio; la seña se prellena al 50% | 🟢 A | — |
+
+**Orden: C → B → A**, al revés de lo habitual, porque acá el precio de la
+reserva (`V33`) es lo que destraba todo lo demás — sin él, L3 no puede listar
+la cabina que motivó la barrida.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-15)
+
+✅ **ESTADO: CERRADA el mismo 2026-09-15 — cinco de cinco, dos migraciones
+(`V33`, `V34`, aplicadas).** Decisiones: **P83–P86** (`platform.md` §27). Suites
+al cierre: **740 backend · 669 front · 310 + 68 SQL** sobre 34
+migraciones; `tsc -b`, lint (las dos advertencias de siempre) y build limpios.
+⚠️ **El backend de desarrollo se reinició** con este código (Flyway aplicó
+`V33`/`V34` durante `mvn test`) y el circuito se probó de punta a punta contra
+la base: la cabina **12146** (Sala 2, 16/09 16:00, seña $44.999,92 de Ignacio,
+la que abrió la barrida) recibió su precio ($90.000) **por la edición real**
+(`PUT /api/reservas/12146`) y apareció en Deudores como *"Seña abonada, falta
+el resto"* ($45.000,08), su seña salió de Pagos, y cambiarle la moneda a USD
+con la seña adentro contestó el 400 con el mensaje. El trabajo **2251** apareció
+solo como *"Entregado, falta cobrar"* (USD 200 de 300). **El admin sembrado
+pasa a `V35`** (octavo corrimiento). Lo que Ignacio todavía no vio en el
+navegador: Deudores con sus dos botones, Pagos sin *Cobrar* y sin DEBE/VENCIDO
+en el filtro, y los tres formularios de reserva con *"Precio total"* arriba de
+la seña. Es lo primero que conviene que abra.
+
+### Lo que hizo, punto por punto
+
+#### L1 · `V33` — el precio de una reserva, y la moneda de lo que tiene plata adentro
+
+`reserva.precio_total` + `reserva.moneda`, nullable las dos y atadas (CHECK
+`reserva_precio_con_moneda`; `> 0`, porque una reserva gratis es un tipo de uso
+—P35— y no un precio). Las reservas anteriores quedan sin precio y **no
+reclaman deuda**; se lo carga la edición. **Java decide quién lo lleva**
+(`ReservaService.verificarElPrecio`): un alquiler o una grabación lo exige, una
+clase lo rechaza, `MIX_MASTERING` queda afuera de las dos — la excepción por
+catálogo de `V10`. Es del servicio y no de la base a propósito: protege
+coherencia, no plata. Y la seña —o la deuda de la prereserva— va en la moneda
+de la reserva, dicho por el servicio antes y sostenido por el trigger de `V33`
+§2 (la tercera gemela de `V31`/`V32`).
+
+**`V33` §3 cierra el hueco simétrico que `pendientes.md` §4 anotaba, para las
+tres tablas de una vez**: una función, tres triggers (`inscripcion`, `reserva`,
+`trabajo_mastering`), y la regla exacta es *"después del cambio, ningún pago
+vivo puede quedar en otra moneda"* — no *"no se cambia si hay pagos"*, que
+habría dejado sin arreglo a la 13231 (se corrige anulando el pago en pesos y
+editando a USD). `InscripcionService.editar` y `ReservaService.editar` lo dicen
+antes con un mensaje; `MasteringService.editar` ya lo hacía. ⚠️ **"Vivo" es
+`<> 'ANULADO'` y acá ese conjunto es el correcto** aunque `V12` enseñe a
+desconfiar de él: una deuda anotada en la moneda vieja también miente si el
+contrato cambia. `V12` corrigió "qué es plata que entró"; esto pregunta "qué
+fila habla de esta moneda".
+
+Los tres lugares que crean reservas con plata llevan el precio:
+`AltaReservaRequest`, `AprobacionRequest` (el pedido del portal) y
+`ApartarLaCabinaRequest` (la ficha del buzón), y la aprobación de un cambio de
+día lo arrastra sin tocarlo (*"la plata no se entera de que se movió"*, el
+argumento de mover en el lugar). Casos SQL 276–288 (13 nuevos) y
+`SaldoPendienteTest`.
+
+#### L3 · `SaldoPendiente` — una definición de "cuánto falta", en SQL, para las cuatro cosas
+
+`pago.SaldoPendiente.COSAS` es una `UNION ALL` de las cuatro cosas que un pago
+salda, con `precio`, `cobrado` (en su moneda, `ENTRARON`), `saldo` y
+`anotado` (lo que de ese saldo ya está escrito como DEBE/VENCIDO). La leen
+**Deudores** (`PagoRepository.cosasConSaldo`, `saldo − anotado > 0`) y **el
+listado de Pagos** (`DESDE_Y_FILTROS`: un pago que entró está sólo si su cosa no
+tiene `saldo > 0`; una deuda anotada nunca; un anulado siempre). Es una
+constante y no una VIEW de Flyway: es una definición del negocio que va a
+cambiar, y cada cambio de una vista es una migración inmutable más.
+
+⚠️ **Lo que encontró: el tablero contaba la misma plata dos veces.** El caso
+`TableroTest.la_deuda_de_otro_periodo_igual_se_ve` esperaba que anotar una
+cuota DEBE de $45.000 sobre una inscripción de $100.000 sin cobrar subiera la
+deuda viva en $45.000 — y su propio comentario decía que el saldo calculado ya
+estaba en la línea de base. La cuota anotada es **parte** del precio, no algo
+encima. La primera versión de esta barrida lo resolvió con *"la anotada gana y
+la calculada se omite"*, que sub-contaba (la prereserva mostraba la seña del
+50% y no el 100%); lo correcto es `saldo − anotado`: la prereserva se lee como
+*"la seña, con su plazo"* (anotada) más *"falta el resto"* (calculada), y la
+suma es el precio. El caso ahora afirma que el total **no se mueve**.
+
+Las deudas anotadas van **de a una** (`deudasAnotadas`, nativa) y no agrupadas
+por persona y moneda: cada fila DEBE es un hecho con su importe, su concepto y
+su botón. El aviso del scheduler pasa a `DEUDA:p=<idPago>` (antes persona +
+moneda + fecha más vieja: con las deudas agrupadas la segunda de alguien nunca
+avisaba sola). `Deudor` perdió `cantidadDePagos` y ganó `detalle`, `idPago`,
+los cuatro ids de destino, `precio` y `cobrado`; `MotivoDeDeuda` ganó
+`RESERVA_A_SALDAR`, `TRABAJO_A_COBRAR` y `VENTA_A_COBRAR`.
+`InscripcionRepository.conPlataPosiblementePendiente` y su variante por persona
+se fueron: eran la segunda fuente en Java.
+
+⚠️ **Dos lecciones de Hibernate 7 en consultas nativas**: un `TIMESTAMPTZ`
+vuelve como `Instant` (en JPQL vuelve `OffsetDateTime` en UTC) —
+`PagoService.enLaZonaDelEstudio` acepta los dos y convierte a la zona local
+antes de sacar el día, la lección de §17—; y un `DATE` vuelve `LocalDate` (ya
+anotado en §19). Y una de Jackson 3: **un método extra en un record no se
+serializa** — `Deudor.disciplina()` existió diez minutos como método y el JSON
+no lo traía; es componente.
+
+#### L2 · "Cobrar" se mudó a Deudores; el formulario de Pagos salió a `componentes/`
+
+`FormularioPago` (630 líneas) salió de `PagosPagina` a
+`componentes/FormularioPago.tsx` con una prop nueva, `inicial?: PagoPrellenado`:
+con ella no pregunta qué salda ni quién paga —lo dice—, fija la moneda y
+prellena el monto con lo que falta (*"Faltan $45.000. Si entra una parte,
+cambiá el monto."*). Deudores lo abre con *"Registrar el pago"* sobre cada cosa
+con saldo, y ofrece *"Cobrar"* sobre cada deuda anotada
+(`PATCH /api/pagos/{id}/cobro`, el de §13 · C1 tal cual). Las dos acciones sólo
+para quien escribe (`usePuedeEscribir`; el test ahora monta con sesión). Pagos
+perdió el botón, la función `cobrar` y los estados DEBE/VENCIDO del filtro.
+
+#### L5 · Los tres formularios de reserva piden el precio, y la seña se prellena al 50%
+
+Calendario (alta **y edición** — es por donde una reserva de antes de `V33`
+recibe su precio), aprobación del pedido del portal y *"Apartarle la cabina"*
+del buzón: *"Precio total"* va arriba de la seña, escribirlo pone la seña en la
+mitad salvo que ya la hayan escrito a mano (`senaTocada` / `montoTocado`), y en
+el calendario la moneda de la seña se dice y no se elige (*"— la de la
+reserva"*, el mismo patrón que la del contrato en Pagos). El detalle de una
+reserva del calendario muestra *"Precio total $90.000"* o *"Sin precio cargado
+— editala para ponerlo"* en lo que no es clase.
+
+#### L4 · `V34` — el premaster se libera con el precio cubierto
+
+Reescribe `verificar_liberacion_premaster()` (el trigger de `V1` queda): suma
+`SENADO`/`PAGADO` en la moneda del trabajo contra `precio_acordado`; sin precio
+no hay nada que cubrir; la salida con motivo queda. El mensaje dice cuánto hay
+y cuánto falta (*"lo cobrado (USD 10.00) no cubre el precio acordado (USD
+150.00)"*). ⚠️ **Dos fixtures de las suites SQL liberaban sobre un trabajo sin
+precio** (casos 45 y D02) — pasaban porque `V1` sólo miraba que hubiera un
+pago; ahora tienen precio, y el 45 se partió en 45a (parcial, rechazado), 45b
+(sin precio, rechazado) y 45 (cubierto). `MasteringTest` ganó
+`un_pago_parcial_no_libera_el_premaster`.
+
+#### L5 bis · El admin sembrado: contestado, no hecho
+
+Es `admin@lajuanita.local` / `lajuanita2026`, la cuenta con la que Ignacio entra
+hoy, con la contraseña en el repo. Desactivarla es una migración que corre en
+el deploy **después** de crear los usuarios reales; hacerla ahora lo deja sin
+entrar. Ahora es `V35`.
+
+### Lo que dejó para la siguiente
+
+- **Las reservas anteriores a `V33` no tienen precio**: las que estén vigentes
+  con seña adentro no reclaman nada hasta que alguien las edite. En la base de
+  desarrollo son pocas; en producción no habrá ninguna.
+- **El portal del alumno** muestra la cabina en *"Lo que debo"* (lee la misma
+  lista) pero `ReservaDelPortal` no lleva el precio: la fila de *Mis reservas*
+  no dice cuánto falta. Es una línea si se pide.
+- El aviso de deuda con la clave nueva (`DEUDA:p=`) va a **volver a avisar una
+  vez** por cada deuda anotada vencida que ya tenía aviso con la clave vieja en
+  la base de desarrollo. En producción no hay ninguna.
+- Los pendientes de antes siguen: grupos de a 3, los dos `<select>` de Pagos
+  que no son de personas, la 13231 a mano (ahora sí se puede: anular el pago
+  en pesos y editar a USD).
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y
+`V34` (P83–P86, `platform.md` §27).** Una reserva que no es clase tiene precio
+y su pago va en su moneda; la moneda de nada con plata adentro se cambia (las
+tres tablas, un trigger); *"cuánto falta"* es UNA definición SQL
+(`SaldoPendiente`) sobre las cuatro cosas que un pago salda, y la leen Deudores
+y el listado de Pagos — **Pagos es lo cobrado al 100%, Deudores lo que hay que
+ir a buscar, complementarias por construcción**; *"Cobrar"* vive en Deudores y
+sobre una cosa con saldo se abre el formulario de Pagos prellenado; el premaster
+se libera con el precio cubierto. Encontró que el tablero contaba una cuota
+anotada encima del saldo del programa. Suites: **740 backend · 669
+front · 310 + 68 SQL** sobre 34 migraciones. **El admin sembrado pasa a `V35`.**
+⚠️ El backend de desarrollo está reiniciado con este código y la cabina 12146
+quedó con precio como prueba viva. Lo que dejó: `ReservaDelPortal` sin precio,
+las reservas de antes de `V33` sin precio hasta que se editen, y la clave nueva
+del aviso de deuda va a re-avisar una vez en dev.
+
 
 ✅ **Y LA OCTAVA (§20) TAMBIÉN, EL 2026-09-14: siete de siete, con `V32`
 (P78–P82, `platform.md` §26).** Mix & Mastering rehecho por dentro sin tocar

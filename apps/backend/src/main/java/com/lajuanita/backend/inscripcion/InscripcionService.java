@@ -296,6 +296,19 @@ public class InscripcionService {
         inscripcion.setProfesor(buscarProfesor(solicitud.idProfesor()));
         inscripcion.setNivel(nuevoNivel);
         inscripcion.setClasesContratadas(solicitud.clasesContratadas());
+        // La moneda no cambia con pagos vivos en otra (`V33` §3, P83): era el
+        // hueco simétrico de `V31` —un contrato en USD con su seña en USD editado
+        // a ARS quedaba ACTIVA con cobrado cero en su moneda—. El trigger lo
+        // sostiene; esto existe para que el 409 diga qué hacer. La regla exacta
+        // es "ningún pago vivo en OTRA moneda", así que un contrato mal cargado
+        // se corrige anulando esos pagos y recargándolos.
+        if (solicitud.moneda() != inscripcion.getMoneda()
+                && pagos.hayPagosVivosEnOtraMonedaDeInscripcion(inscripcion.getId(), solicitud.moneda())) {
+            throw new SolicitudInvalidaException(
+                    "No se le puede cambiar la moneda a esta inscripción: tiene pagos vivos en "
+                            + inscripcion.getMoneda() + ". Si está en la moneda equivocada, primero anulá "
+                            + "esos pagos desde Pagos y recargalos en la nueva.");
+        }
         inscripcion.setPrecioTotal(solicitud.precioTotal());
         inscripcion.setMoneda(solicitud.moneda());
         inscripcion.setCotizacionDolar(solicitud.cotizacionDolar());

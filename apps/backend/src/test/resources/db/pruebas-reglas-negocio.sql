@@ -411,8 +411,10 @@ INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,
 -- `pago`) y el trabajo nacía en USD (el default de `trabajo_mastering`) — el
 -- cruce que V32 prohíbe, y que este fixture hizo durante un mes sin que nada lo
 -- dijera.
-INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda)
- VALUES ('Joe','MIX','Segundo Track','ENTREGADO','ARS');
+-- Con precio desde V34: el candado ya no mira QUE haya un pago sino que lo
+-- cobrado en la moneda del trabajo CUBRA el precio (P86).
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda,precio_acordado)
+ VALUES ('Joe','MIX','Segundo Track','ENTREGADO','ARS',80000);
 
 SELECT probar('41','trabajo sin cliente identificado','FALLA',
  $q$INSERT INTO trabajo_mastering (tipo_trabajo,nombre_track) VALUES ('MIX','Anonimo')$q$);
@@ -430,11 +432,35 @@ SELECT probar('44','liberar sin pago CON motivo (la excepcion de Ghezz)','ANDA',
     WHERE nombre_track='Vente'$q$);
 
 -- Ahora el camino normal: se registra el pago y recién ahí se libera.
+-- Desde V34 (P86) un pago PARCIAL no alcanza: 50.000 de 80.000 y el candado
+-- sigue cerrado, con un mensaje que dice cuanto hay y cuanto falta.
 INSERT INTO pago (id_usuario,id_trabajo_mastering,monto,medio_pago,estado_pago)
 SELECT v.u_juan, t.id_trabajo, 50000,'EFECTIVO','PAGADO'
 FROM v, trabajo_mastering t WHERE t.nombre_track='Segundo Track';
 
-SELECT probar('45','liberar el premaster CON pago registrado','ANDA',
+SELECT probar_mensaje('45a','liberar el premaster con un pago PARCIAL (V34)',
+ 'no cubre el precio acordado',
+ $q$UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Segundo Track'$q$);
+
+-- Un trabajo sin precio acordado no tiene nada que cubrir: no se libera por
+-- esta via aunque tenga plata adentro. 'Vente' ya esta liberado con motivo
+-- (caso 44), asi que se usa uno nuevo.
+INSERT INTO trabajo_mastering (nombre_cliente_externo,tipo_trabajo,nombre_track,estado,moneda)
+ VALUES ('Joe','MIX','Sin presupuesto','EN_PROCESO','ARS');
+INSERT INTO pago (id_usuario,id_trabajo_mastering,monto,medio_pago,estado_pago)
+SELECT v.u_juan, t.id_trabajo, 999999,'EFECTIVO','PAGADO'
+FROM v, trabajo_mastering t WHERE t.nombre_track='Sin presupuesto';
+SELECT probar_mensaje('45b','liberar el premaster de un trabajo SIN precio acordado (V34)',
+ 'no tiene precio acordado',
+ $q$UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Sin presupuesto'$q$);
+
+-- El resto entra (SENADO cuenta: es plata que entro, la lista de V12) y el
+-- candado se abre.
+INSERT INTO pago (id_usuario,id_trabajo_mastering,monto,medio_pago,estado_pago)
+SELECT v.u_juan, t.id_trabajo, 30000,'TRANSFERENCIA','SENADO'
+FROM v, trabajo_mastering t WHERE t.nombre_track='Segundo Track';
+
+SELECT probar('45','liberar el premaster CON el precio cubierto','ANDA',
  $q$UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Segundo Track'$q$);
 
 SELECT probar('46','el estado del trabajo retrocede','FALLA',
@@ -2411,6 +2437,101 @@ SELECT probar_mensaje('275','ESQUIVE: apuntar el pago a un trabajo de otra moned
  'moneda del trabajo',
  $q$UPDATE pago SET id_trabajo_mastering=(SELECT t_pesos FROM v_moneda_t), id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE concepto='mitad del master'$q$);
+
+
+-- =============================================================================
+-- EL PRECIO DE UNA RESERVA, Y LA MONEDA DE LO QUE TIENE PLATA ADENTRO
+-- (`V33`, §21 · L1, P83)
+--
+-- §1: precio y moneda nacen juntos o no nacen, y el precio es mayor a cero.
+-- §2: el pago de una reserva con precio va en su moneda (la gemela de V31/V32).
+-- §3: la moneda de una inscripcion, una reserva o un trabajo no se cambia si
+--     le quedaria un pago vivo en otra — para las TRES tablas, con una funcion.
+--
+-- Fixture propio: un alquiler en dolares en la Sala 2 (la cabina de grabacion
+-- solo admite GRABACION_SET, V2), un dia libre.
+-- =============================================================================
+
+SELECT probar('276','reserva con precio SIN moneda','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,precio_total)
+    SELECT sala2,u_alquiler,'2026-11-10','10:00','12:00',200 FROM v$q$);
+
+SELECT probar('277','reserva con moneda SIN precio','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,moneda)
+    SELECT sala2,u_alquiler,'2026-11-10','10:00','12:00','USD' FROM v$q$);
+
+SELECT probar('278','reserva a precio cero (no es una beca: es un uso gratuito, P35)','FALLA',
+ $q$INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,precio_total,moneda)
+    SELECT sala2,u_alquiler,'2026-11-10','10:00','12:00',0,'ARS' FROM v$q$);
+
+-- La reserva con precio entra con su senia EN SU MONEDA (V33 §2 la rechazaria
+-- en la de `sena()`, que es ARS), asi que no usa el helper.
+SELECT probar('279','alquiler en dolares, seniado en dolares','ANDA',
+ $q$WITH nueva AS (INSERT INTO reserva (id_sala,id_tipo_uso,fecha,hora_inicio,hora_fin,precio_total,moneda,notas)
+    SELECT sala2,u_alquiler,'2026-11-10','10:00','12:00',200,'USD','alquiler en USD' FROM v RETURNING id_reserva)
+    INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago,estado_pago,concepto)
+    SELECT (SELECT u_juan FROM v),id_reserva,100,'USD',1450,'PAYPAL','SENADO','senia del alquiler en USD' FROM nueva$q$);
+
+CREATE VIEW v_precio AS SELECT
+ (SELECT id_reserva FROM reserva WHERE notas='alquiler en USD') AS res_usd;
+
+SELECT probar_mensaje('280','el resto del alquiler en dolares, pagado en pesos',
+ 'moneda de la reserva',
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,medio_pago)
+    SELECT u_juan,res_usd,100000,'ARS','EFECTIVO' FROM v, v_precio$q$);
+
+SELECT probar_mensaje('281','ESQUIVE: cargar la senia bien y cambiarle la moneda despues',
+ 'moneda de la reserva',
+ $q$UPDATE pago SET moneda='ARS', cotizacion_dolar=NULL, id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE concepto='senia del alquiler en USD'$q$);
+
+-- Una reserva SIN precio sigue sin moneda que respetar: la de antes de V33.
+-- Es el mismo hecho que prueba el caso 270, dicho desde esta seccion.
+SELECT probar('282','pago en USD sobre una reserva sin precio: libre','ANDA',
+ $q$INSERT INTO pago (id_usuario,id_reserva,monto,moneda,cotizacion_dolar,medio_pago)
+    SELECT u_juan,(SELECT id_reserva FROM reserva WHERE precio_total IS NULL AND estado NOT IN ('CANCELADA','REPROGRAMADA') LIMIT 1),20,'USD',1450,'PAYPAL' FROM v$q$);
+
+-- §3, sobre la reserva: tiene una senia viva en USD, asi que a ARS no va.
+SELECT probar_mensaje('283','cambiarle la moneda a una reserva con la senia adentro',
+ 'pago(s) vivo(s) en otra moneda',
+ $q$UPDATE reserva SET moneda='ARS', precio_total=250000, id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE id_reserva=(SELECT res_usd FROM v_precio)$q$);
+
+-- Cambiar el PRECIO sin tocar la moneda es una edicion comun (`OF moneda`).
+SELECT probar('284','cambiarle el precio, en la misma moneda','ANDA',
+ $q$UPDATE reserva SET precio_total=220, id_usuario_modifico=(SELECT u_mica FROM v)
+    WHERE id_reserva=(SELECT res_usd FROM v_precio)$q$);
+
+-- §3, sobre la inscripcion: el contrato en dolares de la seccion de V31 tiene
+-- la senia del caso 267 (USD 250, viva). A pesos no va...
+SELECT probar_mensaje('285','cambiarle la moneda a un contrato con la senia adentro',
+ 'pago(s) vivo(s) en otra moneda',
+ $q$UPDATE inscripcion SET moneda='ARS', precio_total=700000, cotizacion_dolar=NULL
+    WHERE id_inscripcion=(SELECT ins_dolares FROM v_moneda)$q$);
+
+-- ...y con la senia ANULADA, si: la regla exacta es "ningun pago VIVO en otra
+-- moneda", y es lo que deja arreglar un contrato mal cargado (la 13231 de
+-- V31 §2 se corrige asi). Anular lleva firma desde V7 §1.
+UPDATE pago SET estado_pago='ANULADO', id_usuario_anula=(SELECT u_mica FROM v),
+       fecha_anulacion=now(), motivo_anulacion='cargado en la moneda equivocada'
+ WHERE concepto='senia en dolares';
+SELECT probar('286','cambiarle la moneda con el unico pago en otra moneda ANULADO','ANDA',
+ $q$UPDATE inscripcion SET moneda='ARS', precio_total=700000, cotizacion_dolar=NULL
+    WHERE id_inscripcion=(SELECT ins_dolares FROM v_moneda)$q$);
+
+-- §3, sobre el trabajo: el de la seccion de V32 tiene 'mitad del master' (USD
+-- 150, viva). Editar la moneda con eso adentro se rechazaba en Java desde §20;
+-- ahora lo dice la base.
+SELECT probar_mensaje('287','cambiarle la moneda a un trabajo con un cobro adentro',
+ 'pago(s) vivo(s) en otra moneda',
+ $q$UPDATE trabajo_mastering SET moneda='ARS', precio_acordado=300000
+    WHERE id_trabajo=(SELECT t_dolares FROM v_moneda_t)$q$);
+
+-- Y un pago en la moneda NUEVA no estorba: solo cuentan los que quedarian en
+-- OTRA. Un trabajo sin pagos cambia libremente.
+SELECT probar('288','cambiarle la moneda a un trabajo sin pagos','ANDA',
+ $q$UPDATE trabajo_mastering SET moneda='USD', precio_acordado=300
+    WHERE id_trabajo=(SELECT t_pesos FROM v_moneda_t)$q$);
 
 
 -- =============================================================================

@@ -687,7 +687,9 @@ function queDebo(d: Deudor): string {
   if (d.motivo === 'FALTA_EL_RESTO') {
     return `Resto de ${NOMBRE_DE_DISCIPLINA[d.disciplina!]}`
   }
-  return d.cantidadDePagos === 1 ? 'Deuda anotada' : `${d.cantidadDePagos} pagos pendientes`
+  // Una cabina señada, un trabajo entregado, un equipo, una deuda anotada: el
+  // detalle ya lo dice (P84).
+  return d.detalle
 }
 
 function Cuando({

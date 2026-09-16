@@ -86,6 +86,11 @@ public record ApartarLaCabinaRequest(
         @Min(value = 15, message = "La reserva más corta es de 15 minutos.")
         Integer duracionMinutos,
 
+        /** El precio total de la cabina (`V33`, P83), en la moneda del monto: la seña es una parte de esto. */
+        @NotNull(message = "Poné el precio total de la reserva.")
+        @Positive(message = "El precio tiene que ser mayor a cero.")
+        BigDecimal precioTotal,
+
         @NotNull(message = "Poné el monto que hay que abonar.")
         @Positive(message = "El monto tiene que ser mayor a cero.")
         BigDecimal monto,

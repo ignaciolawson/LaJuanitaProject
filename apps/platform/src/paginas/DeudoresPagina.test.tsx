@@ -1,8 +1,11 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router'
 
 import type { Deudor } from '../api/tiposAdmin'
+import type { UsuarioActual as Actual } from '../api/tipos'
+import { AuthContext, type ContextoAuth } from '../auth/contexto'
 import { DeudoresPagina } from './DeudoresPagina'
 
 /**
@@ -20,7 +23,17 @@ import { DeudoresPagina } from './DeudoresPagina'
  * quedaban separadas por diez de otros — se pagaba una y "aparecía" otra.
  */
 
-vi.mock('../api/administracion', () => ({ listarDeudores: vi.fn() }))
+vi.mock('../api/administracion', () => ({
+  listarDeudores: vi.fn(),
+  cobrarPago: vi.fn(),
+  // Lo que el formulario de Pagos importa; acá no se llama a nada de esto.
+  registrarPago: vi.fn(),
+  adjuntarComprobante: vi.fn(),
+  agenda: vi.fn(),
+  listarInscripciones: vi.fn(),
+  listarVentas: vi.fn(),
+}))
+vi.mock('../api/mastering', () => ({ listarTrabajos: vi.fn() }))
 
 const { listarDeudores } = await import('../api/administracion')
 
@@ -33,23 +46,54 @@ function deudor(cambios: Partial<Deudor> = {}): Deudor {
     telefono: '11 5555 5555',
     moneda: 'ARS',
     adeudado: 40000,
-    cantidadDePagos: 2,
     desde: '2026-06-01',
     diasDeAtraso: 30,
     vencido: true,
     motivo: 'DEUDA_ANOTADA',
+    detalle: 'cuota de junio',
+    idPago: 501,
     idInscripcion: null,
+    idReserva: null,
+    idTrabajoMastering: null,
+    idVentaEquipo: null,
+    precio: null,
+    cobrado: null,
     disciplina: null,
     vence: null,
     ...cambios,
   }
 }
 
-function montar() {
+function usuario(rol: Actual['rol']): Actual {
+  return {
+    id: 1,
+    nombre: 'Prueba',
+    apellido: 'Prueba',
+    email: 'prueba@lajuanita.local',
+    telefono: null,
+    rol,
+    fotoPerfil: null,
+    esAlumno: false,
+    esProfesor: false,
+    debeCambiarPassword: false,
+  }
+}
+
+/** Con sesión: desde P85 la pantalla tiene acciones, y sólo para quien escribe. */
+function montar(rol: Actual['rol'] = 'STAFF') {
+  const contexto: ContextoAuth = {
+    sesion: { estado: 'autenticado', usuario: usuario(rol) },
+    iniciarSesion: async () => {},
+    registrarse: async () => {},
+    cerrarSesion: () => {},
+    refrescarUsuario: async () => {},
+  }
   return render(
-    <MemoryRouter>
-      <DeudoresPagina />
-    </MemoryRouter>,
+    <AuthContext value={contexto}>
+      <MemoryRouter>
+        <DeudoresPagina />
+      </MemoryRouter>
+    </AuthContext>,
   )
 }
 
@@ -65,7 +109,7 @@ describe('el listado', () => {
     expect(await screen.findByText('Ríos, Camila')).toBeDefined()
     expect(screen.getByText('$ 40.000,00')).toBeDefined()
     expect(screen.getByText('hace 30 días')).toBeDefined()
-    expect(screen.getByText('2 pagos pendientes')).toBeDefined()
+    expect(screen.getByText('cuota de junio')).toBeDefined()
   })
 
   /** El reclamo se hace por WhatsApp: el teléfono es el dato accionable. */
@@ -119,7 +163,7 @@ describe('el listado', () => {
         idInscripcion: 5,
         disciplina: 'PRODUCCION',
         adeudado: 320000,
-        cantidadDePagos: 0,
+        idPago: null,
         vencido: false,
         desde: '2026-08-16',
         diasDeAtraso: 27,
@@ -132,7 +176,7 @@ describe('el listado', () => {
         idInscripcion: 6,
         disciplina: 'DJ',
         adeudado: 85000,
-        cantidadDePagos: 0,
+        idPago: null,
         vencido: false,
         vence: '2099-01-15T18:00:00-03:00',
         desde: '2026-09-12',
@@ -192,7 +236,7 @@ describe('el vencimiento', () => {
         disciplina: 'DJ',
         vence: '2099-01-15T18:00:00-03:00',
         vencido: false,
-        cantidadDePagos: 0,
+        idPago: null,
         diasDeAtraso: 0,
       }),
     ])
@@ -212,7 +256,7 @@ describe('el vencimiento', () => {
         disciplina: 'DJ',
         vence: '2020-01-15T18:00:00-03:00',
         vencido: true,
-        cantidadDePagos: 0,
+        idPago: null,
       }),
     ])
     montar()
@@ -228,7 +272,7 @@ describe('el vencimiento', () => {
         disciplina: 'PRODUCCION',
         vence: null,
         vencido: false,
-        cantidadDePagos: 0,
+        idPago: null,
         diasDeAtraso: 60,
       }),
     ])
@@ -244,5 +288,58 @@ describe('el vencimiento', () => {
     montar()
 
     expect(await screen.findByText('hoy')).toBeDefined()
+  })
+})
+
+/**
+ * Desde P85 esta pantalla es donde se cobra (`mejoras.md` §21 · L2): "Cobrar"
+ * se mudó acá desde Pagos, y sobre una cosa con saldo se registra el pago con
+ * el formulario de Pagos prellenado.
+ */
+describe('las acciones (P85)', () => {
+  it('sobre una deuda anotada ofrece cobrarla, y cobrar recarga la lista', async () => {
+    const { cobrarPago } = await import('../api/administracion')
+    vi.mocked(cobrarPago).mockResolvedValue({} as never)
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Cobrar' }))
+
+    await waitFor(() => expect(cobrarPago).toHaveBeenCalledWith(501))
+    expect(vi.mocked(listarDeudores).mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it('sobre una cosa con saldo abre el formulario de Pagos ya prellenado', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([
+      deudor({
+        motivo: 'RESERVA_A_SALDAR',
+        idPago: null,
+        idReserva: 77,
+        detalle: 'Alquiler de cabina en Sala 2, 12/09/2026 14:00',
+        adeudado: 45000,
+        precio: 90000,
+        cobrado: 45000,
+        vencido: false,
+      }),
+    ])
+    const user = userEvent.setup()
+    montar()
+
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
+    await user.click(await screen.findByRole('button', { name: 'Registrar el pago' }))
+
+    // La cosa y la persona vienen dichas, no preguntadas; el monto es lo que falta.
+    expect(await screen.findByText('Registrar lo que falta')).toBeDefined()
+    // Dos veces: en la fila y en el formulario, que es lo que se está fijando.
+    expect(screen.getAllByText('Alquiler de cabina en Sala 2, 12/09/2026 14:00')).toHaveLength(2)
+    expect(screen.queryByLabelText('Qué salda')).toBeNull()
+    expect((screen.getByLabelText('Monto') as HTMLInputElement).value).toBe('45000')
+  })
+
+  it('un directivo no ve ninguna acción', async () => {
+    montar('DIRECTIVO')
+
+    await screen.findByText('Ríos, Camila')
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
   })
 })

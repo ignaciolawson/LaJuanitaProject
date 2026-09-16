@@ -1108,10 +1108,21 @@ class ReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"idProfesor":%s,"fecha":"%s",
+                        {"idSala":%d,"idTipoUso":%d,%s"idProfesor":%s,"fecha":"%s",
                          "horaInicio":"%s","horaFin":"%s"}
-                        """.formatted(idSala, idTipoUso,
+                        """.formatted(idSala, idTipoUso, precioSi(idTipoUso),
                         idProfesor == null ? "null" : idProfesor, fecha, desde, hasta));
+    }
+
+    /**
+     * El precio de un alquiler o una grabación (`V33`, P83): el alta lo exige
+     * en lo que no es clase, y una clase no lo lleva. El helper lo pone según
+     * el tipo para que cada caso siga midiendo lo suyo.
+     */
+    private String precioSi(Long idTipoUso) {
+        return idTipoUso.equals(alquiler) || idTipoUso.equals(grabacion)
+                ? "\"precioTotal\":90000,\"moneda\":\"ARS\","
+                : "";
     }
 
     /** Un alta que trae su gente: el paso 1 de la seña. */
@@ -1121,9 +1132,9 @@ class ReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s",
+                        {"idSala":%d,"idTipoUso":%d,%s"fecha":"%s","horaInicio":"%s",
                          "horaFin":"%s","participantes":[%s]}
-                        """.formatted(idSala, idTipoUso, fecha, desde, hasta, participantes));
+                        """.formatted(idSala, idTipoUso, precioSi(idTipoUso), fecha, desde, hasta, participantes));
     }
 
     /** Un alta que trae su seña: el otro camino del dinero. */
@@ -1133,9 +1144,9 @@ class ReservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s",
+                        {"idSala":%d,"idTipoUso":%d,%s"fecha":"%s","horaInicio":"%s","horaFin":"%s",
                          "sena":{"idUsuario":%d,"monto":45000,"moneda":"ARS","medioPago":"EFECTIVO"}}
-                        """.formatted(idSala, idTipoUso, fecha, desde, hasta, idUsuario));
+                        """.formatted(idSala, idTipoUso, precioSi(idTipoUso), fecha, desde, hasta, idUsuario));
     }
 
     /**

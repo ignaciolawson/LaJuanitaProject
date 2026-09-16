@@ -38,8 +38,15 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     String DESDE_Y_FILTROS = "FROM pago p "
             + "LEFT JOIN usuario u ON u.id_usuario = p.id_usuario "
             + LineaDeNegocio.JOINS + " "
+            // P85: Pagos es lo cerrado. Una deuda anotada no está acá (está en
+            // Deudores), y un pago que entró está acá sólo si su cosa ya no
+            // debe nada — la misma definición que lista Deudores, para que las
+            // dos pantallas sean complementarias por construcción. Un anulado
+            // es historia y se muestra.
+            + "WHERE p.estado_pago NOT IN ('DEBE', 'VENCIDO') "
+            + "AND (p.estado_pago = 'ANULADO' OR NOT " + SaldoPendiente.EL_DESTINO_DEL_PAGO_TIENE_SALDO + ") "
             + """
-            WHERE (CAST(:idUsuario AS bigint)  IS NULL OR p.id_usuario  = :idUsuario)
+              AND (CAST(:idUsuario AS bigint)  IS NULL OR p.id_usuario  = :idUsuario)
               AND (CAST(:estado    AS varchar) IS NULL OR p.estado_pago = :estado)
               AND (CAST(:moneda    AS varchar) IS NULL OR p.moneda      = :moneda)
               AND (CAST(:desde     AS date)    IS NULL OR p.fecha_pago >= :desde)
@@ -204,6 +211,33 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     Optional<Pago> porIdConDetalle(@Param("id") Long id);
 
     /**
+     * ¿Le quedaría a esta cosa algún pago vivo en otra moneda si pasara a
+     * {@code moneda}? Es la pregunta exacta de `V33` §3, hecha antes para que el
+     * 409 diga qué hacer. <b>Vivo es todo lo que no está anulado</b>, deuda
+     * anotada incluida: una fila DEBE en la moneda vieja también miente si el
+     * contrato cambia. No es {@code ENTRARON} y no debe serlo — `V12` corrigió
+     * "qué es plata que entró"; esto pregunta "qué fila habla de esta moneda".
+     */
+    @Query("""
+            SELECT count(p) > 0 FROM Pago p
+            WHERE p.reserva.id = :idReserva
+              AND p.estadoPago <> com.lajuanita.backend.pago.EstadoPago.ANULADO
+              AND p.moneda <> :moneda
+            """)
+    boolean hayVivosEnOtraMonedaDeReserva(@Param("idReserva") Long idReserva,
+            @Param("moneda") com.lajuanita.backend.dinero.Moneda moneda);
+
+    /** Lo mismo para una inscripción. */
+    @Query("""
+            SELECT count(p) > 0 FROM Pago p
+            WHERE p.inscripcion.id = :idInscripcion
+              AND p.estadoPago <> com.lajuanita.backend.pago.EstadoPago.ANULADO
+              AND p.moneda <> :moneda
+            """)
+    boolean hayVivosEnOtraMonedaDeInscripcion(@Param("idInscripcion") Long idInscripcion,
+            @Param("moneda") com.lajuanita.backend.dinero.Moneda moneda);
+
+    /**
      * Lo cobrado por inscripción, para el estado de cuenta.
      *
      * <p>Solo cuenta lo que <b>entró</b> — la lista de estados viaja como
@@ -329,45 +363,53 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             @Param("entraron") Iterable<EstadoPago> entraron);
 
     /**
-     * Quién debe, cuánto, y desde cuándo.
+     * Las deudas anotadas, <b>de a una</b> (P84): cada fila DEBE/VENCIDO con su
+     * importe, su concepto y a qué apunta. Hasta la novena barrida venían
+     * agrupadas por persona y moneda; ahora cada una es un hecho con su botón de
+     * cobrar, y la pantalla agrupa por persona (§17 · H9).
      *
-     * <p>{@code MIN(fechaPago)} y no {@code MAX}: la antigüedad de una deuda se
-     * cuenta desde el renglón más viejo. Con {@code MAX}, anotarle otra cuota a
-     * alguien que debe hace dos meses le rejuvenecería la deuda a cero días.
-     *
-     * <p>⚠️ <b>LEFT y agrupado también por el pagador externo, desde `V19`.</b> Dos
-     * cosas se arreglaron acá, y la segunda es peor que la primera:
-     *
-     * <ol>
-     *   <li>Con {@code JOIN} a secas, <b>una deuda de alguien sin cuenta no
-     *       aparecía en la pantalla de deudores</b> — la pantalla que existe
-     *       justamente para que ninguna deuda se olvide.</li>
-     *   <li>Con {@code GROUP BY u.id} solo, <b>todos los pagadores externos caen en
-     *       el mismo grupo</b> (el de {@code NULL}) y sus deudas se suman en una
-     *       fila sola: dos personas distintas mostradas como una, con un total que
-     *       no es de nadie. Agrupar también por el nombre las separa, y para los
-     *       pagos con cuenta ese campo es {@code NULL} y no cambia nada.</li>
-     * </ol>
+     * <p>Sigue siendo {@code LEFT}: una deuda de alguien sin cuenta tiene que
+     * aparecer, con su nombre escrito (`V19`). Y sigue filtrando por
+     * {@link DeudaCobrable}: la deuda de una reserva cancelada no se cobra.
      *
      * <p>{@code idUsuario} acota a una persona (§17 · H3): el estado de cuenta
-     * muestra <i>"lo que debo"</i> con esta misma consulta y no con otra, para
-     * que el alumno y Deudores no puedan decir cosas distintas de la misma
-     * deuda. En {@code null} trae a todos, como siempre.
+     * muestra <i>"lo que debo"</i> con esta misma consulta y no con otra.
      *
-     * @return filas {@code [id_usuario, nombre_externo, contacto_externo, moneda, adeudado, cantidad, desde]}
+     * @return filas {@code [id_pago, id_usuario, nombre_externo, contacto_externo, moneda,
+     *         monto, fecha_pago, concepto, id_inscripcion, id_reserva, id_trabajo_mastering, id_venta_equipo]}
      */
-    @Query("""
-            SELECT u.id, p.nombrePagadorExterno, MIN(p.contactoPagadorExterno),
-                   p.moneda, SUM(p.monto), COUNT(p), MIN(p.fechaPago)
-            FROM Pago p LEFT JOIN p.usuario u
-            WHERE p.estadoPago IN :adeudados
-              AND (:idUsuario IS NULL OR u.id = :idUsuario)
-              AND """ + DeudaCobrable.JPQL + """
-            GROUP BY u.id, p.nombrePagadorExterno, p.moneda
-            ORDER BY MIN(p.fechaPago)
-            """)
-    List<Object[]> deudores(@Param("adeudados") Iterable<EstadoPago> adeudados,
+    @Query(value = """
+            SELECT p.id_pago, p.id_usuario, p.nombre_pagador_externo, p.contacto_pagador_externo,
+                   p.moneda, p.monto, p.fecha_pago, p.concepto,
+                   p.id_inscripcion, p.id_reserva, p.id_trabajo_mastering, p.id_venta_equipo
+              FROM pago p
+             WHERE p.estado_pago IN (:adeudados)
+               AND (CAST(:idUsuario AS bigint) IS NULL OR p.id_usuario = :idUsuario)
+               AND """ + DeudaCobrable.SQL + """
+             ORDER BY p.fecha_pago, p.id_pago
+            """, nativeQuery = true)
+    List<Object[]> deudasAnotadas(@Param("adeudados") Collection<String> adeudados,
             @Param("idUsuario") Long idUsuario);
+
+    /**
+     * Las cosas con saldo <b>sin anotar</b> (P84): lo que {@link SaldoPendiente#COSAS}
+     * dice que falta, menos lo que ya está escrito como deuda — esas filas
+     * DEBE/VENCIDO las trae {@link #deudasAnotadas} por su cuenta, y la suma de
+     * las dos es el saldo entero. Una cosa cuya deuda anotada cubre todo el saldo
+     * no aparece acá: ya está, por la deuda.
+     *
+     * <p>Es la misma subconsulta que filtra el listado de Pagos: si acá se
+     * agregara una condición que allá no está, un pago desaparecería de Pagos
+     * sin que su cosa apareciera en Deudores.
+     *
+     * @return filas con las columnas de {@link SaldoPendiente#COSAS}, en su orden
+     */
+    @Query(value = "SELECT sp.* FROM (" + SaldoPendiente.COSAS + ") sp"
+            + " WHERE sp.saldo - sp.anotado > 0"
+            + " AND (CAST(:idUsuario AS bigint) IS NULL OR sp.id_usuario = :idUsuario)"
+            + " ORDER BY COALESCE(sp.desde_dia, CAST(sp.desde_ts AS date)), sp.id_destino",
+            nativeQuery = true)
+    List<Object[]> cosasConSaldo(@Param("idUsuario") Long idUsuario);
 
     /**
      * Pasar a {@code VENCIDO} la deuda que ya cruzó los 7 días.

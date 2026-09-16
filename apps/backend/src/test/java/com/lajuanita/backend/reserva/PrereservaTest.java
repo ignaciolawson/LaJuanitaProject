@@ -120,7 +120,8 @@ class PrereservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
+                        {"idSala":%d,"idTipoUso":%d,"precioTotal":2000,"moneda":"ARS",
+                         "fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
                          "sena":{"idUsuario":%d,"monto":1000,"moneda":"ARS","medioPago":"EFECTIVO"}}
                         """.formatted(sala1, alquiler, DENTRO_DE_UN_MES, crear(Rol.USUARIO).getId())))
                 .andExpect(status().isConflict());
@@ -139,7 +140,8 @@ class PrereservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
+                        {"idSala":%d,"idTipoUso":%d,"precioTotal":90000,"moneda":"ARS",
+                         "fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
                          "preconfirmacion":{"idUsuario":%d,"monto":45000,"moneda":"ARS",
                                             "medioPago":"TRANSFERENCIA","mensaje":"te espero"}}
                         """.formatted(sala1, alquiler, DENTRO_DE_UN_MES, cliente.getId())))
@@ -160,7 +162,8 @@ class PrereservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
+                        {"idSala":%d,"idTipoUso":%d,"precioTotal":2000,"moneda":"ARS",
+                         "fecha":"%s","horaInicio":"22:00","horaFin":"23:00",
                          "sena":{"idUsuario":%d,"monto":1000,"moneda":"ARS","medioPago":"EFECTIVO"},
                          "preconfirmacion":{"idUsuario":%d,"monto":1000,"moneda":"ARS",
                                             "medioPago":"EFECTIVO"}}
@@ -355,7 +358,7 @@ class PrereservaTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"monto":45000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
+                        {"precioTotal":90000,"monto":45000,"moneda":"ARS","medioPago":"TRANSFERENCIA",
                          "preconfirmar":%s,"respuesta":"listo"}
                         """.formatted(preconfirmando)))
                 .andExpect(status().isOk());

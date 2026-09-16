@@ -203,6 +203,9 @@ public class SolicitudReservaService {
                 null,
                 null,
                 List.of(new AltaParticipanteRequest(quienPidio.getId(), null)),
+                // El precio va con la moneda de la seña (`V33`): son una cosa.
+                aprobacion.precioTotal(),
+                aprobacion.moneda(),
                 // Quién paga lo pone el servidor: es el que pidió. Ver AprobacionRequest.
                 //
                 // Los dos caminos son excluyentes y lo dice `AltaReservaRequest`: o

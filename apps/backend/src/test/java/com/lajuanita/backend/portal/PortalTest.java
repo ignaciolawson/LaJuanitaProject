@@ -391,7 +391,8 @@ class PortalTest {
                 .header("Authorization", comoStaff())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idSala":%d,"idTipoUso":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s",
+                        {"idSala":%d,"idTipoUso":%d,"precioTotal":30000,"moneda":"ARS",
+                         "fecha":"%s","horaInicio":"%s","horaFin":"%s",
                          "sena":{"idUsuario":%d,"monto":15000,"moneda":"ARS","medioPago":"EFECTIVO"}}
                         """.formatted(sala2, alquiler, CLASE, desde, hasta, idUsuario)))
                 .andExpect(status().isCreated());

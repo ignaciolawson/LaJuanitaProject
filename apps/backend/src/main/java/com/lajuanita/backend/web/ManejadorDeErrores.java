@@ -83,6 +83,12 @@ public class ManejadorDeErrores {
             // `V24`: el vencimiento y el estado van juntos, en los dos sentidos. Sin
             // esta línea el CHECK sale como un 409 sin texto y quien lo recibe no
             // tiene con qué entender que le falta (o le sobra) la fecha del plazo.
+            // `V33` §1 (P83): el precio de una reserva y su moneda.
+            Map.entry("reserva_precio_con_moneda",
+                    "El precio y la moneda de la reserva van juntos: los dos o ninguno."),
+            Map.entry("reserva_precio_positivo",
+                    "El precio de una reserva tiene que ser mayor a cero."),
+            Map.entry("reserva_moneda_valida", "Esa moneda no existe: solo se manejan pesos y dólares."),
             Map.entry("reserva_preconfirmada_vence",
                     "Una reserva apartada necesita su fecha de vencimiento, y ninguna otra puede tenerla."),
             Map.entry("reserva_horas_validas", "La hora de fin tiene que ser posterior a la de inicio."),

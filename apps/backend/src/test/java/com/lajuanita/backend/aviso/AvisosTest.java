@@ -356,11 +356,7 @@ class AvisosTest {
         em.flush();
 
         assertThat(resumen.deudoresAvisados()).isZero();
-        assertThat(jdbc.queryForObject("""
-                SELECT count(*) FROM notificacion
-                 WHERE id_usuario_destino = ? AND clave_evento LIKE 'DEUDA:u=%'
-                """, Integer.class, staff.getId()).intValue())
-                .isEqualTo(contarDeudasAvisadasAntesDe(staff, alumno));
+        assertThat(avisosDeDeudaDe(staff, alumno)).isZero();
     }
 
     /** El saldo de una activa nunca avisa: no tiene fecha (P72). */
@@ -693,18 +689,22 @@ class AvisosTest {
                 """, Long.class, idAlumno, horas);
     }
 
-    /** Cuántos avisos de deuda de OTRA gente ya tenía este staff: la base de desarrollo trae los suyos. */
-    private int contarDeudasAvisadasAntesDe(Usuario staff, Usuario alumno) {
+    /**
+     * Cuántos avisos de deuda sobre pagos de ESTA persona tiene este staff. Se
+     * mira por los pagos y no por un contador global: la base de desarrollo trae
+     * los deudores de otra gente, y la clave desde P84 es el pago.
+     */
+    private int avisosDeDeudaDe(Usuario staff, Usuario alumno) {
         return jdbc.queryForObject("""
                 SELECT count(*) FROM notificacion
-                 WHERE id_usuario_destino = ? AND clave_evento LIKE 'DEUDA:u=%'
-                   AND clave_evento NOT LIKE ?
-                """, Integer.class, staff.getId(), "DEUDA:u=" + alumno.getId() + ":%");
+                 WHERE id_usuario_destino = ?
+                   AND clave_evento IN (SELECT 'DEUDA:p=' || id_pago FROM pago WHERE id_usuario = ?)
+                """, Integer.class, staff.getId(), alumno.getId());
     }
 
     private String deudaVencidaDe(Usuario deudor, int dias) {
-        pagoAdeudado(deudor, dias);
-        return "DEUDA:u=%d:ARS:desde=%s".formatted(deudor.getId(), LocalDate.now().minusDays(dias));
+        // La clave es el pago (P84): el hecho es la deuda anotada, no la persona.
+        return "DEUDA:p=%d".formatted(pagoAdeudado(deudor, dias));
     }
 
     /**

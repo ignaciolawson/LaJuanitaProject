@@ -74,6 +74,8 @@ function clase(idReserva: number, idInscripcion: number): ReservaResumen {
     idReservaRecupera: null,
     motivoReprogramacion: null,
     vecesMovida: 0,
+    precioTotal: null,
+    moneda: null,
     fechaCreacion: '2026-08-01T10:00:00Z',
     participantes: [
       {

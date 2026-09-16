@@ -189,27 +189,22 @@ public class AvisoService {
             String quien = deudor.apellido() == null
                     ? deudor.nombre()
                     : deudor.nombre() + " " + deudor.apellido();
-            long cuantos = deudor.cantidadDePagos();
 
-            // ⚠️ **La clave describe el HECHO, y sin cuenta el hecho se identifica
-            // por el nombre.** Con `u=%d` sobre un id nulo, todos los deudores sin
-            // cuenta compartían la clave `u=null` y el índice parcial de `V17`
-            // dejaba pasar **un solo aviso para todos**: el segundo deudor externo
-            // no se avisaba nunca y nadie se enteraba, porque el primero sí llegó.
-            String clave = deudor.idUsuario() != null
-                    ? "DEUDA:u=%d:%s:desde=%s".formatted(
-                            deudor.idUsuario(), deudor.moneda(), deudor.desde())
-                    : "DEUDA:ext=%s:%s:desde=%s".formatted(
-                            quien, deudor.moneda(), deudor.desde());
+            // ⚠️ **La clave describe el HECHO**, y desde P84 el hecho es la
+            // deuda anotada —una fila de `pago`—, no la persona: dos deudas de
+            // la misma persona son dos avisos, y saldar una y volver a deber
+            // meses después es otra fila con otra clave. Antes era persona +
+            // moneda + fecha más vieja, y con las deudas agrupadas la segunda
+            // de alguien nunca avisaba sola.
+            String clave = "DEUDA:p=%d".formatted(deudor.idPago());
 
             pendientes.add(new Aviso(
                     TipoNotificacion.DEUDA_VENCIDA,
                     clave,
                     "Deuda vencida: " + quien,
-                    "%s debe %s %s desde hace %d días (%d %s). El aviso salta a los %d."
+                    "%s debe %s %s desde hace %d días (%s). El aviso salta a los %d."
                             .formatted(quien, deudor.moneda(), plata(deudor.adeudado()),
-                                    deudor.diasDeAtraso(), cuantos,
-                                    cuantos == 1 ? "pago pendiente" : "pagos pendientes",
+                                    deudor.diasDeAtraso(), deudor.detalle(),
                                     PagoService.DIAS_PARA_VENCER),
                     // Sin cuenta no hay estado de cuenta al que llevar: el aviso
                     // manda a la pantalla de deudores, donde la fila sí está. Un

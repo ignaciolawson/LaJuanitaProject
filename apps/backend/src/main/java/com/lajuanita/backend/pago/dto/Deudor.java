@@ -5,23 +5,18 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 /**
- * Módulo 3, pantalla 4 — quién debe, cuánto y hace cuántos días.
+ * Una deuda: <b>una fila por cosa que se debe</b>, no por persona. La pantalla
+ * agrupa por persona (§17 · H9); el scheduler y el tablero leen las filas.
  *
- * <p><b>{@code diasDeAtraso} se cuenta desde el pago adeudado más viejo</b>, no
- * desde el más reciente: si alguien debe desde hace dos meses y ayer se le anotó
- * otra cuota, sigue debiendo desde hace dos meses. Contarlo al revés haría que la
- * deuda se rejuvenezca sola cada vez que crece, que es lo contrario de lo que
- * esta pantalla tiene que mostrar.
+ * <p>Dos formas, que {@link #motivo} distingue: la <b>deuda anotada</b> (una
+ * fila de {@code pago} en DEBE/VENCIDO, con {@link #idPago}) y la <b>calculada</b>
+ * (una cosa con precio a la que lo cobrado en su moneda no le alcanza, con el id
+ * de esa cosa, su {@link #precio} y su {@link #cobrado}). Ver {@link MotivoDeDeuda}
+ * y {@code SaldoPendiente}.
  *
- * <p>{@code vencido} espeja la regla dura de §6 — <i>alerta si alguien lleva más
- * de 7 días en estado 'debe'</i>. Se calcula acá y no en la pantalla para que el
- * umbral viva en un solo lugar cuando se convierta en la notificación automática.
- *
- * <p><b>Desde la §16 · Fase 6 hay dos fuentes</b> (P72), y {@link #motivo} dice
- * cuál: las filas de {@code pago} anotadas, y las inscripciones con plata
- * pendiente — preinscriptas sin señar (con su plazo) y activas con saldo (sin
- * plazo, nunca vencidas). Para las segundas {@code cantidadDePagos} es 0 y
- * {@code desde} es cuándo se creó la inscripción.
+ * <p>Sin cuenta (`V19`), {@link #idUsuario} es null y la persona es {@link #nombre}
+ * + {@link #telefono} tal como se escribieron: <b>no se la omite</b> — una deuda
+ * que no aparece en Deudores es una deuda que nadie va a ir a cobrar.
  */
 public record Deudor(
         Long idUsuario,
@@ -31,20 +26,30 @@ public record Deudor(
         String telefono,
 
         String moneda,
+        /** Lo que falta: el monto de la deuda anotada, o {@code precio - cobrado}. */
         BigDecimal adeudado,
-        long cantidadDePagos,
 
-        /** La fecha del pago adeudado más viejo, o de la inscripción. */
         LocalDate desde,
         int diasDeAtraso,
         boolean vencido,
 
-        // == De qué se trata (P72) ===========================================
+        // == De qué se trata ==================================================
 
         MotivoDeDeuda motivo,
-        /** Sólo para las dos fuentes de inscripción. */
+        /** Qué es, para leerlo: la disciplina, "Alquiler de cabina en Sala 2, 12/09/2026 14:00", el track, el equipo. */
+        String detalle,
+        /** El pago en DEBE/VENCIDO, sólo en {@link MotivoDeDeuda#DEUDA_ANOTADA}: es lo que se cobra. */
+        Long idPago,
+        /** Exactamente uno de los cuatro, en las calculadas; en la anotada, el destino del pago. */
         Long idInscripcion,
-        String disciplina,
-        /** Sólo para {@code SIN_SENIAR}: hasta cuándo puede señar. */
-        OffsetDateTime vence) {
+        Long idReserva,
+        Long idTrabajoMastering,
+        Long idVentaEquipo,
+        /** El precio de la cosa y lo que ya entró en su moneda; null en la anotada. */
+        BigDecimal precio,
+        BigDecimal cobrado,
+        /** El plazo, cuando lo hay: la preinscripción. */
+        OffsetDateTime vence,
+        /** La disciplina, cuando la deuda es de un programa — lo que el aviso de preinscripción nombra. Null en las demás. */
+        String disciplina) {
 }

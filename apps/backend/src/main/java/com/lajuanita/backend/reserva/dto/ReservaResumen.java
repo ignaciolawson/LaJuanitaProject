@@ -1,10 +1,12 @@
 package com.lajuanita.backend.reserva.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.profesor.Profesor;
 import com.lajuanita.backend.reserva.EstadoReserva;
 import com.lajuanita.backend.reserva.Reserva;
@@ -49,7 +51,11 @@ public record ReservaResumen(
          * reserva (P69). Cero es lo normal. Viene agrupado de la consulta, no
          * calculado por fila — ver {@code SolicitudReprogramacionRepository.movidasDe}.
          */
-        int vecesMovida) {
+        int vecesMovida,
+
+        /** El precio de un alquiler o una grabación (`V33`); null en una clase y en las de antes. */
+        BigDecimal precioTotal,
+        Moneda moneda) {
 
     public static ReservaResumen de(Reserva reserva,
             List<ParticipanteResumen> participantes,
@@ -79,6 +85,8 @@ public record ReservaResumen(
                 recupera == null ? null : recupera.getId(),
                 reserva.getMotivoReprogramacion(),
                 participantes,
-                vecesMovida);
+                vecesMovida,
+                reserva.getPrecioTotal(),
+                reserva.getMoneda());
     }
 }

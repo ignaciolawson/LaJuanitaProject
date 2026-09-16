@@ -425,6 +425,9 @@ public class SolicitanteService {
                 // "mis próximas reservas", y de regalo entra en la regla de `V9`
                 // —nadie en dos salas a la vez—. Mismo criterio que el pedido de sala.
                 List.of(new AltaParticipanteRequest(quienPidio.getId(), null)),
+                // El precio va con la moneda de la deuda (`V33`): son una cosa.
+                pedido.precioTotal(),
+                pedido.moneda(),
                 null,
                 new AltaPreconfirmacionRequest(quienPidio.getId(),
                         pedido.monto(),

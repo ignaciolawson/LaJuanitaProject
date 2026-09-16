@@ -4,38 +4,25 @@ import { Link } from 'react-router'
 import {
   abrirComprobante,
   adjuntarComprobante,
-  agenda,
   anularPago,
-  cobrarPago,
   editarPago,
   invalidarComprobante,
-  listarInscripciones,
   listarPagos,
-  listarVentas,
-  registrarPago,
   totalesPorLinea,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import { listarTrabajos } from '../api/mastering'
-import type { TrabajoResumen } from '../api/tiposMastering'
 import {
   NOMBRE_DE_GRUPO,
   NOMBRE_DE_ESTADO_PAGO,
   NOMBRE_DE_LINEA,
   NOMBRE_DE_MEDIO,
-  type AlumnoResumen,
   type ComprobanteResumen,
-  type DestinoDePago,
   type GrupoDePago,
   type EstadoPago,
-  type InscripcionResumen,
   type MedioPago,
   type Moneda,
   type PagoResumen,
-  type ReservaResumen,
   type TotalDeLinea,
-  type UsuarioResumen,
-  type VentaResumen,
 } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
@@ -45,18 +32,19 @@ import { Filtros, FiltroSelect, FiltroTexto } from '../componentes/Filtros'
 import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
-import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
-import { fecha, hoy } from '../componentes/semana'
+import { fecha } from '../componentes/semana'
 import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
-import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
-import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { FormularioPago } from '../componentes/FormularioPago'
 
-const ESTADOS: EstadoPago[] = ['SENADO', 'PAGADO', 'DEBE', 'VENCIDO', 'ANULADO']
-/** Los que se pueden elegir al cargar: un pago no se registra ya anulado. */
-const ESTADOS_DE_ALTA: EstadoPago[] = ['PAGADO', 'SENADO', 'DEBE']
+/**
+ * Los estados que esta pantalla lista (P85): Pagos es lo cerrado. DEBE y
+ * VENCIDO no están porque una deuda anotada vive en Deudores, con su botón de
+ * cobrar; ANULADO sí, porque es historia.
+ */
+const ESTADOS: EstadoPago[] = ['SENADO', 'PAGADO', 'ANULADO']
 const MEDIOS: MedioPago[] = ['EFECTIVO', 'TRANSFERENCIA', 'PAYPAL', 'CUENTA_EEUU', 'OTRO']
 
 /**
@@ -191,24 +179,6 @@ export function PagosPagina() {
       const mensaje = e instanceof ApiError ? e.message : 'No se pudo adjuntar el comprobante.'
       await cargar()
       setError(mensaje)
-    }
-  }
-
-  /**
-   * Entró la plata que estaba anotada (`mejoras.md` §13 · C1).
-   *
-   * **Sin confirmación previa**, a diferencia de anular: cobrar no deshace nada y
-   * lo que hace se ve enseguida en la fila. Y si esa deuda sostenía una prereserva,
-   * el backend además confirma la reserva — por eso se recarga la lista y no se
-   * parchea la fila en memoria: lo que cambió no es sólo este renglón.
-   */
-  async function cobrar(pago: PagoResumen) {
-    try {
-      await cobrarPago(pago.idPago)
-      await cargar()
-      await cargarTotales()
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo registrar el cobro.')
     }
   }
 
@@ -395,19 +365,8 @@ export function PagosPagina() {
                           anularlo y volver a cargarlo; ahora corregir el monto o la
                           fecha es una edición común. Anular queda para lo que de
                           verdad es una baja, no para arreglar un tipeo. */}
-                      {/* **Cobrar sólo aparece sobre una deuda**, y es la acción
-                          que faltaba: hasta §13 · C1 una fila en DEBE no tenía
-                          forma de pasar a cobrada — el estado de un pago no se
-                          edita— así que el único camino era anular y recargar. Va
-                          primero porque es lo que se viene a hacer a esta fila.
-
-                          ⚠️ Si esa deuda sostiene una prereserva, esto además
-                          **confirma la reserva**: son un acto y no dos. */}
-                      {(p.estadoPago === 'DEBE' || p.estadoPago === 'VENCIDO') && (
-                        <Boton variante="enlace" type="button" onClick={() => void cobrar(p)}>
-                          Cobrar
-                        </Boton>
-                      )}
+                      {/* "Cobrar" ya no está acá: una deuda anotada no se lista en
+                          Pagos desde P85 — vive en Deudores, con su botón. */}
                       <Boton variante="enlace"
                         type="button"
                         onClick={() => setEditando(p)}>
@@ -792,540 +751,3 @@ function Cuantos({ n }: { n: number }) {
   )
 }
 
-const DESTINOS = [
-  { valor: 'INSCRIPCION', etiqueta: 'Un curso' },
-  { valor: 'RESERVA', etiqueta: 'Una reserva de sala' },
-  { valor: 'TRABAJO_MASTERING', etiqueta: 'Un trabajo de Mix & Mastering' },
-  { valor: 'VENTA_EQUIPO', etiqueta: 'Una venta de equipo' },
-] as const
-
-/** Ventana del picker de reservas. El backend corta la agenda en 62 días. */
-const DIAS_ATRAS = 45
-const DIAS_ADELANTE = 15
-
-function haceDias(dias: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - dias)
-  return d.toISOString().slice(0, 10)
-}
-
-/**
- * Registrar un pago.
- *
- * <p><b>Acepta los cuatro destinos desde el 2026-08-29</b>, y eso cierra una deuda
- * que el Módulo 3 dejó anotada a propósito. Antes solo saldaba inscripciones —el
- * formulario era alumno → sus cursos— y los otros tres se cobraban cada uno desde
- * su propia pantalla, en la misma transacción que creaba lo que saldaban. La
- * consecuencia estaba escrita: <b>una venta cargada sin cobro no tenía después por
- * dónde cobrarse</b>. Es el hallazgo #4 de `docs/mejoras.md`.
- *
- * <p><b>La API ya aceptaba los cuatro</b> (`pago_tiene_destino` pide uno, no
- * inscripción): lo que faltaba era acá. Y con `V19` se sumó la otra mitad —
- * <b>quien paga puede no tener cuenta</b>.
- *
- * <h2>Por qué "qué salda" va primero</h2>
- *
- * <p>Porque decide el resto del formulario, y en un caso decide una regla: <b>un
- * curso solo se salda a nombre de la cuenta del alumno</b>. No es un capricho de
- * la pantalla — una `inscripcion` cuelga de un `alumno`, que cuelga de un
- * `usuario`, así que un pago externo se acreditaría en una cuenta que no es de
- * nadie; el backend lo rechaza. Para los otros tres el pagador es libre: quien
- * compra un CDJ por el acuerdo con Pioneer no se registra en un estudio de música,
- * y alguien puede pagar por otro.
- */
-function FormularioPago({
-  onCerrar,
-  onGuardado,
-}: {
-  onCerrar: () => void
-  onGuardado: () => void
-}) {
-  const [destino, setDestino] = useState<DestinoDePago>('INSCRIPCION')
-
-  // Catálogos. Cada uno se pide cuando su destino se elige, no todos al abrir:
-  // traer la agenda, las ventas y los trabajos para cargar un pago de un curso son
-  // tres viajes para llenar selectores que nadie va a abrir.
-  /**
-   * ⚠️ El alumno y la persona que paga se ELIGEN BUSCANDO, no de un `<select>`
-   * (§17 · H8). Los dos desplegables cargaban `pagina: 0` del listado —veinte
-   * filas— y el alumno veintiuno no existía para este formulario, sin que nada
-   * avisara. `BuscadorDePersonas` lo tenía escrito en su cabecera como el modo
-   * de falla que existe para evitar.
-   */
-  const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
-  const [persona, setPersona] = useState<UsuarioResumen | null>(null)
-  const [contratos, setContratos] = useState<InscripcionResumen[]>([])
-  const [reservas, setReservas] = useState<ReservaResumen[]>([])
-  const [trabajos, setTrabajos] = useState<TrabajoResumen[]>([])
-  const [ventas, setVentas] = useState<VentaResumen[]>([])
-
-  const [conCuenta, setConCuenta] = useState(true)
-  const [datos, setDatos] = useState({
-    idInscripcion: '',
-    idReserva: '',
-    idTrabajoMastering: '',
-    idVentaEquipo: '',
-    nombrePagadorExterno: '',
-    contactoPagadorExterno: '',
-    monto: '',
-    moneda: 'ARS' as Moneda,
-    cotizacionDolar: '',
-    medioPago: 'EFECTIVO' as MedioPago,
-    estadoPago: 'PAGADO' as EstadoPago,
-    fechaPago: hoy(),
-    concepto: '',
-    descuentoPorcentaje: '',
-    motivoDescuento: '',
-  })
-  /**
-   * El comprobante elegido, si lo hay.
-   *
-   * **No viaja con el alta**: un archivo no entra en un JSON, así que se sube en
-   * un segundo pedido contra el pago recién creado. Se pide acá igual —y no desde
-   * el listado— porque quien carga el pago está mirando la transferencia justo en
-   * ese momento, que es el argumento entero de `mejoras.md` §9.9.
-   */
-  const [comprobante, setComprobante] = useState<File | null>(null)
-  const [errores, setErrores] = useState<Record<string, string>>({})
-  const [errorGeneral, setErrorGeneral] = useErrorPasajero()
-  const [enviando, setEnviando] = useState(false)
-
-  const esCurso = destino === 'INSCRIPCION'
-
-  // Las inscripciones del alumno elegido: son las que puede saldar.
-  useEffect(() => {
-    if (!alumno) {
-      setContratos([])
-      return
-    }
-    listarInscripciones({ idAlumno: alumno.idAlumno })
-      .then((r) => setContratos(r.contenido))
-      .catch(() => setErrorGeneral('No se pudieron cargar las inscripciones.'))
-  }, [alumno, setErrorGeneral])
-
-  useEffect(() => {
-    if (destino !== 'RESERVA') return
-    agenda({ desde: haceDias(DIAS_ATRAS), hasta: haceDias(-DIAS_ADELANTE) })
-      .then(setReservas)
-      .catch(() => setErrorGeneral('No se pudo cargar la agenda.'))
-  }, [destino, setErrorGeneral])
-
-  useEffect(() => {
-    if (destino !== 'TRABAJO_MASTERING') return
-    listarTrabajos({ pagina: 0 })
-      .then((r) => setTrabajos(r.contenido))
-      .catch(() => setErrorGeneral('No se pudieron cargar los trabajos.'))
-  }, [destino, setErrorGeneral])
-
-  useEffect(() => {
-    if (destino !== 'VENTA_EQUIPO') return
-    listarVentas({ pagina: 0 })
-      .then((r) => setVentas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudieron cargar las ventas.'))
-  }, [destino, setErrorGeneral])
-
-  function cambiar(campo: keyof typeof datos) {
-    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setDatos((previo) => ({ ...previo, [campo]: e.target.value }))
-  }
-
-  const contratoElegido = contratos.find((i) => String(i.idInscripcion) === datos.idInscripcion)
-
-  // La moneda sigue al contrato (`V31`): al elegir el curso, se fija.
-  useEffect(() => {
-    if (contratoElegido) {
-      setDatos((previo) =>
-        previo.moneda === contratoElegido.moneda ? previo : { ...previo, moneda: contratoElegido.moneda },
-      )
-    }
-  }, [contratoElegido])
-
-  async function onSubmit(evento: React.FormEvent) {
-    evento.preventDefault()
-
-    const locales: Record<string, string> = {}
-
-    if (esCurso) {
-      if (!alumno) locales.idAlumno = 'Elegí de quién es el pago.'
-      if (!datos.idInscripcion) locales.destinoUnico = 'Elegí qué curso salda este pago.'
-    } else {
-      if (destino === 'RESERVA' && !datos.idReserva) {
-        locales.destinoUnico = 'Elegí qué reserva salda este pago.'
-      }
-      if (destino === 'TRABAJO_MASTERING' && !datos.idTrabajoMastering) {
-        locales.destinoUnico = 'Elegí qué trabajo salda este pago.'
-      }
-      if (destino === 'VENTA_EQUIPO' && !datos.idVentaEquipo) {
-        locales.destinoUnico = 'Elegí qué venta salda este pago.'
-      }
-      // Espeja `pago_pagador_identificado` (`V19`): cuenta o nombre escrito.
-      if (conCuenta && !persona) locales.pagadorIdentificado = 'Elegí quién paga.'
-      if (!conCuenta && !datos.nombrePagadorExterno.trim()) {
-        locales.pagadorIdentificado = 'Escribí el nombre de quien paga.'
-      }
-    }
-
-    if (!datos.monto || Number(datos.monto) <= 0) locales.monto = 'Poné un monto mayor a cero.'
-    if (datos.moneda === 'USD' && !datos.cotizacionDolar) {
-      locales.cotizacionPresenteSiEsUsd = 'Un pago en dólares necesita la cotización del día.'
-    }
-    if (Number(datos.descuentoPorcentaje) > 0 && !datos.motivoDescuento.trim()) {
-      locales.descuentoJustificado = 'Un descuento necesita una justificación escrita.'
-    }
-    if (Number(datos.descuentoPorcentaje) > 100) {
-      locales.descuentoPorcentaje = 'El descuento es un porcentaje: no puede pasar de 100.'
-    }
-    if (Object.keys(locales).length > 0) {
-      setErrores(locales)
-      return
-    }
-
-    setErrores({})
-    setErrorGeneral(null)
-    setEnviando(true)
-
-    try {
-      const creado = await registrarPago({
-        // Un curso va siempre a nombre del alumno: es la regla del backend, no
-        // una comodidad del formulario.
-        idUsuario: esCurso
-          ? alumno!.idUsuario
-          : conCuenta
-            ? persona!.id
-            : undefined,
-        nombrePagadorExterno:
-          esCurso || conCuenta ? undefined : datos.nombrePagadorExterno.trim(),
-        contactoPagadorExterno:
-          esCurso || conCuenta ? undefined : datos.contactoPagadorExterno.trim() || undefined,
-
-        // Exactamente uno de los cuatro: `pago_tiene_destino`.
-        idInscripcion: esCurso ? Number(datos.idInscripcion) : undefined,
-        idReserva: destino === 'RESERVA' ? Number(datos.idReserva) : undefined,
-        idTrabajoMastering:
-          destino === 'TRABAJO_MASTERING' ? Number(datos.idTrabajoMastering) : undefined,
-        idVentaEquipo: destino === 'VENTA_EQUIPO' ? Number(datos.idVentaEquipo) : undefined,
-
-        monto: Number(datos.monto),
-        moneda: datos.moneda,
-        cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : null,
-        medioPago: datos.medioPago,
-        estadoPago: datos.estadoPago,
-        fechaPago: datos.fechaPago,
-        concepto: datos.concepto || undefined,
-        descuentoPorcentaje: datos.descuentoPorcentaje
-          ? Number(datos.descuentoPorcentaje)
-          : undefined,
-        motivoDescuento: datos.motivoDescuento || undefined,
-      })
-
-      // El pago ya entró: si el archivo falla, lo que se avisa es eso y no que
-      // falló el pago. Adjuntarlo después, desde la fila, sigue disponible.
-      if (comprobante) {
-        try {
-          await adjuntarComprobante(creado.idPago, comprobante)
-        } catch (e) {
-          setErrorGeneral(
-            e instanceof ApiError
-              ? `El pago quedó registrado, pero el comprobante no: ${e.message}`
-              : 'El pago quedó registrado, pero el comprobante no se pudo subir.',
-          )
-          setEnviando(false)
-          return
-        }
-      }
-
-      onGuardado()
-    } catch (e) {
-      if (e instanceof ApiError) {
-        if (e.errores) setErrores(e.errores)
-        else setErrorGeneral(e.message)
-      } else {
-        setErrorGeneral('No se pudo conectar con el servidor.')
-      }
-      setEnviando(false)
-    }
-  }
-
-  return (
-    <Bloque titulo="Registrar pago" className="mb-6">
-      <form onSubmit={onSubmit} noValidate>
-        {errorGeneral && (
-          <div className="mb-4">
-            <Aviso>{errorGeneral}</Aviso>
-          </div>
-        )}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Va primero porque decide el resto del formulario. */}
-          <CampoSelect
-            etiqueta="Qué salda"
-            value={destino}
-            onChange={(e) => {
-              setDestino(e.target.value as DestinoDePago)
-              setErrores({})
-            }}
-            className="sm:col-span-2"
-          >
-            {DESTINOS.map((d) => (
-              <option key={d.valor} value={d.valor}>
-                {d.etiqueta}
-              </option>
-            ))}
-          </CampoSelect>
-
-          {esCurso && (
-            <>
-              <SelectorDeAlumno
-                elegido={alumno}
-                onElegir={(a) => {
-                  setAlumno(a)
-                  setDatos((previo) => ({ ...previo, idInscripcion: '' }))
-                }}
-                error={errores.idAlumno}
-                autoFocus={false}
-              />
-
-              <CampoSelect
-                etiqueta="Cuál curso"
-                value={datos.idInscripcion}
-                onChange={cambiar('idInscripcion')}
-                error={errores.destinoUnico}
-              >
-                <option value="">
-                  {alumno ? 'Elegí el curso' : 'Elegí primero el alumno'}
-                </option>
-                {contratos.map((i) => (
-                  <option key={i.idInscripcion} value={i.idInscripcion}>
-                    {NOMBRE_DE_DISCIPLINA[i.disciplina]}
-                    {i.nivel ? ` · ${i.nivel.toLowerCase()}` : ''} — {importe(i.precioTotal, i.moneda)}
-                  </option>
-                ))}
-              </CampoSelect>
-            </>
-          )}
-
-          {destino === 'RESERVA' && (
-            <CampoSelect
-              etiqueta="Cuál reserva"
-              value={datos.idReserva}
-              onChange={cambiar('idReserva')}
-              error={errores.destinoUnico}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí una</option>
-              {reservas.map((r) => (
-                <option key={r.idReserva} value={r.idReserva}>
-                  {fecha(r.fecha)} {r.horaInicio.slice(0, 5)} · {r.sala} · {r.tipoUso}
-                </option>
-              ))}
-            </CampoSelect>
-          )}
-
-          {destino === 'TRABAJO_MASTERING' && (
-            <CampoSelect
-              etiqueta="Cuál trabajo"
-              value={datos.idTrabajoMastering}
-              onChange={cambiar('idTrabajoMastering')}
-              error={errores.destinoUnico}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí uno</option>
-              {trabajos.map((t) => (
-                <option key={t.idTrabajo} value={t.idTrabajo}>
-                  {t.nombreTrack} — {t.cliente}
-                  {t.precioAcordado ? ` · ${importe(t.precioAcordado, t.moneda)}` : ''}
-                </option>
-              ))}
-            </CampoSelect>
-          )}
-
-          {destino === 'VENTA_EQUIPO' && (
-            <CampoSelect
-              etiqueta="Cuál venta"
-              value={datos.idVentaEquipo}
-              onChange={cambiar('idVentaEquipo')}
-              error={errores.destinoUnico}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí una</option>
-              {ventas.map((v) => (
-                <option key={v.idVenta} value={v.idVenta}>
-                  {v.modeloEquipo} — {v.comprador} · {importe(v.precio, v.moneda)}
-                </option>
-              ))}
-            </CampoSelect>
-          )}
-
-          {/* Quién paga. Para un curso no se pregunta: es el alumno, y el backend
-              lo exige. Para los otros tres es libre, y desde `V19` puede no tener
-              cuenta. */}
-          {esCurso ? (
-            <p className="text-xs leading-relaxed text-tenue sm:col-span-2">
-              El pago va a nombre del alumno: un curso se acredita en su cuenta y no
-              en otra.
-            </p>
-          ) : (
-            <>
-              <div className="sm:col-span-2">
-                <span className="mb-2 block text-sm font-medium">Quién paga</span>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="pagador"
-                      checked={conCuenta}
-                      onChange={() => setConCuenta(true)}
-                    />
-                    Tiene cuenta
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="pagador"
-                      checked={!conCuenta}
-                      onChange={() => setConCuenta(false)}
-                    />
-                    No tiene cuenta
-                  </label>
-                </div>
-                {errores.pagadorIdentificado && (
-                  <p className="mt-1 text-xs text-red">{errores.pagadorIdentificado}</p>
-                )}
-              </div>
-
-              {conCuenta ? (
-                <div className="sm:col-span-2">
-                  <BuscadorDePersonas
-                    elegida={persona}
-                    onElegir={setPersona}
-                    etiqueta="Persona"
-                  />
-                </div>
-              ) : (
-                <>
-                  <Campo
-                    etiqueta="Nombre de quien paga"
-                    value={datos.nombrePagadorExterno}
-                    onChange={cambiar('nombrePagadorExterno')}
-                  />
-                  <Campo
-                    etiqueta="Contacto"
-                    value={datos.contactoPagadorExterno}
-                    onChange={cambiar('contactoPagadorExterno')}
-                  />
-                </>
-              )}
-            </>
-          )}
-
-          <Campo
-            etiqueta="Monto"
-            type="number"
-            step="0.01"
-            value={datos.monto}
-            onChange={cambiar('monto')}
-            error={errores.monto}
-          />
-
-          {/* ⚠️ Con un curso elegido la moneda es la del contrato y no se elige
-              (`V31`, P74): un pago en otra moneda no lo cancela —el sistema no
-              convierte— y el backend lo rechaza. Ofrecer el selector era
-              ofrecer el bug de §17 · H4. */}
-          {esCurso && contratoElegido ? (
-            <div>
-              <span className="t-mono text-tenue">Moneda</span>
-              <div className="mt-1.5 py-2 text-sm">
-                {contratoElegido.moneda === 'USD' ? 'Dólares' : 'Pesos'}
-                <span className="text-tenue"> — la del contrato</span>
-              </div>
-            </div>
-          ) : (
-            <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-              <option value="ARS">Pesos</option>
-              <option value="USD">Dólares</option>
-            </CampoSelect>
-          )}
-
-          {datos.moneda === 'USD' && (
-            <Campo
-              etiqueta="Cotización del dólar"
-              type="number"
-              step="0.01"
-              value={datos.cotizacionDolar}
-              onChange={cambiar('cotizacionDolar')}
-              error={errores.cotizacionPresenteSiEsUsd}
-            />
-          )}
-
-          <CampoSelect etiqueta="Cómo pagó" value={datos.medioPago} onChange={cambiar('medioPago')}>
-            {MEDIOS.map((m) => (
-              <option key={m} value={m}>
-                {NOMBRE_DE_MEDIO[m]}
-              </option>
-            ))}
-          </CampoSelect>
-
-          <CampoSelect etiqueta="Estado" value={datos.estadoPago} onChange={cambiar('estadoPago')}>
-            {ESTADOS_DE_ALTA.map((e) => (
-              <option key={e} value={e}>
-                {NOMBRE_DE_ESTADO_PAGO[e]}
-              </option>
-            ))}
-          </CampoSelect>
-
-          <Campo
-            etiqueta="Fecha del pago"
-            type="date"
-            value={datos.fechaPago}
-            onChange={cambiar('fechaPago')}
-          />
-
-          <Campo etiqueta="Concepto" value={datos.concepto} onChange={cambiar('concepto')} />
-
-          <Campo
-            etiqueta="Descuento (%)"
-            type="number"
-            step="0.01"
-            value={datos.descuentoPorcentaje}
-            onChange={cambiar('descuentoPorcentaje')}
-            error={errores.descuentoPorcentaje}
-          />
-
-          <Campo
-            etiqueta="Por qué el descuento"
-            value={datos.motivoDescuento}
-            onChange={cambiar('motivoDescuento')}
-            error={errores.descuentoJustificado}
-          />
-
-          <div className="sm:col-span-2">
-            <span className="mb-1 block text-xs font-medium text-tenue">
-              Comprobante (opcional)
-            </span>
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
-              aria-label="Comprobante"
-              onChange={(e) => setComprobante(e.target.files?.[0] ?? null)}
-              className="w-full text-sm text-tenue"
-            />
-            <p className="mt-1 text-xs text-apagado">
-              {/* Opcional a propósito: una seña en efectivo no tiene ninguno, y
-                  exigirlo dejaría media caja sin poder cargarse. */}
-              PDF o foto. Se puede adjuntar después, y un pago admite varios.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          <Boton type="submit" disabled={enviando}>
-            {enviando ? 'Guardando…' : 'Registrar'}
-          </Boton>
-          <Boton type="button" variante="secundario" onClick={onCerrar} disabled={enviando}>
-            Cancelar
-          </Boton>
-        </div>
-          </form>
-    </Bloque>
-  )
-}

@@ -203,6 +203,8 @@ function cabinaApartada(cambios: Partial<CabinaApartada> = {}): CabinaApartada {
       idReservaRecupera: null,
       motivoReprogramacion: null,
       vecesMovida: 0,
+      precioTotal: null,
+      moneda: null,
       participantes: [],
     },
     usuario: {
@@ -711,7 +713,8 @@ describe('escribirle por WhatsApp', () => {
     await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
     await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
     await elegir(userEvent, 'Duración', '120')
-    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '30000')
+    // El monto a abonar se prellena al 50%: 15000.
     await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
 
     await waitFor(() =>
@@ -753,7 +756,8 @@ describe('escribirle por WhatsApp', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Apartarle la cabina' }))
     await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
     await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
-    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '30000')
+    // El monto a abonar se prellena al 50%: 15000.
     await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
 
     expect(await screen.findByText(/07\/09\/2026 10:00/)).toBeDefined()
@@ -792,7 +796,8 @@ describe('escribirle por WhatsApp', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Apartarle la cabina' }))
     await userEvent.type(await screen.findByLabelText('Día'), '2026-10-10')
     await userEvent.type(screen.getByLabelText('Hora de inicio'), '18:00')
-    await userEvent.type(screen.getByLabelText('Monto a abonar'), '15000')
+    await userEvent.type(screen.getByLabelText('Precio total'), '30000')
+    // El monto a abonar se prellena al 50%: 15000.
     await userEvent.click(screen.getByRole('button', { name: 'Apartar el horario' }))
 
     const enlace = await screen.findByRole('link', { name: 'Avisarle por WhatsApp' })

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
-import { listarDeudores } from '../api/administracion'
+import { cobrarPago, listarDeudores } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import { type Deudor, type Moneda, NOMBRE_DE_MOTIVO } from '../api/tiposAdmin'
-import { Aviso } from '../componentes/Boton'
+import { type Deudor, type DestinoDePago, type Moneda, NOMBRE_DE_MOTIVO } from '../api/tiposAdmin'
+import { Aviso, Boton } from '../componentes/Boton'
+import { FormularioPago, type PagoPrellenado } from '../componentes/FormularioPago'
+import { usePuedeEscribir } from '../componentes/SoloLectura'
 import { useErrorPasajero } from '../componentes/aviso'
 import { antiguedad, importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
@@ -37,11 +39,22 @@ import { fecha } from '../componentes/semana'
  * la cuenta: cada deuda sigue siendo suya, con su motivo, su plazo y su moneda,
  * y se reclama por separado. Lo que cambia es que se ven juntas, que es lo que
  * hace falta para llamar una sola vez.
+ *
+ * <p>⚠️ <b>Desde P85 esta pantalla es donde se COBRA</b>, y Pagos es lo ya
+ * cobrado. Dos acciones, una por clase de deuda: sobre una anotada, "Cobrar"
+ * —`PATCH /api/pagos/{id}/cobro`, que confirma la prereserva en el mismo acto—;
+ * sobre una calculada (la cosa tiene precio y falta plata), "Registrar el pago"
+ * abre <b>el formulario de Pagos, prellenado</b> con la cosa, la persona, la
+ * moneda y lo que falta. Es el mismo formulario y no una copia: lo que cambia es
+ * qué campos hay que llenar.
  */
 export function DeudoresPagina() {
   const [deudores, setDeudores] = useState<Deudor[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
+  const puedeEscribir = usePuedeEscribir()
+  /** La deuda sobre la que se está registrando un pago, ya traducida al formulario. */
+  const [registrando, setRegistrando] = useState<PagoPrellenado | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -58,6 +71,22 @@ export function DeudoresPagina() {
   useEffect(() => {
     void cargar()
   }, [cargar])
+
+  /**
+   * Entró la plata que estaba anotada (`mejoras.md` §13 · C1, mudado acá por
+   * P85). Sin confirmación previa: cobrar no deshace nada y lo que hace se ve
+   * enseguida. Se recarga la lista y no se parchea la fila: si esa deuda
+   * sostenía una prereserva, el backend además confirmó la reserva.
+   */
+  async function cobrar(d: Deudor) {
+    if (d.idPago === null) return
+    try {
+      await cobrarPago(d.idPago)
+      await cargar()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo registrar el cobro.')
+    }
+  }
 
   const personas = agruparPorPersona(deudores)
   const vencidos = deudores.filter((d) => d.vencido).length
@@ -83,7 +112,27 @@ export function DeudoresPagina() {
         </div>
       )}
 
-      <Tabla columnas={['Quién', 'Contacto', 'Qué debe', { etiqueta: 'Debe', alineacion: 'derecha' }, 'Desde']}>
+      {registrando && (
+        <FormularioPago
+          inicial={registrando}
+          onCerrar={() => setRegistrando(null)}
+          onGuardado={() => {
+            setRegistrando(null)
+            void cargar()
+          }}
+        />
+      )}
+
+      <Tabla
+        columnas={[
+          'Quién',
+          'Contacto',
+          'Qué debe',
+          { etiqueta: 'Debe', alineacion: 'derecha' },
+          'Desde',
+          ...(puedeEscribir ? [''] : []),
+        ]}
+      >
             {personas.map((p) => (
               <tr key={p.clave} className="align-top">
                 <Celda>
@@ -167,6 +216,32 @@ export function DeudoresPagina() {
                     ))}
                   </ul>
                 </Celda>
+                {puedeEscribir && (
+                  <Celda className="whitespace-nowrap">
+                    <ul className="space-y-1.5">
+                      {p.deudas.map((d) => (
+                        <li key={claveDeDeuda(d)} className="text-right">
+                          {/* Una acción por clase de deuda (P85): la anotada se
+                              cobra; la calculada se salda registrando el pago. */}
+                          {d.motivo === 'DEUDA_ANOTADA' ? (
+                            <Boton variante="enlace" type="button" onClick={() => void cobrar(d)}>
+                              Cobrar
+                            </Boton>
+                          ) : (
+                            <Boton
+                              variante="enlace"
+                              type="button"
+                              onClick={() => setRegistrando(prellenadoDe(d, p))}
+                            >
+                              Registrar el pago
+                            </Boton>
+                          )}
+                          <div className="text-xs">&nbsp;</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </Celda>
+                )}
               </tr>
             ))}
 
@@ -174,7 +249,7 @@ export function DeudoresPagina() {
                 ve qué columnas hay y que ninguna tiene filas. Sueltos, no se
                 distingue "no hay deudas" de "filtré de más" ni de "no cargó". */}
             {!cargando && deudores.length === 0 && (
-              <FilaVacia columnas={5}>Nadie debe nada. Todo al día.</FilaVacia>
+              <FilaVacia columnas={puedeEscribir ? 6 : 5}>Nadie debe nada. Todo al día.</FilaVacia>
             )}
           </Tabla>
 
@@ -237,9 +312,37 @@ function agruparPorPersona(deudores: Deudor[]): PersonaConDeudas[] {
   return [...porClave.values()].sort((a, b) => a.desde.localeCompare(b.desde))
 }
 
-/** Dentro de una persona, la moneda y la inscripción distinguen sus deudas. */
+/** Dentro de una persona, cada deuda es un pago anotado o una cosa con saldo. */
 function claveDeDeuda(d: Deudor): string {
-  return `${d.moneda}-${d.idInscripcion ?? 'pago'}`
+  if (d.idPago !== null) return `pago-${d.idPago}`
+  return `${d.motivo}-${d.idInscripcion ?? d.idReserva ?? d.idTrabajoMastering ?? d.idVentaEquipo}`
+}
+
+/**
+ * Lo que el formulario de Pagos necesita para no preguntar nada que ya se sabe
+ * (P85): la cosa, la persona, la moneda y lo que falta. Sólo para las
+ * calculadas — una anotada se cobra, no se registra de nuevo.
+ */
+function prellenadoDe(d: Deudor, p: PersonaConDeudas): PagoPrellenado {
+  const [destino, idDestino]: [DestinoDePago, number] =
+    d.idInscripcion !== null
+      ? ['INSCRIPCION', d.idInscripcion]
+      : d.idReserva !== null
+        ? ['RESERVA', d.idReserva]
+        : d.idTrabajoMastering !== null
+          ? ['TRABAJO_MASTERING', d.idTrabajoMastering]
+          : ['VENTA_EQUIPO', d.idVentaEquipo!]
+  return {
+    destino,
+    idDestino,
+    queSalda: d.disciplina ? `Programa de ${NOMBRE_DE_DISCIPLINA[d.disciplina]}` : d.detalle,
+    quien: p.idUsuario === null ? p.nombre : `${p.apellido}, ${p.nombre}`,
+    idUsuario: p.idUsuario,
+    nombrePagadorExterno: p.idUsuario === null ? p.nombre : null,
+    contactoPagadorExterno: p.idUsuario === null ? p.telefono : null,
+    monto: d.adeudado,
+    moneda: d.moneda,
+  }
 }
 
 /**
@@ -250,12 +353,11 @@ function claveDeDeuda(d: Deudor): string {
  * tiene: se paga antes de empezar, cuando sea.
  */
 function QueDebe({ deudor }: { deudor: Deudor }) {
-  const que =
-    deudor.motivo !== 'DEUDA_ANOTADA'
-      ? `Programa de ${NOMBRE_DE_DISCIPLINA[deudor.disciplina!]}`
-      : deudor.cantidadDePagos === 1
-        ? '1 pago pendiente'
-        : `${deudor.cantidadDePagos} pagos pendientes`
+  // Un programa se nombra por su disciplina; el resto —una cabina con su día,
+  // un track, un equipo, el concepto de una deuda anotada— viene escrito.
+  const que = deudor.disciplina
+    ? `Programa de ${NOMBRE_DE_DISCIPLINA[deudor.disciplina]}`
+    : deudor.detalle
 
   if (deudor.motivo === 'SIN_SENIAR' && deudor.vence) {
     return (

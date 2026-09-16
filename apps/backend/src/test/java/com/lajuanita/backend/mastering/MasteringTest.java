@@ -80,7 +80,23 @@ class MasteringTest {
                 // El texto sale del trigger y explica la salida: es lo que la
                 // pantalla muestra, así que tiene que decir algo útil.
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("sin un pago registrado")));
+                        org.hamcrest.Matchers.containsString("no cubre el precio acordado")));
+    }
+
+    /**
+     * `V34` (P86): un pago PARCIAL no abre el candado. USD 10 sobre USD 150
+     * liberaba el archivo hasta la novena barrida, y el mensaje ahora dice
+     * cuánto hay y cuánto falta.
+     */
+    @Test
+    void un_pago_parcial_no_libera_el_premaster() throws Exception {
+        long trabajo = trabajoConPremasterCargado();
+        cobrar(trabajo, "10.00").andExpect(status().isCreated());
+
+        liberar(trabajo, null)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("(USD 10.00) no cubre el precio acordado (USD 150.00)")));
     }
 
     @Test

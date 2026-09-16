@@ -76,6 +76,8 @@ function reserva(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
     idReservaRecupera: null,
     motivoReprogramacion: null,
     vecesMovida: 0,
+    precioTotal: null,
+    moneda: null,
     participantes: [],
     ...cambios,
   }
@@ -665,18 +667,36 @@ describe('el alta carga la clase junto con su alumno', () => {
     // Se busca entre las cuentas (§17 · H8), no se elige de la primera página.
     await user.type(screen.getByLabelText('Quién paga'), 'Ca')
     await user.click(await screen.findByRole('button', { name: /Camila/ }))
-    await user.type(screen.getByLabelText('Monto'), '45000')
+    // El precio va primero (`V33`) y la seña se prellena al 50%: no se escribe.
+    await user.type(screen.getByLabelText('Precio total'), '90000')
+    expect((screen.getByLabelText('Monto') as HTMLInputElement).value).toBe('45000')
     await user.click(screen.getByRole('button', { name: 'Reservar' }))
 
     await waitFor(() => expect(altaReserva).toHaveBeenCalled())
     const cuerpo = vi.mocked(altaReserva).mock.calls[0][0]
     expect(cuerpo.participantes).toBeUndefined()
+    expect(cuerpo.precioTotal).toBe(90000)
+    expect(cuerpo.moneda).toBe('ARS')
     expect(cuerpo.sena).toMatchObject({
       idUsuario: 30,
       monto: 45000,
       moneda: 'ARS',
       medioPago: 'EFECTIVO',
     })
+  })
+
+  /** Sin precio no hay con qué decir cuánto falta (P83): el alta no se manda. */
+  it('una grabación sin precio no se manda', async () => {
+    const user = await abrirAlta()
+
+    await elegir(user, 'Para qué', '9')
+    await user.type(await screen.findByLabelText('Quién paga'), 'Ca')
+    await user.click(await screen.findByRole('button', { name: /Camila/ }))
+    await user.type(screen.getByLabelText('Monto'), '45000')
+    await user.click(screen.getByRole('button', { name: 'Reservar' }))
+
+    expect(await screen.findByText(/Poné el precio total/)).toBeDefined()
+    expect(altaReserva).not.toHaveBeenCalled()
   })
 
   /** El espejo del caso de la clase sin alumno, por el otro camino del dinero. */

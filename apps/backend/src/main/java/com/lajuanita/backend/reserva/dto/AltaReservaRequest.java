@@ -1,12 +1,16 @@
 package com.lajuanita.backend.reserva.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
+import com.lajuanita.backend.dinero.Moneda;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 /**
  * Alta de una reserva: un bloque de tiempo en una sala.
@@ -85,6 +89,18 @@ public record AltaReservaRequest(
         List<@Valid AltaParticipanteRequest> participantes,
 
         /**
+         * El precio de un alquiler o una grabación, y su moneda (`V33`, P83).
+         * Opcionales en el DTO y no en la práctica: el servicio los exige en lo
+         * que no es clase (salvo Mix & Mastering, cuyo precio vive en el trabajo)
+         * y los rechaza en una clase, cuya plata es la inscripción. La seña se
+         * compara contra esto: va en la misma moneda, y la pantalla la prellena
+         * al 50%.
+         */
+        @Positive(message = "El precio tiene que ser mayor a cero.")
+        BigDecimal precioTotal,
+        Moneda moneda,
+
+        /**
          * La seña, para las reservas que no son clase.
          *
          * <p>El otro camino del dinero. Ver {@link AltaSenaRequest}: un alquiler no
@@ -131,6 +147,11 @@ public record AltaReservaRequest(
      * aplicada no se edita. El CHECK queda como defensa en profundidad; la vía de
      * error visible es esta.
      */
+    @AssertTrue(message = "El precio y la moneda van juntos: los dos o ninguno.")
+    public boolean isPrecioConMoneda() {
+        return (precioTotal == null) == (moneda == null);
+    }
+
     @AssertTrue(message = "La hora de fin tiene que ser posterior a la de inicio.")
     public boolean isHorarioValido() {
         return horaInicio == null || horaFin == null || horaFin.isAfter(horaInicio);

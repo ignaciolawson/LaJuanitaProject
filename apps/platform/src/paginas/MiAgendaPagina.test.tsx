@@ -55,6 +55,8 @@ function clase(cambios: Partial<ReservaResumen> = {}): ReservaResumen {
     idReservaRecupera: null,
     motivoReprogramacion: null,
     vecesMovida: 0,
+    precioTotal: null,
+    moneda: null,
     participantes: [
       {
         idParticipacion: 900,
