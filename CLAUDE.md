@@ -198,11 +198,23 @@ cd apps/backend && mvn -Dtest=ClassName#methodName test   # single test
 
 docker compose up -d       # Postgres on localhost:5432 (db/user/pass: la_juanita)
 ./scripts/pruebas-sql.sh   # the two SQL suites on throwaway databases
+./scripts/pruebas-backend.sh [-Dtest=…]   # mvn test against an EMPTY throwaway database — what CI sees
+gh run list --limit 5      # CI state (gh is installed and logged in as ignaciolawson since 2026-09-15)
 ./scripts/backup.sh        # pg_dump with retention — see docs/operacion.md
 ```
 
-⚠️ **Two rules for anything that has to run on the Linux CI runner, both learned by having
-the CI red for a month without anyone noticing (2026-09-13, `docs/pendientes.md` §3.9):**
+⚠️ **Three rules for anything that has to run on the Linux CI runner, the first two learned by
+having the CI red for a month without anyone noticing (2026-09-13, `docs/pendientes.md` §3.9),
+the third by three red pushes two days later:**
+
+- **Before committing anything that touches a backend test or a query, run
+  `./scripts/pruebas-backend.sh`** — `mvn test` alone runs against the dev database, which has
+  months of data, and **a case can pass here because of other people's rows and fail in CI on an
+  empty base**. That is exactly what happened on 2026-09-15: `PagoTest.sin_solapa_elegida…`
+  asserted `length() > 0` over the whole listing, the dev base filled it, CI's didn't (`mejoras.md`
+  §21, last block). The rule for the case itself: **assert on your own fixture's id, never on the
+  size of a global listing** — `AvisosTest` learned the same thing with counters in §20. After a
+  push, `gh run list` / `gh run view <id> --log-failed` tells you what CI saw.
 
 - **A new `.sh` needs its execute bit set in git by hand** — `git update-index --chmod=+x
   scripts/nuevo.sh` — because Windows has no such bit and a script committed from here lands
