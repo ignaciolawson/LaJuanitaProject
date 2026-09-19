@@ -453,29 +453,29 @@ había anticipado.)
   *decide* y la de Java solo *muestra*. Si se separan, la pantalla lista un
   contrato de menos y la publicación sigue siendo imposible sin respaldo.
 
-### 3.5 · El diagrama de la base — ✅ AL DÍA (2026-09-06)
+### 3.5 · El diagrama de la base — ⚠️ ATRASADO DE NUEVO (visto el 2026-09-19)
 
-**`docs/db/la_juanita_schema.dbml.txt` está al día con `V1..V28`** — hasta `V27`
-verificado **contra el catálogo de la base**, no contra las migraciones leídas
-(las **28 tablas** coincidían una por una con `information_schema`); `programa`
-(`V28`, la 29) se agregó a mano el día que se escribió la migración, con las
-columnas copiadas de ella.
+**Esta misma entrada mintió sobre sí misma durante trece días.** Decía "AL DÍA
+(2026-09-06)" y "hasta `V28`", y la cabecera del archivo —mirada recién, no de
+memoria— dice *"AL DÍA AL 2026-09-15, migraciones V1..V34"*: alguien lo puso al
+día con `V29`–`V34` (probablemente en la §21) y no volvió a tocar esta nota. Es
+la lección de la propia sección, aplicada contra la propia sección: no se
+corrigió el diagrama hacia atrás, pero **el inventario sobre el diagrama sí
+quedó desactualizado**, otra vez.
 
-Lo último que entró fue `cancion_release` (`V26`) y las seis columnas nuevas de
-`solicitante` (`V27`: las tres FK de lo que produjo, más los tres campos de
-preferencia de horario), con `CONVERTIDO` → `ATENDIDO`.
-
-⚠️ **Y lo que esta entrada decía antes es la lección que vale guardar: describía la
-versión ANTERIOR del archivo.** Sostenía que el diagrama llegaba hasta `V14` y que
-le faltaban doce migraciones, cuando el archivo ya iba por `V25` — la v4 lo había
-puesto al día y este inventario siguió hablando de la v3. **Es exactamente el modo
-de falla contra el que advierte la cabecera del propio diagrama**, sólo que un
-nivel más arriba: no se corrigió el dibujo hacia atrás, se corrigió *la frase sobre
-el dibujo*. Y costó lo mismo que cuesta siempre — abrir el archivo y mirar.
+**Estado real al 2026-09-19: el archivo cubre hasta `V34`; el schema real está
+en `V36`.** Le faltan `V35__el_grupo_es_el_alumno.sql` (la tabla
+`inscripcion_integrante`, `inscripcion.numero_grupo` + su secuencia,
+`programa.precio_2`/`precio_3`, el `DROP` de `inscripcion.id_alumno`, y las
+cuatro reglas de grupo) y `V36__la_ficha_trae_a_los_companeros.sql` (la tabla
+`solicitante_companero`). **No se redibujó acá** — la regla sigue siendo
+mirar el catálogo de una base con las migraciones aplicadas, no las
+migraciones leídas de memoria, y eso no se hizo en esta pasada.
 
 La fuente de verdad siguen siendo las migraciones; esto es un dibujo para ver el
 modelo de un vistazo. **Si vuelve a quedar atrás: anotalo, no lo arregles a
-medias** — y anotalo mirando el archivo.
+medias** — y anotalo mirando el archivo. Y cuando se ponga al día: actualizar
+esta entrada en el mismo momento, no en otra sesión.
 
 ### 3.6 · Cosas chicas de la base, para cuando algo toque esas tablas
 

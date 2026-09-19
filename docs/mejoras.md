@@ -6417,12 +6417,17 @@ alumnos y referente creó la inscripción **17934** — *"Grupo 40 · Julieta So
 plazo— y Deudores la lista bajo Julieta como *"PRODUCCION · Grupo 40"*. Queda
 en la base como prueba viva (cancelarla desde Inscripciones si se prefiere
 limpia). El 40 no es un bug: la secuencia se consumió en los `mvn test` y una
-secuencia no se deshace con el rollback — en producción arranca en 1. **Lo que
-Ignacio todavía no vio en el navegador**: el alta con *"+ Agregar un
-integrante"* y el radio de referente, *"Anotar a todo el grupo"* en el
-calendario, la ficha del buzón con *"Viene con…"* y las claves de los
-compañeros, y el formulario de la landing con *"¿Cuántos son?"*. Es lo primero
-que conviene que abra.
+secuencia no se deshace con el rollback — en producción arranca en 1. **El
+circuito completo se levantó en una sesión siguiente, la misma tarde**
+(Postgres, backend `:8080`, plataforma `:5173/app/`, landing `:3000` proxeando
+`/app`), para que Ignacio lo mirara en el navegador — específicamente: el alta
+con *"+ Agregar un integrante"* y el radio de referente, *"Anotar a todo el
+grupo"* en el calendario, la ficha del buzón con *"Viene con…"* y las claves de
+los compañeros, y el formulario de la landing con *"¿Cuántos son?"*. **Si al
+volver la terminal está cerrada, es el único paso que falta rehacer** — los tres
+comandos están en la sección *Commands* de `CLAUDE.md` (`docker compose up -d`,
+`mvn spring-boot:run` en `apps/backend`, `npm run dev:platform` desde la raíz;
+`npm run dev:landing` para el circuito de `:3000`).
 
 **Lo que dejó para la siguiente:**
 
@@ -6440,7 +6445,7 @@ que conviene que abra.
 
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
-✅ **Y LA DÉCIMA (§22) TAMBIÉN, EL 2026-09-19, ABIERTA Y CERRADA EL MISMO DÍA: los grupos de 2 y 3, con `V35` y `V36` (P87–P92, `platform.md` §28).** El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas (`inscripcion_integrante`, `id_alumno` se fue), un precio por tamaño en el catálogo, una seña a nombre del referente, integrantes fijos, P7 ratificada (se anota al grupo entero en cada clase), la ficha del buzón trae a los compañeros y *"Inscribirlo"* crea N cuentas, la landing pregunta *"¿Cuántos son?"*. Encontró que con la definición vieja de `V9` §5 un grupo de 3 no podía tomar ni la primera clase. Suites: **760 backend · 679 front · 336 + 71 SQL** sobre 36 migraciones. **El admin sembrado pasa a `V37`.** ⚠️ El backend de desarrollo está levantado con este código y la inscripción 17934 (Grupo 40) quedó como prueba viva.
+✅ **Y LA DÉCIMA (§22) TAMBIÉN, EL 2026-09-19, ABIERTA Y CERRADA EL MISMO DÍA: los grupos de 2 y 3, con `V35` y `V36` (P87–P92, `platform.md` §28).** El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas (`inscripcion_integrante`, `id_alumno` se fue), un precio por tamaño en el catálogo, una seña a nombre del referente, integrantes fijos, P7 ratificada (se anota al grupo entero en cada clase), la ficha del buzón trae a los compañeros y *"Inscribirlo"* crea N cuentas, la landing pregunta *"¿Cuántos son?"*. Encontró que con la definición vieja de `V9` §5 un grupo de 3 no podía tomar ni la primera clase. Suites: **760 backend · 679 front · 336 + 71 SQL** sobre 36 migraciones. **El admin sembrado pasa a `V37`.** ⚠️ El circuito completo (Postgres, backend, plataforma, landing) se levantó de nuevo la misma tarde para que Ignacio lo mirara, y la inscripción 17934 (Grupo 40) quedó como prueba viva.
 
 
 ✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y
