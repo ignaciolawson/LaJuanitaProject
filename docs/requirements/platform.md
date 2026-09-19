@@ -2511,6 +2511,7 @@ prereserva 24 hs con su deuda anotada, y confirmada al cobrar la seña.
 
 - **P7 (autogenerar las clases semanales) NO se tocó**, aunque §16 la señala
   como lo que los grupos de a 3 van a reabrir. Se decide con los grupos, no antes.
+  → Decidida con los grupos el 2026-09-19: **no se reabre** (P90, §28).
 - **El cupo** (P60) puede aparecer. Si aparece, es el sentido fuerte de "guardar
   el lugar" y se decide como módulo.
 - **El candado del saldo** (P59, segunda ⏳) puede volverse duro. Es una migración
@@ -3022,3 +3023,216 @@ lo que entró (`ENTRARON`) en la moneda del trabajo cubre `precio_acordado`**
 trabajo sin precio no tiene nada que cubrir, así que no se libera por esta
 vía. **La salida con motivo queda** (`liberado_sin_pago`): Ghezz sigue
 teniendo cintura con quien la necesita, firmada.
+
+## 28. Decisiones cerradas el 2026-09-19 (duodécima tanda) — los grupos de 2 y 3
+
+> Seis, cerradas en una sola conversación, sobre **el único punto que la §16
+> dejó diferido a propósito**: B2 2.1, *"los cursos se pueden hasta de a 3"*.
+> Ignacio lo abrió con una frase que ordena todo lo demás: *"El «Grupo» tal como
+> dice la palabra se mueve como 1, es LA seña de EL grupo, no de cada persona que
+> lo integra, en vez de 1 alumno es 1 grupo de 2 o de 3"*. Doce preguntas en dos
+> tandas, todas contestadas antes de escribir código. ⚠️ **"Hasta de a 3" no
+> está en el relevamiento ni en §1**: la entrevista no lo menciona, §1 dice
+> *"1:30 semanal, DJ 8 / Producción 16"* y la landing decía *"Grupos reducidos"*
+> como highlight. La única fuente es esta tanda, y por eso la regla se **define**
+> acá y no se busca en otro lado.
+
+**Textual, las respuestas:** *"al hacer de a más es más barato: 1 persona 300
+USD, 2 personas 380 (190 c/u), 3 personas 447 (147 c/u), y esa es la cuota DEL
+grupo, no se paga por separado, se mueven como 1"* · *"misma hora, mismo día,
+mismo profe, mismo todo; se mueven todos juntos, es todo para todos"* · *"eso
+es problema del grupo: ellos como grupo tienen que pagar la seña; si uno arranca
+a no ir a la clase, no va y se lo pierde él; de última se reprograma, y si iban
+a ser 3 y uno se baja antes, se cancela la inscripción y hacen de a 2"* · sobre
+P7: *"generar las clases de manera automática le saca libertad al admin de poner
+días distintos, horarios; que pueda anotar por ejemplo al «grupo 8» (Mati, Facu,
+Gonza) tal día tal horario con tal profe un día, la próxima semana otro y así.
+Lo mismo como si fuese un alumno, pero el grupo"* · *"que el form pida todos
+los nombres y llegue al buzón"* · *"hasta 3 es regla dura"* · *"cada miembro
+del grupo tiene su portal personal; van a ver la misma info porque son un
+grupo, pero quizás un miembro tiene sus reservas aparte o está en otro curso
+con otro grupo"* · mentoría de a 2 o 3: *"No"* · uno que se baja con la seña
+puesta: *"que sea más manual: Mica cancela la inscripción de ese grupo y da de
+alta una nueva de a 2"* · el nombre: *"lo numera el sistema, solo"* · misma
+disciplina dos veces: *"no; puede estar en uno de produ y otro de DJ"* · el
+nivel: *"pueden ser 3 avanzados pero si se inscribieron en inicial, cursan
+inicial; se les da de alta al nivel de la inscripción"* · la landing publica
+los tres precios: *"sí"* · los datos de los compañeros: *"todo obligatorio, que
+entre clean o no entre"*.
+
+### ✅ P87 — El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas
+
+**Lo que había:** `V23` lo dejó escrito con todas las letras — *"«el curso» no
+es una entidad compartida en este schema: una `inscripcion` es el contrato de
+UNA persona"* — y `inscripcion.id_alumno` lo sostenía. Las clases grupales
+existen desde `V1` (P30: varios `reserva_participante` en una `reserva`), pero
+eso es *"tres personas en una clase"*, no *"tres personas que cursan juntas"*.
+La §16 identificó tres problemas —la plata, P7 y la landing— y los difirió.
+
+**Lo que decide:** **la frase de `V23` cambia una palabra.** Una `inscripcion`
+es el contrato de **un grupo de 1 a 3 personas**, y el alumno solo es un grupo
+de 1. `inscripcion.id_alumno` **se va** y aparece `inscripcion_integrante`
+(`id_inscripcion`, `id_alumno`, `referente`), con 1 a 3 filas. **Todo lo demás
+de la inscripción queda como está y pasa a ser del grupo**: el precio, la
+moneda, la seña, el nivel, las clases contratadas, el estado, el profesor, el
+vencimiento de la preinscripción. La preinscripción de `V30`, Deudores,
+`SaldoPendiente` y el estado de cuenta **no se tocan**: ya trabajan por
+inscripción, y ahora la inscripción es el grupo.
+
+Lo que **no** cambia, a propósito: **P60 sigue — no hay cupo.** El grupo no
+aparta ningún recurso; su preinscripción es un estado, como la de una persona.
+Y la columna vieja **no se deja nullable al lado de la tabla nueva**: sería el
+par de definiciones que `V23` justamente eliminó (`id_alumno` + `es_grupal`).
+Que el compilador, las dos suites SQL y los tests digan dónde falta cada cosa es
+lo que hace seguro un cambio que toca 28 archivos Java.
+
+**Un alumno actual no nota nada**: la migración le da a cada inscripción
+existente un integrante (su alumno, referente). Un grupo de 1 se muestra por su
+nombre, como siempre; un grupo de 2 o 3 recibe **un número correlativo propio**
+del sistema (*"Grupo 8 · Mati, Facu y Gonza"*), sin campo para escribir.
+
+### ✅ P88 — Una plata, del grupo: precio por tamaño en el catálogo, una seña, un referente
+
+**Lo que decide:**
+
+1. **El catálogo tiene tres precios por programa** — 1, 2 y 3 integrantes —,
+   cargados a mano en `/admin/programas`. 300 / 380 / 447 **no es una fórmula**
+   (380 es el 127 % y 447 el 149 % de 300), así que no se calcula: se escribe.
+   El alta de la inscripción prellena el precio según cuántos son, con el
+   criterio de `V28` §2 (copiado al contrato; después el catálogo puede cambiar).
+2. **Mentoría no admite grupos** (P67 la define 1:1). Sus precios de 2 y 3
+   quedan `NULL` = *"no se ofrece de a N"*, la misma forma que `V28` usó para
+   *"sin precio todavía"*, y la base rechaza una mentoría con dos integrantes.
+3. **Una seña, un pago, contra la inscripción del grupo.** El 50 % de P59 se
+   calcula sobre el precio del grupo (223,50 sobre 447). `pago.id_usuario` es
+   **quien la puso físicamente** — uno de los tres, o quien sea: el pago salda
+   la inscripción, y la inscripción es de los tres. El grupo nace `PREINSCRIPTA`
+   y pasa a `ACTIVA` con esa única seña, exactamente como hoy.
+4. **El grupo tiene un referente**, y es un integrante marcado (exactamente uno
+   por inscripción). A él le va el WhatsApp de la seña y del vencimiento, y bajo
+   su nombre aparece la deuda del grupo en Deudores — **una** fila, **un** aviso
+   del scheduler (la clave `DEUDA:p=<idPago>` no cambia: es por pago, y el pago
+   es uno). En el estado de cuenta de **cada** integrante la inscripción del
+   grupo se ve igual, con su saldo, porque también es suya. Desde la landing, el
+   referente es quien llenó el formulario; desde Inscripciones, lo elige Mica
+   (el primero, por defecto). En un alumno solo, el referente es él mismo.
+
+### ✅ P89 — Los integrantes son fijos; el que no va se lo pierde; el que se baja, cancelar y rehacer
+
+**Lo que decide:**
+
+1. **Hasta 3 es regla dura**: un trigger en la base (un `CHECK` no cuenta
+   filas) rechaza el cuarto integrante — y el segundo en una mentoría. Y la
+   regla gemela, que es la que cuesta no escribir: **una inscripción sin ningún
+   integrante no puede existir**, verificado al COMMIT (la forma de `V10`,
+   porque al insertar la inscripción los integrantes todavía no están).
+2. **Los integrantes quedan fijos al nacer.** La tabla no admite `DELETE` ni
+   cambiar `id_alumno` — la misma forma que las canciones de un EP publicado en
+   `V26` §4: sin eso, la regla dura dura lo que dura un `DELETE`. No hay botón
+   de "sacar integrante" ni de "agregar", y **no lo va a haber**: el camino
+   para un grupo que cambia es cancelar la inscripción y dar de alta la nueva.
+3. **El que no va, se lo pierde él.** Su participación queda `AUSENTE`, la
+   clase se consumió para el grupo. Igual que hoy: el ausente consume (§13).
+4. **El que se baja antes de empezar, con o sin la seña puesta**: Ignacio pidió
+   que sea manual. Mica cancela la inscripción del grupo de 3 y da de alta la
+   de 2 con su precio; el pago viejo se anula con motivo y se registra contra
+   la nueva — el anular-y-recargar de siempre. Si el negocio les cobra la
+   diferencia o les devuelve lo arregla Mica por WhatsApp; el sistema no lo
+   decide. Queda escrito para que nadie lo "arregle" después con un botón.
+5. **Una abierta por alumno y disciplina, como siempre.** Mati puede estar en
+   DJ con un grupo y en Producción con otro; no en dos DJ a la vez. La regla
+   deja de ser un índice (el alumno queda en la tabla hija y el estado en la
+   madre; un índice no puede cruzarlas) y pasa a ser **un trigger en las dos
+   direcciones** — al agregar un integrante y al cambiar el estado de la
+   inscripción —, la lección de `V22`. Si al dar de alta un grupo uno de los
+   tres ya tiene una abierta en esa disciplina, **el alta entera falla y el
+   mensaje dice quién**.
+
+### ✅ P90 — La clase se carga "al grupo"; P7 NO se reabre; una clase del grupo consume una clase
+
+**Lo que había:** la §16 anotó que los grupos reabrirían P7 (*"cargar 8 clases
+× cada grupo a mano es el trabajo que la función viene a evitar"*).
+
+**Lo que decide:** **P7 queda como está — las clases se cargan a mano, de a
+una**, y Ignacio dijo por qué: la generación automática *"le saca libertad al
+admin de poner días distintos, horarios"*. Lo que se ahorra no es cargar ocho
+clases sino **anotar tres personas de a una en cada clase**: el calendario
+ofrece *"anotar al Grupo 8"* y el sistema escribe los tres
+`reserva_participante`, cada uno con su asistencia. ⚠️ Anotar de a uno sigue
+funcionando y da el mismo resultado: `V22` resuelve la inscripción `ACTIVA` de
+esa persona en esa disciplina, y ésa **ya es la del grupo**. El grupo es
+consistente por construcción, no por un candado.
+
+⚠️ **Y la trampa que esto destapa, que hay que cerrar en la misma migración:
+hoy una clase de grupo consumiría TRES clases.** `contarClasesConsumidas` y el
+trigger `V9` §5 cuentan `reserva_participante` por inscripción; con tres
+integrantes en una reserva, cuentan 3. Los dos pasan a contar **reservas
+distintas** — y ya estaba escrito que son dos definiciones que se mueven
+juntas. Lo mismo `numeroDeClase` (*"clase N de M"*, §17).
+
+Lo demás sigue por persona: la asistencia, las notas del profe (cuelgan de la
+participación), *"nadie en dos salas a la vez"* (`V9`), *"mi próxima clase"*, y
+*"no puedo ese día"* — cualquier integrante puede pedirlo y Mica decide; al
+mover la clase, `editar` ya avisa a todos los participantes.
+
+### ✅ P91 — Cada integrante tiene su portal; el nivel es de la inscripción
+
+**Lo que decide:**
+
+1. **El portal es personal.** Mis cursos muestra las inscripciones **de las que
+   soy integrante** (con *"con Facu y Gonza"*), el progreso es el del grupo, el
+   material de la inscripción lo ven los tres (es *"del curso"*, `V23`, y el
+   curso es el grupo), las notas del profesor siguen siendo de cada uno. Si
+   Mati además alquila la cabina o hace Producción con otro grupo, eso es suyo
+   y aparece en su portal nada más. **No hay "el grupo" en el portal.**
+2. **Todos los pedazos que hoy dicen "la inscripción de este alumno" pasan a
+   decir "una inscripción de la que es integrante"**: el filtro de la lista de
+   alumnos (`EXISTS` por integrante, y sigue siendo una sola subconsulta para
+   disciplina y nivel), la ficha del alumno, Mis alumnos del profesor (una
+   inscripción asignada a mí = sus tres integrantes son mis alumnos), el
+   tablero (cuenta **personas**, `DISTINCT` por integrante: un grupo de 3 son
+   3 alumnos activos), la regla de propiedad de `V1` §8.2 (la participación
+   tiene que ser de un integrante de esa inscripción), y el nombre que
+   `SaldoPendiente` le pone a la deuda (el referente).
+3. **El nivel es de la inscripción**, no de las personas: *"pueden ser 3
+   avanzados pero si se inscribieron en inicial, cursan inicial"*. Al crear la
+   relación `alumno` desde el buzón, `nivel_ingreso` se copia del nivel de la
+   inscripción.
+
+### ✅ P92 — La landing pide a los tres, todo obligatorio, y publica los tres precios
+
+**Lo que decide:**
+
+1. **La landing publica los tres precios** por programa (300 / 380 / 447,
+   *"desde"* mientras sean de referencia) — *"de a más es más barato"* es
+   argumento de venta. El formulario de programas pregunta primero **"¿cuántos
+   son?"** (1, 2 o 3) y muestra los campos de cada compañero. La mentoría no lo
+   pregunta.
+2. **Todo obligatorio**: nombre, apellido, mail y teléfono **de cada uno**.
+   Ignacio: *"que entre clean o no entre"*. La alternativa —nombres solos y
+   Mica completa— se descartó: una cuenta necesita un mail único y la clave va
+   por WhatsApp a un teléfono, y *"Inscribirlo"* tiene que poder crear las tres
+   cuentas sin preguntar nada.
+3. **La ficha guarda a los compañeros** en una tabla hija de `solicitante`
+   (`V20` no la borra, así que una forma mal elegida se acumula para siempre —
+   ésta es una fila por compañero, con los cuatro datos, y cero filas para
+   quien viene solo). El que llenó el formulario es la ficha y el referente.
+4. ***"Inscribirlo"* hace todo en una transacción**: cuenta (o la existente,
+   por mail — el *"se enquilomba si 2 tienen cuenta y 1 no"* es `darleCuenta`
+   tres veces) + relación `alumno` al nivel de la inscripción para cada uno +
+   la inscripción del grupo + cierre de la ficha. El argumento de la
+   transacción única es el de §15 · Fase 3: lo que puede fallar es la
+   inscripción (uno de los tres ya tiene una abierta en esa disciplina), y lo
+   que quedaría son tres cuentas con sus claves mostradas para gente que no
+   tiene nada. La respuesta trae **una clave por cuenta nacida**, cada una con
+   su botón de WhatsApp al teléfono de esa persona; el mensaje de la seña va
+   al referente y nombra al grupo.
+
+### Lo que esta tanda deja anotado
+
+- **El cupo (P60) sigue sin existir**, y los grupos no lo traen: *"se mueven
+  como 1"* pero no apartan nada. Si aparece, sigue siendo módulo.
+- **P7 queda decidida por segunda vez y con el motivo escrito** (la libertad
+  de horarios). La §16 la daba por reabierta; no lo está.
+- **Los precios de la landing siguen siendo de referencia** hasta que el
+  cliente confirme números; ahora son tres por programa en vez de uno.

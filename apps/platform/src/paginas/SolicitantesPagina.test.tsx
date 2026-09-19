@@ -88,6 +88,7 @@ function ficha(cambios: Partial<SolicitanteResumen> = {}): SolicitanteResumen {
     experiencia: null,
     modalidad: null,
     nivelSugerido: null,
+    companeros: [],
     fechaResolucion: null,
     fechaCreacion: '2026-08-28T10:00:00-03:00',
     ...cambios,
@@ -240,6 +241,8 @@ beforeEach(() => {
       nombre: 'Convertite en DJ',
       descripcion: null,
       precio: 170000,
+      precio2: null,
+      precio3: null,
       moneda: 'ARS',
       cobro: 'PAQUETE',
       clasesEstandar: 8,
@@ -890,6 +893,10 @@ describe('escribirle por WhatsApp', () => {
       ficha: ficha({ estado: 'ATENDIDO', idInscripcion: 77, idUsuario: 40 }),
       inscripcion: {
         idInscripcion: 77,
+        numeroGrupo: null,
+        integrantes: [
+          { idAlumno: 5, idUsuario: 40, nombre: 'Camila', apellido: 'Ríos', email: 'camila@ejemplo.com', referente: true },
+        ],
         idAlumno: 5,
         idUsuario: 40,
         nombre: 'Camila',
@@ -916,6 +923,7 @@ describe('escribirle por WhatsApp', () => {
       senia: 85000,
       moneda: 'ARS',
       vence: '2026-09-13T10:00:00-03:00',
+      companeros: [],
     })
     montar()
 
@@ -967,6 +975,97 @@ describe('escribirle por WhatsApp', () => {
     await user.click(within(tarjeta).getByRole('button', { name: 'Listo' }))
     await waitFor(() => expect(listarSolicitantes).toHaveBeenCalledTimes(2))
     expect(screen.queryByText('A7K2M9')).toBeNull()
+  })
+
+  /**
+   * Un grupo desde la web (`V36`, P92): la ficha dice con quién viene, y al
+   * inscribirlo el panel trae la clave de cada cuenta nacida con su WhatsApp —
+   * la del referente adentro del mensaje de la seña, la de cada compañero
+   * aparte— y no le pide nada al que ya tenía cuenta.
+   */
+  it('la ficha dice con quién viene, y al inscribir el grupo cada cuenta nueva tiene su clave', async () => {
+    const user = userEvent.setup()
+    const companeros = [
+      { idCompanero: 1, nombre: 'Facu', apellido: 'Gómez', email: 'facu@ejemplo.com', telefono: '11-5555-0001' },
+      { idCompanero: 2, nombre: 'Gonza', apellido: 'Ruiz', email: 'gonza@ejemplo.com', telefono: '11-5555-0002' },
+    ]
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ disciplina: 'DJ', experiencia: 'CERO', nivelSugerido: 'INICIAL', companeros })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(inscribirDesdeElBuzon).mockResolvedValue({
+      ficha: ficha({ estado: 'ATENDIDO', idInscripcion: 77, idUsuario: 40, companeros }),
+      inscripcion: {
+        idInscripcion: 77,
+        numeroGrupo: 8,
+        integrantes: [
+          { idAlumno: 5, idUsuario: 40, nombre: 'Camila', apellido: 'Ríos', email: 'camila@ejemplo.com', referente: true },
+          { idAlumno: 6, idUsuario: 41, nombre: 'Facu', apellido: 'Gómez', email: 'facu@ejemplo.com', referente: false },
+          { idAlumno: 7, idUsuario: 42, nombre: 'Gonza', apellido: 'Ruiz', email: 'gonza@ejemplo.com', referente: false },
+        ],
+        idAlumno: 5,
+        idUsuario: 40,
+        nombre: 'Camila',
+        apellido: 'Ríos',
+        email: 'camila@ejemplo.com',
+        idProfesor: null,
+        profesor: null,
+        disciplina: 'DJ',
+        nivel: 'INICIAL',
+        clasesContratadas: 8,
+        clasesConsumidas: 0,
+        clasesRestantes: 8,
+        precioTotal: 447000,
+        moneda: 'ARS',
+        cotizacionDolar: null,
+        fechaInicio: null,
+        estado: 'PREINSCRIPTA',
+        vencePreinscripcion: '2026-09-20T10:00:00-03:00',
+        notas: null,
+      },
+      usuario: conversion().usuario,
+      passwordTemporal: 'A7K2M9',
+      cuentaNueva: true,
+      senia: 223500,
+      moneda: 'ARS',
+      vence: '2026-09-20T10:00:00-03:00',
+      companeros: [
+        {
+          usuario: { ...conversion().usuario, id: 41, nombre: 'Facu', apellido: 'Gómez', email: 'facu@ejemplo.com', telefono: '11-5555-0001' },
+          passwordTemporal: 'Q9Z1X4',
+          cuentaNueva: true,
+        },
+        {
+          usuario: { ...conversion().usuario, id: 42, nombre: 'Gonza', apellido: 'Ruiz', email: 'gonza@ejemplo.com', telefono: '11-5555-0002' },
+          passwordTemporal: null,
+          cuentaNueva: false,
+        },
+      ],
+    })
+    montar()
+
+    // La ficha dice con quién viene, antes de apretar nada.
+    expect(await screen.findByText(/Viene con/)).toBeDefined()
+    expect(screen.getByText(/Facu Gómez y Gonza Ruiz/)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Inscribirlo' }))
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+    await waitFor(() => expect(inscribirDesdeElBuzon).toHaveBeenCalled())
+
+    // El panel: el grupo, la seña única, y las claves.
+    expect(await screen.findByText(/Grupo 8/)).toBeDefined()
+    expect(screen.getByText(/una sola, del grupo/)).toBeDefined()
+    const delReferente = screen.getByRole('link', { name: /Avisarle por WhatsApp, con la clave/ })
+    expect(decodeURIComponent(delReferente.getAttribute('href')!)).toContain('a vos y a Facu Gómez y Gonza Ruiz')
+    // Facu: cuenta nueva, su clave y su WhatsApp. Gonza: ya tenía, nada que mandar.
+    expect(screen.getByText('Q9Z1X4')).toBeDefined()
+    const deFacu = screen.getByRole('link', { name: /Mandarle la clave a Facu/ })
+    expect(decodeURIComponent(deFacu.getAttribute('href')!)).toContain('Q9Z1X4')
+    expect(screen.getByText(/Gonza Ruiz ya tenía cuenta/)).toBeDefined()
+    expect(screen.queryByRole('link', { name: /Mandarle la clave a Gonza/ })).toBeNull()
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================

@@ -17,51 +17,116 @@ import com.lajuanita.backend.reserva.EstadoReserva;
 public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> {
 
     /**
-     * El pre-chequeo de "una sola activa por disciplina" (P3).
+     * El pre-chequeo de "una sola abierta por alumno y disciplina" (P3, P89).
      *
-     * <p>Quien decide de verdad es el índice único parcial
-     * {@code inscripcion_una_activa_por_disciplina}: esto existe para que salga
-     * un mensaje entendible en vez de una violación de constraint, igual que en
-     * el alta de alumno.
+     * <p>Quien decide de verdad es el trigger de `V35` §4 (d) —hasta `V34` era el
+     * índice único parcial {@code inscripcion_una_activa_por_disciplina}—: esto
+     * existe para que salga un mensaje que nombre a la persona en vez del texto
+     * del trigger, igual que en el alta de alumno. Entra por los integrantes:
+     * desde `V35` el alumno no está en la inscripción sino en su tabla hija.
      */
-    boolean existsByAlumnoIdAndDisciplinaAndEstadoIn(Long idAlumno,
-            Disciplina disciplina,
-            java.util.Collection<EstadoInscripcion> estados);
+    @Query("""
+            SELECT count(i) > 0 FROM Inscripcion i
+            JOIN i.integrantes x
+            WHERE x.alumno.id = :idAlumno
+              AND i.disciplina = :disciplina
+              AND i.estado IN :estados
+            """)
+    boolean tieneAbiertaEnLaDisciplina(@Param("idAlumno") Long idAlumno,
+            @Param("disciplina") Disciplina disciplina,
+            @Param("estados") Collection<EstadoInscripcion> estados);
+
+    /**
+     * El siguiente número de grupo (`V35` §2): lo asigna el servicio al nacer un
+     * grupo de 2 o 3, y la base exige al COMMIT que esté si y sólo si son 2 o
+     * más. Nativa porque una secuencia no tiene entidad.
+     */
+    @Query(value = "SELECT nextval('inscripcion_numero_grupo_seq')", nativeQuery = true)
+    long siguienteNumeroDeGrupo();
 
     /**
      * Listado con buscador y cuatro filtros, todos opcionales: en null, no
-     * filtran.
+     * filtran. Devuelve <b>ids</b>, en el orden de la pantalla; el detalle lo
+     * trae {@link #porIdsConDetalle}.
      *
-     * <p>Los {@code JOIN FETCH} traen alumno, persona y profesor en la misma
-     * consulta. Sin ellos, {@code InscripcionResumen} los lee fila por fila y
-     * Hibernate dispara tres consultas por inscripción — el problema N+1 que ya
-     * se había resuelto en el listado de alumnos.
+     * <p>Es la forma de {@code PagoRepository.idsListados} + {@code porIdsConDetalle}
+     * y por el mismo motivo: desde `V35` la persona está en una <b>colección</b>
+     * ({@code integrantes}), y una colección no se puede {@code JOIN FETCH} en
+     * una consulta paginada sin que Hibernate pagine en memoria. Así que esta
+     * consulta filtra, ordena y pagina, y la otra trae todo lo que la fila
+     * necesita en una sola vuelta.
      *
-     * <p>El del profesor va {@code LEFT} porque una inscripción sin profe
-     * asignado es válida, y con un {@code JOIN} a secas desaparecería del
-     * listado justo cuando es la que hay que mirar.
+     * <p>El buscador y el filtro por alumno miran a <b>cualquier</b> integrante
+     * (dos {@code EXISTS} separados: buscar "Facu" en las inscripciones de Mati
+     * tiene que encontrar el grupo de los dos). El orden es por el apellido del
+     * <b>referente</b>: es a quien nombra Deudores y quien encabeza la fila.
+     * El {@code JOIN} al referente no multiplica filas porque hay exactamente
+     * uno por inscripción (`V35` §4 b).
      */
-    @Query("""
-            SELECT i FROM Inscripcion i
-            JOIN FETCH i.alumno a
-            JOIN FETCH a.usuario u
-            LEFT JOIN FETCH i.profesor p
-            LEFT JOIN FETCH p.usuario
-            WHERE (:idAlumno   IS NULL OR a.id = :idAlumno)
+    @Query(value = """
+            SELECT i.id FROM Inscripcion i
+            JOIN i.integrantes ref
+            JOIN ref.alumno ra
+            JOIN ra.usuario ru
+            LEFT JOIN i.profesor p
+            WHERE ref.referente = true
+              AND (:idAlumno IS NULL OR EXISTS (
+                      SELECT 1 FROM InscripcionIntegrante x
+                      WHERE x.inscripcion = i AND x.alumno.id = :idAlumno))
               AND (:idProfesor IS NULL OR p.id = :idProfesor)
               AND (:disciplina IS NULL OR i.disciplina = :disciplina)
               AND (:estado     IS NULL OR i.estado = :estado)
-              AND (LOWER(u.nombre)   LIKE :patron ESCAPE '\\'
-                   OR LOWER(u.apellido) LIKE :patron ESCAPE '\\'
-                   OR LOWER(u.email)    LIKE :patron ESCAPE '\\')
-            ORDER BY LOWER(u.apellido), LOWER(u.nombre), i.id DESC
+              AND EXISTS (
+                      SELECT 1 FROM InscripcionIntegrante y
+                      JOIN y.alumno ya JOIN ya.usuario yu
+                      WHERE y.inscripcion = i
+                        AND (LOWER(yu.nombre)   LIKE :patron ESCAPE '\\'
+                             OR LOWER(yu.apellido) LIKE :patron ESCAPE '\\'
+                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\'))
+            ORDER BY LOWER(ru.apellido), LOWER(ru.nombre), i.id DESC
+            """,
+            countQuery = """
+            SELECT count(i) FROM Inscripcion i
+            LEFT JOIN i.profesor p
+            WHERE (:idAlumno IS NULL OR EXISTS (
+                      SELECT 1 FROM InscripcionIntegrante x
+                      WHERE x.inscripcion = i AND x.alumno.id = :idAlumno))
+              AND (:idProfesor IS NULL OR p.id = :idProfesor)
+              AND (:disciplina IS NULL OR i.disciplina = :disciplina)
+              AND (:estado     IS NULL OR i.estado = :estado)
+              AND EXISTS (
+                      SELECT 1 FROM InscripcionIntegrante y
+                      JOIN y.alumno ya JOIN ya.usuario yu
+                      WHERE y.inscripcion = i
+                        AND (LOWER(yu.nombre)   LIKE :patron ESCAPE '\\'
+                             OR LOWER(yu.apellido) LIKE :patron ESCAPE '\\'
+                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\'))
             """)
-    Page<Inscripcion> buscar(@Param("patron") String patron,
+    Page<Long> buscar(@Param("patron") String patron,
             @Param("idAlumno") Long idAlumno,
             @Param("idProfesor") Long idProfesor,
             @Param("disciplina") Disciplina disciplina,
             @Param("estado") EstadoInscripcion estado,
             Pageable paginado);
+
+    /**
+     * El detalle de una lista de inscripciones en una consulta: integrantes con
+     * su persona, y el profesor con la suya. <b>Sin orden a propósito</b> — el
+     * orden lo decidió {@link #buscar} y el servicio lo restaura desde la lista
+     * de ids; pedirlo dos veces sería una segunda definición del orden.
+     *
+     * @param ids no puede venir vacía — un {@code IN ()} es un error de sintaxis
+     */
+    @Query("""
+            SELECT DISTINCT i FROM Inscripcion i
+            JOIN FETCH i.integrantes x
+            JOIN FETCH x.alumno a
+            JOIN FETCH a.usuario
+            LEFT JOIN FETCH i.profesor p
+            LEFT JOIN FETCH p.usuario
+            WHERE i.id IN :ids
+            """)
+    List<Inscripcion> porIdsConDetalle(@Param("ids") Collection<Long> ids);
 
     /**
      * Cuántas clases consumió cada inscripción de la lista.
@@ -79,6 +144,13 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * sin avisar no devuelve la clase, y eso es lo que le da sentido a
      * {@code AUSENTE_JUSTIFICADO} como estado aparte.
      *
+     * <p><b>Cuenta RESERVAS distintas, no participaciones</b> (`V35` §5, P90):
+     * una clase de un grupo de 3 son tres participaciones de la misma
+     * inscripción en la misma reserva, y es UNA clase. Con {@code count(p)} un
+     * grupo de 3 con 2 clases contratadas no podía tomar ni la primera — lo
+     * encontraron los casos 300–302 de la suite de reglas al poner el bug de
+     * vuelta.
+     *
      * <p><b>Era SQL nativo</b> hasta el 2026-08-16, porque {@code reserva} y
      * {@code reserva_participante} no tenían entidad. Ahora que la tienen se
      * escribe en JPQL, y eso no es cosmética: las dos exclusiones dejaron de ser
@@ -93,7 +165,7 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      *         ninguna clase dada no aparecen
      */
     @Query("""
-            SELECT p.inscripcion.id, count(p)
+            SELECT p.inscripcion.id, count(DISTINCT r.id)
             FROM ReservaParticipante p
             JOIN p.reserva r
             WHERE p.inscripcion.id IN :ids
@@ -110,17 +182,29 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      *
      * <p>La distinción importa acá más que en ningún otro lado: {@code pago} se
      * lleva contra {@code id_usuario} —como todas las tablas transaccionales—
-     * mientras que {@code inscripcion} cuelga de {@code alumno}. El estado de
-     * cuenta cruza las dos cosas, así que necesita entrar por la identidad raíz.
+     * mientras que la inscripción cuelga de sus alumnos. El estado de cuenta
+     * cruza las dos cosas, así que necesita entrar por la identidad raíz.
+     *
+     * <p>"De una persona" es <b>de la que es integrante</b> (`V35`, P91): la
+     * inscripción del grupo es de los tres, y aparece en el portal y en el
+     * estado de cuenta de cada uno. El primer {@code JOIN} filtra por quien
+     * pregunta; el {@code JOIN FETCH} trae a todos los integrantes, que es lo que
+     * la fila necesita para nombrar al grupo.
      *
      * <p>Trae todas, de cualquier estado: una inscripción cancelada con un saldo
      * a favor sigue siendo parte de la cuenta de esa persona.
      */
     @Query("""
-            SELECT i FROM Inscripcion i
-            JOIN FETCH i.alumno a
-            JOIN FETCH a.usuario u
-            WHERE u.id = :idUsuario
+            SELECT DISTINCT i FROM Inscripcion i
+            JOIN i.integrantes yo
+            JOIN yo.alumno ya
+            JOIN ya.usuario yu
+            JOIN FETCH i.integrantes x
+            JOIN FETCH x.alumno a
+            JOIN FETCH a.usuario
+            LEFT JOIN FETCH i.profesor p
+            LEFT JOIN FETCH p.usuario
+            WHERE yu.id = :idUsuario
             ORDER BY i.id
             """)
     List<Inscripcion> deLaPersona(@Param("idUsuario") Long idUsuario);
@@ -132,8 +216,8 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * dos fechas están a 24 hs: la diferencia no vale una segunda definición.
      */
     @Query("""
-            SELECT i FROM Inscripcion i
-            JOIN FETCH i.alumno a JOIN FETCH a.usuario
+            SELECT DISTINCT i FROM Inscripcion i
+            JOIN FETCH i.integrantes x JOIN FETCH x.alumno a JOIN FETCH a.usuario
             WHERE i.estado = :preinscripta AND i.fechaCreacion < :limite
             """)
     List<Inscripcion> preinscripcionesAbandonadas(
@@ -158,11 +242,17 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * porque sigue teniendo clases debidas, que es justo al alumno que hay que ir
      * a buscar.
      *
+     * <p>Desde `V35` una inscripción puede ser de varios de esos alumnos a la
+     * vez: sale una sola vez ({@code DISTINCT}) con sus integrantes cargados, y
+     * quien la reparte por alumno lo hace mirando la lista.
+     *
      * @param ids no puede venir vacía — un {@code IN ()} es un error de sintaxis
      */
     @Query("""
-            SELECT i FROM Inscripcion i
-            WHERE i.alumno.id IN :ids AND i.estado IN :vigentes
+            SELECT DISTINCT i FROM Inscripcion i
+            JOIN i.integrantes yo
+            JOIN FETCH i.integrantes x JOIN FETCH x.alumno a JOIN FETCH a.usuario
+            WHERE yo.alumno.id IN :ids AND i.estado IN :vigentes
             """)
     List<Inscripcion> vigentesDeLosAlumnos(@Param("ids") Collection<Long> ids,
             @Param("vigentes") Collection<EstadoInscripcion> vigentes);
@@ -175,9 +265,15 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * participante de una reserva es un {@code usuario}: es el mismo cruce que
      * hace {@link #deLaPersona}.
      *
+     * <p>Desde `V35` "la inscripción de esta persona" es <b>la de la que es
+     * integrante</b>: para quien cursa en grupo, es la del grupo. Es lo que hace
+     * que anotar de a uno en el calendario dé el mismo resultado que anotar al
+     * grupo (P90): la inscripción resuelta ya es la compartida.
+     *
      * <p>⚠️ <b>Sólo {@code ACTIVA}, y no las VIGENTES.</b> Es la diferencia que
-     * hace que esto pueda devolver una sola: el índice único parcial de `V1` es
-     * {@code WHERE estado = 'ACTIVA'}, así que <b>una persona puede tener varias
+     * hace que esto pueda devolver una sola: la regla de "una abierta por
+     * disciplina" (`V35` §4 d, antes el índice de `V1`) mira ACTIVA y
+     * PREINSCRIPTA, así que <b>una persona puede tener varias
      * PAUSADAS de la misma disciplina</b> —cursó, pausó, se reinscribió— y
      * "la vigente" no sería una sino tres. Elegir entre ellas en silencio es
      * exactamente el bug que C1 vino a matar, con otro disfraz.
@@ -190,7 +286,8 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      */
     @Query("""
             SELECT i FROM Inscripcion i
-            JOIN i.alumno a
+            JOIN i.integrantes x
+            JOIN x.alumno a
             JOIN a.usuario u
             WHERE u.id = :idUsuario
               AND i.disciplina = :disciplina
@@ -206,7 +303,8 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      */
     @Query("""
             SELECT count(i) > 0 FROM Inscripcion i
-            JOIN i.alumno a
+            JOIN i.integrantes x
+            JOIN x.alumno a
             JOIN a.usuario u
             WHERE u.id = :idUsuario
               AND i.disciplina = :disciplina

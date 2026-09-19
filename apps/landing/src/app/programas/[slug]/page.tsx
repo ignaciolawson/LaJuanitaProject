@@ -92,11 +92,21 @@ export default async function ProgramaPage({ params }: PageProps<"/programas/[sl
               { k: "Duración", v: program.duration },
               { k: "Modalidad", v: program.modality },
               { k: "Nivel", v: program.levelLabel },
-              { k: "Inversión", v: program.price, note: program.priceNote },
+              { k: "Inversión", v: program.price, note: program.priceNote, group: program.groupPrices },
             ].map((item) => (
               <div key={item.k}>
                 <dt className="t-mono text-[color:var(--page-faint)]">{item.k}</dt>
                 <dd className="t-body mt-2 text-sm text-[color:var(--page-fg)]">{item.v}</dd>
+                {/* De a más es más barato (P88): el total del grupo, cursan juntos
+                    y pagan una sola vez. Se publica porque vende (P92). */}
+                {item.group && (
+                  <dd className="t-body mt-1 text-sm text-[color:var(--page-fg)]">
+                    De a 2: {item.group.two} · De a 3: {item.group.three}
+                    <span className="t-mono mt-0.5 block text-[color:var(--page-faint)]">
+                      El total del grupo, cursando juntos
+                    </span>
+                  </dd>
+                )}
                 {item.note && (
                   <p className="t-mono mt-1.5 text-[color:var(--page-faint)]">{item.note}</p>
                 )}

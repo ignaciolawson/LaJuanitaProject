@@ -3,6 +3,7 @@ package com.lajuanita.backend.inscripcion.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.EstadoInscripcion;
@@ -18,12 +19,24 @@ import com.lajuanita.backend.dinero.Moneda;
  * {@code AlumnoResumen}: la pantalla los muestra juntos y cruzar tres listas del
  * lado del front no le sirve a nadie.
  *
+ * <p><b>Desde `V35` la "persona" de la fila es el REFERENTE</b> (P88): es a quien
+ * nombra Deudores y a quien le va el WhatsApp de la seña, y en un alumno solo es
+ * él mismo — así que {@link #idAlumno}, {@link #nombre} y compañía siguen
+ * diciendo lo que decían. Los tres (o dos, o uno) están en {@link #integrantes},
+ * el referente primero; y {@link #numeroGrupo} sólo tiene valor en un grupo de 2
+ * o 3 (<i>"Grupo 8"</i>).
+ *
  * <p><b>{@link #clasesRestantes} es la razón de ser de este módulo</b> y no sale
  * de ninguna columna: es una resta contra las participaciones efectivamente
  * dictadas. No hay campo que se pueda desincronizar porque no hay campo.
  */
 public record InscripcionResumen(
         Long idInscripcion,
+        /** Sólo en un grupo de 2 o 3; null para un alumno solo (`V35` §2). */
+        Integer numeroGrupo,
+        /** El referente primero (`@OrderBy` de la entidad). */
+        List<IntegranteResumen> integrantes,
+        /** El referente. */
         Long idAlumno,
         Long idUsuario,
         String nombre,
@@ -46,7 +59,7 @@ public record InscripcionResumen(
         String notas) {
 
     public static InscripcionResumen de(Inscripcion inscripcion, int consumidas) {
-        var alumno = inscripcion.getAlumno();
+        var alumno = inscripcion.referente().getAlumno();
         var persona = alumno.getUsuario();
         Profesor profesor = inscripcion.getProfesor();
 
@@ -54,6 +67,13 @@ public record InscripcionResumen(
 
         return new InscripcionResumen(
                 inscripcion.getId(),
+                inscripcion.getNumeroGrupo(),
+                // El referente primero también recién creada: el `@OrderBy` de la
+                // entidad sólo ordena lo que viene de la base, y el alta devuelve
+                // la lista en memoria tal como se armó.
+                inscripcion.getIntegrantes().stream()
+                        .sorted(java.util.Comparator.comparing(x -> !x.isReferente()))
+                        .map(IntegranteResumen::de).toList(),
                 alumno.getId(),
                 persona.getId(),
                 persona.getNombre(),

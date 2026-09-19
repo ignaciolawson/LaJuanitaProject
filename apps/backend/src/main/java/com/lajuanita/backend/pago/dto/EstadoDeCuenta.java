@@ -58,6 +58,14 @@ public record EstadoDeCuenta(
      */
     public record ContratoDelAlumno(
             Long idInscripcion,
+            /**
+             * El grupo, si es de 2 o 3 (`V35`, P88): su número y con quién. Null
+             * para un alumno solo. El contrato del grupo aparece en el estado de
+             * cuenta de cada integrante, y sin esto se leería como una deuda
+             * propia y no compartida.
+             */
+            Integer numeroGrupo,
+            List<String> integrantes,
             String disciplina,
             String nivel,
             String estado,

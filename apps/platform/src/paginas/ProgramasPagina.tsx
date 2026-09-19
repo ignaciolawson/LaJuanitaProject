@@ -90,6 +90,7 @@ export function ProgramasPagina() {
           'Programa',
           'Se cobra',
           { etiqueta: 'Precio', alineacion: 'derecha' },
+          { etiqueta: 'De a 2 · de a 3', alineacion: 'derecha' },
           { etiqueta: 'Clases', alineacion: 'derecha' },
           'Cada clase',
           'Estado',
@@ -98,7 +99,7 @@ export function ProgramasPagina() {
       >
         {cargando && programas.length === 0 ? (
           <tr>
-            <td colSpan={7} className="px-4 py-10 text-center text-sm text-apagado">
+            <td colSpan={8} className="px-4 py-10 text-center text-sm text-apagado">
               Cargando…
             </td>
           </tr>
@@ -117,6 +118,20 @@ export function ProgramasPagina() {
                   <span className="t-cifra text-apagado">A confirmar</span>
                 ) : (
                   importe(p.precio, p.moneda)
+                )}
+              </Celda>
+              <Celda numerica>
+                {p.disciplina === 'MENTORIA' ? (
+                  // La mentoría es 1:1 (P88): no hay precio de grupo que cargar.
+                  <span className="text-apagado">1:1</span>
+                ) : (
+                  // El precio del grupo entero, no por persona (P88). Sin cargar
+                  // = el alta lo pide a mano, como la mentoría hoy.
+                  <span className="t-cifra">
+                    {p.precio2 === null ? <span className="text-apagado">—</span> : importe(p.precio2, p.moneda)}
+                    {' · '}
+                    {p.precio3 === null ? <span className="text-apagado">—</span> : importe(p.precio3, p.moneda)}
+                  </span>
                 )}
               </Celda>
               <Celda numerica>
@@ -179,6 +194,8 @@ function Formulario({
   const [nombre, setNombre] = useState(programa.nombre)
   const [descripcion, setDescripcion] = useState(programa.descripcion ?? '')
   const [precio, setPrecio] = useState(programa.precio === null ? '' : String(programa.precio))
+  const [precio2, setPrecio2] = useState(programa.precio2 === null ? '' : String(programa.precio2))
+  const [precio3, setPrecio3] = useState(programa.precio3 === null ? '' : String(programa.precio3))
   const [moneda, setMoneda] = useState<Moneda>(programa.moneda)
   const [cobro, setCobro] = useState<Cobro>(programa.cobro)
   const [clasesEstandar, setClasesEstandar] = useState(
@@ -208,6 +225,8 @@ function Formulario({
       nombre,
       descripcion: descripcion || null,
       precio: precio === '' ? null : Number(precio),
+      precio2: precio2 === '' ? null : Number(precio2),
+      precio3: precio3 === '' ? null : Number(precio3),
       moneda,
       cobro,
       clasesEstandar: clasesEstandar === '' ? null : Number(clasesEstandar),
@@ -272,6 +291,31 @@ function Formulario({
           error={errores.precio}
           ayuda="Vacío = a confirmar. Las inscripciones ya cargadas no cambian."
         />
+        {programa.disciplina !== 'MENTORIA' && (
+          // El precio DEL GRUPO, no por persona (P88): de a más es más barato,
+          // y no es una fórmula — 300 / 380 / 447 se escribe.
+          <>
+            <Campo
+              etiqueta="Precio de a 2 (total del grupo)"
+              type="number"
+              min="0"
+              step="0.01"
+              value={precio2}
+              onChange={(e) => setPrecio2(e.target.value)}
+              error={errores.precio2}
+              ayuda="Lo que paga el grupo entero, no cada uno. Vacío = el alta lo pide a mano."
+            />
+            <Campo
+              etiqueta="Precio de a 3 (total del grupo)"
+              type="number"
+              min="0"
+              step="0.01"
+              value={precio3}
+              onChange={(e) => setPrecio3(e.target.value)}
+              error={errores.precio3}
+            />
+          </>
+        )}
         <CampoSelect
           etiqueta="Moneda"
           value={moneda}

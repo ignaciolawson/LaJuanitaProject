@@ -77,8 +77,8 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
             SELECT a FROM Alumno a
             JOIN FETCH a.usuario u
             WHERE (:idAlumno IS NULL OR a.id = :idAlumno)
-              AND (EXISTS (SELECT 1 FROM Inscripcion i
-                          WHERE i.alumno = a AND i.profesor.id = :idProfesor)
+              AND (EXISTS (SELECT 1 FROM InscripcionIntegrante x
+                          WHERE x.alumno = a AND x.inscripcion.profesor.id = :idProfesor)
                OR EXISTS (SELECT 1 FROM ReservaParticipante rp
                           JOIN rp.reserva r
                           WHERE rp.usuario = u
@@ -125,8 +125,8 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
                    OR LOWER(u.apellido) LIKE :patron ESCAPE '\\'
                    OR LOWER(u.email)    LIKE :patron ESCAPE '\\')
               AND (:disciplina IS NULL AND :nivel IS NULL
-                   OR EXISTS (SELECT 1 FROM Inscripcion i
-                              WHERE i.alumno = a
+                   OR EXISTS (SELECT 1 FROM InscripcionIntegrante x JOIN x.inscripcion i
+                              WHERE x.alumno = a
                                 AND i.estado IN :vigentes
                                 AND (:disciplina IS NULL OR i.disciplina = :disciplina)
                                 AND (:nivel      IS NULL OR i.nivel = :nivel)))
@@ -155,11 +155,11 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
      *         no aparecen
      */
     @Query("""
-            SELECT i.alumno.id, i.disciplina
-            FROM Inscripcion i
-            WHERE i.alumno.id IN :ids
+            SELECT x.alumno.id, i.disciplina
+            FROM InscripcionIntegrante x JOIN x.inscripcion i
+            WHERE x.alumno.id IN :ids
               AND i.estado IN :vigentes
-            ORDER BY i.alumno.id, i.disciplina
+            ORDER BY x.alumno.id, i.disciplina
             """)
 
     List<Object[]> disciplinasVigentes(@Param("ids") Collection<Long> ids,

@@ -1,3 +1,4 @@
+import { enUnaLinea } from '../api/tiposAdmin'
 /**
  * Escribirle por WhatsApp desde el sistema.
  *
@@ -446,13 +447,26 @@ export function mensajeDeInscripcion(datos: {
   importe: string
   vence: string | null
   cuenta: { email: string; passwordTemporal: string } | null
+  /**
+   * Con quién cursa (`V35`, P88): los nombres de los otros integrantes. Vacío o
+   * ausente para quien cursa solo. La seña es UNA, del grupo, y el mensaje le
+   * va al referente: por eso dice "los anotamos" y "el lugar de los tres".
+   */
+  companeros?: string[]
 }): string {
   const { nombre, programa, profesor, importe, vence, cuenta } = datos
+  const companeros = datos.companeros ?? []
+  const enGrupo = companeros.length > 0
+  const con = profesor ? ` con ${profesor}` : ''
   return parrafos(
-    [`${saludo(nombre)} Te anotamos en ${programa}${profesor ? ` con ${profesor}` : ''}. ${MUSICA}`],
+    [
+      enGrupo
+        ? `${saludo(nombre)} Los anotamos en ${programa}${con}, a vos y a ${enUnaLinea(companeros)}: cursan juntos. ${MUSICA}`
+        : `${saludo(nombre)} Te anotamos en ${programa}${con}. ${MUSICA}`,
+    ],
     vence
       ? [
-          `${PLATA} Para confirmar tu lugar hay que abonar la seña de ${importe} antes del ${vence}.`,
+          `${PLATA} Para confirmar ${enGrupo ? 'el lugar del grupo' : 'tu lugar'} hay que abonar la seña de ${importe}${enGrupo ? ' (es una sola, del grupo)' : ''} antes del ${vence}.`,
           'El resto se paga antes de la primera clase.',
         ]
       : [`${PLATA} No hay nada que abonar para arrancar.`],

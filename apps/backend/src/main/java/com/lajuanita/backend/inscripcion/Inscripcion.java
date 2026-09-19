@@ -3,13 +3,17 @@ package com.lajuanita.backend.inscripcion;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.profesor.Profesor;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Generated;
 import org.hibernate.generator.EventType;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,6 +24,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,15 +33,29 @@ import lombok.Setter;
 import com.lajuanita.backend.dinero.Moneda;
 
 /**
- * "Juan compró el curso de DJ inicial: 8 clases, $X, con Tomás."
+ * "Juan compró el curso de DJ inicial: 8 clases, $X, con Tomás." — o, desde
+ * `V35`, <i>"Mati, Facu y Gonza compraron el curso de DJ inicial: 8 clases,
+ * $Y entre los tres, con Tomás"</i>.
  *
  * <p>Era el hueco más grande del modelo original ({@code platform.md} §3.1): sin
  * esta fila no hay forma de saber cuántas clases le quedan a alguien, que es
  * justo lo que el relevamiento marca como faltante hoy.
  *
- * <p>Tres cosas que conviene tener presentes al tocar esta clase:
+ * <p><b>Es el contrato de un grupo de 1 a 3 personas, no de una</b> (P87). Los
+ * que cursan están en {@link #integrantes}; el alumno solo es un grupo de 1. Todo
+ * lo demás de esta fila —precio, moneda, seña, nivel, clases, estado, profesor—
+ * es del grupo entero: <i>"se mueven como 1"</i>. Lo que sigue siendo de cada
+ * persona (asistencia, notas del profesor) cuelga de la participación.
+ *
+ * <p>Cuatro cosas que conviene tener presentes al tocar esta clase:
  *
  * <ul>
+ *   <li><b>Los integrantes son fijos al nacer.</b> La base rechaza sacar,
+ *       cambiar o agregar uno (`V35` §4 c); un grupo que cambia se cancela y se
+ *       rehace (P89). Por eso la lista sólo crece por {@link #agregarIntegrante}
+ *       y sólo antes del primer {@code save}.
+ *   <li><b>Una clase del grupo es UNA clase.</b> {@code contarClasesConsumidas}
+ *       y `V9` §5 cuentan reservas distintas, no participaciones (P90).
  *   <li><b>Las clases restantes no se guardan, se calculan.</b> No hay campo acá
  *       para eso: contar participaciones es la única cuenta que no se puede
  *       desincronizar. Ver {@code InscripcionRepository#contarClasesConsumidas}.
@@ -59,9 +79,29 @@ public class Inscripcion {
     @Column(name = "id_inscripcion")
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_alumno", nullable = false)
-    private Alumno alumno;
+    /**
+     * Quiénes cursan: de 1 a 3 (`V35` §2 y §4). El referente va primero por el
+     * {@code @OrderBy}, así que {@link #referente()} es el primero de la lista.
+     *
+     * <p>{@code @BatchSize} para que un listado de veinte inscripciones cargue
+     * los integrantes de todas en una consulta y no en veinte: es el N+1 que el
+     * {@code JOIN FETCH i.alumno} de antes evitaba, y una colección no se puede
+     * traer con {@code JOIN FETCH} en una consulta paginada sin que Hibernate
+     * pagine en memoria.
+     */
+    @OneToMany(mappedBy = "inscripcion", cascade = CascadeType.PERSIST)
+    @OrderBy("referente DESC, id ASC")
+    @BatchSize(size = 50)
+    private List<InscripcionIntegrante> integrantes = new ArrayList<>();
+
+    /**
+     * El correlativo propio de los grupos de 2 o 3 (<i>"Grupo 8"</i>), de
+     * {@code inscripcion_numero_grupo_seq}. NULL para un alumno solo: un alumno
+     * solo no es "grupo 12", se muestra por su nombre (P87). La base exige al
+     * COMMIT que esté si y sólo si son 2 o más (`V35` §4 b); lo asigna el servicio.
+     */
+    @Column(name = "numero_grupo")
+    private Integer numeroGrupo;
 
     /**
      * Profesor a cargo. Asignación explícita y opcional: que otro cubra una
@@ -118,6 +158,37 @@ public class Inscripcion {
 
     @Column(name = "notas", columnDefinition = "text")
     private String notas;
+
+    // == Los integrantes (`V35`) ==============================================
+
+    /**
+     * Suma a alguien al grupo. Sólo tiene sentido antes de guardar: después, la
+     * base rechaza el INSERT de un integrante nuevo sobre una inscripción que ya
+     * cerró su grupo (`V35` §4 c), y el mensaje lo dice.
+     */
+    public void agregarIntegrante(Alumno alumno, boolean referente) {
+        integrantes.add(new InscripcionIntegrante(this, alumno, referente));
+    }
+
+    /** El integrante marcado como referente (P88); siempre hay exactamente uno. */
+    public InscripcionIntegrante referente() {
+        return integrantes.stream()
+                .filter(InscripcionIntegrante::isReferente)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "La inscripción " + id + " no tiene referente; V35 §4 (b) no lo permite."));
+    }
+
+    /** ¿Es integrante esta persona (por su cuenta, no por su fila de alumno)? */
+    public boolean tieneAlUsuario(Long idUsuario) {
+        return integrantes.stream()
+                .anyMatch(x -> x.getAlumno().getUsuario().getId().equals(idUsuario));
+    }
+
+    /** De 2 o 3: tiene número de grupo. Un alumno solo no. */
+    public boolean esGrupo() {
+        return integrantes.size() >= 2;
+    }
 
     // == Las escrituras que van juntas (`V30`) ================================
 

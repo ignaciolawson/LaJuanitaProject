@@ -394,6 +394,7 @@ describe('las clases que le quedan al alumno', () => {
         clasesRestantes: 5,
         fechaInicio: '2026-08-01',
         estado: 'ACTIVA',
+        companeros: [],
       },
     ])
 
@@ -415,6 +416,7 @@ describe('las clases que le quedan al alumno', () => {
         clasesRestantes: 0,
         fechaInicio: '2026-01-01',
         estado: 'COMPLETADA',
+        companeros: [],
       },
     ])
 

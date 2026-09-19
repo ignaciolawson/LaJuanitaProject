@@ -64,6 +64,18 @@ public class Programa {
     @Column(name = "precio", precision = 14, scale = 2)
     private BigDecimal precio;
 
+    /**
+     * El precio de a dos y de a tres (`V35` §1, P88): el total del grupo, no
+     * por persona, y no es fórmula sobre {@link #precio} — 300/380/447 se
+     * escribe. {@code null} = sin precio cargado. La mentoría no admite grupos
+     * y eso lo dice el trigger de integrantes por disciplina, no este null.
+     */
+    @Column(name = "precio_2", precision = 14, scale = 2)
+    private BigDecimal precio2;
+
+    @Column(name = "precio_3", precision = 14, scale = 2)
+    private BigDecimal precio3;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "moneda", nullable = false, length = 3)
     private Moneda moneda = Moneda.ARS;

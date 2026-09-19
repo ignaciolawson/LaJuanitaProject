@@ -24,7 +24,9 @@ public record MaterialResumen(
         Long idMaterial,
         Long idProfesor,
         String profesor,
+        /** El referente de la inscripción (`V35`); los nombres van todos en {@link #alumno}. */
         Long idAlumno,
+        /** "Mati Grupo, Facu Grupo y Gonza Grupo": el material del curso es de todos (P91). */
         String alumno,
 
         /**
@@ -54,17 +56,17 @@ public record MaterialResumen(
     public static MaterialResumen de(Material material) {
         var profesor = material.getProfesor();
         var inscripcion = material.getInscripcion();
-        var alumno = inscripcion.getAlumno();
+        var alumno = inscripcion.referente().getAlumno();
         var reserva = material.getReserva();
 
         return new MaterialResumen(
                 material.getId(),
                 profesor.getId(),
                 profesor.getUsuario().getNombre() + " " + profesor.getUsuario().getApellido(),
-                // El alumno sale de la inscripción y ya no de una columna propia:
-                // una inscripción es el contrato de UN alumno.
+                // El alumno sale de la inscripción y ya no de una columna propia;
+                // desde `V35` la inscripción es de un grupo y se nombra a todos.
                 alumno.getId(),
-                alumno.getUsuario().getNombre() + " " + alumno.getUsuario().getApellido(),
+                nombresDe(inscripcion),
                 inscripcion.getId(),
                 nombreDe(inscripcion),
                 reserva == null ? null : reserva.getId(),
@@ -75,6 +77,17 @@ public record MaterialResumen(
                 material.getUrlExterna(),
                 material.isVisibleAlumno(),
                 material.getFechaSubida());
+    }
+
+    /** Los integrantes en una línea: "Mati, Facu y Gonza". */
+    static String nombresDe(com.lajuanita.backend.inscripcion.Inscripcion inscripcion) {
+        var nombres = inscripcion.getIntegrantes().stream()
+                .map(x -> x.getAlumno().getUsuario().getNombre() + " " + x.getAlumno().getUsuario().getApellido())
+                .toList();
+        if (nombres.size() == 1) {
+            return nombres.get(0);
+        }
+        return String.join(", ", nombres.subList(0, nombres.size() - 1)) + " y " + nombres.get(nombres.size() - 1);
     }
 
     /**

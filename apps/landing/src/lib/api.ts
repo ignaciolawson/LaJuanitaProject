@@ -149,6 +149,24 @@ export type Solicitud = {
   disciplina?: Disciplina;
   experiencia?: Experiencia;
   modalidad?: Modalidad;
+
+  /**
+   * Con quién viene (`V36`, P92): hasta dos, porque un grupo es de hasta 3 y
+   * quien llena el formulario ya es uno. **Los cuatro datos de cada uno son
+   * obligatorios** —Ignacio: *"que entre clean o no entre"*—: sin mail no hay
+   * cuenta y sin teléfono no hay WhatsApp con la clave. Sólo el formulario de
+   * programas lo manda, y sólo cuando la persona dijo que son más de uno; la
+   * mentoría es 1:1 y nunca. Ausente = viene solo.
+   */
+  companeros?: Companero[];
+};
+
+/** Un compañero del grupo, con los cuatro datos. Espeja `CompaneroRequest`. */
+export type Companero = {
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string;
 };
 
 /**

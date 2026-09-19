@@ -381,7 +381,7 @@ class ComprobanteTest {
 
     private Inscripcion inscripcionDe(Alumno alumno) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setNivel(Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);

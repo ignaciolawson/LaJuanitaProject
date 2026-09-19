@@ -416,6 +416,68 @@ describe('anotar a alguien en una clase', () => {
   })
 
   /**
+   * "Anotar al grupo" (`V35`, P90): si el curso que descuenta es de un grupo,
+   * la casilla viene marcada y se anota a los tres — un pedido por persona, el
+   * mismo que anotarlos de a uno. Desmarcada, va uno solo.
+   */
+  it('si el curso es de un grupo, anota a todo el grupo salvo que se desmarque', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([
+        {
+          idInscripcion: 7,
+          disciplina: 'DJ',
+          clasesRestantes: 5,
+          numeroGrupo: 8,
+          integrantes: [
+            { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@x', referente: true },
+            { idAlumno: 4, idUsuario: 31, nombre: 'Facu', apellido: 'Gómez', email: 'f@x', referente: false },
+            { idAlumno: 5, idUsuario: 32, nombre: 'Gonza', apellido: 'Ruiz', email: 'g@x', referente: false },
+          ],
+        },
+      ]) as never,
+    )
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
+    const casilla = await screen.findByRole('checkbox', { name: /Anotar a todo el grupo/ })
+    expect(casilla).toHaveProperty('checked', true)
+    expect(screen.getByText(/Grupo 8/)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalledTimes(3))
+    expect(vi.mocked(agregarParticipante).mock.calls.map(([, c]) => c.idUsuario)).toEqual([30, 31, 32])
+  })
+
+  it('desmarcada la casilla del grupo, anota a uno solo', async () => {
+    const user = await abrirDetalle()
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([
+        {
+          idInscripcion: 7,
+          disciplina: 'DJ',
+          clasesRestantes: 5,
+          numeroGrupo: 8,
+          integrantes: [
+            { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@x', referente: true },
+            { idAlumno: 4, idUsuario: 31, nombre: 'Facu', apellido: 'Gómez', email: 'f@x', referente: false },
+          ],
+        },
+      ]) as never,
+    )
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
+    await user.click(await screen.findByRole('checkbox', { name: /Anotar a todo el grupo/ }))
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
+
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(agregarParticipante).mock.calls[0][1].idUsuario).toBe(30)
+  })
+
+  /**
    * ⚠️ **El bug que dio origen a C1**, con las palabras de Ignacio: *"uno podría
    * reservar sala para producción y descontar de clase de DJ sin querer"*.
    *

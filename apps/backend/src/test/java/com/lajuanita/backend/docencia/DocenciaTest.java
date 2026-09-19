@@ -877,7 +877,7 @@ class DocenciaTest {
 
     private Inscripcion inscripcionDe(Alumno alumno, Profesor profesor, Disciplina disciplina) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setProfesor(profesor);
         inscripcion.setDisciplina(disciplina);
         inscripcion.setClasesContratadas((short) 8);

@@ -3,6 +3,8 @@ package com.lajuanita.backend.solicitante;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.hibernate.annotations.Generated;
 import org.hibernate.generator.EventType;
@@ -13,6 +15,7 @@ import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.venta.VentaEquipo;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,6 +26,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -188,6 +193,22 @@ public class Solicitante {
     @Enumerated(EnumType.STRING)
     @Column(name = "modalidad", length = 12)
     private Modalidad modalidad;
+
+    // == Con quién viene (`V36`, P92) =======================================
+
+    /**
+     * Los compañeros de quien llenó el formulario, hasta dos: un grupo es de
+     * hasta 3 y el que llena ya es uno. Vacía para quien viene solo. Sólo en
+     * una ficha de curso que no sea mentoría — lo dice la base y el servicio
+     * lo repite con su mensaje.
+     */
+    @OneToMany(mappedBy = "solicitante", cascade = CascadeType.PERSIST)
+    @OrderBy("id ASC")
+    private List<SolicitanteCompanero> companeros = new ArrayList<>();
+
+    public void agregarCompanero(String nombre, String apellido, String email, String telefono) {
+        companeros.add(new SolicitanteCompanero(this, nombre, apellido, email, telefono));
+    }
 
     /**
      * Cuándo llegó. Lo pone el DEFAULT de la base.

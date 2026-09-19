@@ -619,8 +619,9 @@ class TableroTest {
     private long alumnosDeDjSegunElTablero() {
         inscripciones.flush();
         return jdbc.queryForObject("""
-                SELECT count(DISTINCT id_alumno) FROM inscripcion
-                WHERE disciplina = 'DJ' AND estado IN ('ACTIVA', 'PAUSADA')
+                SELECT count(DISTINCT ii.id_alumno)
+                FROM inscripcion i JOIN inscripcion_integrante ii USING (id_inscripcion)
+                WHERE i.disciplina = 'DJ' AND i.estado IN ('ACTIVA', 'PAUSADA')
                 """, Long.class);
     }
 
@@ -756,7 +757,7 @@ class TableroTest {
 
     private Inscripcion inscripcionConFecha(Alumno alumno, Disciplina disciplina, LocalDate fecha) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(disciplina);
         inscripcion.setNivel(Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);

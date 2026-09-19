@@ -373,7 +373,14 @@ public class DocenciaService {
         Inscripcion curso = inscripciones.findById(solicitud.idInscripcion())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
                         "No existe ese curso (" + solicitud.idInscripcion() + ")."));
-        verificarQueEsMiAlumno(yo, curso.getAlumno().getId());
+        // Que el curso sea mío: basta con que uno de sus integrantes lo sea
+        // (`V35`) — la inscripción está asignada a mí o di una clase de ella.
+        boolean mio = curso.getIntegrantes().stream()
+                .anyMatch(x -> esMiAlumno(yo, x.getAlumno().getId()));
+        if (!mio) {
+            throw new RecursoNoEncontradoException(
+                    "No existe ese curso entre los tuyos (" + curso.getId() + ").");
+        }
 
         Material material = new Material();
         material.setProfesor(yo);
@@ -487,6 +494,11 @@ public class DocenciaService {
                         "No existe ese alumno entre los tuyos (" + idAlumno + ")."));
     }
 
+    /** La misma pregunta, como booleano: para recorrer los integrantes de un curso. */
+    private boolean esMiAlumno(Profesor yo, Long idAlumno) {
+        return !alumnos.delProfesor(yo.getId(), idAlumno, EstadoAsistencia.CANCELADA).isEmpty();
+    }
+
     /**
      * Los cursos vigentes de cada alumno, con lo que le queda en cada uno.
      *
@@ -507,12 +519,18 @@ public class DocenciaService {
         // dice un número que la base no reconoce.
         Map<Long, Integer> consumidas = cursos.clasesConsumidas(vigentes);
 
+        // Una inscripción de grupo se reparte a cada integrante pedido (`V35`):
+        // el curso es de los tres y a cada uno le quedan las mismas clases.
         Map<Long, List<CursoDelAlumno>> porAlumno = new HashMap<>();
         for (Inscripcion i : vigentes) {
             int restan = Math.max(
                     i.getClasesContratadas() - consumidas.getOrDefault(i.getId(), 0), 0);
-            porAlumno.computeIfAbsent(i.getAlumno().getId(), id -> new ArrayList<>())
-                    .add(CursoDelAlumno.de(i, restan));
+            for (var x : i.getIntegrantes()) {
+                if (idsAlumno.contains(x.getAlumno().getId())) {
+                    porAlumno.computeIfAbsent(x.getAlumno().getId(), id -> new ArrayList<>())
+                            .add(CursoDelAlumno.de(i, restan));
+                }
+            }
         }
         return porAlumno;
     }

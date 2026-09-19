@@ -29,6 +29,7 @@ function curso(cambios: Partial<ProgresoDelCurso> = {}): ProgresoDelCurso {
     clasesRestantes: 5,
     fechaInicio: '2026-08-01',
     estado: 'ACTIVA',
+    companeros: [],
     ...cambios,
   }
 }
@@ -70,6 +71,14 @@ describe('el progreso', () => {
    * le queda por cursar, que es la misma razón por la que cuenta en el listado
    * de alumnos por disciplina.
    */
+  /** En grupo (`V35`, P91): el curso es de los tres, y la tarjeta dice con quién. */
+  it('un curso en grupo dice con quién se cursa', async () => {
+    vi.mocked(misCursos).mockResolvedValue([curso({ companeros: ['Facu Gómez', 'Gonza Ruiz'] })])
+    montar()
+
+    expect(await screen.findByText(/junto a Facu Gómez y Gonza Ruiz/)).toBeDefined()
+  })
+
   it('una inscripción pausada se muestra, con su estado', async () => {
     vi.mocked(misCursos).mockResolvedValue([curso({ estado: 'PAUSADA' })])
     montar()

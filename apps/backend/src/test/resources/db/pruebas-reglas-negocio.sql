@@ -114,6 +114,51 @@ BEGIN
 END; $fn$ LANGUAGE plpgsql;
 
 
+
+-- -----------------------------------------------------------------------------
+-- LA INSCRIPCIÓN, Y POR QUÉ NINGÚN CASO INSERTA UNA SUELTA  (V35)
+--
+-- Desde `V35` una inscripción es el contrato de un grupo de 1 a 3 personas:
+-- `inscripcion.id_alumno` no existe más y los que cursan están en
+-- `inscripcion_integrante`. Y `V35` §4 (b) exige AL COMMIT que la inscripción
+-- tenga al menos un integrante y exactamente un referente — diferido como la
+-- seña de `V10`, y con la misma trampa: en psql (autocommit) el rechazo cae
+-- afuera de `probar()` y el caso DESAPARECE del resumen.
+--
+-- Entonces, como con `sena()`: **toda inscripción entra con su integrante en la
+-- misma sentencia**, a través de `inscribir(...)`. Devuelve el id, así que un
+-- `SELECT inscribir(...)` es una fila y el guardián de "un ANDA afecta filas"
+-- sigue en pie; y si la rechaza un CHECK o un trigger, la excepción sale entera.
+-- `inscripciones_de(alumno, disciplina)` es el reemplazo del viejo
+-- `WHERE id_alumno = ... AND disciplina = ...`.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION inscribir(
+    p_id_alumno BIGINT, p_disciplina TEXT, p_clases INTEGER, p_precio NUMERIC,
+    p_id_profesor BIGINT DEFAULT NULL, p_estado TEXT DEFAULT 'ACTIVA',
+    p_vence TIMESTAMPTZ DEFAULT NULL, p_moneda TEXT DEFAULT 'ARS',
+    p_cotizacion NUMERIC DEFAULT NULL)
+RETURNS BIGINT AS $$
+    WITH nueva AS (
+        INSERT INTO inscripcion (id_profesor, disciplina, clases_contratadas, precio_total,
+                                 estado, vence_preinscripcion, moneda, cotizacion_dolar)
+        VALUES (p_id_profesor, p_disciplina, p_clases, p_precio,
+                p_estado, p_vence, p_moneda, p_cotizacion)
+        RETURNING id_inscripcion),
+    integrante AS (
+        INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+        SELECT id_inscripcion, p_id_alumno, TRUE FROM nueva
+        RETURNING id_inscripcion)
+    SELECT id_inscripcion FROM integrante;
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION inscripciones_de(p_id_alumno BIGINT, p_disciplina TEXT)
+RETURNS SETOF BIGINT AS $$
+    SELECT i.id_inscripcion
+    FROM inscripcion i JOIN inscripcion_integrante ii USING (id_inscripcion)
+    WHERE ii.id_alumno = p_id_alumno AND i.disciplina = p_disciplina;
+$$ LANGUAGE sql;
+
+
 -- =============================================================================
 -- SEMILLA
 -- =============================================================================
@@ -127,12 +172,10 @@ INSERT INTO profesor (id_usuario) SELECT id_usuario FROM usuario WHERE email='gh
 INSERT INTO alumno (id_usuario)   SELECT id_usuario FROM usuario WHERE email IN ('juan@test.local','ana@test.local');
 
 -- Inscripción de Juan a DJ, y de Ana a DJ.
-INSERT INTO inscripcion (id_alumno,id_profesor,disciplina,clases_contratadas,precio_total)
-SELECT a.id_alumno, (SELECT id_profesor FROM profesor LIMIT 1), 'DJ', 8, 400000
+SELECT inscribir(a.id_alumno, 'DJ', 8, 400000, (SELECT id_profesor FROM profesor LIMIT 1))
 FROM alumno a JOIN usuario u ON u.id_usuario=a.id_usuario WHERE u.email='juan@test.local';
 
-INSERT INTO inscripcion (id_alumno,id_profesor,disciplina,clases_contratadas,precio_total)
-SELECT a.id_alumno, (SELECT id_profesor FROM profesor LIMIT 1), 'DJ', 8, 400000
+SELECT inscribir(a.id_alumno, 'DJ', 8, 400000, (SELECT id_profesor FROM profesor LIMIT 1))
 FROM alumno a JOIN usuario u ON u.id_usuario=a.id_usuario WHERE u.email='ana@test.local';
 
 -- Atajos legibles para el resto del archivo.
@@ -143,8 +186,8 @@ CREATE VIEW v AS SELECT
  (SELECT id_profesor FROM profesor LIMIT 1)                      AS prof,
  (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='juan@test.local') AS al_juan,
  (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='ana@test.local')  AS al_ana,
- (SELECT i.id_inscripcion FROM inscripcion i JOIN alumno a USING(id_alumno) JOIN usuario u USING(id_usuario) WHERE u.email='juan@test.local' AND i.disciplina='DJ') AS ins_juan,
- (SELECT i.id_inscripcion FROM inscripcion i JOIN alumno a USING(id_alumno) JOIN usuario u USING(id_usuario) WHERE u.email='ana@test.local'  AND i.disciplina='DJ') AS ins_ana,
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN inscripcion_integrante ii USING(id_inscripcion) JOIN alumno a ON a.id_alumno=ii.id_alumno JOIN usuario u USING(id_usuario) WHERE u.email='juan@test.local' AND i.disciplina='DJ') AS ins_juan,
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN inscripcion_integrante ii USING(id_inscripcion) JOIN alumno a ON a.id_alumno=ii.id_alumno JOIN usuario u USING(id_usuario) WHERE u.email='ana@test.local'  AND i.disciplina='DJ') AS ins_ana,
  (SELECT id_sala FROM sala WHERE nombre_sala='Sala 1')              AS sala1,
  (SELECT id_sala FROM sala WHERE nombre_sala='Sala 2')              AS sala2,
  (SELECT id_sala FROM sala WHERE nombre_sala='Cabina de grabación') AS cabina,
@@ -281,25 +324,22 @@ SELECT probar('17','bloquear una sala que ya tiene reserva activa','FALLA',
 -- =============================================================================
 -- INSCRIPCIONES
 -- =============================================================================
-SELECT probar('18','segunda inscripcion de DJ activa para el mismo alumno','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_juan,'DJ',8,500000 FROM v$q$);
+-- Desde V35 la regla es un trigger (§4 d) y no el indice: se pide el mensaje.
+SELECT probar_mensaje('18','segunda inscripcion de DJ activa para el mismo alumno',
+ 'ya tiene una inscripcion abierta en DJ',
+ $q$SELECT inscribir(al_juan,'DJ',8,500000) FROM v$q$);
 
 SELECT probar('19','mentoria en paralelo al curso de DJ','ANDA',
- $q$INSERT INTO inscripcion (id_alumno,id_profesor,disciplina,clases_contratadas,precio_total)
-    SELECT al_juan,prof,'MENTORIA',4,200000 FROM v$q$);
+ $q$SELECT inscribir(al_juan,'MENTORIA',4,200000,prof) FROM v$q$);
 
 SELECT probar('20','inscripcion con 0 clases','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_ana,'PRODUCCION',0,100000 FROM v$q$);
+ $q$SELECT inscribir(al_ana,'PRODUCCION',0,100000) FROM v$q$);
 
 SELECT probar('21','inscripcion en USD sin cotizacion','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,moneda)
-    SELECT al_ana,'PRODUCCION',8,1000,'USD' FROM v$q$);
+ $q$SELECT inscribir(al_ana,'PRODUCCION',8,1000,NULL,'ACTIVA',NULL,'USD') FROM v$q$);
 
 SELECT probar('22','disciplina inexistente','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_ana,'CANTO',8,100000 FROM v$q$);
+ $q$SELECT inscribir(al_ana,'CANTO',8,100000) FROM v$q$);
 
 
 -- =============================================================================
@@ -969,21 +1009,18 @@ SELECT probar('113','volver a activar la Sala 2','ANDA',
 -- Inscripcion corta a proposito: con 8 harian falta nueve casos para llegar al
 -- limite. Con 1, el limite se prueba en dos.
 SELECT probar('114','inscripcion de Ana a PRODUCCION, UNA sola clase','ANDA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_ana,'PRODUCCION',1,50000 FROM v$q$);
+ $q$SELECT inscribir(al_ana,'PRODUCCION',1,50000) FROM v$q$);
 
 SELECT probar('115','primera clase de esa inscripcion','ANDA',
  $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
     SELECT r.id_reserva, v.u_ana,
-           (SELECT id_inscripcion FROM inscripcion
-            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+           (SELECT inscripciones_de(v.al_ana,'PRODUCCION'))
     FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='15:00'$q$);
 
 SELECT probar('116','SEGUNDA clase contra una inscripcion de una','FALLA',
  $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
     SELECT r.id_reserva, v.u_ana,
-           (SELECT id_inscripcion FROM inscripcion
-            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+           (SELECT inscripciones_de(v.al_ana,'PRODUCCION'))
     FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='20:00'$q$);
 
 -- El camino de atras: cancelar libera la clase y volver a activarla la reclama.
@@ -997,8 +1034,7 @@ SELECT probar('117','cancelar la clase de las 15 libera la unica contratada','AN
 SELECT probar('118','ahora si entra la otra clase','ANDA',
  $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
     SELECT r.id_reserva, v.u_ana,
-           (SELECT id_inscripcion FROM inscripcion
-            WHERE id_alumno=v.al_ana AND disciplina='PRODUCCION')
+           (SELECT inscripciones_de(v.al_ana,'PRODUCCION'))
     FROM v, reserva r WHERE r.fecha='2027-03-01' AND r.hora_inicio='20:00'$q$);
 
 SELECT probar('119','DESCANCELAR la de las 15 dejaria 2 sobre 1','FALLA',
@@ -1032,13 +1068,13 @@ SELECT probar('119','DESCANCELAR la de las 15 dejaria 2 sobre 1','FALLA',
 INSERT INTO usuario (nombre,apellido,email,password_hash,rol)
 VALUES ('Sena','Prueba','sena@test.local','x','USUARIO');
 INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='sena@test.local';
-INSERT INTO inscripcion (id_alumno,id_profesor,disciplina,clases_contratadas,precio_total)
-SELECT a.id_alumno,(SELECT id_profesor FROM profesor LIMIT 1),'DJ',8,400000
+SELECT inscribir(a.id_alumno,'DJ',8,400000,(SELECT id_profesor FROM profesor LIMIT 1))
 FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='sena@test.local';
 
 CREATE VIEW s AS SELECT
  (SELECT id_usuario FROM usuario WHERE email='sena@test.local') AS u_sena,
- (SELECT i.id_inscripcion FROM inscripcion i JOIN alumno a USING(id_alumno)
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN inscripcion_integrante ii USING(id_inscripcion)
+    JOIN alumno a ON a.id_alumno=ii.id_alumno
     JOIN usuario u USING(id_usuario) WHERE u.email='sena@test.local') AS ins_sena,
  (SELECT id_tipo_uso FROM tipo_uso WHERE codigo='MIX_MASTERING') AS u_mix;
 
@@ -2254,67 +2290,65 @@ CREATE VIEW v_pre AS SELECT
 
 -- Nace preinscripta con su plazo.
 SELECT probar('250','nace preinscripta, con vencimiento','ANDA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
-    SELECT al_pre,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+ $q$SELECT inscribir(al_pre,'DJ',8,170000,NULL,'PREINSCRIPTA',now()+interval '24 hours') FROM v_pre$q$);
 
 -- El CHECK en los dos sentidos (la forma de V24 §3).
 SELECT probar('251','preinscripta sin plazo','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado)
-    SELECT al_pre,'PRODUCCION',16,440000,'PREINSCRIPTA' FROM v_pre$q$);
+ $q$SELECT inscribir(al_pre,'PRODUCCION',16,440000,NULL,'PREINSCRIPTA') FROM v_pre$q$);
 
 SELECT probar('252','activa con un plazo que no le corresponde','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
-    SELECT al_pre,'PRODUCCION',16,440000,'ACTIVA',now()+interval '24 hours' FROM v_pre$q$);
+ $q$SELECT inscribir(al_pre,'PRODUCCION',16,440000,NULL,'ACTIVA',now()+interval '24 hours') FROM v_pre$q$);
 
--- El indice unico ampliado: ni una segunda preinscripta ni una activa encima.
-SELECT probar('253','una segunda preinscripcion a la misma disciplina','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
-    SELECT al_pre,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+-- "Una abierta por alumno y disciplina" (era el indice; desde V35 es el trigger
+-- de §4 d): ni una segunda preinscripta ni una activa encima.
+SELECT probar_mensaje('253','una segunda preinscripcion a la misma disciplina',
+ 'ya tiene una inscripcion abierta en DJ',
+ $q$SELECT inscribir(al_pre,'DJ',8,170000,NULL,'PREINSCRIPTA',now()+interval '24 hours') FROM v_pre$q$);
 
-SELECT probar('254','una activa encima de la preinscripta','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_pre,'DJ',8,170000 FROM v_pre$q$);
+SELECT probar_mensaje('254','una activa encima de la preinscripta',
+ 'ya tiene una inscripcion abierta en DJ',
+ $q$SELECT inscribir(al_pre,'DJ',8,170000) FROM v_pre$q$);
 
 -- (c) A ACTIVA sin un peso cobrado, no. Es lo que la pantalla de inscripciones
 -- permitia con un clic en el <select> de estados.
 SELECT probar_mensaje('255','activarla sin senia cobrada',
  'tiene que estar cobrada la senia',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
-    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
 -- Una deuda anotada no es plata cobrada (la leccion de V12), asi que tampoco.
 SELECT probar('256','anotarle una deuda de senia','ANDA',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,estado_pago,concepto)
     SELECT u_pre,i.id_inscripcion,85000,'EFECTIVO','DEBE','senia anotada'
-      FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ'$q$);
+      FROM v_pre, inscripcion i WHERE i.id_inscripcion IN (SELECT inscripciones_de(al_pre,'DJ'))$q$);
 
 SELECT probar_mensaje('257','activarla con la senia solo anotada',
  'tiene que estar cobrada la senia',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
-    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
 -- (b) Tampoco a PAUSADA ni a COMPLETADA: de la preinscripcion se sale seniando
 -- o cancelando.
 SELECT probar_mensaje('258','pausar una preinscripta',
  'solo puede activarse',
  $q$UPDATE inscripcion SET estado='PAUSADA', vence_preinscripcion=NULL
-    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
 -- Llega la senia cobrada, y ahora si.
 SELECT probar('259','cobrar la senia','ANDA',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,medio_pago,estado_pago,concepto)
     SELECT u_pre,i.id_inscripcion,85000,'EFECTIVO','SENADO','senia'
-      FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ'$q$);
+      FROM v_pre, inscripcion i WHERE i.id_inscripcion IN (SELECT inscripciones_de(al_pre,'DJ'))$q$);
 
 SELECT probar('260','activarla con la senia cobrada','ANDA',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
-    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
 -- (a) Y no se vuelve: a la preinscripcion se entra solo al nacer.
 SELECT probar_mensaje('261','volverla a preinscripta',
  'se entra solo al crearla',
  $q$UPDATE inscripcion SET estado='PREINSCRIPTA', vence_preinscripcion=now()+interval '24 hours'
-    WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='DJ'$q$);
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
 -- ⚠️ Lo que NO se cierra, a proposito (P60): anular la senia despues de activar
 -- ANDA. No hay cupo, asi que no hay victima; el estado de cuenta dice que debe
@@ -2323,20 +2357,18 @@ SELECT probar_mensaje('261','volverla a preinscripta',
 SELECT probar('262','anular la senia despues de activar (no hay vuelta de V11, a proposito)','ANDA',
  $q$UPDATE pago SET estado_pago='ANULADO', id_usuario_anula=(SELECT u_mica FROM v),
        fecha_anulacion=now(), motivo_anulacion='se arrepintio'
-    WHERE id_inscripcion=(SELECT i.id_inscripcion FROM v_pre, inscripcion i
-                          WHERE i.id_alumno=al_pre AND i.disciplina='DJ')
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)
       AND estado_pago='SENADO'$q$);
 
 -- La otra salida: cancelar una preinscripta, sin plata, anda. Dos casos y no
 -- un CTE: un UPDATE no ve la fila que el CTE de la misma sentencia inserto, y
 -- el guardian de "un ANDA afecta filas" lo dijo.
 SELECT probar('263','otra preinscripta, a mentoria','ANDA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
-    SELECT al_pre,'MENTORIA',4,100000,'PREINSCRIPTA',now()+interval '24 hours' FROM v_pre$q$);
+ $q$SELECT inscribir(al_pre,'MENTORIA',4,100000,NULL,'PREINSCRIPTA',now()+interval '24 hours') FROM v_pre$q$);
 
 SELECT probar('264','una preinscripta se cancela sin cobrar nada','ANDA',
  $q$UPDATE inscripcion SET estado='CANCELADA', vence_preinscripcion=NULL
-     WHERE id_alumno=(SELECT al_pre FROM v_pre) AND disciplina='MENTORIA'
+     WHERE id_inscripcion IN (SELECT inscripciones_de(al_pre,'MENTORIA') FROM v_pre)
        AND estado='PREINSCRIPTA'$q$);
 
 
@@ -2353,12 +2385,11 @@ SELECT probar('264','una preinscripta se cancela sin cobrar nada','ANDA',
 -- seccion anterior.
 -- =============================================================================
 
-INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,moneda,cotizacion_dolar)
-SELECT al_pre,'PRODUCCION',16,500,'USD',1450 FROM v_pre;
+SELECT inscribir(al_pre,'PRODUCCION',16,500,NULL,'ACTIVA',NULL,'USD',1450) FROM v_pre;
 
 CREATE VIEW v_moneda AS SELECT
- (SELECT i.id_inscripcion FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='DJ') AS ins_pesos,
- (SELECT i.id_inscripcion FROM v_pre, inscripcion i WHERE i.id_alumno=al_pre AND i.disciplina='PRODUCCION') AS ins_dolares;
+ (SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)         AS ins_pesos,
+ (SELECT inscripciones_de(al_pre,'PRODUCCION') FROM v_pre) AS ins_dolares;
 
 SELECT probar_mensaje('265','pago en USD sobre un contrato en pesos',
  'moneda del contrato',
@@ -2532,6 +2563,257 @@ SELECT probar_mensaje('287','cambiarle la moneda a un trabajo con un cobro adent
 SELECT probar('288','cambiarle la moneda a un trabajo sin pagos','ANDA',
  $q$UPDATE trabajo_mastering SET moneda='USD', precio_acordado=300
     WHERE id_trabajo=(SELECT t_pesos FROM v_moneda_t)$q$);
+
+
+-- =============================================================================
+-- EL GRUPO ES EL ALUMNO  (`V35`, §22, P87–P91)
+--
+-- Una inscripción es el contrato de 1 a 3 personas. Lo que se prueba acá es lo
+-- que `V35` §4 y §5 sostienen: hasta 3 (y la mentoría 1), al menos uno y un
+-- referente al COMMIT, integrantes fijos, una abierta por alumno y disciplina
+-- en las dos direcciones, y que UNA clase del grupo consume UNA clase.
+--
+-- Los grupos se insertan con un CTE de dos INSERTs, como `inscribir()` pero con
+-- varios integrantes; el trigger de §4 (b) es diferido, así que en los casos
+-- que lo atacan se fuerza con `SET CONSTRAINTS ... IMMEDIATE` (la forma de la
+-- sección de la seña).
+-- =============================================================================
+
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol) VALUES
+ ('Mati','Grupo','mati@test.local','x','USUARIO'),
+ ('Facu','Grupo','facu@test.local','x','USUARIO'),
+ ('Gonza','Grupo','gonza@test.local','x','USUARIO'),
+ ('Nico','Grupo','nico@test.local','x','USUARIO');
+INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario
+ WHERE email IN ('mati@test.local','facu@test.local','gonza@test.local','nico@test.local');
+
+CREATE VIEW v_g AS SELECT
+ (SELECT id_usuario FROM usuario WHERE email='mati@test.local')  AS u_mati,
+ (SELECT id_usuario FROM usuario WHERE email='facu@test.local')  AS u_facu,
+ (SELECT id_usuario FROM usuario WHERE email='gonza@test.local') AS u_gonza,
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='mati@test.local')  AS al_mati,
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='facu@test.local')  AS al_facu,
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='gonza@test.local') AS al_gonza,
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='nico@test.local')  AS al_nico;
+
+-- Un grupo de 3 en DJ, con DOS clases contratadas a propósito: con dos, "una
+-- clase del grupo es una clase" se prueba en tres casos (300–302).
+SELECT probar('289','un grupo de 3 en DJ, con su numero y su referente','ANDA',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('DJ',2,447000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion),
+    integrantes AS (
+      INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+      SELECT n.id_inscripcion, x.al, x.ref FROM nueva n,
+        (SELECT al_mati AS al, TRUE AS ref FROM v_g UNION ALL
+         SELECT al_facu, FALSE FROM v_g UNION ALL
+         SELECT al_gonza, FALSE FROM v_g) x
+      RETURNING id_inscripcion)
+    SELECT DISTINCT id_inscripcion FROM integrantes$q$);
+
+-- El grupo y no "la DJ de Mati": desde el caso 305 Mati tiene dos.
+CREATE VIEW v_g1 AS SELECT
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN inscripcion_integrante ii USING(id_inscripcion), v_g
+   WHERE ii.id_alumno=al_mati AND i.disciplina='DJ' AND i.numero_grupo IS NOT NULL) AS ins_g1;
+
+-- (a) Hasta 3.
+SELECT probar_mensaje('290','un CUARTO integrante en el grupo',
+ 'hasta 3 personas',
+ $q$INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno)
+    SELECT ins_g1, al_nico FROM v_g1, v_g$q$);
+
+-- (d) Una abierta por alumno y disciplina, al sumar un integrante: Juan ya
+-- tiene DJ activa desde la semilla. El mensaje dice quien.
+SELECT probar_mensaje('291','un grupo nuevo de DJ con Juan adentro, que ya cursa DJ',
+ 'Juan Prueba ya tiene una inscripcion abierta en DJ',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('DJ',8,380000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
+    INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+    SELECT n.id_inscripcion, x.al, x.ref FROM nueva n,
+      (SELECT al_nico AS al, TRUE AS ref FROM v_g UNION ALL
+       SELECT al_juan, FALSE FROM v) x$q$);
+
+-- ...pero en OTRA disciplina, si: Mati y Facu de a dos en Produccion.
+SELECT probar('292','Mati y Facu, que ya cursan DJ, de a dos en PRODUCCION','ANDA',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('PRODUCCION',16,760000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion),
+    integrantes AS (
+      INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+      SELECT n.id_inscripcion, x.al, x.ref FROM nueva n,
+        (SELECT al_mati AS al, TRUE AS ref FROM v_g UNION ALL
+         SELECT al_facu, FALSE FROM v_g) x
+      RETURNING id_inscripcion)
+    SELECT DISTINCT id_inscripcion FROM integrantes$q$);
+
+-- (a) La mentoria es 1:1.
+SELECT probar_mensaje('293','una mentoria de a dos',
+ 'no admite grupos',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('MENTORIA',4,200000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
+    INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+    SELECT n.id_inscripcion, x.al, x.ref FROM nueva n,
+      (SELECT al_gonza AS al, TRUE AS ref FROM v_g UNION ALL
+       SELECT al_nico, FALSE FROM v_g) x$q$);
+
+-- (c) Fijos.
+SELECT probar_mensaje('294','sacar a Gonza del grupo',
+ 'son fijos',
+ $q$DELETE FROM inscripcion_integrante
+    WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1) AND id_alumno=(SELECT al_gonza FROM v_g)$q$);
+
+SELECT probar_mensaje('295','pasarle el referente a Facu',
+ 'son fijos',
+ $q$UPDATE inscripcion_integrante SET referente = (id_alumno = (SELECT al_facu FROM v_g))
+    WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1)$q$);
+
+-- (b) Al COMMIT — forzado con SET CONSTRAINTS para verlo adentro del caso.
+SELECT probar_mensaje('296','una inscripcion sin ningun integrante',
+ 'no tiene ningun integrante',
+ $q$INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total)
+    VALUES ('DJ',8,170000);
+    SET CONSTRAINTS inscripcion_con_integrantes IMMEDIATE$q$);
+
+SELECT probar_mensaje('297','un grupo de dos sin referente',
+ 'tiene 0 referentes',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('PRODUCCION',16,760000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
+    INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+    SELECT n.id_inscripcion, x.al, FALSE FROM nueva n,
+      (SELECT al_nico AS al FROM v_g UNION ALL SELECT al_gonza FROM v_g) x;
+    SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE$q$);
+
+SELECT probar_mensaje('298','un grupo de dos SIN numero de grupo',
+ 'numero de grupo',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total)
+      VALUES ('PRODUCCION',16,760000) RETURNING id_inscripcion)
+    INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+    SELECT n.id_inscripcion, x.al, x.ref FROM nueva n,
+      (SELECT al_nico AS al, TRUE AS ref FROM v_g UNION ALL SELECT al_gonza, FALSE FROM v_g) x;
+    SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE$q$);
+
+SELECT probar_mensaje('299','un alumno solo CON numero de grupo',
+ 'numero de grupo',
+ $q$WITH nueva AS (
+      INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
+      VALUES ('DJ',8,170000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
+    INSERT INTO inscripcion_integrante (id_inscripcion,id_alumno,referente)
+    SELECT id_inscripcion, al_nico, TRUE FROM nueva, v_g;
+    SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE$q$);
+
+-- §5: una clase del grupo es UNA clase. El grupo tiene 2 contratadas; la
+-- primera clase anota a los tres, y si la base contara participaciones ya
+-- serian 3 sobre 2 y la segunda clase (301) fallaria. Es el caso que se pone
+-- rojo con la definicion vieja de V9 §5.
+SELECT probar('300','primera clase del grupo, con los tres anotados','ANDA',
+ $q$WITH r AS (
+      INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+      SELECT sala1,u_clase,prof,'2030-05-06','10:00','11:30' FROM v RETURNING id_reserva),
+    p AS (
+      INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+      SELECT r.id_reserva, x.u, g1.ins_g1 FROM r, v_g1 g1,
+        (SELECT u_mati AS u FROM v_g UNION ALL SELECT u_facu FROM v_g UNION ALL SELECT u_gonza FROM v_g) x
+      RETURNING id_reserva)
+    SELECT DISTINCT id_reserva FROM p$q$);
+
+SELECT probar('301','segunda clase del grupo: la primera conto UNA, no tres','ANDA',
+ $q$WITH r AS (
+      INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+      SELECT sala1,u_clase,prof,'2030-05-13','10:00','11:30' FROM v RETURNING id_reserva),
+    p AS (
+      INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+      SELECT r.id_reserva, x.u, g1.ins_g1 FROM r, v_g1 g1,
+        (SELECT u_mati AS u FROM v_g UNION ALL SELECT u_facu FROM v_g UNION ALL SELECT u_gonza FROM v_g) x
+      RETURNING id_reserva)
+    SELECT DISTINCT id_reserva FROM p$q$);
+
+SELECT probar_mensaje('302','tercera clase contra dos contratadas',
+ 'clases contratadas',
+ $q$WITH r AS (
+      INSERT INTO reserva (id_sala,id_tipo_uso,id_profesor,fecha,hora_inicio,hora_fin)
+      SELECT sala1,u_clase,prof,'2030-05-20','10:00','11:30' FROM v RETURNING id_reserva)
+    INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, u_mati, ins_g1 FROM r, v_g, v_g1$q$);
+
+-- V1 §8.2 reescrita: la inscripcion que se descuenta es de un INTEGRANTE. Ana
+-- no esta en el grupo.
+SELECT probar_mensaje('303','anotar a Ana en la clase del grupo con la inscripcion del grupo',
+ 'no pertenece al usuario',
+ $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
+    SELECT r.id_reserva, v.u_ana, g1.ins_g1 FROM v, v_g1 g1, reserva r
+    WHERE r.fecha='2030-05-06' AND r.hora_inicio='10:00'$q$);
+
+-- (d) en la OTRA direccion: al abrirse una inscripcion. Se cancela el grupo,
+-- Mati se anota solo en DJ, y reactivar el grupo lo pondria en dos DJ a la vez.
+SELECT probar('304','cancelar el grupo de DJ','ANDA',
+ $q$UPDATE inscripcion SET estado='CANCELADA' WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1)$q$);
+
+SELECT probar('305','Mati, ahora solo, en DJ','ANDA',
+ $q$SELECT inscribir(al_mati,'DJ',8,170000) FROM v_g$q$);
+
+SELECT probar_mensaje('306','reactivar el grupo con Mati ya en otra DJ abierta',
+ 'Mati Grupo ya tiene una inscripcion abierta en DJ',
+ $q$UPDATE inscripcion SET estado='ACTIVA' WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1)$q$);
+
+-- Y el catalogo: la mentoria no tiene precio de grupo que cargar, pero la base
+-- no lo ata al NULL (un NULL no puede significar dos cosas): lo ata §4 (a).
+SELECT probar('307','precio de a 2 y de a 3 en el catalogo de DJ','ANDA',
+ $q$UPDATE programa SET precio_2=380000, precio_3=447000 WHERE disciplina='DJ'$q$);
+
+SELECT probar('308','precio de grupo negativo','FALLA',
+ $q$UPDATE programa SET precio_2=-1 WHERE disciplina='DJ'$q$);
+
+
+-- =============================================================================
+-- LA FICHA TRAE A LOS COMPANEROS  (`V36`, §22, P92)
+-- =============================================================================
+
+INSERT INTO solicitante (nombre,apellido,email,telefono,interes,disciplina)
+VALUES ('Mati','Web','mati@web.local','11-6000-0001','CURSO','DJ'),
+       ('Solo','Web','solo@web.local','11-6000-0002','ALQUILER_CABINA',NULL),
+       ('Mentor','Web','mentor@web.local','11-6000-0003','CURSO','MENTORIA'),
+       ('Sola','Web','sola@web.local','11-6000-0004','CURSO','PRODUCCION');
+
+SELECT probar('309','dos companeros en una ficha de curso','ANDA',
+ $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
+    SELECT id_solicitante, x.n, 'Web', x.m, x.t FROM solicitante,
+      (VALUES ('Facu','facu@web.local','11-6000-0011'),
+              ('Gonza','gonza@web.local','11-6000-0012')) AS x(n,m,t)
+    WHERE email='mati@web.local'$q$);
+
+SELECT probar_mensaje('310','un tercer companero (serian cuatro)',
+ 'hasta 3 personas',
+ $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
+    SELECT id_solicitante,'Nico','Web','nico@web.local','11-6000-0013' FROM solicitante
+    WHERE email='mati@web.local'$q$);
+
+SELECT probar_mensaje('311','un companero en una ficha de cabina',
+ 'solo en una ficha de curso',
+ $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
+    SELECT id_solicitante,'Nico','Web','nico@web.local','11-6000-0013' FROM solicitante
+    WHERE email='solo@web.local'$q$);
+
+SELECT probar_mensaje('312','un companero en una ficha de mentoria',
+ 'no admite grupos',
+ $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
+    SELECT id_solicitante,'Nico','Web','nico@web.local','11-6000-0013' FROM solicitante
+    WHERE email='mentor@web.local'$q$);
+
+-- Sobre una ficha de curso que admite companeros: si fuera la de mentoria, el
+-- trigger la rechazaria antes que el CHECK y el caso pasaria por otro motivo.
+SELECT probar_mensaje('313','un companero sin telefono',
+ 'companero_contacto_no_vacio',
+ $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
+    SELECT id_solicitante,'Nico','Web','nico@web.local','  ' FROM solicitante
+    WHERE email='sola@web.local'$q$);
+
+SELECT probar_mensaje('314','borrar un companero',
+ 'No se borran filas de solicitante_companero',
+ $q$DELETE FROM solicitante_companero WHERE email='gonza@web.local'$q$);
 
 
 -- =============================================================================

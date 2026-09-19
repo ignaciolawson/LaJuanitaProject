@@ -2,28 +2,42 @@ package com.lajuanita.backend.inscripcion.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.Nivel;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import com.lajuanita.backend.dinero.Moneda;
 
 /**
- * Alta de una inscripción: quién cursa qué, con quién, cuántas clases y por
+ * Alta de una inscripción: quiénes cursan qué, con quién, cuántas clases y por
  * cuánto.
  *
- * <p>A diferencia del alta de alumno, acá no hay dos caminos: el alumno tiene
+ * <p>A diferencia del alta de alumno, acá no hay dos caminos: los alumnos tienen
  * que existir. Inscribir a alguien que todavía no es alumno es primero darlo de
- * alta como alumno, que es una operación distinta y con su propia pantalla.
+ * alta como alumno, que es una operación distinta y con su propia pantalla (o
+ * el buzón, que hace las dos cosas en una transacción).
+ *
+ * <p><b>Desde `V35` se inscribe a un grupo de 1 a 3</b> (P87): {@link #integrantes}
+ * son los ids de alumno, y {@link #idReferente} dice cuál de ellos recibe el
+ * WhatsApp y encabeza la deuda (P88) — en null, el primero. El precio es
+ * <b>del grupo</b>, no por persona. La mentoría admite uno solo (P88); lo dice
+ * la base y el servicio lo repite con su mensaje.
  */
 public record AltaInscripcionRequest(
 
-        @NotNull(message = "Decí a qué alumno se inscribe.")
-        Long idAlumno,
+        @NotEmpty(message = "Decí a qué alumno o alumnos se inscribe.")
+        @Size(max = 3, message = "Un grupo es de hasta 3 personas.")
+        List<@NotNull Long> integrantes,
+
+        /** Uno de {@link #integrantes}; en null, el primero. */
+        Long idReferente,
 
         /** Opcional: se puede anotar a alguien y decidir después quién lo toma. */
         Long idProfesor,

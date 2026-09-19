@@ -111,6 +111,10 @@ function alumno(cambios: Partial<AlumnoResumen> = {}): AlumnoResumen {
 function inscripcion(cambios: Partial<InscripcionResumen> = {}): InscripcionResumen {
   return {
     idInscripcion: 1,
+    numeroGrupo: null,
+    integrantes: [
+      { idAlumno: 10, idUsuario: 100, nombre: 'Juan', apellido: 'Pérez', email: 'juan@lajuanita.local', referente: true },
+    ],
     idAlumno: 10,
     idUsuario: 100,
     nombre: 'Juan',

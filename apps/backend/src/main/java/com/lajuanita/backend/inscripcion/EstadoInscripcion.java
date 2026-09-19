@@ -6,8 +6,9 @@ import java.util.Set;
  * Estado de la inscripción. Coincide con el CHECK
  * {@code inscripcion_estado_valido}.
  *
- * <p>{@link #ACTIVA} y {@link #PREINSCRIPTA} son los estados que mira el índice
- * único parcial {@code inscripcion_una_activa_por_disciplina}: se puede tener
+ * <p>{@link #ACTIVA} y {@link #PREINSCRIPTA} son los estados que mira la regla
+ * "una abierta por alumno y disciplina" (el trigger de `V35` §4 d; hasta `V34`
+ * el índice único parcial {@code inscripcion_una_activa_por_disciplina}): se puede tener
  * DJ y mentoría a la vez, nunca dos niveles de la misma disciplina (P3), ni una
  * preinscripción encima de un curso abierto. Las demás no ocupan lugar, así que
  * un alumno puede acumular todas las {@link #COMPLETADA} que quiera.
@@ -57,8 +58,8 @@ public enum EstadoInscripcion {
     public static final Set<EstadoInscripcion> VIGENTES = Set.of(ACTIVA, PAUSADA);
 
     /**
-     * Las que ocupan el lugar de su disciplina: lo que el índice único parcial
-     * {@code inscripcion_una_activa_por_disciplina} mira desde `V30`. Es una
+     * Las que ocupan el lugar de su disciplina: lo que la regla "una abierta por
+     * alumno y disciplina" mira desde `V30` (índice) y `V35` (trigger). Es una
      * lista distinta de {@link #VIGENTES} a propósito — PAUSADA cursa y no
      * ocupa (§12 · C1 lo encontró); PREINSCRIPTA ocupa y no cursa. Si las dos
      * se escriben como una, una de las dos definiciones miente.

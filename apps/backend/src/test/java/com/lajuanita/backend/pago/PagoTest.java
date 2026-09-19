@@ -35,6 +35,7 @@ import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.alumno.AlumnoRepository;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.inscripcion.Inscripcion;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.usuario.Rol;
@@ -214,6 +215,31 @@ class PagoTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
                         org.hamcrest.Matchers.containsString("de otra persona")));
+    }
+
+    /**
+     * ...pero cualquier integrante del grupo sí (`V35`, P88): la seña es del
+     * grupo y la pone físicamente uno de ellos, referente o no.
+     */
+    @Test
+    void un_integrante_que_no_es_el_referente_puede_pagar_la_inscripcion_del_grupo() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        Inscripcion grupo = new Inscripcion();
+        grupo.agregarIntegrante(mati, true);
+        grupo.agregarIntegrante(facu, false);
+        grupo.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        grupo.setDisciplina(Disciplina.DJ);
+        grupo.setNivel(Nivel.INICIAL);
+        grupo.setClasesContratadas((short) 8);
+        grupo.setPrecioTotal(new BigDecimal("380000"));
+        inscripciones.save(grupo);
+
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":190000,"moneda":"ARS","medioPago":"EFECTIVO","estadoPago":"SENADO"}
+                """.formatted(facu.getUsuario().getId(), grupo.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.destino").value("INSCRIPCION"));
     }
 
     /**
@@ -1039,7 +1065,7 @@ class PagoTest {
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio, Moneda moneda, Disciplina disciplina) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(disciplina);
         inscripcion.setNivel(com.lajuanita.backend.inscripcion.Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);

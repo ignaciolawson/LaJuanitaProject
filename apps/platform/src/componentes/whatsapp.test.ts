@@ -123,6 +123,27 @@ describe('los mensajes', () => {
     expect(mensaje).not.toContain('\n\n\n')
   })
 
+  /**
+   * Un grupo (`V35`, P88): el mensaje le va al referente, nombra a los otros y
+   * dice que la seña es una sola, del grupo. Sin compañeros, el texto de
+   * siempre — el campo es opcional para que nada de lo que ya lo llama cambie.
+   */
+  it('con compañeros dice que cursan juntos y que la seña es una sola', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Mati',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 223.500',
+      vence: '20/09/2026 10:00',
+      cuenta: null,
+      companeros: ['Facu Gómez', 'Gonza Ruiz'],
+    })
+
+    expect(mensaje).toContain('Los anotamos en DJ, a vos y a Facu Gómez y Gonza Ruiz: cursan juntos.')
+    expect(mensaje).toContain('el lugar del grupo')
+    expect(mensaje).toContain('$ 223.500 (es una sola, del grupo)')
+  })
+
   it('sin cuenta nueva el bloque de la clave se va sin dejar hueco', () => {
     const mensaje = mensajeDeInscripcion({
       nombre: 'Juan',

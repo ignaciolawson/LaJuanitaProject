@@ -17,6 +17,7 @@ import type {
   InscripcionResumen,
   ReservaResumen,
 } from '../api/tiposAdmin'
+import { enUnaLinea } from '../api/tiposAdmin'
 import type { MaterialResumen, NotaDeAlumno } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
 import { Movida } from '../componentes/Movida'
@@ -159,6 +160,18 @@ export function AlumnoPerfilPagina() {
                   <div>{NOMBRE_DE_DISCIPLINA[i.disciplina]}</div>
                   <div className="text-xs text-tenue">
                     {i.nivel ? capitalizar(i.nivel) : 'Sin nivel'}
+                    {/* En grupo (`V35`, P91): la inscripción es de los tres y
+                        acá se dice con quién. */}
+                    {i.numeroGrupo != null && (
+                      <>
+                        {' · '}Grupo {i.numeroGrupo}, con{' '}
+                        {enUnaLinea(
+                          i.integrantes
+                            .filter((x) => x.idAlumno !== idAlumno)
+                            .map((x) => `${x.nombre} ${x.apellido}`),
+                        )}
+                      </>
+                    )}
                   </div>
                 </Celda>
                 <Celda className="text-tenue">
@@ -536,6 +549,7 @@ function EstadoDeCuenta({ idUsuario }: { idUsuario: number }) {
                 <li key={c.idInscripcion} className="flex justify-between gap-3">
                   <span>
                     {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+                    {c.numeroGrupo != null && ` · Grupo ${c.numeroGrupo}`}
                     {/* §13: con el 50% cubierto ya se puede reservar. Es el dato
                         previo a darle un horario. */}
                     {!c.senado && <span className="ml-2 text-acento">sin seña</span>}

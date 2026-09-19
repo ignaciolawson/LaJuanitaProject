@@ -330,7 +330,7 @@ class SaldoPendienteTest {
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio, Moneda moneda) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setNivel(Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);

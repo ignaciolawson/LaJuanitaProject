@@ -290,6 +290,13 @@ export type ProgramaResumen = {
   descripcion: string | null
   /** `null` = todavía no hay precio ("a confirmar"). Cero es un precio. */
   precio: number | null
+  /**
+   * El precio de a 2 y de a 3 (`V35`, P88): el total del grupo, no por persona,
+   * y no es fórmula sobre `precio` — se escribe. `null` = sin cargar. La
+   * mentoría no admite grupos y los tiene siempre en null.
+   */
+  precio2: number | null
+  precio3: number | null
   moneda: Moneda
   cobro: Cobro
   /** `null` = sin estándar: quien inscribe dice cuántas son. */
@@ -298,11 +305,20 @@ export type ProgramaResumen = {
   activo: boolean
 }
 
+/** El precio del catálogo para un grupo de N (1, 2 o 3); `null` si no está cargado. */
+export function precioParaGrupo(programa: ProgramaResumen, integrantes: number): number | null {
+  if (integrantes >= 3) return programa.precio3
+  if (integrantes === 2) return programa.precio2
+  return programa.precio
+}
+
 /** Editar una fila del catálogo. Todo menos la disciplina. Espeja `EdicionProgramaRequest`. */
 export type EdicionPrograma = {
   nombre: string
   descripcion: string | null
   precio: number | null
+  precio2: number | null
+  precio3: number | null
   moneda: Moneda
   cobro: Cobro
   clasesEstandar: number | null
@@ -335,6 +351,11 @@ export function esBajaDeNivel(anterior: Nivel | null, nuevo: Nivel | ''): boolea
  */
 export type InscripcionResumen = {
   idInscripcion: number
+  /** Sólo en un grupo de 2 o 3 ("Grupo 8"); `null` para un alumno solo (`V35`). */
+  numeroGrupo: number | null
+  /** Quiénes cursan, de 1 a 3, el referente primero (`V35`, P87). */
+  integrantes: IntegranteResumen[]
+  /** El referente: a quien nombra Deudores y le va el WhatsApp (P88). En un alumno solo, él. */
   idAlumno: number
   idUsuario: number
   nombre: string
@@ -356,6 +377,36 @@ export type InscripcionResumen = {
   /** Sólo con valor en `PREINSCRIPTA`: hasta cuándo puede señarse (`V30`). */
   vencePreinscripcion: string | null
   notas: string | null
+}
+
+/** Una persona dentro de una inscripción. Espeja `IntegranteResumen`. */
+export type IntegranteResumen = {
+  idAlumno: number
+  idUsuario: number
+  nombre: string
+  apellido: string
+  email: string
+  referente: boolean
+}
+
+/**
+ * Cómo se nombra una inscripción en una línea: "Mati Grupo" para un alumno
+ * solo, "Grupo 8 · Mati, Facu y Gonza" para un grupo. Una sola definición para
+ * el listado, el calendario, el estado de cuenta y el buzón.
+ */
+export function nombreDeLaInscripcion(i: {
+  numeroGrupo: number | null
+  integrantes: IntegranteResumen[]
+}): string {
+  const nombres = i.integrantes.map((x) => `${x.nombre} ${x.apellido}`)
+  if (i.numeroGrupo == null) return nombres[0] ?? ''
+  return `Grupo ${i.numeroGrupo} · ${enUnaLinea(nombres)}`
+}
+
+/** "Mati", "Mati y Facu", "Mati, Facu y Gonza". */
+export function enUnaLinea(nombres: string[]): string {
+  if (nombres.length <= 1) return nombres[0] ?? ''
+  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
 }
 
 /**
@@ -580,6 +631,9 @@ export type SaldoPorMoneda = { moneda: Moneda; pagado: number; adeudado: number 
 
 export type ContratoDelAlumno = {
   idInscripcion: number
+  /** El grupo, si es de 2 o 3 (`V35`): su número y los nombres. `null` para un alumno solo. */
+  numeroGrupo: number | null
+  integrantes: string[]
   disciplina: Disciplina
   nivel: Nivel | null
   estado: EstadoInscripcion
@@ -971,8 +1025,20 @@ export type SolicitanteResumen = {
    */
   nivelSugerido: Nivel | null
 
+  /** Con quién viene (`V36`, P92): vacía para quien viene solo. */
+  companeros: CompaneroDeLaFicha[]
+
   fechaResolucion: string | null
   fechaCreacion: string
+}
+
+/** Un compañero del formulario de la landing. Espeja `SolicitanteResumen.CompaneroResumen`. */
+export type CompaneroDeLaFicha = {
+  idCompanero: number
+  nombre: string
+  apellido: string
+  email: string
+  telefono: string
 }
 
 /**
@@ -1120,12 +1186,24 @@ export type InscribirDesdeElBuzon = {
 export type AlumnoInscripto = {
   ficha: SolicitanteResumen
   inscripcion: InscripcionResumen
+  /** El referente: quien llenó el formulario. */
   usuario: UsuarioResumen
   passwordTemporal: string | null
   cuentaNueva: boolean
   senia: number
   moneda: Moneda
   vence: string | null
+  /**
+   * Las cuentas de los compañeros (`V36`, P92), en el orden de la ficha: una
+   * clave por cuenta nacida (null si ya la tenía), cada una con su teléfono.
+   */
+  companeros: CuentaDeCompanero[]
+}
+
+export type CuentaDeCompanero = {
+  usuario: UsuarioResumen
+  passwordTemporal: string | null
+  cuentaNueva: boolean
 }
 
 /** Lo que devuelve crearle la cuenta. Espeja `ConversionRealizada` — el nombre

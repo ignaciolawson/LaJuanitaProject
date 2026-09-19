@@ -17,6 +17,7 @@ import { ApiError } from '../api/cliente'
 import {
   HORA_APERTURA,
   NOMBRE_DE_MEDIO,
+  enUnaLinea,
   type AlumnoResumen,
   type EstadoAsistencia,
   type InscripcionResumen,
@@ -657,18 +658,39 @@ function useParticipante(disciplina: string | null) {
   const cursoQueDescuenta =
     disciplina === null ? null : (cursos.find((c) => c.disciplina === disciplina) ?? null)
 
+  /**
+   * "Anotar al grupo" (`V35`, P90). Si el curso que descuenta es de un grupo,
+   * la clase es de los tres: se anotan juntos, salvo que se desmarque. Y es lo
+   * mismo que anotarlos de a uno —el servidor resuelve para cada uno la
+   * inscripción ACTIVA de la disciplina, que ya es la del grupo—, así que esto
+   * no manda nada que no se pudiera mandar antes: ahorra dos búsquedas.
+   */
+  const [todoElGrupo, setTodoElGrupo] = useState(true)
+  const grupo = cursoQueDescuenta?.numeroGrupo != null ? cursoQueDescuenta : null
+  const elegidos: { idUsuario: number }[] = !alumno
+    ? []
+    : grupo && todoElGrupo
+      ? grupo.integrantes.map((x) => ({ idUsuario: x.idUsuario }))
+      : [{ idUsuario: alumno.idUsuario }]
+
   return {
     cursos,
     alumno,
     setAlumno,
     disciplina,
     cursoQueDescuenta,
+    grupo,
+    todoElGrupo,
+    setTodoElGrupo,
     errorDeCarga,
     limpiar() {
       setAlumno(null)
+      setTodoElGrupo(true)
     },
     /** Listo para el cuerpo del pedido, o null si todavía no eligió a nadie. */
     elegido: alumno ? { idUsuario: alumno.idUsuario } : null,
+    /** Los que se anotan: uno, o el grupo entero (`V35`). Vacía sin alumno. */
+    elegidos,
   }
 }
 
@@ -735,10 +757,29 @@ function DescuentaDe({ selector }: { selector: ReturnType<typeof useParticipante
         ) : cursoQueDescuenta ? (
           <>
             {NOMBRE_DE_DISCIPLINA[cursoQueDescuenta.disciplina]}
+            {selector.grupo && ` · Grupo ${selector.grupo.numeroGrupo}`}
             <span className="text-tenue">
               {' '}
               — le quedan {cursoQueDescuenta.clasesRestantes}
             </span>
+            {selector.grupo && (
+              // Cursan juntos (P90): la clase es del grupo. Desmarcar es para el
+              // día en que uno viene solo a recuperar.
+              <label className="mt-1.5 flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selector.todoElGrupo}
+                  onChange={(e) => selector.setTodoElGrupo(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Anotar a todo el grupo
+                  <span className="block text-xs text-tenue">
+                    {enUnaLinea(selector.grupo.integrantes.map((x) => `${x.nombre} ${x.apellido}`))}
+                  </span>
+                </span>
+              </label>
+            )}
           </>
         ) : (
           // ⚠️ El mensaje dice DÓNDE ir a arreglarlo, igual que el del backend
@@ -797,7 +838,12 @@ function FormularioParticipante({
     setError(null)
     setEnviando(true)
     try {
-      await agregarParticipante(reserva.idReserva, selector.elegido)
+      // Uno, o el grupo entero (`V35`): un pedido por persona, en orden. Si el
+      // segundo falla, el primero ya quedó — y se ve en la lista, que es lo que
+      // hace obvio a quién le faltó.
+      for (const persona of selector.elegidos) {
+        await agregarParticipante(reserva.idReserva, persona)
+      }
       selector.limpiar()
       setAbierto(false)
       onAnotado()
@@ -1045,12 +1091,12 @@ function FormularioReserva({
     try {
       if (reserva) await editarReserva(reserva.idReserva, cuerpo)
       else {
-        // Un solo participante. Una clase grupal se completa desde el detalle con
-        // "Anotar a alguien" -- lo que la seña necesita es que la reserva no nazca
-        // vacía, no que entre entera de una.
+        // Un participante, o el grupo entero si el alumno cursa en grupo (`V35`).
+        // Una clase con gente suelta se completa desde el detalle con "Anotar a
+        // alguien" -- lo que la seña necesita es que la reserva no nazca vacía.
         const creada = await altaReserva({
           ...cuerpo,
-          participantes: participante.elegido ? [participante.elegido] : undefined,
+          participantes: participante.elegidos.length > 0 ? participante.elegidos : undefined,
           sena: pideSena
             ? {
                 idUsuario: pagador!.id,

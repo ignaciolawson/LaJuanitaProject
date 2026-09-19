@@ -113,7 +113,10 @@ export type EdicionAlumno = {
  * obligatorio — y el 400 que vuelve lo dice.
  */
 export type AltaInscripcion = {
-  idAlumno: number
+  /** De 1 a 3 ids de alumno (`V35`, P87). El precio es del grupo. */
+  integrantes: number[]
+  /** Uno de `integrantes`; sin él, el primero (P88). */
+  idReferente?: number | null
   idProfesor?: number | null
   disciplina: Disciplina
   nivel?: Nivel | ''

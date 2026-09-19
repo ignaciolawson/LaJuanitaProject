@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.alumno.AlumnoService;
 import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.usuario.SolicitudInvalidaException;
+import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.InscripcionService;
 import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.inscripcion.dto.AltaInscripcionRequest;
@@ -184,6 +186,24 @@ public class SolicitanteService {
         ficha.setDisciplina(formulario.disciplina());
         ficha.setExperiencia(formulario.experiencia());
         ficha.setModalidad(formulario.modalidad());
+
+        // Con quién viene (`V36`, P92). La base lo rechaza igual (§2 a); acá
+        // sale como 400 con el mensaje, antes de escribir nada.
+        List<AltaSolicitanteRequest.CompaneroRequest> companeros = formulario.companerosOVacio();
+        if (!companeros.isEmpty()) {
+            if (formulario.interes() != InteresDelSolicitante.CURSO) {
+                throw new SolicitudInvalidaException(
+                        "Los compañeros van sólo en un pedido de curso.");
+            }
+            if (formulario.disciplina() == Disciplina.MENTORIA) {
+                throw new SolicitudInvalidaException(
+                        "La mentoría es 1:1 y no admite grupos.");
+            }
+            for (var c : companeros) {
+                ficha.agregarCompanero(c.nombre().trim(), c.apellido().trim(),
+                        c.email().trim(), c.telefono().trim());
+            }
+        }
 
         return SolicitanteResumen.de(fichas.save(ficha));
     }
@@ -504,14 +524,45 @@ public class SolicitanteService {
         ConversionRealizada cuenta = darleCuenta(id);
         Usuario quienPidio = usuarios.getReferenceById(cuenta.usuario().id());
 
-        Alumno alumno = alumnos.buscarPorUsuario(quienPidio.getId())
-                .orElseGet(() -> alumnos.altaDeLaRelacion(quienPidio));
-
         Nivel nivel = pedido.nivel() != null
                 ? pedido.nivel()
                 : ficha.getExperiencia() == null ? null : ficha.getExperiencia().nivelSugerido();
 
+        // Al nivel de la inscripción (P91): la relación de alumno nace con el
+        // nivel del grupo, sean tres avanzados anotados en inicial.
+        Alumno alumno = alumnos.buscarPorUsuario(quienPidio.getId())
+                .orElseGet(() -> alumnos.altaDeLaRelacion(quienPidio, nivel));
+
+        // Los compañeros (`V36`, P92): cuenta por mail —la que ya tenían o una
+        // nueva— y relación de alumno para cada uno. El "se enquilomba si 2
+        // tienen cuenta y 1 no" es este mismo camino doble, tres veces. Todo en
+        // esta transacción: si la inscripción choca, no queda ninguna cuenta.
+        List<Long> integrantes = new ArrayList<>(List.of(alumno.getId()));
+        List<AlumnoInscripto.CuentaDeCompanero> cuentasDeCompaneros = new ArrayList<>();
+        for (SolicitanteCompanero c : ficha.getCompaneros()) {
+            Usuario existente = usuarios.findByEmailIgnoreCase(c.getEmail()).orElse(null);
+            Usuario persona;
+            if (existente != null) {
+                persona = existente;
+                cuentasDeCompaneros.add(new AlumnoInscripto.CuentaDeCompanero(
+                        cuentas.resumenDe(existente), null, false));
+            } else {
+                UsuarioCreado nueva = cuentas.altaPorAdministracion(
+                        new AltaUsuarioRequest(c.getNombre(), c.getApellido(), c.getEmail(),
+                                c.getTelefono(), null),
+                        false);
+                persona = usuarios.getReferenceById(nueva.usuario().id());
+                cuentasDeCompaneros.add(new AlumnoInscripto.CuentaDeCompanero(
+                        nueva.usuario(), nueva.passwordTemporal(), true));
+            }
+            Usuario personaDelCompanero = persona;
+            integrantes.add(alumnos.buscarPorUsuario(persona.getId())
+                    .orElseGet(() -> alumnos.altaDeLaRelacion(personaDelCompanero, nivel))
+                    .getId());
+        }
+
         InscripcionCreada creada = circuitoDeInscripciones.alta(new AltaInscripcionRequest(
+                integrantes,
                 alumno.getId(),
                 pedido.idProfesor(),
                 pedido.disciplina(),
@@ -541,16 +592,20 @@ public class SolicitanteService {
         // La persona viene de la web y quizá nunca entró; el canal real es el
         // WhatsApp que arma la pantalla, y esto es lo que va a encontrar si entra.
         String programa = creada.inscripcion().disciplina().name();
-        avisos.avisar(quienPidio,
-                TipoNotificacion.RESERVA_PRECONFIRMADA,
-                vence == null ? "Te anotamos en el programa" : "Te anotamos: falta la seña",
-                vence == null
-                        ? "Te anotamos en " + programa + ". Desde acá vas a poder seguir tu curso."
-                        : "Te anotamos en " + programa + ". Para confirmar el lugar hay que abonar "
-                                + "la seña de " + moneda + " " + senia.toPlainString()
-                                + " antes del " + vence.format(DIA_Y_HORA)
-                                + ". El resto se paga antes de la primera clase.",
-                "/mis-cursos");
+        // A cada integrante: es la inscripción de todos. La seña es una, del
+        // grupo (P88), y el aviso lo dice igual para los tres.
+        for (var integrante : inscripcion.getIntegrantes()) {
+            avisos.avisar(integrante.getAlumno().getUsuario(),
+                    TipoNotificacion.RESERVA_PRECONFIRMADA,
+                    vence == null ? "Te anotamos en el programa" : "Te anotamos: falta la seña",
+                    vence == null
+                            ? "Te anotamos en " + programa + ". Desde acá vas a poder seguir tu curso."
+                            : "Te anotamos en " + programa + ". Para confirmar el lugar hay que abonar "
+                                    + "la seña de " + moneda + " " + senia.toPlainString()
+                                    + " antes del " + vence.format(DIA_Y_HORA)
+                                    + ". El resto se paga antes de la primera clase.",
+                    "/mis-cursos");
+        }
 
         return new AlumnoInscripto(
                 SolicitanteResumen.de(ficha),
@@ -560,7 +615,8 @@ public class SolicitanteService {
                 cuenta.cuentaNueva(),
                 senia,
                 moneda,
-                vence);
+                vence,
+                cuentasDeCompaneros);
     }
 
     /**

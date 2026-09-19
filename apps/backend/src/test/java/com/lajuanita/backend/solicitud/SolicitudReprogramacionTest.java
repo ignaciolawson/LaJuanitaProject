@@ -577,7 +577,7 @@ class SolicitudReprogramacionTest {
 
     private Inscripcion inscripcionDe(Alumno alumno) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setClasesContratadas((short) 8);
         inscripcion.setPrecioTotal(new BigDecimal("180000"));

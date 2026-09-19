@@ -100,11 +100,16 @@ public final class SaldoPendiente {
                                 AND q.moneda = i.moneda), 0) AS anotado,
                    al.id_usuario, NULL::varchar AS nombre_externo, NULL::varchar AS contacto_externo,
                    i.fecha_creacion AS desde_ts, NULL::date AS desde_dia,
-                   i.disciplina::varchar AS detalle,
+                   -- "DJ" o "DJ · Grupo 8": la deuda del grupo va bajo el referente
+                   -- (V35, P88) y la fila tiene que decir que es del grupo.
+                   (i.disciplina::varchar
+                      || CASE WHEN i.numero_grupo IS NULL THEN ''
+                              ELSE ' · Grupo ' || i.numero_grupo END) AS detalle,
                    i.vence_preinscripcion AS vence,
                    (i.estado = 'PREINSCRIPTA') AS preinscripta
               FROM inscripcion i
-              JOIN alumno al ON al.id_alumno = i.id_alumno
+              JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion AND ii.referente
+              JOIN alumno al ON al.id_alumno = ii.id_alumno
              WHERE i.estado IN ('ACTIVA', 'PREINSCRIPTA')
                AND i.precio_total > 0
 

@@ -32,6 +32,8 @@ function cuenta(cambios: Partial<EstadoDeCuenta> = {}): EstadoDeCuenta {
     contratos: [
       {
         idInscripcion: 5,
+        numeroGrupo: null,
+        integrantes: [],
         disciplina: 'DJ',
         nivel: 'INICIAL',
         estado: 'ACTIVA',
@@ -117,6 +119,8 @@ describe('los contratos', () => {
         contratos: [
           {
             idInscripcion: 5,
+            numeroGrupo: null,
+            integrantes: [],
             disciplina: 'DJ',
             nivel: null,
             estado: 'ACTIVA',
@@ -143,6 +147,8 @@ describe('los contratos', () => {
         contratos: [
           {
             idInscripcion: 5,
+            numeroGrupo: null,
+            integrantes: [],
             disciplina: 'DJ',
             nivel: 'INICIAL',
             estado: 'ACTIVA',
@@ -173,6 +179,8 @@ describe('los contratos', () => {
         contratos: [
           {
             idInscripcion: 5,
+            numeroGrupo: null,
+            integrantes: [],
             disciplina: 'DJ',
             nivel: 'INICIAL',
             estado: 'ACTIVA',
@@ -186,6 +194,8 @@ describe('los contratos', () => {
           },
           {
             idInscripcion: 6,
+            numeroGrupo: null,
+            integrantes: [],
             disciplina: 'PRODUCCION',
             nivel: null,
             estado: 'ACTIVA',

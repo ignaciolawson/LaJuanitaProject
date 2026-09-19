@@ -107,8 +107,22 @@ public class AlumnoService {
      */
     @Transactional
     public Alumno altaDeLaRelacion(Usuario usuario) {
+        return altaDeLaRelacion(usuario, null);
+    }
+
+    /**
+     * La misma, con el nivel de ingreso: <b>el de la inscripción</b> (P91, `V35`).
+     * Ignacio: <i>"pueden ser 3 avanzados pero si se inscribieron en inicial,
+     * cursan inicial; se les da de alta al nivel de la inscripción"</i>. Los dos
+     * enums tienen los mismos tres valores y se cruzan por nombre.
+     */
+    @Transactional
+    public Alumno altaDeLaRelacion(Usuario usuario, Nivel nivelDeLaInscripcion) {
         Alumno alumno = new Alumno();
         alumno.setUsuario(usuario);
+        if (nivelDeLaInscripcion != null) {
+            alumno.setNivelIngreso(NivelIngreso.valueOf(nivelDeLaInscripcion.name()));
+        }
         return alumnos.save(alumno);
     }
 

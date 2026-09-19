@@ -78,6 +78,13 @@ public class ProgramaService {
                         ? null
                         : cambios.descripcion().trim());
         programa.setPrecio(cambios.precio());
+        if (programa.getDisciplina() == Disciplina.MENTORIA
+                && (cambios.precio2() != null || cambios.precio3() != null)) {
+            throw new SolicitudInvalidaException(
+                    "La mentoría es 1:1 y no tiene precio de grupo (P67, P88).");
+        }
+        programa.setPrecio2(cambios.precio2());
+        programa.setPrecio3(cambios.precio3());
         programa.setMoneda(cambios.moneda());
         programa.setCobro(cambios.cobro());
         programa.setClasesEstandar(cambios.clasesEstandar());

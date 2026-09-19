@@ -394,7 +394,7 @@ class PermisosPorRolTest {
         return post("/api/inscripciones")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"idAlumno":1,"disciplina":"DJ","precioTotal":180000}
+                        {"integrantes":[1],"disciplina":"DJ","precioTotal":180000}
                         """);
     }
 

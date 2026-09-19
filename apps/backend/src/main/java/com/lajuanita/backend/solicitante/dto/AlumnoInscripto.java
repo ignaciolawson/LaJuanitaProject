@@ -2,6 +2,7 @@ package com.lajuanita.backend.solicitante.dto;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.dto.InscripcionResumen;
@@ -20,10 +21,22 @@ import com.lajuanita.backend.usuario.dto.UsuarioResumen;
 public record AlumnoInscripto(
         SolicitanteResumen ficha,
         InscripcionResumen inscripcion,
+        /** El referente: quien llenó el formulario. */
         UsuarioResumen usuario,
         String passwordTemporal,
         boolean cuentaNueva,
         BigDecimal senia,
         Moneda moneda,
-        OffsetDateTime vence) {
+        OffsetDateTime vence,
+        /**
+         * Las cuentas de los compañeros (`V36`, P92), en el orden de la ficha:
+         * una clave por cuenta nacida, cada una con su teléfono para el
+         * WhatsApp. Vacía para quien vino solo. El mensaje de la seña va sólo al
+         * referente (P88); a los compañeros les va su clave y el portal.
+         */
+        List<CuentaDeCompanero> companeros) {
+
+    public record CuentaDeCompanero(UsuarioResumen usuario, String passwordTemporal,
+            boolean cuentaNueva) {
+    }
 }

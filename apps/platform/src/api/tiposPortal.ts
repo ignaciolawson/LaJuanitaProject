@@ -78,6 +78,8 @@ export type ProgresoDelCurso = {
   clasesRestantes: number
   fechaInicio: string | null
   estado: EstadoInscripcion
+  /** Con quién curso (`V35`, P91): los otros integrantes del grupo; vacía si curso solo. */
+  companeros: string[]
 }
 
 /** Un rato en que una sala no está libre. Sin decir de quién es. */

@@ -5,6 +5,7 @@ import {
   type EstadoDeCuenta,
   type PagoResumen,
 } from '../api/tiposAdmin'
+import { enUnaLinea } from '../api/tiposAdmin'
 import { Comprobantes } from './Comprobantes'
 import { importe } from './dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from './presentacion'
@@ -94,10 +95,17 @@ export function DetalleDeCuenta({
               {cuenta.contratos.map((c) => (
                 <tr key={c.idInscripcion}>
                   <Celda>
-                    <div className="font-medium">{NOMBRE_DE_DISCIPLINA[c.disciplina]}</div>
+                    <div className="font-medium">
+                      {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+                      {c.numeroGrupo != null && ` · Grupo ${c.numeroGrupo}`}
+                    </div>
                     <div className="text-xs text-tenue">
                       {c.nivel ? capitalizar(c.nivel) : 'Sin nivel'} ·{' '}
                       {capitalizar(c.estado)}
+                      {/* El contrato del grupo aparece en la cuenta de cada
+                          integrante (`V35`, P88): sin esto se leería como una
+                          deuda propia y no compartida. */}
+                      {c.numeroGrupo != null && ` · de ${enUnaLinea(c.integrantes)}`}
                     </div>
                   </Celda>
                   <Celda numerica className="whitespace-nowrap text-tenue">

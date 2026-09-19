@@ -735,11 +735,16 @@ class CajaTest {
     private long preinscribir(Alumno alumno, String precio, OffsetDateTime vence) {
         em.flush();
         return jdbc.queryForObject("""
-                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
-                                         estado, vence_preinscripcion)
-                VALUES (?, 'DJ', 8, ?, 'PREINSCRIPTA', ?)
-                RETURNING id_inscripcion
-                """, Long.class, alumno.getId(), new BigDecimal(precio), vence);
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total,
+                                             estado, vence_preinscripcion)
+                    VALUES ('DJ', 8, ?, 'PREINSCRIPTA', ?)
+                    RETURNING id_inscripcion),
+                integrante AS (
+                    INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                    SELECT id_inscripcion, ?, TRUE FROM nueva RETURNING id_inscripcion)
+                SELECT id_inscripcion FROM integrante
+                """, Long.class, new BigDecimal(precio), vence, alumno.getId());
     }
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio) {
@@ -748,7 +753,7 @@ class CajaTest {
 
     private Inscripcion inscripcionDe(Alumno alumno, String precio, Moneda moneda) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setNivel(Nivel.INICIAL);
         inscripcion.setClasesContratadas((short) 8);

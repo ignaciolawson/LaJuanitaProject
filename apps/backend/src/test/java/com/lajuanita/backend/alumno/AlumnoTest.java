@@ -588,7 +588,7 @@ class AlumnoTest {
                 // Con su seña: desde `V30` un alta sin ella nace PREINSCRIPTA, que
                 // no cursa, y estos casos son sobre quién está cursando.
                 .content("""
-                        {"idAlumno":%d,"disciplina":"%s","nivel":%s,%s"precioTotal":180000,
+                        {"integrantes":[%d],"disciplina":"%s","nivel":%s,%s"precioTotal":180000,
                          "sena":{"monto":90000,"moneda":"ARS","medioPago":"EFECTIVO"}}
                         """.formatted(idAlumno, disciplina,
                         nivel == null ? "null" : "\"" + nivel + "\"",

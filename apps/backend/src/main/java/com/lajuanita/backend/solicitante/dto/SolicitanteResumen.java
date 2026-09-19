@@ -3,6 +3,7 @@ package com.lajuanita.backend.solicitante.dto;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.Nivel;
@@ -13,6 +14,7 @@ import com.lajuanita.backend.solicitante.Experiencia;
 import com.lajuanita.backend.solicitante.InteresDelSolicitante;
 import com.lajuanita.backend.solicitante.Modalidad;
 import com.lajuanita.backend.solicitante.Solicitante;
+import com.lajuanita.backend.solicitante.SolicitanteCompanero;
 import com.lajuanita.backend.usuario.Usuario;
 
 /**
@@ -86,8 +88,19 @@ public record SolicitanteResumen(
          */
         Nivel nivelSugerido,
 
+        /** Con quién viene (`V36`, P92): vacía para quien viene solo. */
+        List<CompaneroResumen> companeros,
+
         OffsetDateTime fechaResolucion,
         OffsetDateTime fechaCreacion) {
+
+    public record CompaneroResumen(Long idCompanero, String nombre, String apellido,
+            String email, String telefono) {
+        static CompaneroResumen de(SolicitanteCompanero c) {
+            return new CompaneroResumen(c.getId(), c.getNombre(), c.getApellido(),
+                    c.getEmail(), c.getTelefono());
+        }
+    }
 
     public static SolicitanteResumen de(Solicitante ficha) {
         Usuario resuelve = ficha.getUsuarioResuelve();
@@ -118,6 +131,7 @@ public record SolicitanteResumen(
                 ficha.getExperiencia(),
                 ficha.getModalidad(),
                 ficha.getExperiencia() == null ? null : ficha.getExperiencia().nivelSugerido(),
+                ficha.getCompaneros().stream().map(CompaneroResumen::de).toList(),
                 ficha.getFechaResolucion(),
                 ficha.getFechaCreacion());
     }

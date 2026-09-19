@@ -11,13 +11,16 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     /** Lo que subió un profesor, lo último primero. Ve lo suyo, oculto incluido. */
     @Query("""
-            SELECT m FROM Material m
+            SELECT DISTINCT m FROM Material m
             JOIN FETCH m.inscripcion i
-            JOIN FETCH i.alumno a
+            JOIN FETCH i.integrantes x
+            JOIN FETCH x.alumno a
             JOIN FETCH a.usuario
             LEFT JOIN FETCH m.reserva
             WHERE m.profesor.id = :idProfesor
-              AND (:idAlumno IS NULL OR a.id = :idAlumno)
+              AND (:idAlumno IS NULL OR EXISTS (
+                      SELECT 1 FROM InscripcionIntegrante y
+                      WHERE y.inscripcion = i AND y.alumno.id = :idAlumno))
             ORDER BY m.fechaSubida DESC, m.id DESC
             """)
     List<Material> delProfesor(@Param("idProfesor") Long idProfesor,
@@ -39,15 +42,17 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
      * alumno de su inscripción.
      */
     @Query("""
-            SELECT m FROM Material m
+            SELECT DISTINCT m FROM Material m
             JOIN FETCH m.profesor p
             JOIN FETCH p.usuario
             JOIN FETCH m.inscripcion i
-            JOIN FETCH i.alumno a
+            JOIN FETCH i.integrantes x
+            JOIN FETCH x.alumno a
             JOIN FETCH a.usuario
             LEFT JOIN FETCH m.reserva
             WHERE m.visibleAlumno = TRUE
-              AND a.id = :idAlumno
+              AND EXISTS (SELECT 1 FROM InscripcionIntegrante y
+                          WHERE y.inscripcion = i AND y.alumno.id = :idAlumno)
             ORDER BY m.fechaSubida DESC, m.id DESC
             """)
     List<Material> paraElAlumno(@Param("idAlumno") Long idAlumno);
@@ -62,17 +67,20 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
      *
      * <p>Desde `V23` la condición es una sola —el alumno de la inscripción— y ya
      * no incluye una rama de "grupal" que en realidad traía material de cualquier
-     * profesor para cualquiera.
+     * profesor para cualquiera. Desde `V35` "el alumno de la inscripción" son
+     * sus integrantes: el material del curso es de los tres (P91).
      */
     @Query("""
-            SELECT m FROM Material m
+            SELECT DISTINCT m FROM Material m
             JOIN FETCH m.profesor p
             JOIN FETCH p.usuario
             JOIN FETCH m.inscripcion i
-            JOIN FETCH i.alumno a
+            JOIN FETCH i.integrantes x
+            JOIN FETCH x.alumno a
             JOIN FETCH a.usuario
             LEFT JOIN FETCH m.reserva
-            WHERE a.id = :idAlumno
+            WHERE EXISTS (SELECT 1 FROM InscripcionIntegrante y
+                          WHERE y.inscripcion = i AND y.alumno.id = :idAlumno)
             ORDER BY m.fechaSubida DESC, m.id DESC
             """)
     List<Material> todoLoDelAlumno(@Param("idAlumno") Long idAlumno);

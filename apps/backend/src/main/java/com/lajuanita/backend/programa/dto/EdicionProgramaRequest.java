@@ -39,6 +39,13 @@ public record EdicionProgramaRequest(
         @PositiveOrZero(message = "El precio no puede ser negativo.")
         BigDecimal precio,
 
+        /** De a 2 y de a 3 (`V35`, P88): el total del grupo. Null escribe null, como {@code precio}. */
+        @PositiveOrZero(message = "El precio de a 2 no puede ser negativo.")
+        BigDecimal precio2,
+
+        @PositiveOrZero(message = "El precio de a 3 no puede ser negativo.")
+        BigDecimal precio3,
+
         @NotNull(message = "Elegí la moneda.")
         Moneda moneda,
 

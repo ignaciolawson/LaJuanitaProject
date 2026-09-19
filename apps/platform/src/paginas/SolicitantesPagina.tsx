@@ -33,6 +33,7 @@ import {
   type SalaResumen,
   type SolicitanteResumen,
   type TipoUsoResumen,
+  enUnaLinea,
   type AlumnoInscripto,
   type Disciplina,
   type InscribirDesdeElBuzon,
@@ -383,6 +384,7 @@ export function SolicitantesPagina() {
                 <Telefono ficha={f} />
 
                 <Programa ficha={f} />
+                <Companeros ficha={f} />
                 {f.detalle && <div className="mt-1 text-sm text-tenue">{f.detalle}</div>}
 
                 <Preferencia ficha={f} />
@@ -593,6 +595,29 @@ function Programa({ ficha }: { ficha: SolicitanteResumen }) {
   }
 
   return <div className="mt-1 text-sm text-tenue">{partes.join(' · ')}</div>
+}
+
+/**
+ * Con quién viene (`V36`, P92): los compañeros del formulario, con su contacto.
+ * Se dicen con nombre porque "Inscribirlo" los va a inscribir a los tres, y
+ * quien atiende tiene que saberlo antes de apretar.
+ */
+function Companeros({ ficha }: { ficha: SolicitanteResumen }) {
+  if (ficha.companeros.length === 0) return null
+  return (
+    <div className="mt-1 text-sm text-tenue">
+      Viene con{' '}
+      {enUnaLinea(ficha.companeros.map((c) => `${c.nombre} ${c.apellido}`))}: cursan juntos, de a{' '}
+      {ficha.companeros.length + 1}.
+      <ul className="mt-1 text-xs">
+        {ficha.companeros.map((c) => (
+          <li key={c.idCompanero}>
+            {c.nombre} {c.apellido} · {c.email} · {c.telefono}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 /**
@@ -1190,6 +1215,9 @@ function InscripcionLista({
   const cuentaNueva = resultado.cuentaNueva && resultado.passwordTemporal
   const profesor = profesores.find((p) => p.idProfesor === inscripcion.idProfesor)
   const importe = formatearImporte(resultado.senia, resultado.moneda)
+  // Los compañeros (`V36`): el mensaje de la seña le va al referente y los
+  // nombra; a cada compañero con cuenta nueva le va su clave, aparte.
+  const companeros = resultado.companeros.map((c) => `${c.usuario.nombre} ${c.usuario.apellido}`)
 
   const link = linkDeWhatsapp(
     ficha.telefono,
@@ -1202,20 +1230,27 @@ function InscripcionLista({
       cuenta: cuentaNueva
         ? { email: usuario.email, passwordTemporal: resultado.passwordTemporal! }
         : null,
+      companeros,
     }),
   )
 
   return (
     <Bloque
-      titulo={`${usuario.nombre} ${usuario.apellido}, preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`}
+      titulo={
+        inscripcion.numeroGrupo != null
+          ? `Grupo ${inscripcion.numeroGrupo} (${usuario.nombre} ${usuario.apellido}, con ${enUnaLinea(companeros)}), preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`
+          : `${usuario.nombre} ${usuario.apellido}, preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`
+      }
       className="mb-6"
     >
       <p className="mt-2 text-sm leading-relaxed text-tenue">
         {resultado.vence ? (
           <>
-            Falta la seña de <strong className="text-texto">{importe}</strong>, antes del{' '}
+            Falta la seña de <strong className="text-texto">{importe}</strong>
+            {inscripcion.numeroGrupo != null && ' (una sola, del grupo)'}, antes del{' '}
             <strong className="text-texto">{fechaYHora(resultado.vence)}</strong>. Ya figura en
-            Deudores como “sin señar”; cuando entre el pago, la inscripción se activa sola.
+            Deudores como “sin señar”{inscripcion.numeroGrupo != null && `, a nombre de ${usuario.nombre}`}
+            ; cuando entre el pago, la inscripción se activa sola.
           </>
         ) : (
           'Quedó activa: no hay nada que abonar.'
@@ -1248,10 +1283,51 @@ function InscripcionLista({
         </p>
       )}
 
+      {/* Los compañeros (`V36`, P92): a cada cuenta nacida, su clave y su
+          WhatsApp. El que ya tenía cuenta no necesita nada. */}
+      {resultado.companeros.map((c) => (
+        <ClaveDeCompanero key={c.usuario.id} cuenta={c} />
+      ))}
+
       <Boton className="mt-4" onClick={onCerrar}>
         Listo
       </Boton>
     </Bloque>
+  )
+}
+
+function ClaveDeCompanero({ cuenta }: { cuenta: AlumnoInscripto['companeros'][number] }) {
+  const { usuario } = cuenta
+  const nombre = `${usuario.nombre} ${usuario.apellido}`
+  if (!cuenta.cuentaNueva || !cuenta.passwordTemporal) {
+    return (
+      <p className="mt-4 text-sm text-tenue">
+        {nombre} ya tenía cuenta: va a ver el curso del grupo en su portal con la de siempre.
+      </p>
+    )
+  }
+  const link = linkDeWhatsapp(
+    usuario.telefono,
+    mensajeConLaClave(usuario.nombre, usuario.email, cuenta.passwordTemporal),
+  )
+  return (
+    <div className="mt-5 border-t border-linea pt-4">
+      <p className="text-sm leading-relaxed text-tenue">
+        También le creamos la cuenta a <strong className="text-texto">{nombre}</strong>. Su
+        contraseña tampoco se puede volver a ver:
+      </p>
+      <Hueco className="mt-3 font-mono text-lg tracking-wider">{cuenta.passwordTemporal}</Hueco>
+      {link ? (
+        <div className="mt-3">
+          <EnlaceDeWhatsapp href={link}>Mandarle la clave a {usuario.nombre}</EnlaceDeWhatsapp>
+        </div>
+      ) : (
+        <p className="mt-3 text-xs text-apagado">
+          El teléfono de {usuario.nombre} ({usuario.telefono ?? 'sin teléfono'}) no se puede abrir
+          en WhatsApp: copiá la clave y mandásela a mano.
+        </p>
+      )}
+    </div>
   )
 }
 

@@ -1,6 +1,7 @@
 package com.lajuanita.backend.portal.dto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.inscripcion.EstadoInscripcion;
@@ -32,11 +33,23 @@ public record ProgresoDelCurso(
         int clasesConsumidas,
         int clasesRestantes,
         LocalDate fechaInicio,
-        EstadoInscripcion estado) {
+        EstadoInscripcion estado,
+        /**
+         * Con quién curso (`V35`, P91): los nombres de los OTROS integrantes del
+         * grupo, vacía si curso solo. Sólo el nombre de pila y el apellido — el
+         * portal de cada uno no publica el mail ni el teléfono de los demás.
+         */
+        List<String> companeros) {
 
-    public static ProgresoDelCurso de(Inscripcion inscripcion, int consumidas) {
+    public static ProgresoDelCurso de(Inscripcion inscripcion, int consumidas, Long idUsuario) {
         Profesor profesor = inscripcion.getProfesor();
         int contratadas = inscripcion.getClasesContratadas();
+
+        List<String> companeros = inscripcion.getIntegrantes().stream()
+                .map(x -> x.getAlumno().getUsuario())
+                .filter(u -> !u.getId().equals(idUsuario))
+                .map(u -> u.getNombre() + " " + u.getApellido())
+                .toList();
 
         return new ProgresoDelCurso(
                 inscripcion.getId(),
@@ -50,6 +63,7 @@ public record ProgresoDelCurso(
                 // quedan -2 clases" no es información.
                 Math.max(contratadas - consumidas, 0),
                 inscripcion.getFechaInicio(),
-                inscripcion.getEstado());
+                inscripcion.getEstado(),
+                companeros);
     }
 }

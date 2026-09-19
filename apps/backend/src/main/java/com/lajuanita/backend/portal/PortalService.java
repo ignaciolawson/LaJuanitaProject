@@ -211,7 +211,7 @@ public class PortalService {
         Map<Long, Integer> consumidas = cursos.clasesConsumidas(mias);
 
         return mias.stream()
-                .map(i -> ProgresoDelCurso.de(i, consumidas.getOrDefault(i.getId(), 0)))
+                .map(i -> ProgresoDelCurso.de(i, consumidas.getOrDefault(i.getId(), 0), idUsuario))
                 .toList();
     }
 

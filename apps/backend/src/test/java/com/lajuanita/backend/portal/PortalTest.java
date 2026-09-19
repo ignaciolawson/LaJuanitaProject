@@ -175,6 +175,40 @@ class PortalTest {
                 .andExpect(jsonPath("$[0].clasesRestantes").value(7));
     }
 
+    /**
+     * El portal es personal, el curso es del grupo (`V35`, P91): cada integrante
+     * ve la inscripción compartida con sus compañeros, y quien no está en el
+     * grupo no la ve. Escrito en par, como el resto del portal: un filtro de
+     * identidad que falta no se nota porque la pantalla anda y muestra de más.
+     */
+    @Test
+    void cada_integrante_ve_el_curso_del_grupo_con_sus_companeros_y_un_tercero_no() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        Alumno ajeno = alumnoNuevo();
+        Inscripcion grupo = new Inscripcion();
+        grupo.agregarIntegrante(mati, true);
+        grupo.agregarIntegrante(facu, false);
+        grupo.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        grupo.setDisciplina(Disciplina.DJ);
+        grupo.setClasesContratadas((short) 8);
+        grupo.setPrecioTotal(new BigDecimal("380000"));
+        inscripciones.save(grupo);
+
+        Usuario personaDeMati = mati.getUsuario();
+        mvc.perform(get("/api/me/cursos").header("Authorization", credencialPara(facu.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].idInscripcion").value(grupo.getId()))
+                .andExpect(jsonPath("$[0].companeros.length()").value(1))
+                .andExpect(jsonPath("$[0].companeros[0]")
+                        .value(personaDeMati.getNombre() + " " + personaDeMati.getApellido()));
+
+        mvc.perform(get("/api/me/cursos").header("Authorization", credencialPara(ajeno.getUsuario())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
     /** Tener cuenta y ser alumno son cosas distintas (P18): sin cursos, lista vacía. */
     @Test
     void el_que_no_cursa_nada_ve_una_lista_vacia_y_no_un_error() throws Exception {
@@ -435,7 +469,7 @@ class PortalTest {
 
     private Inscripcion inscripcionDe(Alumno alumno) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(Disciplina.DJ);
         inscripcion.setClasesContratadas((short) 8);
         inscripcion.setPrecioTotal(new BigDecimal("400000"));

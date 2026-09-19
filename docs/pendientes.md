@@ -68,8 +68,8 @@ commiteados.
 | ✅ 0b | **La §18, cerrada la misma noche**, tres de tres, sin migración: el KPI de cobros pendientes lee Deudores, equipos por WhatsApp sin cuenta (P76), mensajes en párrafos con el abanico. ⚠️ Código en `d24a0ff`, documentado una sesión después | [`mejoras.md`](mejoras.md) §18 |
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
-| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27`, `V31` ni `V32` ni `V33`: ahora `V35`** — un número que se movió ocho veces, no lo anotes fijo | §1 de acá |
-| 🟢 4 | **La barrida siguiente**, con tres cosas ya anotadas (eran cinco; la §18 cerró dos): los **grupos de a 3** (reabren P7), **el precio de las reservas** (P72, la mitad de P13 que falta), ~~**la "deuda viva" del tablero**~~ (cerrada en §18: lee la lista de Deudores), y de la §17: **los dos `<select>` de Pagos que no son de personas** (trabajo/venta que salda un pago, sin búsqueda por texto) y ~~**"Venderle" desde el buzón**~~ (cerrado por el otro lado en §18 · P76: equipos va por WhatsApp sin cuenta) (el tercer gemelo de un click, para EQUIPOS) | [`mejoras.md`](mejoras.md) §16 · Fase 6 y §17 · `platform.md` P72 |
+| 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27`, `V31` ni `V32` ni `V33`: ahora `V37`** (la §22 trae `V35` y `V36`) — un número que se movió nueve veces, no lo anotes fijo | §1 de acá |
+| 🟢 4 | **La décima barrida (§22) CERRÓ el 2026-09-19, el mismo día: los grupos de 2 y 3** — P87–P92 (`platform.md` §28), `V35` + `V36` aplicadas; **P7 NO se reabre** (P90). Lo que dejó: los precios de grupo del catálogo vacíos hasta que Mica los cargue, y los de la landing placeholder. Lo demás que quedaba anotado: ~~los **grupos de a 3** (reabren P7)~~, **el precio de las reservas** (P72, la mitad de P13 que falta), ~~**la "deuda viva" del tablero**~~ (cerrada en §18: lee la lista de Deudores), y de la §17: **los dos `<select>` de Pagos que no son de personas** (trabajo/venta que salda un pago, sin búsqueda por texto) y ~~**"Venderle" desde el buzón**~~ (cerrado por el otro lado en §18 · P76: equipos va por WhatsApp sin cuenta) (el tercer gemelo de un click, para EQUIPOS) | [`mejoras.md`](mejoras.md) §16 · Fase 6 y §17 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
 | 🟢 7 | **La inscripción 13231 de la base de desarrollo** tiene una seña en USD sobre un contrato en pesos (anterior a `V31`): editarla a USD desde Inscripciones y sale sola de Deudores. No es código | §17 de `mejoras.md` |
@@ -563,7 +563,7 @@ Se dejan como estaban, tachadas, porque el razonamiento sigue siendo el que era:
 
 **La §16 cerró una de éstas el 2026-09-10 — P13, la más consecuente — y dejó
 otra señalada para la barrida siguiente — P7, que los grupos de a 3 van a
-reabrir.** El resto sigue como estaba: están en el índice de `platform.md` §12 y
+reabrir.** (No la reabrieron: P90, 2026-09-19, la ratifica con el motivo.) El resto sigue como estaba: están en el índice de `platform.md` §12 y
 se contestan cuando algo las necesite.
 
 **Las quince preguntas de la §16 están contestadas en `platform.md` §22
@@ -573,7 +573,7 @@ se contestan cuando algo las necesite.
 |---|---|---|
 | P4 | Alumnos informales de Ghezz | 1 |
 | P5 | Nivelación dentro del sistema | 1 |
-| **P7** | **Generación automática de clases semanales** — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* | 2 — ⚠️ **la reabre `mejoras.md` §16 · B2 2.1**: con grupos, cargar 8 clases a mano por grupo es el trabajo que la función viene a evitar |
+| **P7** | **Generación automática de clases semanales** — *el documento lo recomendó y Ignacio lo rechazó; se cargan a mano* · ✅ **ratificada el 2026-09-19 por P90**: los grupos no la reabren, se anota al grupo entero en cada clase | 2 — ~~⚠️ **la reabre `mejoras.md` §16 · B2 2.1**~~: con grupos, cargar 8 clases a mano por grupo es el trabajo que la función viene a evitar |
 | P8 | Quién autoriza reservar con deuda | 2 |
 | ~~P9~~ | ✅ **CERRADA el 2026-08-29**: el profesor pide con el mismo botón que el alumno (`platform.md` §16) | 2 |
 | ~~P13~~ | ✅ **CERRADA el 2026-09-10 como P63** (`platform.md` §22) y **construida el 2026-09-11 (`V28`)**: tabla `programa`, una fila por disciplina, editable desde `/admin/programas`. La mentoría nació sin precio (*a confirmar*) — falta que Mica cargue el número | — |

@@ -1,7 +1,15 @@
 "use client";
 
+import { useState } from "react";
+
 import { Field, ChoiceGroup, TextArea, FormShell } from "@/components/forms/Fields";
-import { mandarSolicitud, type Disciplina, type Experiencia, type Modalidad } from "@/lib/api";
+import {
+  mandarSolicitud,
+  type Companero,
+  type Disciplina,
+  type Experiencia,
+  type Modalidad,
+} from "@/lib/api";
 
 /**
  * De lo que la persona marca a lo que el sistema guarda (`V29`).
@@ -35,6 +43,25 @@ const EXPERIENCIA: Record<string, Experiencia> = {
  * manda tal cual** —no traducida a un nivel—: el nivel lo sugiere el sistema al
  * inscribir y quien inscribe lo puede cambiar (P64).
  */
+/**
+ * Los compañeros que vienen con quien llena el formulario (`V36`, P92), leídos
+ * de los campos `companero-N-*`. Hasta dos: un grupo es de hasta 3 y el que
+ * llena ya es uno. Los cuatro datos son obligatorios en el HTML (`required`)
+ * y en el sistema; acá sólo se leen.
+ */
+function companerosDe(datos: FormData, cuantos: number): Companero[] | undefined {
+  const lista: Companero[] = [];
+  for (let n = 1; n < cuantos; n++) {
+    lista.push({
+      nombre: String(datos.get(`companero-${n}-nombre`) ?? ""),
+      apellido: String(datos.get(`companero-${n}-apellido`) ?? ""),
+      email: String(datos.get(`companero-${n}-email`) ?? ""),
+      telefono: String(datos.get(`companero-${n}-telefono`) ?? ""),
+    });
+  }
+  return lista.length === 0 ? undefined : lista;
+}
+
 export function ProgramApplyForm({
   programName,
   disciplina,
@@ -43,6 +70,14 @@ export function ProgramApplyForm({
   /** Cómo se llama este programa en el sistema; sale de `data/programs.ts`. */
   disciplina: Disciplina;
 }) {
+  /**
+   * ¿Cuántos son? (`V35`, P88 · P92). De a más es más barato y cursan juntos:
+   * se pregunta primero, y por cada compañero aparecen sus cuatro campos, todos
+   * obligatorios — Ignacio: *"que entre clean o no entre"*. Sin mail no hay
+   * cuenta y sin teléfono no hay WhatsApp con la clave.
+   */
+  const [cuantos, setCuantos] = useState(1);
+
   return (
     <FormShell
       submitLabel="Solicitar lugar"
@@ -61,6 +96,7 @@ export function ProgramApplyForm({
           modalidad: MODALIDAD[String(datos.get("modalidad"))],
           experiencia: EXPERIENCIA[String(datos.get("experiencia"))],
           mensaje: String(datos.get("mensaje") ?? "") || undefined,
+          companeros: companerosDe(datos, cuantos),
         })
       }
     >
@@ -95,6 +131,51 @@ export function ProgramApplyForm({
           placeholder="vos@mail.com"
         />
       </div>
+
+      {/* De a más es más barato, y el grupo se mueve como uno: misma hora,
+          mismo profe, una sola seña (P88). Los compañeros se piden acá, con
+          todo, para que quien atiende pueda inscribir a los tres de una. */}
+      <ChoiceGroup
+        label="¿Cuántos son? Si vienen de a 2 o 3, cursan juntos y sale más barato"
+        name="cuantos"
+        defaultValue="1"
+        options={[
+          { value: "1", label: "Vengo solo/a" },
+          { value: "2", label: "Somos 2" },
+          { value: "3", label: "Somos 3" },
+        ]}
+        columns={3}
+        columnsMobile={1}
+        onChange={(valor) => setCuantos(Number(valor))}
+      />
+
+      {Array.from({ length: cuantos - 1 }, (_, i) => i + 1).map((n) => (
+        <fieldset key={n} className="grid gap-6 border-t border-[color:var(--page-line)] pt-6">
+          <legend className="t-mono text-[color:var(--page-faint)]">
+            Compañero/a {n} — todos los datos, así le llega su acceso
+          </legend>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field label="Nombre" name={`companero-${n}-nombre`} required placeholder="Facu" />
+            <Field label="Apellido" name={`companero-${n}-apellido`} required placeholder="Gómez" />
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field
+              label="Teléfono"
+              name={`companero-${n}-telefono`}
+              type="tel"
+              required
+              placeholder="11 5555 5555"
+            />
+            <Field
+              label="Mail"
+              name={`companero-${n}-email`}
+              type="email"
+              required
+              placeholder="facu@mail.com"
+            />
+          </div>
+        </fieldset>
+      ))}
 
       <ChoiceGroup
         label="Cómo querés cursar"

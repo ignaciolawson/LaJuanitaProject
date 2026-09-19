@@ -1206,7 +1206,7 @@ class ReservaTest {
 
     private Inscripcion inscripcionDe(Alumno alumno, int clases, Disciplina disciplina) {
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        inscripcion.agregarIntegrante(alumno, true);
         inscripcion.setDisciplina(disciplina);
         inscripcion.setClasesContratadas((short) clases);
         inscripcion.setPrecioTotal(new BigDecimal("180000"));

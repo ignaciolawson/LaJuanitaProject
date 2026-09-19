@@ -6090,7 +6090,358 @@ algo que toque tests o consultas del backend— es la tercera de CI en
 `CLAUDE.md` · *Commands*; el detalle en `pendientes.md` §3.9. Commit `a79155a`,
 CI verde verificado.
 
+## 22. La DÉCIMA barrida — abierta el 2026-09-19: los grupos de 2 y 3
+
+> No es una lista de hallazgos: es **el único punto que la §16 dejó diferido a
+> propósito** (B2 2.1, *"cuando terminamos esta barrida nos enfocamos en esto"*),
+> y llega como mejora con nombre: **"Grupos 2/3"**. Ignacio la abrió con la
+> frase que decide el modelo entero: *"el «Grupo» tal como dice la palabra se
+> mueve como 1, es LA seña de EL grupo, no de cada persona que lo integra; en
+> vez de 1 alumno es 1 grupo de 2 o de 3"*. Las decisiones son **P87–P92**
+> (`platform.md` §28), cerradas en la conversación con doce preguntas en dos
+> tandas, **antes de escribir código** — la sexta vez que ese orden se sigue y
+> la que más lo necesitaba: es el cambio de schema más grande desde `V1`.
+
+### El diagnóstico, antes de decidir nada
+
+Lo que se verificó contra el código y los documentos el 2026-09-19:
+
+1. ⚠️ **"Hasta de a 3" no está en ningún documento anterior.** Ni en la
+   entrevista, ni en §1 (*"1:30 semanal, DJ 8 / Producción 16"*), ni en el
+   scope; la landing decía *"Grupos reducidos"* como highlight. La única fuente
+   era el hallazgo de la §16. Por eso la regla se **definió** en §28, con las
+   respuestas textuales, en vez de buscarse.
+2. **Las clases grupales ya existen** (`reserva_participante`, P30, `V1`), pero
+   son *"tres personas en una clase"*. Lo que no existe es *"tres personas que
+   cursan juntas"*: `inscripcion.id_alumno` es de una persona, `V23` lo dice
+   textual, y la plata (precio, seña, `SaldoPendiente`, Deudores) es de esa
+   inscripción.
+3. **No hay cupo ni capacidad de sala** (P60; `sala` no tiene columna). Los
+   grupos **no lo traen**: se mueven como uno pero no apartan nada.
+4. ⚠️ **Una clase de grupo consumiría tres clases.** `contarClasesConsumidas`
+   (`InscripcionRepository`) y el trigger `V9` §5 cuentan filas de
+   `reserva_participante` por inscripción — con tres integrantes en una
+   reserva, cuentan 3. Son las dos definiciones que ya estaba escrito que se
+   mueven juntas; las dos pasan a contar reservas distintas. → **P90**.
+5. **66 referencias a `inscripcion.id_alumno` en 28 archivos Java**, más el
+   índice único parcial (`V30` §3), la regla de propiedad `V1` §8.2, el trigger
+   de `V23`, las dos suites SQL, el portal, la docencia, el tablero y la ficha
+   del alumno. Es un módulo, no una migración con dos pantallas.
+6. **P7 no se reabre.** La §16 lo daba por hecho; Ignacio dijo por qué no
+   (*"le saca libertad al admin"*), y lo que el grupo compra es otra cosa:
+   anotar a los tres en un gesto. → **P90**.
+7. **La ficha de `V20` tiene un nombre, un mail y un teléfono**, y no se
+   borra. La forma para los compañeros es una tabla hija con cero filas para
+   quien viene solo. → **P92**.
+
+### El triage
+
+Todo cuelga de una migración, así que el orden es **C → B → A**, como en §21.
+
+| Fase | Qué | Grupo | Migración |
+|---|---|---|---|
+| 1 | **`V35__el_grupo_es_el_alumno.sql`** — `inscripcion_integrante` (1 a 3, referente, fijos), `inscripcion.numero_grupo`, `programa.precio_2/precio_3`, la migración de datos, `DROP` de `id_alumno`, el índice único → trigger en dos direcciones, `V9` §5 y `V1` §8.2 reescritos, los casos de las dos suites | 🔴 C | `V35` |
+| 2 | **Backend sobre `V35`** — `Inscripcion.integrantes`, los 28 archivos, el alta con 1 a 3 alumnos y precio por tamaño, *"anotar al grupo"* en reservas, portal y docencia por integrante, tablero por persona, `SaldoPendiente` con el referente, el mensaje de WhatsApp del grupo | 🟡 B | — |
+| 3 | **`V36__la_ficha_trae_a_los_companeros.sql`** + backend — `solicitante_companero`, `POST /api/solicitantes` con compañeros (CURSO, ≤ 2, todo obligatorio, no mentoría), *"Inscribirlo"* crea N cuentas + el grupo, N claves | 🔴 C | `V36` |
+| 4 | **Pantallas de la plataforma** — Programas (tres precios), Inscripciones (alta con 1 a 3 y referente, listado con el grupo), ficha del alumno, Calendario (*"anotar al Grupo 8"*), buzón (compañeros, N claves con WhatsApp), Mis cursos (*"con Facu y Gonza"*), Deudores y estado de cuenta | 🟢 A | — |
+| 5 | **Landing** — *"¿cuántos son?"* + campos por compañero, todo obligatorio; los tres precios en cada programa, `llms.txt` y JSON-LD | 🟢 A | — |
+
+**El admin sembrado pasa a `V37`** (noveno corrimiento).
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-19)
+
+✅ **CERRADA el mismo día: cinco fases de cinco.** El estado al cierre está en
+el *DÓNDE RETOMAR* del final de esta sección, después de la Fase 5.
+
+### Lo que hizo, punto por punto
+
+#### ✅ Fase 1 · `V35__el_grupo_es_el_alumno.sql` — 2026-09-19
+
+**Lo que hace** está en su cabecera y no se repite: tres precios en el
+catálogo (§1), `inscripcion_integrante` + `numero_grupo` con su secuencia (§2),
+la migración de datos y el `DROP` de `id_alumno` (§3), cuatro reglas (§4:
+hasta 3 / mentoría 1 · al COMMIT al menos uno, un referente y el número si son
+2 o 3 · fijos · una abierta por alumno y disciplina en dos direcciones) y las
+dos reglas viejas reescritas (§5: `V1` §8.2 por integrante, `V9` §5 por
+reservas distintas). Suites: **330 reglas + 71 adversariales**, sobre 35
+migraciones (veinte casos nuevos, 289–308, y tres, L01–L03).
+
+**Lo que decidió al escribirla, que no estaba en P87–P91:**
+
+- **`precio_2`/`precio_3` nacen `NULL` en DJ y Producción** — no se inventan
+  números (los 300/380/447 de Ignacio eran en USD y de ejemplo); Mica los
+  carga en `/admin/programas`, y hasta entonces el alta de un grupo pide el
+  precio a mano, como la mentoría hoy.
+- **La mentoría no admite grupos por DISCIPLINA, no por el `NULL` del precio**:
+  un `NULL` no puede significar "sin precio todavía" y "no se ofrece" a la
+  vez, así que el trigger de tamaño lee `disciplina` y la mentoría tiene
+  máximo 1.
+- **El número de grupo lo asigna el servicio** (`nextval` de
+  `inscripcion_numero_grupo_seq` cuando son 2 o 3) y la base sólo exige la
+  coherencia al COMMIT: hay número ⇔ son 2 o más. Un trigger no puede escribir
+  en `NEW` de otra tabla, y la alternativa —un `AFTER` que hace `UPDATE`—
+  sería más máquina que regla.
+- **El trigger de "una abierta" sobre `inscripcion` es `AFTER UPDATE`, no
+  `BEFORE`**: la función lee la disciplina de la fila por id, y en un `BEFORE`
+  vería la vieja.
+- ⚠️ **Un índice único también sostenía la regla entre transacciones
+  concurrentes; un trigger no.** Queda escrito en la migración: es el margen
+  que `UsuarioService` tenía con el email antes de apoyarse en el índice, y
+  acá no hay índice posible porque el alumno y el estado viven en tablas
+  distintas.
+- **Nadie borra una inscripción, por transitiva**: los integrantes no se
+  borran (§4 c) y la FK los ata, así que `DELETE FROM inscripcion` ya no puede
+  pasar aunque ninguna migración lo haya prohibido nunca. Coherente con el
+  resto del schema; se anota porque es un efecto, no una decisión.
+
+**Lo que encontró al ponerle el bug de vuelta (la regla de la §14):** se
+cambió `count(DISTINCT p.id_reserva)` por el `count(*)` de `V9` §5 y corrieron
+las suites. **Con la definición vieja, un grupo de 3 con 2 clases contratadas
+no podía tomar ni la PRIMERA clase** — al anotar al tercero la base decía
+*"ya se consumieron 2"*. No era *"una clase de grupo consume tres"* como decía
+P90: era *"el grupo no puede cursar"*. Casos 300, 301 y 302 en rojo, exactamente
+los tres que tenían que ponerse rojos.
+
+**Lo que costó en las suites**: 21 `INSERT INTO inscripcion` sueltos que ya no
+pueden existir (§4 b es diferido: en psql el rechazo cae afuera de `probar()`
+y el caso desaparece del resumen, la trampa de `V10`). Las dos suites ganaron
+`inscribir(...)` —el gemelo de `sena()`, inserta las dos filas en una
+sentencia— e `inscripciones_de(alumno, disciplina)` para reemplazar los
+`WHERE id_alumno = … AND disciplina = …`. Dos tropiezos propios: una función
+que devuelve un conjunto no va en un `=` de `WHERE` (*"set-returning functions
+are not allowed in WHERE"*, va `IN (SELECT …)`), y una vista que decía *"la DJ
+de Mati"* devolvió dos filas en cuanto el caso 305 le dio a Mati una segunda —
+la vista ahora dice *"el grupo"* (`numero_grupo IS NOT NULL`).
+
+⚠️ **Al cierre de la Fase 1 el backend NO compila contra la base**: `Inscripcion`
+sigue mapeando `id_alumno`, y `ddl-auto=validate` lo rechaza en cuanto Flyway
+aplique `V35`. Es lo esperado — la Fase 2 empieza por ahí — y es por lo que
+las dos fases van en un mismo commit.
+
+#### ✅ Fase 2 · El backend sobre `V35` — 2026-09-19
+
+**Suites: 754 backend** (catorce casos nuevos: once en `InscripcionTest`, uno en
+`PortalTest`, uno en `PagoTest`, más el de la clase del grupo), verdes contra la
+base de desarrollo y contra una vacía (`pruebas-backend.sh`). `V35` quedó
+aplicada en la base de desarrollo por el primer `mvn test`.
+
+**Lo que cambió, por pieza:**
+
+- **`Inscripcion` perdió `alumno` y ganó `integrantes`** (`InscripcionIntegrante`,
+  entidad nueva sin setters: fijos al nacer) y `numeroGrupo`. Tres métodos
+  dicen lo que el resto del sistema necesita: `referente()`, `tieneAlUsuario()`
+  y `esGrupo()`. La colección lleva `@OrderBy("referente DESC")` y `@BatchSize`.
+- **`InscripcionRepository`**: `buscar` devuelve **ids** y `porIdsConDetalle`
+  trae el detalle — la forma de `PagoRepository`, y por el mismo motivo: la
+  persona pasó a ser una colección, y una colección no se `JOIN FETCH` en una
+  consulta paginada. El buscador y el filtro por alumno miran a **cualquier**
+  integrante (dos `EXISTS`); el orden es por el apellido del referente.
+  `existsByAlumnoIdAndDisciplinaAndEstadoIn` (derivada) es
+  `tieneAbiertaEnLaDisciplina` (JPQL). `contarClasesConsumidas` cuenta
+  `count(DISTINCT r.id)`.
+- **El alta** recibe `integrantes` (1 a 3 ids) e `idReferente` (opcional, el
+  primero por defecto): rechaza repetidos, mentoría de a más de uno, un
+  referente que no está en la lista, y **si uno de los tres ya tiene una
+  abierta en la disciplina, falla entera y nombra a la persona**
+  (`errores.integrantes`). El número de grupo sale de la secuencia
+  (`siguienteNumeroDeGrupo`, nativa) sólo si son 2 o más. La seña se registra
+  a nombre del referente.
+- **`InscripcionResumen`**: `idAlumno`/`nombre`/… son **del referente** (así
+  las pantallas actuales siguen diciendo lo que decían), más `integrantes`
+  (`IntegranteResumen`, el referente primero — ordenado también en memoria,
+  porque el `@OrderBy` no ordena lo recién creado) y `numeroGrupo`.
+- **Todo lo que decía "el alumno de la inscripción" dice "un integrante"**:
+  `AlumnoRepository` (filtro de la lista y `disciplinasVigentes`, ahora por
+  `InscripcionIntegrante`), `MaterialRepository` (tres consultas), `PagoService`
+  (cualquier integrante puede pagar la del grupo), `DocenciaService` (un curso
+  es mío si alguno de sus integrantes lo es; los cursos vigentes se reparten a
+  cada integrante pedido), `TableroRepository` (cinco consultas nativas:
+  `count(DISTINCT ii.id_alumno)`, y la retención cuenta a cada integrante),
+  `SaldoPendiente` (la fila es del **referente**, y el detalle dice
+  *"DJ · Grupo 8"*), `SolicitanteService.inscribir` (grupo de 1, hasta la
+  Fase 3). `ProgresoDelCurso` gana `companeros` (los otros, sólo nombre y
+  apellido: el portal de uno no publica el mail de los demás) y
+  `ContratoDelAlumno` gana `numeroGrupo` e `integrantes`.
+- **El catálogo**: `Programa.precio2/precio3` en la entidad, el resumen y la
+  edición; el servicio rechaza precio de grupo en la mentoría.
+- **`ManejadorDeErrores`**: el índice viejo salió del mapa (el trigger habla
+  solo, con `P0001`); entraron los `UNIQUE` nuevos y el `CHECK` de precios.
+
+**Lo que decidió que no estaba en el plan:**
+
+- **"Anotar al grupo" en el calendario no necesita endpoint.** `V22` resuelve
+  la inscripción ACTIVA de cada persona en la disciplina, y ésa ya es la del
+  grupo: mandar los tres `idUsuario` como participantes da exactamente el
+  resultado de P90. El calendario ofrece *"Grupo 8 · Mati, Facu y Gonza"* desde
+  el listado de inscripciones (que ya trae los integrantes) y expande a tres
+  participantes — Fase 4, pantalla sola.
+- **La seña de un alta con grupo va a nombre del referente**, no de "quien la
+  puso": el formulario no lo sabe, y editar el pago corrige el pagador si fue
+  otro del grupo.
+- **La preinscripción cancelada por abandono avisa a los tres** integrantes con
+  la misma clave (el índice de `V17` es por destino y clave).
+
+**Lo que encontró:**
+
+- ⚠️ **Un `sed` sobre `"idAlumno":` en los tests alcanzó a los de NOTAS**
+  (`DocenciaTest`, `POST /api/me/profesor/notas` también manda `idAlumno`):
+  seis casos en 400 por un reemplazo que no era de inscripciones. Lección
+  barata: un nombre de campo compartido por dos DTOs se reemplaza por archivo,
+  no por repositorio.
+- **La página de la API se llama `contenido`, no `content`** — un caso nuevo
+  buscó `$.content[...]` y el `exists()` de un filtro vacío dice *"No value"*
+  sin decir por qué.
+- **`@OrderBy` no ordena la lista en memoria**: el alta devolvía a Mati
+  primero aunque el referente fuera Facu; el DTO ordena por su cuenta.
+- **Verificado poniendo el bug de vuelta**: `count(p)` en
+  `contarClasesConsumidas` → `una_clase_del_grupo_consume_una_clase_y_no_tres`
+  contesta 3 consumidas. Restaurado.
+- ⚠️ **Con `V35` aplicada, el backend de desarrollo que estuviera levantado
+  está roto contra el schema** (mapea `id_alumno`): reiniciarlo antes de
+  probar nada, como siempre.
+
+#### ✅ Fase 3 · `V36__la_ficha_trae_a_los_companeros.sql` + el buzón — 2026-09-19
+
+**Suites: 336 + 71 SQL · 760 backend**, verdes en las dos bases. `V36` está
+aplicada en la de desarrollo.
+
+- **`solicitante_companero`**: hasta dos por ficha (un grupo es de hasta 3 y
+  quien llena el formulario ya es uno), los cuatro datos `NOT NULL` con
+  `CHECK` de no vacío, sólo en una ficha de `CURSO` que no sea mentoría (un
+  trigger `BEFORE INSERT` que lee la ficha), y **no se borra** — la función
+  `prohibir_borrado_historico` ganó una entrada más en su enumeración, como en
+  `V25`. Quien llenó el formulario ES la ficha y el referente (P88). Seis casos
+  SQL (309–314). ⚠️ Uno pasó por el motivo equivocado en la primera corrida:
+  *"un compañero sin teléfono"* sobre la ficha de mentoría lo rechazaba el
+  trigger antes que el `CHECK` — ahora va sobre una ficha de Producción y
+  pide el nombre del `CHECK`.
+- **`POST /api/solicitantes`** acepta `companeros[]` (`@Size(max = 2)`, cada
+  uno `@Valid` con los cuatro `@NotBlank`; null = viene solo). El servicio
+  repite las dos reglas del trigger como 400 antes de escribir nada.
+  `SolicitanteResumen.companeros` viaja al buzón.
+- ***"Inscribirlo"* con compañeros**: por cada uno, la cuenta por mail —la que
+  ya tenía o una nueva por `altaPorAdministracion`— y la relación de alumno
+  **al nivel de la inscripción** (`AlumnoService.altaDeLaRelacion(usuario,
+  nivel)`, nuevo: P91, *"se les da de alta al nivel de la inscripción"*);
+  después `InscripcionService.alta` con los tres y el referente = quien llenó;
+  la respuesta (`AlumnoInscripto.companeros`) trae una clave por cuenta
+  nacida y `null` para la que ya existía. El aviso *"falta la seña"* le llega
+  a los tres. Todo en la transacción de siempre: si un compañero ya cursa la
+  disciplina, el 409 nombra a la persona y no queda ninguna cuenta (caso
+  `si_un_companero_ya_cursa_la_disciplina_no_queda_ni_una_cuenta`, con
+  `TestTransaction.isFlaggedForRollback()`).
+- ⚠️ **Varios archivos del paquete `solicitante` están en CRLF** en el working
+  tree (`core.autocrlf=true` y `.gitattributes` sólo fuerza LF en `.sh` y
+  `.sql`): un script que edita por texto tiene que normalizar antes de buscar
+  y devolver el mismo final de línea al escribir, o no encuentra nada.
+
+**Lo que NO cambió**: la relación `alumno` de quien llenó el formulario sigue
+naciendo sin nivel cuando la ficha no lo sugiere; y el referente sigue siendo
+el único al que la pantalla le arma el mensaje de la seña.
+
+#### ✅ Fase 4 · Las pantallas de la plataforma — 2026-09-19
+
+**Suite: 679 front** (diez casos nuevos), `tsc -b`, lint y build limpios.
+
+- **Tipos** (`tiposAdmin.ts`, `tiposPortal.ts`, `administracion.ts`): espejo de
+  los records — `numeroGrupo`, `integrantes`, `IntegranteResumen`,
+  `precio2/precio3`, `companeros` en la ficha y en `AlumnoInscripto`,
+  `ContratoDelAlumno.numeroGrupo/integrantes`, `ProgresoDelCurso.companeros`;
+  `AltaInscripcion` pide `integrantes` + `idReferente`. Y **dos funciones que
+  son la única definición de cómo se nombra un grupo**: `enUnaLinea` (*"Mati,
+  Facu y Gonza"*) y `nombreDeLaInscripcion` (*"Grupo 8 · …"*); `precioParaGrupo`
+  elige el precio del catálogo por tamaño.
+- **Programas**: columna *"De a 2 · de a 3"* (la mentoría dice *1:1*) y dos
+  campos en la edición, con la ayuda que dice que es **el total del grupo**.
+- **Inscripciones**: el alta es `SelectorDeIntegrantes` — un buscador por
+  casillero, *"+ Agregar un integrante (cursan juntos, de a N)"* hasta 3, un
+  radio *Referente* por fila cuando son más de uno, *Sacar*; elegir la
+  mentoría reduce a uno. **Agregar o sacar un casillero re-prellena el precio
+  y la seña con el del catálogo para ese tamaño.** Validación local: ninguno
+  elegido, uno sin elegir, repetidos. El listado muestra *"Grupo 8"* con los
+  nombres en vez de *"Apellido, Nombre"*.
+- **Calendario**: cuando el curso que descuenta es de un grupo, *"Descuenta
+  de"* dice *"DJ · Grupo 8"* y ofrece la casilla **"Anotar a todo el grupo"**
+  marcada por defecto (desmarcar es para el que viene solo a recuperar);
+  `useParticipante` expone `elegidos` (uno o los tres) y tanto el alta de la
+  clase como *"Anotar a alguien"* los mandan — un pedido por persona, como
+  P90 decidió y sin endpoint nuevo.
+- **Buzón**: la ficha dice *"Viene con Facu Gómez y Gonza Ruiz: cursan juntos,
+  de a 3"* con el contacto de cada uno; `InscripcionLista` titula *"Grupo 8
+  (Camila Ríos, con …)"*, dice que la seña es una sola y a nombre de quién, y
+  agrega `ClaveDeCompanero` por cada compañero — clave + WhatsApp con
+  `mensajeConLaClave` a su teléfono si nació la cuenta, *"ya tenía cuenta"* si
+  no. `mensajeDeInscripcion` ganó `companeros?` y dice *"Los anotamos … a vos y
+  a …: cursan juntos"* y *"(es una sola, del grupo)"*.
+- **Ficha del alumno, Mis cursos, estado de cuenta**: *"Grupo 8, con Facu y
+  Gonza"* al lado del nivel; *"junto a …"* en la tarjeta del portal; *"DJ ·
+  Grupo 8 · de Mati, Facu y Gonza"* en el contrato de la cuenta de cada uno.
+  Deudores no cambió: el `detalle` ya viene *"DJ · Grupo 8"* del backend.
+
+**Lo que encontró**: el catálogo del `beforeEach` de `InscripcionesPagina.test`
+no tiene precio de a 2, así que un alta de dos integrantes deja el precio
+vacío y la validación local la frena — un caso nuevo pasó por eso a "no se
+llamó a la API" sin decir por qué; el catálogo se mockea con `precio2` en los
+casos que arman grupos.
+
+#### ✅ Fase 5 · La landing — 2026-09-19
+
+Lint y `next build` limpios (27 páginas).
+
+- **`Solicitud.companeros?`** (`lib/api.ts`), espejo de `CompaneroRequest`.
+- **`ProgramApplyForm` pregunta primero *"¿Cuántos son?"*** (Vengo solo/a ·
+  Somos 2 · Somos 3) y por cada compañero abre un `fieldset` con los cuatro
+  campos, **todos `required`** (P92: *"que entre clean o no entre"*), leídos de
+  `companero-N-*` al enviar. La mentoría tiene su propio formulario y no lo
+  pregunta.
+- **Los tres precios en la página del programa**: bajo *Inversión*, *"De a 2:
+  … · De a 3: …"* con la aclaración *"El total del grupo, cursando juntos"*.
+  `Program.groupPrices` es **PLACEHOLDER como `price`**, derivado de los ratios
+  del ejemplo de Ignacio (×1,27 y ×1,49) y redondeado: a validar con el
+  cliente junto con el resto. El highlight de DJ dice *"De a 1, 2 o 3: cursan
+  juntos"*. `llms.txt` lo cuenta en una línea; el JSON-LD sigue sin `offers`
+  (los precios no están confirmados, `seo.ts` lo dice).
+
+### ⚠️ DÓNDE RETOMAR (al cierre, 2026-09-19)
+
+✅ **ESTADO: CERRADA el mismo 2026-09-19 — cinco fases de cinco, dos migraciones
+(`V35`, `V36`, aplicadas en la base de desarrollo).** Decisiones: **P87–P92**
+(`platform.md` §28). Suites al cierre: **760 backend · 679 front · 336 + 71
+SQL** sobre 36 migraciones, verdes contra la base de desarrollo y contra una
+vacía; `tsc -b`, los dos builds y los dos linters limpios. **El admin sembrado
+pasa a `V37`** (noveno corrimiento). ⚠️ **El backend de desarrollo está
+levantado con este código** (`mvn spring-boot:run` desde esta sesión) y el
+circuito se probó contra la base real: `POST /api/inscripciones` con tres
+alumnos y referente creó la inscripción **17934** — *"Grupo 40 · Julieta Sosa
+(referente), Manuel Ríos y Fernando López"*, Producción, PREINSCRIPTA con su
+plazo— y Deudores la lista bajo Julieta como *"PRODUCCION · Grupo 40"*. Queda
+en la base como prueba viva (cancelarla desde Inscripciones si se prefiere
+limpia). El 40 no es un bug: la secuencia se consumió en los `mvn test` y una
+secuencia no se deshace con el rollback — en producción arranca en 1. **Lo que
+Ignacio todavía no vio en el navegador**: el alta con *"+ Agregar un
+integrante"* y el radio de referente, *"Anotar a todo el grupo"* en el
+calendario, la ficha del buzón con *"Viene con…"* y las claves de los
+compañeros, y el formulario de la landing con *"¿Cuántos son?"*. Es lo primero
+que conviene que abra.
+
+**Lo que dejó para la siguiente:**
+
+- **Los precios de grupo del catálogo están vacíos** (`V35` no los inventó):
+  hasta que Mica los cargue en `/admin/programas`, el alta de un grupo pide el
+  precio a mano. Y los de la landing son placeholder, como todos.
+- **La relación `alumno` de quien llenó el formulario** nace sin nivel cuando
+  la ficha no lo sugiere; la de los compañeros nace al nivel de la inscripción.
+  Asimetría chica, se ve en la ficha del alumno.
+- **`Deudor.disciplina` viaja como el detalle** (*"DJ · Grupo 8"*) y el aviso de
+  preinscripción vencida lo usa en su texto: dice *"se anotó a DJ · Grupo 8"*,
+  que se lee bien pero no era la intención del campo.
+- **No hay forma de "sacar integrante" y no la va a haber** (P89) — si alguien la
+  pide, la respuesta es cancelar y rehacer.
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **Y LA DÉCIMA (§22) TAMBIÉN, EL 2026-09-19, ABIERTA Y CERRADA EL MISMO DÍA: los grupos de 2 y 3, con `V35` y `V36` (P87–P92, `platform.md` §28).** El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas (`inscripcion_integrante`, `id_alumno` se fue), un precio por tamaño en el catálogo, una seña a nombre del referente, integrantes fijos, P7 ratificada (se anota al grupo entero en cada clase), la ficha del buzón trae a los compañeros y *"Inscribirlo"* crea N cuentas, la landing pregunta *"¿Cuántos son?"*. Encontró que con la definición vieja de `V9` §5 un grupo de 3 no podía tomar ni la primera clase. Suites: **760 backend · 679 front · 336 + 71 SQL** sobre 36 migraciones. **El admin sembrado pasa a `V37`.** ⚠️ El backend de desarrollo está levantado con este código y la inscripción 17934 (Grupo 40) quedó como prueba viva.
+
 
 ✅ **Y LA NOVENA (§21) TAMBIÉN, EL 2026-09-15: cinco de cinco, con `V33` y
 `V34` (P83–P86, `platform.md` §27).** Una reserva que no es clase tiene precio

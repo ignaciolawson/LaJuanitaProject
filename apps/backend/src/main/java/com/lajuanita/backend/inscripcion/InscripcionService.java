@@ -4,11 +4,14 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,12 +52,16 @@ import com.lajuanita.backend.usuario.UsuarioRepository;
  * porque la relación profesor↔alumno vive en {@code inscripcion.id_profesor} y
  * no en el alumno.
  *
+ * <p><b>Desde `V35` la inscripción es de un grupo de 1 a 3</b> (P87): el alta
+ * recibe los integrantes y el referente, el precio es del grupo, la seña es una,
+ * y todo lo que acá decía "el alumno" dice "el referente" o "los integrantes".
+ *
  * <p><b>Buena parte de las reglas de este módulo no están en este archivo.</b>
  * Están en la base, que es donde este proyecto puso sus reglas de negocio: una
- * sola inscripción activa por disciplina (índice único parcial), no consumir más
- * clases que las contratadas y no bajar de nivel sin firma ({@code V9}). Lo de
- * acá son los mensajes entendibles delante de esas reglas y las que la base no
- * puede expresar sola.
+ * sola inscripción abierta por alumno y disciplina, hasta 3 integrantes y fijos
+ * (`V35` §4), no consumir más clases que las contratadas y no bajar de nivel
+ * sin firma ({@code V9}). Lo de acá son los mensajes entendibles delante de esas
+ * reglas y las que la base no puede expresar sola.
  */
 @Service
 public class InscripcionService {
@@ -138,19 +145,23 @@ public class InscripcionService {
     }
 
     private void avisarQueSeCancelo(Inscripcion i) {
-        Usuario persona = i.getAlumno().getUsuario();
+        Usuario persona = i.referente().getAlumno().getUsuario();
         String programa = i.getDisciplina().name();
         String clave = "PREINSCRIPCION_CANCELADA:i=" + i.getId();
 
+        // A cada integrante: todos creían estar anotados. La clave es la misma
+        // para los tres porque el índice de `V17` es por (destino, clave).
         if (!avisos.yaAvisados(List.of(clave)).contains(clave)) {
-            avisos.avisar(persona,
-                    TipoNotificacion.PREINSCRIPCION_CANCELADA,
-                    "Se canceló tu preinscripción a " + programa,
-                    "Pasaron " + diasParaCancelarSola + " días sin la seña, así que tu lugar en "
-                            + programa + " quedó cancelado. Si todavía querés hacerlo, "
-                            + "escribinos y te anotamos de nuevo.",
-                    "/mis-cursos",
-                    clave);
+            for (InscripcionIntegrante x : i.getIntegrantes()) {
+                avisos.avisar(x.getAlumno().getUsuario(),
+                        TipoNotificacion.PREINSCRIPCION_CANCELADA,
+                        "Se canceló tu preinscripción a " + programa,
+                        "Pasaron " + diasParaCancelarSola + " días sin la seña, así que tu lugar en "
+                                + programa + " quedó cancelado. Si todavía querés hacerlo, "
+                                + "escribinos y te anotamos de nuevo.",
+                        "/mis-cursos",
+                        clave);
+            }
         }
 
         for (Usuario admin : usuarios.activosConRol(List.of(Rol.ADMIN, Rol.STAFF))) {
@@ -180,22 +191,51 @@ public class InscripcionService {
      */
     @Transactional
     public InscripcionCreada alta(AltaInscripcionRequest solicitud, Long idAutor) {
-        Alumno alumno = alumnos.findById(solicitud.idAlumno())
-                .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el alumno " + solicitud.idAlumno() + "."));
+        // Sin repetidos, en el orden en que vinieron (el primero es el referente
+        // por defecto). Un id dos veces no es "un grupo de 3", es un error de
+        // carga, y la base lo rechazaría con el texto de un UNIQUE.
+        List<Long> ids = List.copyOf(new LinkedHashSet<>(solicitud.integrantes()));
+        if (ids.size() != solicitud.integrantes().size()) {
+            throw new SolicitudInvalidaException("Hay un alumno repetido en el grupo.");
+        }
+        if (solicitud.disciplina() == Disciplina.MENTORIA && ids.size() > 1) {
+            // La base también lo dice (`V35` §4 a); acá sale como 400 antes de
+            // crear nada.
+            throw new SolicitudInvalidaException(
+                    "La mentoría es 1:1 y no admite grupos (P67, P88).");
+        }
 
-        // El índice único parcial es quien decide; esto es para que el mensaje
-        // nombre el problema real y no una violación de constraint. Desde `V30`
-        // el índice mira ACTIVA y PREINSCRIPTA (`ABIERTAS`), y el mensaje lo dice.
-        if (inscripciones.existsByAlumnoIdAndDisciplinaAndEstadoIn(
-                alumno.getId(), solicitud.disciplina(), EstadoInscripcion.ABIERTAS)) {
-            throw new DatoDuplicadoException("disciplina",
-                    "Ese alumno ya tiene una inscripción abierta en esa disciplina "
-                    + "(activa o preinscripta).");
+        Long idReferente = solicitud.idReferente() == null ? ids.get(0) : solicitud.idReferente();
+        if (!ids.contains(idReferente)) {
+            throw new SolicitudInvalidaException(
+                    "El referente tiene que ser uno de los integrantes del grupo.");
+        }
+
+        List<Alumno> integrantes = ids.stream().map(this::buscarAlumno).toList();
+
+        // El trigger de `V35` §4 (d) es quien decide; esto es para que el mensaje
+        // nombre a la persona y no una fila. Mira ACTIVA y PREINSCRIPTA
+        // (`ABIERTAS`), y el mensaje lo dice.
+        for (Alumno alumno : integrantes) {
+            if (inscripciones.tieneAbiertaEnLaDisciplina(
+                    alumno.getId(), solicitud.disciplina(), EstadoInscripcion.ABIERTAS)) {
+                Usuario persona = alumno.getUsuario();
+                throw new DatoDuplicadoException("integrantes",
+                        persona.getNombre() + " " + persona.getApellido()
+                                + " ya tiene una inscripción abierta en esa disciplina "
+                                + "(activa o preinscripta).");
+            }
         }
 
         Inscripcion inscripcion = new Inscripcion();
-        inscripcion.setAlumno(alumno);
+        for (Alumno alumno : integrantes) {
+            inscripcion.agregarIntegrante(alumno, alumno.getId().equals(idReferente));
+        }
+        if (integrantes.size() >= 2) {
+            // El correlativo propio de los grupos ("Grupo 8", P87). Un alumno
+            // solo no lo lleva, y la base exige la coherencia al COMMIT.
+            inscripcion.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        }
         inscripcion.setProfesor(buscarProfesor(solicitud.idProfesor()));
         inscripcion.setDisciplina(solicitud.disciplina());
         inscripcion.setNivel(solicitud.nivel());
@@ -231,8 +271,11 @@ public class InscripcionService {
      */
     private Long registrarLaSena(SenaDeInscripcionRequest sena, Inscripcion inscripcion,
             Long idAutor) {
+        // A nombre del referente: es a quien Deudores nombra y a quien le llegó
+        // el WhatsApp de la seña (P88). Quién la puso físicamente, si fue otro
+        // del grupo, se corrige editando el pago.
         return pagos.registrar(new AltaPagoRequest(
-                inscripcion.getAlumno().getUsuario().getId(),
+                inscripcion.referente().getAlumno().getUsuario().getId(),
                 null, null,
                 inscripcion.getId(), null, null, null,
                 "Seña del programa",
@@ -254,11 +297,24 @@ public class InscripcionService {
             EstadoInscripcion estado,
             Pageable paginado) {
 
-        Page<Inscripcion> pagina = inscripciones.buscar(
+        Page<Long> ids = inscripciones.buscar(
                 Busqueda.patron(buscar), idAlumno, idProfesor, disciplina, estado, paginado);
+        if (ids.isEmpty()) {
+            return new PageImpl<>(List.of(), paginado, ids.getTotalElements());
+        }
 
-        Map<Long, Integer> consumidas = clasesConsumidas(pagina.getContent());
-        return pagina.map(i -> InscripcionResumen.de(i, consumidas.getOrDefault(i.getId(), 0)));
+        // El detalle viene sin orden y el orden lo decidió `buscar`: se restaura
+        // desde la lista de ids (la forma de `PagoService.listar`).
+        Map<Long, Inscripcion> porId = inscripciones.porIdsConDetalle(ids.getContent()).stream()
+                .collect(java.util.stream.Collectors.toMap(Inscripcion::getId, Function.identity()));
+        List<Inscripcion> filas = ids.getContent().stream().map(porId::get).toList();
+
+        Map<Long, Integer> consumidas = clasesConsumidas(filas);
+        return new PageImpl<>(
+                filas.stream()
+                        .map(i -> InscripcionResumen.de(i, consumidas.getOrDefault(i.getId(), 0)))
+                        .toList(),
+                paginado, ids.getTotalElements());
     }
 
     @Transactional(readOnly = true)
@@ -418,6 +474,12 @@ public class InscripcionService {
                             + " no tiene una cantidad estándar de clases: decí cuántas son en `clasesContratadas`.");
         }
         return estandar;
+    }
+
+    private Alumno buscarAlumno(Long idAlumno) {
+        return alumnos.findById(idAlumno)
+                .orElseThrow(() -> new RecursoNoEncontradoException(
+                        "No existe el alumno " + idAlumno + "."));
     }
 
     private Profesor buscarProfesor(Long idProfesor) {

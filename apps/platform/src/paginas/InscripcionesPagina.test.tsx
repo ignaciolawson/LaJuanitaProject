@@ -57,6 +57,10 @@ function usuario(rol: UsuarioActual['rol']): UsuarioActual {
 function inscripcion(cambios: Partial<InscripcionResumen> = {}): InscripcionResumen {
   return {
     idInscripcion: 1,
+    numeroGrupo: null,
+    integrantes: [
+      { idAlumno: 10, idUsuario: 100, nombre: 'Juan', apellido: 'Pérez', email: 'juan@lajuanita.local', referente: true },
+    ],
     idAlumno: 10,
     idUsuario: 100,
     nombre: 'Juan',
@@ -154,6 +158,8 @@ function programa(cambios: Partial<ProgramaResumen> = {}): ProgramaResumen {
     nombre: 'Convertite en DJ',
     descripcion: null,
     precio: 170000,
+    precio2: null,
+    precio3: null,
     moneda: 'ARS',
     cobro: 'PAQUETE',
     clasesEstandar: 8,
@@ -297,7 +303,8 @@ describe('las clases de fábrica del curso (§13, P34 — desde V28, del catálo
 
     await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
     expect(vi.mocked(altaInscripcion).mock.calls[0][0]).toMatchObject({
-      idAlumno: 10,
+      integrantes: [10],
+      idReferente: 10,
       disciplina: 'MENTORIA',
       clasesContratadas: 4,
       precioTotal: 90000,
@@ -456,6 +463,115 @@ describe('la seña en el alta (P59, Fase 6)', () => {
       cotizacionDolar: null,
       medioPago: 'TRANSFERENCIA',
     })
+  })
+})
+
+describe('los grupos de 2 y 3 (V35, §22, P87–P90)', () => {
+  const ana = alumno({ idAlumno: 11, idUsuario: 101, nombre: 'Ana', apellido: 'Gómez', email: 'ana@lajuanita.local' })
+
+  /**
+   * El grupo se arma agregando integrantes; el precio es DEL GRUPO y sale del
+   * catálogo por tamaño (P88: 300 / 380 / 447 son tres precios, no una
+   * fórmula); la seña es una, el 50% de ése. El referente por defecto es el
+   * primero, y el pedido lo dice.
+   */
+  it('con dos integrantes prellena el precio de a 2 y manda a los dos con el referente', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarProgramas).mockResolvedValue([
+      programa({ idPrograma: 1, disciplina: 'DJ', precio: 170000, precio2: 300000, precio3: 400000 }),
+    ])
+    vi.mocked(listarAlumnos).mockResolvedValue(paginaDe([alumno(), ana]))
+    vi.mocked(altaInscripcion).mockResolvedValue({ inscripcion: inscripcion(), idPagoSena: null })
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await elegir(user, /Disciplina/, 'DJ')
+    expect(screen.getByLabelText(/Precio total/)).toHaveProperty('value', '170000')
+
+    await user.click(screen.getByRole('button', { name: /Agregar un integrante/ }))
+    await user.click(await screen.findByRole('button', { name: /Gómez, Ana/ }))
+    // El precio pasó al de a 2, y el texto dice de quién es la plata.
+    expect(screen.getByLabelText(/Precio total/)).toHaveProperty('value', '300000')
+    expect(screen.getByText(/El precio es del grupo entero/)).toBeDefined()
+
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+
+    await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
+    expect(vi.mocked(altaInscripcion).mock.calls[0][0]).toMatchObject({
+      integrantes: [10, 11],
+      idReferente: 10,
+      precioTotal: 300000,
+    })
+  })
+
+  it('el referente se puede cambiar, y va en el pedido', async () => {
+    const user = userEvent.setup()
+    // Sin precio de a 2 en el catálogo el campo queda vacío y el alta no sale:
+    // acá se prueba el referente, así que el catálogo lo tiene.
+    vi.mocked(listarProgramas).mockResolvedValue([
+      programa({ idPrograma: 1, disciplina: 'DJ', precio: 170000, precio2: 300000, precio3: 400000 }),
+    ])
+    vi.mocked(listarAlumnos).mockResolvedValue(paginaDe([alumno(), ana]))
+    vi.mocked(altaInscripcion).mockResolvedValue({ inscripcion: inscripcion(), idPagoSena: null })
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await user.click(screen.getByRole('button', { name: /Agregar un integrante/ }))
+    await user.click(await screen.findByRole('button', { name: /Gómez, Ana/ }))
+    await user.click(screen.getAllByRole('radio', { name: 'Referente' })[1])
+    await elegir(user, /Disciplina/, 'DJ')
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+
+    await waitFor(() => expect(altaInscripcion).toHaveBeenCalled())
+    expect(vi.mocked(altaInscripcion).mock.calls[0][0].idReferente).toBe(11)
+  })
+
+  /** P88: la mentoría es 1:1. Al elegirla, el grupo queda en uno y no se ofrece agregar. */
+  it('la mentoría no admite grupo', async () => {
+    const user = userEvent.setup()
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await elegir(user, /Disciplina/, 'MENTORIA')
+
+    expect(screen.queryByRole('button', { name: /Agregar un integrante/ })).toBeNull()
+  })
+
+  /** Un casillero agregado y sin elegir no se manda: se elige o se saca. */
+  it('un integrante sin elegir frena el alta', async () => {
+    const user = userEvent.setup()
+    await montarYEsperar('STAFF', 'Pérez, Juan')
+
+    await user.click(screen.getByRole('button', { name: 'Nueva inscripción' }))
+    await user.click(await screen.findByRole('button', { name: /Pérez, Juan/ }))
+    await user.click(screen.getByRole('button', { name: /Agregar un integrante/ }))
+    await elegir(user, /Disciplina/, 'DJ')
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+
+    expect(await screen.findByText(/Hay un integrante sin elegir/)).toBeDefined()
+    expect(altaInscripcion).not.toHaveBeenCalled()
+  })
+
+  /** El listado nombra al grupo: su número y los tres, no "el alumno". */
+  it('el listado muestra el grupo con su número y sus integrantes', async () => {
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      paginaDe([
+        inscripcion({
+          numeroGrupo: 8,
+          integrantes: [
+            { idAlumno: 10, idUsuario: 100, nombre: 'Juan', apellido: 'Pérez', email: 'juan@lajuanita.local', referente: true },
+            { idAlumno: 11, idUsuario: 101, nombre: 'Ana', apellido: 'Gómez', email: 'ana@lajuanita.local', referente: false },
+          ],
+        }),
+      ]),
+    )
+    montar('STAFF')
+
+    expect(await screen.findByText('Grupo 8')).toBeDefined()
+    expect(screen.getByText('Juan Pérez y Ana Gómez')).toBeDefined()
   })
 })
 

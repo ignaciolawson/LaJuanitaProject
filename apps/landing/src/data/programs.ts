@@ -67,6 +67,15 @@ export type Program = {
   modality: string;
   price: string;
   /**
+   * El precio de a 2 y de a 3 (`V35`, P88 · P92): **el total del grupo, no por
+   * persona** — *"al hacer de a más es más barato"* es argumento de venta y por
+   * eso se publica. Ausente en la mentoría (1:1). ⚠️ PLACEHOLDER como `price`:
+   * derivado de los ratios que Ignacio dio de ejemplo en USD (300 / 380 / 447 →
+   * ×1,27 y ×1,49 sobre el de uno), redondeado, y a validar con el cliente
+   * junto con el resto de los precios.
+   */
+  groupPrices?: { two: string; three: string };
+  /**
    * Salvedad del precio, y NO es opcional.
    *
    * Los dos servicios de `services.ts` la tenían desde el principio y los dos
@@ -129,8 +138,9 @@ export const PROGRAMS: Program[] = [
     duration: "8 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $85.000/mes",
+    groupPrices: { two: "Desde $108.000/mes", three: "Desde $127.000/mes" },
     priceNote: "Precio de referencia — se confirma al inscribirte",
-    highlights: ["CDJ-3000 y mixer DJM", "Grupos reducidos", "Práctica libre incluida"],
+    highlights: ["CDJ-3000 y mixer DJM", "De a 1, 2 o 3: cursan juntos", "Práctica libre incluida"],
     image: "/images/estudio/equipos.jpg",
     level: 55,
     levelLabel: "Desde cero hasta tocar",
@@ -212,6 +222,7 @@ export const PROGRAMS: Program[] = [
     duration: "16 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
     price: "Desde $110.000/mes",
+    groupPrices: { two: "Desde $139.000/mes", three: "Desde $164.000/mes" },
     priceNote: "Precio de referencia — se confirma al inscribirte",
     highlights: ["Ableton Live", "Diseño de sonido", "EP final incluido"],
     image: "/images/estudio/team.jpg",

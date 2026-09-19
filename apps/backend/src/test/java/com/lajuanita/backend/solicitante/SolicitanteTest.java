@@ -567,8 +567,12 @@ class SolicitanteTest {
         long idAlumno = jdbc.queryForObject(
                 "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, persona.getId());
         jdbc.update("""
-                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total)
-                VALUES (?, 'DJ', 8, 180000)
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total)
+                    VALUES ('DJ', 8, 180000)
+                    RETURNING id_inscripcion)
+                INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                SELECT id_inscripcion, ?, TRUE FROM nueva
                 """, idAlumno);
         long ficha = idDe(mandarFormularioDeCurso(persona.getEmail(), "DJ", "CERO"));
 
@@ -581,7 +585,7 @@ class SolicitanteTest {
         // deshacerse entera — que es exactamente "cuenta y alta viven en una".
         assertThat(TestTransaction.isFlaggedForRollback()).isTrue();
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM inscripcion WHERE id_alumno = ?", Long.class, idAlumno)).isEqualTo(1);
+                "SELECT count(*) FROM inscripcion_integrante WHERE id_alumno = ?", Long.class, idAlumno)).isEqualTo(1);
     }
 
     /**
@@ -1069,6 +1073,162 @@ class SolicitanteTest {
                 VALUES (?, ?, 'DDJ-400', 100000, 'ARS', CURRENT_DATE)
                 RETURNING id_venta
                 """, Long.class, crear(Rol.STAFF).getId(), idComprador);
+    }
+
+    // == Un grupo pide desde la landing (`V36`, §22, P92) ======================
+
+    /** Un formulario de curso con compañeros: los cuatro datos de cada uno, obligatorios. */
+    private ResultActions mandarFormularioDeGrupo(String email, String disciplina, String... emailsDeCompaneros)
+            throws Exception {
+        StringBuilder companeros = new StringBuilder();
+        for (String e : emailsDeCompaneros) {
+            if (companeros.length() > 0) {
+                companeros.append(',');
+            }
+            companeros.append("""
+                    {"nombre":"Compa","apellido":"Ñero","email":"%s","telefono":"%s"}"""
+                    .formatted(e, unTelefono()));
+        }
+        return mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Mati","apellido":"Referente","email":"%s","telefono":"%s",
+                         "interes":"CURSO","disciplina":"%s","experiencia":"CERO","modalidad":"PRESENCIAL",
+                         "companeros":[%s]}
+                        """.formatted(email, unTelefono(), disciplina, companeros)));
+    }
+
+    @Test
+    void un_formulario_con_dos_companeros_llega_al_buzon_con_ellos() throws Exception {
+        String facu = unEmail();
+        String gonza = unEmail();
+        long ficha = idDe(mandarFormularioDeGrupo(unEmail(), "DJ", facu, gonza)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.companeros.length()").value(2))
+                .andExpect(jsonPath("$.companeros[0].email").value(facu))
+                .andExpect(jsonPath("$.companeros[1].email").value(gonza)));
+
+        mvc.perform(get("/api/solicitantes").header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idSolicitante == %d)].companeros.length()"
+                        .formatted(ficha)).value(2));
+    }
+
+    @Test
+    void un_companero_sin_telefono_no_entra() throws Exception {
+        mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Mati","apellido":"Referente","email":"%s","telefono":"%s",
+                         "interes":"CURSO","disciplina":"DJ",
+                         "companeros":[{"nombre":"Facu","apellido":"X","email":"%s","telefono":""}]}
+                        """.formatted(unEmail(), unTelefono(), unEmail())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores['companeros[0].telefono']").isNotEmpty());
+    }
+
+    @Test
+    void tres_companeros_no_entran() throws Exception {
+        mandarFormularioDeGrupo(unEmail(), "DJ", unEmail(), unEmail(), unEmail())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.companeros").value(Matchers.containsString("hasta 3")));
+    }
+
+    @Test
+    void los_companeros_van_solo_en_un_curso_que_no_sea_mentoria() throws Exception {
+        mandarFormularioDeGrupo(unEmail(), "MENTORIA", unEmail())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("no admite grupos")));
+
+        mvc.perform(post("/api/solicitantes")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Mati","apellido":"Referente","email":"%s","telefono":"%s",
+                         "interes":"ALQUILER_CABINA",
+                         "companeros":[{"nombre":"Facu","apellido":"X","email":"%s","telefono":"%s"}]}
+                        """.formatted(unEmail(), unTelefono(), unEmail(), unTelefono())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("pedido de curso")));
+    }
+
+    /**
+     * "Inscribirlo" con compañeros: tres cuentas (o las que ya existan), tres
+     * relaciones de alumno al nivel de la inscripción, UNA inscripción de grupo
+     * con quien llenó el formulario como referente, y una clave por cuenta
+     * nacida. El "se enquilomba si 2 tienen cuenta y 1 no": Gonza ya tenía.
+     */
+    @Test
+    void inscribir_un_grupo_crea_las_cuentas_que_falten_y_una_inscripcion_de_tres() throws Exception {
+        String facu = unEmail();
+        Usuario gonza = crear(Rol.USUARIO);
+        long ficha = idDe(mandarFormularioDeGrupo(unEmail(), "DJ", facu, gonza.getEmail()));
+
+        ResultActions respuesta = inscribir(ficha, """
+                {"disciplina":"DJ","nivel":"INICIAL","precioTotal":447000}
+                """)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cuentaNueva").value(true))
+                .andExpect(jsonPath("$.inscripcion.numeroGrupo").isNumber())
+                .andExpect(jsonPath("$.inscripcion.integrantes.length()").value(3))
+                .andExpect(jsonPath("$.inscripcion.integrantes[0].referente").value(true))
+                .andExpect(jsonPath("$.inscripcion.estado").value("PREINSCRIPTA"))
+                .andExpect(jsonPath("$.senia").value(223500.00))
+                .andExpect(jsonPath("$.companeros.length()").value(2))
+                // Facu no tenía cuenta: clave nueva. Gonza sí: sin clave.
+                .andExpect(jsonPath("$.companeros[0].cuentaNueva").value(true))
+                .andExpect(jsonPath("$.companeros[0].passwordTemporal").isNotEmpty())
+                .andExpect(jsonPath("$.companeros[0].usuario.email").value(facu))
+                .andExpect(jsonPath("$.companeros[1].cuentaNueva").value(false))
+                .andExpect(jsonPath("$.companeros[1].passwordTemporal").doesNotExist())
+                .andExpect(jsonPath("$.companeros[1].usuario.id").value(gonza.getId()));
+
+        String cuerpo = respuesta.andReturn().getResponse().getContentAsString();
+        long idReferente = ((Number) JsonPath.read(cuerpo, "$.usuario.id")).longValue();
+        long idInscripcion = ((Number) JsonPath.read(cuerpo, "$.inscripcion.idInscripcion")).longValue();
+
+        // El referente es quien llenó el formulario (P88).
+        assertThat(jdbc.queryForObject("""
+                SELECT a.id_usuario FROM inscripcion_integrante ii JOIN alumno a USING (id_alumno)
+                WHERE ii.id_inscripcion = ? AND ii.referente
+                """, Long.class, idInscripcion)).isEqualTo(idReferente);
+        // Gonza tiene su relación de alumno al nivel de la inscripción (P91).
+        assertThat(jdbc.queryForObject(
+                "SELECT nivel_ingreso FROM alumno WHERE id_usuario = ?", String.class, gonza.getId()))
+                .isEqualTo("INICIAL");
+        // Y a los tres les llegó el aviso.
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM notificacion n
+                WHERE n.titulo LIKE '%falta la seña%'
+                  AND n.id_usuario_destino IN (
+                      SELECT a.id_usuario FROM inscripcion_integrante ii JOIN alumno a USING (id_alumno)
+                      WHERE ii.id_inscripcion = ?)
+                """, Long.class, idInscripcion)).isEqualTo(3);
+    }
+
+    /** Si un compañero ya cursa DJ, no queda ninguna cuenta nueva: era una transacción. */
+    @Test
+    void si_un_companero_ya_cursa_la_disciplina_no_queda_ni_una_cuenta() throws Exception {
+        Usuario gonza = crear(Rol.USUARIO);
+        long idAlumnoDeGonza = jdbc.queryForObject(
+                "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, gonza.getId());
+        jdbc.update("""
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total)
+                    VALUES ('DJ', 8, 180000)
+                    RETURNING id_inscripcion)
+                INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                SELECT id_inscripcion, ?, TRUE FROM nueva
+                """, idAlumnoDeGonza);
+        String facu = unEmail();
+        long ficha = idDe(mandarFormularioDeGrupo(unEmail(), "DJ", facu, gonza.getEmail()));
+
+        inscribir(ficha, """
+                {"disciplina":"DJ","precioTotal":447000}
+                """)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errores.integrantes").value(Matchers.containsString("ya tiene una inscripción abierta")));
+
+        assertThat(TestTransaction.isFlaggedForRollback()).isTrue();
     }
 
     private ResultActions inscribir(long ficha, String cuerpo) throws Exception {

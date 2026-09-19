@@ -552,6 +552,11 @@ public class PagoService {
 
             return new ContratoDelAlumno(
                     inscripcion.getId(),
+                    inscripcion.getNumeroGrupo(),
+                    inscripcion.getIntegrantes().stream()
+                            .map(x -> x.getAlumno().getUsuario())
+                            .map(u -> u.getNombre() + " " + u.getApellido())
+                            .toList(),
                     inscripcion.getDisciplina().name(),
                     inscripcion.getNivel() == null ? null : inscripcion.getNivel().name(),
                     inscripcion.getEstado().name(),
@@ -796,12 +801,15 @@ public class PagoService {
      * el curso de Ana y las dos cuentas quedan mal en silencio. Es el mismo hueco
      * que `V1` §8.2 tapó del lado de las clases, con un trigger, y del que acá se
      * ocupa el servicio porque la inscripción cuelga de `alumno` y no de `usuario`.
+     * Desde `V35` "de esa persona" es "de la que es integrante".
      */
     private Inscripcion buscarInscripcion(Long id, Usuario quienPaga) {
         Inscripcion inscripcion = inscripciones.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException("No existe la inscripción " + id + "."));
 
-        if (!inscripcion.getAlumno().getUsuario().getId().equals(quienPaga.getId())) {
+        // Cualquier integrante puede pagar la inscripción del grupo (`V35`, P88):
+        // la seña es del grupo, y quien la pone físicamente es uno de ellos.
+        if (!inscripcion.tieneAlUsuario(quienPaga.getId())) {
             throw new SolicitudInvalidaException(
                     "Esa inscripción es de otra persona: el pago quedaría acreditado en la cuenta equivocada.");
         }

@@ -2,6 +2,7 @@ package com.lajuanita.backend.inscripcion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.jayway.jsonpath.JsonPath;
 
 import com.lajuanita.backend.alumno.Alumno;
 import com.lajuanita.backend.alumno.AlumnoRepository;
@@ -103,7 +106,7 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","nivel":"INICIAL","precioTotal":180000,%s}
+                {"integrantes":[%d],"disciplina":"DJ","nivel":"INICIAL","precioTotal":180000,%s}
                 """.formatted(alumno.getId(), SENA)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(8))
@@ -116,7 +119,7 @@ class InscripcionTest {
     @Test
     void una_inscripcion_de_produccion_toma_las_dieciseis() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"PRODUCCION","precioTotal":320000}
+                {"integrantes":[%d],"disciplina":"PRODUCCION","precioTotal":320000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(16));
@@ -126,7 +129,7 @@ class InscripcionTest {
     @Test
     void una_mentoria_sin_decir_las_clases_se_rechaza() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"MENTORIA","precioTotal":90000}
+                {"integrantes":[%d],"disciplina":"MENTORIA","precioTotal":90000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").isNotEmpty());
@@ -135,7 +138,7 @@ class InscripcionTest {
     @Test
     void una_mentoria_diciendo_las_clases_entra() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
+                {"integrantes":[%d],"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(4));
@@ -152,7 +155,7 @@ class InscripcionTest {
         jdbc.update("UPDATE programa SET clases_estandar = 10 WHERE disciplina = 'DJ'");
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":100000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":100000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(10));
@@ -167,7 +170,7 @@ class InscripcionTest {
         jdbc.update("UPDATE programa SET activo = FALSE WHERE disciplina = 'PRODUCCION'");
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"PRODUCCION","precioTotal":100000}
+                {"integrantes":[%d],"disciplina":"PRODUCCION","precioTotal":100000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
@@ -178,7 +181,7 @@ class InscripcionTest {
     @Test
     void las_clases_dichas_a_mano_le_ganan_al_estandar() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","clasesContratadas":12,"precioTotal":250000}
+                {"integrantes":[%d],"disciplina":"DJ","clasesContratadas":12,"precioTotal":250000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.clasesContratadas").value(12));
@@ -187,7 +190,7 @@ class InscripcionTest {
     @Test
     void cero_clases_se_rechaza() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","clasesContratadas":0,"precioTotal":1000}
+                {"integrantes":[%d],"disciplina":"DJ","clasesContratadas":0,"precioTotal":1000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errores.clasesContratadas").isNotEmpty());
@@ -204,14 +207,14 @@ class InscripcionTest {
     void un_alumno_no_puede_tener_dos_inscripciones_activas_de_la_misma_disciplina() throws Exception {
         Alumno alumno = alumnoNuevo();
         String cuerpo = """
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumno.getId());
 
         mvc.perform(alta(cuerpo)).andExpect(status().isCreated());
 
         mvc.perform(alta(cuerpo))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errores.disciplina").isNotEmpty());
+                .andExpect(jsonPath("$.errores.integrantes").isNotEmpty());
     }
 
     /** La otra mitad de P3, que es la que hace falta que ande: dos disciplinas a la vez sí. */
@@ -220,12 +223,12 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumno.getId())))
                 .andExpect(status().isCreated());
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
+                {"integrantes":[%d],"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
                 """.formatted(alumno.getId())))
                 .andExpect(status().isCreated());
     }
@@ -236,7 +239,7 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
         // Con seña: completar exige que haya nacido activa (la escalera de V30).
         String cuerpo = """
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000,%s}
                 """.formatted(alumno.getId(), SENA);
 
         long primera = idDe(mvc.perform(alta(cuerpo)).andExpect(status().isCreated()));
@@ -257,7 +260,7 @@ class InscripcionTest {
     void reactivar_una_inscripcion_vieja_choca_si_ya_hay_otra_activa() throws Exception {
         Alumno alumno = alumnoNuevo();
         String cuerpo = """
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000,%s}
                 """.formatted(alumno.getId(), SENA);
 
         long primera = idDe(mvc.perform(alta(cuerpo)).andExpect(status().isCreated()));
@@ -268,8 +271,9 @@ class InscripcionTest {
         mvc.perform(patch("/api/inscripciones/" + primera + "/estado?estado=ACTIVA")
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail")
-                        .value("Ese alumno ya tiene una inscripción abierta en esa disciplina (activa o preinscripta)."));
+                // Desde V35 quien habla es el trigger (§4 d), y nombra a la persona.
+                .andExpect(jsonPath("$.detail",
+                        containsString("ya tiene una inscripcion abierta en DJ")));
     }
 
     // == Plata ================================================================
@@ -283,7 +287,7 @@ class InscripcionTest {
     @Test
     void un_precio_en_dolares_sin_cotizacion_se_rechaza_con_su_mensaje() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":300,"moneda":"USD"}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":300,"moneda":"USD"}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail")
@@ -293,7 +297,7 @@ class InscripcionTest {
     @Test
     void un_precio_en_dolares_con_cotizacion_entra() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":300,
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":300,
                  "moneda":"USD","cotizacionDolar":1450.5}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
@@ -304,7 +308,7 @@ class InscripcionTest {
     @Test
     void una_inscripcion_en_cero_es_valida() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":0}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":0}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.precioTotal").value(0));
@@ -317,7 +321,7 @@ class InscripcionTest {
         Profesor profe = profesorNuevo("Tomás", "Ghezzi");
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"idProfesor":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"idProfesor":%d,"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevo().getId(), profe.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.idProfesor").value(profe.getId()))
@@ -328,7 +332,7 @@ class InscripcionTest {
     @Test
     void una_inscripcion_sin_profesor_asignado_es_valida() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevo().getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.idProfesor").doesNotExist());
@@ -337,7 +341,7 @@ class InscripcionTest {
     @Test
     void asignar_un_profesor_que_no_existe_da_404() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"idProfesor":99999999,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"idProfesor":99999999,"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevoId())))
                 .andExpect(status().isNotFound());
     }
@@ -345,7 +349,7 @@ class InscripcionTest {
     @Test
     void inscribir_a_un_alumno_que_no_existe_da_404() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":99999999,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[99999999],"disciplina":"DJ","precioTotal":180000}
                 """))
                 .andExpect(status().isNotFound());
     }
@@ -461,7 +465,7 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
 
         String respuesta = mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,%s}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000,%s}
                 """.formatted(alumno.getId(), SENA)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"))
@@ -488,7 +492,7 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
 
         long id = idDe(mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumno.getId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.estado").value("PREINSCRIPTA"))
@@ -509,7 +513,7 @@ class InscripcionTest {
     @Test
     void en_cero_nace_activa_sin_senia() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":0}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":0}
                 """.formatted(alumnoNuevoId())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"));
@@ -519,7 +523,7 @@ class InscripcionTest {
     @Test
     void una_senia_en_dolares_sin_cotizacion_se_rechaza() throws Exception {
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000,
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000,
                  "sena":{"monto":100,"moneda":"USD","medioPago":"EFECTIVO"}}
                 """.formatted(alumnoNuevoId())))
                 .andExpect(status().isBadRequest());
@@ -693,10 +697,10 @@ class InscripcionTest {
         preinscribirDj(alumno);
 
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumno.getId())))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errores.disciplina").value(
+                .andExpect(jsonPath("$.errores.integrantes").value(
                         org.hamcrest.Matchers.containsString("preinscripta")));
     }
 
@@ -783,7 +787,7 @@ class InscripcionTest {
         Alumno alumno = alumnoNuevo();
         inscribirDj(alumno, "INICIAL");
         mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
+                {"integrantes":[%d],"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":90000}
                 """.formatted(alumno.getId()))).andExpect(status().isCreated());
 
         mvc.perform(get("/api/inscripciones?idAlumno=" + alumno.getId() + "&disciplina=MENTORIA")
@@ -801,7 +805,7 @@ class InscripcionTest {
     void el_listado_filtra_por_profesor() throws Exception {
         Profesor profe = profesorNuevo("Filtro", "Profe");
         mvc.perform(alta("""
-                {"idAlumno":%d,"idProfesor":%d,"disciplina":"DJ","precioTotal":180000}
+                {"integrantes":[%d],"idProfesor":%d,"disciplina":"DJ","precioTotal":180000}
                 """.formatted(alumnoNuevo().getId(), profe.getId())))
                 .andExpect(status().isCreated());
         inscribirDj(alumnoNuevo(), "INICIAL");
@@ -978,6 +982,222 @@ class InscripcionTest {
      * reserva y el de la asistencia, y <b>no mira ninguna fecha</b>. 2020 es
      * simplemente un año en el que este estudio no tenía sistema.
      */
+    // == Los grupos de 2 y 3 (`V35`, §22, P87–P91) =============================
+    //
+    // Una inscripción es el contrato de 1 a 3 personas. Lo que se prueba acá es
+    // lo que el servicio sostiene delante de la base: el alta con integrantes y
+    // referente, el número de grupo, los mensajes, el listado que encuentra al
+    // grupo por cualquiera de los tres, y que UNA clase del grupo consume UNA.
+
+    @Test
+    void un_grupo_de_tres_nace_con_su_numero_y_su_referente() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        Alumno gonza = alumnoNuevo();
+
+        ResultActions creada = mvc.perform(alta("""
+                {"integrantes":[%d,%d,%d],"idReferente":%d,"disciplina":"DJ","precioTotal":447000,%s}
+                """.formatted(mati.getId(), facu.getId(), gonza.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.inscripcion.numeroGrupo").isNumber())
+                .andExpect(jsonPath("$.inscripcion.integrantes.length()").value(3))
+                // El referente va primero, y es "la persona" de la fila.
+                .andExpect(jsonPath("$.inscripcion.integrantes[0].idAlumno").value(facu.getId()))
+                .andExpect(jsonPath("$.inscripcion.integrantes[0].referente").value(true))
+                .andExpect(jsonPath("$.inscripcion.integrantes[1].referente").value(false))
+                .andExpect(jsonPath("$.inscripcion.idAlumno").value(facu.getId()))
+                .andExpect(jsonPath("$.inscripcion.estado").value("ACTIVA"));
+
+        // La seña es UNA y va a nombre del referente (P88).
+        long idPago = ((Number) JsonPath.read(
+                creada.andReturn().getResponse().getContentAsString(), "$.idPagoSena")).longValue();
+        assertThat(jdbc.queryForObject(
+                "SELECT id_usuario FROM pago WHERE id_pago = ?", Long.class, idPago))
+                .isEqualTo(facu.getUsuario().getId());
+
+        // Y la coherencia que la base exige al COMMIT (`V35` §4 b) se fuerza acá
+        // adentro, como con la seña de `V10`: sin esto un test transaccional
+        // nunca la ve.
+        em.flush();
+        jdbc.execute("SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE");
+    }
+
+    @Test
+    void un_alumno_solo_no_lleva_numero_de_grupo() throws Exception {
+        Alumno alumno = alumnoNuevo();
+        long id = inscribirDj(alumno, "INICIAL");
+
+        mvc.perform(get("/api/inscripciones/" + id).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numeroGrupo").doesNotExist())
+                .andExpect(jsonPath("$.integrantes.length()").value(1))
+                .andExpect(jsonPath("$.integrantes[0].referente").value(true));
+    }
+
+    @Test
+    void el_referente_por_defecto_es_el_primero() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.inscripcion.idAlumno").value(mati.getId()));
+    }
+
+    @Test
+    void un_cuarto_integrante_se_rechaza() throws Exception {
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d,%d,%d],"disciplina":"DJ","precioTotal":500000}
+                """.formatted(alumnoNuevoId(), alumnoNuevoId(), alumnoNuevoId(), alumnoNuevoId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.integrantes").value(containsString("hasta 3")));
+    }
+
+    @Test
+    void un_alumno_repetido_en_el_grupo_se_rechaza() throws Exception {
+        long id = alumnoNuevoId();
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000}
+                """.formatted(id, id)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("repetido")));
+    }
+
+    @Test
+    void el_referente_tiene_que_ser_del_grupo() throws Exception {
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"idReferente":%d,"disciplina":"DJ","precioTotal":380000}
+                """.formatted(alumnoNuevoId(), alumnoNuevoId(), alumnoNuevoId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("referente")));
+    }
+
+    /** P88: la mentoría es 1:1. */
+    @Test
+    void una_mentoria_de_a_dos_se_rechaza() throws Exception {
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"MENTORIA","clasesContratadas":4,"precioTotal":200000}
+                """.formatted(alumnoNuevoId(), alumnoNuevoId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("no admite grupos")));
+    }
+
+    /** P89: si uno de los tres ya cursa DJ, el alta entera falla y dice quién. */
+    @Test
+    void si_uno_del_grupo_ya_cursa_la_disciplina_el_alta_entera_falla_y_lo_nombra() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        inscribirDj(facu, "INICIAL");
+        Usuario personaDeFacu = facu.getUsuario();
+
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errores.integrantes").value(
+                        containsString(personaDeFacu.getNombre() + " " + personaDeFacu.getApellido())));
+
+        // Y Mati no quedó con nada: era una transacción.
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM inscripcion_integrante WHERE id_alumno = ?", Long.class, mati.getId()))
+                .isZero();
+    }
+
+    /** ...pero en otra disciplina sí: Mati puede estar en DJ con un grupo y en Producción con otro. */
+    @Test
+    void la_misma_persona_puede_estar_en_grupos_de_disciplinas_distintas() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        Alumno gonza = alumnoNuevo();
+
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated());
+        mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"PRODUCCION","precioTotal":760000,%s}
+                """.formatted(mati.getId(), gonza.getId(), SENA)))
+                .andExpect(status().isCreated());
+    }
+
+    /** El listado encuentra al grupo por cualquiera de sus integrantes, no sólo por el referente. */
+    @Test
+    void el_listado_encuentra_al_grupo_por_cualquier_integrante() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        long id = idDe(mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated()));
+
+        // Por el id del segundo integrante.
+        mvc.perform(get("/api/inscripciones?idAlumno=" + facu.getId())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idInscripcion == %d)]".formatted(id)).exists());
+
+        // Por el texto: el email del segundo integrante, que es único.
+        mvc.perform(get("/api/inscripciones?buscar=" + facu.getUsuario().getEmail())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idInscripcion == %d)]".formatted(id)).exists())
+                .andExpect(jsonPath("$.contenido[?(@.idInscripcion == %d)].numeroGrupo".formatted(id)).isNotEmpty());
+    }
+
+    /**
+     * P90: una clase del grupo consume UNA clase, no tres. Con la definición
+     * vieja (`count(p)`) este caso devuelve 3 consumidas y 5 restantes.
+     */
+    @Test
+    void una_clase_del_grupo_consume_una_clase_y_no_tres() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        Alumno gonza = alumnoNuevo();
+        long id = idDe(mvc.perform(alta("""
+                {"integrantes":[%d,%d,%d],"disciplina":"DJ","precioTotal":447000,%s}
+                """.formatted(mati.getId(), facu.getId(), gonza.getId(), SENA)))
+                .andExpect(status().isCreated()));
+        em.flush();
+
+        Long idReserva = jdbc.queryForObject("""
+                INSERT INTO reserva (id_sala, id_tipo_uso, fecha, hora_inicio, hora_fin, estado)
+                VALUES ((SELECT id_sala FROM sala WHERE nombre_sala = 'Sala 1'),
+                        (SELECT id_tipo_uso FROM tipo_uso WHERE codigo = 'CLASE_DJ'),
+                        ?, '10:00', '11:30', 'CONFIRMADA')
+                RETURNING id_reserva
+                """, Long.class, CLASE_VIEJA);
+        for (Alumno a : java.util.List.of(mati, facu, gonza)) {
+            jdbc.update("""
+                    INSERT INTO reserva_participante (id_reserva, id_usuario, id_inscripcion, estado_asistencia)
+                    VALUES (?, ?, ?, 'PRESENTE')
+                    """, idReserva, a.getUsuario().getId(), id);
+        }
+
+        mvc.perform(get("/api/inscripciones/" + id).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clasesConsumidas").value(1))
+                .andExpect(jsonPath("$.clasesRestantes").value(7));
+    }
+
+    /** `V35` §4 (c): los integrantes son fijos. Lo dice la base, y este caso lo pone en el contrato. */
+    @Test
+    void los_integrantes_son_fijos() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        long id = idDe(mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated()));
+        em.flush();
+
+        assertThatThrownBy(() -> jdbc.update(
+                "DELETE FROM inscripcion_integrante WHERE id_inscripcion = ? AND id_alumno = ?", id, facu.getId()))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("son fijos");
+    }
+
     private static final LocalDate CLASE_VIEJA = LocalDate.of(2020, 1, 6);
 
     private void darClase(Alumno alumno, long idInscripcion,
@@ -1023,7 +1243,7 @@ class InscripcionTest {
     private long inscribirDj(Alumno alumno, String nivel) throws Exception {
         String nivelJson = nivel == null ? "null" : "\"" + nivel + "\"";
         return idDe(mvc.perform(alta("""
-                {"idAlumno":%d,"disciplina":"DJ","nivel":%s,"precioTotal":180000,%s}
+                {"integrantes":[%d],"disciplina":"DJ","nivel":%s,"precioTotal":180000,%s}
                 """.formatted(alumno.getId(), nivelJson, SENA)))
                 .andExpect(status().isCreated()));
     }
@@ -1039,10 +1259,15 @@ class InscripcionTest {
     private long preinscribirDj(Alumno alumno) {
         em.flush();
         return jdbc.queryForObject("""
-                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
-                                         estado, vence_preinscripcion)
-                VALUES (?, 'DJ', 8, 180000, 'PREINSCRIPTA', now() + interval '24 hours')
-                RETURNING id_inscripcion
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total,
+                                             estado, vence_preinscripcion)
+                    VALUES ('DJ', 8, 180000, 'PREINSCRIPTA', now() + interval '24 hours')
+                    RETURNING id_inscripcion),
+                integrante AS (
+                    INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                    SELECT id_inscripcion, ?, TRUE FROM nueva RETURNING id_inscripcion)
+                SELECT id_inscripcion FROM integrante
                 """, Long.class, alumno.getId());
     }
 

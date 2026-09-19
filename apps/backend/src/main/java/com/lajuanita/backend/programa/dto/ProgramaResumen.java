@@ -19,6 +19,9 @@ public record ProgramaResumen(
         String descripcion,
         /** {@code null} = todavía no hay precio. Cero es un precio. */
         BigDecimal precio,
+        /** El precio del grupo de 2 y de 3 (`V35`, P88); null = sin cargar. La mentoría nunca. */
+        BigDecimal precio2,
+        BigDecimal precio3,
         Moneda moneda,
         Cobro cobro,
         /** {@code null} = sin estándar: quien inscribe dice cuántas son. */
@@ -33,6 +36,8 @@ public record ProgramaResumen(
                 p.getNombre(),
                 p.getDescripcion(),
                 p.getPrecio(),
+                p.getPrecio2(),
+                p.getPrecio3(),
                 p.getMoneda(),
                 p.getCobro(),
                 p.getClasesEstandar(),

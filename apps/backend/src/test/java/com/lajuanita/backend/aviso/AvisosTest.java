@@ -366,11 +366,17 @@ class AvisosTest {
         Usuario alumno = crear(Rol.USUARIO);
         long idAlumno = jdbc.queryForObject(
                 "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, alumno.getId());
+        // Las dos filas en una sentencia: desde V35 la inscripción lleva su
+        // integrante, y el chequeo es diferido al COMMIT.
         long id = jdbc.queryForObject("""
-                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
-                                         fecha_creacion)
-                VALUES (?, 'DJ', 8, 180000, now() - interval '60 days')
-                RETURNING id_inscripcion
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total, fecha_creacion)
+                    VALUES ('DJ', 8, 180000, now() - interval '60 days')
+                    RETURNING id_inscripcion),
+                integrante AS (
+                    INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                    SELECT id_inscripcion, ?, TRUE FROM nueva RETURNING id_inscripcion)
+                SELECT id_inscripcion FROM integrante
                 """, Long.class, idAlumno);
 
         avisos.generar();
@@ -682,11 +688,16 @@ class AvisosTest {
         long idAlumno = jdbc.queryForObject(
                 "INSERT INTO alumno (id_usuario) VALUES (?) RETURNING id_alumno", Long.class, alumno.getId());
         return jdbc.queryForObject("""
-                INSERT INTO inscripcion (id_alumno, disciplina, clases_contratadas, precio_total,
-                                         estado, vence_preinscripcion)
-                VALUES (?, 'DJ', 8, 180000, 'PREINSCRIPTA', now() - make_interval(hours => ?))
-                RETURNING id_inscripcion
-                """, Long.class, idAlumno, horas);
+                WITH nueva AS (
+                    INSERT INTO inscripcion (disciplina, clases_contratadas, precio_total,
+                                             estado, vence_preinscripcion)
+                    VALUES ('DJ', 8, 180000, 'PREINSCRIPTA', now() - make_interval(hours => ?))
+                    RETURNING id_inscripcion),
+                integrante AS (
+                    INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+                    SELECT id_inscripcion, ?, TRUE FROM nueva RETURNING id_inscripcion)
+                SELECT id_inscripcion FROM integrante
+                """, Long.class, horas, idAlumno);
     }
 
     /**

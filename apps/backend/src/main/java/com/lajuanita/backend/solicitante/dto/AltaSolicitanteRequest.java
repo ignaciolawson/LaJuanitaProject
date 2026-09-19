@@ -2,6 +2,7 @@ package com.lajuanita.backend.solicitante.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.solicitante.Experiencia;
@@ -9,6 +10,7 @@ import com.lajuanita.backend.solicitante.InteresDelSolicitante;
 import com.lajuanita.backend.solicitante.Modalidad;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -142,5 +144,38 @@ public record AltaSolicitanteRequest(
         Experiencia experiencia,
 
         /** Presencial o virtual. Dato de la ficha, no de la reserva (P67). */
-        Modalidad modalidad) {
+        Modalidad modalidad,
+
+        // == Con quién viene (`V36`, P92) =====================================
+        //
+        // Hasta dos: un grupo es de hasta 3 y quien llena el formulario ya es
+        // uno. Los cuatro datos de cada compañero son obligatorios (Ignacio:
+        // *"que entre clean o no entre"*): sin mail no hay cuenta y sin
+        // teléfono no hay WhatsApp con la clave, y "Inscribirlo" tiene que
+        // poder crear las tres cuentas sin preguntar nada. Sólo en un curso que
+        // no sea mentoría. Opcional en el JSON —una landing vieja no lo manda—
+        // y null se lee como "viene solo".
+        @Size(max = 2, message = "Un grupo es de hasta 3 personas: vos y dos compañeros.")
+        List<@Valid CompaneroRequest> companeros) {
+
+    /** Un compañero del formulario: los cuatro datos, todos obligatorios (P92). */
+    public record CompaneroRequest(
+            @NotBlank(message = "El nombre del compañero es obligatorio")
+            @Size(max = 80)
+            String nombre,
+            @NotBlank(message = "El apellido del compañero es obligatorio")
+            @Size(max = 80)
+            String apellido,
+            @NotBlank(message = "El email del compañero es obligatorio")
+            @Email(message = "El email del compañero no tiene un formato válido")
+            @Size(max = 150)
+            String email,
+            @NotBlank(message = "El teléfono del compañero es obligatorio")
+            @Size(max = 40)
+            String telefono) {
+    }
+
+    public List<CompaneroRequest> companerosOVacio() {
+        return companeros == null ? List.of() : companeros;
+    }
 }

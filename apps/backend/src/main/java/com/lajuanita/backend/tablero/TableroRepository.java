@@ -67,9 +67,10 @@ public interface TableroRepository extends Repository<Pago, Long> {
     @Query(value = """
             SELECT i.disciplina,
                    coalesce(i.nivel, 'SIN_NIVEL')     AS nivel,
-                   count(DISTINCT i.id_alumno)        AS alumnos,
-                   count(*)                           AS inscripciones
+                   count(DISTINCT ii.id_alumno)       AS alumnos,
+                   count(DISTINCT i.id_inscripcion)   AS inscripciones
             FROM inscripcion i
+            JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion
             WHERE i.estado IN (:vigentes)
             GROUP BY i.disciplina, coalesce(i.nivel, 'SIN_NIVEL')
             ORDER BY i.disciplina, 2
@@ -89,9 +90,10 @@ public interface TableroRepository extends Repository<Pago, Long> {
      */
     @Query(value = """
             SELECT i.disciplina,
-                   count(DISTINCT i.id_alumno)        AS alumnos,
-                   count(*)                           AS inscripciones
+                   count(DISTINCT ii.id_alumno)       AS alumnos,
+                   count(DISTINCT i.id_inscripcion)   AS inscripciones
             FROM inscripcion i
+            JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion
             WHERE i.estado IN (:vigentes)
             GROUP BY i.disciplina
             ORDER BY i.disciplina
@@ -223,7 +225,8 @@ public interface TableroRepository extends Repository<Pago, Long> {
                 SELECT a.id_usuario                                     AS id_usuario,
                        coalesce(i.fecha_inicio, i.fecha_creacion::date) AS fecha
                   FROM inscripcion i
-                  JOIN alumno a ON a.id_alumno = i.id_alumno
+                  JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion
+                  JOIN alumno a ON a.id_alumno = ii.id_alumno
                 UNION ALL
                 SELECT rp.id_usuario, r.fecha
                   FROM reserva_participante rp
@@ -321,7 +324,8 @@ public interface TableroRepository extends Repository<Pago, Long> {
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM inscripcion i
-                    JOIN alumno a ON a.id_alumno = i.id_alumno
+                    JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion
+                    JOIN alumno a ON a.id_alumno = ii.id_alumno
                     WHERE a.id_usuario = ps.id_usuario
                       AND i.fecha_creacion::date <= ps.fecha
                 )
@@ -329,7 +333,8 @@ public interface TableroRepository extends Repository<Pago, Long> {
             SELECT count(*) AS llegaron,
                    count(*) FILTER (WHERE EXISTS (
                        SELECT 1 FROM inscripcion i
-                       JOIN alumno a ON a.id_alumno = i.id_alumno
+                       JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion
+                       JOIN alumno a ON a.id_alumno = ii.id_alumno
                        WHERE a.id_usuario = l.id_usuario
                    ))         AS convertidos
             FROM llegaron_sueltos l

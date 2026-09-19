@@ -13,9 +13,10 @@ import com.lajuanita.backend.dinero.Moneda;
 /**
  * Edición de una inscripción ya cargada.
  *
- * <p><b>La disciplina y el alumno no están.</b> Cambiar cualquiera de los dos no
- * es corregir esta inscripción, es otra inscripción: el índice único de "una
- * activa por disciplina" y las clases ya dictadas cuelgan de esta fila. Se
+ * <p><b>La disciplina y los integrantes no están.</b> Cambiar cualquiera de los
+ * dos no es corregir esta inscripción, es otra inscripción: la regla de "una
+ * abierta por disciplina" y las clases ya dictadas cuelgan de esta fila, y desde
+ * `V35` la base además rechaza sacar, cambiar o sumar un integrante (P89). Se
  * cancela y se crea la que corresponde.
  *
  * <p>{@link #clasesContratadas} sí se edita, y es la salida que nombra el

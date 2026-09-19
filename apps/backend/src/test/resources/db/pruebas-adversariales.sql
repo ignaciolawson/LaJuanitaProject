@@ -115,8 +115,52 @@ INSERT INTO usuario (nombre,apellido,email,password_hash,rol) VALUES
 INSERT INTO profesor (id_usuario) SELECT id_usuario FROM usuario WHERE email='ghezz@adv.local';
 INSERT INTO alumno (id_usuario)   SELECT id_usuario FROM usuario WHERE email IN ('juan@adv.local','ana@adv.local');
 
-INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-SELECT a.id_alumno,'DJ',8,400000 FROM alumno a JOIN usuario u USING(id_usuario)
+
+-- -----------------------------------------------------------------------------
+-- LA INSCRIPCIÓN, Y POR QUÉ NINGÚN CASO INSERTA UNA SUELTA  (V35)
+--
+-- Desde `V35` una inscripción es el contrato de un grupo de 1 a 3 personas:
+-- `inscripcion.id_alumno` no existe más y los que cursan están en
+-- `inscripcion_integrante`. Y `V35` §4 (b) exige AL COMMIT que la inscripción
+-- tenga al menos un integrante y exactamente un referente — diferido como la
+-- seña de `V10`, y con la misma trampa: en psql (autocommit) el rechazo cae
+-- afuera de `probar()` y el caso DESAPARECE del resumen.
+--
+-- Entonces, como con `sena()`: **toda inscripción entra con su integrante en la
+-- misma sentencia**, a través de `inscribir(...)`. Devuelve el id, así que un
+-- `SELECT inscribir(...)` es una fila y el guardián de "un ANDA afecta filas"
+-- sigue en pie; y si la rechaza un CHECK o un trigger, la excepción sale entera.
+-- `inscripciones_de(alumno, disciplina)` es el reemplazo del viejo
+-- `WHERE id_alumno = ... AND disciplina = ...`.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION inscribir(
+    p_id_alumno BIGINT, p_disciplina TEXT, p_clases INTEGER, p_precio NUMERIC,
+    p_id_profesor BIGINT DEFAULT NULL, p_estado TEXT DEFAULT 'ACTIVA',
+    p_vence TIMESTAMPTZ DEFAULT NULL, p_moneda TEXT DEFAULT 'ARS',
+    p_cotizacion NUMERIC DEFAULT NULL)
+RETURNS BIGINT AS $$
+    WITH nueva AS (
+        INSERT INTO inscripcion (id_profesor, disciplina, clases_contratadas, precio_total,
+                                 estado, vence_preinscripcion, moneda, cotizacion_dolar)
+        VALUES (p_id_profesor, p_disciplina, p_clases, p_precio,
+                p_estado, p_vence, p_moneda, p_cotizacion)
+        RETURNING id_inscripcion),
+    integrante AS (
+        INSERT INTO inscripcion_integrante (id_inscripcion, id_alumno, referente)
+        SELECT id_inscripcion, p_id_alumno, TRUE FROM nueva
+        RETURNING id_inscripcion)
+    SELECT id_inscripcion FROM integrante;
+$$ LANGUAGE sql;
+
+CREATE OR REPLACE FUNCTION inscripciones_de(p_id_alumno BIGINT, p_disciplina TEXT)
+RETURNS SETOF BIGINT AS $$
+    SELECT i.id_inscripcion
+    FROM inscripcion i JOIN inscripcion_integrante ii USING (id_inscripcion)
+    WHERE ii.id_alumno = p_id_alumno AND i.disciplina = p_disciplina;
+$$ LANGUAGE sql;
+
+
+SELECT inscribir(a.id_alumno,'DJ',8,400000) FROM alumno a JOIN usuario u USING(id_usuario)
 WHERE u.email='juan@adv.local';
 
 CREATE VIEW v AS SELECT
@@ -124,7 +168,8 @@ CREATE VIEW v AS SELECT
  (SELECT id_usuario FROM usuario WHERE email='mica@adv.local') AS u_mica,
  (SELECT p.id_profesor FROM profesor p JOIN usuario u USING(id_usuario) WHERE u.email='ghezz@adv.local') AS prof,
  (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='juan@adv.local') AS al_juan,
- (SELECT i.id_inscripcion FROM inscripcion i JOIN alumno a USING(id_alumno)
+ (SELECT i.id_inscripcion FROM inscripcion i JOIN inscripcion_integrante ii USING(id_inscripcion)
+    JOIN alumno a ON a.id_alumno=ii.id_alumno
     JOIN usuario u USING(id_usuario) WHERE u.email='juan@adv.local' AND i.disciplina='DJ') AS ins_juan,
  (SELECT id_sala FROM sala WHERE nombre_sala='Sala 1') AS sala1,
  (SELECT id_sala FROM sala WHERE nombre_sala='Sala 2') AS sala2,
@@ -273,8 +318,7 @@ SELECT probar('B06','ESQUIVE: bloqueo que pisa los mismos dias Y la misma franja
 -- `pago` y `egreso` tenían monto positivo desde V1; estas tres tablas no.
 -- =============================================================================
 SELECT probar('C01','inscripcion con precio_total NEGATIVO','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_juan,'PRODUCCION',8,-500000 FROM v$q$);
+ $q$SELECT inscribir(al_juan,'PRODUCCION',8,-500000) FROM v$q$);
 
 SELECT probar('C02','venta_equipo con precio NEGATIVO','FALLA',
  $q$INSERT INTO venta_equipo (id_usuario_vendedor,nombre_comprador_externo,modelo_equipo,precio)
@@ -298,16 +342,14 @@ SELECT probar('C05','pago en USD con cotizacion NEGATIVA','FALLA',
     SELECT u_juan,(SELECT id_reserva FROM reserva WHERE fecha='2027-03-01' LIMIT 1),100,'USD',-1450,'PAYPAL' FROM v$q$);
 
 SELECT probar('C06','inscripcion en USD con cotizacion CERO','FALLA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,moneda,cotizacion_dolar)
-    SELECT al_juan,'MENTORIA',8,1000,'USD',0 FROM v$q$);
+ $q$SELECT inscribir(al_juan,'MENTORIA',8,1000,NULL,'ACTIVA',NULL,'USD',0) FROM v$q$);
 
 SELECT probar('C07','egreso con cotizacion NEGATIVA','FALLA',
  $q$INSERT INTO egreso (monto,concepto,moneda,cotizacion_dolar)
     VALUES (100,'X','USD',-1)$q$);
 
 SELECT probar('C08','curso becado al 100% (precio 0) sigue siendo valido','ANDA',
- $q$INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total)
-    SELECT al_juan,'PRODUCCION',8,0 FROM v$q$);
+ $q$SELECT inscribir(al_juan,'PRODUCCION',8,0) FROM v$q$);
 
 
 -- =============================================================================
@@ -720,22 +762,63 @@ SELECT probar_mensaje('J05','ESQUIVE: cancelar para escaparse de la regla y volv
 INSERT INTO usuario (nombre,apellido,email,password_hash,rol,telefono)
  VALUES ('Moneda','Cruzada','moneda@adv.local','x','USUARIO','11-5555-0031');
 INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='moneda@adv.local';
-INSERT INTO inscripcion (id_alumno,disciplina,clases_contratadas,precio_total,estado,vence_preinscripcion)
-SELECT a.id_alumno,'DJ',8,170000,'PREINSCRIPTA',now()+interval '24 hours'
+SELECT inscribir(a.id_alumno,'DJ',8,170000,NULL,'PREINSCRIPTA',now()+interval '24 hours')
   FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='moneda@adv.local';
 
 SELECT probar_mensaje('K01','senia en USD sobre una preinscripcion en pesos',
  'moneda del contrato',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago,estado_pago)
     SELECT u.id_usuario,i.id_inscripcion,100,'USD',1450,'PAYPAL','SENADO'
-      FROM usuario u JOIN alumno a USING(id_usuario) JOIN inscripcion i USING(id_alumno)
+      FROM usuario u JOIN alumno a USING(id_usuario)
+      JOIN inscripcion_integrante ii ON ii.id_alumno=a.id_alumno
+      JOIN inscripcion i USING(id_inscripcion)
      WHERE u.email='moneda@adv.local'$q$);
 
 -- Y por lo tanto la preinscripcion sigue sin poder activarse: no hay pago.
 SELECT probar_mensaje('K02','activarla despues del intento en USD',
  'tiene que estar cobrada la senia',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
-    WHERE id_alumno=(SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='moneda@adv.local')$q$);
+    WHERE id_inscripcion IN (SELECT ii.id_inscripcion FROM inscripcion_integrante ii
+                             JOIN alumno a USING(id_alumno) JOIN usuario u USING(id_usuario)
+                             WHERE u.email='moneda@adv.local')$q$);
+
+
+-- =============================================================================
+-- L. EL GRUPO ES EL ALUMNO  (V35 §4)
+--
+-- Los rodeos: "una abierta por disciplina" ya no es un indice sino un trigger,
+-- y la forma de esquivar un trigger que mira al insertar es cambiar la fila
+-- DESPUES. Dos puertas: cambiarle la disciplina a una inscripcion abierta, y
+-- mudar un integrante de una inscripcion a otra.
+-- =============================================================================
+
+INSERT INTO usuario (nombre,apellido,email,password_hash,rol)
+ VALUES ('Rodeo','Grupo','rodeo@adv.local','x','USUARIO');
+INSERT INTO alumno (id_usuario) SELECT id_usuario FROM usuario WHERE email='rodeo@adv.local';
+SELECT inscribir(a.id_alumno,'DJ',8,170000)
+  FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='rodeo@adv.local';
+SELECT inscribir(a.id_alumno,'PRODUCCION',16,440000)
+  FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='rodeo@adv.local';
+
+CREATE VIEW v_rodeo AS SELECT
+ (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='rodeo@adv.local') AS al_rodeo;
+
+SELECT probar_mensaje('L01','cambiarle la disciplina a la de PRODUCCION para tener dos DJ abiertas',
+ 'ya tiene una inscripcion abierta en DJ',
+ $q$UPDATE inscripcion SET disciplina='DJ'
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
+
+SELECT probar_mensaje('L02','mudar el integrante de la de PRODUCCION a la de Juan',
+ 'son fijos',
+ $q$UPDATE inscripcion_integrante SET id_inscripcion=(SELECT ins_juan FROM v)
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
+
+-- Y el rodeo al "al menos uno": crear la inscripcion, ponerle integrante y
+-- sacarlo. El DELETE es el que lo frena, y la inscripcion nunca queda sola.
+SELECT probar_mensaje('L03','dejar una inscripcion sin nadie sacando al unico integrante',
+ 'son fijos',
+ $q$DELETE FROM inscripcion_integrante
+    WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
 
 
 -- =============================================================================

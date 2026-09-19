@@ -126,8 +126,16 @@ public class ManejadorDeErrores {
             Map.entry("egreso_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),
             Map.entry("inscripcion_usd_con_cotizacion", "Un importe en dólares necesita la cotización del día."),
             Map.entry("inscripcion_clases_positivas", "La cantidad de clases tiene que ser mayor a cero."),
-            Map.entry("inscripcion_una_activa_por_disciplina",
-                    "Ese alumno ya tiene una inscripción abierta en esa disciplina (activa o preinscripta)."),
+            // "Una abierta por alumno y disciplina" es un trigger desde V35 (§4 d) y
+            // llega con su propio texto; lo de acá son los UNIQUE del grupo.
+            Map.entry("integrante_unico_por_inscripcion",
+                    "Esa persona ya está en el grupo: un alumno no puede ir dos veces en la misma inscripción."),
+            Map.entry("inscripcion_numero_grupo_unico",
+                    "Ese número de grupo ya está usado."),
+            Map.entry("inscripcion_un_solo_referente",
+                    "Un grupo tiene un solo referente."),
+            Map.entry("programa_precios_de_grupo_no_negativos",
+                    "El precio de a 2 o de a 3 no puede ser negativo."),
             // La preinscripción (V30).
             Map.entry("inscripcion_estado_valido", "Ese estado de inscripción no existe."),
             Map.entry("inscripcion_preinscripta_vence",

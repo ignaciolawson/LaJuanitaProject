@@ -35,6 +35,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
+import { enUnaLinea, precioParaGrupo } from '../api/tiposAdmin'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
 const NIVELES: Nivel[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -210,10 +211,23 @@ export function InscripcionesPagina() {
             {inscripciones.map((i) => (
               <tr key={i.idInscripcion}>
                 <Celda>
-                  <div className="font-medium">
-                    {i.apellido}, {i.nombre}
-                  </div>
-                  <div className="text-xs text-tenue">{i.email}</div>
+                  {i.numeroGrupo == null ? (
+                    <>
+                      <div className="font-medium">
+                        {i.apellido}, {i.nombre}
+                      </div>
+                      <div className="text-xs text-tenue">{i.email}</div>
+                    </>
+                  ) : (
+                    // Un grupo (`V35`): su número y los tres, el referente
+                    // primero. La fila es del grupo, no de una persona.
+                    <>
+                      <div className="font-medium">Grupo {i.numeroGrupo}</div>
+                      <div className="text-xs text-tenue">
+                        {enUnaLinea(i.integrantes.map((x) => `${x.nombre} ${x.apellido}`))}
+                      </div>
+                    </>
+                  )}
                 </Celda>
                 <Celda>
                   <div>{NOMBRE_DE_DISCIPLINA[i.disciplina]}</div>
@@ -487,7 +501,14 @@ function useProgramas() {
 function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada: () => void }) {
   const profesores = useProfesores()
   const programas = useProgramas()
-  const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
+  /**
+   * Quiénes cursan: de 1 a 3 (`V35`, P87). Cada casillero es un buscador; el
+   * grupo se arma agregando casilleros. El referente (P88) es a quien le va el
+   * WhatsApp y bajo cuyo nombre está la deuda: el primero, salvo que se elija
+   * otro. El precio es DEL GRUPO y el catálogo lo tiene por tamaño.
+   */
+  const [integrantes, setIntegrantes] = useState<(AlumnoResumen | null)[]>([null])
+  const [referente, setReferente] = useState(0)
   const [disciplina, setDisciplina] = useState<Disciplina | ''>('')
   const [datos, setDatos] = useState<CamposDelCurso>({
     idProfesor: '',
@@ -528,18 +549,37 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
    */
   function elegirDisciplina(nueva: Disciplina | '') {
     setDisciplina(nueva)
+    // La mentoría es 1:1 (P88): si había un grupo armado, queda el primero.
+    if (nueva === 'MENTORIA' && integrantes.length > 1) {
+      setIntegrantes([integrantes[0]])
+      setReferente(0)
+    }
     const programa = nueva === '' ? undefined : programas.find((p) => p.disciplina === nueva)
     setDatos((previo) => ({
       ...previo,
       clasesContratadas: programa?.clasesEstandar ? String(programa.clasesEstandar) : '',
-      precioTotal: programa?.precio != null ? String(programa.precio) : '',
       moneda: programa?.moneda ?? previo.moneda,
     }))
-    // Y la seña sugerida: el 50% de ese precio.
-    setSena((previo) => ({
-      ...previo,
-      monto: programa?.precio != null ? String(programa.precio / 2) : '',
-    }))
+    prellenarPrecio(programa, nueva === 'MENTORIA' ? 1 : integrantes.length)
+  }
+
+  /**
+   * El precio del catálogo para este tamaño de grupo (P88: 300 / 380 / 447 son
+   * tres precios, no una fórmula), y la seña al 50%. Sin precio cargado para
+   * ese tamaño, los campos quedan vacíos y los tipea quien inscribe.
+   */
+  function prellenarPrecio(programa: ProgramaResumen | undefined, cantidad: number) {
+    const precio = programa ? precioParaGrupo(programa, cantidad) : null
+    setDatos((previo) => ({ ...previo, precioTotal: precio != null ? String(precio) : '' }))
+    setSena((previo) => ({ ...previo, monto: precio != null ? String(precio / 2) : '' }))
+  }
+
+  function cambiarIntegrantes(nuevos: (AlumnoResumen | null)[]) {
+    setIntegrantes(nuevos)
+    if (referente >= nuevos.length) setReferente(0)
+    if (nuevos.length !== integrantes.length) {
+      prellenarPrecio(programas.find((p) => p.disciplina === disciplina), nuevos.length)
+    }
   }
 
   function cambiar(campo: keyof CamposDelCurso) {
@@ -550,7 +590,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
   async function onSubmit(evento: React.FormEvent) {
     evento.preventDefault()
 
-    const locales = validar(alumno, disciplina, datos, programas)
+    const locales = validar(integrantes, disciplina, datos, programas)
     if (conSena && (!sena.monto || Number(sena.monto) <= 0)) {
       locales.senaMonto = 'Poné el monto de la seña.'
     }
@@ -564,8 +604,10 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
     setEnviando(true)
 
     try {
+      const elegidos = integrantes.filter((a): a is AlumnoResumen => a !== null)
       await altaInscripcion({
-        idAlumno: alumno!.idAlumno,
+        integrantes: elegidos.map((a) => a.idAlumno),
+        idReferente: elegidos[referente]?.idAlumno ?? elegidos[0].idAlumno,
         idProfesor: datos.idProfesor ? Number(datos.idProfesor) : undefined,
         disciplina: disciplina as Disciplina,
         nivel: datos.nivel || undefined,
@@ -600,7 +642,14 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
     <Bloque titulo="Nueva inscripción" className="mb-6">
       <form onSubmit={onSubmit} noValidate>
         <div className="mb-4">
-          <SelectorDeAlumno elegido={alumno} onElegir={setAlumno} error={errores.idAlumno} />
+          <SelectorDeIntegrantes
+            integrantes={integrantes}
+            onCambiar={cambiarIntegrantes}
+            referente={referente}
+            onReferente={setReferente}
+            maximo={disciplina === 'MENTORIA' ? 1 : 3}
+            error={errores.integrantes ?? errores.idAlumno}
+          />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -719,14 +768,21 @@ function ayudaDeClases(
  * y vuelta que termina en un cartel rojo sobre un formulario ya completo.
  */
 function validar(
-  alumno: AlumnoResumen | null,
+  integrantes: (AlumnoResumen | null)[],
   disciplina: Disciplina | '',
   datos: CamposDelCurso,
   programas: ProgramaResumen[],
 ): Record<string, string> {
   const errores: Record<string, string> = {}
 
-  if (!alumno) errores.idAlumno = 'Elegí a qué alumno se inscribe.'
+  const elegidos = integrantes.filter((a) => a !== null)
+  if (elegidos.length === 0) {
+    errores.integrantes = 'Elegí a qué alumno se inscribe.'
+  } else if (elegidos.length < integrantes.length) {
+    errores.integrantes = 'Hay un integrante sin elegir: elegilo o sacalo del grupo.'
+  } else if (new Set(elegidos.map((a) => a!.idAlumno)).size < elegidos.length) {
+    errores.integrantes = 'Hay un alumno repetido en el grupo.'
+  }
   if (!disciplina) errores.disciplina = 'Elegí la disciplina.'
   if (datos.precioTotal === '') errores.precioTotal = 'Poné el precio total del curso.'
 
@@ -740,6 +796,91 @@ function validar(
   }
 
   return errores
+}
+
+/**
+ * De 1 a 3 buscadores de alumno, y quién es el referente (`V35`, P87 · P88).
+ *
+ * Un grupo no es una entidad que se elige de una lista: se arma acá, alumno por
+ * alumno, y nace con la inscripción. El referente es el primero salvo que se
+ * marque otro; en un alumno solo no se pregunta.
+ */
+function SelectorDeIntegrantes({
+  integrantes,
+  onCambiar,
+  referente,
+  onReferente,
+  maximo,
+  error,
+}: {
+  integrantes: (AlumnoResumen | null)[]
+  onCambiar: (nuevos: (AlumnoResumen | null)[]) => void
+  referente: number
+  onReferente: (indice: number) => void
+  maximo: number
+  error?: string
+}) {
+  const elegidos = integrantes.filter((a) => a !== null).length
+
+  return (
+    <div>
+      <div className="grid gap-3">
+        {integrantes.map((alumno, i) => (
+          <div key={i} className="flex items-end gap-3">
+            <div className="grow">
+              <SelectorDeAlumno
+                etiqueta={integrantes.length === 1 ? 'Alumno' : `Integrante ${i + 1}`}
+                elegido={alumno}
+                onElegir={(nuevo) => onCambiar(integrantes.map((a, j) => (j === i ? nuevo : a)))}
+                autoFocus={i === 0}
+              />
+            </div>
+            {integrantes.length > 1 && (
+              <label className="flex items-center gap-1.5 whitespace-nowrap pb-2.5 text-sm">
+                <input
+                  type="radio"
+                  name="referente"
+                  checked={referente === i}
+                  onChange={() => onReferente(i)}
+                  disabled={alumno === null}
+                />
+                Referente
+              </label>
+            )}
+            {integrantes.length > 1 && (
+              <Boton
+                variante="enlace"
+                type="button"
+                onClick={() => onCambiar(integrantes.filter((_, j) => j !== i))}
+                className="pb-2.5"
+              >
+                Sacar
+              </Boton>
+            )}
+          </div>
+        ))}
+      </div>
+      {integrantes.length < maximo && (
+        <div className="mt-2">
+          <Boton
+            variante="enlace"
+            type="button"
+            onClick={() => onCambiar([...integrantes, null])}
+            disabled={elegidos < integrantes.length}
+          >
+            + Agregar un integrante (cursan juntos, de a {integrantes.length + 1})
+          </Boton>
+        </div>
+      )}
+      {integrantes.length > 1 && (
+        <p className="mt-1 text-xs text-tenue">
+          El precio es del grupo entero y la seña es una. El referente es a quien se le escribe
+          y a cuyo nombre figura la deuda.
+        </p>
+      )}
+      {error && <p className="mt-1.5 text-sm text-acento">{error}</p>}
+    </div>
+  )
 }
 
 /**

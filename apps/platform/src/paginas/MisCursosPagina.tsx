@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { ApiError } from '../api/cliente'
 import { misCursos } from '../api/portal'
 import type { ProgresoDelCurso } from '../api/tiposPortal'
+import { enUnaLinea } from '../api/tiposAdmin'
 import { Aviso } from '../componentes/Boton'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { Bloque } from '../componentes/Bloque'
@@ -110,6 +111,9 @@ export function MisCursosPagina() {
             <p className="mt-4 border-t border-linea pt-3 text-xs text-tenue">
               {c.nivel ? capitalizar(c.nivel) : 'Sin nivel asignado'}
               {c.profesor && ` · con ${c.profesor}`}
+              {/* En grupo (`V35`, P91): el curso es de los tres, y acá se dice
+                  con quién. El progreso de arriba es el del grupo. */}
+              {c.companeros.length > 0 && ` · junto a ${enUnaLinea(c.companeros)}`}
             </p>
           </Bloque>
         ))}
