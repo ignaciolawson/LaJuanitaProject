@@ -37,9 +37,27 @@ public record AlumnoResumen(
         /** Del usuario, no del alumno: alguien dado de baja no puede entrar. */
         boolean usuarioActivo,
         /** Lo que está cursando hoy. Vacía si no tiene ninguna inscripción vigente. */
-        List<Disciplina> disciplinas) {
+        List<Disciplina> disciplinas,
+        /**
+         * Los grupos en los que cursa hoy (`V35`), vacía si cursa solo.
+         *
+         * <p><b>Existe para que el grupo se VEA al elegir al alumno</b> (P96). El
+         * calendario ya anotaba al grupo entero —elegir a cualquiera de los tres
+         * alcanza— y no había forma de saberlo antes de elegir: el buscador
+         * mostraba tres personas sueltas, como cualquier otra. Una capacidad que
+         * no se ve es una capacidad que no existe.
+         *
+         * <p>Es una lista por lo mismo que {@link #disciplinas}: alguien puede
+         * estar en un grupo de DJ y en otro de producción.
+         */
+        List<Integer> grupos) {
 
     public static AlumnoResumen de(Alumno alumno, List<Disciplina> disciplinas) {
+        return de(alumno, disciplinas, List.of());
+    }
+
+    public static AlumnoResumen de(Alumno alumno, List<Disciplina> disciplinas,
+            List<Integer> grupos) {
         var usuario = alumno.getUsuario();
         return new AlumnoResumen(
                 alumno.getId(),
@@ -53,7 +71,8 @@ public record AlumnoResumen(
                 alumno.getFechaIngreso(),
                 alumno.getInstagram(),
                 usuario.isActivo(),
-                disciplinas);
+                disciplinas,
+                grupos);
     }
 
     /**

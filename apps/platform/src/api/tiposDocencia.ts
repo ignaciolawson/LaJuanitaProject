@@ -44,6 +44,11 @@ export type CursoDelAlumno = {
   /** Null en mentoría y en los cursos sin nivel cargado. */
   nivel: Nivel | null
   clasesRestantes: number
+  /**
+   * El número del grupo si el curso es de 2 o 3 (`V35`); null si cursa solo.
+   * Es lo que le da nombre a la tarjeta de grupo en "Mis alumnos" (P95).
+   */
+  numeroGrupo: number | null
 }
 
 export type AlumnoDelProfesor = {

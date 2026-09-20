@@ -1215,9 +1215,22 @@ function InscripcionLista({
   const cuentaNueva = resultado.cuentaNueva && resultado.passwordTemporal
   const profesor = profesores.find((p) => p.idProfesor === inscripcion.idProfesor)
   const importe = formatearImporte(resultado.senia, resultado.moneda)
-  // Los compañeros (`V36`): el mensaje de la seña le va al referente y los
-  // nombra; a cada compañero con cuenta nueva le va su clave, aparte.
-  const companeros = resultado.companeros.map((c) => `${c.usuario.nombre} ${c.usuario.apellido}`)
+  /**
+   * Los compañeros (`V36`), **con su cuenta adentro** (P94).
+   *
+   * ⚠️ Hasta la §23 esto era sólo la lista de nombres y cada compañero con
+   * cuenta nueva tenía **su propio botón de WhatsApp**: inscribir a un grupo de
+   * tres terminaba en tres chats, abiertos por la misma persona, dos de ellos
+   * con gente que nunca habló con el estudio. Ahora las claves viajan adentro
+   * del único mensaje, el del referente, que es quien las reparte.
+   */
+  const companeros = resultado.companeros.map((c) => ({
+    nombre: `${c.usuario.nombre} ${c.usuario.apellido}`,
+    cuenta:
+      c.cuentaNueva && c.passwordTemporal
+        ? { email: c.usuario.email, passwordTemporal: c.passwordTemporal }
+        : null,
+  }))
 
   const link = linkDeWhatsapp(
     ficha.telefono,
@@ -1238,7 +1251,7 @@ function InscripcionLista({
     <Bloque
       titulo={
         inscripcion.numeroGrupo != null
-          ? `Grupo ${inscripcion.numeroGrupo} (${usuario.nombre} ${usuario.apellido}, con ${enUnaLinea(companeros)}), preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`
+          ? `Grupo ${inscripcion.numeroGrupo} (${usuario.nombre} ${usuario.apellido}, con ${enUnaLinea(companeros.map((c) => c.nombre))}), preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`
           : `${usuario.nombre} ${usuario.apellido}, preinscripto a ${NOMBRE_DE_DISCIPLINA[inscripcion.disciplina]}`
       }
       className="mb-6"
@@ -1273,7 +1286,13 @@ function InscripcionLista({
       {link ? (
         <div className="mt-4">
           <EnlaceDeWhatsapp href={link}>
-            {cuentaNueva ? 'Avisarle por WhatsApp, con la clave' : 'Avisarle por WhatsApp'}
+            {/* ⚠️ **Un solo botón, aunque sean tres cuentas** (P94). El mensaje
+                le va al referente y lleva adentro las claves de todos. */}
+            {companeros.some((c) => c.cuenta)
+              ? 'Avisarle por WhatsApp, con las claves del grupo'
+              : cuentaNueva
+                ? 'Avisarle por WhatsApp, con la clave'
+                : 'Avisarle por WhatsApp'}
           </EnlaceDeWhatsapp>
         </div>
       ) : (
@@ -1283,10 +1302,11 @@ function InscripcionLista({
         </p>
       )}
 
-      {/* Los compañeros (`V36`, P92): a cada cuenta nacida, su clave y su
-          WhatsApp. El que ya tenía cuenta no necesita nada. */}
+      {/* Los compañeros (`V36`, P92): cada clave sigue **en pantalla**, porque no
+          se vuelve a ver, pero ya no tiene botón propio — viaja adentro del
+          mensaje de arriba (P94). El que ya tenía cuenta no necesita nada. */}
       {resultado.companeros.map((c) => (
-        <ClaveDeCompanero key={c.usuario.id} cuenta={c} />
+        <ClaveDeCompanero key={c.usuario.id} cuenta={c} conLink={link === null} />
       ))}
 
       <Boton className="mt-4" onClick={onCerrar}>
@@ -1296,7 +1316,22 @@ function InscripcionLista({
   )
 }
 
-function ClaveDeCompanero({ cuenta }: { cuenta: AlumnoInscripto['companeros'][number] }) {
+/**
+ * La cuenta de un compañero: **la clave en pantalla, sin botón propio** (P94).
+ *
+ * <p>La clave sigue estando porque no se puede volver a ver; lo que se fue es el
+ * WhatsApp, que ahora va uno solo y es el del referente. `conLink` es la única
+ * excepción y existe para el caso en que ese único mensaje no se pueda mandar
+ * —el teléfono de la ficha no se puede leer—: ahí sí se ofrece escribirle a cada
+ * uno, porque la alternativa sería no poder entregar ninguna clave.
+ */
+function ClaveDeCompanero({
+  cuenta,
+  conLink,
+}: {
+  cuenta: AlumnoInscripto['companeros'][number]
+  conLink: boolean
+}) {
   const { usuario } = cuenta
   const nombre = `${usuario.nombre} ${usuario.apellido}`
   if (!cuenta.cuentaNueva || !cuenta.passwordTemporal) {
@@ -1306,27 +1341,31 @@ function ClaveDeCompanero({ cuenta }: { cuenta: AlumnoInscripto['companeros'][nu
       </p>
     )
   }
-  const link = linkDeWhatsapp(
-    usuario.telefono,
-    mensajeConLaClave(usuario.nombre, usuario.email, cuenta.passwordTemporal),
-  )
+  const link = conLink
+    ? linkDeWhatsapp(
+        usuario.telefono,
+        mensajeConLaClave(usuario.nombre, usuario.email, cuenta.passwordTemporal),
+      )
+    : null
   return (
     <div className="mt-5 border-t border-linea pt-4">
       <p className="text-sm leading-relaxed text-tenue">
-        También le creamos la cuenta a <strong className="text-texto">{nombre}</strong>. Su
-        contraseña tampoco se puede volver a ver:
+        También le creamos la cuenta a <strong className="text-texto">{nombre}</strong> (
+        {usuario.email}). Su contraseña tampoco se puede volver a ver, y va adentro del mensaje
+        al referente:
       </p>
       <Hueco className="mt-3 font-mono text-lg tracking-wider">{cuenta.passwordTemporal}</Hueco>
-      {link ? (
-        <div className="mt-3">
-          <EnlaceDeWhatsapp href={link}>Mandarle la clave a {usuario.nombre}</EnlaceDeWhatsapp>
-        </div>
-      ) : (
-        <p className="mt-3 text-xs text-apagado">
-          El teléfono de {usuario.nombre} ({usuario.telefono ?? 'sin teléfono'}) no se puede abrir
-          en WhatsApp: copiá la clave y mandásela a mano.
-        </p>
-      )}
+      {conLink &&
+        (link ? (
+          <div className="mt-3">
+            <EnlaceDeWhatsapp href={link}>Mandarle la clave a {usuario.nombre}</EnlaceDeWhatsapp>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-apagado">
+            El teléfono de {usuario.nombre} ({usuario.telefono ?? 'sin teléfono'}) no se puede
+            abrir en WhatsApp: copiá la clave y mandásela a mano.
+          </p>
+        ))}
     </div>
   )
 }

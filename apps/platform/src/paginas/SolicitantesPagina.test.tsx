@@ -1058,14 +1058,24 @@ describe('escribirle por WhatsApp', () => {
     // El panel: el grupo, la seña única, y las claves.
     expect(await screen.findByText(/Grupo 8/)).toBeDefined()
     expect(screen.getByText(/una sola, del grupo/)).toBeDefined()
-    const delReferente = screen.getByRole('link', { name: /Avisarle por WhatsApp, con la clave/ })
-    expect(decodeURIComponent(delReferente.getAttribute('href')!)).toContain('a vos y a Facu Gómez y Gonza Ruiz')
-    // Facu: cuenta nueva, su clave y su WhatsApp. Gonza: ya tenía, nada que mandar.
-    expect(screen.getByText('Q9Z1X4')).toBeDefined()
-    const deFacu = screen.getByRole('link', { name: /Mandarle la clave a Facu/ })
-    expect(decodeURIComponent(deFacu.getAttribute('href')!)).toContain('Q9Z1X4')
+    // ⚠️ **UN solo mensaje, al referente, con TODAS las claves adentro** (P94).
+    // Hasta la §23 esto eran tres links —uno por cuenta nacida— y los tres los
+    // abría la misma persona; dos de ellos, con gente que nunca habló con el
+    // estudio.
+    const links = screen.getAllByRole('link', { name: /WhatsApp/ })
+    expect(links).toHaveLength(1)
+    const mensaje = decodeURIComponent(links[0].getAttribute('href')!)
+    expect(links[0].textContent).toContain('con las claves del grupo')
+    expect(mensaje).toContain('a vos y a Facu Gómez y Gonza Ruiz')
+    // La del referente y la de Facu, en el mismo texto.
+    expect(mensaje).toContain('A7K2M9')
+    expect(mensaje).toContain('Facu Gómez · facu@ejemplo.com · Contraseña: Q9Z1X4')
+    // Gonza ya tenía cuenta: no hay clave suya que pasar, ni en el mensaje ni en
+    // la pantalla.
+    expect(mensaje).not.toContain('Gonza Ruiz ·')
     expect(screen.getByText(/Gonza Ruiz ya tenía cuenta/)).toBeDefined()
-    expect(screen.queryByRole('link', { name: /Mandarle la clave a Gonza/ })).toBeNull()
+    // Las claves siguen en pantalla igual: no se vuelven a ver.
+    expect(screen.getByText('Q9Z1X4')).toBeDefined()
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================

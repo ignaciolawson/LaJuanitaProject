@@ -6443,7 +6443,213 @@ comandos están en la sección *Commands* de `CLAUDE.md` (`docker compose up -d`
 - **No hay forma de "sacar integrante" y no la va a haber** (P89) — si alguien la
   pide, la respuesta es cancelar y rehacer.
 
+## 23. La UNDÉCIMA barrida — abierta y cerrada el 2026-09-20
+
+Ignacio trajo ocho hallazgos **el día después de cerrar los grupos**, usando el
+sistema con grupos adentro. Las decisiones están en `requirements/platform.md`
+§29 (P93–P100), cerradas antes de escribir código.
+
+**Ninguno toca el esquema: la barrida no trae migración**, y por eso el triage
+entero es **A + B**. Es la primera desde la §19 sin grupo C.
+
+⚠️ **Seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había
+terminado de propagar** —el buzón manda tres mensajes, Deudores nombra al
+referente, el profesor ve tres filas, el calendario no dice el grupo— y **eso es
+lo que hay que leer del conjunto**: la §22 cambió qué es un alumno, y cada
+pantalla que seguía tratándolo como una persona quedó diciendo algo un poco
+falso. Ninguna falló.
+
+⚠️ **Y tres de los ocho tienen la misma forma, que conviene ver junta: la
+capacidad existía y no se veía.** El calendario ya anotaba al grupo entero
+(P90), el profesor de la inscripción está cargado desde `V1`, y los bloqueos ya
+se guardaban y ya los hacía valer un trigger desde `V1`/`V7`. Ninguno era una
+función faltante: eran **tres datos que el sistema tenía y no ponía donde se
+decide**. No se arreglan agregando controles; se arreglan mostrando lo que ya se
+sabe.
+
+### El triage
+
+| | Qué | Grupo |
+|---|---|---|
+| **A1** | El panel que se abre por una acción se trae a la vista, en todo el sistema (P100) | A |
+| **A2** | *"Ver"* en una notificación la marca leída (P99) | A |
+| **B1** | Un solo WhatsApp al inscribir un grupo, con todas las claves (P94) | B |
+| **B2** | Deudores dice "Grupo X", y el *"Programa UNDEFINED"* (P93) | B |
+| **B3** | El profesor ve el grupo y no tres alumnos sueltos (P95) | B |
+| **B4** | El grupo, visible y buscable en el buscador de alumno (P96) | B |
+| **B5** | El profesor de la clase se prellena con el del curso (P97) | B |
+| **B6** | Las salas bloqueadas, en el calendario (P98) | B |
+
+### A1 — El panel que se abre, a la vista
+
+*"Pongo editar y se abre un layout arriba y no me doy cuenta, tengo que subir
+para verlo (esto en todo el sistema)."*
+
+Una pieza, `componentes/TraerALaVista.tsx`, y **veintitantos lugares que la
+usan**. Se apoya en el **montaje**: en todas estas pantallas el panel está
+detrás de un condicional (`{editando && …}`), así que montarse *es* abrirse;
+donde el panel se queda montado y cambia de contenido —el calendario, que reusa
+el formulario para otra reserva— ya hay un `key` que lo remonta, puesto por otra
+razón y que acá sirve igual.
+
+`block: 'nearest'` y no `'start'`: mueve lo mínimo y **no mueve nada si ya
+estaba a la vista**. Eso es lo que lo hace seguro para los paneles que se abren
+en el lugar.
+
+⚠️ **Deudores ya lo tenía a mano desde la §21 (L2 bis) y ahora usa la pieza**:
+ése es el argumento entero. Veinte copias de ese `useEffect` son diecinueve que
+alguien olvida el día que agrega la pantalla veintiuno.
+
+### A2 — *"Ver"* marca leída
+
+Tres líneas y un caso. Lo que importa es el argumento, y está en P99: el aviso
+existe para que alguien vaya a hacer algo, y entrar a lo que señala **es**
+leerlo. No espera al servidor —la fila se pinta leída en el acto y el `Link`
+navega igual— y el contador del sidebar no hace falta tocarlo: `usePendientes`
+se refresca en cada cambio de ruta, y de eso se trata apretar *"Ver"*.
+
+### B2 — El *"Programa UNDEFINED"*, y lo que estaba abajo
+
+⚠️ **El bug es de los que este proyecto ya tiene nombre para: un dato que servía
+para dos cosas dejó de servir para una, sin que nada fallara.**
+
+`SaldoPendiente.COSAS` devolvía, para una inscripción, la disciplina **en la
+columna `detalle`** — y era cierto: el detalle de un programa *era* `'DJ'`.
+`PagoService` pasaba esa misma columna como `Deudor.disciplina` **y** como
+`Deudor.detalle`, y la pantalla traducía la primera a *"Programa de DJ"*.
+`V35` le agregó `' · Grupo 8'` al detalle para que la fila dijera de quién es la
+deuda, y a partir de ahí `NOMBRE_DE_DISCIPLINA['DJ · Grupo 8']` es `undefined`.
+
+**Ahora son dos columnas y ninguna deduce a la otra** (`i.disciplina::varchar` y
+`i.numero_grupo`, agregadas **al final** del `UNION ALL` para no correr los
+índices con que Java lee las filas; las otras tres ramas las mandan en NULL).
+
+Y con el número a mano, P93: **la fila de Deudores se llama "Grupo 8"** y el
+referente baja a contacto. El agrupado de la pantalla dejó de ser *por persona*
+y pasó a ser *por deudor*.
+
+⚠️ **Lo que encontró de paso, y es peor que el original porque no lo reportó
+nadie: el aviso de preinscripción vencida salía con los `%s` crudos adentro.**
+`"A" + "B".formatted(x)` ata el `formatted` al **último literal**, y ese segundo
+tramo no tenía ni un `%s` — así que devolvía su propio texto sin tocar y el
+primero viajaba sin sustituir. Compila, no tira, y produce una notificación
+ilegible. **Ningún caso miraba el contenido de esa regla** —los veinticuatro de
+`AvisosTest` miran la clave, que es lo que decide si avisa dos veces— y por eso
+aguantó desde la §16. Ahora hay uno que sí.
+
+### B1 — Un mensaje y no tres
+
+El buzón devuelve una clave por cuenta nacida (P92) y la pantalla lo dibujaba
+literal: **un botón de WhatsApp por compañero**. Inscribir a un grupo de tres
+terminaba en tres chats, abiertos por la misma persona, dos de ellos con gente
+que nunca habló con el estudio.
+
+`mensajeDeInscripcion` gana un bloque —*"Y las cuentas de Facu y Gonza —
+pasáselas:"*, una línea por persona, el plazo dicho una vez— y `companeros`
+pasa de `string[]` a `{ nombre, cuenta | null }[]`. El compañero que **ya tenía
+cuenta** no entra en ese bloque: no hay nada que pasarle.
+
+**Las claves siguen en pantalla**, una por una: no se pueden volver a ver. Lo
+que se fue es el botón de cada una. La **única** excepción —y la razón por la
+que ese botón sobrevive en el código— es el teléfono de la ficha ilegible: sin
+mensaje único que mandar, se ofrece escribirle a cada uno.
+
+### B3 — El profesor ve el grupo
+
+Una tarjeta por grupo, con los integrantes adentro, cada uno con su semáforo y
+su link a **su** ficha. **Las clases restantes se dicen una vez, arriba**: son
+las del curso — con tres filas sueltas cada una decía las mismas seis y parecían
+dieciocho.
+
+Del backend sólo hizo falta una cosa: `CursoDelAlumno.numeroGrupo`. **El
+agrupado lo hace la pantalla por `idInscripcion`** —el grupo *es* la
+inscripción— y el número es el nombre.
+
+⚠️ **Un grupo puede aparecer incompleto y es correcto**: esa lista son *mis*
+alumnos, y el suplente que dio una clase a la que fueron dos de los tres ve a
+esos dos. La tarjeta lo dice (*"1 alumno tuyo"*) en vez de fingir el grupo
+entero.
+
+### B4 — El grupo en el buscador
+
+*"No veo la opción para agendarle una clase a tal grupo."* **La opción
+existía**: elegir a cualquiera de los tres anota al grupo entero (P90), con un
+checkbox que aparece *después* de elegir, tres campos más abajo.
+
+La fila del buscador dice ahora en qué grupo cursa, y **"grupo 8" es una
+búsqueda válida** — `AlumnoResumen.grupos` sale de la **misma** consulta que ya
+traía las disciplinas (son la misma pregunta: qué cursa hoy), y
+`AlumnoService.numeroDeGrupoBuscado` lee `"grupo 8"` o `"8"` del texto y se lo
+pasa a un `OR EXISTS` de la búsqueda. Un texto con letras mezcladas **no** se
+lee como grupo: adivinar ahí traería un grupo entero cuando lo que se buscaba
+era una persona.
+
+### B5 — El profesor, prellenado
+
+El dato estaba en la inscripción desde `V1` y el formulario lo hacía elegir
+igual, de una lista de todos. **Se prellena, no se fija** —el suplente existe—,
+y una vez elegido a mano el prellenado deja de pisarlo (`profesorTocado`, el
+mismo patrón que `senaTocada`).
+
+`CampoSelect` ganó `ayuda`, que `Campo` y `CampoTexto` ya tenían.
+
+⚠️ **Y ahí apareció la trampa del nombre accesible otra vez** (§12 · B1): con la
+ayuda puesta, el nombre del control pasa a ser `"ProfesorEs el de su curso…"`
+—etiqueta y ayuda viven adentro del mismo `<label>` y se concatenan sin
+espacio—, así que `getByLabelText('Profesor')` deja de encontrarlo. Va con
+`RegExp`. Es la tercera vez que este proyecto la paga; la primera fue una
+pestaña con su pill, la segunda un `<textarea>`.
+
+### B6 — Los bloqueos en el calendario
+
+Dos mitades, y la segunda es la que evita el error: la banda gris con la sala y
+el motivo, **y que la sala bloqueada deje de contar como libre**, así que la
+celda no ofrece *"+ reservar"* para ella. Es el criterio de `permitidos` con la
+matriz de §2.6: no ofrecer lo que la base va a rechazar.
+
+El endpoint no necesitó nada: `GET /api/bloqueos?desde=` ya trae todo lo que
+termina de ahí en adelante, y el recorte por el otro lado lo hace la pantalla
+(`fechaInicio <= dias[6]`). **Va en su propio pedido y su propio estado**: si
+`/api/bloqueos` se cae, la semana se dibuja igual sin las bandas.
+
+⚠️ **Se lee como franja que se repite todos los días del rango**, no como
+intervalo continuo — la lectura que `V7` tuvo que rescatar. Leerlo al revés
+taparía de gris una semana entera, y hay un caso que lo pinea contando cuatro
+celdas y no catorce.
+
+### Lo que dejó anotado
+
+- **La disciplina se imprime cruda en el aviso** (*"se anotó a PRODUCCION"*).
+  No se le agregó un nombre legible al enum a propósito: el front ya tiene
+  `NOMBRE_DE_DISCIPLINA` y un gemelo en Java sería un cuarto lugar que hay que
+  mover junto. Si molesta, la decisión es dónde vive esa tabla, no si existe.
+- **De la §22 siguen abiertos** los dos `<select>` de Pagos que no son de
+  personas (*"qué trabajo salda"* / *"qué venta salda"*, a página 0), la
+  inscripción **13231** a mano, y que `ReservaDelPortal` no lleva precio.
+
+### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-20)
+
+✅ **Cerrada el mismo día que se abrió: ocho de ocho, sin migración.** `V36`
+sigue siendo la última y el admin sembrado sigue en `V37`.
+
+Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones. El
+backend se corrió con `./scripts/pruebas-backend.sh` —base vacía, lo que ve
+CI—, no sólo con `mvn test`.
+
+**Los tres casos que se verificaron poniendo el bug de vuelta** (la regla de la
+§14): el agrupado de "Mis alumnos", el hueco de la sala bloqueada y la búsqueda
+por número de grupo. Los tres se pusieron rojos.
+
+Lo que queda para la próxima es lo de siempre —Ignacio usa el sistema y trae
+hallazgos— más lo anotado arriba: los dos `<select>` de Pagos, la 13231 a mano,
+`ReservaDelPortal` sin precio, y el nombre legible de la disciplina en los
+avisos.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
+
+✅ **LA UNDÉCIMA (§23) ESTÁ CERRADA, EL 2026-09-20, ABIERTA Y CERRADA EL MISMO DÍA: ocho de ocho, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son los hallazgos del día después de los grupos, y **seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: el buzón manda **un** WhatsApp al referente con las claves de todos (antes tres), Deudores llama **"Grupo 8"** a la fila y el referente baja a contacto, el profesor ve **una tarjeta por grupo** con los tres adentro y las clases dichas una sola vez, y el buscador de alumno dice el grupo y **encuentra por "grupo 8"**. Las otras dos: todo panel que se abre por una acción **se trae a la vista** (`TraerALaVista`, veintitantos lugares — la corrección que la §21 había hecho a mano sólo en Deudores) y *"Ver"* en una notificación **la marca leída**. Además, el profesor de la clase **se prellena** con el del curso (se prellena, no se fija: el suplente existe) y **las salas bloqueadas se dibujan en el calendario y dejan de ofrecer el hueco**. ⚠️ **El bug que Ignacio vio como *"Programa UNDEFINED"* era un dato que servía para dos cosas**: `SaldoPendiente` mandaba la disciplina adentro de `detalle`, y `V35` le agregó *" · Grupo 8"* — ahora son dos columnas. ⚠️ **Y de paso encontró uno peor porque nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal); ningún caso miraba el contenido de esa regla. ⚠️ **Tres de los ocho tenían la misma forma: la capacidad existía y no se veía** — el calendario ya anotaba al grupo entero, el profesor de la inscripción está desde `V1`, los bloqueos ya los hacía valer un trigger. Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones, el backend corrido con `./scripts/pruebas-backend.sh` (base vacía, lo que ve CI). **`V36` sigue siendo la última y el admin sembrado sigue en `V37`.**
 
 ✅ **Y LA DÉCIMA (§22) TAMBIÉN, EL 2026-09-19, ABIERTA Y CERRADA EL MISMO DÍA: los grupos de 2 y 3, con `V35` y `V36` (P87–P92, `platform.md` §28).** El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas (`inscripcion_integrante`, `id_alumno` se fue), un precio por tamaño en el catálogo, una seña a nombre del referente, integrantes fijos, P7 ratificada (se anota al grupo entero en cada clase), la ficha del buzón trae a los compañeros y *"Inscribirlo"* crea N cuentas, la landing pregunta *"¿Cuántos son?"*. Encontró que con la definición vieja de `V9` §5 un grupo de 3 no podía tomar ni la primera clase. Suites: **760 backend · 679 front · 336 + 71 SQL** sobre 36 migraciones. **El admin sembrado pasa a `V37`.** ⚠️ El circuito completo (Postgres, backend, plataforma, landing) se levantó de nuevo la misma tarde para que Ignacio lo mirara, y la inscripción 17934 (Grupo 40) quedó como prueba viva.
 

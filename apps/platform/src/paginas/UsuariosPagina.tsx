@@ -23,6 +23,7 @@ import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { AvisoSoloLectura } from '../componentes/SoloLectura'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const ROLES = Object.keys(NOMBRE_DE_ROL) as Rol[]
 
@@ -157,37 +158,43 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
       )}
 
       {passwordGenerada && (
-        <PasswordNueva
-          de={passwordGenerada.de}
-          valor={passwordGenerada.valor}
-          motivo={passwordGenerada.motivo}
-          onCerrar={() => setPasswordGenerada(null)}
-        />
+        <TraerALaVista>
+          <PasswordNueva
+            de={passwordGenerada.de}
+            valor={passwordGenerada.valor}
+            motivo={passwordGenerada.motivo}
+            onCerrar={() => setPasswordGenerada(null)}
+          />
+        </TraerALaVista>
       )}
 
       {creando && (
-        <FormularioCuenta
-          puedeAsignarRol={yo.rol === 'ADMIN'}
-          onCerrar={() => setCreando(false)}
-          onCreada={(usuario, password) => {
-            setCreando(false)
-            setPasswordGenerada({ de: usuario, valor: password, motivo: 'cuenta-nueva' })
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioCuenta
+            puedeAsignarRol={yo.rol === 'ADMIN'}
+            onCerrar={() => setCreando(false)}
+            onCreada={(usuario, password) => {
+              setCreando(false)
+              setPasswordGenerada({ de: usuario, valor: password, motivo: 'cuenta-nueva' })
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && (
-        <FormularioEdicion
-          usuario={editando}
-          puedeAsignarRol={yo.rol === 'ADMIN'}
-          esUnoMismo={editando.id === yo.id}
-          onCerrar={() => setEditando(null)}
-          onGuardado={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioEdicion
+            usuario={editando}
+            puedeAsignarRol={yo.rol === 'ADMIN'}
+            esUnoMismo={editando.id === yo.id}
+            onCerrar={() => setEditando(null)}
+            onGuardado={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {/* ⚠️ **"Rol" y "Relaciones" son DOS EJES y por eso son dos columnas.**

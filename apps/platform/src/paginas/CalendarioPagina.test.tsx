@@ -21,6 +21,7 @@ vi.mock('../api/administracion', () => ({
   agenda: vi.fn(),
   agregarParticipante: vi.fn(),
   listarAlumnos: vi.fn(),
+  listarBloqueos: vi.fn(),
   listarInscripciones: vi.fn(),
   listarSalas: vi.fn(),
   listarTiposUso: vi.fn(),
@@ -37,6 +38,7 @@ const {
   agregarParticipante,
   altaReserva,
   listarAlumnos,
+  listarBloqueos,
   listarInscripciones,
   listarProfesores,
   listarSalas,
@@ -147,6 +149,8 @@ beforeEach(() => {
   vi.mocked(listarTiposUso).mockResolvedValue(TIPOS)
   vi.mocked(listarProfesores).mockResolvedValue([])
   vi.mocked(listarAlumnos).mockResolvedValue(pagina([]) as never)
+  // Sin salas fuera de servicio salvo que el caso diga otra cosa (§23 · B6).
+  vi.mocked(listarBloqueos).mockResolvedValue([])
   vi.mocked(listarInscripciones).mockResolvedValue(pagina([]) as never)
   vi.mocked(listarUsuarios).mockResolvedValue(pagina([]) as never)
   vi.mocked(agenda).mockResolvedValue([reserva()])
@@ -373,9 +377,189 @@ describe('una reserva ocupa todas sus filas, no solo la de arranque', () => {
  * clase, así que no se podía tomar lista, las clases restantes nunca bajaban y
  * el historial del alumno quedaba vacío para siempre.
  */
+/**
+ * Las salas fuera de servicio, en la grilla (P98, Ignacio 2026-09-20).
+ *
+ * ⚠️ **El caso que importa es el hueco.** Dibujar la banda es la mitad visible;
+ * la mitad que evita el error es que la celda deje de ofrecer "+ reservar" para
+ * esa sala —antes el sistema sabía que no se podía y lo decía recién al guardar,
+ * con el formulario lleno.
+ */
+/**
+ * El profesor del curso, prellenado (P97, Ignacio 2026-09-20).
+ *
+ * ⚠️ **Elegir mal el profe no falla**: la clase se dicta, la sala se ocupa, y en
+ * la agenda del profe aparece una clase que no dio —o falta la que sí—. El dato
+ * ya estaba en la inscripción; lo que faltaba era usarlo.
+ */
+/**
+ * El grupo, visible **antes** de elegir (P96, Ignacio 2026-09-20: *"no veo la
+ * opción para agendarle una clase a tal grupo"*).
+ *
+ * ⚠️ **La opción existía**: elegir a cualquiera de los tres anota al grupo
+ * entero (`V35` · P90). Lo que no existía era verla —el checkbox aparece recién
+ * después de elegir, tres campos más abajo—, y una capacidad que sólo se ve
+ * después de usarla es, para quien la busca, una capacidad que no está.
+ */
+describe('el grupo en el buscador de alumno', () => {
+  async function abrirAnotar() {
+    const user = userEvent.setup()
+    vi.mocked(listarAlumnos).mockResolvedValue(
+      pagina([
+        { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [8] },
+      ]) as never,
+    )
+    montar()
+    await user.click(await screen.findByText('10:00–11:30'))
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    return user
+  }
+
+  it('la fila del buscador dice en qué grupo cursa', async () => {
+    await abrirAnotar()
+
+    expect(await screen.findByText('Grupo 8')).toBeDefined()
+  })
+
+  it('el buscador invita a buscar por grupo', async () => {
+    await abrirAnotar()
+
+    const campo = await screen.findByPlaceholderText(/grupo 8/)
+    expect(campo).toBeDefined()
+  })
+
+  /** Lo que se escriba viaja tal cual: el servidor es el que lo entiende (P96). */
+  it('escribir "grupo 8" se lo manda al servidor', async () => {
+    const user = await abrirAnotar()
+    await user.type(await screen.findByPlaceholderText(/grupo 8/), 'grupo 8')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarAlumnos)).toHaveBeenCalledWith({ buscar: 'grupo 8' }),
+    )
+  })
+})
+
+describe('el profesor de una clase nueva', () => {
+  const PROFES = [
+    { idProfesor: 5, idUsuario: 50, nombre: 'Lucas', apellido: 'Ferreyra', nombreCompleto: 'Lucas Ferreyra', especialidad: null, activo: true, cuentaActiva: true },
+    { idProfesor: 9, idUsuario: 90, nombre: 'Tomás', apellido: 'Ghezzi', nombreCompleto: 'Tomás Ghezzi', especialidad: null, activo: true, cuentaActiva: true },
+  ]
+
+  async function abrirAltaYElegirAlumno() {
+    const user = userEvent.setup()
+    vi.mocked(listarProfesores).mockResolvedValue(PROFES as never)
+    vi.mocked(listarAlumnos).mockResolvedValue(
+      pagina([{ idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] }]) as never,
+    )
+    vi.mocked(listarInscripciones).mockResolvedValue(
+      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5, idProfesor: 9, integrantes: [], numeroGrupo: null }]) as never,
+    )
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Nueva reserva' }))
+    await elegir(user, 'Para qué', '1')
+    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
+    return user
+  }
+
+  // ⚠️ Con la ayuda puesta, el nombre accesible del control pasa a ser
+  // "ProfesorEs el de su curso…": la etiqueta y el texto de ayuda viven adentro
+  // del mismo `<label>` y se concatenan sin espacio (la lección de §12 · B1).
+  // De ahí el `RegExp` en vez del texto exacto.
+  const PROFESOR = /^Profesor/
+
+  it('se pone solo el de la inscripción del alumno', async () => {
+    await abrirAltaYElegirAlumno()
+
+    const select = screen.getByLabelText(PROFESOR) as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe('9'))
+    expect(screen.getByText(/Es el de su curso/)).toBeDefined()
+  })
+
+  /** El suplente existe: prellenar no puede ser fijar. */
+  it('elegido a mano, el prellenado deja de pisarlo', async () => {
+    const user = await abrirAltaYElegirAlumno()
+    const select = screen.getByLabelText(PROFESOR) as HTMLSelectElement
+    await waitFor(() => expect(select.value).toBe('9'))
+
+    await elegir(user, PROFESOR, '5')
+
+    expect(select.value).toBe('5')
+    expect(screen.queryByText(/Es el de su curso/)).toBeNull()
+  })
+})
+
+describe('una sala bloqueada', () => {
+  const MARTES = sumarDias(LUNES, 1)
+
+  /** "De 10 a 12, lunes y martes" — una franja que se repite cada día. */
+  function bloqueo(cambios: Record<string, unknown> = {}) {
+    return {
+      idBloqueo: 1,
+      idSala: 1,
+      sala: 'Sala 1',
+      fechaInicio: LUNES,
+      fechaFin: MARTES,
+      horaInicio: '10:00:00',
+      horaFin: '12:00:00',
+      diaCompleto: false,
+      motivo: 'Mantenimiento del aire',
+      vigente: true,
+      registradoPor: 'Admin',
+      fechaRegistro: '2026-08-10T10:00:00-03:00',
+      ...cambios,
+    }
+  }
+
+  it('se dibuja en la grilla, con su motivo', async () => {
+    vi.mocked(agenda).mockResolvedValue([])
+    vi.mocked(listarBloqueos).mockResolvedValue([bloqueo()] as never)
+    montar()
+
+    expect((await screen.findAllByText('Sala 1 bloqueada')).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Mantenimiento del aire').length).toBeGreaterThan(0)
+  })
+
+  /**
+   * ⚠️ **Una fila de `bloqueo_sala` es una franja que se REPITE todos los días
+   * del rango**, no un intervalo continuo (`V7`). Leerlo al revés taparía de gris
+   * el lunes entero y la madrugada del martes.
+   */
+  it('la franja se repite cada día y deja libre el resto del día', async () => {
+    vi.mocked(agenda).mockResolvedValue([])
+    vi.mocked(listarBloqueos).mockResolvedValue([bloqueo()] as never)
+    montar()
+
+    // 10 y 11 de los dos días: cuatro celdas. De las 12 en adelante, ninguna.
+    expect(await screen.findAllByText('Sala 1 bloqueada')).toHaveLength(4)
+  })
+
+  it('no ofrece cargar nada en la sala bloqueada', async () => {
+    // Una sola sala activa y bloqueada: no queda ninguna libre a esa hora.
+    vi.mocked(listarSalas).mockResolvedValue([sala(1, 'Sala 1')])
+    vi.mocked(agenda).mockResolvedValue([])
+    vi.mocked(listarBloqueos).mockResolvedValue([bloqueo()] as never)
+    montar()
+
+    await screen.findAllByText('Sala 1 bloqueada')
+    const aLas = (hora: string) =>
+      new RegExp(`Cargar reserva el ${diaYMes(LUNES)} a las ${hora}`)
+    expect(screen.queryByRole('button', { name: aLas('10:00') })).toBeNull()
+    // Y a las 12, que ya no está bloqueada, lo sigue ofreciendo.
+    expect(screen.getByRole('button', { name: aLas('12:00') })).toBeDefined()
+  })
+
+  /** Un fallo del pedido no puede vaciar el calendario: es el criterio del Inicio. */
+  it('si el pedido de bloqueos falla, la semana se dibuja igual', async () => {
+    vi.mocked(listarBloqueos).mockRejectedValue(new Error('caido'))
+    montar()
+
+    expect(await screen.findByText('10:00–11:30')).toBeDefined()
+  })
+})
+
 describe('anotar a alguien en una clase', () => {
   const ALUMNOS = [
-    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com' },
+    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] },
   ]
 
   async function abrirDetalle() {
@@ -664,7 +848,7 @@ describe('el alta carga la clase junto con su alumno', () => {
     { idTipoUso: 4, advertencia: null },
   ]
   const ALUMNOS = [
-    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com' },
+    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] },
   ]
   // Quien alquila puede no ser alumno de nada: la seña lista usuarios, no alumnos.
   const PERSONAS = [

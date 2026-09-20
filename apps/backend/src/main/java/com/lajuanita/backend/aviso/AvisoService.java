@@ -233,13 +233,25 @@ public class AvisoService {
 
         for (Deudor d : vencidas) {
             long horas = ChronoUnit.HOURS.between(d.vence(), java.time.OffsetDateTime.now());
+            // Quién se anotó: el grupo, con el referente al lado (P93). La plata la
+            // debe el grupo y a quien hay que llamar es al referente, así que el
+            // aviso tiene que decir las dos cosas.
+            String quien = d.numeroGrupo() == null
+                    ? d.nombre() + " " + d.apellido()
+                    : "El grupo %d (%s %s)".formatted(d.numeroGrupo(), d.nombre(), d.apellido());
             pendientes.add(new Aviso(
                     TipoNotificacion.PREINSCRIPCION_VENCIDA,
                     "PREINSCRIPCION_VENCIDA:i=%d".formatted(d.idInscripcion()),
-                    "Preinscripción sin señar: " + d.nombre() + " " + d.apellido(),
-                    "%s %s se anotó a %s y pasaron %d horas del plazo sin la seña (%s %s). "
-                            + "No se cancela sola: llamalo, y cobrá o cancelá."
-                            .formatted(d.nombre(), d.apellido(), d.disciplina(), horas,
+                    "Preinscripción sin señar: " + (d.numeroGrupo() == null
+                            ? d.nombre() + " " + d.apellido()
+                            : "Grupo " + d.numeroGrupo()),
+                    // ⚠️ El `.formatted` va sobre el texto ENTERO y no sobre el último
+                    // literal: atado al segundo —que no tiene ni un `%s`— el aviso
+                    // salía con los `%s` crudos adentro y nadie lo reportó, porque una
+                    // notificación fea no rompe nada (§23 · B2).
+                    ("%s se anotó a %s y pasaron %d horas del plazo sin la seña (%s %s). "
+                            + "No se cancela sola: llamalo, y cobrá o cancelá.")
+                            .formatted(quien, d.disciplina(), horas,
                                     d.moneda(), plata(d.adeudado())),
                     "/admin/inscripciones"));
         }

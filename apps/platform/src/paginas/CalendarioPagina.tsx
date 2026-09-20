@@ -9,6 +9,7 @@ import {
   cambiarEstadoReserva,
   editarReserva,
   listarInscripciones,
+  listarBloqueos,
   listarProfesores,
   listarSalas,
   listarTiposUso,
@@ -19,6 +20,7 @@ import {
   NOMBRE_DE_MEDIO,
   enUnaLinea,
   type AlumnoResumen,
+  type BloqueoResumen,
   type EstadoAsistencia,
   type InscripcionResumen,
   type MedioPago,
@@ -54,6 +56,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
@@ -105,6 +108,7 @@ export function CalendarioPagina() {
   const [incluirCanceladas, setIncluirCanceladas] = useState(false)
 
   const [reservas, setReservas] = useState<ReservaResumen[]>([])
+  const [bloqueos, setBloqueos] = useState<BloqueoResumen[]>([])
   const [salas, setSalas] = useState<SalaResumen[]>([])
   const [tipos, setTipos] = useState<TipoUsoResumen[]>([])
   const [profesores, setProfesores] = useState<ProfesorResumen[]>([])
@@ -174,6 +178,34 @@ export function CalendarioPagina() {
       setCargando(false)
     }
   }, [traerAgenda, setError])
+
+  /**
+   * Las salas fuera de servicio de esta semana (P98).
+   *
+   * ⚠️ **Va en su propio pedido y su propio estado, y un fallo acá no vacía el
+   * calendario**: si `/api/bloqueos` se cae, la semana se dibuja igual sin las
+   * bandas —que es exactamente como se dibujaba hasta hoy— en vez de dejar la
+   * pantalla en blanco. Es el criterio del Inicio: un bloque caído no puede
+   * llevarse el resto.
+   *
+   * <p>El endpoint acota por `desde` (trae todo lo que termina de ahí en
+   * adelante) y no tiene `hasta`, así que el recorte por el otro lado lo hace
+   * esta pantalla. Es una lista corta por definición —"qué salas están fuera de
+   * servicio"— y no vale una migración de la consulta.
+   */
+  useEffect(() => {
+    let vigente = true
+    listarBloqueos({ desde: dias[0], idSala: idSala === '' ? undefined : idSala })
+      .then((filas) => {
+        if (vigente) setBloqueos(filas.filter((b) => b.fechaInicio <= dias[6]))
+      })
+      .catch(() => {
+        if (vigente) setBloqueos([])
+      })
+    return () => {
+      vigente = false
+    }
+  }, [dias, idSala])
 
   useEffect(() => {
     void cargar()
@@ -292,54 +324,60 @@ export function CalendarioPagina() {
       )}
 
       {nueva && puedeEscribir && (
-        <FormularioReserva
-          // El `key` es la corrección, no un detalle de React: sin él el
-          // formulario ya montado se queda con la franja del primer clic, y
-          // clickear otra celda no cambia nada en pantalla. Guardar volvía a
-          // apuntar al hueco viejo y la base rechazaba por solapamiento — que
-          // desde afuera se lee como "no deja cargar más de una reserva".
-          key={`${nueva.fecha}-${nueva.hora}-${nueva.idSala ?? ''}`}
-          salas={salas}
-          tipos={tipos}
-          profesores={profesores}
-          inicial={nueva}
-          onCerrar={() => setNueva(null)}
-          onGuardada={() => {
-            setNueva(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioReserva
+            // El `key` es la corrección, no un detalle de React: sin él el
+            // formulario ya montado se queda con la franja del primer clic, y
+            // clickear otra celda no cambia nada en pantalla. Guardar volvía a
+            // apuntar al hueco viejo y la base rechazaba por solapamiento — que
+            // desde afuera se lee como "no deja cargar más de una reserva".
+            key={`${nueva.fecha}-${nueva.hora}-${nueva.idSala ?? ''}`}
+            salas={salas}
+            tipos={tipos}
+            profesores={profesores}
+            inicial={nueva}
+            onCerrar={() => setNueva(null)}
+            onGuardada={() => {
+              setNueva(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && puedeEscribir && (
-        <FormularioReserva
-          // Por lo mismo que el de arriba: elegir otra reserva y darle "Mover"
-          // con el formulario abierto dejaba en pantalla los datos de la primera.
-          key={editando.idReserva}
-          salas={salas}
-          tipos={tipos}
-          profesores={profesores}
-          reserva={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardada={() => {
-            setEditando(null)
-            setElegida(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioReserva
+            // Por lo mismo que el de arriba: elegir otra reserva y darle "Mover"
+            // con el formulario abierto dejaba en pantalla los datos de la primera.
+            key={editando.idReserva}
+            salas={salas}
+            tipos={tipos}
+            profesores={profesores}
+            reserva={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardada={() => {
+              setEditando(null)
+              setElegida(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {elegida && (
-        <Detalle
-          reserva={elegida}
-          tipos={tipos}
-          puedeEscribir={puedeEscribir}
-          onCerrar={() => setElegida(null)}
-          onEditar={() => setEditando(elegida)}
-          onCancelar={() => void cancelar(elegida)}
-          onAsistencia={marcarAsistencia}
-          onAnotado={() => void refrescarTrasAnotar()}
-        />
+        <TraerALaVista>
+          <Detalle
+            reserva={elegida}
+            tipos={tipos}
+            puedeEscribir={puedeEscribir}
+            onCerrar={() => setElegida(null)}
+            onEditar={() => setEditando(elegida)}
+            onCancelar={() => void cancelar(elegida)}
+            onAsistencia={marcarAsistencia}
+            onAnotado={() => void refrescarTrasAnotar()}
+          />
+        </TraerALaVista>
       )}
 
       <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta">
@@ -376,11 +414,20 @@ export function CalendarioPagina() {
                 const ocupan = reservas.filter((r) => r.fecha === dia && ocupaLaHora(r, hora))
                 const empiezan = ocupan.filter((r) => horaDe(r.horaInicio) === hora)
                 const vienen = ocupan.filter((r) => horaDe(r.horaInicio) !== hora)
+                const cerradas = bloqueos.filter((b) => bloquea(b, dia, hora))
 
                 // Una celda ocupada NO es una celda llena: son tres salas. Lo
                 // que la cierra es que no quede ninguna libre a esa hora.
+                //
+                // ⚠️ **La sala bloqueada tampoco está libre** (P98). Antes el hueco
+                // se ofrecía igual y el trigger de `V1` rechazaba al guardar, con
+                // el formulario ya lleno: el sistema sabía que no se podía y no lo
+                // decía hasta el final. Es la misma decisión que `permitidos` con
+                // la matriz de §2.6 —no ofrecer lo que la base va a rechazar.
                 const libres = salasActivas.filter(
-                  (s) => !ocupan.some((r) => r.idSala === s.idSala && !cayo(r)),
+                  (s) =>
+                    !ocupan.some((r) => r.idSala === s.idSala && !cayo(r)) &&
+                    !cerradas.some((b) => b.idSala === s.idSala),
                 )
                 const sePuedeCargar = puedeEscribir && libres.length > 0
 
@@ -391,6 +438,9 @@ export function CalendarioPagina() {
                     ))}
                     {vienen.map((r) => (
                       <Continuacion key={r.idReserva} reserva={r} onElegir={() => setElegida(r)} />
+                    ))}
+                    {cerradas.map((b) => (
+                      <SalaBloqueada key={b.idBloqueo} bloqueo={b} />
                     ))}
 
                     {/* El hueco: abre el alta con esa fecha y esa hora puestas.
@@ -444,6 +494,53 @@ const COLUMNAS = '4rem repeat(7, minmax(0, 1fr))'
  */
 function cayo(reserva: ReservaResumen): boolean {
   return reserva.estado === 'CANCELADA' || reserva.estado === 'REPROGRAMADA'
+}
+
+/**
+ * Si ese bloqueo cierra esa sala en ese día y esa hora.
+ *
+ * ⚠️ **Una fila de `bloqueo_sala` es una FRANJA QUE SE REPITE todos los días
+ * del rango**, no un intervalo continuo: "de 9 a 13 toda la semana" deja la sala
+ * libre de 13 en adelante todos esos días. Es la lectura que `V7` tuvo que
+ * rescatar de una migración que la había perdido, y la que `/api/me/disponibilidad`
+ * ya expande día por día. Leerlo al revés acá taparía de gris una semana entera.
+ *
+ * <p>El día se compara como texto porque las fechas viajan en ISO (`AAAA-MM-DD`),
+ * donde el orden alfabético **es** el cronológico; los dos extremos son
+ * inclusivos, como el CHECK de la tabla. La hora usa el mismo criterio que
+ * {@link ocupaLaHora}: fin exclusivo.
+ */
+function bloquea(bloqueo: BloqueoResumen, dia: string, hora: number): boolean {
+  if (dia < bloqueo.fechaInicio || dia > bloqueo.fechaFin) {
+    return false
+  }
+  return bloqueo.diaCompleto || ocupaLaHora(bloqueo, hora)
+}
+
+/**
+ * La sala fuera de servicio, dibujada en la grilla (P98, Ignacio 2026-09-20).
+ *
+ * <p><b>Es el único dato del calendario que se veía sólo en otra pantalla.</b>
+ * `/admin/bloqueos` lista los bloqueos y el calendario —que es donde alguien
+ * decide dónde poner una clase— no los mostraba: la sala se veía libre, y lo
+ * único que avisaba era el trigger, al guardar.
+ *
+ * <p><b>No es un botón ni lleva a ningún lado</b>, al revés que una reserva: no
+ * hay nada que hacerle desde acá —se quita desde Bloqueos— y un bloque
+ * clickeable que no hace nada es peor que uno que no lo parece. Y va sin color
+ * propio: el rojo de esta pantalla es de la reserva que caóó, y una sala en
+ * mantenimiento no es una alarma.
+ */
+function SalaBloqueada({ bloqueo }: { bloqueo: BloqueoResumen }) {
+  return (
+    <div
+      className="mb-1 rounded border border-dashed border-linea bg-superficie-2 px-1.5 py-1 text-[11px] leading-tight text-apagado"
+      title={`${bloqueo.sala} bloqueada: ${bloqueo.motivo}`}
+    >
+      <div className="truncate font-medium">{bloqueo.sala} bloqueada</div>
+      <div className="truncate">{bloqueo.motivo}</div>
+    </div>
+  )
 }
 
 /** Un bloque del calendario. El color lo manda el backend desde `tipo_uso`. */
@@ -955,6 +1052,33 @@ function FormularioReserva({
   const participante = useParticipante(tipo?.disciplina ?? null)
 
   /**
+   * ⚠️ **El profe del curso se pone solo** (P97, Ignacio 2026-09-20: *"cuando se
+   * agende una clase a una persona/grupo que tiene un profe asignado que se
+   * rellene de forma automática"*).
+   *
+   * <p>El dato ya estaba: la inscripción tiene su profesor desde `V1` —es el que
+   * da ese curso— y el formulario lo hacía elegir igual, de una lista de todos.
+   * Elegir mal ahí **no falla**: la clase se dicta, la sala se ocupa, y en la
+   * agenda del profe aparece una clase que no dio (o falta la que sí). Es el
+   * mismo modo de falla que "Descuenta de" tenía antes de `V22`.
+   *
+   * <p><b>Se prellena, no se fija</b>, y ésa es la diferencia con el curso: ahí
+   * el dato se muestra porque lo decide el servidor; acá lo decide quien carga,
+   * porque el suplente existe —dar la clase de otro es un caso real y frecuente,
+   * y es justamente cuando hay que poder cambiarlo—. Por eso `profesorTocado`:
+   * una vez que alguien lo eligió a mano, cambiar de alumno no se lo pisa.
+   *
+   * <p>Sólo en el alta. Editar una reserva no toca participantes, así que no hay
+   * curso del que sacarlo.
+   */
+  const [profesorTocado, setProfesorTocado] = useState(false)
+  const profesorDelCurso = participante.cursoQueDescuenta?.idProfesor ?? null
+  useEffect(() => {
+    if (reserva || profesorTocado || profesorDelCurso === null) return
+    setDatos((previo) => ({ ...previo, idProfesor: String(profesorDelCurso) }))
+  }, [reserva, profesorTocado, profesorDelCurso])
+
+  /**
    * El otro camino del dinero de `V10`, y el espejo exacto del de arriba.
    *
    * Una clase la cubre la inscripción del alumno. Un **alquiler de cabina o una
@@ -1169,7 +1293,20 @@ function FormularioReserva({
 
           <Campo etiqueta="Fecha" type="date" value={datos.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
 
-          <CampoSelect etiqueta="Profesor" value={datos.idProfesor} onChange={cambiar('idProfesor')}>
+          <CampoSelect
+            etiqueta="Profesor"
+            value={datos.idProfesor}
+            onChange={(e) => {
+              // Tocarlo apaga el prellenado: de acá en adelante manda la persona.
+              setProfesorTocado(true)
+              cambiar('idProfesor')(e)
+            }}
+            ayuda={
+              !profesorTocado && profesorDelCurso !== null && datos.idProfesor === String(profesorDelCurso)
+                ? 'Es el de su curso. Cambialo si la da un suplente.'
+                : undefined
+            }
+          >
             <option value="">Sin asignar</option>
             {profesores.map((p) => (
               <option key={p.idProfesor} value={p.idProfesor}>

@@ -290,6 +290,7 @@ describe('lo que debo', () => {
           motivo: 'SIN_SENIAR',
           idInscripcion: 5,
           disciplina: 'PRODUCCION',
+          numeroGrupo: null,
           vence: '2026-09-13T12:41:00-03:00',
         },
         {
@@ -313,6 +314,7 @@ describe('lo que debo', () => {
           motivo: 'FALTA_EL_RESTO',
           idInscripcion: 6,
           disciplina: 'DJ',
+          numeroGrupo: null,
           vence: null,
         },
       ],
@@ -357,6 +359,7 @@ describe('lo que debo', () => {
           motivo: 'SIN_SENIAR',
           idInscripcion: 5,
           disciplina: 'PRODUCCION',
+          numeroGrupo: null,
           vence: '2026-09-11T12:41:00-03:00',
         },
       ],

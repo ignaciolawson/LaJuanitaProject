@@ -58,6 +58,14 @@ class SaldoPendienteTest {
 
     private static final LocalDate EL_DIA = LocalDate.of(2027, 5, 10);
 
+    /**
+     * ⚠️ Un filtro de jsonPath devuelve una <b>lista</b>: un campo nulo de la
+     * única fila que coincide llega como {@code [null]}, no como ausente (la
+     * lección de §16 · Fase 6).
+     */
+    private static final org.hamcrest.Matcher<Iterable<? extends Object>> UN_NULO =
+            org.hamcrest.Matchers.contains(org.hamcrest.Matchers.nullValue());
+
     @Autowired
     private MockMvc mvc;
     @Autowired
@@ -268,6 +276,78 @@ class SaldoPendienteTest {
                         """.formatted(sala2, alquiler, precio, EL_DIA, desde,
                         desde.replace("10:", "11:"), cliente.getId(), cliente.getId(), senia)))
                 .andExpect(status().isCreated());
+    }
+
+    // == P93: la deuda de un grupo ===========================================
+
+    /**
+     * ⚠️ <b>La disciplina y el detalle eran la MISMA columna</b>, y hasta `V35`
+     * eso era cierto sin consecuencias: el detalle de un programa <i>era</i> la
+     * disciplina pelada. El grupo le agregó " · Grupo 8" al detalle, y la pantalla
+     * —que traduce la disciplina a "Programa de DJ"— empezó a escribir <i>"Programa
+     * de undefined"</i>. Un dato que servía para dos cosas dejó de servir para una,
+     * sin que nada fallara y sin que ningún caso lo mirara.
+     */
+    @Test
+    void la_deuda_de_un_grupo_trae_la_disciplina_y_el_numero_por_separado() throws Exception {
+        Inscripcion grupo = grupoDeDos("447000");
+        long referente = grupo.getIntegrantes().stream()
+                .filter(x -> x.isReferente()).findFirst().orElseThrow()
+                .getAlumno().getUsuario().getId();
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].disciplina".formatted(grupo.getId()))
+                        .value("DJ"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].numeroGrupo".formatted(grupo.getId()))
+                        .value(grupo.getNumeroGrupo()))
+                // El detalle sigue diciendo las dos cosas: es lo que lee quien no
+                // sabe traducir el enum (el aviso, el formulario prellenado).
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].detalle".formatted(grupo.getId()))
+                        .value("DJ · Grupo " + grupo.getNumeroGrupo()))
+                // Y la deuda sigue estando a nombre del referente: es por donde se
+                // la reclama (P88). Quien la debe es el grupo, y eso lo dice el
+                // número de arriba.
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].idUsuario".formatted(grupo.getId()))
+                        .value((int) (long) referente));
+    }
+
+    /** Un alumno solo no tiene grupo, y la columna lo dice en vez de inventarlo. */
+    @Test
+    void la_deuda_de_un_alumno_solo_no_trae_numero_de_grupo() throws Exception {
+        Inscripcion curso = inscripcionDe(alumnoNuevo(), "180000", Moneda.ARS);
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].disciplina".formatted(curso.getId()))
+                        .value("DJ"))
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].numeroGrupo".formatted(curso.getId()))
+                        .value(UN_NULO));
+    }
+
+    /** Las otras tres clases de deuda no son de un programa: ninguna de las dos columnas. */
+    @Test
+    void la_deuda_de_una_cabina_no_trae_ni_disciplina_ni_grupo() throws Exception {
+        Usuario cliente = crear(Rol.USUARIO);
+        alquilerConSenia(cliente, "90000", "45000", "10:00");
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idUsuario == %d)].disciplina".formatted(cliente.getId()))
+                        .value(UN_NULO))
+                .andExpect(jsonPath("$[?(@.idUsuario == %d)].numeroGrupo".formatted(cliente.getId()))
+                        .value(UN_NULO));
+    }
+
+    /** Dos alumnos, una inscripción, un precio: el grupo (`V35`). */
+    private Inscripcion grupoDeDos(String precio) {
+        Inscripcion grupo = new Inscripcion();
+        grupo.agregarIntegrante(alumnoNuevo(), true);
+        grupo.agregarIntegrante(alumnoNuevo(), false);
+        grupo.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        grupo.setDisciplina(Disciplina.DJ);
+        grupo.setNivel(Nivel.INICIAL);
+        grupo.setClasesContratadas((short) 8);
+        grupo.setPrecioTotal(new BigDecimal(precio));
+        grupo.setMoneda(Moneda.ARS);
+        return inscripciones.save(grupo);
     }
 
     private ResultActions editarReserva(long id, String precio, String moneda) throws Exception {

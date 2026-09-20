@@ -49,6 +49,7 @@ import { Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 import { fecha } from '../componentes/semana'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const TIPOS: TipoRelease[] = ['SINGLE', 'EP', 'REMIX', 'ALBUM']
 const ESTADOS: EstadoRelease[] = [
@@ -192,14 +193,16 @@ export function SelloPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioAlta
-          artistas={artistas}
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioAlta
+            artistas={artistas}
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {!cargando && releases.length === 0 && (

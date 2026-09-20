@@ -89,6 +89,14 @@ export type AlumnoResumen = {
    * `PAUSADA`): quien terminó DJ el año pasado no figura como alumno de DJ.
    */
   disciplinas: Disciplina[]
+  /**
+   * Los grupos en los que cursa hoy (`V35`), vacía si cursa solo.
+   *
+   * Es lo que hace que el grupo **se vea al elegir al alumno** (P96): el
+   * calendario anota al grupo entero eligiendo a cualquiera de los tres, y hasta
+   * la §23 eso no se veía en ningún lado antes de elegir.
+   */
+  grupos: number[]
 }
 
 export type AltaAlumnoResultado = {
@@ -708,6 +716,15 @@ export type Deudor = {
   cobrado: number | null
   /** La disciplina, cuando la deuda es de un programa; null en las demás. */
   disciplina: Disciplina | null
+  /**
+   * El número del grupo cuando la deuda es de una inscripción de 2 o 3; null en
+   * un alumno solo y en las otras clases de deuda.
+   *
+   * Es lo que hace que la fila se llame "Grupo 8" y no con el nombre del
+   * referente (P93): la plata la debe el grupo, el referente es por dónde se
+   * la reclama.
+   */
+  numeroGrupo: number | null
   /** Sólo para `SIN_SENIAR`: hasta cuándo puede señar. */
   vence: string | null
 }

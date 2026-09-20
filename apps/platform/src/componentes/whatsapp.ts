@@ -448,11 +448,12 @@ export function mensajeDeInscripcion(datos: {
   vence: string | null
   cuenta: { email: string; passwordTemporal: string } | null
   /**
-   * Con quién cursa (`V35`, P88): los nombres de los otros integrantes. Vacío o
+   * Con quién cursa (`V35`, P88): los otros integrantes, **cada uno con la
+   * cuenta que le nació al inscribirlo**, o `null` si ya tenía una. Vacío o
    * ausente para quien cursa solo. La seña es UNA, del grupo, y el mensaje le
    * va al referente: por eso dice "los anotamos" y "el lugar de los tres".
    */
-  companeros?: string[]
+  companeros?: CompaneroDelMensaje[]
 }): string {
   const { nombre, programa, profesor, importe, vence, cuenta } = datos
   const companeros = datos.companeros ?? []
@@ -461,7 +462,7 @@ export function mensajeDeInscripcion(datos: {
   return parrafos(
     [
       enGrupo
-        ? `${saludo(nombre)} Los anotamos en ${programa}${con}, a vos y a ${enUnaLinea(companeros)}: cursan juntos. ${MUSICA}`
+        ? `${saludo(nombre)} Los anotamos en ${programa}${con}, a vos y a ${enUnaLinea(companeros.map((c) => c.nombre))}: cursan juntos. ${MUSICA}`
         : `${saludo(nombre)} Te anotamos en ${programa}${con}. ${MUSICA}`,
     ],
     vence
@@ -471,10 +472,53 @@ export function mensajeDeInscripcion(datos: {
         ]
       : [`${PLATA} No hay nada que abonar para arrancar.`],
     bloqueDeLaCuentaNueva(cuenta),
+    bloqueDeLasCuentasDelGrupo(companeros),
     [
       `${QUE_PUEDE_HACER} También vas a poder seguir el avance de tu curso clase por clase ` +
         'y ver el material que te deje tu profe.',
     ],
     [DESPEDIDA],
   )
+}
+
+/** Un compañero de grupo y la cuenta que le nació, si le nació una. */
+export type CompaneroDelMensaje = {
+  nombre: string
+  cuenta: { email: string; passwordTemporal: string } | null
+}
+
+/**
+ * Las cuentas de los compañeros, **adentro del mensaje del referente** (P94).
+ *
+ * ⚠️ **Es UN mensaje y no tres, y eso lo pidió Ignacio mirándolo funcionar**
+ * (2026-09-20): *"mandar solamente 1 msj al referente del grupo con toda la
+ * info de todos en vez de 3 distintos"*. Antes había un botón de WhatsApp por
+ * cuenta nacida, o sea que inscribir a un grupo de tres terminaba en tres chats
+ * distintos — y los tres los abría la misma persona, que es quien atiende. Peor:
+ * dos de esos chats son con gente que todavía no habló nunca con el estudio.
+ *
+ * <p><b>Quien lleva el grupo es el referente</b> — es quien contestó el
+ * formulario, quien paga la seña y bajo cuyo nombre queda la deuda (P88). Que
+ * reparta las claves de sus dos amigos es exactamente lo que ya va a hacer: son
+ * tres personas que se anotaron juntas.
+ *
+ * <p>Un compañero que <b>ya tenía cuenta</b> no aparece acá y es a propósito: no
+ * hay nada que pasarle, entra con la suya. Si ninguno estrenó cuenta, el bloque
+ * no existe y el mensaje queda como el de siempre (un párrafo vacío no deja
+ * hueco, ver {@link parrafos}).
+ */
+function bloqueDeLasCuentasDelGrupo(companeros: CompaneroDelMensaje[]): string[] {
+  const conCuentaNueva = companeros.filter((c) => c.cuenta !== null)
+  if (conCuentaNueva.length === 0) {
+    return []
+  }
+  const quienes = enUnaLinea(conCuentaNueva.map((c) => c.nombre))
+  return [
+    `${CLAVE} Y ${conCuentaNueva.length === 1 ? 'la cuenta de' : 'las cuentas de'} ${quienes}` +
+      ' — pasásela' + (conCuentaNueva.length === 1 ? '' : 's') + ':',
+    ...conCuentaNueva.map(
+      (c) => `${c.nombre} · ${c.cuenta!.email} · Contraseña: ${c.cuenta!.passwordTemporal}`,
+    ),
+    'Se entra en el mismo link, se cambia la primera vez y vence a los 7 días.',
+  ]
 }

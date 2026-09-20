@@ -513,6 +513,7 @@ describe('el alta', () => {
           nombre: 'Camila',
           apellido: 'Ríos',
           email: 'camila@ejemplo.com',
+          grupos: [],
         },
       ]) as never,
     )
@@ -544,7 +545,7 @@ describe('el alta', () => {
     vi.mocked(listarAlumnos).mockImplementation(async ({ buscar }) =>
       pagina(
         buscar?.startsWith('Dua')
-          ? [{ idAlumno: 21, idUsuario: 40, nombre: 'Martín', apellido: 'Duarte', email: 'm@ejemplo.com' }]
+          ? [{ idAlumno: 21, idUsuario: 40, nombre: 'Martín', apellido: 'Duarte', email: 'm@ejemplo.com', grupos: [] }]
           : [],
       ) as never,
     )

@@ -12,6 +12,7 @@ import { Etiqueta } from '../componentes/Etiqueta'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { AvisoSoloLectura, usePuedeEscribir } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * El catálogo de programas (`V28`, `mejoras.md` §16 · C1, P63 — cierra P13).
@@ -75,14 +76,16 @@ export function ProgramasPagina() {
       )}
 
       {editando && puedeEscribir && (
-        <Formulario
-          programa={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardado={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <Formulario
+            programa={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardado={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla

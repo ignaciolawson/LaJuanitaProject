@@ -38,6 +38,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { FormularioPago } from '../componentes/FormularioPago'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * Los estados que esta pantalla lista (P85): Pagos es lo cerrado. DEBE y
@@ -243,42 +244,48 @@ export function PagosPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioPago
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioPago
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && puedeEscribir && (
-        <FormularioCorreccion
-          pago={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardado={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioCorreccion
+            pago={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardado={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {pidiendoMotivo && (
-        <PedirMotivo
-          key={`${pidiendoMotivo.pago.idPago}-${pidiendoMotivo.que}`}
-          titulo={
-            pidiendoMotivo.que === 'anular'
-              ? 'Anular el pago'
-              : 'Marcar el comprobante como inválido'
-          }
-          ayuda={
-            pidiendoMotivo.que === 'anular'
-              ? 'El pago no se borra: queda registrado como anulado, con tu nombre y la fecha. Deja de contar en la caja.'
-              : 'El comprobante no se borra: queda marcado como inválido, con tu nombre y la fecha.'
-          }
-          onCerrar={() => setPidiendoMotivo(null)}
-          onConfirmar={confirmarMotivo}
-        />
+        <TraerALaVista>
+          <PedirMotivo
+            key={`${pidiendoMotivo.pago.idPago}-${pidiendoMotivo.que}`}
+            titulo={
+              pidiendoMotivo.que === 'anular'
+                ? 'Anular el pago'
+                : 'Marcar el comprobante como inválido'
+            }
+            ayuda={
+              pidiendoMotivo.que === 'anular'
+                ? 'El pago no se borra: queda registrado como anulado, con tu nombre y la fecha. Deja de contar en la caja.'
+                : 'El comprobante no se borra: queda marcado como inválido, con tu nombre y la fecha.'
+            }
+            onCerrar={() => setPidiendoMotivo(null)}
+            onConfirmar={confirmarMotivo}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Quién', 'Qué salda', 'Monto', 'Medio', 'Fecha', 'Estado', 'Comprobante', '']}>

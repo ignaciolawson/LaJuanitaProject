@@ -57,7 +57,7 @@ function alumno(cambios: Partial<AlumnoDelProfesor> = {}): AlumnoDelProfesor {
     idUsuario: ID_USUARIO,
     nombre: 'Juan',
     apellido: 'Pérez',
-    cursos: [{ idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5 }],
+    cursos: [{ idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5 , numeroGrupo: null }],
     estadoSeguimiento: null,
     observaciones: null,
     clasesRestantes: 5,

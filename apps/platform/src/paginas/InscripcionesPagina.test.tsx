@@ -98,6 +98,7 @@ function alumno(cambios: Partial<AlumnoResumen> = {}): AlumnoResumen {
     instagram: null,
     usuarioActivo: true,
     disciplinas: [],
+    grupos: [],
     ...cambios,
   }
 }

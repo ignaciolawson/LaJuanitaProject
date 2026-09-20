@@ -73,7 +73,13 @@ public final class SaldoPendiente {
      * <p>Columnas, en este orden y con estos nombres:
      * {@code destino, id_destino, moneda, precio, cobrado, saldo, anotado,
      * id_usuario, nombre_externo, contacto_externo, desde_ts, desde_dia,
-     * detalle, vence, preinscripta}. Se usa como subconsulta: {@code FROM (COSAS) s}.
+     * detalle, vence, preinscripta, disciplina, numero_grupo}. Se usa como
+     * subconsulta: {@code FROM (COSAS) s}.
+     *
+     * <p>⚠️ <b>Las dos últimas sólo tienen valor en la inscripción</b> y las otras
+     * tres ramas las mandan en NULL: un {@code UNION ALL} exige la misma cantidad
+     * de columnas, y agregarlas <b>al final</b> es lo que deja intactos los índices
+     * con que {@code PagoService} lee las filas.
      *
      * <p>{@code saldo} es {@code precio - cobrado}: lo que falta que ENTRE. Es lo
      * que mira el listado de Pagos. {@code anotado} es lo que de ese saldo ya
@@ -106,7 +112,16 @@ public final class SaldoPendiente {
                       || CASE WHEN i.numero_grupo IS NULL THEN ''
                               ELSE ' · Grupo ' || i.numero_grupo END) AS detalle,
                    i.vence_preinscripcion AS vence,
-                   (i.estado = 'PREINSCRIPTA') AS preinscripta
+                   (i.estado = 'PREINSCRIPTA') AS preinscripta,
+                   -- ⚠️ La disciplina va SUELTA y no adentro de `detalle` (§23 · B2).
+                   -- Hasta `V35` el detalle de un programa era la disciplina pelada,
+                   -- así que Java la pasaba como las dos cosas y la pantalla la
+                   -- traducía a "Programa de DJ". El grupo le agregó " · Grupo 8" al
+                   -- detalle y esa traducción empezó a dar **"Programa de undefined"**:
+                   -- un dato que servía para dos cosas dejó de servir para una sin que
+                   -- nada fallara. Ahora son dos columnas y ninguna deduce a la otra.
+                   i.disciplina::varchar AS disciplina,
+                   i.numero_grupo AS numero_grupo
               FROM inscripcion i
               JOIN inscripcion_integrante ii ON ii.id_inscripcion = i.id_inscripcion AND ii.referente
               JOIN alumno al ON al.id_alumno = ii.id_alumno
@@ -139,7 +154,8 @@ public final class SaldoPendiente {
                    tu.nombre || ' en ' || s.nombre_sala || ', '
                        || to_char(r.fecha, 'DD/MM/YYYY') || ' ' || to_char(r.hora_inicio, 'HH24:MI'),
                    r.vence_preconfirmacion,
-                   FALSE
+                   FALSE,
+                   NULL::varchar, NULL::integer
               FROM reserva r
               JOIN tipo_uso tu ON tu.id_tipo_uso = r.id_tipo_uso
               JOIN sala s ON s.id_sala = r.id_sala
@@ -172,7 +188,8 @@ public final class SaldoPendiente {
                    t.fecha_entrega_real,
                    'Mix & Mastering: ' || t.nombre_track,
                    NULL::timestamptz,
-                   FALSE
+                   FALSE,
+                   NULL::varchar, NULL::integer
               FROM trabajo_mastering t
              WHERE t.precio_acordado IS NOT NULL
                AND t.estado IN ('ENTREGADO', 'DEBE')
@@ -197,7 +214,8 @@ public final class SaldoPendiente {
                    NULL::timestamptz, v.fecha_venta,
                    'Equipo: ' || v.modelo_equipo,
                    NULL::timestamptz,
-                   FALSE
+                   FALSE,
+                   NULL::varchar, NULL::integer
               FROM venta_equipo v
              WHERE NOT v.anulada""";
 

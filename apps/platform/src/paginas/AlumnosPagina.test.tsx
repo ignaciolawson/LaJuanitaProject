@@ -57,6 +57,7 @@ function alumnos(cantidad: number): AlumnoResumen[] {
     instagram: null,
     usuarioActivo: true,
     disciplinas: ['DJ'],
+    grupos: [],
   }))
 }
 

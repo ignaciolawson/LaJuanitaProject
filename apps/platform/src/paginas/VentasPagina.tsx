@@ -32,6 +32,7 @@ import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { fecha } from '../componentes/semana'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const MEDIOS_DE_PAGO: MedioPago[] = [
   'EFECTIVO',
@@ -167,23 +168,27 @@ export function VentasPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioVenta
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardada={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioVenta
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardada={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {anulando && (
-        <PedirMotivo
-          key={anulando.idVenta}
-          titulo="Anular la venta"
-          ayuda="La venta no se borra: queda registrada como anulada, con tu nombre y la fecha. Si ya tenía un cobro, primero hay que anular el pago."
-          onCerrar={() => setAnulando(null)}
-          onConfirmar={confirmarAnulacion}
-        />
+        <TraerALaVista>
+          <PedirMotivo
+            key={anulando.idVenta}
+            titulo="Anular la venta"
+            ayuda="La venta no se borra: queda registrada como anulada, con tu nombre y la fecha. Si ya tenía un cobro, primero hay que anular el pago."
+            onCerrar={() => setAnulando(null)}
+            onConfirmar={confirmarAnulacion}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Equipo', 'Comprador', 'Vendió', { etiqueta: 'Precio', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>

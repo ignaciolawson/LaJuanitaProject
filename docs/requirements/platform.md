@@ -3236,3 +3236,213 @@ mover la clase, `editar` ya avisa a todos los participantes.
   de horarios). La §16 la daba por reabierta; no lo está.
 - **Los precios de la landing siguen siendo de referencia** hasta que el
   cliente confirme números; ahora son tres por programa en vez de uno.
+
+## 29. Decisiones cerradas el 2026-09-20 (decimotercera tanda) — la undécima barrida
+
+> Siete decisiones sobre los ocho hallazgos que Ignacio trajo el día después de
+> cerrar los grupos, usando el sistema con grupos adentro. **Seis de los ocho
+> son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**
+> —el buzón, Deudores, el profesor, el calendario— y dos son de otra parte: los
+> paneles que se abren fuera de la vista y la notificación que sólo se marca a
+> mano. Ninguna toca el esquema: **la barrida no trae migración**, y por eso el
+> triage entero es A + B.
+>
+> **Textual, lo que trajo:** *"Cuando llega el buzon de la web, mandar solamente
+> 1 msj al referente del grupo con toda la info de todos en vez de 3 distintos o
+> 2 distintos"* · *"En los deudores que no figure el nombre del referente, sino
+> «Grupo X» y fíjate que hay un bug que dice «Programa UNDEFINED» y no al que se
+> inscribieron"* · *"Fijarse en todos los botones cada vez que se pone editar
+> algo o eliminar algo o algún tipo de accion, si se abre un nuevo layout que te
+> lleve ahí, porque pongo editar y se abre un layout arriba y no me doy cuenta,
+> tengo que subir para verlo (Esto en todo el sistema)"* · *"Que el profe en sus
+> alumnos no vea los alumnos separados si están en grupo, sino que vea el
+> grupo"* · *"si una notificación pones «ver» que ya se marque como leida"* ·
+> *"en el calendario no veo la opción para agendarle una clase a «tal grupo»"* ·
+> *"Cuando se agende una clase a una persona/grupo que tiene un profe asigando
+> que se rrellene de forma automática"* · *"Las salas bloqueadas que aparezcan
+> de algún modo en el calendario, obviamente según el rango horario y demás que
+> se le indique"*.
+>
+> ⚠️ **Tres de los ocho tienen la misma forma y conviene verla junta: la
+> capacidad existía y no se veía.** El calendario ya anotaba al grupo entero
+> (P90), el profesor de la inscripción ya estaba cargado desde `V1`, y los
+> bloqueos ya se guardaban y ya los hacía valer un trigger. Ninguno de los tres
+> era una función faltante: eran tres datos que el sistema tenía y no ponía
+> donde se decide. **Una capacidad que sólo se ve después de usarla es, para
+> quien la busca, una capacidad que no está** — y eso no se arregla agregando
+> controles, se arregla mostrando lo que ya se sabe.
+
+### ✅ P93 — En Deudores, el deudor de una inscripción de grupo es el grupo
+
+**Lo que había:** `V35` decidió que la seña es una, del grupo, y que **se
+registra bajo el referente** porque una deuda sin nombre no le llega a nadie
+(P88) — `SaldoPendiente` une por `inscripcion_integrante … AND ii.referente`.
+La pantalla pintaba esa fila con el nombre de esa persona, y el detalle decía
+*"DJ · Grupo 8"* abajo, en otra columna.
+
+**La decisión:** la fila se llama **"Grupo 8"**, y el referente baja a
+**contacto** — *"Referente: Ríos, Camila"*, con su link al estado de cuenta y
+su teléfono en la columna de al lado. El agrupado de la pantalla deja de ser
+*por persona* y pasa a ser *por deudor*: la clave de una deuda con
+`numeroGrupo` es el grupo.
+
+**Por qué, y qué se gana además de la etiqueta:** quien mira Deudores está
+decidiendo **a quién llamar y por cuánto**, y *"Ríos, Camila — $223.500"* le
+cobra a una persona lo de tres. Es exactamente la lectura que P87 vino a
+corregir en el resto del sistema y que esta pantalla se había quedado sin
+hacer. **La consecuencia buscada**: el referente que además debe algo suyo —una
+cabina, un equipo— aparece **dos veces**, una como grupo y otra como persona.
+Es correcto: son dos deudas distintas, con dos conversaciones distintas, y
+juntarlas bajo un nombre sería volver al problema por el otro lado.
+
+⚠️ **Lo que esto NO cambia**: quién paga. El pago sigue yendo contra la
+inscripción y a nombre del referente —o de cualquier integrante, `V35` lo
+permite— y el formulario prellenado desde acá sigue diciendo esa persona. **El
+grupo es quien debe; el referente es por dónde se reclama.**
+
+### ✅ P94 — Un solo mensaje de WhatsApp al inscribir a un grupo, con todas las claves
+
+**Lo que había:** el buzón inscribe al grupo en un acto y devuelve **una clave
+por cuenta nacida** (`AlumnoInscripto.companeros`, P92). La pantalla dibujaba
+eso literal: el botón del referente, y **un botón de WhatsApp por compañero**.
+Inscribir a un grupo de tres terminaba en tres chats.
+
+**La decisión:** **un solo mensaje, al referente, con las claves de todos
+adentro.** El bloque nuevo dice *"Y las cuentas de Facu y Gonza — pasáselas:"*
+con una línea por persona (nombre · mail · contraseña) y el plazo de 7 días
+dicho una vez. Los compañeros que **ya tenían cuenta** no aparecen en ese
+bloque: no hay nada que pasarles.
+
+**Por qué:** los tres chats los abre **la misma persona** —quien atiende— y dos
+de ellos son con gente que todavía no habló nunca con el estudio. El referente
+es quien contestó el formulario, quien paga la seña y bajo cuyo nombre queda la
+deuda: repartir las claves de sus dos amigos es exactamente lo que va a hacer
+igual. Es la misma decisión que P71 tomó para la cabina —*un botón es un
+mensaje, porque un `wa.me` es UNA URL*— aplicada a tres destinatarios.
+
+⚠️ **Las claves siguen en pantalla, una por una, y eso no se toca:** no se
+pueden volver a ver. Lo que se fue es el botón de cada una, no la clave. Y hay
+**una excepción**, que es la única razón por la que el botón por compañero
+sobrevive en el código: si el teléfono de la ficha no se puede leer, no hay
+mensaje único que mandar, y ahí sí se ofrece escribirle a cada uno — la
+alternativa sería no poder entregar ninguna clave.
+
+### ✅ P95 — El profesor ve el grupo, no tres alumnos sueltos
+
+**La decisión:** en *Mis alumnos*, los integrantes de una misma inscripción de
+grupo se dibujan en **una tarjeta**: *"Grupo 8 · DJ — 6 clases restantes"*, y
+adentro los tres nombres, cada uno con su semáforo y su link a **su propia
+ficha**.
+
+**Por qué la tarjeta agrupa y no fusiona:** el semáforo, las notas y el
+material son **por persona** (§8), así que el grupo no tiene ficha propia y la
+tarjeta no es un link — llevar a "la ficha del grupo" obligaría a elegir a cuál
+de los tres, en silencio. Lo que sí se dice una sola vez son **las clases
+restantes**, porque son las del curso: con tres filas sueltas cada una decía
+las mismas seis y parecían dieciocho.
+
+**El agrupado es por `idInscripcion`, no por el número**: el grupo *es* la
+inscripción (P87), así que el id es la identidad y el número es el nombre.
+
+⚠️ **Un grupo puede aparecer incompleto y es correcto.** Esa lista son *mis*
+alumnos: el suplente que dio una clase a la que fueron dos de los tres ve a
+esos dos. La tarjeta lo dice (*"1 alumno tuyo"*) en vez de fingir el grupo
+entero.
+
+### ✅ P96 — El grupo se ve y se busca desde el buscador de alumno
+
+**Lo que había:** el calendario **ya** anota al grupo entero — elegir a
+cualquiera de los tres alcanza (P90) — con un checkbox que aparece *después* de
+elegir al alumno, tres campos más abajo.
+
+**La decisión:** la fila del buscador dice en qué grupo cursa (*"Ríos, Camila
+— Grupo 8"*) y **se puede buscar escribiendo "grupo 8"** (o el número solo).
+No se agrega ningún control nuevo.
+
+**Por qué no un selector de grupos aparte:** porque el modelo ya dice que el
+grupo es el alumno, y un segundo selector sería una segunda forma de elegir lo
+mismo — dos caminos que el día que uno cambie van a discrepar. Lo que faltaba
+era **nombrar lo que el buscador ya sabía**.
+
+**El corte de la búsqueda**: *"grupo 8"* y *"8"*, nada más. Un texto con letras
+y números mezclados **no** se lee como número de grupo: adivinar ahí traería un
+grupo entero cuando lo que se buscaba era una persona, que es peor que no
+encontrarla. El resto del buscador (nombre, apellido, mail) no cambia.
+
+### ✅ P97 — El profesor de la clase se prellena con el de la inscripción
+
+**La decisión:** al cargar una clase, elegido el alumno, el campo *Profesor* se
+completa con el profesor de **su** inscripción, y el formulario lo dice
+(*"Es el de su curso. Cambialo si la da un suplente."*).
+
+**Por qué prellenar y no fijar** —que es la diferencia con *"Descuenta de"*, que
+se muestra y no se elige (`V22`)—: de qué curso descuenta lo decide el catálogo
+y el servidor lo impone; **quién da la clase lo decide quien carga**, porque el
+suplente es un caso real y frecuente, y es justamente el día en que hay que
+poder cambiarlo. Por eso, además, **una vez elegido a mano el prellenado deja
+de pisarlo**.
+
+⚠️ **Elegir mal ahí no falla**: la clase se dicta, la sala se ocupa, y en la
+agenda del profesor aparece una clase que no dio —o falta la que sí—. Es el
+mismo modo de falla que *"Descuenta de"* tenía antes de `V22`, en la otra
+columna del mismo formulario.
+
+### ✅ P98 — Las salas bloqueadas se dibujan en el calendario, y cierran el hueco
+
+**Lo que había:** `bloqueo_sala` existe desde `V1`, tiene sus dos triggers, su
+pantalla (`/admin/bloqueos`) y hasta su expansión día por día en
+`/api/me/disponibilidad` — **y el calendario no la miraba**. La sala se veía
+libre, y lo único que avisaba era el trigger, al guardar.
+
+**La decisión:** dos cosas, y la segunda es la que evita el error. (1) La banda
+gris en la celda, con la sala y el motivo. (2) **La sala bloqueada deja de
+contar como libre**, así que la celda no ofrece *"+ reservar"* para ella. Es el
+mismo criterio que `permitidos` con la matriz de §2.6: **no ofrecer lo que la
+base va a rechazar**.
+
+⚠️ **Se lee como franja que se repite todos los días del rango, no como
+intervalo continuo** — la lectura que `V7` tuvo que rescatar de una migración
+que la había perdido. Leerlo al revés taparía de gris una semana entera, que es
+el modo de falla contrario y tan malo como el original.
+
+**No es un botón y no lleva a ningún lado**: no hay nada que hacerle desde el
+calendario —se quita desde Bloqueos— y un bloque clickeable que no hace nada es
+peor que uno que no lo parece. Va sin color propio: el rojo de esa pantalla es
+de la reserva que cayó, y una sala en mantenimiento no es una alarma.
+
+**Y el pedido va aparte, con su propio estado**: si `/api/bloqueos` se cae, la
+semana se dibuja igual sin las bandas. Es el criterio del Inicio — un bloque
+caído no puede llevarse la pantalla, y menos el calendario.
+
+### ✅ P99 — Entrar a una notificación es leerla
+
+**La decisión:** apretar *"Ver"* marca la notificación como leída, además de
+navegar. *"Marcar leída"* sigue existiendo para la que se resuelve sin entrar.
+
+**Por qué:** el aviso existe para que alguien vaya a hacer algo; entrar a lo que
+señala **es** leerlo. Dejar el punto rojo puesto después de eso no es sólo
+ruido: con diez avisos así, el que todavía importa deja de distinguirse — que es
+exactamente lo que `AvisoService` documenta como su propio modo de falla.
+
+**No espera al servidor y no bloquea la navegación**: la fila se pinta leída en
+el acto y el pedido viaja atrás. Si falla, el aviso sigue sin leer y vuelve a
+aparecer así la próxima vez, que es la falla correcta de las dos posibles.
+
+### ✅ P100 — Un panel que se abre por una acción se trae a la vista
+
+**La decisión:** todo panel que se abre por una acción —alta, edición, pedir un
+motivo, la contraseña recién generada, el detalle de una reserva— se lleva a la
+vista al montarse. Una sola pieza, `TraerALaVista`, con `block: 'nearest'`:
+mueve lo mínimo y **no mueve nada si ya estaba a la vista**.
+
+**Por qué es una decisión y no un retoque:** en este sistema el formulario se
+dibuja **arriba del listado** y el botón que lo abre puede estar veinte filas
+más abajo. El resultado es una acción que **no falla, no avisa y no muestra
+nada** — y lo siguiente que hace quien la apretó es volver a apretar. Ya se
+había arreglado a mano una vez, en Deudores (§21 · L2 bis); veinte copias de
+ese `useEffect` son diecinueve que alguien olvida.
+
+**El corte**: se envuelven los paneles que se dibujan **fuera de la fila o la
+tarjeta que los disparó**. Los que se abren en el lugar —adentro de una ficha
+expandida, debajo de su propio botón— ya están a la vista, y con `'nearest'`
+envolverlos no haría nada de todos modos.

@@ -55,6 +55,34 @@ export function NotificacionesPagina() {
     void cargar()
   }, [cargar])
 
+  /**
+   * Darla por leída: lo que hacen **las dos** salidas de la fila.
+   *
+   * ⚠️ **"Ver" también la marca** (Ignacio, 2026-09-20). Hasta ahora la única
+   * forma de bajar el contador era "Marcar leída", así que entrar a lo que el
+   * aviso señala —que es *leerlo*, y la razón por la que el aviso existe— dejaba
+   * la bandeja con el punto rojo puesto: la persona resolvía el asunto y el
+   * sistema le seguía diciendo que tenía algo sin leer. Y el modo de falla no es
+   * sólo ruido: con diez avisos así, el que todavía importa deja de distinguirse.
+   *
+   * <p><b>No espera al servidor y no bloquea la navegación</b>: la fila se pinta
+   * como leída en el acto y el pedido viaja atrás. `Link` navega igual, que es lo
+   * que la persona pidió; si el pedido falla, el aviso sigue sin leer y vuelve a
+   * aparecer así la próxima vez, que es la falla correcta de las dos posibles.
+   *
+   * <p>El contador del sidebar no hace falta tocarlo: `usePendientes` se refresca
+   * en cada cambio de ruta, y de eso se trata apretar "Ver".
+   */
+  function leer(aviso: NotificacionResumen) {
+    if (aviso.leida) return
+    setAvisos((previos) =>
+      previos.map((a) => (a.idNotificacion === aviso.idNotificacion ? { ...a, leida: true } : a)),
+    )
+    void marcarLeida(aviso.idNotificacion).catch(() =>
+      setError('No se pudo marcar la notificación como leída.'),
+    )
+  }
+
   const sinLeer = avisos.filter((a) => !a.leida).length
 
   return (
@@ -130,19 +158,14 @@ export function NotificacionesPagina() {
               {a.urlDestino && (
                 <Link
                   to={a.urlDestino}
+                  onClick={() => leer(a)}
                   className="text-sm font-medium underline underline-offset-2 transition-colors hover:text-acento"
                 >
                   Ver
                 </Link>
               )}
               {!a.leida && (
-                <Boton
-                  variante="enlace"
-                  type="button"
-                  onClick={() => {
-                    void marcarLeida(a.idNotificacion).then(cargar)
-                  }}
-                >
+                <Boton variante="enlace" type="button" onClick={() => leer(a)}>
                   Marcar leída
                 </Boton>
               )}

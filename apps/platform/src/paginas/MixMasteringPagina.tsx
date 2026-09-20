@@ -43,6 +43,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const TIPOS: TipoTrabajo[] = ['MIX', 'MASTER', 'MIX_MASTER']
 const ESTADOS: EstadoTrabajo[] = [
@@ -197,14 +198,16 @@ export function MixMasteringPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioAlta
-          profesores={profesores}
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioAlta
+            profesores={profesores}
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {!cargando && trabajos.length === 0 && (

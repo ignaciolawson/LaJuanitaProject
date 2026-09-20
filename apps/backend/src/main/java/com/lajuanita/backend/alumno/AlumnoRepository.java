@@ -123,7 +123,12 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
             WHERE (:estado IS NULL OR a.estadoAlumno = :estado)
               AND (LOWER(u.nombre)   LIKE :patron ESCAPE '\\'
                    OR LOWER(u.apellido) LIKE :patron ESCAPE '\\'
-                   OR LOWER(u.email)    LIKE :patron ESCAPE '\\')
+                   OR LOWER(u.email)    LIKE :patron ESCAPE '\\'
+                   OR (:numeroGrupo IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM InscripcionIntegrante g JOIN g.inscripcion gi
+                                   WHERE g.alumno = a
+                                     AND gi.estado IN :vigentes
+                                     AND gi.numeroGrupo = :numeroGrupo)))
               AND (:disciplina IS NULL AND :nivel IS NULL
                    OR EXISTS (SELECT 1 FROM InscripcionIntegrante x JOIN x.inscripcion i
                               WHERE x.alumno = a
@@ -133,6 +138,7 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
             ORDER BY LOWER(u.apellido), LOWER(u.nombre)
             """)
     Page<Alumno> buscar(@Param("patron") String patron,
+            @Param("numeroGrupo") Integer numeroGrupo,
             @Param("estado") EstadoAlumno estado,
             @Param("disciplina") Disciplina disciplina,
             @Param("nivel") Nivel nivel,
@@ -155,7 +161,7 @@ public interface AlumnoRepository extends JpaRepository<Alumno, Long> {
      *         no aparecen
      */
     @Query("""
-            SELECT x.alumno.id, i.disciplina
+            SELECT x.alumno.id, i.disciplina, i.numeroGrupo
             FROM InscripcionIntegrante x JOIN x.inscripcion i
             WHERE x.alumno.id IN :ids
               AND i.estado IN :vigentes

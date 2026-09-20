@@ -24,6 +24,15 @@ import { Campo } from './Campo'
  *
  * Busca contra el servidor, que es lo que pagina; arranca con la lista sin
  * filtrar para que el caso común —pocos alumnos— sea un click.
+ *
+ * ⚠️ **Desde §23 la fila dice el grupo, y «grupo 8» es una búsqueda válida**
+ * (P96, Ignacio 2026-09-20: *"en el calendario no veo la opción para agendarle
+ * una clase a tal grupo"*). Y tenía razón en lo que vio, no en lo que dedujo:
+ * la opción **existía** —elegir a cualquiera de los tres anota al grupo entero,
+ * `V35` · P90— pero no aparecía hasta después de elegir, en un checkbox tres
+ * campos más abajo. Una capacidad que recién se ve después de usarla es, para
+ * quien la busca, una capacidad que no está. El arreglo no es un control nuevo:
+ * es que el buscador nombre lo que ya sabía.
  */
 export function SelectorDeAlumno({
   elegido,
@@ -72,6 +81,7 @@ export function SelectorDeAlumno({
             <strong className="font-medium">
               {elegido.apellido}, {elegido.nombre}
             </strong>
+            <EtiquetaDeGrupo alumno={elegido} />
             <span className="ml-2 text-xs text-tenue">{elegido.email}</span>
           </span>
           <Boton variante="enlace"
@@ -91,7 +101,7 @@ export function SelectorDeAlumno({
         type="search"
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
-        placeholder="Buscar por nombre, apellido o email…"
+        placeholder="Buscar por nombre, apellido, email o «grupo 8»…"
         error={error ?? fallo ?? undefined}
         required
         autoFocus={autoFocus}
@@ -108,6 +118,7 @@ export function SelectorDeAlumno({
               <span className="font-medium">
                 {a.apellido}, {a.nombre}
               </span>
+              <EtiquetaDeGrupo alumno={a} />
               <span className="ml-2 text-xs text-tenue">{a.email}</span>
             </button>
           </li>
@@ -129,5 +140,24 @@ export function SelectorDeAlumno({
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * "Grupo 8" al lado del nombre, cuando el alumno cursa en grupo (P96).
+ *
+ * <p>Va con el nombre y no en una línea aparte porque **es parte de quién es**
+ * para esta decisión: elegirlo a él es elegir a los tres. Con dos grupos —DJ y
+ * producción— se dicen los dos: cuál descuenta lo decide el tipo de uso de la
+ * reserva (`V22`) y la pantalla lo muestra un campo más abajo.
+ */
+function EtiquetaDeGrupo({ alumno }: { alumno: AlumnoResumen }) {
+  if (alumno.grupos.length === 0) {
+    return null
+  }
+  return (
+    <span className="ml-2 rounded bg-superficie-2 px-1.5 py-0.5 text-xs text-tenue">
+      {alumno.grupos.map((n) => `Grupo ${n}`).join(' · ')}
+    </span>
   )
 }

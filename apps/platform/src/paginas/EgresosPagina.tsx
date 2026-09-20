@@ -31,6 +31,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { fecha } from '../componentes/semana'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * Módulo 3, pantalla 5 — la plata que sale.
@@ -195,33 +196,39 @@ export function EgresosPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioEgreso
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioEgreso
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {invalidando && (
-        <PedirMotivo
-          key={invalidando.comprobante.idComprobante}
-          titulo="Marcar el comprobante como inválido"
-          ayuda="El archivo no se borra: queda listado como inválido, con tu nombre y el motivo. Después adjuntá el que corresponde — el egreso admite varios."
-          onCerrar={() => setInvalidando(null)}
-          onConfirmar={confirmarInvalidacion}
-        />
+        <TraerALaVista>
+          <PedirMotivo
+            key={invalidando.comprobante.idComprobante}
+            titulo="Marcar el comprobante como inválido"
+            ayuda="El archivo no se borra: queda listado como inválido, con tu nombre y el motivo. Después adjuntá el que corresponde — el egreso admite varios."
+            onCerrar={() => setInvalidando(null)}
+            onConfirmar={confirmarInvalidacion}
+          />
+        </TraerALaVista>
       )}
 
       {anulando && (
-        <PedirMotivo
-          key={anulando.idEgreso}
-          titulo="Anular el egreso"
-          ayuda="El egreso no se borra: queda registrado como anulado, con tu nombre y la fecha. Deja de contar en la caja."
-          onCerrar={() => setAnulando(null)}
-          onConfirmar={confirmarAnulacion}
-        />
+        <TraerALaVista>
+          <PedirMotivo
+            key={anulando.idEgreso}
+            titulo="Anular el egreso"
+            ayuda="El egreso no se borra: queda registrado como anulado, con tu nombre y la fecha. Deja de contar en la caja."
+            onCerrar={() => setAnulando(null)}
+            onConfirmar={confirmarAnulacion}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Concepto', 'A quién', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>

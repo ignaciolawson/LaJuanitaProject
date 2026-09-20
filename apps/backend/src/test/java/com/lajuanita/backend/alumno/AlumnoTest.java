@@ -24,6 +24,10 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.inscripcion.Disciplina;
+import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.inscripcion.InscripcionRepository;
+import com.lajuanita.backend.inscripcion.Nivel;
 import com.lajuanita.backend.usuario.Rol;
 import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
@@ -64,6 +68,8 @@ class AlumnoTest {
 
     @Autowired
     private AlumnoRepository alumnos;
+    @Autowired
+    private InscripcionRepository inscripciones;
 
     // == Los dos caminos del alta =============================================
 
@@ -327,6 +333,91 @@ class AlumnoTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElementos").value(1))
                 .andExpect(jsonPath("$.contenido[0].apellido").value(apellido));
+    }
+
+    // == P96: el grupo, visible y buscable ===================================
+
+    /**
+     * ⚠️ <b>Buscar "grupo 8" trae a los tres</b> (P96, Ignacio 2026-09-20).
+     *
+     * <p>Desde `V35` el grupo es una cosa que existe y se llama por su número, y
+     * en el único lugar donde se elige a un alumno —el buscador— no se podía
+     * encontrar por ese nombre. El calendario ya anotaba al grupo entero
+     * eligiendo a cualquiera de los tres (P90); lo que faltaba era poder verlo.
+     */
+    @Test
+    void el_buscador_encuentra_un_grupo_por_su_numero() throws Exception {
+        Inscripcion grupo = grupoDeDos();
+
+        // ⚠️ Se afirma sobre los ids propios y no sobre el total del listado: la
+        // base de desarrollo tiene meses de datos y en CI está vacía (§21).
+        var resultado = mvc.perform(get("/api/alumnos?buscar=grupo " + grupo.getNumeroGrupo())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk());
+        for (var x : grupo.getIntegrantes()) {
+            long id = x.getAlumno().getId();
+            resultado
+                    .andExpect(jsonPath("$.contenido[?(@.idAlumno == %d)]".formatted(id)).isNotEmpty())
+                    .andExpect(jsonPath("$.contenido[?(@.idAlumno == %d)].grupos[0]".formatted(id))
+                            .value(grupo.getNumeroGrupo()));
+        }
+    }
+
+    /** Y el número solo también, que es lo que alguien tipea apurado. */
+    @Test
+    void el_numero_solo_tambien_encuentra_al_grupo() throws Exception {
+        Inscripcion grupo = grupoDeDos();
+        long unIntegrante = grupo.getIntegrantes().iterator().next().getAlumno().getId();
+
+        mvc.perform(get("/api/alumnos?buscar=" + grupo.getNumeroGrupo())
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == %d)]".formatted(unIntegrante))
+                        .isNotEmpty());
+    }
+
+    /**
+     * ⚠️ <b>El resto del buscador no cambia.</b> Un texto con letras no se lee
+     * como un número de grupo: adivinar ahí traería un grupo entero cuando lo que
+     * se buscaba era una persona, que es peor que no encontrarla.
+     */
+    @Test
+    void un_texto_que_no_es_un_numero_no_trae_ningun_grupo() throws Exception {
+        Inscripcion grupo = grupoDeDos();
+        long unIntegrante = grupo.getIntegrantes().iterator().next().getAlumno().getId();
+
+        mvc.perform(get("/api/alumnos?buscar=grupo " + grupo.getNumeroGrupo() + " ocho")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idAlumno == %d)]".formatted(unIntegrante))
+                        .isEmpty());
+    }
+
+    /** Quien cursa solo no tiene grupo, y la lista lo dice vacía en vez de omitirla. */
+    @Test
+    void un_alumno_solo_viaja_con_la_lista_de_grupos_vacia() throws Exception {
+        Long idAlumno = darDeAlta(crear(Rol.USUARIO), "INICIAL");
+
+        mvc.perform(get("/api/alumnos/" + idAlumno).header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.grupos").isArray())
+                .andExpect(jsonPath("$.grupos").isEmpty());
+    }
+
+    /** Dos alumnos nuevos, una inscripción con número: el grupo (`V35`). */
+    private Inscripcion grupoDeDos() throws Exception {
+        Inscripcion grupo = new Inscripcion();
+        for (int i = 0; i < 2; i++) {
+            grupo.agregarIntegrante(
+                    alumnos.findById(darDeAlta(crear(Rol.USUARIO), "INICIAL")).orElseThrow(),
+                    i == 0);
+        }
+        grupo.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        grupo.setDisciplina(Disciplina.DJ);
+        grupo.setNivel(Nivel.INICIAL);
+        grupo.setClasesContratadas((short) 8);
+        grupo.setPrecioTotal(new java.math.BigDecimal("380000"));
+        return inscripciones.save(grupo);
     }
 
     /**

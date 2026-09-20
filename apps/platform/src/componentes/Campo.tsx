@@ -62,16 +62,18 @@ export function Campo({ etiqueta, error, ayuda, className, ...input }: Props) {
   )
 }
 
-/** Igual que Campo pero para un `<select>`. */
+/** Igual que Campo pero para un `<select>`, `ayuda` incluida (§23 · B5). */
 export function CampoSelect({
   etiqueta,
   error,
+  ayuda,
   children,
   className,
   ...select
 }: React.SelectHTMLAttributes<HTMLSelectElement> & {
   etiqueta: string
   error?: string
+  ayuda?: ReactNode
 }) {
   return (
     <label className={`block ${className ?? ''}`}>
@@ -88,6 +90,7 @@ export function CampoSelect({
           {error}
         </span>
       )}
+      {!error && ayuda && <span className="mt-1 block text-xs text-apagado">{ayuda}</span>}
     </label>
   )
 }

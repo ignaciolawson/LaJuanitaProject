@@ -19,6 +19,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 import { fecha } from '../componentes/semana'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * Módulo 7 — las fichas de los artistas del sello.
@@ -101,18 +102,20 @@ export function ArtistasPagina() {
       )}
 
       {(mostrandoAlta || editando) && puedeEscribir && (
-        <Formulario
-          artista={editando}
-          onCerrar={() => {
-            setMostrandoAlta(false)
-            setEditando(null)
-          }}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <Formulario
+            artista={editando}
+            onCerrar={() => {
+              setMostrandoAlta(false)
+              setEditando(null)
+            }}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {!cargando && artistas.length === 0 && (

@@ -12,6 +12,7 @@ import { fecha, hhmm, hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * Módulo 2, pantalla 3 — salas fuera de servicio.
@@ -129,14 +130,16 @@ export function BloqueosPagina() {
       )}
 
       {mostrandoAlta && puedeEscribir && (
-        <FormularioBloqueo
-          salas={salas}
-          onCerrar={() => setMostrandoAlta(false)}
-          onGuardado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioBloqueo
+            salas={salas}
+            onCerrar={() => setMostrandoAlta(false)}
+            onGuardado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Sala', 'Cuándo', 'Motivo', 'Cargado por', '']}>

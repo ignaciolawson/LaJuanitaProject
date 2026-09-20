@@ -21,6 +21,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
  * Profesores: quiénes dan clases, con su alta y su edición (P77 · 1).
@@ -155,45 +156,51 @@ export function ProfesoresPagina() {
       )}
 
       {passwordGenerada && (
-        <PasswordNueva
-          de={passwordGenerada.de}
-          valor={passwordGenerada.valor}
-          motivo={passwordGenerada.motivo}
-          aclaracion={
-            passwordGenerada.motivo === 'profesor-nuevo' ? (
-              <>
-                Cuando entre ya va a ver <span className="text-texto">Mi agenda</span>,{' '}
-                <span className="text-texto">Mis alumnos</span> y{' '}
-                <span className="text-texto">Subir material</span>.
-              </>
-            ) : undefined
-          }
-          onCerrar={() => setPasswordGenerada(null)}
-        />
+        <TraerALaVista>
+          <PasswordNueva
+            de={passwordGenerada.de}
+            valor={passwordGenerada.valor}
+            motivo={passwordGenerada.motivo}
+            aclaracion={
+              passwordGenerada.motivo === 'profesor-nuevo' ? (
+                <>
+                  Cuando entre ya va a ver <span className="text-texto">Mi agenda</span>,{' '}
+                  <span className="text-texto">Mis alumnos</span> y{' '}
+                  <span className="text-texto">Subir material</span>.
+                </>
+              ) : undefined
+            }
+            onCerrar={() => setPasswordGenerada(null)}
+          />
+        </TraerALaVista>
       )}
 
       {mostrandoAlta && (
-        <FormularioAlta
-          onCerrar={() => setMostrandoAlta(false)}
-          onCreado={(cuentaNueva) => {
-            setMostrandoAlta(false)
-            if (cuentaNueva) {
-              setPasswordGenerada({ ...cuentaNueva, motivo: 'profesor-nuevo' })
-            }
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioAlta
+            onCerrar={() => setMostrandoAlta(false)}
+            onCreado={(cuentaNueva) => {
+              setMostrandoAlta(false)
+              if (cuentaNueva) {
+                setPasswordGenerada({ ...cuentaNueva, motivo: 'profesor-nuevo' })
+              }
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && (
-        <FormularioEdicion
-          profesor={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardado={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioEdicion
+            profesor={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardado={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Profesor', 'Contacto', 'Especialidad', 'Estado', '']}>

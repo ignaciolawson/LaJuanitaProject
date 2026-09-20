@@ -35,6 +35,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 import { enUnaLinea, precioParaGrupo } from '../api/tiposAdmin'
 
 const DISCIPLINAS: Disciplina[] = ['DJ', 'PRODUCCION', 'MENTORIA']
@@ -187,24 +188,28 @@ export function InscripcionesPagina() {
       )}
 
       {mostrandoAlta && (
-        <FormularioAlta
-          onCerrar={() => setMostrandoAlta(false)}
-          onCreada={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioAlta
+            onCerrar={() => setMostrandoAlta(false)}
+            onCreada={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && (
-        <FormularioEdicion
-          inscripcion={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardada={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioEdicion
+            inscripcion={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardada={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Alumno', 'Curso', 'Profesor', 'Clases', 'Precio', 'Estado', '']}>

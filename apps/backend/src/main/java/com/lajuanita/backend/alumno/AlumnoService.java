@@ -134,11 +134,40 @@ public class AlumnoService {
             Pageable paginado) {
 
         Page<Alumno> pagina = alumnos.buscar(
-                Busqueda.patron(buscar), estado, disciplina, nivel,
+                Busqueda.patron(buscar), numeroDeGrupoBuscado(buscar), estado, disciplina, nivel,
                 EstadoInscripcion.VIGENTES, paginado);
 
-        Map<Long, List<Disciplina>> disciplinas = disciplinasDe(pagina.getContent());
-        return pagina.map(a -> AlumnoResumen.de(a, disciplinas.getOrDefault(a.getId(), List.of())));
+        CursosDeLaPagina cursos = cursosDe(pagina.getContent());
+        return pagina.map(a -> AlumnoResumen.de(a,
+                cursos.disciplinas().getOrDefault(a.getId(), List.of()),
+                cursos.grupos().getOrDefault(a.getId(), List.of())));
+    }
+
+    /**
+     * El número de grupo que el texto del buscador está pidiendo, o null.
+     *
+     * <p><b>Buscar "grupo 8" tiene que traer a los tres</b> (P96): desde `V35` el
+     * grupo es una cosa que existe, se llama por su número y en el listado no se
+     * podía encontrar por ese nombre. El resto del buscador no cambia —sigue
+     * siendo un OR sobre nombre, apellido y mail—, así que buscar a alguien por
+     * su nombre funciona igual que siempre.
+     *
+     * <p>Se aceptan <i>"grupo 8"</i> y <i>"8"</i> a secas. Un texto con letras y
+     * números mezclados no: adivinar ahí traería un grupo entero cuando lo que se
+     * buscaba era una persona, que es peor que no encontrarla.
+     */
+    static Integer numeroDeGrupoBuscado(String buscar) {
+        if (buscar == null) {
+            return null;
+        }
+        var limpio = buscar.trim().toLowerCase();
+        if (limpio.startsWith("grupo")) {
+            limpio = limpio.substring("grupo".length()).trim();
+        }
+        if (limpio.isEmpty() || limpio.length() > 9 || !limpio.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        return Integer.valueOf(limpio);
     }
 
     @Transactional(readOnly = true)
@@ -168,8 +197,15 @@ public class AlumnoService {
     // -------------------------------------------------------------------------
 
     private AlumnoResumen conDisciplinas(Alumno alumno) {
+        CursosDeLaPagina cursos = cursosDe(List.of(alumno));
         return AlumnoResumen.de(alumno,
-                disciplinasDe(List.of(alumno)).getOrDefault(alumno.getId(), List.of()));
+                cursos.disciplinas().getOrDefault(alumno.getId(), List.of()),
+                cursos.grupos().getOrDefault(alumno.getId(), List.of()));
+    }
+
+    /** Lo que una sola consulta contesta de los cursos vigentes de una página. */
+    private record CursosDeLaPagina(Map<Long, List<Disciplina>> disciplinas,
+            Map<Long, List<Integer>> grupos) {
     }
 
     /**
@@ -178,19 +214,28 @@ public class AlumnoService {
      * <p>Una por alumno sería el mismo N+1 que el {@code JOIN FETCH} del usuario
      * ya evita en la consulta de al lado.
      */
-    private Map<Long, List<Disciplina>> disciplinasDe(Collection<Alumno> filas) {
+    private CursosDeLaPagina cursosDe(Collection<Alumno> filas) {
         List<Long> ids = filas.stream().map(Alumno::getId).toList();
         if (ids.isEmpty()) {
             // `IN ()` no es SQL válido: sin esto, una página vacía revienta.
-            return Map.of();
+            return new CursosDeLaPagina(Map.of(), Map.of());
         }
 
         Map<Long, List<Disciplina>> porAlumno = new HashMap<>();
+        Map<Long, List<Integer>> grupos = new HashMap<>();
         for (Object[] fila : alumnos.disciplinasVigentes(ids, EstadoInscripcion.VIGENTES)) {
-            porAlumno.computeIfAbsent(((Number) fila[0]).longValue(), id -> new ArrayList<>())
+            Long idAlumno = ((Number) fila[0]).longValue();
+            porAlumno.computeIfAbsent(idAlumno, id -> new ArrayList<>())
                     .add((Disciplina) fila[1]);
+            // El número de grupo sale de la MISMA consulta que las disciplinas
+            // (P96): son la misma pregunta —qué cursa hoy— y pedirla dos veces
+            // es la N+1 que esta consulta ya existía para evitar.
+            if (fila[2] != null) {
+                grupos.computeIfAbsent(idAlumno, id -> new ArrayList<>())
+                        .add(((Number) fila[2]).intValue());
+            }
         }
-        return porAlumno;
+        return new CursosDeLaPagina(porAlumno, grupos);
     }
 
     private Alumno buscar(Long id) {

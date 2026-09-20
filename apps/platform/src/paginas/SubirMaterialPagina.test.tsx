@@ -44,8 +44,8 @@ const ALUMNOS: AlumnoDelProfesor[] = [
     // algo que demostrar. Con uno solo, filtrar por curso y por alumno darían lo
     // mismo y el caso no probaría nada.
     cursos: [
-      { idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5 },
-      { idInscripcion: 9, disciplina: 'PRODUCCION', nivel: null, clasesRestantes: 12 },
+      { idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5 , numeroGrupo: null },
+      { idInscripcion: 9, disciplina: 'PRODUCCION', nivel: null, clasesRestantes: 12 , numeroGrupo: null },
     ],
     estadoSeguimiento: null,
     observaciones: null,

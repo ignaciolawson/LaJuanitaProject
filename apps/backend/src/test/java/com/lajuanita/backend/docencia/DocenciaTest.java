@@ -114,6 +114,55 @@ class DocenciaTest {
     }
 
     /**
+     * El curso de un grupo viaja con su número (P95).
+     *
+     * <p>Es lo único que el backend le debía a "Mis alumnos": la pantalla agrupa
+     * por {@code idInscripcion} —el grupo <b>es</b> la inscripción (`V35`, P87)—
+     * y el número es lo que le da nombre a la tarjeta. Sin él se pueden juntar
+     * las filas y no se las puede llamar.
+     *
+     * <p>Y las clases restantes son <b>las del curso</b>, iguales para los dos:
+     * con tres filas sueltas cada una decía las mismas seis y parecían dieciocho.
+     */
+    @Test
+    void los_alumnos_de_un_grupo_traen_el_numero_del_grupo_y_las_mismas_clases() throws Exception {
+        Profesor yo = profesorNuevo();
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+
+        Inscripcion grupo = new Inscripcion();
+        grupo.agregarIntegrante(mati, true);
+        grupo.agregarIntegrante(facu, false);
+        grupo.setNumeroGrupo((int) inscripciones.siguienteNumeroDeGrupo());
+        grupo.setProfesor(yo);
+        grupo.setDisciplina(Disciplina.DJ);
+        grupo.setClasesContratadas((short) 8);
+        grupo.setPrecioTotal(new BigDecimal("380000"));
+        inscripciones.save(grupo);
+
+        mvc.perform(get("/api/me/profesor/alumnos").header("Authorization", credencialPara(yo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].cursos[0].idInscripcion").value(grupo.getId()))
+                .andExpect(jsonPath("$[0].cursos[0].numeroGrupo").value(grupo.getNumeroGrupo()))
+                .andExpect(jsonPath("$[1].cursos[0].idInscripcion").value(grupo.getId()))
+                .andExpect(jsonPath("$[1].cursos[0].numeroGrupo").value(grupo.getNumeroGrupo()))
+                .andExpect(jsonPath("$[0].clasesRestantes").value(8))
+                .andExpect(jsonPath("$[1].clasesRestantes").value(8));
+    }
+
+    /** Quien cursa solo no tiene número, y la columna lo dice en vez de inventarlo. */
+    @Test
+    void el_curso_de_un_alumno_solo_no_trae_numero_de_grupo() throws Exception {
+        Profesor yo = profesorNuevo();
+        inscripcionDe(alumnoNuevo(), yo);
+
+        mvc.perform(get("/api/me/profesor/alumnos").header("Authorization", credencialPara(yo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].cursos[0].numeroGrupo").doesNotExist());
+    }
+
+    /**
      * <b>Camino 2: el suplente.</b> Quien toma una clase que no es suya necesita
      * poder dejar la nota de esa sesión —es el momento en que más falta hace— y
      * por la asignación no aparecería nunca.

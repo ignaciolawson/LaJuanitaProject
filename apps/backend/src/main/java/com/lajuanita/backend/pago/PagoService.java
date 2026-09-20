@@ -689,7 +689,7 @@ public class PagoService {
                     concepto == null ? "Deuda anotada" : concepto,
                     ((Number) f[0]).longValue(),
                     aLong(f[8]), aLong(f[9]), aLong(f[10]), aLong(f[11]),
-                    null, null, null, null));
+                    null, null, null, null, null));
         }
 
         OffsetDateTime ahora = OffsetDateTime.now();
@@ -731,7 +731,10 @@ public class PagoService {
                     SaldoPendiente.VENTA.equals(destino) ? idDestino : null,
                     Importe.normalizar((BigDecimal) f[3]), Importe.normalizar((BigDecimal) f[4]),
                     preinscripta ? vence : null,
-                    SaldoPendiente.INSCRIPCION.equals(destino) ? (String) f[12] : null));
+                    // La disciplina y el grupo salen de sus propias columnas (§23 · B2).
+                    // Acá se le pasaba `detalle` como si fuera la disciplina: era
+                    // cierto hasta que `V35` le agregó " · Grupo 8" al detalle.
+                    (String) f[15], f[16] == null ? null : ((Number) f[16]).intValue()));
         }
         return lista;
     }
@@ -747,17 +750,20 @@ public class PagoService {
             String moneda, BigDecimal adeudado, LocalDate desde, int dias, boolean vencido,
             MotivoDeDeuda motivo, String detalle, Long idPago,
             Long idInscripcion, Long idReserva, Long idTrabajo, Long idVenta,
-            BigDecimal precio, BigDecimal cobrado, OffsetDateTime vence, String disciplina) {
+            BigDecimal precio, BigDecimal cobrado, OffsetDateTime vence, String disciplina,
+            Integer numeroGrupo) {
         Usuario persona = idUsuario == null ? null : personas.get(((Number) idUsuario).longValue());
         if (persona == null) {
             return new Deudor(null, nombreExterno, null, null, contactoExterno,
                     moneda, adeudado, desde, dias, vencido, motivo, detalle, idPago,
-                    idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina);
+                    idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina,
+                    numeroGrupo);
         }
         return new Deudor(persona.getId(), persona.getNombre(), persona.getApellido(),
                 persona.getEmail(), persona.getTelefono(),
                 moneda, adeudado, desde, dias, vencido, motivo, detalle, idPago,
-                idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina);
+                idInscripcion, idReserva, idTrabajo, idVenta, precio, cobrado, vence, disciplina,
+                numeroGrupo);
     }
 
     /**

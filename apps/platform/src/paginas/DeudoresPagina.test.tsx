@@ -59,6 +59,7 @@ function deudor(cambios: Partial<Deudor> = {}): Deudor {
     precio: null,
     cobrado: null,
     disciplina: null,
+    numeroGrupo: null,
     vence: null,
     ...cambios,
   }
@@ -296,6 +297,69 @@ describe('el vencimiento', () => {
  * se mudó acá desde Pagos, y sobre una cosa con saldo se registra el pago con
  * el formulario de Pagos prellenado.
  */
+/**
+ * La deuda de un grupo (P93, Ignacio 2026-09-20).
+ *
+ * ⚠️ **Dos cosas que fallaban juntas y por la misma causa.** La fila decía el
+ * nombre del referente —le cobraba a uno lo de tres— y el programa salía como
+ * *"Programa de undefined"*: el servidor mandaba la disciplina y el detalle en
+ * la MISMA columna, y `V35` le agregó " · Grupo 8" al detalle. Un dato que servía
+ * para dos cosas dejó de servir para una, sin que nada fallara.
+ */
+describe('la deuda de un grupo', () => {
+  function delGrupo(cambios: Partial<Deudor> = {}): Deudor {
+    return deudor({
+      idPago: null,
+      motivo: 'FALTA_EL_RESTO',
+      idInscripcion: 90,
+      detalle: 'DJ · Grupo 8',
+      disciplina: 'DJ',
+      numeroGrupo: 8,
+      precio: 447000,
+      cobrado: 223500,
+      adeudado: 223500,
+      ...cambios,
+    })
+  }
+
+  it('la fila se llama "Grupo 8" y el referente queda como contacto', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([delGrupo()])
+    montar()
+
+    expect(await screen.findByText('Grupo 8')).toBeDefined()
+    expect(screen.getByText(/Referente:/)).toBeDefined()
+    // Y el link al estado de cuenta sigue siendo el del referente.
+    const link = screen.getByRole('link', { name: 'Ríos, Camila' })
+    expect(link.getAttribute('href')).toBe('/admin/estado-de-cuenta/10')
+  })
+
+  it('nombra el programa al que se inscribieron, no "undefined"', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([delGrupo()])
+    montar()
+
+    expect(await screen.findByText('Programa de DJ')).toBeDefined()
+    expect(screen.queryByText(/undefined/)).toBeNull()
+  })
+
+  /**
+   * El referente con una deuda suya aparte aparece dos veces, y es correcto: son
+   * dos deudas distintas, con dos conversaciones distintas.
+   */
+  it('la deuda propia del referente no se mezcla con la del grupo', async () => {
+    vi.mocked(listarDeudores).mockResolvedValue([
+      delGrupo(),
+      deudor({ idPago: 77, detalle: 'Alquiler de cabina', adeudado: 45000 }),
+    ])
+    montar()
+
+    expect(await screen.findByText('Grupo 8')).toBeDefined()
+    // Dos veces el mismo nombre: una como referente del grupo, otra como la
+    // persona que debe lo suyo. Son dos filas y dos llamados.
+    expect(screen.getAllByText('Ríos, Camila')).toHaveLength(2)
+    expect(screen.getByText(/2 personas · 2 deudas/)).toBeDefined()
+  })
+})
+
 describe('las acciones (P85)', () => {
   it('sobre una deuda anotada ofrece cobrarla, y cobrar recarga la lista', async () => {
     const { cobrarPago } = await import('../api/administracion')

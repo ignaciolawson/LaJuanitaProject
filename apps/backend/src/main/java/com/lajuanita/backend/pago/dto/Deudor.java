@@ -50,6 +50,23 @@ public record Deudor(
         BigDecimal cobrado,
         /** El plazo, cuando lo hay: la preinscripción. */
         OffsetDateTime vence,
-        /** La disciplina, cuando la deuda es de un programa — lo que el aviso de preinscripción nombra. Null en las demás. */
-        String disciplina) {
+        /**
+         * La disciplina, cuando la deuda es de un programa — lo que el aviso de
+         * preinscripción nombra y lo que la pantalla escribe como "Programa de DJ".
+         * Null en las demás.
+         *
+         * <p>⚠️ <b>Viene de su propia columna desde §23 · B2.</b> Antes se le pasaba
+         * {@link #detalle}, que para una inscripción <i>era</i> la disciplina pelada
+         * — hasta que `V35` le agregó " · Grupo 8" y la pantalla empezó a decir
+         * <i>"Programa de undefined"</i>.
+         */
+        String disciplina,
+        /**
+         * El número del grupo cuando la deuda es de una inscripción de 2 o 3
+         * (`V35`, P88); null en un alumno solo y en las otras tres clases de deuda.
+         *
+         * <p><b>Es lo que hace que Deudores nombre al grupo y no al referente</b>
+         * (P93): la plata la debe el grupo, el referente es por dónde se la reclama.
+         */
+        Integer numeroGrupo) {
 }

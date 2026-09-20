@@ -1,0 +1,14 @@
+
+> dev:landing
+> npm run dev -w apps/landing
+
+
+> landing@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.6.109:3000
+✓ Ready in 7.1s
+✓ Running next.config.ts took 410ms
+

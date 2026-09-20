@@ -136,12 +136,62 @@ describe('los mensajes', () => {
       importe: '$ 223.500',
       vence: '20/09/2026 10:00',
       cuenta: null,
-      companeros: ['Facu Gómez', 'Gonza Ruiz'],
+      companeros: [
+        { nombre: 'Facu Gómez', cuenta: null },
+        { nombre: 'Gonza Ruiz', cuenta: null },
+      ],
     })
 
     expect(mensaje).toContain('Los anotamos en DJ, a vos y a Facu Gómez y Gonza Ruiz: cursan juntos.')
     expect(mensaje).toContain('el lugar del grupo')
     expect(mensaje).toContain('$ 223.500 (es una sola, del grupo)')
+  })
+
+  /**
+   * **Un mensaje y no tres** (P94, Ignacio 2026-09-20). Las claves de los
+   * compañeros viajan adentro del mensaje del referente: antes cada cuenta
+   * nacida tenía su propio botón, o sea tres chats abiertos por la misma persona.
+   */
+  it('lleva adentro las claves de los compañeros a los que les nació la cuenta', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Mati',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 223.500',
+      vence: '20/09/2026 10:00',
+      cuenta: { email: 'mati@mail.com', passwordTemporal: 'A7K2M9' },
+      companeros: [
+        { nombre: 'Facu Gómez', cuenta: { email: 'facu@mail.com', passwordTemporal: 'B8L3N0' } },
+        { nombre: 'Gonza Ruiz', cuenta: null },
+      ],
+    })
+
+    // La suya, y la del único compañero que estrenó cuenta.
+    expect(mensaje).toContain('Contraseña: A7K2M9')
+    expect(mensaje).toContain('Facu Gómez · facu@mail.com · Contraseña: B8L3N0')
+    // El que ya tenía cuenta no aparece en ese bloque: no hay nada que pasarle.
+    expect(mensaje).not.toContain('Gonza Ruiz ·')
+    expect(mensaje).toContain('la cuenta de Facu Gómez — pasásela:')
+    expect(mensaje).not.toContain('\n\n\n')
+  })
+
+  it('sin ninguna cuenta nueva del grupo, el bloque de las claves no existe', () => {
+    const mensaje = mensajeDeInscripcion({
+      nombre: 'Mati',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 223.500',
+      vence: '20/09/2026 10:00',
+      cuenta: null,
+      companeros: [
+        { nombre: 'Facu Gómez', cuenta: null },
+        { nombre: 'Gonza Ruiz', cuenta: null },
+      ],
+    })
+
+    expect(mensaje).not.toContain('pasásela')
+    expect(mensaje).not.toContain('Contraseña')
+    expect(mensaje).not.toContain('\n\n\n')
   })
 
   it('sin cuenta nueva el bloque de la clave se va sin dejar hueco', () => {

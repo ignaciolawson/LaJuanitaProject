@@ -1,6 +1,30 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-15 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-20 — leé esto y después, si hace falta, el resto
+
+✅ **LA UNDÉCIMA BARRIDA (`mejoras.md` §23) ESTÁ CERRADA: ocho de ocho, abierta y
+cerrada el mismo 2026-09-20, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son
+los hallazgos del día después de los grupos, y **seis de los ocho son
+consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: un
+solo WhatsApp al referente con las claves de todos, Deudores agrupado **por
+deudor** (*"Grupo 8"*, el referente como contacto), el profe con **una tarjeta
+por grupo**, y el buscador de alumno diciendo el grupo y encontrando por
+*"grupo 8"*. Más: el profe de la clase prellenado con el del curso, las salas
+bloqueadas dibujadas en el calendario (y sin ofrecer el hueco), *"Ver"* en una
+notificación marcándola leída, y **`TraerALaVista`**, que trae a la vista todo
+panel que se abre por una acción (~25 lugares).
+
+⚠️ **El *"Programa UNDEFINED"* era un dato que servía para dos cosas** —
+`SaldoPendiente` mandaba la disciplina adentro de `detalle` y `V35` le agregó
+*" · Grupo 8"*; ahora son dos columnas. Y de paso apareció **uno peor porque
+nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos
+adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal).
+
+Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones, el
+backend corrido con `./scripts/pruebas-backend.sh`. **`V36` sigue siendo la
+última y el admin sembrado sigue en `V37`.** Sin commit: lo hace Ignacio.
+
+---
 
 ✅ **LA NOVENA BARRIDA (`mejoras.md` §21) ESTÁ CERRADA: cinco de cinco, abierta y
 cerrada el mismo 2026-09-15, dos migraciones (`V33` el precio de una reserva y

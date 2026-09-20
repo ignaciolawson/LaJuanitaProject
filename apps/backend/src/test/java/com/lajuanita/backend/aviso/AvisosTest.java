@@ -329,6 +329,38 @@ class AvisosTest {
                 .isEqualTo("PREINSCRIPTA");
     }
 
+    /**
+     * ⚠️ <b>El texto salía con los {@code %s} crudos adentro</b>, y nadie lo
+     * reportó (§23 · B2).
+     *
+     * <p>La causa es de Java y no del negocio: {@code "A" + "B".formatted(x)} ata
+     * el {@code formatted} al <b>último literal</b>, y ese segundo tramo no tenía
+     * ni un {@code %s} —así que devolvía su propio texto sin tocar y el primero
+     * viajaba sin sustituir. Compila, no tira, y produce una notificación
+     * ilegible: exactamente la clase de falla que esta suite existe para ver,
+     * porque una notificación fea no rompe nada y se convive con ella.
+     *
+     * <p>Ningún caso miraba el <i>contenido</i> de esta regla —todos miran la
+     * clave, que es lo que decide si avisa dos veces—, y por eso aguantó.
+     */
+    @Test
+    void el_aviso_de_preinscripcion_dice_el_texto_y_no_los_marcadores() {
+        Usuario staff = crear(Rol.STAFF);
+        long id = preinscripcionQueVencio(crear(Rol.USUARIO), 3);
+
+        avisos.generar();
+        em.flush();
+
+        String contenido = jdbc.queryForObject("""
+                SELECT contenido FROM notificacion
+                 WHERE clave_evento = ? AND id_usuario_destino = ?
+                """, String.class, "PREINSCRIPCION_VENCIDA:i=" + id, staff.getId());
+
+        assertThat(contenido).doesNotContain("%s").doesNotContain("%d");
+        assertThat(contenido).contains("se anotó a DJ");
+        assertThat(contenido).contains("No se cancela sola");
+    }
+
     /** Con el plazo corriendo, nada. */
     @Test
     void una_preinscripcion_en_plazo_no_avisa() {

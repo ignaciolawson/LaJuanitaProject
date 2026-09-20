@@ -95,6 +95,30 @@ describe('marcar como leídas', () => {
     expect(vi.mocked(marcarLeida)).toHaveBeenCalledWith(1)
   })
 
+  /**
+   * ⚠️ **"Ver" también la marca** (P99, Ignacio 2026-09-20). Entrar a lo que el
+   * aviso señala *es* leerlo: si sólo lo marcaba "Marcar leída", quien resolvía
+   * el asunto se quedaba con el punto rojo puesto, y con diez avisos así el que
+   * todavía importa deja de distinguirse.
+   */
+  it('entrar por "Ver" también la da por leída', async () => {
+    montar()
+    await userEvent.click(await screen.findByRole('link', { name: 'Ver' }))
+
+    expect(vi.mocked(marcarLeida)).toHaveBeenCalledWith(1)
+    // Y la fila se pinta leída en el acto, sin esperar al servidor: el link
+    // navega igual, así que no puede quedar atado a que el pedido conteste.
+    expect(await screen.findByText('Nada sin leer')).toBeDefined()
+  })
+
+  it('una ya leída no vuelve a pedirle nada al servidor al entrar', async () => {
+    vi.mocked(misNotificaciones).mockResolvedValue([aviso({ leida: true })])
+    montar()
+    await userEvent.click(await screen.findByRole('link', { name: 'Ver' }))
+
+    expect(vi.mocked(marcarLeida)).not.toHaveBeenCalled()
+  })
+
   it('todas juntas', async () => {
     montar()
     await userEvent.click(await screen.findByRole('button', { name: 'Marcar todas como leídas' }))

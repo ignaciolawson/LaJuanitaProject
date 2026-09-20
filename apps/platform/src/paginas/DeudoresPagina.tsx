@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router'
 
 import { cobrarPago, listarDeudores } from '../api/administracion'
@@ -11,6 +11,7 @@ import { useErrorPasajero } from '../componentes/aviso'
 import { antiguedad, importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { fecha } from '../componentes/semana'
 
@@ -55,15 +56,6 @@ export function DeudoresPagina() {
   const puedeEscribir = usePuedeEscribir()
   /** La deuda sobre la que se está registrando un pago, ya traducida al formulario. */
   const [registrando, setRegistrando] = useState<PagoPrellenado | null>(null)
-  const formulario = useRef<HTMLDivElement>(null)
-
-  // El formulario se abre ARRIBA de la tabla y el botón que lo abre puede estar
-  // veinte filas más abajo: sin esto el click no muestra nada y parece que no
-  // hizo nada (Ignacio, 2026-09-15). `scrollIntoView` no existe en jsdom, de
-  // ahí el `?.`.
-  useEffect(() => {
-    if (registrando) formulario.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }, [registrando])
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -122,7 +114,7 @@ export function DeudoresPagina() {
       )}
 
       {registrando && (
-        <div ref={formulario}>
+        <TraerALaVista>
           <FormularioPago
             inicial={registrando}
             onCerrar={() => setRegistrando(null)}
@@ -131,7 +123,7 @@ export function DeudoresPagina() {
               void cargar()
             }}
           />
-        </div>
+        </TraerALaVista>
       )}
 
       <Tabla
@@ -152,7 +144,27 @@ export function DeudoresPagina() {
                       deuda que nadie va a ir a cobrar (`V19`, `mejoras.md` §9.1);
                       no se linkea porque no tiene estado de cuenta al que llevar,
                       y un link a `/estado-de-cuenta/null` es peor que ninguno. */}
-                  {p.idUsuario === null ? (
+                  {p.numeroGrupo !== null ? (
+                    // El grupo es el deudor (P93). El referente va debajo, como
+                    // contacto, y sigue siendo el link al estado de cuenta: es
+                    // donde está la inscripción del grupo.
+                    <>
+                      <div className="font-medium">Grupo {p.numeroGrupo}</div>
+                      <div className="text-xs text-tenue">
+                        Referente:{' '}
+                        {p.idUsuario === null ? (
+                          p.nombre
+                        ) : (
+                          <Link
+                            to={`/admin/estado-de-cuenta/${p.idUsuario}`}
+                            className="underline underline-offset-2 hover:text-acento"
+                          >
+                            {p.apellido}, {p.nombre}
+                          </Link>
+                        )}
+                      </div>
+                    </>
+                  ) : p.idUsuario === null ? (
                     <div className="font-medium">
                       {p.nombre}
                       <span className="ml-2 text-xs font-normal text-apagado">sin cuenta</span>
@@ -268,7 +280,7 @@ export function DeudoresPagina() {
   )
 }
 
-/** Una persona con sus deudas, en el orden en que llegaron (el de antigüedad). */
+/** Un deudor con sus deudas, en el orden en que llegaron (el de antigüedad). */
 type PersonaConDeudas = {
   clave: string
   idUsuario: number | null
@@ -276,6 +288,8 @@ type PersonaConDeudas = {
   apellido: string | null
   email: string | null
   telefono: string | null
+  /** Con valor, la fila es un grupo y se llama "Grupo 8" (P93). */
+  numeroGrupo: number | null
   deudas: Deudor[]
   totales: { moneda: Moneda; monto: number; cantidad: number }[]
   /** La deuda más vieja de la persona: decide su lugar en la lista. */
@@ -283,8 +297,21 @@ type PersonaConDeudas = {
 }
 
 /**
- * Agrupa por persona: por el id de la cuenta, o por el nombre para quien no la
+ * Agrupa por deudor: por el id de la cuenta, o por el nombre para quien no la
  * tiene — dos deudores externos distintos no pueden colapsar en uno (`V19`).
+ *
+ * ⚠️ **Y un grupo es UN deudor, no su referente** (P93, Ignacio 2026-09-20:
+ * *"que no figure el nombre del referente, sino Grupo X"*). La deuda de una
+ * inscripción de a tres se registra bajo el referente porque una deuda sin
+ * nombre no le llega a nadie (`V35`, P88) — pero la debe el grupo, y una fila
+ * que dice sólo *"Pérez, Juan"* le cobra a Juan lo de tres. Así que la clave de
+ * un saldo con `numeroGrupo` es el grupo, y el referente queda como **el
+ * contacto**: es por donde se reclama, que es lo que esta pantalla existe para
+ * hacer.
+ *
+ * <p>La consecuencia buscada: el referente que además debe algo suyo —una
+ * cabina, un equipo— aparece **dos veces**, una como grupo y otra como persona.
+ * Es correcto: son dos deudas distintas, con dos conversaciones distintas.
  *
  * **El orden de las personas es el de su deuda más vieja**, que es la pregunta
  * de la pantalla; el orden de las deudas adentro es el que mandó el servidor.
@@ -293,7 +320,12 @@ function agruparPorPersona(deudores: Deudor[]): PersonaConDeudas[] {
   const porClave = new Map<string, PersonaConDeudas>()
 
   for (const d of deudores) {
-    const clave = d.idUsuario === null ? `externo:${d.nombre}` : `u:${d.idUsuario}`
+    const clave =
+      d.numeroGrupo !== null
+        ? `grupo:${d.numeroGrupo}`
+        : d.idUsuario === null
+          ? `externo:${d.nombre}`
+          : `u:${d.idUsuario}`
     let persona = porClave.get(clave)
     if (!persona) {
       persona = {
@@ -303,6 +335,7 @@ function agruparPorPersona(deudores: Deudor[]): PersonaConDeudas[] {
         apellido: d.apellido,
         email: d.email,
         telefono: d.telefono,
+        numeroGrupo: d.numeroGrupo,
         deudas: [],
         totales: [],
         desde: d.desde,
@@ -346,7 +379,7 @@ function prellenadoDe(d: Deudor, p: PersonaConDeudas): PagoPrellenado {
   return {
     destino,
     idDestino,
-    queSalda: d.disciplina ? `Programa de ${NOMBRE_DE_DISCIPLINA[d.disciplina]}` : d.detalle,
+    queSalda: nombreDeLaDeuda(d),
     quien: p.idUsuario === null ? p.nombre : `${p.apellido}, ${p.nombre}`,
     idUsuario: p.idUsuario,
     nombrePagadorExterno: p.idUsuario === null ? p.nombre : null,
@@ -357,6 +390,26 @@ function prellenadoDe(d: Deudor, p: PersonaConDeudas): PagoPrellenado {
 }
 
 /**
+ * Cómo se nombra una deuda: **una sola definición**, para la fila y para el
+ * formulario de Pagos que se abre desde ella.
+ *
+ * <p>Un programa se nombra por su disciplina —que ahora viene en su propia
+ * columna (§23 · B2)— y el resto viene escrito por el servidor: una cabina con
+ * su día, un track, un equipo, el concepto de una deuda anotada.
+ *
+ * <p>`conGrupo` es la única diferencia entre los dos lugares que lo usan. En la
+ * fila, el grupo ya está dicho en la columna "Quién", así que repetirlo sería
+ * decir dos veces lo mismo en dos celdas que se leen juntas. En el formulario de
+ * Pagos no hay columna que lo diga, y qué se está saldando tiene que quedar
+ * completo.
+ */
+function nombreDeLaDeuda(d: Deudor, opciones: { conGrupo?: boolean } = {}): string {
+  const base = d.disciplina ? `Programa de ${NOMBRE_DE_DISCIPLINA[d.disciplina]}` : d.detalle
+  const conGrupo = opciones.conGrupo ?? true
+  return conGrupo && d.numeroGrupo !== null ? `${base} · Grupo ${d.numeroGrupo}` : base
+}
+
+/**
  * De qué se trata cada deuda (P72). Deudores tiene dos fuentes desde la §16 ·
  * Fase 6, y sin esto una preinscripta sin señar y una deuda anotada se leen
  * igual — y son dos llamados distintos. **La preinscripta dice su plazo**, que
@@ -364,11 +417,7 @@ function prellenadoDe(d: Deudor, p: PersonaConDeudas): PagoPrellenado {
  * tiene: se paga antes de empezar, cuando sea.
  */
 function QueDebe({ deudor }: { deudor: Deudor }) {
-  // Un programa se nombra por su disciplina; el resto —una cabina con su día,
-  // un track, un equipo, el concepto de una deuda anotada— viene escrito.
-  const que = deudor.disciplina
-    ? `Programa de ${NOMBRE_DE_DISCIPLINA[deudor.disciplina]}`
-    : deudor.detalle
+  const que = nombreDeLaDeuda(deudor, { conGrupo: false })
 
   if (deudor.motivo === 'SIN_SENIAR' && deudor.vence) {
     return (

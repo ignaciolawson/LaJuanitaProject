@@ -28,6 +28,7 @@ import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
 import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const ESTADOS: EstadoAlumno[] = ['ACTIVO', 'INACTIVO', 'SUSPENDIDO']
 const NIVELES: NivelIngreso[] = ['INICIAL', 'INTERMEDIO', 'AVANZADO']
@@ -182,24 +183,28 @@ export function AlumnosPagina() {
       )}
 
       {mostrandoAlta && (
-        <FormularioAlta
-          onCerrar={() => setMostrandoAlta(false)}
-          onCreado={() => {
-            setMostrandoAlta(false)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioAlta
+            onCerrar={() => setMostrandoAlta(false)}
+            onCreado={() => {
+              setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       {editando && (
-        <FormularioEdicion
-          alumno={editando}
-          onCerrar={() => setEditando(null)}
-          onGuardado={() => {
-            setEditando(null)
-            void cargar()
-          }}
-        />
+        <TraerALaVista>
+          <FormularioEdicion
+            alumno={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardado={() => {
+              setEditando(null)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
       )}
 
       <Tabla columnas={['Alumno', 'Contacto', 'Cursa', 'Nivel de ingreso', 'Estado', '']}>
