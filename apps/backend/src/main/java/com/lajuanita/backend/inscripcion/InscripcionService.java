@@ -298,7 +298,8 @@ public class InscripcionService {
             Pageable paginado) {
 
         Page<Long> ids = inscripciones.buscar(
-                Busqueda.patron(buscar), idAlumno, idProfesor, disciplina, estado, paginado);
+                Busqueda.patron(buscar), Busqueda.numeroDeGrupo(buscar),
+                idAlumno, idProfesor, disciplina, estado, paginado);
         if (ids.isEmpty()) {
             return new PageImpl<>(List.of(), paginado, ids.getTotalElements());
         }

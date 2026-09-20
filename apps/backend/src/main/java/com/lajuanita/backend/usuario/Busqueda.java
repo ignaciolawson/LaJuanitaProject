@@ -32,6 +32,37 @@ public final class Busqueda {
     private Busqueda() {
     }
 
+    /**
+     * El <b>número de grupo</b> que ese texto está pidiendo, o {@code null}.
+     *
+     * <p>⚠️ Desde `V35` el grupo es una cosa que existe y se llama por su número
+     * — *"Grupo 41"* —, así que los listados donde se lo elige tienen que
+     * encontrarlo por ese nombre (P101). Vive acá, con {@link #patron}, porque
+     * lo leen <b>dos</b> buscadores (alumnos e inscripciones) y son la misma
+     * pregunta: <i>¿este texto nombra a un grupo?</i>
+     *
+     * <p>Se aceptan <i>"grupo 41"</i> y <i>"41"</i> a secas. Un texto con letras
+     * y números mezclados <b>no</b>: adivinar ahí traería un grupo entero cuando
+     * lo que se buscaba era una persona, que es peor que no encontrarla.
+     *
+     * <p>Devolver null apaga la condición sola en las dos consultas
+     * ({@code x = null} nunca es verdadero), así que el resto del buscador —
+     * nombre, apellido, mail — no cambia en nada.
+     */
+    public static Integer numeroDeGrupo(String texto) {
+        if (texto == null) {
+            return null;
+        }
+        String limpio = texto.trim().toLowerCase();
+        if (limpio.startsWith("grupo")) {
+            limpio = limpio.substring("grupo".length()).trim();
+        }
+        if (limpio.isEmpty() || limpio.length() > 9 || !limpio.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        return Integer.valueOf(limpio);
+    }
+
     public static String patron(String texto) {
         if (texto == null || texto.isBlank()) {
             return "%";

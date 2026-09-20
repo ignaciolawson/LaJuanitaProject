@@ -394,7 +394,12 @@ export function FormularioPago({
                 {contratos.map((i) => (
                   <option key={i.idInscripcion} value={i.idInscripcion}>
                     {NOMBRE_DE_DISCIPLINA[i.disciplina]}
-                    {i.nivel ? ` · ${i.nivel.toLowerCase()}` : ''} — {importe(i.precioTotal, i.moneda)}
+                    {i.nivel ? ` · ${i.nivel.toLowerCase()}` : ''}
+                    {/* El curso de un grupo se nombra como grupo (P101): el precio
+                        es del grupo y no de esta persona, y sin decirlo un
+                        $447.000 al lado de un nombre solo se lee como su cuota. */}
+                    {i.numeroGrupo !== null ? ` · Grupo ${i.numeroGrupo}` : ''} —{' '}
+                    {importe(i.precioTotal, i.moneda)}
                   </option>
                 ))}
               </CampoSelect>

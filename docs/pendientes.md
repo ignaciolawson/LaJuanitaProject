@@ -2,8 +2,8 @@
 
 ## ⚡ ESTADO AL 2026-09-20 — leé esto y después, si hace falta, el resto
 
-✅ **LA UNDÉCIMA BARRIDA (`mejoras.md` §23) ESTÁ CERRADA: ocho de ocho, abierta y
-cerrada el mismo 2026-09-20, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son
+✅ **LA UNDÉCIMA BARRIDA (`mejoras.md` §23) ESTÁ CERRADA: nueve de nueve —ocho
+traídos y uno rebotado—, abierta y cerrada el mismo 2026-09-20, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son
 los hallazgos del día después de los grupos, y **seis de los ocho son
 consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: un
 solo WhatsApp al referente con las claves de todos, Deudores agrupado **por
@@ -20,7 +20,15 @@ panel que se abre por una acción (~25 lugares).
 nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos
 adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal).
 
-Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones, el
+⚠️ **Y lo que más vale de la barrida es el rebote**: Ignacio miró el arreglo
+del buscador y lo devolvió el mismo día — *"quiero anotar AL GRUPO 41"*. P96
+leyó el problema como de visibilidad y era de modelo; **P101 lo revierte**: donde
+se elige quién toma la clase se eligen **cursos**, y el checkbox se dio vuelta
+(vienen todos, se desmarca al que falta). El mismo defecto, peor, estaba en
+Subir material. **La lección: *"el resultado es correcto"* no alcanza cuando lo
+que se corrige es el modelo.**
+
+Suites: **772 backend · 701 front · 336 + 71 SQL** sobre 36 migraciones, el
 backend corrido con `./scripts/pruebas-backend.sh`. **`V36` sigue siendo la
 última y el admin sembrado sigue en `V37`.** Sin commit: lo hace Ignacio.
 

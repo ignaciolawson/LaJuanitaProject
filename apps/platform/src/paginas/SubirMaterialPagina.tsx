@@ -8,8 +8,8 @@ import {
   misMaterialesSubidos,
   subirMaterial,
 } from '../api/docencia'
-import type { ReservaResumen } from '../api/tiposAdmin'
-import type { AlumnoDelProfesor, MaterialResumen } from '../api/tiposDocencia'
+import { enUnaLinea, type ReservaResumen } from '../api/tiposAdmin'
+import type { AlumnoDelProfesor, CursoDelAlumno, MaterialResumen } from '../api/tiposDocencia'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Campo, CampoSelect } from '../componentes/Campo'
@@ -210,8 +210,16 @@ function Formulario({
           className="sm:col-span-2"
         />
 
-        {/* El curso dice a la vez de quién es el material y de qué programa:
-            una inscripción es el contrato de un alumno. */}
+        {/* El curso dice a la vez a quién le llega el material y de qué programa
+            es: una inscripción es el contrato de 1 a 3 personas (`V35`).
+
+            ⚠️ **Una opción por CURSO, no por persona** (P101). Esto listaba
+            `alumnos.flatMap(a => a.cursos)`, o sea que un grupo de tres apareciía
+            **tres veces con el mismo `idInscripcion`**: "Mati · DJ", "Facu · DJ",
+            "Gonza · DJ". Parecía que se elegía a quién mandarle y no se elegía:
+            el material es del curso y le llega a los tres, se tocara la opción
+            que se tocara. Tres opciones idénticas que hacen lo mismo es peor que
+            una sola que lo dice. */}
         <CampoSelect
           etiqueta="¿Para qué curso?"
           required
@@ -225,14 +233,12 @@ function Formulario({
           error={errores.idInscripcion}
         >
           <option value="">Elegí un curso</option>
-          {alumnos.flatMap((a) =>
-            a.cursos.map((c) => (
-              <option key={c.idInscripcion} value={c.idInscripcion}>
-                {a.nombre} {a.apellido} · {NOMBRE_DE_DISCIPLINA[c.disciplina]}
-                {c.nivel && ` ${c.nivel.toLowerCase()}`}
-              </option>
-            )),
-          )}
+          {cursosDe(alumnos).map((c) => (
+            <option key={c.idInscripcion} value={c.idInscripcion}>
+              {c.quien} · {NOMBRE_DE_DISCIPLINA[c.disciplina]}
+              {c.nivel && ` ${c.nivel.toLowerCase()}`}
+            </option>
+          ))}
         </CampoSelect>
 
         <CampoSelect
@@ -356,6 +362,48 @@ function Fila({
  * de DJ cuando el material es de producción — que es exactamente la mezcla que
  * `V22` acaba de eliminar del otro lado.
  */
+/**
+ * Los cursos del profesor, **uno por inscripción** y no uno por alumno (P101).
+ *
+ * <p>Desde `V35` una inscripción puede ser de hasta tres personas, y
+ * {@code misAlumnos} devuelve una fila por persona con el curso compartido
+ * adentro. Aplanar eso sin agrupar da tres opciones con el mismo id.
+ *
+ * <p>El nombre sale del número del grupo cuando lo hay —*"Grupo 8 (Mati, Facu y
+ * Gonza)"*— y del alumno cuando cursa solo. **Los integrantes se juntan de los
+ * alumnos que este profesor tiene**: si es suplente y sólo tiene a dos de los
+ * tres, la opción nombra a esos dos. El material le llega al curso igual —eso lo
+ * decide `V23`—; lo que la pantalla no puede hacer es inventar los nombres que
+ * no le mandaron.
+ */
+function cursosDe(alumnos: AlumnoDelProfesor[]) {
+  const porInscripcion = new Map<number, CursoParaElegir>()
+
+  for (const a of alumnos) {
+    for (const c of a.cursos) {
+      const nombre = `${a.nombre} ${a.apellido}`
+      const ya = porInscripcion.get(c.idInscripcion)
+      if (ya) {
+        ya.nombres.push(nombre)
+        continue
+      }
+      porInscripcion.set(c.idInscripcion, { curso: c, nombres: [nombre] })
+    }
+  }
+
+  return [...porInscripcion.values()].map(({ curso, nombres }) => ({
+    idInscripcion: curso.idInscripcion,
+    disciplina: curso.disciplina,
+    nivel: curso.nivel,
+    quien:
+      curso.numeroGrupo !== null
+        ? `Grupo ${curso.numeroGrupo} (${enUnaLinea(nombres)})`
+        : nombres[0],
+  }))
+}
+
+type CursoParaElegir = { curso: CursoDelAlumno; nombres: string[] }
+
 function clasesDe(clases: ReservaResumen[], idInscripcion: string): ReservaResumen[] {
   if (idInscripcion === '') return []
 

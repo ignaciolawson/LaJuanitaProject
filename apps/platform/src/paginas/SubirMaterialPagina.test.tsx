@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,8 +44,8 @@ const ALUMNOS: AlumnoDelProfesor[] = [
     // algo que demostrar. Con uno solo, filtrar por curso y por alumno darían lo
     // mismo y el caso no probaría nada.
     cursos: [
-      { idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5 , numeroGrupo: null },
-      { idInscripcion: 9, disciplina: 'PRODUCCION', nivel: null, clasesRestantes: 12 , numeroGrupo: null },
+      { idInscripcion: 7, disciplina: 'DJ', nivel: 'INICIAL', clasesRestantes: 5, numeroGrupo: null },
+      { idInscripcion: 9, disciplina: 'PRODUCCION', nivel: null, clasesRestantes: 12, numeroGrupo: null },
     ],
     estadoSeguimiento: null,
     observaciones: null,
@@ -127,6 +127,46 @@ async function completarElFormulario() {
 }
 
 describe('a qué curso va el material (§12 · C2)', () => {
+  /**
+   * ⚠️ **Una opción por CURSO, no por persona** (P101).
+   *
+   * <p>Esto listaba `alumnos.flatMap(a => a.cursos)`, así que un grupo de tres
+   * aparecía **tres veces con el mismo `idInscripcion`**: "Camila · DJ", "Facu ·
+   * DJ", "Gonza · DJ". Parecía que se elegía a quién mandarle y no se elegía —
+   * el material es del curso y le llega a los tres, se tocara la opción que se
+   * tocara. Tres opciones idénticas que hacen lo mismo es peor que una que lo
+   * dice.
+   */
+  it('un grupo es UNA opción, llamada por su número y con los tres adentro', async () => {
+    const delGrupo = {
+      idInscripcion: 90,
+      disciplina: 'DJ' as const,
+      nivel: 'INICIAL' as const,
+      clasesRestantes: 6,
+      numeroGrupo: 8,
+    }
+    vi.mocked(misAlumnos).mockResolvedValue(
+      ['Camila Ríos', 'Facu Gómez', 'Gonza Ruiz'].map((quien, i) => ({
+        idAlumno: 10 + i,
+        idUsuario: 100 + i,
+        nombre: quien.split(' ')[0],
+        apellido: quien.split(' ')[1],
+        cursos: [delGrupo],
+        estadoSeguimiento: null,
+        observaciones: null,
+        clasesRestantes: 6,
+      })),
+    )
+    render(<SubirMaterialPagina />)
+
+    const select = await screen.findByLabelText('¿Para qué curso?')
+    const opciones = await within(select).findAllByRole('option')
+    // La vacía y la del grupo: dos. Antes eran cuatro.
+    expect(opciones).toHaveLength(2)
+    expect(opciones[1].textContent).toContain('Grupo 8 (Camila Ríos, Facu Gómez y Gonza Ruiz)')
+    expect(opciones[1].getAttribute('value')).toBe('90')
+  })
+
   /**
    * ⚠️ **Este bloque reemplaza a "el destinatario", cuyos casos defendían el
    * agujero.** Aquéllos afirmaban que sin elegir alumno el material quedaba

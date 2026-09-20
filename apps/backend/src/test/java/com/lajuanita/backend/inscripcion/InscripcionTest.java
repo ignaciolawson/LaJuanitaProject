@@ -1147,6 +1147,61 @@ class InscripcionTest {
     }
 
     /**
+     * ⚠️ <b>Y lo encuentra por el NÚMERO del grupo</b> (P101, Ignacio
+     * 2026-09-20: *"quiero anotar AL GRUPO 41"*).
+     *
+     * <p>Es lo que hace que el calendario pueda ofrecer el grupo como una fila
+     * propia y encontrarlo escribiendo su nombre. Sin esto la única forma de
+     * llegar al Grupo 41 era acordarse del nombre de alguno de sus tres
+     * integrantes — o sea, entrar por la persona, que es exactamente la lectura
+     * anterior a `V35`.
+     */
+    @Test
+    void el_listado_encuentra_al_grupo_por_su_numero() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        long id = idDe(mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated()));
+
+        Integer numero = jdbc.queryForObject(
+                "SELECT numero_grupo FROM inscripcion WHERE id_inscripcion = ?", Integer.class, id);
+
+        for (String texto : new String[] { "grupo " + numero, String.valueOf(numero) }) {
+            // ⚠️ El espacio va literal: MockMvc trata la URL como plantilla y un
+            // `%20` llega sin decodificar, así que el texto sería "grupo%2041".
+            mvc.perform(get("/api/inscripciones?buscar=" + texto)
+                    .header("Authorization", comoStaff()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.contenido[?(@.idInscripcion == %d)]".formatted(id)).exists());
+        }
+    }
+
+    /**
+     * ⚠️ <b>Y el resto del buscador no cambia.</b> Un texto con letras no se lee
+     * como un número de grupo: adivinar ahí traería un grupo entero cuando lo que
+     * se buscaba era una persona, que es peor que no encontrarla.
+     */
+    @Test
+    void un_texto_que_no_es_un_numero_no_trae_al_grupo() throws Exception {
+        Alumno mati = alumnoNuevo();
+        Alumno facu = alumnoNuevo();
+        long id = idDe(mvc.perform(alta("""
+                {"integrantes":[%d,%d],"disciplina":"DJ","precioTotal":380000,%s}
+                """.formatted(mati.getId(), facu.getId(), SENA)))
+                .andExpect(status().isCreated()));
+
+        Integer numero = jdbc.queryForObject(
+                "SELECT numero_grupo FROM inscripcion WHERE id_inscripcion = ?", Integer.class, id);
+
+        mvc.perform(get("/api/inscripciones?buscar=grupo " + numero + " largo")
+                .header("Authorization", comoStaff()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.contenido[?(@.idInscripcion == %d)]".formatted(id)).isEmpty());
+    }
+
+    /**
      * P90: una clase del grupo consume UNA clase, no tres. Con la definición
      * vieja (`count(p)`) este caso devuelve 3 consumidas y 5 restantes.
      */

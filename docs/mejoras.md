@@ -6445,6 +6445,9 @@ comandos están en la sección *Commands* de `CLAUDE.md` (`docker compose up -d`
 
 ## 23. La UNDÉCIMA barrida — abierta y cerrada el 2026-09-20
 
+⚠️ **Fueron ocho y terminaron siendo nueve: Ignacio rebotó uno de los arreglos
+el mismo día** (B4 → B7), y el rebote vale más que el punto original — ver B7.
+
 Ignacio trajo ocho hallazgos **el día después de cerrar los grupos**, usando el
 sistema con grupos adentro. Las decisiones están en `requirements/platform.md`
 §29 (P93–P100), cerradas antes de escribir código.
@@ -6476,9 +6479,10 @@ sabe.
 | **B1** | Un solo WhatsApp al inscribir un grupo, con todas las claves (P94) | B |
 | **B2** | Deudores dice "Grupo X", y el *"Programa UNDEFINED"* (P93) | B |
 | **B3** | El profesor ve el grupo y no tres alumnos sueltos (P95) | B |
-| **B4** | El grupo, visible y buscable en el buscador de alumno (P96) | B |
+| **B4** | ~~El grupo, visible y buscable en el buscador de alumno (P96)~~ → **rebotada el mismo día, ver B7** | B |
 | **B5** | El profesor de la clase se prellena con el del curso (P97) | B |
 | **B6** | Las salas bloqueadas, en el calendario (P98) | B |
+| **B7** | Se anota **al grupo**, no a una persona del grupo (P101, corrige a B4) | B |
 
 ### A1 — El panel que se abre, a la vista
 
@@ -6617,6 +6621,71 @@ intervalo continuo — la lectura que `V7` tuvo que rescatar. Leerlo al revés
 taparía de gris una semana entera, y hay un caso que lo pinea contando cuatro
 celdas y no catorce.
 
+### B7 — Se anota AL GRUPO, no a una persona del grupo · *corrige a B4*
+
+⚠️ **Ignacio miró B4 funcionando y lo rebotó el mismo día**: *"no quiero anotar
+a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*. La decisión es **P101**
+(`platform.md` §29), que **revierte a P96**.
+
+**Y tenía razón en algo más profundo que lo que dijo.** B4 leyó el hallazgo como
+de *visibilidad* —la capacidad existía y no se veía— y le puso al buscador de
+personas una etiqueta *"Grupo 41"* al lado del nombre. El resultado de anotar era
+el correcto, los tres entraban. Pero **la pantalla decía otra cosa de la que
+hacía**: presentaba al grupo como una propiedad de Julián en vez de como la
+unidad que es. `V35` decidió que **el grupo ES el alumno**; un formulario que
+obliga a entrar por uno de sus integrantes es la lectura anterior a `V35`
+sobreviviendo en el último lugar donde todavía se la podía escribir.
+
+**La lección, que es la que conviene guardar: "el resultado es correcto" no
+alcanza cuando lo que se está corrigiendo es el modelo.** Tres barridas seguidas
+encontraron pantallas que decían algo un poco falso sin fallar (§23 entera); ésta
+fue la primera donde *la corrección misma* lo dijo un poco falso.
+
+**Lo que quedó**: `componentes/SelectorDeCurso.tsx` busca **inscripciones**
+—filtradas por la disciplina del tipo de uso y sólo ACTIVA— y una fila es
+*"Grupo 41 · Álvarez Julián, Sosa Julieta y Rios Manuel"* o *"Pérez, Juan"*, al
+mismo nivel. El checkbox se dio vuelta: **vienen todos y se desmarca al que
+falta**. `Busqueda.numeroDeGrupo` se mudó de `AlumnoService` a `usuario/Busqueda`
+porque ahora la leen dos buscadores, y `InscripcionRepository.buscar` encuentra
+por el número.
+
+**Tres cosas que se ganaron y no estaban pedidas:**
+
+1. **Desaparece un caso entero.** *"No tiene una inscripción vigente de DJ"* —que
+   se avisaba **después** de elegir a la persona— ya no se puede armar: el
+   buscador no ofrece cursos de otra disciplina. Es `permitidos` con la matriz de
+   §2.6: no ofrecer lo que la base va a rechazar (P39).
+2. ⚠️ **El que ya está anotado arranca destildado**, y sin eso *el camino más
+   común terminaba en un error que no es de quien carga*: sobre una clase que ya
+   tiene a dos del grupo, mandar a los tres hace que el backend rechace al
+   primero —bien rechazado, `V1` no deja anotar dos veces— y el bucle corte ahí
+   **sin llegar al que falta**. Se destilda y **se dice** (*"ya está"*).
+3. **"Descuenta de" deja de calcularse**: es el curso elegido.
+
+#### El otro lugar con la misma forma, y era peor
+
+**Subir material** listaba una opción **por alumno por curso**, así que un grupo
+de tres eran **tres opciones con el mismo `idInscripcion`**. Parecía que se
+elegía a quién mandarle el material y no se elegía: desde `V23` es del curso y le
+llega a los tres, se tocara la opción que se tocara. **Tres opciones idénticas
+que hacen lo mismo es peor que una que lo dice**, porque la primera miente sobre
+lo que el sistema hace. Ahora es una por inscripción, *"Grupo 8 (Camila, Facu y
+Gonza) · DJ inicial"*.
+
+#### Dónde no se tocó, y por qué
+
+Los buscadores de **Pagos** y del **alta de inscripción** siguen eligiendo
+personas, porque ahí lo que se elige *es* una persona — quién paga, a quiénes se
+inscribe. Lo que sí cambió es que **la opción del curso dice el grupo**
+(*"DJ · inicial · Grupo 41 — $447.000"*): un precio de grupo al lado de un nombre
+solo se lee como la cuota de esa persona. Y el **detalle de la reserva** sigue
+listando a los tres: ahí no se elige a nadie, se toma lista, y la asistencia es
+de cada uno.
+
+⚠️ **Trampa de MockMvc encontrada acá**: `get("/api/x?buscar=grupo%2041")` llega
+al controlador como el texto literal `"grupo%2041"` — la URL se trata como
+plantilla y el `%20` no se decodifica. El espacio va literal.
+
 ### Lo que dejó anotado
 
 - **La disciplina se imprime cruda en el aviso** (*"se anotó a PRODUCCION"*).
@@ -6629,16 +6698,23 @@ celdas y no catorce.
 
 ### ⚠️ DÓNDE RETOMAR (sesión del 2026-09-20)
 
-✅ **Cerrada el mismo día que se abrió: ocho de ocho, sin migración.** `V36`
-sigue siendo la última y el admin sembrado sigue en `V37`.
+✅ **Cerrada el mismo día que se abrió: nueve de nueve —ocho traídos y uno
+rebotado—, sin migración.** `V36` sigue siendo la última y el admin sembrado
+sigue en `V37`.
 
-Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones. El
+Suites: **772 backend · 701 front · 336 + 71 SQL** sobre 36 migraciones. El
 backend se corrió con `./scripts/pruebas-backend.sh` —base vacía, lo que ve
 CI—, no sólo con `mvn test`.
 
-**Los tres casos que se verificaron poniendo el bug de vuelta** (la regla de la
-§14): el agrupado de "Mis alumnos", el hueco de la sala bloqueada y la búsqueda
-por número de grupo. Los tres se pusieron rojos.
+⚠️ **Lo más importante de esta barrida es el rebote**, no ninguno de los ocho
+puntos: B4 arregló el síntoma —el grupo no se veía— y Ignacio devolvió que el
+problema era el modelo —hay que poder elegir **al grupo**—. **"El resultado es
+correcto" no alcanza cuando lo que se está corrigiendo es el modelo.** Ver B7.
+
+**Los casos que se verificaron poniendo el bug de vuelta** (la regla de la
+§14): el agrupado de "Mis alumnos", el hueco de la sala bloqueada, la búsqueda
+por número de grupo (en los dos listados), la opción única de Subir material y
+el destildado del que ya está anotado. Todos se pusieron rojos.
 
 Lo que queda para la próxima es lo de siempre —Ignacio usa el sistema y trae
 hallazgos— más lo anotado arriba: los dos `<select>` de Pagos, la 13231 a mano,
@@ -6649,7 +6725,7 @@ avisos.
 
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
-✅ **LA UNDÉCIMA (§23) ESTÁ CERRADA, EL 2026-09-20, ABIERTA Y CERRADA EL MISMO DÍA: ocho de ocho, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son los hallazgos del día después de los grupos, y **seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: el buzón manda **un** WhatsApp al referente con las claves de todos (antes tres), Deudores llama **"Grupo 8"** a la fila y el referente baja a contacto, el profesor ve **una tarjeta por grupo** con los tres adentro y las clases dichas una sola vez, y el buscador de alumno dice el grupo y **encuentra por "grupo 8"**. Las otras dos: todo panel que se abre por una acción **se trae a la vista** (`TraerALaVista`, veintitantos lugares — la corrección que la §21 había hecho a mano sólo en Deudores) y *"Ver"* en una notificación **la marca leída**. Además, el profesor de la clase **se prellena** con el del curso (se prellena, no se fija: el suplente existe) y **las salas bloqueadas se dibujan en el calendario y dejan de ofrecer el hueco**. ⚠️ **El bug que Ignacio vio como *"Programa UNDEFINED"* era un dato que servía para dos cosas**: `SaldoPendiente` mandaba la disciplina adentro de `detalle`, y `V35` le agregó *" · Grupo 8"* — ahora son dos columnas. ⚠️ **Y de paso encontró uno peor porque nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal); ningún caso miraba el contenido de esa regla. ⚠️ **Tres de los ocho tenían la misma forma: la capacidad existía y no se veía** — el calendario ya anotaba al grupo entero, el profesor de la inscripción está desde `V1`, los bloqueos ya los hacía valer un trigger. Suites: **770 backend · 698 front · 336 + 71 SQL** sobre 36 migraciones, el backend corrido con `./scripts/pruebas-backend.sh` (base vacía, lo que ve CI). **`V36` sigue siendo la última y el admin sembrado sigue en `V37`.**
+✅ **LA UNDÉCIMA (§23) ESTÁ CERRADA, EL 2026-09-20, ABIERTA Y CERRADA EL MISMO DÍA: nueve de nueve —ocho traídos y uno rebotado—, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son los hallazgos del día después de los grupos, y **seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: el buzón manda **un** WhatsApp al referente con las claves de todos (antes tres), Deudores llama **"Grupo 8"** a la fila y el referente baja a contacto, el profesor ve **una tarjeta por grupo** con los tres adentro y las clases dichas una sola vez, y el buscador de alumno dice el grupo y **encuentra por "grupo 8"**. Las otras dos: todo panel que se abre por una acción **se trae a la vista** (`TraerALaVista`, veintitantos lugares — la corrección que la §21 había hecho a mano sólo en Deudores) y *"Ver"* en una notificación **la marca leída**. Además, el profesor de la clase **se prellena** con el del curso (se prellena, no se fija: el suplente existe) y **las salas bloqueadas se dibujan en el calendario y dejan de ofrecer el hueco**. ⚠️ **El bug que Ignacio vio como *"Programa UNDEFINED"* era un dato que servía para dos cosas**: `SaldoPendiente` mandaba la disciplina adentro de `detalle`, y `V35` le agregó *" · Grupo 8"* — ahora son dos columnas. ⚠️ **Y de paso encontró uno peor porque nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal); ningún caso miraba el contenido de esa regla. ⚠️ **Tres de los ocho tenían la misma forma: la capacidad existía y no se veía** — el calendario ya anotaba al grupo entero, el profesor de la inscripción está desde `V1`, los bloqueos ya los hacía valer un trigger. ⚠️ **Y lo más importante de la barrida es el rebote: Ignacio miró el arreglo del buscador y lo devolvió el mismo día** — *"no quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*. **P96 leyó el problema como de visibilidad y era de modelo**: puso el grupo como una etiqueta al lado de la persona, y anotar daba el resultado correcto, pero la pantalla decía que el grupo es una propiedad de Julián en vez de la unidad que es. **P101 lo revierte**: donde se elige quién toma la clase se eligen **cursos** (*"Grupo 41 · Álvarez, Sosa y Rios"* o *"Pérez, Juan"*, al mismo nivel), y el checkbox se dio vuelta — **vienen todos y se desmarca al que falta**. El mismo defecto estaba, peor, en **Subir material**: un grupo de tres eran tres opciones con el mismo `idInscripcion`, o sea que parecía que se elegía a quién mandarle y no se elegía. **La lección: *"el resultado es correcto"* no alcanza cuando lo que se está corrigiendo es el modelo.** Suites: **772 backend · 701 front · 336 + 71 SQL** sobre 36 migraciones, el backend corrido con `./scripts/pruebas-backend.sh` (base vacía, lo que ve CI). **`V36` sigue siendo la última y el admin sembrado sigue en `V37`.**
 
 ✅ **Y LA DÉCIMA (§22) TAMBIÉN, EL 2026-09-19, ABIERTA Y CERRADA EL MISMO DÍA: los grupos de 2 y 3, con `V35` y `V36` (P87–P92, `platform.md` §28).** El grupo ES el alumno: una inscripción es el contrato de 1 a 3 personas (`inscripcion_integrante`, `id_alumno` se fue), un precio por tamaño en el catálogo, una seña a nombre del referente, integrantes fijos, P7 ratificada (se anota al grupo entero en cada clase), la ficha del buzón trae a los compañeros y *"Inscribirlo"* crea N cuentas, la landing pregunta *"¿Cuántos son?"*. Encontró que con la definición vieja de `V9` §5 un grupo de 3 no podía tomar ni la primera clase. Suites: **760 backend · 679 front · 336 + 71 SQL** sobre 36 migraciones. **El admin sembrado pasa a `V37`.** ⚠️ El circuito completo (Postgres, backend, plataforma, landing) se levantó de nuevo la misma tarde para que Ignacio lo mirara, y la inscripción 17934 (Grupo 40) quedó como prueba viva.
 

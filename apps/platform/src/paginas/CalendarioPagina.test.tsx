@@ -50,6 +50,54 @@ function pagina<T>(contenido: T[]) {
   return { contenido, pagina: 0, tamanio: 20, totalElementos: contenido.length, totalPaginas: 1 }
 }
 
+/**
+ * Un curso tal como lo devuelve `GET /api/inscripciones`: el contrato de 1 a 3
+ * personas (`V35`). Es lo que el buscador del calendario ofrece desde P101 —
+ * antes ofrecía personas.
+ */
+function curso(cambios: Record<string, unknown> = {}) {
+  return {
+    idInscripcion: 7,
+    numeroGrupo: null,
+    integrantes: [
+      { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', referente: true },
+    ],
+    idAlumno: 3,
+    idUsuario: 30,
+    nombre: 'Camila',
+    apellido: 'Ríos',
+    email: 'c@e.com',
+    idProfesor: null,
+    profesor: null,
+    disciplina: 'DJ',
+    nivel: 'INICIAL',
+    clasesContratadas: 8,
+    clasesConsumidas: 3,
+    clasesRestantes: 5,
+    precioTotal: 180000,
+    moneda: 'ARS',
+    cotizacionDolar: null,
+    fechaInicio: null,
+    estado: 'ACTIVA',
+    vencePreinscripcion: null,
+    notas: null,
+    ...cambios,
+  }
+}
+
+/** El Grupo 8: tres personas, un contrato, una bolsa de clases. */
+function grupoDeTres(cambios: Record<string, unknown> = {}) {
+  return curso({
+    numeroGrupo: 8,
+    integrantes: [
+      { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@x', referente: true },
+      { idAlumno: 4, idUsuario: 31, nombre: 'Facu', apellido: 'Gómez', email: 'f@x', referente: false },
+      { idAlumno: 5, idUsuario: 32, nombre: 'Gonza', apellido: 'Ruiz', email: 'g@x', referente: false },
+    ],
+    ...cambios,
+  })
+}
+
 // El lunes de la semana que usan los casos que renderizan.
 const LUNES = lunesDe(hoyIso())
 
@@ -401,58 +449,100 @@ describe('una reserva ocupa todas sus filas, no solo la de arranque', () => {
  * después de elegir, tres campos más abajo—, y una capacidad que sólo se ve
  * después de usarla es, para quien la busca, una capacidad que no está.
  */
-describe('el grupo en el buscador de alumno', () => {
-  async function abrirAnotar() {
+/**
+ * ⚠️ **El buscador ofrece CURSOS, no personas** (P101, Ignacio 2026-09-20:
+ * *"no quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*).
+ *
+ * <p>La versión anterior hacía elegir una persona y después ofrecía un checkbox
+ * *"anotar a todo el grupo"*, marcado. Anotaba a los tres, o sea que **el
+ * resultado era correcto y la pantalla decía otra cosa**: presentaba al grupo
+ * como una etiqueta de Camila en vez de como la unidad que es. Estos casos
+ * pinchan la forma nueva, que es la del modelo de `V35`.
+ */
+describe('el buscador de curso', () => {
+  async function abrirAnotar(cursos: unknown[]) {
     const user = userEvent.setup()
-    vi.mocked(listarAlumnos).mockResolvedValue(
-      pagina([
-        { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [8] },
-      ]) as never,
-    )
+    vi.mocked(listarInscripciones).mockResolvedValue(pagina(cursos) as never)
     montar()
     await user.click(await screen.findByText('10:00–11:30'))
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
     return user
   }
 
-  it('la fila del buscador dice en qué grupo cursa', async () => {
-    await abrirAnotar()
+  it('un grupo es UNA fila, llamada por su número', async () => {
+    await abrirAnotar([grupoDeTres()])
 
-    expect(await screen.findByText('Grupo 8')).toBeDefined()
+    const fila = await screen.findByRole('button', { name: /Grupo 8/ })
+    // Y adentro de esa misma fila, quiénes son: sin eso, dos grupos de DJ no se
+    // distinguen.
+    expect(fila.textContent).toContain('Camila Ríos, Facu Gómez y Gonza Ruiz')
+    // Lo que NO hay: una fila por persona.
+    expect(screen.queryByRole('button', { name: /^Ríos, Camila/ })).toBeNull()
   })
 
-  it('el buscador invita a buscar por grupo', async () => {
-    await abrirAnotar()
+  it('un alumno solo sigue siendo su propia fila', async () => {
+    await abrirAnotar([curso()])
 
-    const campo = await screen.findByPlaceholderText(/grupo 8/)
-    expect(campo).toBeDefined()
+    expect(await screen.findByRole('button', { name: /Ríos, Camila/ })).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Grupo/ })).toBeNull()
   })
 
-  /** Lo que se escriba viaja tal cual: el servidor es el que lo entiende (P96). */
-  it('escribir "grupo 8" se lo manda al servidor', async () => {
-    const user = await abrirAnotar()
-    await user.type(await screen.findByPlaceholderText(/grupo 8/), 'grupo 8')
+  /** Se pide filtrado por la disciplina del tipo de uso (`V22`) y sólo ACTIVA. */
+  it('pide al servidor los cursos de esa disciplina, activos', async () => {
+    await abrirAnotar([curso()])
 
     await waitFor(() =>
-      expect(vi.mocked(listarAlumnos)).toHaveBeenCalledWith({ buscar: 'grupo 8' }),
+      expect(vi.mocked(listarInscripciones)).toHaveBeenCalledWith({
+        buscar: '',
+        disciplina: 'DJ',
+        estado: 'ACTIVA',
+      }),
     )
+  })
+
+  it('se busca por el número del grupo', async () => {
+    const user = await abrirAnotar([grupoDeTres()])
+    await user.type(await screen.findByPlaceholderText(/grupo 41/), 'grupo 8')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarInscripciones)).toHaveBeenCalledWith({
+        buscar: 'grupo 8',
+        disciplina: 'DJ',
+        estado: 'ACTIVA',
+      }),
+    )
+  })
+
+  /**
+   * El caso que el backend rechaza (P39) ya no se puede ni armar: el buscador
+   * no ofrece cursos de otra disciplina. Lo que queda es decir dónde cargarlo.
+   */
+  it('sin cursos de esa disciplina dice dónde inscribirlo', async () => {
+    await abrirAnotar([])
+
+    expect(await screen.findByText(/No hay cursos de DJ que coincidan/)).toBeDefined()
+    expect(screen.getByText(/Se inscriben desde Inscripciones/)).toBeDefined()
   })
 })
 
+/**
+ * El profesor del curso, prellenado (P97, Ignacio 2026-09-20).
+ *
+ * ⚠️ **Elegir mal el profe no falla**: la clase se dicta, la sala se ocupa, y en
+ * la agenda del profe aparece una clase que no dio —o falta la que sí—. El dato
+ * ya estaba en la inscripción; lo que faltaba era usarlo.
+ */
 describe('el profesor de una clase nueva', () => {
   const PROFES = [
     { idProfesor: 5, idUsuario: 50, nombre: 'Lucas', apellido: 'Ferreyra', nombreCompleto: 'Lucas Ferreyra', especialidad: null, activo: true, cuentaActiva: true },
     { idProfesor: 9, idUsuario: 90, nombre: 'Tomás', apellido: 'Ghezzi', nombreCompleto: 'Tomás Ghezzi', especialidad: null, activo: true, cuentaActiva: true },
   ]
 
-  async function abrirAltaYElegirAlumno() {
+  async function abrirAltaYElegirCurso() {
     const user = userEvent.setup()
     vi.mocked(listarProfesores).mockResolvedValue(PROFES as never)
-    vi.mocked(listarAlumnos).mockResolvedValue(
-      pagina([{ idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] }]) as never,
-    )
     vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5, idProfesor: 9, integrantes: [], numeroGrupo: null }]) as never,
+      pagina([curso({ idProfesor: 9, profesor: 'Tomás Ghezzi' })]) as never,
     )
     montar()
     await user.click(await screen.findByRole('button', { name: 'Nueva reserva' }))
@@ -467,8 +557,8 @@ describe('el profesor de una clase nueva', () => {
   // De ahí el `RegExp` en vez del texto exacto.
   const PROFESOR = /^Profesor/
 
-  it('se pone solo el de la inscripción del alumno', async () => {
-    await abrirAltaYElegirAlumno()
+  it('se pone solo el del curso elegido', async () => {
+    await abrirAltaYElegirCurso()
 
     const select = screen.getByLabelText(PROFESOR) as HTMLSelectElement
     await waitFor(() => expect(select.value).toBe('9'))
@@ -477,7 +567,7 @@ describe('el profesor de una clase nueva', () => {
 
   /** El suplente existe: prellenar no puede ser fijar. */
   it('elegido a mano, el prellenado deja de pisarlo', async () => {
-    const user = await abrirAltaYElegirAlumno()
+    const user = await abrirAltaYElegirCurso()
     const select = screen.getByLabelText(PROFESOR) as HTMLSelectElement
     await waitFor(() => expect(select.value).toBe('9'))
 
@@ -558,13 +648,9 @@ describe('una sala bloqueada', () => {
 })
 
 describe('anotar a alguien en una clase', () => {
-  const ALUMNOS = [
-    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] },
-  ]
-
-  async function abrirDetalle() {
+  async function abrirDetalle(cursos: unknown[] = [curso()]) {
     const user = userEvent.setup()
-    vi.mocked(listarAlumnos).mockResolvedValue(pagina(ALUMNOS) as never)
+    vi.mocked(listarInscripciones).mockResolvedValue(pagina(cursos) as never)
     montar()
     await user.click(await screen.findByText('10:00–11:30'))
     return user
@@ -579,9 +665,6 @@ describe('anotar a alguien en una clase', () => {
   /** La inscripción es lo que hace que la clase descuente del curso. */
   it('anota al alumno descontando de su curso', async () => {
     const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
-    )
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
@@ -600,65 +683,77 @@ describe('anotar a alguien en una clase', () => {
   })
 
   /**
-   * "Anotar al grupo" (`V35`, P90): si el curso que descuenta es de un grupo,
-   * la casilla viene marcada y se anota a los tres — un pedido por persona, el
-   * mismo que anotarlos de a uno. Desmarcada, va uno solo.
+   * ⚠️ **Se elige el GRUPO y vienen los tres** (P101). Antes se elegía a una
+   * persona y una casilla marcada sumaba a las otras dos: el mismo resultado,
+   * dicho al revés. Ahora la unidad es el grupo y lo que se marca es la
+   * excepción.
    */
-  it('si el curso es de un grupo, anota a todo el grupo salvo que se desmarque', async () => {
-    const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([
-        {
-          idInscripcion: 7,
-          disciplina: 'DJ',
-          clasesRestantes: 5,
-          numeroGrupo: 8,
-          integrantes: [
-            { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@x', referente: true },
-            { idAlumno: 4, idUsuario: 31, nombre: 'Facu', apellido: 'Gómez', email: 'f@x', referente: false },
-            { idAlumno: 5, idUsuario: 32, nombre: 'Gonza', apellido: 'Ruiz', email: 'g@x', referente: false },
-          ],
-        },
-      ]) as never,
-    )
+  it('elegido el grupo, se anotan los tres', async () => {
+    const user = await abrirDetalle([grupoDeTres()])
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
-    const casilla = await screen.findByRole('checkbox', { name: /Anotar a todo el grupo/ })
-    expect(casilla).toHaveProperty('checked', true)
-    expect(screen.getByText(/Grupo 8/)).toBeDefined()
+    await user.click(await screen.findByRole('button', { name: /Grupo 8/ }))
+
+    // Los tres tildados, sin tocar nada.
+    for (const quien of ['Camila Ríos', 'Facu Gómez', 'Gonza Ruiz']) {
+      expect(await screen.findByRole('checkbox', { name: quien })).toHaveProperty('checked', true)
+    }
 
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalledTimes(3))
     expect(vi.mocked(agregarParticipante).mock.calls.map(([, c]) => c.idUsuario)).toEqual([30, 31, 32])
   })
 
-  it('desmarcada la casilla del grupo, anota a uno solo', async () => {
-    const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([
-        {
-          idInscripcion: 7,
-          disciplina: 'DJ',
-          clasesRestantes: 5,
-          numeroGrupo: 8,
-          integrantes: [
-            { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@x', referente: true },
-            { idAlumno: 4, idUsuario: 31, nombre: 'Facu', apellido: 'Gómez', email: 'f@x', referente: false },
-          ],
-        },
-      ]) as never,
-    )
+  /** El día que uno no puede: se lo desmarca. Es la excepción, no la regla. */
+  it('desmarcado uno, van los otros dos', async () => {
+    const user = await abrirDetalle([grupoDeTres()])
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
-    await user.click(await screen.findByRole('checkbox', { name: /Anotar a todo el grupo/ }))
+    await user.click(await screen.findByRole('button', { name: /Grupo 8/ }))
+    await user.click(await screen.findByRole('checkbox', { name: 'Facu Gómez' }))
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
 
+    await waitFor(() => expect(agregarParticipante).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(agregarParticipante).mock.calls.map(([, c]) => c.idUsuario)).toEqual([30, 32])
+  })
+
+  /**
+   * ⚠️ **El que YA está anotado arranca destildado** (P101), y sin esto el caso
+   * más común —faltaba uno del grupo— terminaba en un error que no es de quien
+   * carga: el backend rechaza al primero (`V1` no deja anotar dos veces) y el
+   * bucle corta ahí sin llegar al que falta.
+   */
+  it('sobre una clase que ya tiene a dos del grupo, sólo manda al que falta', async () => {
+    vi.mocked(agenda).mockResolvedValue([
+      reserva({
+        participantes: [30, 31].map((idUsuario, i) => ({
+          idParticipacion: 90 + i,
+          idUsuario,
+          nombre: 'Ya',
+          apellido: 'Anotado',
+          idInscripcion: 7,
+          disciplina: 'DJ' as const,
+          estadoAsistencia: 'PENDIENTE' as const,
+          observaciones: null,
+        })),
+      }),
+    ])
+    const user = await abrirDetalle([grupoDeTres()])
+    vi.mocked(agregarParticipante).mockResolvedValue({} as never)
+
+    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
+    await user.click(await screen.findByRole('button', { name: /Grupo 8/ }))
+
+    // Los dos que ya están, destildados y dichos; el tercero, tildado.
+    expect(await screen.findByRole('checkbox', { name: /Camila Ríos/ })).toHaveProperty('checked', false)
+    expect(screen.getAllByText('ya está')).toHaveLength(2)
+    expect(screen.getByRole('checkbox', { name: 'Gonza Ruiz' })).toHaveProperty('checked', true)
+
+    await user.click(screen.getByRole('button', { name: 'Anotar' }))
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalledTimes(1))
-    expect(vi.mocked(agregarParticipante).mock.calls[0][1].idUsuario).toBe(30)
+    expect(vi.mocked(agregarParticipante).mock.calls[0][1].idUsuario).toBe(32)
   })
 
   /**
@@ -666,44 +761,20 @@ describe('anotar a alguien en una clase', () => {
    * reservar sala para producción y descontar de clase de DJ sin querer"*.
    *
    * La pantalla ya no deja elegir: muestra contra qué curso va a descontar, que
-   * es el de la disciplina del tipo de uso de la reserva — acá, DJ— y no el otro
-   * curso vigente del alumno.
+   * es el que se eligió — y el buscador sólo ofrece los de la disciplina del
+   * tipo de uso de la reserva.
    */
   it('dice contra qué curso descuenta, y no lo deja elegir', async () => {
     const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([
-        { idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 },
-        { idInscripcion: 9, disciplina: 'PRODUCCION', clasesRestantes: 12 },
-      ]) as never,
-    )
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
     await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
 
     // El curso de la reserva, con lo que le queda.
     expect(await screen.findByText(/le quedan 5/)).toBeDefined()
-    // Y el otro curso no se ofrece: no hay ningún control que lo elija.
+    // Y no hay ningún control que elija otro.
     expect(screen.queryByLabelText('Descuenta de')).toBeNull()
     expect(screen.queryByRole('option', { name: /Producción/ })).toBeNull()
-  })
-
-  /**
-   * El caso que el backend rechaza (§17 · P39), avisado antes de mandar el
-   * pedido: sin inscripción vigente de esa disciplina no se puede anotar, y el
-   * mensaje dice dónde ir a cargarla.
-   */
-  it('avisa cuando el alumno no tiene el curso de esa clase', async () => {
-    const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 9, disciplina: 'PRODUCCION', clasesRestantes: 12 }]) as never,
-    )
-
-    await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
-    await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
-
-    expect(await screen.findByText(/No tiene una inscripción vigente de DJ/)).toBeDefined()
-    expect(screen.getByText(/Cargala en Inscripciones/)).toBeDefined()
   })
 
   /**
@@ -712,10 +783,7 @@ describe('anotar a alguien en una clase', () => {
    */
   it('muestra el rechazo de la base tal como viene', async () => {
     const { ApiError } = await import('../api/cliente')
-    const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 0 }]) as never,
-    )
+    const user = await abrirDetalle([curso({ clasesRestantes: 0 })])
     vi.mocked(agregarParticipante).mockRejectedValue(
       new ApiError(409, 'Esa inscripcion ya consumio sus 8 clases contratadas'),
     )
@@ -736,14 +804,10 @@ describe('anotar a alguien en una clase', () => {
    * no devolvía `enviando` a `false` —solo lo hacía el `catch`— y se apoyaba en
    * que cerrar el formulario lo desmontaba, cosa que no pasa: el componente sigue
    * montado y solo cambia lo que dibuja. Entonces el `true` sobrevive y aparece al
-   * abrirlo de nuevo, que es el caso más común de todos: cargar una clase grupal
-   * con dos alumnos.
+   * abrirlo de nuevo, que es el caso más común de todos.
    */
   it('despues de anotar a alguien, el boton vuelve a estar disponible', async () => {
     const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
-    )
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     await user.click(screen.getByRole('button', { name: '+ Anotar a alguien' }))
@@ -751,7 +815,6 @@ describe('anotar a alguien en una clase', () => {
     await user.click(screen.getByRole('button', { name: 'Anotar' }))
     await waitFor(() => expect(agregarParticipante).toHaveBeenCalled())
 
-    // Y ahora el segundo alumno de la clase grupal.
     await user.click(await screen.findByRole('button', { name: '+ Anotar a alguien' }))
 
     const boton = await screen.findByRole('button', { name: 'Anotar' })
@@ -767,9 +830,6 @@ describe('anotar a alguien en una clase', () => {
    */
   it('el recien anotado aparece en el panel sin cerrarlo y volverlo a abrir', async () => {
     const user = await abrirDetalle()
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
-    )
     vi.mocked(agregarParticipante).mockResolvedValue({} as never)
 
     // Lo que devuelve el backend después de anotar: la misma reserva, con la
@@ -847,9 +907,6 @@ describe('el alta carga la clase junto con su alumno', () => {
     { idTipoUso: 9, advertencia: null },
     { idTipoUso: 4, advertencia: null },
   ]
-  const ALUMNOS = [
-    { idAlumno: 3, idUsuario: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', grupos: [] },
-  ]
   // Quien alquila puede no ser alumno de nada: la seña lista usuarios, no alumnos.
   const PERSONAS = [
     { id: 30, nombre: 'Camila', apellido: 'Ríos', email: 'c@e.com', telefono: null,
@@ -862,11 +919,8 @@ describe('el alta carga la clase junto con su alumno', () => {
     vi.mocked(agenda).mockResolvedValue([])
     vi.mocked(listarSalas).mockResolvedValue([sala(1, 'Sala 1', { usosPermitidos: TODOS })])
     vi.mocked(listarTiposUso).mockResolvedValue([...TIPOS, GRABACION, MIX])
-    vi.mocked(listarAlumnos).mockResolvedValue(pagina(ALUMNOS) as never)
     vi.mocked(listarUsuarios).mockResolvedValue(pagina(PERSONAS) as never)
-    vi.mocked(listarInscripciones).mockResolvedValue(
-      pagina([{ idInscripcion: 7, disciplina: 'DJ', clasesRestantes: 5 }]) as never,
-    )
+    vi.mocked(listarInscripciones).mockResolvedValue(pagina([curso()]) as never)
     vi.mocked(altaReserva).mockResolvedValue({} as never)
 
     montar()
@@ -880,10 +934,9 @@ describe('el alta carga la clase junto con su alumno', () => {
     const user = await abrirAlta()
 
     await elegir(user, 'Para qué', '1')
+    // Se elige el CURSO, no la persona (P101): para un alumno solo, la fila es
+    // él; para un grupo sería "Grupo 8".
     await user.click(await screen.findByRole('button', { name: /Ríos, Camila/ }))
-    // Se espera a que la pantalla resuelva contra qué descuenta: es lo que dice
-    // que ya llegaron las inscripciones del alumno. Antes esta espera miraba el
-    // valor del `<select>` "Descuenta de", que ya no existe (§12 · C1).
     await waitFor(() => expect(screen.getByText(/le quedan 5/)).toBeDefined())
 
     await user.click(screen.getByRole('button', { name: 'Reservar' }))

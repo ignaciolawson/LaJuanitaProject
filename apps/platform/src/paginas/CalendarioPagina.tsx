@@ -8,7 +8,6 @@ import {
   cambiarAsistencia,
   cambiarEstadoReserva,
   editarReserva,
-  listarInscripciones,
   listarBloqueos,
   listarProfesores,
   listarSalas,
@@ -18,9 +17,8 @@ import { ApiError } from '../api/cliente'
 import {
   HORA_APERTURA,
   NOMBRE_DE_MEDIO,
-  enUnaLinea,
-  type AlumnoResumen,
   type BloqueoResumen,
+  type Disciplina,
   type EstadoAsistencia,
   type InscripcionResumen,
   type MedioPago,
@@ -55,7 +53,7 @@ import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
-import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
+import { SelectorDeCurso } from '../componentes/SelectorDeCurso'
 import { TraerALaVista } from '../componentes/TraerALaVista'
 
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
@@ -708,187 +706,149 @@ function Detalle({
 }
 
 /**
- * Elegir a quién anotar y contra qué curso: el alumno, sus inscripciones
- * vigentes, y la que se descuenta.
+ * Elegir **quién toma la clase**: un curso —un alumno solo o un grupo— y, si es
+ * un grupo, quiénes de sus integrantes vienen.
  *
- * **Está acá afuera porque ahora lo usan dos formularios**: el alta de la clase,
- * que los manda en el mismo pedido que la reserva (paso 2 de la seña), y el
- * "anotar a alguien" del detalle, para quien se suma después. Duplicarlo serían
- * dos lugares donde arreglar la carga de cursos.
+ * **Está acá afuera porque lo usan dos formularios**: el alta de la clase, que
+ * los manda en el mismo pedido que la reserva (paso 2 de la seña), y el "anotar
+ * a alguien" del detalle, para quien se suma después. Duplicarlo serían dos
+ * lugares donde arreglar lo mismo.
  *
- * ⚠️ **El alumno se elige BUSCANDO, con `SelectorDeAlumno`** (§17 · H8). Hasta
- * ahí esto cargaba `listarAlumnos({ pagina: 0 })` en un `<select>`: la primera
- * página, veinte filas, y el alumno veintiuno no se podía anotar en ninguna
- * clase — sin que nada avisara.
+ * ⚠️ **Se elige EL CURSO, no una persona** (P101, Ignacio 2026-09-20: *"no
+ * quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*).
+ * Hasta acá se elegía un alumno y después aparecía un checkbox *"anotar a todo
+ * el grupo"*: **anotaba a los tres igual**, o sea que el resultado era correcto
+ * y la pantalla decía otra cosa de la que hacía — presentába al grupo como una
+ * etiqueta de Julián en vez de como la unidad que es. Era la lectura anterior a
+ * `V35` sobreviviendo en el último lugar donde todavía se la podía escribir.
+ *
+ * <p><b>Y el checkbox se dio vuelta con el modelo.</b> Antes marcabas para
+ * incluir a los otros dos; ahora **vienen todos y desmarcás al que falta**, que
+ * es lo que pasa de verdad: un grupo cursa junto y la excepción es el día que
+ * uno no puede. El caso que eso habilita —la recuperación de uno solo— sigue
+ * entrando por el mismo control.
+ *
+ * <p><b>De qué curso descuenta ya no hay que calcularlo</b>: es el curso
+ * elegido. El buscador lo filtra por la disciplina del tipo de uso (`V22`) y
+ * sólo ofrece ACTIVA, así que el caso *"no tiene una inscripción vigente de
+ * DJ"* —que antes se avisaba después de elegir— ya no se puede armar.
  */
 function useParticipante(disciplina: string | null) {
-  const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
-  const [cursos, setCursos] = useState<InscripcionResumen[]>([])
-  // `useState` pelado: si las inscripciones no cargaron, "Descuenta de" queda
-  // vacío y este mensaje es la única explicación de por qué.
-  const [errorDeCarga, setErrorDeCarga] = useState<string | null>(null)
+  const [curso, setCurso] = useState<InscripcionResumen | null>(null)
+  /** Los integrantes que HOY no vienen. Vacío casi siempre: el grupo cursa junto. */
+  const [ausentes, setAusentes] = useState<number[]>([])
 
-  // Solo las vigentes: anotar una clase contra un curso terminado no descuenta
-  // nada real, y ofrecerlo es ofrecer un error de carga.
+  // Cambiar de tipo de uso cambia la disciplina, y el curso elegido puede ser de
+  // otra: se suelta en vez de quedar mostrando algo que ya no corresponde.
   useEffect(() => {
-    if (!alumno) {
-      setCursos([])
-      return
-    }
-    listarInscripciones({ idAlumno: alumno.idAlumno, estado: 'ACTIVA' })
-      .then((r) => setCursos(r.contenido))
-      .catch(() => setErrorDeCarga('No se pudieron cargar las inscripciones.'))
-  }, [alumno])
+    setCurso((previo) => (previo && previo.disciplina !== disciplina ? null : previo))
+  }, [disciplina])
 
-  /**
-   * Contra qué curso va a descontar esta clase — **como dato, no como control**
-   * (`mejoras.md` §12 · C1).
-   *
-   * ⚠️ **Esto NO decide nada: lo decide el servidor**, con la disciplina del tipo
-   * de uso de la reserva (`V22`). Acá se repite la misma cuenta para poder
-   * mostrarla antes de mandar el pedido, que es lo que evita que alguien cargue
-   * una clase y se coma un 400. Si las dos discreparan, manda el backend.
-   *
-   * `null` cuando el uso no es una clase —un alquiler no descuenta— y también
-   * cuando el alumno no tiene ese curso, que es el caso que la pantalla avisa.
-   */
-  const cursoQueDescuenta =
-    disciplina === null ? null : (cursos.find((c) => c.disciplina === disciplina) ?? null)
-
-  /**
-   * "Anotar al grupo" (`V35`, P90). Si el curso que descuenta es de un grupo,
-   * la clase es de los tres: se anotan juntos, salvo que se desmarque. Y es lo
-   * mismo que anotarlos de a uno —el servidor resuelve para cada uno la
-   * inscripción ACTIVA de la disciplina, que ya es la del grupo—, así que esto
-   * no manda nada que no se pudiera mandar antes: ahorra dos búsquedas.
-   */
-  const [todoElGrupo, setTodoElGrupo] = useState(true)
-  const grupo = cursoQueDescuenta?.numeroGrupo != null ? cursoQueDescuenta : null
-  const elegidos: { idUsuario: number }[] = !alumno
-    ? []
-    : grupo && todoElGrupo
-      ? grupo.integrantes.map((x) => ({ idUsuario: x.idUsuario }))
-      : [{ idUsuario: alumno.idUsuario }]
+  const integrantes = curso?.integrantes ?? []
+  const elegidos = integrantes
+    .filter((x) => !ausentes.includes(x.idUsuario))
+    .map((x) => ({ idUsuario: x.idUsuario }))
 
   return {
-    cursos,
-    alumno,
-    setAlumno,
-    disciplina,
-    cursoQueDescuenta,
-    grupo,
-    todoElGrupo,
-    setTodoElGrupo,
-    errorDeCarga,
-    limpiar() {
-      setAlumno(null)
-      setTodoElGrupo(true)
+    curso,
+    elegirCurso(nuevo: InscripcionResumen | null) {
+      setCurso(nuevo)
+      setAusentes([])
     },
-    /** Listo para el cuerpo del pedido, o null si todavía no eligió a nadie. */
-    elegido: alumno ? { idUsuario: alumno.idUsuario } : null,
-    /** Los que se anotan: uno, o el grupo entero (`V35`). Vacía sin alumno. */
+    disciplina,
+    integrantes,
+    ausentes,
+    alternar(idUsuario: number) {
+      setAusentes((previos) =>
+        previos.includes(idUsuario)
+          ? previos.filter((x) => x !== idUsuario)
+          : [...previos, idUsuario],
+      )
+    },
+    /** Quien ya está anotado en esa reserva arranca destildado (ver abajo). */
+    marcarAusentes(ids: number[]) {
+      setAusentes(ids)
+    },
+    limpiar() {
+      setCurso(null)
+      setAusentes([])
+    },
+    /** Los que se anotan. Vacía sin curso, o con todo el grupo desmarcado. */
     elegidos,
   }
 }
 
 /**
- * El selector de alumno y **contra qué curso descuenta**, sueltos: los dos
- * formularios que los usan tienen su propia grilla de dos columnas, así que esto
- * es un fragmento y no un bloque.
+ * El buscador de curso y, si es un grupo, quiénes vienen.
  *
- * ⚠️ **Antes eran dos selects y el segundo era el bug** (`mejoras.md` §12 · C1).
- * "Descuenta de" ofrecía TODAS las inscripciones vigentes del alumno sin mirar
- * para qué era la reserva, así que —con las palabras de Ignacio— *"uno podría
- * reservar sala para producción y descontar de clase de DJ sin querer"*. Y
- * elegir mal ahí **no falla nunca**: la clase se dicta, la sala se ocupa, y la
- * que baja es la del otro curso.
- *
- * Ahora el curso **se muestra, no se elige**. Es la misma forma que el resto del
- * sistema le da a lo que el servidor decide: el dato a la vista, sin un control
- * que sugiera que hay algo que resolver.
+ * ⚠️ **La lista de integrantes NO es un selector de participantes**: es el
+ * grupo, ya anotado, con la posibilidad de sacar al que falta. Por eso arranca
+ * todo tildado y por eso no aparece para un alumno solo — ahí no hay nada que
+ * elegir y un checkbox suelto invitaría a destildarlo.
  */
 function CamposDeParticipante({
   selector,
   error,
+  yaAnotados,
 }: {
   selector: ReturnType<typeof useParticipante>
   error?: string
+  /** Los que ya están en esa reserva: se marcan para que no parezca un olvido. */
+  yaAnotados?: number[]
 }) {
+  const { curso } = selector
   return (
     <>
-      <SelectorDeAlumno
-        etiqueta="Quién"
-        elegido={selector.alumno}
-        onElegir={selector.setAlumno}
+      <SelectorDeCurso
+        etiqueta="Quién toma la clase"
+        disciplina={(selector.disciplina as Disciplina | null) ?? null}
+        elegido={curso}
+        onElegir={selector.elegirCurso}
         error={error}
-        autoFocus={false}
       />
 
-      <DescuentaDe selector={selector} />
-    </>
-  )
-}
+      <div>
+        <span className="t-mono text-tenue">Descuenta de</span>
+        <div className="mt-1.5 py-2 text-sm">
+          {selector.disciplina === null ? (
+            // Un alquiler de cabina, una grabación, un mastering. No descuenta.
+            <span className="text-tenue">No descuenta clases</span>
+          ) : !curso ? (
+            <span className="text-apagado">Elegí el curso</span>
+          ) : (
+            <>
+              {NOMBRE_DE_DISCIPLINA[curso.disciplina]}
+              {curso.numeroGrupo !== null && ` · Grupo ${curso.numeroGrupo}`}
+              <span className="text-tenue"> — le{curso.numeroGrupo !== null ? 's' : ''} quedan {curso.clasesRestantes}</span>
+            </>
+          )}
+        </div>
+      </div>
 
-/**
- * Contra qué curso descuenta esta clase.
- *
- * **Los cuatro estados se dicen, y ninguno se esconde.** Un hueco donde antes
- * había un control se lee como que la pantalla perdió algo; y sobre todo, el
- * tercer caso —el alumno no tiene ese curso— es un pedido que el backend va a
- * rechazar, así que decirlo acá es la diferencia entre enterarse antes o después
- * de completar el formulario.
- */
-function DescuentaDe({ selector }: { selector: ReturnType<typeof useParticipante> }) {
-  const { disciplina, alumno, cursoQueDescuenta } = selector
-
-  return (
-    <div>
-      <span className="t-mono text-tenue">Descuenta de</span>
-      <div className="mt-1.5 py-2 text-sm">
-        {disciplina === null ? (
-          // Un alquiler de cabina, una grabación, un mastering. Antes esto era la
-          // opción vacía de un desplegable; ahora es lo que el catálogo dice.
-          <span className="text-tenue">No descuenta clases</span>
-        ) : !alumno ? (
-          <span className="text-apagado">Elegí un alumno</span>
-        ) : cursoQueDescuenta ? (
-          <>
-            {NOMBRE_DE_DISCIPLINA[cursoQueDescuenta.disciplina]}
-            {selector.grupo && ` · Grupo ${selector.grupo.numeroGrupo}`}
-            <span className="text-tenue">
-              {' '}
-              — le quedan {cursoQueDescuenta.clasesRestantes}
-            </span>
-            {selector.grupo && (
-              // Cursan juntos (P90): la clase es del grupo. Desmarcar es para el
-              // día en que uno viene solo a recuperar.
-              <label className="mt-1.5 flex items-start gap-2 text-sm">
+      {curso && curso.numeroGrupo !== null && (
+        <div className="sm:col-span-2">
+          <span className="t-mono text-tenue">Vienen</span>
+          <p className="mt-1 text-xs text-apagado">
+            Cursan juntos: se anotan los {curso.integrantes.length}. Desmarcá al que falte.
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5">
+            {curso.integrantes.map((x) => (
+              <label key={x.idUsuario} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={selector.todoElGrupo}
-                  onChange={(e) => selector.setTodoElGrupo(e.target.checked)}
-                  className="mt-0.5"
+                  checked={!selector.ausentes.includes(x.idUsuario)}
+                  onChange={() => selector.alternar(x.idUsuario)}
                 />
-                <span>
-                  Anotar a todo el grupo
-                  <span className="block text-xs text-tenue">
-                    {enUnaLinea(selector.grupo.integrantes.map((x) => `${x.nombre} ${x.apellido}`))}
-                  </span>
-                </span>
+                {x.nombre} {x.apellido}
+                {yaAnotados?.includes(x.idUsuario) && (
+                  <span className="text-xs text-apagado">ya está</span>
+                )}
               </label>
-            )}
-          </>
-        ) : (
-          // ⚠️ El mensaje dice DÓNDE ir a arreglarlo, igual que el del backend
-          // (§17 · P39): un "no se puede" a secas manda a adivinar.
-          <span className="text-acento">
-            No tiene una inscripción vigente de{' '}
-            {NOMBRE_DE_DISCIPLINA[disciplina as keyof typeof NOMBRE_DE_DISCIPLINA] ?? disciplina}.
-            Cargala en Inscripciones.
-          </span>
-        )}
-      </div>
-    </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -925,10 +885,35 @@ function FormularioParticipante({
   const tipo = tipos.find((t) => t.idTipoUso === reserva.idTipoUso)
   const selector = useParticipante(tipo?.disciplina ?? null)
 
+  /**
+   * ⚠️ **El que YA está anotado arranca destildado** (P101).
+   *
+   * <p>Acá la clase ya existe, así que el caso normal es *"faltaba uno del
+   * grupo"*: se elige el grupo y los otros dos ya están. Sin esto el formulario
+   * los mandaría de nuevo, el backend rechazaría al primero —está bien que lo
+   * haga, `V1` no deja anotar dos veces a la misma persona— y el bucle cortaría
+   * ahí sin llegar al que falta. O sea: el camino más común terminaba en un
+   * error que no es de quien carga.
+   *
+   * <p>Sigue siendo **destildado y no invisible**: quien mira tiene que ver que
+   * el grupo son tres y que dos ya están.
+   */
+  const curso = selector.curso
+  useEffect(() => {
+    if (!curso) return
+    const yaEstan = curso.integrantes
+      .filter((x) => reserva.participantes.some((p) => p.idUsuario === x.idUsuario))
+      .map((x) => x.idUsuario)
+    selector.marcarAusentes(yaEstan)
+    // Sobre el curso elegido y esta reserva: no depende del selector entero,
+    // que cambia de identidad en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curso, reserva.participantes])
+
   async function anotar(evento: React.FormEvent) {
     evento.preventDefault()
-    if (!selector.elegido) {
-      setError('Elegí a quién anotar.')
+    if (selector.elegidos.length === 0) {
+      setError(selector.curso ? 'Marcá al menos a uno.' : 'Elegí el curso.')
       return
     }
 
@@ -978,12 +963,15 @@ function FormularioParticipante({
   return (
     <form onSubmit={anotar} noValidate className="mt-4 rounded-md border border-linea p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <CamposDeParticipante selector={selector} />
+        <CamposDeParticipante
+          selector={selector}
+          yaAnotados={reserva.participantes.map((p) => p.idUsuario)}
+        />
       </div>
 
-      {(error ?? selector.errorDeCarga) && (
+      {error && (
         <div className="mt-3">
-          <Aviso>{error ?? selector.errorDeCarga}</Aviso>
+          <Aviso>{error}</Aviso>
         </div>
       )}
 
@@ -1072,7 +1060,7 @@ function FormularioReserva({
    * curso del que sacarlo.
    */
   const [profesorTocado, setProfesorTocado] = useState(false)
-  const profesorDelCurso = participante.cursoQueDescuenta?.idProfesor ?? null
+  const profesorDelCurso = participante.curso?.idProfesor ?? null
   useEffect(() => {
     if (reserva || profesorTocado || profesorDelCurso === null) return
     setDatos((previo) => ({ ...previo, idProfesor: String(profesorDelCurso) }))
@@ -1172,8 +1160,10 @@ function FormularioReserva({
     // nadie anotado es una reserva sin plata detrás, y `V10` la va a rechazar al
     // COMMIT. Se pide acá y no en el DTO porque el backend la acepta vacía a
     // propósito -- un alquiler de cabina no tiene participantes.
-    if (pideParticipante && !participante.elegido) {
-      locales.idUsuario = 'Elegí al alumno: una clase se carga junto con quién la toma.'
+    if (pideParticipante && participante.elegidos.length === 0) {
+      locales.idUsuario = participante.curso
+        ? 'Marcá al menos a uno de los que vienen.'
+        : 'Elegí el curso: una clase se carga junto con quién la toma.'
     }
     // La misma regla por el otro camino: sin inscripción que lo cubra, lo que
     // sostiene la reserva es el pago, y `V10` lo exige al COMMIT.
@@ -1459,11 +1449,12 @@ function FormularioReserva({
             de grabación es válida solo si es una práctica. */}
         {advertencia && <p className="mt-3 text-xs text-acento">{advertencia}</p>}
 
-        {/* El de carga también: sin esto, un fallo al traer los alumnos deja el
-            select vacío sin decir por qué, que se lee como "no hay alumnos". */}
-        {(errorGeneral ?? participante.errorDeCarga) && (
+        {/* El fallo al traer los cursos lo muestra el propio buscador, debajo de
+            su campo (§23 · P101): ahí es donde se ve la lista vacía que hay que
+            explicar. */}
+        {errorGeneral && (
           <div className="mt-4">
-            <Aviso>{errorGeneral ?? participante.errorDeCarga}</Aviso>
+            <Aviso>{errorGeneral}</Aviso>
           </div>
         )}
 

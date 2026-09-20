@@ -56,6 +56,12 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
      * consulta filtra, ordena y pagina, y la otra trae todo lo que la fila
      * necesita en una sola vuelta.
      *
+     * <p>⚠️ <b>Y busca también por el NÚMERO del grupo</b> (P101): desde `V35`
+     * el grupo es una cosa que existe y se llama *"Grupo 41"*, así que ese nombre
+     * tiene que encontrarla. {@code numeroGrupo} llega en null cuando el texto no
+     * es un número — y entonces la condición se apaga sola, porque
+     * {@code i.numeroGrupo = null} nunca es verdadero.
+     *
      * <p>El buscador y el filtro por alumno miran a <b>cualquier</b> integrante
      * (dos {@code EXISTS} separados: buscar "Facu" en las inscripciones de Mati
      * tiene que encontrar el grupo de los dos). El orden es por el apellido del
@@ -76,13 +82,14 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
               AND (:idProfesor IS NULL OR p.id = :idProfesor)
               AND (:disciplina IS NULL OR i.disciplina = :disciplina)
               AND (:estado     IS NULL OR i.estado = :estado)
-              AND EXISTS (
+              AND (i.numeroGrupo = :numeroGrupo
+                   OR EXISTS (
                       SELECT 1 FROM InscripcionIntegrante y
                       JOIN y.alumno ya JOIN ya.usuario yu
                       WHERE y.inscripcion = i
                         AND (LOWER(yu.nombre)   LIKE :patron ESCAPE '\\'
                              OR LOWER(yu.apellido) LIKE :patron ESCAPE '\\'
-                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\'))
+                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\')))
             ORDER BY LOWER(ru.apellido), LOWER(ru.nombre), i.id DESC
             """,
             countQuery = """
@@ -94,15 +101,17 @@ public interface InscripcionRepository extends JpaRepository<Inscripcion, Long> 
               AND (:idProfesor IS NULL OR p.id = :idProfesor)
               AND (:disciplina IS NULL OR i.disciplina = :disciplina)
               AND (:estado     IS NULL OR i.estado = :estado)
-              AND EXISTS (
+              AND (i.numeroGrupo = :numeroGrupo
+                   OR EXISTS (
                       SELECT 1 FROM InscripcionIntegrante y
                       JOIN y.alumno ya JOIN ya.usuario yu
                       WHERE y.inscripcion = i
                         AND (LOWER(yu.nombre)   LIKE :patron ESCAPE '\\'
                              OR LOWER(yu.apellido) LIKE :patron ESCAPE '\\'
-                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\'))
+                             OR LOWER(yu.email)    LIKE :patron ESCAPE '\\')))
             """)
     Page<Long> buscar(@Param("patron") String patron,
+            @Param("numeroGrupo") Integer numeroGrupo,
             @Param("idAlumno") Long idAlumno,
             @Param("idProfesor") Long idProfesor,
             @Param("disciplina") Disciplina disciplina,

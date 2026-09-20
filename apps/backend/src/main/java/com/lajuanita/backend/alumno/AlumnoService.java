@@ -134,40 +134,13 @@ public class AlumnoService {
             Pageable paginado) {
 
         Page<Alumno> pagina = alumnos.buscar(
-                Busqueda.patron(buscar), numeroDeGrupoBuscado(buscar), estado, disciplina, nivel,
+                Busqueda.patron(buscar), Busqueda.numeroDeGrupo(buscar), estado, disciplina, nivel,
                 EstadoInscripcion.VIGENTES, paginado);
 
         CursosDeLaPagina cursos = cursosDe(pagina.getContent());
         return pagina.map(a -> AlumnoResumen.de(a,
                 cursos.disciplinas().getOrDefault(a.getId(), List.of()),
                 cursos.grupos().getOrDefault(a.getId(), List.of())));
-    }
-
-    /**
-     * El número de grupo que el texto del buscador está pidiendo, o null.
-     *
-     * <p><b>Buscar "grupo 8" tiene que traer a los tres</b> (P96): desde `V35` el
-     * grupo es una cosa que existe, se llama por su número y en el listado no se
-     * podía encontrar por ese nombre. El resto del buscador no cambia —sigue
-     * siendo un OR sobre nombre, apellido y mail—, así que buscar a alguien por
-     * su nombre funciona igual que siempre.
-     *
-     * <p>Se aceptan <i>"grupo 8"</i> y <i>"8"</i> a secas. Un texto con letras y
-     * números mezclados no: adivinar ahí traería un grupo entero cuando lo que se
-     * buscaba era una persona, que es peor que no encontrarla.
-     */
-    static Integer numeroDeGrupoBuscado(String buscar) {
-        if (buscar == null) {
-            return null;
-        }
-        var limpio = buscar.trim().toLowerCase();
-        if (limpio.startsWith("grupo")) {
-            limpio = limpio.substring("grupo".length()).trim();
-        }
-        if (limpio.isEmpty() || limpio.length() > 9 || !limpio.chars().allMatch(Character::isDigit)) {
-            return null;
-        }
-        return Integer.valueOf(limpio);
     }
 
     @Transactional(readOnly = true)

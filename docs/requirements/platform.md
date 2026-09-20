@@ -3349,7 +3349,13 @@ alumnos: el suplente que dio una clase a la que fueron dos de los tres ve a
 esos dos. La tarjeta lo dice (*"1 alumno tuyo"*) en vez de fingir el grupo
 entero.
 
-### ✅ P96 — El grupo se ve y se busca desde el buscador de alumno
+### ⚠️ P96 — El grupo se ve y se busca desde el buscador de alumno · *CORREGIDA POR P101*
+
+> ⚠️ **Esta decisión quedó a medias y la reemplaza P101, al final de esta
+> misma sección.** Leyó el problema como de visibilidad —mostrar el grupo al
+> lado de la persona— y el problema era de modelo: hay que poder elegir **al
+> grupo**. Lo que sobrevive de acá es la búsqueda por número y la etiqueta en
+> los buscadores que sí eligen personas (Pagos, alta de inscripción).
 
 **Lo que había:** el calendario **ya** anota al grupo entero — elegir a
 cualquiera de los tres alcanza (P90) — con un checkbox que aparece *después* de
@@ -3446,3 +3452,83 @@ ese `useEffect` son diecinueve que alguien olvida.
 tarjeta que los disparó**. Los que se abren en el lugar —adentro de una ficha
 expandida, debajo de su propio botón— ya están a la vista, y con `'nearest'`
 envolverlos no haría nada de todos modos.
+
+### ✅ P101 — Se elige EL GRUPO, no una persona del grupo · *corrige a P96*
+
+> ⚠️ **Esta decisión revierte a P96, cerrada tres horas antes el mismo día.** Es
+> la tercera vez que una tanda deshace a otra —`V15` contra `V6` §3, §20 contra
+> §15— y la regla es la misma: **la posterior gana**. Leer P96 sin esto lleva a
+> la conclusión contraria.
+
+**Lo que dijo Ignacio, textual** (2026-09-20, mirando P96 funcionando): *"viste
+cuando reservas una sala para un grupo, o sea no quiero que si elegís a uno
+anota a los 3 de ese grupo, quiero que vos puedas anotar AL grupo; por ejemplo,
+no quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*.
+
+**Lo que P96 hizo, y por qué no alcanzaba.** P96 leyó el problema como de
+*visibilidad*: la capacidad de anotar al grupo entero existía (P90) y no se veía
+hasta después de elegir, así que le puso al buscador de personas una etiqueta
+*"Grupo 41"* al lado del nombre. **El resultado era correcto y la pantalla decía
+otra cosa**: presentaba al grupo como una *propiedad de Julián* —algo que él
+tiene— en vez de como la unidad que es. `V35` decidió que **el grupo ES el
+alumno** (P87); un formulario que obliga a entrar por uno de sus integrantes es
+la lectura anterior a `V35` sobreviviendo en el último lugar del sistema donde
+todavía se la podía escribir.
+
+**La decisión:** donde se elige *quién toma la clase* se eligen **cursos**, que
+es exactamente la entidad que `V35` define: el contrato de 1 a 3 personas. Una
+fila es **"Grupo 41 · Álvarez Julián, Sosa Julieta y Rios Manuel"** o **"Pérez,
+Juan"**, al mismo nivel, y se busca por el nombre de cualquier integrante **o
+por el número del grupo**.
+
+**Y el checkbox se dio vuelta con el modelo.** Antes marcabas para *incluir* a
+los otros dos; ahora **vienen todos y desmarcás al que falta**, que es lo que
+pasa de verdad —un grupo cursa junto y la excepción es el día que uno no puede—.
+El caso que eso habilita, la recuperación de uno solo, entra por el mismo
+control.
+
+**Tres cosas que se ganan y no estaban en el pedido:**
+
+1. **Desaparece un caso entero.** El buscador filtra por la disciplina del tipo
+   de uso (`V22`) y sólo ofrece ACTIVA, así que *"no tiene una inscripción
+   vigente de DJ"* —que antes se avisaba **después** de elegir a la persona— ya
+   no se puede armar. Es el criterio de `permitidos` con la matriz de §2.6: **no
+   ofrecer lo que la base va a rechazar** (P39).
+2. **El que ya está anotado arranca destildado.** Sobre una clase que ya existe,
+   el caso común es *"faltaba uno del grupo"*; sin esto el formulario mandaría a
+   los tres, el backend rechazaría al primero —bien rechazado, `V1` no deja
+   anotar dos veces— y el bucle cortaría ahí **sin llegar al que falta**. O sea:
+   el camino más común terminaba en un error que no es de quien carga. Se
+   destilda y **se dice** (*"ya está"*): quien mira tiene que ver que el grupo
+   son tres y que dos ya están.
+3. **"Descuenta de" deja de calcularse.** Es el curso elegido, y se muestra.
+
+#### El otro lugar con la misma forma, y era peor
+
+**Subir material** (`/material`, el profesor) listaba *"una opción por alumno por
+curso"*. Con un grupo de tres eso son **tres opciones con el mismo
+`idInscripcion`**: *"Camila · DJ"*, *"Facu · DJ"*, *"Gonza · DJ"*. Parecía que se
+elegía a quién mandarle el material **y no se elegía**: desde `V23` el material
+es del curso y le llega a los tres, se tocara la opción que se tocara. **Tres
+opciones idénticas que hacen lo mismo es peor que una sola que lo dice**, porque
+la primera miente sobre lo que el sistema hace. Ahora es una opción por
+inscripción, *"Grupo 8 (Camila, Facu y Gonza) · DJ inicial"*.
+
+⚠️ Y un detalle honesto de esa pantalla: los nombres se juntan **de los alumnos
+que ese profesor tiene**. Un suplente que sólo tiene a dos de los tres ve a esos
+dos. El material le llega al curso igual —eso lo decide `V23`—; lo que la
+pantalla no puede hacer es inventar los nombres que no le mandaron.
+
+#### Dónde NO se cambió, y por qué
+
+- **El picker de Pagos y el del alta de inscripción siguen eligiendo personas**,
+  y está bien: ahí lo que se elige *es* una persona —quién paga, a quiénes se
+  inscribe— y no un curso. Lo que sí cambió es que **la opción del curso dice el
+  grupo** (*"DJ · inicial · Grupo 41 — $447.000"*): sin eso, un precio de grupo
+  al lado de un nombre solo se lee como la cuota de esa persona.
+- **La etiqueta de grupo de P96 se queda en esos dos buscadores.** Ahí no
+  sustituye a nada: dice que esa persona ya cursa en un grupo, que es
+  justamente lo que hay que saber antes de inscribirla otra vez.
+- **El detalle de la reserva sigue listando a los tres por separado.** No es el
+  mismo problema: ahí no se elige a nadie, se toma lista — y la asistencia es de
+  cada persona (`reserva_participante`), no del grupo.
