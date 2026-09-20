@@ -41,11 +41,13 @@ public record AlumnoResumen(
         /**
          * Los grupos en los que cursa hoy (`V35`), vacía si cursa solo.
          *
-         * <p><b>Existe para que el grupo se VEA al elegir al alumno</b> (P96). El
-         * calendario ya anotaba al grupo entero —elegir a cualquiera de los tres
-         * alcanza— y no había forma de saberlo antes de elegir: el buscador
-         * mostraba tres personas sueltas, como cualquier otra. Una capacidad que
-         * no se ve es una capacidad que no existe.
+         * <p><b>Existe para que el grupo se VEA al elegir a una persona</b> (P96).
+         * ⚠️ Nació para el calendario y el calendario ya no lo usa: desde P101 ahí
+         * se elige el <b>curso</b> ({@code GET /api/inscripciones}), no un alumno.
+         * Lo que queda son los dos formularios donde lo que se elige <b>es</b> una
+         * persona —quién paga un curso, a quiénes se inscribe—, y ahí saber que
+         * alguien ya cursa en un grupo es justamente lo que hace falta antes de
+         * inscribirlo otra vez o de imputarle un pago que es del grupo.
          *
          * <p>Es una lista por lo mismo que {@link #disciplinas}: alguien puede
          * estar en un grupo de DJ y en otro de producción.

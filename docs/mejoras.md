@@ -6360,12 +6360,14 @@ el único al que la pantalla le arma el mensaje de la seña.
   y la seña con el del catálogo para ese tamaño.** Validación local: ninguno
   elegido, uno sin elegir, repetidos. El listado muestra *"Grupo 8"* con los
   nombres en vez de *"Apellido, Nombre"*.
-- **Calendario**: cuando el curso que descuenta es de un grupo, *"Descuenta
+- **Calendario**: ~~cuando el curso que descuenta es de un grupo, *"Descuenta
   de"* dice *"DJ · Grupo 8"* y ofrece la casilla **"Anotar a todo el grupo"**
-  marcada por defecto (desmarcar es para el que viene solo a recuperar);
-  `useParticipante` expone `elegidos` (uno o los tres) y tanto el alta de la
-  clase como *"Anotar a alguien"* los mandan — un pedido por persona, como
-  P90 decidió y sin endpoint nuevo.
+  marcada por defecto~~ — ⚠️ **reemplazado por §23 · B7 (P101) el 2026-09-20**:
+  se elige **el curso** (el grupo o el alumno solo, en el mismo buscador) y la
+  casilla se dio vuelta, *vienen todos y se desmarca al que falta*. Lo que **no**
+  cambió y sigue siendo de acá: `useParticipante` expone `elegidos` y tanto el
+  alta de la clase como *"Anotar a alguien"* los mandan — **un pedido por
+  persona, como P90 decidió y sin endpoint nuevo**.
 - **Buzón**: la ficha dice *"Viene con Facu Gómez y Gonza Ruiz: cursan juntos,
   de a 3"* con el contacto de cada uno; `InscripcionLista` titula *"Grupo 8
   (Camila Ríos, con …)"*, dice que la seña es una sola y a nombre de quién, y
@@ -6574,19 +6576,36 @@ alumnos, y el suplente que dio una clase a la que fueron dos de los tres ve a
 esos dos. La tarjeta lo dice (*"1 alumno tuyo"*) en vez de fingir el grupo
 entero.
 
-### B4 — El grupo en el buscador
+### ⚠️ B4 — El grupo en el buscador · *REBOTADO EL MISMO DÍA, ver B7*
+
+> ⚠️ **Esto se escribió, se probó y Ignacio lo devolvió horas después.** Queda
+> acá entero y no borrado, porque **el error es la parte que enseña**: leer un
+> problema de modelo como si fuera de visibilidad. Lo que se ejecutó de verdad
+> está en **B7**; lo que sobrevive de acá es la búsqueda por número y la
+> etiqueta en los dos buscadores que sí eligen personas.
 
 *"No veo la opción para agendarle una clase a tal grupo."* **La opción
 existía**: elegir a cualquiera de los tres anota al grupo entero (P90), con un
 checkbox que aparece *después* de elegir, tres campos más abajo.
 
-La fila del buscador dice ahora en qué grupo cursa, y **"grupo 8" es una
-búsqueda válida** — `AlumnoResumen.grupos` sale de la **misma** consulta que ya
-traía las disciplinas (son la misma pregunta: qué cursa hoy), y
-`AlumnoService.numeroDeGrupoBuscado` lee `"grupo 8"` o `"8"` del texto y se lo
-pasa a un `OR EXISTS` de la búsqueda. Un texto con letras mezcladas **no** se
-lee como grupo: adivinar ahí traería un grupo entero cuando lo que se buscaba
-era una persona.
+La lectura fue: *la capacidad está, lo que falta es verla*. Así que la fila del
+buscador pasó a decir en qué grupo cursa, y **"grupo 8" se volvió una búsqueda
+válida** — `AlumnoResumen.grupos` sale de la **misma** consulta que ya traía las
+disciplinas (son la misma pregunta: qué cursa hoy), y el número buscado se lee
+del texto y se pasa a un `OR EXISTS`. Un texto con letras mezcladas **no** se lee
+como grupo: adivinar ahí traería un grupo entero cuando lo que se buscaba era una
+persona.
+
+⚠️ **Lo que esa lectura no vio**: con la etiqueta puesta, el grupo sigue siendo
+*algo que Julián tiene*. Anotar daba bien —entraban los tres— y la pantalla
+seguía diciendo otra cosa. La corrección no era mostrar mejor; era **cambiar qué
+se elige**. Ver B7.
+
+⚠️ **Y una pieza cambió de lugar al ejecutarse B7**: `numeroDeGrupoBuscado` vivía
+en `AlumnoService` y se mudó a **`usuario/Busqueda.numeroDeGrupo`**, con
+`patron()`, cuando pasó a leerla un segundo buscador (el de inscripciones). Son
+la misma pregunta —*¿este texto nombra a un grupo?*— y dos copias serían dos
+criterios el día que cambie.
 
 ### B5 — El profesor, prellenado
 

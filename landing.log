@@ -12,3 +12,6 @@
 ✓ Ready in 7.1s
 ✓ Running next.config.ts took 410ms
 
+ GET / 200 in 2.4s (next.js: 1574ms, application-code: 838ms)
+ GET /programas 200 in 463ms (next.js: 258ms, application-code: 204ms)
+ GET /programas/convertite-en-dj 200 in 1919ms (next.js: 228ms, generate-params: 1598ms, application-code: 93ms)

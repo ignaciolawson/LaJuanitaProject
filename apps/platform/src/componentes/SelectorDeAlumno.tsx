@@ -25,14 +25,17 @@ import { Campo } from './Campo'
  * Busca contra el servidor, que es lo que pagina; arranca con la lista sin
  * filtrar para que el caso común —pocos alumnos— sea un click.
  *
- * ⚠️ **Desde §23 la fila dice el grupo, y «grupo 8» es una búsqueda válida**
- * (P96, Ignacio 2026-09-20: *"en el calendario no veo la opción para agendarle
- * una clase a tal grupo"*). Y tenía razón en lo que vio, no en lo que dedujo:
- * la opción **existía** —elegir a cualquiera de los tres anota al grupo entero,
- * `V35` · P90— pero no aparecía hasta después de elegir, en un checkbox tres
- * campos más abajo. Una capacidad que recién se ve después de usarla es, para
- * quien la busca, una capacidad que no está. El arreglo no es un control nuevo:
- * es que el buscador nombre lo que ya sabía.
+ * ⚠️ **Esto elige PERSONAS, y por eso el calendario ya no lo usa** (P101).
+ * Ahí lo que se elige es *quién toma la clase*, que desde `V35` es un curso —un
+ * alumno solo o un grupo— y para eso está {@link SelectorDeCurso}. Acá quedan
+ * los dos formularios donde lo que se elige **es** una persona: quién paga un
+ * curso (Pagos) y a quiénes se inscribe (el alta de inscripción).
+ *
+ * <p>La fila dice **en qué grupo cursa** esa persona, y «grupo 8» es una
+ * búsqueda válida. Eso viene de P96 y sobrevive a su corrección porque acá no
+ * sustituye a nada: saber que alguien ya cursa en un grupo es justamente lo que
+ * hace falta antes de inscribirlo otra vez —una sola abierta por disciplina,
+ * `V35` §3— o de imputarle un pago que es del grupo.
  */
 export function SelectorDeAlumno({
   elegido,
