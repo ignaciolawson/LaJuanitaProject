@@ -3532,3 +3532,65 @@ pantalla no puede hacer es inventar los nombres que no le mandaron.
 - **El detalle de la reserva sigue listando a los tres por separado.** No es el
   mismo problema: ahí no se elige a nadie, se toma lista — y la asistencia es de
   cada persona (`reserva_participante`), no del grupo.
+
+
+## 30. Decisiones cerradas el 2026-09-20 a la noche (decimocuarta tanda) — la duodécima barrida
+
+> Dos decisiones sobre las tres correcciones que Ignacio trajo la misma noche
+> de cerrar la §29, las tres sobre inscribir desde el buzón de la web. La
+> tercera —la moneda que faltaba en el formulario— no es una decisión sino un
+> campo que el backend aceptaba desde la §16 y la pantalla nunca mostró
+> (`mejoras.md` §24 · B1). Ninguna toca el esquema ni el backend.
+>
+> **Textual:** *"Cuando se inscribe algn en el buzon de la web falta un slot
+> para que tipo de moneda"* · *"Cuando se inscribe cambiar el ux/ui de cuando
+> aparecen las 2 o 3 contraseñas, tal vez que solo aparezca el botón de
+> mandarle la contraseña a los 3 o incluir todas pero de alguna otra forma de
+> presentación, como a vos te parezca mejor"* · *"En el msj que se manda del
+> buzon de la web con todo incluir un link a un pdf con los datos bancarios de
+> la juanita, hoy en dia pone uno ficticio, luego lo cambiamos"*.
+
+### ✅ P102 — El mensaje de la seña dice dónde transferir
+
+**Lo que había:** *"Para confirmar tu lugar hay que abonar la seña de $ 85.000
+antes del 13/09/2026 10:00"*, y nada más. La repregunta que sigue —*"¿a
+dónde?"*— era un mensaje más de ida y vuelta, en el momento en que la persona
+tiene 24 horas.
+
+**La decisión:** una línea más en el párrafo de la plata, **al lado del monto y
+el plazo**: 🏦 *"Los datos para transferir están acá: <link>"*. Va en **los dos
+mensajes que piden una seña** —la inscripción, que es el que Ignacio nombró, y
+la cabina—, porque quien recibe cualquiera de los dos tiene la misma pregunta;
+y no va donde no hay nada que abonar (una beca).
+
+**El link es ficticio a propósito** (Ignacio: *"hoy en día pone uno ficticio,
+luego lo cambiamos"*): `LINK_DATOS_BANCARIOS` en `whatsapp.ts`, una constante
+sola que los dos mensajes leen, apuntando a la ruta que le corresponde en el
+dominio de la landing (`lajuanitastudio.com/datos-bancarios.pdf`). El día que
+el PDF exista se sube ahí y el código no cambia; si va a otro lado, cambia en
+una línea. ⏳ **Lo que se debe es el PDF** — `pendientes.md` lo lleva.
+
+### ✅ P103 — Las cuentas nacidas al inscribir, en una lista con un solo botón
+
+**Lo que había:** al inscribir a un grupo desde el buzón, la clave del referente
+en un hueco con su párrafo, después el botón de WhatsApp, y después un bloque
+más por compañero, cada uno con su propio *"tampoco se puede volver a ver"*.
+Con tres personas, tres avisos iguales y el botón perdido en el medio.
+
+**La decisión** (delegada: *"como a vos te parezca mejor"*): **una lista con
+una fila por integrante** —el referente primero y marcado, nombre · mail · clave
+en la misma línea, *"ya tenía cuenta"* en la fila del que la tenía—, **la
+advertencia dicha una vez arriba** y **el único botón de WhatsApp debajo de la
+lista**, porque es lo que se hace con ella (P94: un mensaje al referente con
+todas las claves adentro). Para quien viene solo es la misma lista con una
+fila: no hay dos presentaciones.
+
+**Por qué la lista es el grupo y no sólo las claves nuevas:** el que ya tenía
+cuenta ocupa su fila igual. Sin eso, un grupo de tres con una cuenta previa se
+ve como una lista de dos, y quien atiende no sabe si al tercero le falta algo.
+Con la fila que dice *"ya tenía cuenta"*, se ve que son tres y a quién no hay
+que pasarle nada.
+
+**Lo que no cambió:** las claves siguen en pantalla, porque no se pueden volver
+a ver; y el botón por persona sobrevive sólo cuando el teléfono de la ficha no
+se puede leer (P94), que es el único caso en que el mensaje único no existe.

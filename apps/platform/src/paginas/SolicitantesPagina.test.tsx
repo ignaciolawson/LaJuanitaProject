@@ -241,8 +241,8 @@ beforeEach(() => {
       nombre: 'Convertite en DJ',
       descripcion: null,
       precio: 170000,
-      precio2: null,
-      precio3: null,
+      precio2: 300000,
+      precio3: 447000,
       moneda: 'ARS',
       cobro: 'PAQUETE',
       clasesEstandar: 8,
@@ -947,6 +947,7 @@ describe('escribirle por WhatsApp', () => {
         clasesContratadas: 8,
         precioTotal: 170000,
         moneda: 'ARS',
+        cotizacionDolar: undefined,
         fechaInicio: undefined,
         notas: undefined,
       },
@@ -966,8 +967,8 @@ describe('escribirle por WhatsApp', () => {
     // (§17 · H6): la lista no se recargó —una sola llamada— y la ficha sigue
     // en pantalla con su resultado. Los botones de la fila ya no están: la
     // ficha se atendió.
-    const tarjeta = screen.getByText('A7K2M9').closest('li')!
-    expect(within(tarjeta).getByText('Ríos, Camila')).toBeDefined()
+    const tarjeta = screen.getByText('Ríos, Camila').closest('li')!
+    expect(within(tarjeta).getByText('A7K2M9')).toBeDefined()
     expect(within(tarjeta).queryByRole('button', { name: 'Inscribirlo' })).toBeNull()
     expect(listarSolicitantes).toHaveBeenCalledTimes(1)
 
@@ -978,12 +979,13 @@ describe('escribirle por WhatsApp', () => {
   })
 
   /**
-   * Un grupo desde la web (`V36`, P92): la ficha dice con quién viene, y al
-   * inscribirlo el panel trae la clave de cada cuenta nacida con su WhatsApp —
-   * la del referente adentro del mensaje de la seña, la de cada compañero
-   * aparte— y no le pide nada al que ya tenía cuenta.
+   * Un grupo desde la web (`V36`, P92): la ficha dice con quién viene, el
+   * precio se prellena con el de a tres, y al inscribirlo el panel trae **las
+   * cuentas del grupo en una lista** —una fila por integrante, la clave de cada
+   * cuenta nacida en su fila, *"ya tenía cuenta"* en la del que la tenía— con
+   * UN WhatsApp debajo (P94, y la presentación pedida el 2026-09-20).
    */
-  it('la ficha dice con quién viene, y al inscribir el grupo cada cuenta nueva tiene su clave', async () => {
+  it('la ficha dice con quién viene, y al inscribir el grupo las claves van en una lista con un solo WhatsApp', async () => {
     const user = userEvent.setup()
     const companeros = [
       { idCompanero: 1, nombre: 'Facu', apellido: 'Gómez', email: 'facu@ejemplo.com', telefono: '11-5555-0001' },
@@ -1052,8 +1054,13 @@ describe('escribirle por WhatsApp', () => {
     expect(screen.getByText(/Facu Gómez y Gonza Ruiz/)).toBeDefined()
 
     await user.click(screen.getByRole('button', { name: 'Inscribirlo' }))
+    // ⚠️ El precio es el de a TRES (`precio3`), no el de uno: hasta el
+    // 2026-09-20 esto prellenaba 170000 para un grupo de la web.
+    expect(screen.getByLabelText('Precio total')).toHaveProperty('value', '447000')
+    expect(screen.getByText(/El precio es el de a 3/)).toBeDefined()
     await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
     await waitFor(() => expect(inscribirDesdeElBuzon).toHaveBeenCalled())
+    expect(vi.mocked(inscribirDesdeElBuzon).mock.calls[0][1].precioTotal).toBe(447000)
 
     // El panel: el grupo, la seña única, y las claves.
     expect(await screen.findByText(/Grupo 8/)).toBeDefined()
@@ -1073,9 +1080,62 @@ describe('escribirle por WhatsApp', () => {
     // Gonza ya tenía cuenta: no hay clave suya que pasar, ni en el mensaje ni en
     // la pantalla.
     expect(mensaje).not.toContain('Gonza Ruiz ·')
-    expect(screen.getByText(/Gonza Ruiz ya tenía cuenta/)).toBeDefined()
-    // Las claves siguen en pantalla igual: no se vuelven a ver.
-    expect(screen.getByText('Q9Z1X4')).toBeDefined()
+    // **La lista**: una fila por integrante, el referente primero y marcado,
+    // cada clave en su fila, y la advertencia dicha UNA vez.
+    const lista = screen.getByText('A7K2M9').closest('ul')!
+    const filas = within(lista).getAllByRole('listitem')
+    expect(filas.map((li) => li.textContent)).toEqual([
+      'Camila Ríos · referentecamila@ejemplo.comA7K2M9',
+      'Facu Gómezfacu@ejemplo.comQ9Z1X4',
+      'Gonza Ruizgonza@ejemplo.comya tenía cuenta',
+    ])
+    expect(screen.getAllByText(/volver a ver/)).toHaveLength(1)
+    // Y sin botón propio por compañero: el único WhatsApp ya se contó arriba.
+    expect(screen.queryByRole('link', { name: /Mandarle la clave a/ })).toBeNull()
+  })
+
+  /**
+   * La moneda se elige en el formulario (Ignacio, 2026-09-20: *"falta un slot
+   * para qué tipo de moneda"*). Hasta entonces viajaba la del catálogo sin
+   * mostrarse, y una inscripción en dólares no se podía cargar desde el buzón.
+   * Con USD la base exige la cotización (`inscripcion_usd_con_cotizacion`): el
+   * formulario la pide antes de mandar nada, y las dos viajan juntas.
+   */
+  it('al inscribir se elige la moneda, y en dólares pide la cotización antes de mandar', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarSolicitantes).mockResolvedValue({
+      contenido: [ficha({ disciplina: 'DJ', experiencia: 'ALGO', nivelSugerido: 'INICIAL' })],
+      pagina: 0,
+      tamanio: 20,
+      totalElementos: 1,
+      totalPaginas: 1,
+    })
+    vi.mocked(inscribirDesdeElBuzon).mockImplementation(() => new Promise(() => {}))
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Inscribirlo' }))
+    // Prellenada con la del catálogo, y sin cotización a la vista mientras es ARS.
+    expect(screen.getByLabelText('Moneda')).toHaveProperty('value', 'ARS')
+    expect(screen.queryByLabelText(/Cotización/)).toBeNull()
+
+    await elegir(user, 'Moneda', 'USD')
+    await user.clear(screen.getByLabelText('Precio total'))
+    await user.type(screen.getByLabelText('Precio total'), '200')
+    expect(screen.getByText(/USD 100/)).toBeDefined()
+
+    // Sin cotización no sale: la base la exige y acá se dice antes.
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+    expect(await screen.findByText(/necesita la cotización del día/)).toBeDefined()
+    expect(inscribirDesdeElBuzon).not.toHaveBeenCalled()
+
+    await user.type(screen.getByLabelText(/Cotización/), '1450')
+    await user.click(screen.getByRole('button', { name: 'Preinscribir' }))
+    await waitFor(() => expect(inscribirDesdeElBuzon).toHaveBeenCalled())
+    expect(vi.mocked(inscribirDesdeElBuzon).mock.calls[0][1]).toMatchObject({
+      precioTotal: 200,
+      moneda: 'USD',
+      cotizacionDolar: 1450,
+    })
   })
 
   // == Cerrar la ficha: lo único que la resuelve ============================

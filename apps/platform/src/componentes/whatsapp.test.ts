@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  LINK_DATOS_BANCARIOS,
   categoriasDeEquipos,
   linkDeWhatsapp,
   mensajeConLaClave,
@@ -384,6 +385,38 @@ describe('los mensajes', () => {
     expect(mensaje).toContain('clase por clase')
   })
 
+  /**
+   * El link a los datos bancarios (Ignacio, 2026-09-20): va en el párrafo de
+   * la plata de los dos mensajes que piden una seña, **al lado del monto y el
+   * plazo**, porque *"¿a dónde transfiero?"* es la repregunta que sigue. Y no
+   * va donde no hay nada que abonar. ⚠️ Es un link ficticio a propósito —el
+   * PDF todavía no existe—; el caso pincha la constante, no la URL.
+   */
+  it('los dos mensajes que piden seña dicen dónde están los datos para transferir', () => {
+    const inscripcion = mensajeDeInscripcion({
+      nombre: 'Juan',
+      programa: 'DJ',
+      profesor: null,
+      importe: '$ 85.000',
+      vence: '13/09/2026 10:00',
+      cuenta: null,
+    })
+    const cabina = mensajeDeCabinaApartada({
+      nombre: 'Juan',
+      sala: 'Sala 1',
+      cuando: '10/10/2026 a las 18:00',
+      importe: '$ 15000',
+      vence: '07/09/2026 10:00',
+      cuenta: null,
+    })
+
+    for (const mensaje of [inscripcion, cabina]) {
+      const parrafoDeLaPlata = mensaje.split('\n\n').find((b) => b.startsWith('💸'))!
+      expect(parrafoDeLaPlata).toContain(`🏦 Los datos para transferir están acá: ${LINK_DATOS_BANCARIOS}`)
+    }
+    expect(LINK_DATOS_BANCARIOS).toMatch(/^https:\/\/.+\.pdf$/)
+  })
+
   it('el de la inscripción sin plazo (una beca) no pide plata ni lleva clave si ya tenía cuenta', () => {
     const mensaje = mensajeDeInscripcion({
       nombre: 'Juan',
@@ -397,6 +430,7 @@ describe('los mensajes', () => {
     expect(mensaje).toContain('Te anotamos en DJ.')
     expect(mensaje).toContain('No hay nada que abonar')
     expect(mensaje).not.toContain('seña')
+    expect(mensaje).not.toContain(LINK_DATOS_BANCARIOS)
     expect(mensaje).not.toContain('Contraseña')
   })
 })

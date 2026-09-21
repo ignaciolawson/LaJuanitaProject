@@ -2,6 +2,21 @@
 
 ## ⚡ ESTADO AL 2026-09-20 — leé esto y después, si hace falta, el resto
 
+✅ **LA DUODÉCIMA BARRIDA (`mejoras.md` §24) ESTÁ CERRADA: tres de tres, la
+misma noche del 2026-09-20, SIN MIGRACIÓN Y SIN BACKEND** (P102–P103,
+`platform.md` §30). Las tres sobre inscribir desde el buzón: **la moneda** que
+el backend aceptaba desde la §16 y el formulario nunca mostró (con la
+cotización si es USD — y de paso el precio prellenado según el tamaño del
+grupo, que ignoraba a los compañeros), **las cuentas nacidas en una lista** con
+la advertencia una vez y el único WhatsApp debajo, y **el link a los datos
+bancarios** en el párrafo de la seña de los dos mensajes que piden una. ⏳
+**El link es ficticio a propósito** (`LINK_DATOS_BANCARIOS` en `whatsapp.ts`,
+`lajuanitastudio.com/datos-bancarios.pdf`): **Ignacio debe el PDF real**; el
+día que exista se sube a esa ruta o se cambia la constante. Suites: **772
+backend · 703 front · 336 + 71 SQL**. Sin commit: lo hace Ignacio.
+
+---
+
 ✅ **LA UNDÉCIMA BARRIDA (`mejoras.md` §23) ESTÁ CERRADA: nueve de nueve —ocho
 traídos y uno rebotado—, abierta y cerrada el mismo 2026-09-20, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son
 los hallazgos del día después de los grupos, y **seis de los ocho son
@@ -386,6 +401,7 @@ confirmar el cliente:
 | **Los 6 posts del blog son inventados y están firmados con los nombres reales de los profesores** | `data/posts.ts` | Hay que reescribirlos o borrarlos antes de publicar |
 | **Sacar `hola@lajuanitastudio.com` del JSON-LD** | `data/business.ts` (SEO-02) | **Esa dirección no existe**, la inventó el modelo. En JSON-LD se publica como hecho verificado |
 | **Instagram y YouTube reales** | `data/business.ts` | Son los dos únicos campos que siguen en `null`. El resto del `LocalBusiness` ya se puede publicar entero (§13) |
+| ⏳ **El PDF con los datos bancarios** | `lajuanitastudio.com/datos-bancarios.pdf` (la ruta que `LINK_DATOS_BANCARIOS` en `apps/platform/src/componentes/whatsapp.ts` ya apunta) | El WhatsApp de la seña lo linkea desde el 2026-09-20 (P102) y **hoy es un link que no abre**. No es de la landing pero vive en su dominio: o se sube ahí, o se cambia la constante |
 | **El resto de la copia larga** | tabla en el `CLAUDE.md` de la landing | File-by-file de lo que falta validar con el cliente |
 
 ---

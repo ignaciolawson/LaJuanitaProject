@@ -34,6 +34,7 @@ import {
   type SolicitanteResumen,
   type TipoUsoResumen,
   enUnaLinea,
+  precioParaGrupo,
   type AlumnoInscripto,
   type Disciplina,
   type InscribirDesdeElBuzon,
@@ -1054,8 +1055,27 @@ function InscribirForm({
   const [nivel, setNivel] = useState<Nivel | ''>(ficha.nivelSugerido ?? '')
   const [idProfesor, setIdProfesor] = useState('')
   const programa = programas.find((p) => p.disciplina === disciplina)
+  /**
+   * El precio del catálogo **para los que son** (`V35`, P88): la ficha ya dice
+   * con quién viene, y el precio de a tres no es el de uno. Hasta el 2026-09-20
+   * esto prellenaba `precio` a secas y un grupo de la web arrancaba con el
+   * precio de una persona — editable (P66), pero mal por defecto y sin que nada
+   * lo dijera. La mentoría no admite grupos y la ficha no la manda con
+   * compañeros, así que acá no hace falta el caso.
+   */
+  const integrantes = ficha.companeros.length + 1
   const [clases, setClases] = useState(programa?.clasesEstandar ? String(programa.clasesEstandar) : '')
-  const [precio, setPrecio] = useState(programa?.precio != null ? String(programa.precio) : '')
+  const [precio, setPrecio] = useState(precioDelCatalogo(programa, integrantes))
+  /**
+   * La moneda del programa, **editable** (Ignacio, 2026-09-20: *"falta un slot
+   * para qué tipo de moneda"*). Hasta entonces viajaba la del catálogo sin que
+   * la pantalla la mostrara, y una inscripción en dólares no se podía cargar
+   * desde acá. Con USD la base exige la cotización (`inscripcion_usd_con_cotizacion`),
+   * así que el campo aparece sólo cuando corresponde — el mismo criterio que la
+   * cabina y que el alta de Inscripciones.
+   */
+  const [moneda, setMoneda] = useState<Moneda>(programa?.moneda ?? 'ARS')
+  const [cotizacion, setCotizacion] = useState('')
   const [fechaInicio, setFechaInicio] = useState('')
   const [notas, setNotas] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
@@ -1064,7 +1084,8 @@ function InscribirForm({
     setDisciplina(nueva)
     const p = programas.find((x) => x.disciplina === nueva)
     setClases(p?.clasesEstandar ? String(p.clasesEstandar) : '')
-    setPrecio(p?.precio != null ? String(p.precio) : '')
+    setPrecio(precioDelCatalogo(p, integrantes))
+    setMoneda(p?.moneda ?? 'ARS')
   }
 
   function confirmar(e: React.FormEvent) {
@@ -1074,6 +1095,9 @@ function InscribirForm({
     if (precio === '') locales.precio = 'Poné el precio del programa.'
     if (programa && programa.clasesEstandar === null && clases === '') {
       locales.clases = `${programa.nombre} se arma a medida: decí cuántas clases son.`
+    }
+    if (moneda === 'USD' && cotizacion === '') {
+      locales.cotizacion = 'Un importe en dólares necesita la cotización del día.'
     }
     if (Object.keys(locales).length > 0) {
       setErrores(locales)
@@ -1085,7 +1109,8 @@ function InscribirForm({
       idProfesor: idProfesor ? Number(idProfesor) : undefined,
       clasesContratadas: clases ? Number(clases) : undefined,
       precioTotal: Number(precio),
-      moneda: programa?.moneda ?? 'ARS',
+      moneda,
+      cotizacionDolar: moneda === 'USD' ? Number(cotizacion) : undefined,
       fechaInicio: fechaInicio || undefined,
       notas: notas || undefined,
     })
@@ -1097,8 +1122,9 @@ function InscribirForm({
     <form onSubmit={confirmar} noValidate>
       <p className="mb-3 text-sm text-tenue">
         Queda <strong className="text-texto">preinscripto</strong>: tiene 24 horas para señar
-        {senia != null && senia > 0 ? ` el 50% (${formatearImporte(senia, programa?.moneda ?? 'ARS')})` : ''}
+        {senia != null && senia > 0 ? ` el 50% (${formatearImporte(senia, moneda)})` : ''}
         . El resto se paga antes de la primera clase.
+        {integrantes > 1 && ` El precio es el de a ${integrantes}, del catálogo.`}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -1168,6 +1194,28 @@ function InscribirForm({
           error={errores.precio}
         />
 
+        <CampoSelect
+          etiqueta="Moneda"
+          value={moneda}
+          onChange={(e) => setMoneda(e.target.value as Moneda)}
+        >
+          <option value="ARS">Pesos (ARS)</option>
+          <option value="USD">Dólares (USD)</option>
+        </CampoSelect>
+
+        {moneda === 'USD' && (
+          <Campo
+            etiqueta="Cotización del dólar"
+            type="number"
+            min="1"
+            step="0.0001"
+            value={cotizacion}
+            onChange={(e) => setCotizacion(e.target.value)}
+            error={errores.cotizacion}
+            ayuda="Sin esto el importe no se puede reconstruir después."
+          />
+        )}
+
         <Campo
           etiqueta="Fecha de inicio (opcional)"
           type="date"
@@ -1190,6 +1238,12 @@ function InscribirForm({
       </div>
     </form>
   )
+}
+
+/** El precio del catálogo para esa cantidad, como texto de campo (`''` = sin precio). */
+function precioDelCatalogo(programa: ProgramaResumen | undefined, integrantes: number): string {
+  const precio = programa ? precioParaGrupo(programa, integrantes) : null
+  return precio != null ? String(precio) : ''
 }
 
 function formatearImporte(monto: number, moneda: Moneda): string {
@@ -1270,17 +1324,88 @@ function InscripcionLista({
         )}
       </p>
 
-      {cuentaNueva && (
-        <>
-          <p className="mt-5 text-sm leading-relaxed text-tenue">
-            Además le creamos la cuenta.{' '}
-            <strong className="text-texto">La contraseña no se puede volver a ver:</strong> si se
-            pierde, hay que generar otra desde el Directorio.
-          </p>
-          <Hueco className="mt-3 font-mono text-lg tracking-wider">
-            {resultado.passwordTemporal}
-          </Hueco>
-        </>
+      <CuentasNacidas resultado={resultado} link={link} />
+
+      <Boton className="mt-4" onClick={onCerrar}>
+        Listo
+      </Boton>
+    </Bloque>
+  )
+}
+
+/**
+ * Las cuentas que nacieron al inscribir —**una lista, una advertencia, un
+ * botón**— y no un párrafo con su hueco por cada persona.
+ *
+ * ⚠️ **Rehecho el 2026-09-20 a pedido de Ignacio** (*"cambiar el ux/ui de
+ * cuando aparecen las 2 o 3 contraseñas"*): hasta entonces la clave del
+ * referente iba en un hueco con su párrafo, después el botón de WhatsApp, y
+ * después **un bloque más por compañero**, cada uno repitiendo *"su contraseña
+ * tampoco se puede volver a ver"*. Con un grupo de tres eran tres avisos
+ * iguales, tres huecos a distinta altura y el botón en el medio — y lo que hay
+ * que hacer es una sola cosa: mandar UN mensaje con todo (P94).
+ *
+ * Ahora es una fila por integrante, en el orden del grupo (el referente
+ * primero), cada una con su mail y su clave en la misma línea; quien ya tenía
+ * cuenta ocupa su fila diciendo eso, para que la lista sea *el grupo* y no
+ * *los que estrenaron clave*. La advertencia se dice una vez, y el botón va
+ * **debajo de la lista**, porque es lo que se hace con ella.
+ *
+ * `link` es el del mensaje al referente; `null` es la única excepción y existe
+ * para cuando ese único mensaje no se puede mandar —el teléfono de la ficha no
+ * se pudo leer—: ahí cada fila con clave nueva ofrece escribirle a esa persona,
+ * porque la alternativa sería no poder entregar ninguna clave.
+ */
+function CuentasNacidas({
+  resultado,
+  link,
+}: {
+  resultado: AlumnoInscripto
+  link: string | null
+}) {
+  const { usuario, ficha } = resultado
+  const filas = [
+    {
+      usuario,
+      passwordTemporal: resultado.cuentaNueva ? resultado.passwordTemporal : null,
+      referente: true,
+    },
+    ...resultado.companeros.map((c) => ({
+      usuario: c.usuario,
+      passwordTemporal: c.cuentaNueva ? c.passwordTemporal : null,
+      referente: false,
+    })),
+  ]
+  const nuevas = filas.filter((f) => f.passwordTemporal)
+  const enGrupo = filas.length > 1
+  const unaSola = nuevas.length === 1
+
+  return (
+    <div className="mt-5">
+      <p className="text-sm leading-relaxed text-tenue">
+        {nuevas.length === 0 ? (
+          enGrupo
+            ? 'Todos ya tenían cuenta: ven el curso del grupo con la de siempre.'
+            : 'Ya tenía cuenta: ve el curso con la de siempre.'
+        ) : (
+          <>
+            {enGrupo
+              ? `Las cuentas del grupo: ${unaSola ? 'la clave nueva va' : 'las claves nuevas van'} adentro del mensaje al referente.`
+              : 'Además le creamos la cuenta.'}{' '}
+            <strong className="text-texto">
+              {unaSola ? 'La contraseña no se puede' : 'No se pueden'} volver a ver:
+            </strong>{' '}
+            si se pierde{unaSola ? '' : ' alguna'}, hay que generar otra desde el Directorio.
+          </>
+        )}
+      </p>
+
+      {nuevas.length > 0 && (
+        <ul className="mt-3 divide-y divide-linea rounded-md border border-linea bg-superficie-2">
+          {filas.map((f) => (
+            <FilaDeCuenta key={f.usuario.id} fila={f} enGrupo={enGrupo} sinLink={link === null} />
+          ))}
+        </ul>
       )}
 
       {link ? (
@@ -1288,9 +1413,9 @@ function InscripcionLista({
           <EnlaceDeWhatsapp href={link}>
             {/* ⚠️ **Un solo botón, aunque sean tres cuentas** (P94). El mensaje
                 le va al referente y lleva adentro las claves de todos. */}
-            {companeros.some((c) => c.cuenta)
+            {nuevas.some((f) => !f.referente)
               ? 'Avisarle por WhatsApp, con las claves del grupo'
-              : cuentaNueva
+              : nuevas.length === 1
                 ? 'Avisarle por WhatsApp, con la clave'
                 : 'Avisarle por WhatsApp'}
           </EnlaceDeWhatsapp>
@@ -1301,72 +1426,59 @@ function InscripcionLista({
           buscalo a mano.
         </p>
       )}
-
-      {/* Los compañeros (`V36`, P92): cada clave sigue **en pantalla**, porque no
-          se vuelve a ver, pero ya no tiene botón propio — viaja adentro del
-          mensaje de arriba (P94). El que ya tenía cuenta no necesita nada. */}
-      {resultado.companeros.map((c) => (
-        <ClaveDeCompanero key={c.usuario.id} cuenta={c} conLink={link === null} />
-      ))}
-
-      <Boton className="mt-4" onClick={onCerrar}>
-        Listo
-      </Boton>
-    </Bloque>
+    </div>
   )
 }
 
 /**
- * La cuenta de un compañero: **la clave en pantalla, sin botón propio** (P94).
- *
- * <p>La clave sigue estando porque no se puede volver a ver; lo que se fue es el
- * WhatsApp, que ahora va uno solo y es el del referente. `conLink` es la única
- * excepción y existe para el caso en que ese único mensaje no se pueda mandar
- * —el teléfono de la ficha no se puede leer—: ahí sí se ofrece escribirle a cada
- * uno, porque la alternativa sería no poder entregar ninguna clave.
+ * Una fila de {@link CuentasNacidas}: quién, con qué mail, y la clave grande
+ * —o *"ya tenía cuenta"* en su lugar—. El botón propio aparece sólo en el caso
+ * `sinLink`, por lo dicho arriba.
  */
-function ClaveDeCompanero({
-  cuenta,
-  conLink,
+function FilaDeCuenta({
+  fila,
+  enGrupo,
+  sinLink,
 }: {
-  cuenta: AlumnoInscripto['companeros'][number]
-  conLink: boolean
+  fila: { usuario: AlumnoInscripto['usuario']; passwordTemporal: string | null; referente: boolean }
+  enGrupo: boolean
+  sinLink: boolean
 }) {
-  const { usuario } = cuenta
+  const { usuario, passwordTemporal } = fila
   const nombre = `${usuario.nombre} ${usuario.apellido}`
-  if (!cuenta.cuentaNueva || !cuenta.passwordTemporal) {
-    return (
-      <p className="mt-4 text-sm text-tenue">
-        {nombre} ya tenía cuenta: va a ver el curso del grupo en su portal con la de siempre.
-      </p>
-    )
-  }
-  const link = conLink
-    ? linkDeWhatsapp(
-        usuario.telefono,
-        mensajeConLaClave(usuario.nombre, usuario.email, cuenta.passwordTemporal),
-      )
-    : null
+  const linkPropio =
+    sinLink && passwordTemporal
+      ? linkDeWhatsapp(
+          usuario.telefono,
+          mensajeConLaClave(usuario.nombre, usuario.email, passwordTemporal),
+        )
+      : null
+
   return (
-    <div className="mt-5 border-t border-linea pt-4">
-      <p className="text-sm leading-relaxed text-tenue">
-        También le creamos la cuenta a <strong className="text-texto">{nombre}</strong> (
-        {usuario.email}). Su contraseña tampoco se puede volver a ver, y va adentro del mensaje
-        al referente:
-      </p>
-      <Hueco className="mt-3 font-mono text-lg tracking-wider">{cuenta.passwordTemporal}</Hueco>
-      {conLink &&
-        (link ? (
-          <div className="mt-3">
-            <EnlaceDeWhatsapp href={link}>Mandarle la clave a {usuario.nombre}</EnlaceDeWhatsapp>
-          </div>
-        ) : (
-          <p className="mt-3 text-xs text-apagado">
-            El teléfono de {usuario.nombre} ({usuario.telefono ?? 'sin teléfono'}) no se puede
-            abrir en WhatsApp: copiá la clave y mandásela a mano.
-          </p>
-        ))}
-    </div>
+    <li className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-4 py-3">
+      <span className="text-sm text-texto">
+        {nombre}
+        {enGrupo && fila.referente && <span className="text-xs text-tenue"> · referente</span>}
+      </span>
+      <span className="text-xs text-tenue">{usuario.email}</span>
+      {passwordTemporal ? (
+        <span className="ml-auto font-mono text-lg tracking-wider">{passwordTemporal}</span>
+      ) : (
+        <span className="ml-auto text-xs text-tenue">ya tenía cuenta</span>
+      )}
+      {sinLink && passwordTemporal && (
+        <span className="basis-full">
+          {linkPropio ? (
+            <EnlaceDeWhatsapp href={linkPropio}>Mandarle la clave a {usuario.nombre}</EnlaceDeWhatsapp>
+          ) : (
+            <span className="text-xs text-apagado">
+              El teléfono de {usuario.nombre} ({usuario.telefono ?? 'sin teléfono'}) no se puede
+              abrir en WhatsApp: copiá la clave y mandásela a mano.
+            </span>
+          )}
+        </span>
+      )}
+    </li>
   )
 }
 

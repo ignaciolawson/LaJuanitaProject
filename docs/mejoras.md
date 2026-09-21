@@ -6742,6 +6742,93 @@ avisos.
 
 ---
 
+## 24. La DUODÉCIMA barrida — abierta y cerrada el 2026-09-20 (la misma noche)
+
+Ignacio trajo tres correcciones **la misma noche de cerrar la §23**, las tres
+sobre el mismo lugar: **inscribir desde el buzón de la web**. Las decisiones
+están en `requirements/platform.md` §30 (P102–P103). **Ninguna toca el esquema
+ni el backend: sin migración, sin Java.** Triage entero A + B, otra vez.
+
+**Textual:** *"Cuando se inscribe algn en el buzon de la web falta un slot para
+que tipo de moneda"* · *"Cuando se inscribe cambiar el ux/ui de cuando aparecen
+las 2 o 3 contraseñas, tal vez que solo aparezca el botón de mandarle la
+contraseña a los 3 o incluir todas pero de alguna otra forma de presentación,
+como a vos te parezca mejor"* · *"En el msj que se manda del buzon de la web
+con todo incluir un link a un pdf con los datos bancarios de la juanita, hoy en
+dia pone uno ficticio, luego lo cambiamos"*.
+
+### El triage
+
+| | Qué | Grupo |
+|---|---|---|
+| **A1** | Las cuentas nacidas, en una lista con un solo botón (P103) | A |
+| **B1** | La moneda se elige al inscribir desde el buzón, con la cotización si es USD | B |
+| **B2** | El link a los datos bancarios en el mensaje de la seña (P102) | B |
+
+### B1 — La moneda, un campo que faltaba
+
+`InscribirDesdeElBuzonRequest` aceptaba `moneda` y `cotizacionDolar` desde la
+§16 y `InscripcionService.alta` las guarda; **la pantalla nunca las mostró**:
+`InscribirForm` mandaba `programa.moneda` sin decirlo, así que una inscripción
+en dólares no se podía cargar desde el buzón y nada lo avisaba. Es la forma de
+la §23 otra vez —*la capacidad existía y no se veía*—, la cuarta.
+
+Ahora hay un `Moneda` prellenado con la del catálogo, que cambia con el
+programa y se edita; con USD aparece **la cotización del día**, que la base
+exige (`inscripcion_usd_con_cotizacion`) y el formulario pide antes de mandar —
+el mismo criterio que el alta de Inscripciones y que *"Apartarle la cabina"*.
+La seña sugerida (*"el 50% (USD 100)"*) se calcula en la moneda elegida.
+
+⚠️ **Y encontró otro dato que el mismo formulario ignoraba: el tamaño del
+grupo.** Prellenaba `programa.precio` a secas, así que un grupo de tres desde
+la web arrancaba con el precio de una persona — editable (P66), pero mal por
+defecto y sin que nada lo dijera; `precioParaGrupo` existía desde la §22 y sólo
+lo usaba el alta de Inscripciones. Ahora prellena el de a 2 / de a 3 según los
+compañeros de la ficha y lo dice (*"El precio es el de a 3, del catálogo"*).
+Verificado poniendo el bug de vuelta: el caso del grupo se puso rojo.
+
+### A1 — Las cuentas, una lista
+
+Hasta hoy `InscripcionLista` dibujaba la clave del referente en un hueco con su
+párrafo, después el botón de WhatsApp, y después **un bloque por compañero**
+(`ClaveDeCompanero`), cada uno repitiendo *"su contraseña tampoco se puede
+volver a ver"*. Con un grupo de tres: tres avisos iguales, tres huecos a
+distinta altura y el botón en el medio de todo.
+
+Ahora es `CuentasNacidas`: **una advertencia dicha una vez, una lista con una
+fila por integrante** —el referente primero y marcado, nombre · mail · clave en
+la misma línea, *"ya tenía cuenta"* en la fila del que la tenía— y **el único
+botón debajo de la lista**, porque es lo que se hace con ella. La lista es *el
+grupo* y no *los que estrenaron clave*: el que ya tenía cuenta ocupa su fila
+igual, para que se vea que son tres y a quién no hay que pasarle nada. Para
+quien viene solo es la misma lista con una fila. El botón por persona
+sobrevive sólo en el caso de siempre: el teléfono de la ficha ilegible (P94).
+
+### B2 — Dónde transferir
+
+El mensaje decía *"hay que abonar X antes del Y"* y nada más, y la repregunta
+que sigue es *"¿a dónde?"*. Va una línea nueva en el párrafo de la plata —
+🏦 *"Los datos para transferir están acá: <link>"*— **en los dos mensajes que
+piden una seña**, la inscripción y la cabina: quien recibe cualquiera de los
+dos tiene exactamente la misma pregunta. No va donde no hay nada que abonar (la
+beca). El link es `LINK_DATOS_BANCARIOS` en `whatsapp.ts`, **ficticio a
+propósito y dicho en el comentario**: la ruta que le corresponde en el dominio
+de la landing, así el día que el PDF exista se sube ahí y esto no cambia. ⏳
+**El PDF real lo debe Ignacio** — está en `pendientes.md`.
+
+### ⚠️ DÓNDE RETOMAR (al cierre, 2026-09-20 a la noche)
+
+✅ **Tres de tres, sin migración y sin backend.** `V36` sigue siendo la última
+y el admin sembrado sigue en `V37`. Suites: **772 backend · 703 front · 336 +
+71 SQL** — el backend no se tocó y no se volvió a correr.
+
+Lo que queda para la próxima es lo de siempre, más lo que arrastra la §23 (los
+dos `<select>` de Pagos, la 13231 a mano, `ReservaDelPortal` sin precio, el
+nombre legible de la disciplina en los avisos) y **el PDF de los datos
+bancarios**, que hoy es un link que no abre.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **LA UNDÉCIMA (§23) ESTÁ CERRADA, EL 2026-09-20, ABIERTA Y CERRADA EL MISMO DÍA: nueve de nueve —ocho traídos y uno rebotado—, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son los hallazgos del día después de los grupos, y **seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: el buzón manda **un** WhatsApp al referente con las claves de todos (antes tres), Deudores llama **"Grupo 8"** a la fila y el referente baja a contacto, el profesor ve **una tarjeta por grupo** con los tres adentro y las clases dichas una sola vez, y el buscador de alumno dice el grupo y **encuentra por "grupo 8"**. Las otras dos: todo panel que se abre por una acción **se trae a la vista** (`TraerALaVista`, veintitantos lugares — la corrección que la §21 había hecho a mano sólo en Deudores) y *"Ver"* en una notificación **la marca leída**. Además, el profesor de la clase **se prellena** con el del curso (se prellena, no se fija: el suplente existe) y **las salas bloqueadas se dibujan en el calendario y dejan de ofrecer el hueco**. ⚠️ **El bug que Ignacio vio como *"Programa UNDEFINED"* era un dato que servía para dos cosas**: `SaldoPendiente` mandaba la disciplina adentro de `detalle`, y `V35` le agregó *" · Grupo 8"* — ahora son dos columnas. ⚠️ **Y de paso encontró uno peor porque nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal); ningún caso miraba el contenido de esa regla. ⚠️ **Tres de los ocho tenían la misma forma: la capacidad existía y no se veía** — el calendario ya anotaba al grupo entero, el profesor de la inscripción está desde `V1`, los bloqueos ya los hacía valer un trigger. ⚠️ **Y lo más importante de la barrida es el rebote: Ignacio miró el arreglo del buscador y lo devolvió el mismo día** — *"no quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*. **P96 leyó el problema como de visibilidad y era de modelo**: puso el grupo como una etiqueta al lado de la persona, y anotar daba el resultado correcto, pero la pantalla decía que el grupo es una propiedad de Julián en vez de la unidad que es. **P101 lo revierte**: donde se elige quién toma la clase se eligen **cursos** (*"Grupo 41 · Álvarez, Sosa y Rios"* o *"Pérez, Juan"*, al mismo nivel), y el checkbox se dio vuelta — **vienen todos y se desmarca al que falta**. El mismo defecto estaba, peor, en **Subir material**: un grupo de tres eran tres opciones con el mismo `idInscripcion`, o sea que parecía que se elegía a quién mandarle y no se elegía. **La lección: *"el resultado es correcto"* no alcanza cuando lo que se está corrigiendo es el modelo.** Suites: **772 backend · 701 front · 336 + 71 SQL** sobre 36 migraciones, el backend corrido con `./scripts/pruebas-backend.sh` (base vacía, lo que ve CI). **`V36` sigue siendo la última y el admin sembrado sigue en `V37`.**

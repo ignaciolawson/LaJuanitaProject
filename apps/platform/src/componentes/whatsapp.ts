@@ -151,6 +151,27 @@ const PLAZO = '⏰'
 const CLAVE = '🔑'
 const PORTAL = '📲'
 const CORAZON = '❤️'
+const BANCO = '🏦'
+
+/**
+ * El PDF con los datos bancarios de La Juanita, para transferir la seña.
+ *
+ * ⚠️ **Es un link ficticio, a propósito y dicho en voz alta** (Ignacio,
+ * 2026-09-20: *"hoy en día pone uno ficticio, luego lo cambiamos"*). Va en la
+ * ruta que le corresponde en el dominio de la landing, así el día que el PDF
+ * exista se sube ahí y esto no cambia; y si cambia, cambia acá y en ningún
+ * otro lado — los dos mensajes que piden plata lo leen de esta constante.
+ * `whatsapp.test.ts` lo pincha para que no se lo lleve una limpieza.
+ */
+export const LINK_DATOS_BANCARIOS = 'https://lajuanitastudio.com/datos-bancarios.pdf'
+
+/**
+ * La línea que dice dónde están los datos para transferir. Va en el párrafo de
+ * la plata de los dos mensajes que piden una seña —la cabina y la inscripción—
+ * porque quien lee *"hay que abonar X antes del Y"* pregunta *"¿a dónde?"* en
+ * el mensaje siguiente, y ése es el ida y vuelta que esto ahorra.
+ */
+const DONDE_TRANSFERIR = `${BANCO} Los datos para transferir están acá: ${LINK_DATOS_BANCARIOS}`
 
 /** El saludo: nombre y abanico. */
 function saludo(nombre: string): string {
@@ -419,6 +440,7 @@ export function mensajeDeCabinaApartada(datos: {
     [
       `${PLATA} Para confirmarla hay que abonar ${importe} antes del ${vence}.`,
       `${PLAZO} Pasado ese plazo el horario se libera.`,
+      DONDE_TRANSFERIR,
     ],
     bloqueDeLaCuentaNueva(cuenta),
     [QUE_PUEDE_HACER],
@@ -469,6 +491,7 @@ export function mensajeDeInscripcion(datos: {
       ? [
           `${PLATA} Para confirmar ${enGrupo ? 'el lugar del grupo' : 'tu lugar'} hay que abonar la seña de ${importe}${enGrupo ? ' (es una sola, del grupo)' : ''} antes del ${vence}.`,
           'El resto se paga antes de la primera clase.',
+          DONDE_TRANSFERIR,
         ]
       : [`${PLATA} No hay nada que abonar para arrancar.`],
     bloqueDeLaCuentaNueva(cuenta),
