@@ -302,6 +302,24 @@ export function PagosPagina() {
                       {p.pagador}
                       <span className="ml-2 text-xs font-normal text-apagado">sin cuenta</span>
                     </div>
+                  ) : p.numeroGrupo != null ? (
+                    /* **El curso de un grupo lo paga el grupo** (P104): arriba va
+                       "Grupo 86" y el referente queda abajo, como contacto. Al
+                       revés —que es como estaba— la fila decía que pagó Pablo
+                       Poza y no que ese pago fue por el grupo. El link sigue
+                       yendo a la cuenta del referente: el grupo no tiene una. */
+                    <>
+                      <div className="font-medium">{p.pagador}</div>
+                      <div className="text-xs text-tenue">
+                        <Link
+                          to={`/admin/estado-de-cuenta/${p.idUsuario}`}
+                          className="underline underline-offset-2 hover:text-acento"
+                        >
+                          {p.apellido}, {p.nombre}
+                        </Link>
+                        <span className="ml-1 text-apagado">· referente</span>
+                      </div>
+                    </>
                   ) : (
                     <>
                       <Link

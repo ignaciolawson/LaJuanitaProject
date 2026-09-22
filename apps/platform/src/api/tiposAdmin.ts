@@ -574,10 +574,23 @@ export type PagoResumen = {
   nombre: string | null
   apellido: string | null
   email: string | null
-  /** Cómo se llama quien pagó, tenga cuenta o no. **Siempre tiene valor.** */
+  /**
+   * Cómo se llama quien pagó, tenga cuenta o no. **Siempre tiene valor.**
+   *
+   * ⚠️ **Si el pago salda el curso de un grupo, es el grupo** —"Grupo 86"—, no
+   * el referente (P104). Lo resuelve el servidor, así que toda pantalla que
+   * muestre este campo lo dice igual; el referente viaja en `nombre`/`apellido`
+   * para ponerlo abajo, que es dónde va el contacto de una deuda de grupo.
+   */
   pagador: string
   /** Si no tiene cuenta. La fila lo marca y no se le puede cruzar el estado de cuenta. */
   pagadorSinCuenta: boolean
+  /**
+   * El número del grupo cuando el pago salda el curso de uno de 2 o 3; null si
+   * no. Es lo que le dice a la fila que `pagador` ya es el grupo y que
+   * `nombre`/`apellido` son el referente.
+   */
+  numeroGrupo: number | null
   destino: DestinoDePago
   idDestino: number
   /** Ya legible, resuelto en el servidor: "DJ · INICIAL", "Sala 2 · 14/08 10:00". */

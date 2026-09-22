@@ -3594,3 +3594,85 @@ que pasarle nada.
 **Lo que no cambió:** las claves siguen en pantalla, porque no se pueden volver
 a ver; y el botón por persona sobrevive sólo cuando el teléfono de la ficha no
 se puede leer (P94), que es el único caso en que el mensaje único no existe.
+
+---
+
+## 31. Decisiones cerradas el 2026-09-22 (decimoquinta tanda) — la decimotercera barrida
+
+> Dos correcciones que Ignacio trajo después de usar los grupos, las dos sobre
+> **cómo se lee la plata de un grupo**. La primera venía con una premisa que la
+> medición contra la base desmintió, y eso cambió qué había que arreglar; la
+> segunda es un hueco que `V35` abrió y ninguna pantalla había cerrado.
+>
+> **Textual:** *"una persona que solo seño sigue siendo deudor […] ahora con lo
+> nuevo de los grupos cuando un grupo seña se va de deudores y figura en pago
+> […] es muy difícil ver para el admin quien no pago nada, quien seño y quien
+> pago todo"* · *"cuando un grupo ya pasa a pagos porque abono el 100% figura
+> con el nombre del REFERENTE y no con el nombre del grupo […] si es grupo
+> siempre el nombre del grupo, porque sino el admin ve por ejemplo que PABLO
+> POZA pago pero no ve que fue que pago por el grupo 86"*.
+
+### ✅ P104 — El curso de un grupo lo paga el grupo, no el referente
+
+**Lo que había:** el listado de Pagos armaba la columna *Quién* con
+`apellido, nombre` de la cuenta del pago, y como la seña de un grupo va a
+nombre del referente (P88), la fila decía *"Poza, Pablo"*. En ningún lado
+aparecía el Grupo 86. `queSalda` tenía el mismo hueco: devolvía *"DJ ·
+INICIAL"* y no decía de qué grupo.
+
+**La decisión: es el grupo, en todo lugar que nombre un pago.** `pagador`
+devuelve *"Grupo 86"* cuando el pago salda el curso de uno, y `queSalda`
+termina en *"· Grupo 86"*. El referente **no se pierde**: sigue viajando en
+`nombre`/`apellido` y la fila lo dibuja abajo, como contacto — exactamente la
+lectura con que Deudores lo nombra desde **P93**, y la misma frase: *la plata
+la debe y la paga el grupo; el referente es por dónde se lo reclama*.
+
+**Se resuelve en el servidor y no en cada pantalla**, que es lo que hace que el
+listado, el panel de corrección y el estado de cuenta lo digan igual sin repetir
+la regla. Es la doctrina que `PagoResumen.pagador` ya tenía escrita en su propio
+javadoc —*"un solo campo que mostrar en vez de un `if` por fila"*— y la razón de
+que esta corrección haya costado dos métodos: **la caja y las exportaciones del
+tablero no nombran pagos**, así que no hubo una tercera copia que mover.
+
+⚠️ **Por qué `queSalda` lleva el grupo aunque `pagador` ya lo diga**, que parece
+redundante en el listado y no lo es: **el estado de cuenta muestra `queSalda` y
+no `pagador`**. Sin el grupo ahí, la cuenta del referente dice que pagó un curso
+de DJ y no que lo pagó por el grupo — que es la mitad del hallazgo de Ignacio,
+vista desde la otra pantalla.
+
+### ✅ P105 — Una seña que cubrió el precio entero se guarda como PAGADO
+
+⚠️ **La premisa del hallazgo era falsa y medirlo fue lo que encontró el bug de
+verdad.** Corrido el filtro real contra la base de desarrollo, el circuito de
+P84/P85 hace exactamente lo que Ignacio pide: el **Grupo 87** señó $120 de
+$170.000, está en Deudores y su pago **no** aparece en Pagos. El que saltó a
+Pagos es el **Grupo 88**, cuya seña se cargó por **435 sobre un precio de 435**
+— el 100%. No debe nada, así que sale de Deudores con razón.
+
+**Lo que sí estaba mal, y nadie había reportado:** esa fila decía `SENADO`
+mientras la aritmética decía que no faltaba nada. **Dos afirmaciones sobre el
+mismo hecho, contradiciéndose** — el patrón `V12`, ahora entre el estado y el
+saldo —, y la que se lee en la pantalla es la que miente: el admin ve *"señó"* y
+el sistema, correctamente, no lo lista como deudor. De ahí sale la lectura de
+Ignacio de que "se fue de Deudores señado".
+
+**La decisión:** si al registrarse una seña lo cobrado cubre el precio,
+**el pago se guarda como `PAGADO`**. El estado deja de contradecir a la
+aritmética y la fila dice lo que pasó: pagó todo.
+
+**No cambia qué plata entró.** `SENADO` y `PAGADO` están los dos en
+`EstadoPago.ENTRARON`, así que la caja, el tablero y la escalera de `V30` —que
+activa una preinscripción con cualquiera de los dos— ven lo mismo antes y
+después. Lo único que cambia es lo que la fila *dice*.
+
+**Se apoya en `PagoRepository.saldoDe`, que es la definición de P84** y no una
+cuenta nueva: si acá se sumara distinto, un pago podría cerrarse como PAGADO y
+su cosa seguir apareciendo en Deudores. **Sin precio contra el que comparar**
+—una clase, una reserva sin precio, un trabajo sin entregar— vuelve null y la
+seña queda como está: no se puede afirmar que cubrió algo que no tiene precio.
+
+⚠️ **Y la causa de fondo no es de código: `programa.precio_2` y `precio_3` están
+vacíos en el catálogo.** El prellenado de la seña al 50% (P88) sólo actúa si hay
+precio para ese tamaño, así que **hoy todo grupo se carga a mano** y nada avisa
+cuando el monto cubre el precio entero. Que Mica los cargue es lo que hace que
+este caso deje de ser el normal; `pendientes.md` lo lleva.

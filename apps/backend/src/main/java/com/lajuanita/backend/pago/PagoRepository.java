@@ -1,5 +1,6 @@
 package com.lajuanita.backend.pago;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -410,6 +411,24 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             + " ORDER BY COALESCE(sp.desde_dia, CAST(sp.desde_ts AS date)), sp.id_destino",
             nativeQuery = true)
     List<Object[]> cosasConSaldo(@Param("idUsuario") Long idUsuario);
+
+    /**
+     * Lo que le falta cobrar a UNA cosa, por la misma definición que leen Deudores
+     * y el listado de Pagos (P84).
+     *
+     * <p>Existe para que {@code registrar} pueda decidir si una seña cubrió el
+     * precio entero (P105). <b>Vuelve null cuando la cosa no está en
+     * {@link SaldoPendiente#COSAS}</b> —una reserva sin precio, un trabajo sin
+     * entregar, una clase—, y eso significa <i>"no hay precio contra el que
+     * comparar"</i>, que no es lo mismo que <i>"no falta nada"</i>: sin precio no
+     * se puede afirmar que una seña lo cubrió.
+     *
+     * @param destino uno de los cuatro nombres de {@link SaldoPendiente}
+     */
+    @Query(value = "SELECT sp.saldo FROM (" + SaldoPendiente.COSAS + ") sp"
+            + " WHERE sp.destino = :destino AND sp.id_destino = :idDestino",
+            nativeQuery = true)
+    BigDecimal saldoDe(@Param("destino") String destino, @Param("idDestino") Long idDestino);
 
     /**
      * Pasar a {@code VENCIDO} la deuda que ya cruzó los 7 días.

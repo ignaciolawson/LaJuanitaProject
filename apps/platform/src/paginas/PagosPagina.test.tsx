@@ -64,6 +64,7 @@ function pago(cambios: Partial<PagoResumen> = {}): PagoResumen {
     email: 'camila@ejemplo.com',
     pagador: 'Camila Ríos',
     pagadorSinCuenta: false,
+    numeroGrupo: null,
     destino: 'INSCRIPCION',
     lineaDeNegocio: 'CURSOS',
     idDestino: 5,
@@ -714,6 +715,35 @@ describe('el pagador sin cuenta y la corrección (V19)', () => {
 
     const link = await screen.findByRole('link', { name: 'Ríos, Camila' })
     expect(link.getAttribute('href')).toBe('/admin/estado-de-cuenta/10')
+  })
+
+  /**
+   * **El curso de un grupo lo paga el grupo** (P104, Ignacio 2026-09-22: *"el
+   * admin ve que PABLO POZA pagó pero no ve que fue por el grupo 86"*). La fila
+   * se nombra por el grupo y el referente queda abajo, como contacto — la misma
+   * lectura con que Deudores lo nombra desde P93.
+   *
+   * El link sigue yendo a la cuenta del referente: un grupo no tiene una.
+   */
+  it('el pago del curso de un grupo se nombra por el grupo, con el referente abajo', async () => {
+    vi.mocked(listarPagos).mockResolvedValue(
+      pagina([
+        pago({
+          nombre: 'Pablo',
+          apellido: 'Poza',
+          pagador: 'Grupo 86',
+          numeroGrupo: 86,
+          queSalda: 'DJ · INICIAL · Grupo 86',
+        }),
+      ]),
+    )
+    montar()
+
+    const fila = (await screen.findByText('Grupo 86')).closest('tr')!
+    // El referente está, y está debajo: no es lo que nombra la fila.
+    const link = within(fila).getByRole('link', { name: 'Poza, Pablo' })
+    expect(link.getAttribute('href')).toBe('/admin/estado-de-cuenta/10')
+    expect(within(fila).getByText(/referente/)).toBeDefined()
   })
 
   it('corregir manda los campos editados', async () => {

@@ -336,6 +336,109 @@ class SaldoPendienteTest {
                         .value(UN_NULO));
     }
 
+    // == P104 y P105: cómo se nombra y cómo se cierra la plata de un grupo ====
+
+    /**
+     * <b>El curso de un grupo lo paga el grupo</b> (P104). Ignacio, 2026-09-22:
+     * <i>"el admin ve que PABLO POZA pagó pero no ve que fue por el grupo 86"</i>.
+     *
+     * <p>Lo resuelve el servidor en {@code PagoResumen} y no cada pantalla, que
+     * es lo que hace que el listado, el estado de cuenta y la corrección lo digan
+     * igual. El referente sigue viajando en {@code nombre}/{@code apellido}: es
+     * por donde se lo contacta, y la pantalla lo pone abajo.
+     */
+    @Test
+    void el_pago_del_curso_de_un_grupo_se_nombra_por_el_grupo() throws Exception {
+        Inscripcion grupo = grupoDeDos("447000");
+        Usuario referente = grupo.getIntegrantes().stream()
+                .filter(x -> x.isReferente()).findFirst().orElseThrow()
+                .getAlumno().getUsuario();
+
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":223500,"moneda":"ARS",
+                 "medioPago":"TRANSFERENCIA","estadoPago":"SENADO"}
+                """.formatted(referente.getId(), grupo.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.pagador").value("Grupo " + grupo.getNumeroGrupo()))
+                .andExpect(jsonPath("$.numeroGrupo").value(grupo.getNumeroGrupo()))
+                // El referente no se pierde: la fila lo dice abajo.
+                .andExpect(jsonPath("$.apellido").value(referente.getApellido()))
+                // Y el estado de cuenta —que muestra `queSalda` y no `pagador`—
+                // también tiene que decir que ese pago fue por el grupo.
+                .andExpect(jsonPath("$.queSalda").value("DJ · INICIAL · Grupo " + grupo.getNumeroGrupo()));
+    }
+
+    /** Un alumno solo se sigue nombrando por su nombre: el grupo no se inventa. */
+    @Test
+    void el_pago_de_un_alumno_solo_se_sigue_nombrando_por_la_persona() throws Exception {
+        Alumno solo = alumnoNuevo();
+        Inscripcion curso = inscripcionDe(solo, "180000", Moneda.ARS);
+
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":90000,"moneda":"ARS",
+                 "medioPago":"TRANSFERENCIA","estadoPago":"SENADO"}
+                """.formatted(solo.getUsuario().getId(), curso.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.pagador").value(
+                        solo.getUsuario().getNombre() + " " + solo.getUsuario().getApellido()))
+                .andExpect(jsonPath("$.numeroGrupo").doesNotExist())
+                .andExpect(jsonPath("$.queSalda").value("DJ · INICIAL"));
+    }
+
+    /**
+     * <b>Una seña que cubrió el precio entero se guarda como PAGADO</b> (P105).
+     *
+     * <p>El caso que lo trajo: el Grupo 88 de la base de desarrollo tenía una
+     * seña de 435 sobre un precio de 435, así que el {@code pago} decía SENADO
+     * mientras la aritmética decía que no faltaba nada — <b>dos afirmaciones
+     * sobre el mismo hecho, contradiciéndose</b>, el patrón `V12` entre el estado
+     * y el saldo. Deudores tenía razón al no listarlo; la que mentía era la fila.
+     *
+     * <p>No cambia qué plata entró: los dos estados están en {@code ENTRARON}.
+     */
+    @Test
+    void una_senia_que_cubre_el_precio_entero_se_guarda_como_pagado() throws Exception {
+        Inscripcion grupo = grupoDeDos("447000");
+        long referente = grupo.getIntegrantes().stream()
+                .filter(x -> x.isReferente()).findFirst().orElseThrow()
+                .getAlumno().getUsuario().getId();
+
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":447000,"moneda":"ARS",
+                 "medioPago":"TRANSFERENCIA","estadoPago":"SENADO"}
+                """.formatted(referente, grupo.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estadoPago").value("PAGADO"));
+
+        // Y sigue sin estar en Deudores, que es lo que ya hacía bien.
+        deudores().andExpect(jsonPath("$[?(@.idInscripcion == %d)]".formatted(grupo.getId())).isEmpty());
+    }
+
+    /**
+     * El control del caso de arriba: una seña que <b>no</b> cubre el precio sigue
+     * siendo una seña, y su curso sigue en Deudores por lo que falta. Sin este
+     * caso, "convertir a PAGADO" podría estar pasando siempre y el otro pasaría
+     * igual.
+     */
+    @Test
+    void una_senia_que_no_cubre_el_precio_sigue_siendo_senia() throws Exception {
+        Inscripcion grupo = grupoDeDos("447000");
+        long referente = grupo.getIntegrantes().stream()
+                .filter(x -> x.isReferente()).findFirst().orElseThrow()
+                .getAlumno().getUsuario().getId();
+
+        mvc.perform(pagar("""
+                {"idUsuario":%d,"idInscripcion":%d,"monto":223500,"moneda":"ARS",
+                 "medioPago":"TRANSFERENCIA","estadoPago":"SENADO"}
+                """.formatted(referente, grupo.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estadoPago").value("SENADO"));
+
+        deudores()
+                .andExpect(jsonPath("$[?(@.idInscripcion == %d)].adeudado".formatted(grupo.getId()))
+                        .value(223500.00));
+    }
+
     /** Dos alumnos, una inscripción, un precio: el grupo (`V35`). */
     private Inscripcion grupoDeDos(String precio) {
         Inscripcion grupo = new Inscripcion();

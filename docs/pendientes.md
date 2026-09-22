@@ -1,6 +1,30 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-20 — leé esto y después, si hace falta, el resto
+## ⚡ ESTADO AL 2026-09-22 — leé esto y después, si hace falta, el resto
+
+✅ **LA DECIMOTERCERA BARRIDA (`mejoras.md` §25) ESTÁ CERRADA: dos de dos, el
+2026-09-22, SIN MIGRACIÓN** (P104–P105, `platform.md` §31). Las dos sobre cómo
+se lee **la plata de un grupo**: el pago del curso de un grupo **se nombra por
+el grupo** —*"Grupo 86"*, con el referente abajo como contacto, la lectura de
+P93 aplicada a Pagos y al estado de cuenta— y **una seña que cubrió el precio
+entero se guarda como `PAGADO`**.
+
+⚠️ **La premisa del primer hallazgo era falsa y medirla fue lo que encontró el
+bug de verdad.** *"Un grupo que seña se va de Deudores"* no pasa: el Grupo 87
+señó $120 de $170.000 y está en Deudores, fuera de Pagos. El que saltó es el
+Grupo 88, cuya seña se cargó por el 100% del precio. Lo que sí estaba mal es que
+esa fila decía `SENADO` mientras la aritmética decía que no faltaba nada — **el
+patrón `V12`, ahora entre el estado y el saldo**. Arreglarlo como venía
+descripto habría roto P85.
+
+⏳ **Y la causa de fondo es un dato, no código: `programa.precio_2` y `precio_3`
+están vacíos**, así que el prellenado de la seña al 50% (P88) nunca actúa y
+**hoy todo grupo se carga a mano**. **Que Mica cargue los precios de grupo** es
+lo que hace que este caso deje de ser el normal.
+
+---
+
+## ⚡ ESTADO AL 2026-09-20
 
 ✅ **LA DUODÉCIMA BARRIDA (`mejoras.md` §24) ESTÁ CERRADA: tres de tres, la
 misma noche del 2026-09-20, SIN MIGRACIÓN Y SIN BACKEND** (P102–P103,

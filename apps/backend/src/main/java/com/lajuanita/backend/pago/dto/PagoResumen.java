@@ -35,11 +35,31 @@ public record PagoResumen(
          * <p>Existe para que la pantalla tenga un solo campo que mostrar en vez de
          * un `if` por fila, y porque una fila de plata sin nombre es exactamente el
          * problema que este sistema resuelve.
+         *
+         * <p>⚠️ <b>Si el pago salda el curso de un grupo, es el grupo</b> —
+         * <i>"Grupo 86"</i>, no el referente (P104, la misma lectura con que
+         * Deudores lo nombra desde P93). La plata la debe y la paga el grupo; el
+         * referente es por dónde se lo contacta, y sigue viajando en
+         * {@link #nombre}/{@link #apellido} para que la pantalla lo diga abajo.
+         * Resuelto acá y no en cada pantalla, que es lo que hace que <b>todo lugar
+         * que nombre un pago</b> —el listado, el estado de cuenta, la corrección—
+         * diga lo mismo sin repetir la regla.
          */
         String pagador,
 
         /** Si el pagador no tiene cuenta. La pantalla lo marca; no se le puede cruzar el estado de cuenta. */
         boolean pagadorSinCuenta,
+
+        /**
+         * El número del grupo cuando el pago salda el curso de uno de 2 o 3
+         * (`V35`, P88); null en un alumno solo y en los otros tres destinos.
+         *
+         * <p>Es lo que le dice a la pantalla que {@link #pagador} ya es el grupo y
+         * que {@link #nombre}/{@link #apellido} son el referente, para dibujarlo
+         * debajo. Sin este campo la fila no puede distinguir <i>"Grupo 86"</i> de
+         * alguien que se llame así.
+         */
+        Integer numeroGrupo,
 
         /** Cuál de los cuatro destinos: `INSCRIPCION`, `RESERVA`, … */
         String destino,
@@ -124,6 +144,7 @@ public record PagoResumen(
                 persona == null ? null : persona.getEmail(),
                 pagadorDe(pago),
                 persona == null,
+                numeroGrupoDe(pago),
                 destinoDe(pago),
                 idDestinoDe(pago),
                 queSaldaDe(pago),
@@ -149,11 +170,22 @@ public record PagoResumen(
      * CHECK {@code pago_pagador_identificado} garantiza que uno de los dos está.
      */
     private static String pagadorDe(Pago pago) {
+        // El grupo primero: la plata del curso de un grupo es del grupo, y decir
+        // el nombre del referente esconde que ese pago fue por el Grupo 86 (P104).
+        Integer grupo = numeroGrupoDe(pago);
+        if (grupo != null) {
+            return "Grupo " + grupo;
+        }
         var persona = pago.getUsuario();
         if (persona != null) {
             return persona.getNombre() + " " + persona.getApellido();
         }
         return pago.getNombrePagadorExterno();
+    }
+
+    /** El número del grupo del curso que salda el pago, o null si no salda uno de grupo. */
+    private static Integer numeroGrupoDe(Pago pago) {
+        return pago.getInscripcion() == null ? null : pago.getInscripcion().getNumeroGrupo();
     }
 
     private static String destinoDe(Pago pago) {
@@ -178,9 +210,17 @@ public record PagoResumen(
     private static String queSaldaDe(Pago pago) {
         if (pago.getInscripcion() != null) {
             var inscripcion = pago.getInscripcion();
-            return inscripcion.getNivel() == null
+            String curso = inscripcion.getNivel() == null
                     ? inscripcion.getDisciplina().name()
                     : inscripcion.getDisciplina().name() + " · " + inscripcion.getNivel().name();
+            // "DJ · INICIAL · Grupo 86": la misma forma con que `SaldoPendiente`
+            // arma el detalle de una deuda de grupo. Va acá y no sólo en el
+            // listado porque el estado de cuenta muestra `queSalda` y no
+            // `pagador`: sin esto, la cuenta del referente dice que pagó un curso
+            // de DJ y no que lo pagó por el grupo.
+            return inscripcion.getNumeroGrupo() == null
+                    ? curso
+                    : curso + " · Grupo " + inscripcion.getNumeroGrupo();
         }
         if (pago.getReserva() != null) {
             var reserva = pago.getReserva();

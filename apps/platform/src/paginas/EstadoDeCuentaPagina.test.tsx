@@ -257,6 +257,7 @@ describe('los comprobantes', () => {
             email: 'camila@ejemplo.com',
             pagador: 'Camila Ríos',
             pagadorSinCuenta: false,
+            numeroGrupo: null,
             destino: 'INSCRIPCION',
             lineaDeNegocio: 'CURSOS',
             idDestino: 5,

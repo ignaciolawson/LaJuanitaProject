@@ -307,6 +307,8 @@ public class PagoService {
 
         Pago guardado = pagos.saveAndFlush(pago);
 
+        cerrarLaSeniaQueCubrioElPrecio(guardado);
+
         // La seña de una preinscripción la activa en el mismo movimiento (`V30`,
         // P72). Es el único camino a ACTIVA que la escalera acepta —exige un
         // pago SENADO/PAGADO detrás—, y partirlo en dos deja preinscripciones
@@ -322,6 +324,57 @@ public class PagoService {
         }
 
         return PagoResumen.de(guardado);
+    }
+
+    /**
+     * Una seña que cubrió el precio entero <b>se guarda como PAGADO</b> (P105).
+     *
+     * <p>El caso es real y lo trajo Ignacio: un grupo cuya seña se cargó por el
+     * total quedaba con un {@code pago} que decía SENADO mientras la aritmética
+     * decía que no faltaba nada. Las dos afirmaciones son sobre el mismo hecho y
+     * se contradicen — <b>el patrón `V12`, ahora entre el estado y el saldo</b> —,
+     * y la que se lee en la pantalla es la que miente: el admin ve "señó" y el
+     * sistema, con razón, no lo lista en Deudores.
+     *
+     * <p><b>No cambia qué plata entró</b>: SENADO y PAGADO están los dos en
+     * {@link EstadoPago#ENTRARON}, así que la caja, el tablero y la escalera de
+     * `V30` —que activa una preinscripción con cualquiera de los dos— ven lo
+     * mismo antes y después. Lo único que cambia es lo que la fila <i>dice</i>.
+     *
+     * <p>Se apoya en {@link PagoRepository#saldoDe}, que es la definición de P84
+     * y no una cuenta nueva: si acá se sumara distinto, un pago podría cerrarse
+     * como PAGADO y su cosa seguir apareciendo en Deudores. El pago ya viajó
+     * ({@code saveAndFlush}) antes de preguntar, así que el saldo lo incluye.
+     *
+     * <p>Sin precio contra el que comparar —una clase, una reserva sin precio, un
+     * trabajo sin entregar— {@code saldoDe} vuelve null y la seña queda como
+     * está: no se puede afirmar que cubrió algo que no tiene precio.
+     */
+    private void cerrarLaSeniaQueCubrioElPrecio(Pago pago) {
+        if (pago.getEstadoPago() != EstadoPago.SENADO) {
+            return;
+        }
+        String destino;
+        Long idDestino;
+        if (pago.getInscripcion() != null) {
+            destino = SaldoPendiente.INSCRIPCION;
+            idDestino = pago.getInscripcion().getId();
+        } else if (pago.getReserva() != null) {
+            destino = SaldoPendiente.RESERVA;
+            idDestino = pago.getReserva().getId();
+        } else if (pago.getIdTrabajoMastering() != null) {
+            destino = SaldoPendiente.TRABAJO;
+            idDestino = pago.getIdTrabajoMastering();
+        } else {
+            destino = SaldoPendiente.VENTA;
+            idDestino = pago.getIdVentaEquipo();
+        }
+
+        BigDecimal saldo = pagos.saldoDe(destino, idDestino);
+        if (saldo != null && saldo.signum() <= 0) {
+            pago.setEstadoPago(EstadoPago.PAGADO);
+            pagos.flush();
+        }
     }
 
     /**

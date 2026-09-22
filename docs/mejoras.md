@@ -6829,6 +6829,119 @@ bancarios**, que hoy es un link que no abre.
 
 ---
 
+## 25. La DECIMOTERCERA barrida — abierta y cerrada el 2026-09-22
+
+Ignacio trajo **dos correcciones**, las dos sobre **cómo se lee la plata de un
+grupo**. Las decisiones están en `requirements/platform.md` §31 (P104–P105).
+**Sin migración.** Triage entero A + B.
+
+**Textual:** *"una persona que solo seño sigue siendo deudor […] ahora con lo
+nuevo de los grupos cuando un grupo seña se va de deudores y figura en pago
+[…] es muy difícil ver para el admin quien no pago nada, quien seño y quien
+pago todo"* · *"cuando un grupo ya pasa a pagos porque abono el 100% figura con
+el nombre del REFERENTE y no con el nombre del grupo […] si es grupo siempre el
+nombre del grupo, porque sino el admin ve por ejemplo que PABLO POZA pago pero
+no ve que fue que pago por el grupo 86"*.
+
+### El triage
+
+| | Qué | Grupo |
+|---|---|---|
+| **A1** | El pago del curso de un grupo se nombra por el grupo (P104) | A |
+| **B1** | Una seña que cubrió el precio entero se guarda como PAGADO (P105) | B |
+
+### ⚠️ Lo primero que hizo la barrida fue medir, y la premisa se cayó
+
+El punto 1 llegaba como *"un grupo que seña se va de Deudores"*. **Corrido el
+filtro real de Pagos contra la base de desarrollo, eso no pasa**: el **Grupo
+87** señó $120 de $170.000, está en Deudores y su pago no aparece en Pagos. El
+circuito de P84/P85 hace exactamente lo que Ignacio pide.
+
+El que saltó a Pagos es el **Grupo 88**, cuya seña se cargó por **435 sobre un
+precio de 435** — el 100%. No debe nada, así que sale de Deudores con razón.
+
+**Si el punto se hubiera "arreglado" como venía descripto, el arreglo habría
+roto P85**: Pagos y Deudores dejarían de ser complementarias y una cosa sin
+saldo quedaría reclamando plata que ya entró. Es la lección del rebote de P96,
+por el otro lado: ahí el resultado era correcto y el modelo no; **acá el modelo
+era correcto y lo que fallaba era lo que la fila decía**.
+
+### B1 — La seña que cubrió todo (P105)
+
+Lo que sí estaba mal y nadie había reportado: esa fila decía `SENADO` mientras
+la aritmética decía que no faltaba nada. **Dos afirmaciones sobre el mismo
+hecho, contradiciéndose** — el patrón `V12`, ahora entre el estado y el saldo.
+La que se lee en la pantalla es la que miente, y de ahí sale la lectura de
+*"se fue de Deudores señado"*.
+
+`PagoService.cerrarLaSeniaQueCubrioElPrecio` se apoya en
+`PagoRepository.saldoDe`, **la definición de P84 y no una cuenta nueva**: si acá
+se sumara distinto, un pago podría cerrarse como PAGADO y su cosa seguir en
+Deudores. Sin precio contra el que comparar vuelve null y la seña queda como
+está — no se puede afirmar que cubrió algo que no tiene precio.
+
+⚠️ **`estado_pago` no dispara `pago_edicion_con_autor`** (`V19` §2), y está
+dejado afuera de esa lista a propósito: la anulación tiene su propia regla, más
+fuerte. Por eso el UPDATE no necesita firmar un autor — se verificó antes de
+escribirlo, no después de que el trigger lo rechazara.
+
+⚠️ **Y la causa de fondo no es de código: `programa.precio_2` y `precio_3` están
+vacíos en el catálogo**, así que el prellenado de la seña al 50% (P88) nunca
+actúa y **hoy todo grupo se carga a mano**. Que Mica los cargue es lo que hace
+que este caso deje de ser el normal.
+
+### A1 — El nombre del grupo (P104)
+
+`PagoResumen.pagadorDe` devuelve *"Grupo 86"* y `queSaldaDe` termina en *"·
+Grupo 86"*. El referente sigue viajando en `nombre`/`apellido` y la fila lo
+dibuja abajo, como contacto: la lectura de **P93** aplicada a la otra pantalla.
+
+**Se resuelve en el servidor**, que es lo que hace que el listado, el panel de
+corrección y el estado de cuenta lo digan igual. Costó dos métodos porque **la
+caja y las exportaciones del tablero no nombran pagos** — se miró antes de
+asumir que "todo lugar" eran muchos lugares.
+
+⚠️ **`queSalda` lleva el grupo aunque `pagador` ya lo diga, y no es redundancia:
+el estado de cuenta muestra `queSalda` y no `pagador`.** Sin el grupo ahí, la
+cuenta del referente dice que pagó un curso de DJ y no que lo pagó por el grupo.
+
+### Los dos arreglos, verificados poniendo el bug de vuelta
+
+Como manda la regla del proyecto: revertida cada mitad, los casos nuevos van a
+rojo. Un caso verde no prueba nada si también sería verde con el bug presente.
+
+---
+
+## ⚠️ DÓNDE RETOMAR (la §25 cerrada, 2026-09-22)
+
+✅ **LA DECIMOTERCERA (§25) ESTÁ CERRADA: dos de dos, sin migración** (P104–P105,
+`platform.md` §31). Las dos sobre **la plata de un grupo**: el pago del curso de
+un grupo se nombra **por el grupo** (*"Grupo 86"*, el referente abajo como
+contacto — P93 aplicada a Pagos y al estado de cuenta), y **una seña que cubrió
+el precio entero se guarda como `PAGADO`**.
+
+⚠️ **Lo que más vale de esta barrida es que la premisa del primer punto era
+falsa, y medirla fue lo que encontró el bug.** *"Un grupo que seña se va de
+Deudores"* no pasa —el Grupo 87 señó $120 de $170.000 y está en Deudores, fuera
+de Pagos—; el que saltó es el Grupo 88, con una seña cargada por el 100% del
+precio. Lo que sí estaba mal es que esa fila decía `SENADO` mientras la
+aritmética decía que no faltaba nada: **el patrón `V12`, ahora entre el estado y
+el saldo**. **Arreglarlo como venía descripto habría roto P85.** Es el rebote de
+P96 por el otro lado: allá el resultado era correcto y el modelo no; **acá el
+modelo era correcto y lo que fallaba era lo que la fila decía**.
+
+⏳ **Lo que dejó, y es un dato y no código: `programa.precio_2` y `precio_3`
+están vacíos**, así que el prellenado de la seña al 50% nunca actúa y **hoy todo
+grupo se carga a mano**. Que Mica los cargue es lo que hace que el caso del
+Grupo 88 deje de ser el normal.
+
+Lo demás que sigue abierto es lo de siempre: los dos `<select>` de Pagos que no
+son de personas, la 13231 a mano, `ReservaDelPortal` sin precio, el nombre
+legible de la disciplina en los avisos, **el PDF de los datos bancarios**, el
+admin sembrado (`V37`) y el deploy.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §17 cerrada, 2026-09-12 — arrastra el estado de la §16)
 
 ✅ **LA UNDÉCIMA (§23) ESTÁ CERRADA, EL 2026-09-20, ABIERTA Y CERRADA EL MISMO DÍA: nueve de nueve —ocho traídos y uno rebotado—, SIN MIGRACIÓN** (P93–P100, `platform.md` §29). Son los hallazgos del día después de los grupos, y **seis de los ocho son consecuencias de `V35`/`V36` que el modelo no había terminado de propagar**: el buzón manda **un** WhatsApp al referente con las claves de todos (antes tres), Deudores llama **"Grupo 8"** a la fila y el referente baja a contacto, el profesor ve **una tarjeta por grupo** con los tres adentro y las clases dichas una sola vez, y el buscador de alumno dice el grupo y **encuentra por "grupo 8"**. Las otras dos: todo panel que se abre por una acción **se trae a la vista** (`TraerALaVista`, veintitantos lugares — la corrección que la §21 había hecho a mano sólo en Deudores) y *"Ver"* en una notificación **la marca leída**. Además, el profesor de la clase **se prellena** con el del curso (se prellena, no se fija: el suplente existe) y **las salas bloqueadas se dibujan en el calendario y dejan de ofrecer el hueco**. ⚠️ **El bug que Ignacio vio como *"Programa UNDEFINED"* era un dato que servía para dos cosas**: `SaldoPendiente` mandaba la disciplina adentro de `detalle`, y `V35` le agregó *" · Grupo 8"* — ahora son dos columnas. ⚠️ **Y de paso encontró uno peor porque nadie lo reportó: el aviso de preinscripción vencida salía con los `%s` crudos adentro** (`"A" + "B".formatted(x)` ata el `formatted` al último literal); ningún caso miraba el contenido de esa regla. ⚠️ **Tres de los ocho tenían la misma forma: la capacidad existía y no se veía** — el calendario ya anotaba al grupo entero, el profesor de la inscripción está desde `V1`, los bloqueos ya los hacía valer un trigger. ⚠️ **Y lo más importante de la barrida es el rebote: Ignacio miró el arreglo del buscador y lo devolvió el mismo día** — *"no quiero anotar a Alvarez Julian — Grupo 41, quiero anotar AL GRUPO 41"*. **P96 leyó el problema como de visibilidad y era de modelo**: puso el grupo como una etiqueta al lado de la persona, y anotar daba el resultado correcto, pero la pantalla decía que el grupo es una propiedad de Julián en vez de la unidad que es. **P101 lo revierte**: donde se elige quién toma la clase se eligen **cursos** (*"Grupo 41 · Álvarez, Sosa y Rios"* o *"Pérez, Juan"*, al mismo nivel), y el checkbox se dio vuelta — **vienen todos y se desmarca al que falta**. El mismo defecto estaba, peor, en **Subir material**: un grupo de tres eran tres opciones con el mismo `idInscripcion`, o sea que parecía que se elegía a quién mandarle y no se elegía. **La lección: *"el resultado es correcto"* no alcanza cuando lo que se está corrigiendo es el modelo.** Suites: **772 backend · 701 front · 336 + 71 SQL** sobre 36 migraciones, el backend corrido con `./scripts/pruebas-backend.sh` (base vacía, lo que ve CI). **`V36` sigue siendo la última y el admin sembrado sigue en `V37`.**
