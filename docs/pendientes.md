@@ -1,5 +1,41 @@
 # Lo que queda abierto
 
+## ⚡ ESTADO AL 2026-09-22 (tarde) — la barrida de RESPONSIVE está en curso
+
+🔵 **`mejoras.md` §26 — responsive para móvil y tablet.** Ignacio: *"que los
+profes lo puedan usar con el cel"*. Alcance acordado: **barrida completa, por
+etapas**, con las tablas volviéndose tarjetas en el teléfono. Decisiones en
+`platform.md` §32 (P106–P107). **Sin migración: es todo front.**
+
+| | Etapa | Estado |
+|---|---|---|
+| **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | ✅ cerrada, commit `c48cd2a` |
+| **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | ✅ cerrada |
+| **2** | **Los portales**: el profe y el alumno en el celular (~13 pantallas) | ⏳ |
+| **3** | **Administración**: los 60 `grid-cols` fijos, filtros, y el calendario semanal (~20) | ⏳ |
+| **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ⏳ |
+| **5** | **Auditoría de la landing** en dispositivos reales | ⏳ |
+
+⚠️ **El hallazgo que reordenó el plan: no eran 56 pantallas, era un archivo.**
+`Layout.tsx` no tenía **un solo breakpoint** y en 375px dejaba **71px de
+lienzo** — el sistema no se veía mal en el celular, *no se podía usar*.
+
+⚠️ **La landing NO hay que reconstruirla**: usa `max-w` + `w-full` + padding
+fluido, y está bien. Lo que le falta es **auditoría en dispositivos reales**.
+
+⏳ **Lo que ninguna de las dos etapas puede probar: jsdom no aplica media
+queries.** Los casos prueban comportamiento y estructura, **no que se vea bien**.
+Eso sólo lo prueba mirarlo en un dispositivo — es el paso que le toca a Ignacio.
+Para verlo desde el teléfono hace falta `npm run dev:platform -- --host`
+(⚠️ deja el server visible en la red, y el admin sembrado sigue activo).
+
+⏳ **Y dos decisiones de producto que van a hacer falta más adelante**: qué hace
+**el calendario semanal** en 375px (una grilla de 7 días no entra de ninguna
+forma — vista de un día con selector, o scroll horizontal), y **qué columna
+sobrevive** en cada tabla si la tarjeta queda muy larga.
+
+---
+
 ## ⚡ ESTADO AL 2026-09-22 — leé esto y después, si hace falta, el resto
 
 ✅ **LA DECIMOTERCERA BARRIDA (`mejoras.md` §25) ESTÁ CERRADA: dos de dos, el

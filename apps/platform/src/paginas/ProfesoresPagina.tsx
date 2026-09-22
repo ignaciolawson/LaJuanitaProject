@@ -18,7 +18,7 @@ import { Campo } from '../componentes/Campo'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { PasswordNueva, type MotivoDeLaClave } from '../componentes/PasswordNueva'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { TraerALaVista } from '../componentes/TraerALaVista'
@@ -205,7 +205,7 @@ export function ProfesoresPagina() {
 
       <Tabla columnas={['Profesor', 'Contacto', 'Especialidad', 'Estado', '']}>
         {visibles.map((p) => (
-          <tr key={p.idProfesor}>
+          <Fila key={p.idProfesor}>
             <Celda>
               <span className="font-medium">
                 {p.apellido}, {p.nombre}
@@ -253,7 +253,7 @@ export function ProfesoresPagina() {
                 </div>
               )}
             </Celda>
-          </tr>
+          </Fila>
         ))}
 
         {!cargando && visibles.length === 0 && (

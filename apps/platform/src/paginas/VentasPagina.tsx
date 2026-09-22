@@ -28,7 +28,7 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { fecha } from '../componentes/semana'
@@ -193,7 +193,7 @@ export function VentasPagina() {
 
       <Tabla columnas={['Equipo', 'Comprador', 'Vendió', { etiqueta: 'Precio', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>
             {ventas.map((v) => (
-              <tr key={v.idVenta} className={v.anulada ? 'text-apagado' : undefined}>
+              <Fila key={v.idVenta} className={v.anulada ? 'text-apagado' : undefined}>
                 <Celda>
                   <span className={`font-medium ${v.anulada ? 'line-through' : ''}`}>
                     {v.modeloEquipo}
@@ -281,7 +281,7 @@ export function VentasPagina() {
                     </Boton>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
           </Tabla>
 

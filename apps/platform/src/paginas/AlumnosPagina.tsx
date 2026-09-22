@@ -25,7 +25,7 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { Bloque, Hueco } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { TraerALaVista } from '../componentes/TraerALaVista'
@@ -209,7 +209,7 @@ export function AlumnosPagina() {
 
       <Tabla columnas={['Alumno', 'Contacto', 'Cursa', 'Nivel de ingreso', 'Estado', '']}>
             {alumnos.map((a) => (
-              <tr key={a.idAlumno}>
+              <Fila key={a.idAlumno}>
                 <Celda>
                   {/* El nombre es la puerta al perfil. Va en la fila entera y no
                       como una columna "Ver" al final: es donde la gente hace
@@ -263,7 +263,7 @@ export function AlumnosPagina() {
                     </div>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
 
             {!cargando && alumnos.length === 0 && (

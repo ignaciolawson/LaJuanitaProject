@@ -9,7 +9,7 @@ import { enUnaLinea } from '../api/tiposAdmin'
 import { Comprobantes } from './Comprobantes'
 import { importe } from './dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from './presentacion'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila } from '../componentes/Tabla'
 import { fecha } from './semana'
 
 /**
@@ -93,7 +93,7 @@ export function DetalleDeCuenta({
           ]}
         >
               {cuenta.contratos.map((c) => (
-                <tr key={c.idInscripcion}>
+                <Fila key={c.idInscripcion}>
                   <Celda>
                     <div className="font-medium">
                       {NOMBRE_DE_DISCIPLINA[c.disciplina]}
@@ -139,7 +139,7 @@ export function DetalleDeCuenta({
                       <span className="text-xs text-acento">Sin seña</span>
                     )}
                   </Celda>
-                </tr>
+                </Fila>
               ))}
             </Tabla>
       )}
@@ -155,7 +155,7 @@ export function DetalleDeCuenta({
       ) : (
         <Tabla columnas={['Fecha', 'Qué salda', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Medio', 'Estado']}>
               {cuenta.pagos.map((p) => (
-                <tr key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
+                <Fila key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
                   <Celda className="whitespace-nowrap text-tenue">
                     {fecha(p.fechaPago)}
                   </Celda>
@@ -191,7 +191,7 @@ export function DetalleDeCuenta({
                       onVer={(c) => onVerComprobante(p, c)}
                     />
                   </Celda>
-                </tr>
+                </Fila>
               ))}
             </Tabla>
       )}

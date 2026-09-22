@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
@@ -8,7 +8,7 @@ import { CabeceraDePagina } from './CabeceraDePagina'
 import { EstadoVacio } from './EstadoVacio'
 import { Etiqueta } from './Etiqueta'
 import { AvisoSoloLectura } from './SoloLectura'
-import { Celda, FilaVacia, Tabla } from './Tabla'
+import { Celda, Fila, FilaVacia, Tabla } from './Tabla'
 
 /**
  * Las primitivas de la pasada de rediseño (0.3).
@@ -98,6 +98,81 @@ describe('Tabla', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Quién' })).toBeDefined()
     expect(screen.getByText('Nadie debe nada.')).toBeDefined()
+  })
+
+  /**
+   * **En el teléfono la tabla es una pila de tarjetas, y cada celda dice su
+   * encabezado** (P107, §26 · Etapa 1). Apilada sin rótulo, una fila es una lista
+   * de valores sueltos —"Grupo 86 / $470 / TRANSFERENCIA"— donde el tercero no se
+   * sabe qué es.
+   *
+   * ⚠️ jsdom no aplica media queries, así que esto **no prueba que se vea bien**:
+   * prueba que el rótulo esté, que salga de `columnas` —una definición, no
+   * noventa— y que en escritorio se oculte en vez de duplicar al `<th>`.
+   */
+  it('cada celda lleva el encabezado de su columna, sacado de columnas', () => {
+    render(
+      <Tabla columnas={['Quién', 'Debe']}>
+        <Fila>
+          <Celda>Sofía</Celda>
+          <Celda numerica>$ 45.000</Celda>
+        </Fila>
+      </Tabla>,
+    )
+
+    const celda = screen.getByText('Sofía').closest('td')!
+    const rotulo = within(celda).getByText('Quién')
+    expect(rotulo).toBeDefined()
+    // Se oculta en escritorio: ahí el que nombra la columna es el `<th>`, y dos
+    // veces el mismo texto es ruido para quien lee con lector de pantalla.
+    expect(rotulo.className).toContain('lg:hidden')
+
+    const plata = screen.getByText('$ 45.000').closest('td')!
+    expect(within(plata).getByText('Debe')).toBeDefined()
+  })
+
+  /**
+   * ⚠️ **Si las celdas no son tantas como las columnas, no se rotula ninguna.**
+   * Las etiquetas van por posición, así que una celda de menos las corre y la
+   * tarjeta pasa a decir *"Debe: Sofía"* con total aplomo, sin que nada falle.
+   * **Una etiqueta equivocada es peor que ninguna** — el mismo criterio por el
+   * que un contador que no llegó no se dibuja como cero.
+   */
+  it('con menos celdas que columnas no rotula nada, en vez de rotular mal', () => {
+    render(
+      <Tabla columnas={['Quién', 'Debe', 'Desde']}>
+        <Fila>
+          <Celda>Sofía</Celda>
+          <Celda numerica>$ 45.000</Celda>
+        </Fila>
+      </Tabla>,
+    )
+
+    const celda = screen.getByText('Sofía').closest('td')!
+    expect(within(celda).queryByText('Quién')).toBeNull()
+    // Y sobre todo: no dice "Debe" arriba del nombre.
+    expect(within(celda).queryByText('Debe')).toBeNull()
+  })
+
+  /**
+   * La columna sin encabezado —la de los botones— no lleva rótulo: *"Acciones:
+   * [Anular]"* no le dice nada a nadie, y además ocuparía media tarjeta.
+   */
+  it('la columna sin encabezado no inventa un rótulo', () => {
+    render(
+      <Tabla columnas={['Quién', '']}>
+        <Fila>
+          <Celda>Sofía</Celda>
+          <Celda>
+            <button type="button">Anular</button>
+          </Celda>
+        </Fila>
+      </Tabla>,
+    )
+
+    const acciones = screen.getByRole('button', { name: 'Anular' }).closest('td')!
+    expect(acciones.className).toContain('max-lg:block')
+    expect(acciones.className).not.toContain('max-lg:flex')
   })
 })
 

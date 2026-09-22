@@ -26,7 +26,7 @@ import { importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import { useErrorPasajero } from '../componentes/aviso'
 import { fecha, hoy, sumarDias } from '../componentes/semana'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { Bloque } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
@@ -155,7 +155,7 @@ export function AlumnoPerfilPagina() {
           lo contrario y filtra por vigentes, porque contesta otra pregunta. */}
       <Tabla columnas={['Curso', 'Profesor', 'Clases', 'Inicio', 'Estado']}>
             {inscripciones.map((i) => (
-              <tr key={i.idInscripcion}>
+              <Fila key={i.idInscripcion}>
                 <Celda>
                   <div>{NOMBRE_DE_DISCIPLINA[i.disciplina]}</div>
                   <div className="text-xs text-tenue">
@@ -202,7 +202,7 @@ export function AlumnoPerfilPagina() {
                 <Celda>
                   <EtiquetaEstado estado={i.estado} />
                 </Celda>
-              </tr>
+              </Fila>
             ))}
 
             {inscripciones.length === 0 && (

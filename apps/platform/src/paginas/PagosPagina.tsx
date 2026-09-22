@@ -35,7 +35,7 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { fecha } from '../componentes/semana'
 import { importe } from '../componentes/dinero'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { FormularioPago } from '../componentes/FormularioPago'
 import { TraerALaVista } from '../componentes/TraerALaVista'
@@ -290,7 +290,7 @@ export function PagosPagina() {
 
       <Tabla columnas={['Quién', 'Qué salda', 'Monto', 'Medio', 'Fecha', 'Estado', 'Comprobante', '']}>
             {pagos.map((p) => (
-              <tr key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
+              <Fila key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
                 <Celda>
                   {/* **El pagador sin cuenta se muestra igual pero no se linkea**
                       (`V19`): no tiene estado de cuenta al que llevar. Se usa
@@ -405,7 +405,7 @@ export function PagosPagina() {
                     </div>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
           </Tabla>
 

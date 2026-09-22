@@ -11,7 +11,7 @@ import { importe } from '../componentes/dinero'
 import { Etiqueta } from '../componentes/Etiqueta'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { AvisoSoloLectura, usePuedeEscribir } from '../componentes/SoloLectura'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { TraerALaVista } from '../componentes/TraerALaVista'
 
 /**
@@ -101,14 +101,10 @@ export function ProgramasPagina() {
         ]}
       >
         {cargando && programas.length === 0 ? (
-          <tr>
-            <td colSpan={8} className="px-4 py-10 text-center text-sm text-apagado">
-              Cargando…
-            </td>
-          </tr>
+          <FilaVacia columnas={8}>Cargando…</FilaVacia>
         ) : (
           programas.map((p) => (
-            <tr key={p.idPrograma} className={p.activo ? '' : 'text-apagado'}>
+            <Fila key={p.idPrograma} className={p.activo ? '' : 'text-apagado'}>
               <Celda>
                 <div className="font-medium">{p.nombre}</div>
                 <div className="text-xs text-tenue">{NOMBRE_DE_DISCIPLINA[p.disciplina]}</div>
@@ -159,7 +155,7 @@ export function ProgramasPagina() {
                   </Boton>
                 </Celda>
               )}
-            </tr>
+            </Fila>
           ))
         )}
       </Tabla>

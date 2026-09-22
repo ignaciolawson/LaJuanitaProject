@@ -10,7 +10,7 @@ import { usePuedeEscribir } from '../componentes/SoloLectura'
 import { useErrorPasajero } from '../componentes/aviso'
 import { antiguedad, importe } from '../componentes/dinero'
 import { NOMBRE_DE_DISCIPLINA, cuando } from '../componentes/presentacion'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { TraerALaVista } from '../componentes/TraerALaVista'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { fecha } from '../componentes/semana'
@@ -137,7 +137,7 @@ export function DeudoresPagina() {
         ]}
       >
             {personas.map((p) => (
-              <tr key={p.clave} className="align-top">
+              <Fila key={p.clave} className="align-top">
                 <Celda>
                   {/* **El deudor sin cuenta entra igual, pero no se linkea.**
                       Aparece porque una deuda que no está en esta pantalla es una
@@ -265,7 +265,7 @@ export function DeudoresPagina() {
                     </ul>
                   </Celda>
                 )}
-              </tr>
+              </Fila>
             ))}
 
             {/* Adentro de la tabla y no debajo: vacía pero con encabezados, se

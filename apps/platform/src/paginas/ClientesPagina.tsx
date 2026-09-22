@@ -10,7 +10,7 @@ import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Paginado } from '../componentes/Paginado'
 import { fecha } from '../componentes/semana'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 
 /**
@@ -98,7 +98,7 @@ export function ClientesPagina() {
 
       <Tabla columnas={['Cliente', 'Contacto', 'Qué compró', 'Compras', 'Última']}>
         {clientes.map((c) => (
-          <tr key={c.idUsuario ?? `externo:${c.nombre}`}>
+          <Fila key={c.idUsuario ?? `externo:${c.nombre}`}>
             <Celda>
               {/* Con cuenta, el nombre lleva al estado de cuenta — la plata de una
                   persona ya tiene su pantalla. Sin cuenta no hay a dónde ir. */}
@@ -127,7 +127,7 @@ export function ClientesPagina() {
             </Celda>
             <Celda numerica>{c.pagos}</Celda>
             <Celda className="text-tenue">{fecha(c.ultimaCompra)}</Celda>
-          </tr>
+          </Fila>
         ))}
 
         {!cargando && clientes.length === 0 && (

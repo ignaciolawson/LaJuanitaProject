@@ -28,7 +28,7 @@ import { PedirMotivo } from '../componentes/PedirMotivo'
 import { importe } from '../componentes/dinero'
 import { hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { fecha } from '../componentes/semana'
 import { TraerALaVista } from '../componentes/TraerALaVista'
@@ -233,7 +233,7 @@ export function EgresosPagina() {
 
       <Tabla columnas={['Concepto', 'A quién', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Fecha', 'Comprobante', '']}>
             {egresos.map((e) => (
-              <tr key={e.idEgreso} className={e.anulado ? 'text-apagado' : undefined}>
+              <Fila key={e.idEgreso} className={e.anulado ? 'text-apagado' : undefined}>
                 <Celda className="font-medium">
                   {/* Tachado y con el motivo: la fila anulada es la que explica
                       por qué el total de la caja cambió, así que se queda. */}
@@ -302,7 +302,7 @@ export function EgresosPagina() {
                     </Boton>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
           </Tabla>
 

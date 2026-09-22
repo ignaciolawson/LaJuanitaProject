@@ -3735,3 +3735,49 @@ necesita.
 scrolleando al costado (`Tabla` ya trae `overflow-x-auto`, así que **no rompen**
 — sólo son incómodas), y los **60 `grid-cols-N` sin breakpoint** de los
 formularios siguen en dos y tres columnas.
+
+### ✅ P107 — En el teléfono una tabla es una pila de tarjetas
+
+**Lo que había:** `Tabla` ya traía `overflow-x-auto`, así que **las once tablas
+no rompían nada** — se scrollean al costado. Pero leer una fila de ocho columnas
+en 375px obliga a barrer de izquierda a derecha perdiendo de vista de quién era
+la fila, y volver. Es usable en el sentido de que no se rompe, y no es usable en
+el sentido que importa.
+
+**La decisión** (Ignacio: *"que sea cómodo en el cel y muy cómodo en tablet"*):
+debajo de `lg`, la tabla deja de ser una tabla. Cada fila es una **tarjeta** y
+cada celda una línea con **su encabezado a la izquierda y el dato a la derecha**.
+Desde `lg`, todo queda exactamente como estaba.
+
+⚠️ **Las etiquetas salen de `columnas`; no se escriben de nuevo.** `Fila` recorre
+sus celdas y le pasa a cada una la que le toca por posición. Escribirlas a mano
+serían ~90 lugares donde el encabezado de la tabla y el de la tarjeta pueden
+decir cosas distintas — la clase de copia que este proyecto ya paga cara en
+`contarClasesConsumidas`. La contra es que **el orden importa**, y de ahí sale la
+guarda de abajo.
+
+⚠️ **Si las celdas no son tantas como las columnas, no se rotula ninguna.** Una
+celda de menos corre todas las etiquetas y la tarjeta pasa a decir *"Debe:
+Pérez, Juan"* con total aplomo, sin que nada falle. **Una etiqueta equivocada es
+peor que ninguna**, que es el mismo criterio por el que un contador que no llegó
+no se dibuja como cero. Hoy las dos únicas celdas condicionales —Deudores y
+Programas— son la última y su columna también es condicional, así que nunca se
+desalinean; la guarda es para la que venga.
+
+**La columna sin encabezado no lleva rótulo**: *"Acciones: [Anular]"* no le dice
+nada a nadie y ocuparía media tarjeta. Esa celda usa el ancho entero.
+
+**El `<td>` sólo envuelve el dato donde hay rótulo.** Ahí es un flex de dos, y
+sin envoltorio una celda con dos `<div>` —nombre arriba, mail abajo— se abriría
+en dos columnas al lado del rótulo. Donde no hay rótulo no se envuelve nada: un
+`<span>` de más cambiaría el DOM de la columna de botones para nadie.
+
+⚠️ **El rótulo NO lleva `aria-hidden`.** Debajo de `lg` el `thead` está en
+`display:none`, así que los `<th>` salen del árbol de accesibilidad y la tabla se
+queda sin encabezados: ese rótulo es lo único que dice qué es el dato. Y no se
+duplica en escritorio, porque ahí el oculto es él.
+
+**Y cierra un problema que abrió la Etapa 0**: el comentario de `Tabla` advertía
+desde la Fase 3 que *"si alguna vez vuelve una barra fija arriba, este `top-0`
+hay que correrlo"*. P106 trajo esa barra. No hubo que correr nada **porque
+debajo de `lg` el encabezado ya no se dibuja**.

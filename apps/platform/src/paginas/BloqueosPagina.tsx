@@ -10,7 +10,7 @@ import { CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { fecha, hhmm, hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda } from '../componentes/Tabla'
+import { Tabla, Celda, Fila } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { TraerALaVista } from '../componentes/TraerALaVista'
 
@@ -144,7 +144,7 @@ export function BloqueosPagina() {
 
       <Tabla columnas={['Sala', 'Cuándo', 'Motivo', 'Cargado por', '']}>
             {bloqueos.map((b) => (
-              <tr key={b.idBloqueo} className={b.vigente ? '' : 'text-apagado'}>
+              <Fila key={b.idBloqueo} className={b.vigente ? '' : 'text-apagado'}>
                 <Celda>
                   <div className="font-medium">{b.sala}</div>
                   {!b.vigente && <div className="text-xs">vencido</div>}
@@ -167,7 +167,7 @@ export function BloqueosPagina() {
                     </Boton>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
           </Tabla>
 

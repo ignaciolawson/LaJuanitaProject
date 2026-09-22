@@ -19,7 +19,7 @@ import { Paginado } from '../componentes/Paginado'
 import { PasswordNueva, type MotivoDeLaClave } from '../componentes/PasswordNueva'
 import { useUsuario } from '../auth/contexto'
 import { puedeOperar } from '../layout/menu'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { AvisoSoloLectura } from '../componentes/SoloLectura'
 import { NOMBRE_DE_ROL } from '../componentes/presentacion'
@@ -206,7 +206,7 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
           este proyecto corrigió al principio. */}
       <Tabla columnas={['Persona', 'Contacto', 'Rol', 'Relaciones', 'Estado', '']}>
             {usuarios.map((u) => (
-              <tr key={u.id}>
+              <Fila key={u.id}>
                 <Celda>
                   <span className="font-medium">
                     {u.apellido}, {u.nombre}
@@ -249,7 +249,7 @@ export function UsuariosPagina({ grupo = 'TODOS' }: { grupo?: GrupoDeCuentas }) 
                     </div>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
 
             {!cargando && usuarios.length === 0 && (

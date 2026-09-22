@@ -32,7 +32,7 @@ import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA, capitalizar, cuando } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
-import { Tabla, Celda, FilaVacia } from '../componentes/Tabla'
+import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { SelectorDeAlumno } from '../componentes/SelectorDeAlumno'
 import { TraerALaVista } from '../componentes/TraerALaVista'
@@ -214,7 +214,7 @@ export function InscripcionesPagina() {
 
       <Tabla columnas={['Alumno', 'Curso', 'Profesor', 'Clases', 'Precio', 'Estado', '']}>
             {inscripciones.map((i) => (
-              <tr key={i.idInscripcion}>
+              <Fila key={i.idInscripcion}>
                 <Celda>
                   {i.numeroGrupo == null ? (
                     <>
@@ -284,7 +284,7 @@ export function InscripcionesPagina() {
                     </div>
                   )}
                 </Celda>
-              </tr>
+              </Fila>
             ))}
 
             {!cargando && inscripciones.length === 0 && (

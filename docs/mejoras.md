@@ -6953,7 +6953,7 @@ hallazgo que reordenó el plan: no son 36 pantallas, es un archivo.
 | | Qué | Tamaño | Estado |
 |---|---|---|---|
 | **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | 1 archivo, desbloquea 36 pantallas | ✅ **cerrada el 2026-09-22** |
-| **1** | **`Tabla` → tarjetas** en pantalla chica | 1 componente, ~11 tablas | ⏳ |
+| **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | 1 componente, 13 tablas | ✅ **cerrada el 2026-09-22** |
 | **2** | **Los portales**: el profe y el alumno en el celular | ~13 pantallas | ⏳ |
 | **3** | **Administración**: los 60 `grid-cols` fijos, filtros, y el calendario semanal | ~20 pantallas | ⏳ |
 | **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ~4 pantallas | ⏳ |
@@ -6995,6 +6995,59 @@ que **ningún caso prueba que esto se vea bien**. Los cuatro casos nuevos pincha
 comportamiento (abre, cierra al navegar, cierra con Escape, apunta al menú
 correcto); lo visual **sólo lo prueba mirarlo en un dispositivo**, que es el
 paso que le toca a Ignacio antes de la Etapa 1.
+
+### Etapa 1 — la tabla como tarjetas (cerrada el 2026-09-22)
+
+**Lo que había no estaba roto, y esa es la diferencia con la Etapa 0.** `Tabla`
+ya traía `overflow-x-auto`, así que las once tablas se scrollean al costado. El
+problema es otro: leer una fila de ocho columnas en 375px obliga a barrer de
+izquierda a derecha **perdiendo de vista de quién era la fila**, y volver.
+
+Lo que se hizo está en P107. Lo que conviene no perder:
+
+- **Las etiquetas salen de `columnas`, no se escriben de nuevo.** Es lo que
+  decidió la forma entera: `Fila` reemplaza al `<tr>` y le reparte a cada celda
+  la etiqueta que le toca **por posición**. La alternativa —un `etiqueta=` a mano
+  en cada `Celda`— eran ~90 lugares donde el encabezado de arriba y el de la
+  tarjeta pueden decir cosas distintas.
+- ⚠️ **Y de ahí sale la guarda que más vale de esta etapa: si las celdas no son
+  tantas como las columnas, no se rotula ninguna.** Una celda de menos corre
+  todas las etiquetas y la tarjeta empieza a decir *"Debe: Pérez, Juan"* con
+  total aplomo, sin que nada falle. **Una etiqueta equivocada es peor que
+  ninguna** — el mismo criterio por el que un contador que no llegó no se dibuja
+  como cero.
+- ⚠️ **El primer relevamiento de celdas condicionales dio cero y estaba mal.** El
+  grep buscaba `{x && <Celda` en una línea y las dos que existen están en
+  multilínea (`{puedeEscribir && (` y `<Celda` abajo). Las dos son **la última
+  celda y su columna también es condicional**, así que nunca se desalinean —
+  pero el método falló, no el resultado, y por eso la guarda no es opcional.
+- **El rótulo NO lleva `aria-hidden`**: debajo de `lg` el `thead` está en
+  `display:none`, o sea que los `<th>` salen del árbol de accesibilidad y la
+  tabla se queda sin encabezados. Ese rótulo es lo único que dice qué es el dato.
+- **El `<td>` envuelve el dato sólo donde hay rótulo.** Lo mostró un caso viejo:
+  `una celda numérica alinea a la derecha` afirmaba sobre el elemento que
+  contiene el texto, y con el envoltorio puesto siempre ese elemento pasaba a ser
+  el `<span>`. **La salida no fue arreglar el caso sino el diseño** — donde no
+  hay rótulo no hace falta ningún flex, así que no se envuelve nada; el caso
+  viejo volvió a pasar sin tocarlo.
+- **Cierra un problema que abrió la Etapa 0.** El comentario de `Tabla` advertía
+  desde la Fase 3 que *"si alguna vez vuelve una barra fija arriba, este `top-0`
+  hay que correrlo"*. P106 trajo esa barra, y no hubo que correr nada porque
+  debajo de `lg` el encabezado ya no se dibuja.
+
+**La migración fueron 3 líneas por archivo** —el import, la apertura y el
+cierre—, 14 filas en 13 archivos, hecha con script y **con el diff leído entero**
+como pide la lección de §10. Es segura sin balanceo por profundidad porque un
+`<tr>` no puede anidar otro: el primer `</tr>` es siempre su cierre. De paso, la
+fila vacía a mano de Programas pasó a ser `FilaVacia`.
+
+⚠️ **La misma limitación que la Etapa 0, y hay que repetirla**: jsdom no aplica
+media queries. Los tres casos nuevos prueban que el rótulo está, que sale de
+`columnas` y que la guarda funciona — **no prueban que se vea bien**. Eso sólo lo
+prueba mirarlo.
+
+---
+
 
 ---
 
