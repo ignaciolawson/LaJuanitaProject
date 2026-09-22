@@ -3676,3 +3676,62 @@ vacíos en el catálogo.** El prellenado de la seña al 50% (P88) sólo actúa s
 precio para ese tamaño, así que **hoy todo grupo se carga a mano** y nada avisa
 cuando el monto cubre el precio entero. Que Mica los cargue es lo que hace que
 este caso deje de ser el normal; `pendientes.md` lo lleva.
+
+---
+
+## 32. Decisiones cerradas el 2026-09-22 (decimosexta tanda) — responsive
+
+> La barrida de responsive (`mejoras.md` §26). Ignacio: *"necesito que el sistema
+> de gestión sea responsive y que los profes lo puedan usar con el cel"*, y
+> revisar también la landing. Alcance acordado: **barrida completa, por etapas**,
+> con las tablas volviéndose tarjetas en el teléfono (*"que sea cómodo en el cel
+> y muy cómodo en tablet"*).
+
+### ✅ P106 — El shell es una columna en escritorio y un cajón en el teléfono
+
+**Lo que había, medido y no estimado:** `Layout.tsx` no tenía **un solo
+breakpoint**. El `<aside>` era `h-screen w-60 shrink-0` y el contenido `px-8`.
+En un teléfono de 375px eso deja **71px útiles** — 240 de columna, 64 de
+padding. **El sistema no se veía mal en el celular: no se podía usar**, que es
+por lo que ningún profesor lo abrió nunca desde ahí.
+
+**La decisión:** desde `lg` (1024px) todo queda **exactamente como estaba**;
+por debajo, la columna es un cajón que se corre desde la izquierda, con su
+fondo oscurecido, y el contenido ocupa el ancho entero.
+
+**El corte va en `lg` y no en `md`**, y es la decisión con consecuencia: una
+tablet en vertical (768px) con la columna puesta deja ~470px de lienzo, que es
+menos de lo que necesita cualquiera de las once tablas. En horizontal (1024+)
+entra cómoda. Así que **la tablet vertical usa el cajón igual que el teléfono** —
+el criterio es el ancho que le queda al contenido, no el nombre del dispositivo.
+
+**Vuelve una barra superior, y no contradice la decisión de la Fase 3 de
+sacarla.** Aquélla era sobre escritorio y sobre dos datos que nadie mira dos
+veces ("Hola, X" y el rol). Ésta existe sólo debajo de `lg`, lleva **la marca y
+el botón del menú**, y es *la única forma de llegar a la navegación* cuando la
+columna no está. Es `sticky`: el menú tiene que estar a mano después de
+scrollear treinta filas, que es justo donde más molesta tener que volver arriba.
+
+**Tres comportamientos del cajón, y los tres se pueden deshacer sin que nada
+falle** — por eso tienen caso:
+
+- **Nace cerrado.**
+- **Navegar lo cierra.** Sin esto se toca un ítem, la pantalla cambia detrás y
+  el menú la tapa: parece que el toque no hizo nada. Depende del *path* y no del
+  click, porque hay más formas de navegar que el menú (un enlace de adentro, el
+  botón de atrás del teléfono).
+- **Escape lo cierra**, como cualquier capa que tapa.
+
+**Las áreas tocables suben a 44px en chico** (`py-3`, contra `py-1.5` desde
+`lg`). No es un número inventado: es el mínimo de toque que el material de
+referencia sostiene. No se aplica en escritorio porque esa misma altura estira
+un menú de treinta y un ítems más allá de la pantalla.
+
+**Y el respiro del lienzo se vuelve fluido** — `px-4` / `sm:px-6` / `lg:px-8`.
+Los 32px de escritorio, en un teléfono, se comían el ancho que el contenido
+necesita.
+
+⚠️ **Lo que esta etapa NO toca y se decide en la suya:** las once tablas siguen
+scrolleando al costado (`Tabla` ya trae `overflow-x-auto`, así que **no rompen**
+— sólo son incómodas), y los **60 `grid-cols-N` sin breakpoint** de los
+formularios siguen en dos y tres columnas.

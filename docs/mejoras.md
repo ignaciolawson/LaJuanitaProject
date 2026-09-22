@@ -6912,6 +6912,92 @@ rojo. Un caso verde no prueba nada si también sería verde con el bug presente.
 
 ---
 
+## 26. La barrida de RESPONSIVE — abierta el 2026-09-22
+
+Ignacio: *"necesito hacer foco en lo responsive para movile y tablet […] que los
+profes lo puedan usar con el cel"*, y revisar **la landing y el sistema de
+gestión en todas sus pantallas**. Las decisiones van en `requirements/platform.md`
+§32 (P106+).
+
+⚠️ **No es una barrida de correcciones traídas del uso: es un objetivo.** Por eso
+tiene etapas numeradas y no un triage A/B/C — lo que ordena el trabajo no es
+cuánto toca cada punto sino **qué desbloquea a qué**.
+
+### Alcance acordado antes de escribir código
+
+| Pregunta | Respuesta de Ignacio |
+|---|---|
+| ¿Hasta dónde? | **Barrida completa, en orden y de a etapas como siempre** |
+| ¿Administración en el celular? | **Cómodo en el cel, muy cómodo en tablet** — las tablas se vuelven tarjetas en pantalla chica |
+
+### El relevamiento, medido y no estimado
+
+| | Landing | Plataforma |
+|---|---|---|
+| Breakpoints | 162 en 31/56 archivos | 104 en 31/75 |
+| Anchos | `max-w` + `w-full` + padding fluido ✅ | `w-60 shrink-0` **sin un solo breakpoint** ❌ |
+| Grillas de formulario | — | **60 fijas** vs 56 con breakpoint |
+| Tablas | — | `overflow-x-auto` ✅ ya correcto |
+| `<meta viewport>` | ✅ | ✅ |
+
+**La landing está bien construida** y no hay que reconstruirla: `Container` usa
+`max-w-[1180px]` con `px-[var(--pad)]`, y los anchos grandes son todos `max-w`
+sobre `w-full`. Lo que le falta es **auditoría en dispositivos reales**, no
+trabajo de layout.
+
+**La plataforma tenía un solo bloqueante que dominaba todo el resto**, y es el
+hallazgo que reordenó el plan: no son 36 pantallas, es un archivo.
+
+### Las etapas
+
+| | Qué | Tamaño | Estado |
+|---|---|---|---|
+| **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | 1 archivo, desbloquea 36 pantallas | ✅ **cerrada el 2026-09-22** |
+| **1** | **`Tabla` → tarjetas** en pantalla chica | 1 componente, ~11 tablas | ⏳ |
+| **2** | **Los portales**: el profe y el alumno en el celular | ~13 pantallas | ⏳ |
+| **3** | **Administración**: los 60 `grid-cols` fijos, filtros, y el calendario semanal | ~20 pantallas | ⏳ |
+| **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ~4 pantallas | ⏳ |
+| **5** | **Auditoría de la landing** en dispositivos reales | 20 páginas | ⏳ |
+
+⚠️ **El orden no es por importancia sino por lo que cada etapa le ahorra a la
+siguiente.** La 1 va antes que la 2 y la 3 porque `Tabla` es compartida:
+arreglarla una vez arregla once tablas en los dos lados. Es la misma economía
+que hizo barata la Fase 3 del rediseño, y la misma razón por la que la 0 va
+primero.
+
+### Etapa 0 — el shell (cerrada el 2026-09-22)
+
+**Lo que había:** `Layout.tsx` sin un solo breakpoint; en 375px el sistema
+dejaba **71px de lienzo**. No se veía mal: **no se podía usar**.
+
+Lo que se hizo está en P106. Lo que conviene no perder:
+
+- **El corte va en `lg` (1024) y no en `md`**, porque el criterio es *el ancho
+  que le queda al contenido*, no el nombre del dispositivo: una tablet vertical
+  con la columna puesta deja ~470px, menos de lo que necesita cualquier tabla.
+  **La tablet vertical usa el cajón igual que el teléfono.**
+- **Vuelve una barra superior y no contradice la Fase 3.** Aquélla se sacó en
+  escritorio, por llevar dos datos que nadie mira; ésta existe sólo debajo de
+  `lg` y es **la única puerta al menú**.
+- **Los tres comportamientos del cajón tienen caso porque se pueden deshacer sin
+  que nada falle**: nace cerrado, navegar lo cierra, Escape lo cierra. El del
+  medio se verificó **poniendo el bug de vuelta** — sin él, se toca un ítem, la
+  pantalla cambia detrás y el menú la tapa: parece que el toque no hizo nada.
+- **44px de área tocable en chico**, `py-1.5` desde `lg`: esa altura en
+  escritorio estira un menú de treinta y un ítems más allá de la pantalla.
+
+⚠️ **Lo que la etapa deliberadamente NO tocó**: las once tablas siguen
+scrolleando al costado —incómodas, pero **no rotas**— y los 60 `grid-cols`
+siguen en dos y tres columnas. Cada uno tiene su etapa.
+
+⚠️ **Y una limitación del método que hay que decir**: jsdom no mide layout, así
+que **ningún caso prueba que esto se vea bien**. Los cuatro casos nuevos pinchan
+comportamiento (abre, cierra al navegar, cierra con Escape, apunta al menú
+correcto); lo visual **sólo lo prueba mirarlo en un dispositivo**, que es el
+paso que le toca a Ignacio antes de la Etapa 1.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §25 cerrada, 2026-09-22)
 
 ✅ **LA DECIMOTERCERA (§25) ESTÁ CERRADA: dos de dos, sin migración** (P104–P105,

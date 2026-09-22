@@ -171,3 +171,55 @@ describe('una pantalla rota', () => {
     vi.restoreAllMocks()
   })
 })
+
+/**
+ * El cajón de pantalla chica (P106, §26 · Etapa 0).
+ *
+ * Lo que pinchan estos casos no es el dibujo —eso lo decide CSS y jsdom no lo
+ * mide— sino **las tres decisiones que se pueden deshacer sin que nada falle**:
+ * que el cajón nazca cerrado, que navegar lo cierre, y que Escape lo cierre.
+ * La primera y la segunda son las que hacen que el sistema se pueda usar con el
+ * dedo; si alguna se pierde, el menú tapa la pantalla a la que acabás de entrar
+ * y parece que el toque no hizo nada.
+ */
+describe('el menú en pantalla chica', () => {
+  it('nace cerrado y el botón lo abre', async () => {
+    montar()
+
+    const abrir = screen.getByRole('button', { name: 'Abrir el menú' })
+    expect(abrir.getAttribute('aria-expanded')).toBe('false')
+
+    await userEvent.click(abrir)
+
+    expect(abrir.getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Cerrar el menú' })).toBeDefined()
+  })
+
+  it('navegar lo cierra: si no, el menú tapa la pantalla que acabás de abrir', async () => {
+    montar()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }))
+    expect(screen.getByRole('button', { name: 'Abrir el menú' }).getAttribute('aria-expanded')).toBe('true')
+
+    await userEvent.click(item('Calendario'))
+
+    expect(screen.getByRole('button', { name: 'Abrir el menú' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('Escape lo cierra', async () => {
+    montar()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir el menú' }))
+    await userEvent.keyboard('{Escape}')
+
+    expect(screen.getByRole('button', { name: 'Abrir el menú' }).getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('el botón dice a qué menú apunta', () => {
+    montar()
+
+    const abrir = screen.getByRole('button', { name: 'Abrir el menú' })
+    expect(abrir.getAttribute('aria-controls')).toBe('menu-principal')
+    expect(document.getElementById('menu-principal')).toBeTruthy()
+  })
+})

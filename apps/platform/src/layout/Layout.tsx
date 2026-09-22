@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 
 import { nombreCompleto } from '../api/tipos'
@@ -25,11 +26,22 @@ import { usePendientes } from './usePendientes'
  * hueso, en oscuro tinta. Los colores no están acá sino en los tokens
  * `--shell-*`, así que esta columna no sabe que existen dos temas.
  *
- * **NO hay barra superior**, y también es una decisión. Contenía sólo "Hola, X" y
- * el chip de rol: una franja fija en las 36 pantallas para dos datos que nadie
- * mira dos veces. El saludo pasó al Inicio, donde §11 lo puso, y el rol al pie de
- * esta columna. La consecuencia es de jerarquía y es la que importa: sin ese
- * encabezado, **el título de cada pantalla es el `<h1>` de verdad**.
+ * **NO hay barra superior en escritorio**, y también es una decisión. Contenía
+ * sólo "Hola, X" y el chip de rol: una franja fija en las 36 pantallas para dos
+ * datos que nadie mira dos veces. El saludo pasó al Inicio, donde §11 lo puso, y
+ * el rol al pie de esta columna. La consecuencia es de jerarquía y es la que
+ * importa: sin ese encabezado, **el título de cada pantalla es el `<h1>` de
+ * verdad**.
+ *
+ * ⚠️ **En pantalla chica esa columna es un cajón, y vuelve una barra — con otro
+ * contenido y por otro motivo** (P106, §26 · Etapa 0). Hasta el 2026-09-22 el
+ * `<aside>` era `w-60 shrink-0` sin un solo breakpoint: en un teléfono de 375px
+ * se comía 240 y, con el `px-8` del contenido, dejaba **71px útiles**. El sistema
+ * no se veía mal en el celular, *no se podía usar* — que es por lo que ningún
+ * profesor lo abrió nunca desde ahí. La barra de arriba no contradice la decisión
+ * de sacarla: aquélla era sobre escritorio y sobre datos que nadie mira; ésta es
+ * **la única forma de llegar al menú** cuando la columna no está, y lleva la marca
+ * y un botón, no un saludo.
  */
 export function Layout() {
   const { cerrarSesion } = useAuth()
@@ -38,13 +50,57 @@ export function Layout() {
   const { tema, alternar } = useTema(usuario)
   const { contadores } = usePendientes(usuario)
   const ubicacion = useLocation()
+  const [menuAbierto, setMenuAbierto] = useState(false)
+
+  // **Navegar cierra el cajón.** Sin esto se toca un ítem, la pantalla cambia
+  // detrás y el menú queda tapándola: parece que no pasó nada. Depende del path
+  // y no del click porque hay más formas de navegar que el menú (un `<Link>` de
+  // adentro, el botón de atrás del teléfono).
+  useEffect(() => {
+    setMenuAbierto(false)
+  }, [ubicacion.pathname])
+
+  // Escape lo cierra, como cualquier capa que tapa. El listener se monta sólo
+  // cuando está abierto: no hay nada que escuchar el resto del tiempo.
+  useEffect(() => {
+    if (!menuAbierto) return
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuAbierto(false)
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [menuAbierto])
 
   return (
     <div className="flex min-h-full">
+      {/* El fondo que oscurece el lienzo con el cajón abierto. Sólo existe en
+          pantalla chica y sólo cuando hace falta: es la salida más a mano —se
+          toca al costado y se cierra— y además dice que lo de atrás está
+          esperando. `aria-hidden` porque Escape y el botón ya son la salida
+          accesible; un `<div>` clickeable más sería una parada de teclado que no
+          lleva a ningún lado. */}
+      {menuAbierto && (
+        <div
+          aria-hidden="true"
+          onClick={() => setMenuAbierto(false)}
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+        />
+      )}
+
       {/* `h-screen` + `sticky`: con siete grupos y treinta y un ítems, un ADMIN
           tiene más menú que pantalla. La columna se queda quieta y scrollea sólo
-          la lista; la marca y la identidad no se van de la vista. */}
-      <aside className="costura-shell grano-shell sticky top-0 z-10 flex h-screen w-60 shrink-0 flex-col overflow-hidden bg-shell text-shell-texto">
+          la lista; la marca y la identidad no se van de la vista.
+
+          ⚠️ Debajo de `lg` es un cajón: `fixed`, fuera del flujo —por eso el
+          contenido pasa a ocupar el ancho entero— y corrido a la izquierda hasta
+          que alguien lo pide. `max-w-[85%]` deja ver un borde del lienzo, que es
+          lo que hace evidente que esto se cierra. */}
+      <aside
+        id="menu-principal"
+        className={`costura-shell grano-shell fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85%] flex-col overflow-hidden bg-shell text-shell-texto transition-transform duration-200 lg:sticky lg:inset-y-auto lg:top-0 lg:z-10 lg:h-screen lg:w-60 lg:max-w-none lg:shrink-0 lg:translate-x-0 lg:transition-none ${
+          menuAbierto ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {/* La marca, que en el resto del sistema no aparece: el abanico está
             reservado para login, vacíos y acá. ⚠️ El rojo va en
             `--shell-acento`, que es el que está calibrado contra el fondo del
@@ -52,10 +108,20 @@ export function Layout() {
             la barra del ítem activo es información, no adorno. */}
         <div className="flex items-center gap-3 border-b border-shell-linea px-5 py-5">
           <Abanico className="h-9 w-auto shrink-0 text-shell-acento" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="t-mono text-shell-texto">La Juanita</p>
             <p className="t-mono text-shell-tenue">Gestión</p>
           </div>
+          {/* Cerrar desde adentro. El costado ya cierra, pero eso hay que
+              saberlo; una cruz se ve. 44px de área tocable (P106). */}
+          <button
+            type="button"
+            onClick={() => setMenuAbierto(false)}
+            aria-label="Cerrar el menú"
+            className="-mr-2 shrink-0 p-2.5 text-shell-tenue transition-colors hover:text-shell-texto lg:hidden"
+          >
+            <Cruz />
+          </button>
         </div>
 
         <nav className="zona-shell flex-1 overflow-y-auto py-5">
@@ -77,7 +143,11 @@ export function Layout() {
                           // El borde va siempre, transparente cuando no está
                           // activo: si apareciera sólo al activarse, el texto se
                           // correría dos píxeles cada vez que navegás.
-                          `flex items-center justify-between gap-2 border-l-2 py-1.5 pr-3 pl-3.5 text-sm transition-colors ${
+                          // `py-3` en chico y `py-1.5` desde `lg`: con el dedo
+                          // hace falta un blanco de 44px (P106); con el mouse,
+                          // esa misma altura estira el menú de treinta y un
+                          // ítems más allá de la pantalla.
+                          `flex items-center justify-between gap-2 border-l-2 py-3 pr-3 pl-3.5 text-sm transition-colors lg:py-1.5 ${
                             isActive
                               ? 'border-shell-acento bg-shell-activo font-medium text-shell-texto'
                               : 'border-transparent text-shell-tenue hover:bg-shell-activo hover:text-shell-texto'
@@ -94,7 +164,7 @@ export function Layout() {
                       // pantalla vacía con un error.
                       <span
                         aria-disabled="true"
-                        className="flex items-center justify-between border-l-2 border-transparent py-1.5 pr-3 pl-3.5 text-sm text-shell-tenue opacity-60"
+                        className="flex items-center justify-between border-l-2 border-transparent py-3 pr-3 pl-3.5 text-sm text-shell-tenue opacity-60 lg:py-1.5"
                       >
                         {item.etiqueta}
                         <span className="t-mono text-[9px]">pronto</span>
@@ -135,15 +205,81 @@ export function Layout() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-8 py-8">
-        {/* Una pantalla que tira al dibujarse se rompe sola, no con el sidebar
-            (§16 · A6). El `key` en el path es lo que la reinicia: navegar a otra
-            ruta desmonta el límite roto y monta uno limpio. */}
-        <LimiteDeError alcance="pantalla" key={ubicacion.pathname}>
-          <Outlet />
-        </LimiteDeError>
+      <main className="min-w-0 flex-1">
+        {/* La barra que sólo existe cuando no está la columna. Lleva la marca y
+            el botón, y nada más: no es la barra que se sacó en la Fase 3 —ésa
+            decía "Hola, X" en escritorio—, es la puerta al menú. `sticky` para
+            que el menú esté a mano después de scrollear treinta filas, que es
+            justo donde más molesta tener que volver arriba. */}
+        <header className="costura-shell sticky top-0 z-20 flex items-center gap-3 bg-shell px-4 py-3 text-shell-texto lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMenuAbierto(true)}
+            aria-label="Abrir el menú"
+            aria-expanded={menuAbierto}
+            aria-controls="menu-principal"
+            className="-ml-2 shrink-0 p-2.5 text-shell-texto transition-colors hover:text-shell-acento"
+          >
+            <Hamburguesa />
+          </button>
+          <Abanico className="h-6 w-auto shrink-0 text-shell-acento" />
+          <p className="t-mono truncate text-shell-texto">La Juanita</p>
+        </header>
+
+        {/* El respiro del lienzo crece con la pantalla: 16px de costado en un
+            teléfono son los que separan el texto del borde sin comerse el ancho
+            que el contenido necesita; los 32px de escritorio ahí dejaban la
+            tabla en la mitad de la pantalla. */}
+        <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {/* Una pantalla que tira al dibujarse se rompe sola, no con el sidebar
+              (§16 · A6). El `key` en el path es lo que la reinicia: navegar a otra
+              ruta desmonta el límite roto y monta uno limpio. */}
+          <LimiteDeError alcance="pantalla" key={ubicacion.pathname}>
+            <Outlet />
+          </LimiteDeError>
+        </div>
       </main>
     </div>
+  )
+}
+
+/**
+ * Los dos únicos iconos del shell, inline y sin librería.
+ *
+ * Son dos trazos: traer un paquete de iconos para esto pesaría más que las
+ * treinta y seis pantallas juntas, y este sistema ya dibuja su única marca —el
+ * abanico— con un SVG propio. `aria-hidden` porque el nombre lo pone el
+ * `aria-label` del botón; sin eso, un lector de pantalla lee dos veces.
+ */
+function Hamburguesa() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-6 w-6"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+    >
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  )
+}
+
+function Cruz() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
   )
 }
 
