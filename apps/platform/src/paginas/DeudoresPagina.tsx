@@ -202,7 +202,7 @@ export function DeudoresPagina() {
                     ))}
                   </ul>
                 </Celda>
-                <Celda numerica className="whitespace-nowrap">
+                <Celda numerica className="lg:whitespace-nowrap">
                   <ul className="space-y-1.5">
                     {p.deudas.map((d) => (
                       <li key={claveDeDeuda(d)} className="font-medium">
@@ -225,7 +225,7 @@ export function DeudoresPagina() {
                     </div>
                   )}
                 </Celda>
-                <Celda className="whitespace-nowrap">
+                <Celda className="lg:whitespace-nowrap">
                   <ul className="space-y-1.5">
                     {p.deudas.map((d) => (
                       <li key={claveDeDeuda(d)}>
@@ -240,7 +240,7 @@ export function DeudoresPagina() {
                   </ul>
                 </Celda>
                 {puedeEscribir && (
-                  <Celda className="whitespace-nowrap">
+                  <Celda className="lg:whitespace-nowrap">
                     <ul className="space-y-1.5">
                       {p.deudas.map((d) => (
                         <li key={claveDeDeuda(d)} className="text-right">

@@ -248,11 +248,11 @@ export function InscripcionesPagina() {
                 {/* El número por el que existe el módulo. Va como una sola
                     cadena y no partido en dos spans: "5" y "de 8" separados se
                     leen como dos datos distintos. */}
-                <Celda className="whitespace-nowrap">
+                <Celda className="lg:whitespace-nowrap">
                   <div className="font-medium">{`${i.clasesRestantes} de ${i.clasesContratadas}`}</div>
                   <div className="text-xs text-tenue">clases restantes</div>
                 </Celda>
-                <Celda className="whitespace-nowrap text-tenue">
+                <Celda className="lg:whitespace-nowrap text-tenue">
                   {precio(i.precioTotal, i.moneda)}
                 </Celda>
                 <Celda>

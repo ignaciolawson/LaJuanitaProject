@@ -221,7 +221,7 @@ export function VentasPagina() {
                   )}
                 </Celda>
                 <Celda className="text-tenue">{v.vendedor}</Celda>
-                <Celda numerica className="whitespace-nowrap font-medium">
+                <Celda numerica className="lg:whitespace-nowrap font-medium">
                   {importe(v.precio, v.moneda)}
                   {/* Una venta sin cobrar que no se ve es una venta que nadie
                       reclama. Se marca solo lo que falta: lo cobrado es lo normal
@@ -230,7 +230,7 @@ export function VentasPagina() {
                     <div className="text-xs font-normal text-acento">sin cobrar</div>
                   )}
                 </Celda>
-                <Celda className="whitespace-nowrap text-tenue">
+                <Celda className="lg:whitespace-nowrap text-tenue">
                   {fecha(v.fechaVenta)}
                 </Celda>
 

@@ -3733,8 +3733,16 @@ necesita.
 
 ⚠️ **Lo que esta etapa NO toca y se decide en la suya:** las once tablas siguen
 scrolleando al costado (`Tabla` ya trae `overflow-x-auto`, así que **no rompen**
-— sólo son incómodas), y los **60 `grid-cols-N` sin breakpoint** de los
-formularios siguen en dos y tres columnas.
+— sólo son incómodas).
+
+⚠️ **Corrección de medición, 2026-09-23.** Esta sección decía que quedaban **60
+`grid-cols-N` sin breakpoint** en los formularios. **Son 2**, y las dos son
+correctas: el grep contaba `sm:grid-cols-2` como fija porque `grid-cols-2` es
+subcadena de ella. Lo real: **55 grillas ya tienen breakpoint y 2 no**
+—`ReservarPagina` (los campos *Desde*/*Hasta*) y `RegistroPagina`—, y **dos
+campos cortos al lado del otro en 375px es lo que corresponde**, no un defecto.
+Así que la Etapa 3 no tiene ese trabajo: lo que le queda es el **calendario
+semanal** y verificación en dispositivo.
 
 ### ✅ P107 — En el teléfono una tabla es una pila de tarjetas
 

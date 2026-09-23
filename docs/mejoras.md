@@ -6936,7 +6936,7 @@ cuánto toca cada punto sino **qué desbloquea a qué**.
 |---|---|---|
 | Breakpoints | 162 en 31/56 archivos | 104 en 31/75 |
 | Anchos | `max-w` + `w-full` + padding fluido ✅ | `w-60 shrink-0` **sin un solo breakpoint** ❌ |
-| Grillas de formulario | — | **60 fijas** vs 56 con breakpoint |
+| Grillas de formulario | — | ~~**60 fijas**~~ → **2 fijas** vs 55 con breakpoint (⚠️ ver la corrección abajo) |
 | Tablas | — | `overflow-x-auto` ✅ ya correcto |
 | `<meta viewport>` | ✅ | ✅ |
 
@@ -6955,7 +6955,7 @@ hallazgo que reordenó el plan: no son 36 pantallas, es un archivo.
 | **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | 1 archivo, desbloquea 36 pantallas | ✅ **cerrada el 2026-09-22** |
 | **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | 1 componente, 13 tablas | ✅ **cerrada el 2026-09-22** |
 | **2** | **Los portales**: el profe y el alumno en el celular | ~13 pantallas | ⏳ |
-| **3** | **Administración**: los 60 `grid-cols` fijos, filtros, y el calendario semanal | ~20 pantallas | ⏳ |
+| **3** | **Administración**: los filtros y **el calendario semanal** (el caso difícil). ⚠️ Ya NO "los 60 `grid-cols`": eran 2 | ~20 pantallas, casi todo verificación | ⏳ |
 | **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ~4 pantallas | ⏳ |
 | **5** | **Auditoría de la landing** en dispositivos reales | 20 páginas | ⏳ |
 
@@ -6987,8 +6987,9 @@ Lo que se hizo está en P106. Lo que conviene no perder:
   escritorio estira un menú de treinta y un ítems más allá de la pantalla.
 
 ⚠️ **Lo que la etapa deliberadamente NO tocó**: las once tablas siguen
-scrolleando al costado —incómodas, pero **no rotas**— y los 60 `grid-cols`
-siguen en dos y tres columnas. Cada uno tiene su etapa.
+scrolleando al costado —incómodas, pero **no rotas**—. ⚠️ Lo de *"los 60
+`grid-cols` en dos y tres columnas"* que decía acá **era un error de medición**:
+ver la corrección al final de esta sección.
 
 ⚠️ **Y una limitación del método que hay que decir**: jsdom no mide layout, así
 que **ningún caso prueba que esto se vea bien**. Los cuatro casos nuevos pinchan
@@ -7045,6 +7046,48 @@ fila vacía a mano de Programas pasó a ser `FilaVacia`.
 media queries. Los tres casos nuevos prueban que el rótulo está, que sale de
 `columnas` y que la guarda funciona — **no prueban que se vea bien**. Eso sólo lo
 prueba mirarlo.
+
+#### El cierre real de la Etapa 1 (2026-09-23) y sus dos hallazgos
+
+La suite completa se corrió **después** del último arreglo y dio **711 de 711 en
+49 archivos**. Lo que apareció al verificar son dos cosas, y las dos son de
+método más que de código:
+
+⚠️ **1 · La Etapa 1 se había traído una deuda propia: `whitespace-nowrap`.**
+**18 celdas** lo llevaban, y tiene todo el sentido en una tabla —que una columna
+de fecha o de importe no se parta—; en una **tarjeta** significa que el texto no
+puede envolverse, así que **desborda a lo ancho**. O sea: la Etapa 1 estaba en
+camino de devolver el scroll horizontal que la Etapa 0 vino a sacar, en las seis
+pantallas de plata. Ahora es **`lg:whitespace-nowrap`**, que además se lee como
+lo que la regla siempre fue: *"esta columna no se parte **en la tabla**"*.
+
+**Se arregló en las 18 llamadas y no en `Celda`**, y la razón es la que importa:
+`Celda` podría anularlo con un `max-lg:whitespace-normal`, pero eso **depende de
+que la variante de media query se emita después** en el CSS — cierto hoy en
+Tailwind v4 y **no verificable con jsdom**. La clase con prefijo simplemente *no
+existe* debajo de `lg`: no hay especificidad que pueda fallar.
+
+⚠️ **2 · Y el hallazgo que corrige a este documento: los "60 `grid-cols` fijos"
+eran 2.** El relevamiento de la §26 contó `grid-cols-[2-9]` y **`sm:grid-cols-2`
+contiene `grid-cols-2` como subcadena**, así que las 55 grillas que YA estaban
+resueltas se contaron como pendientes. Medido bien —`grid-cols-N` precedido de
+espacio o comilla— quedan **dos**, y las dos son correctas: los campos
+*Desde*/*Hasta* de `ReservarPagina` y su gemelo en `RegistroPagina`, que son
+**dos campos cortos al lado del otro y en 375px es lo que corresponde**.
+
+**La consecuencia es del plan, no del código: la Etapa 3 pierde la mitad de su
+contenido** y lo que le queda es el **calendario semanal** —`4rem repeat(7,
+minmax(0, 1fr))`, o sea siete columnas que se encogen hasta ~44px sin desbordar,
+ilegibles pero no rotas— más verificación en dispositivo. **Y la Etapa 2
+también**: las pantallas del portal ya tienen sus breakpoints, y su único grid
+fijo es uno de los dos correctos.
+
+**La lección es la de siempre en este proyecto, aplicada contra sí mismo: el
+número que sale de un grep no es una medición hasta que se mira qué matcheó.**
+Es la tercera vez en dos días — el primer relevamiento de celdas condicionales
+dio cero y estaba mal, y la premisa de P105 era falsa. Las tres veces el método
+falló hacia el mismo lado: **decir que hay más trabajo del que hay**, que es el
+error barato; el caro sería el otro.
 
 ---
 

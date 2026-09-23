@@ -344,7 +344,7 @@ export function PagosPagina() {
                   )}
                   {p.concepto && <div className="text-xs text-tenue">{p.concepto}</div>}
                 </Celda>
-                <Celda className="whitespace-nowrap">
+                <Celda className="lg:whitespace-nowrap">
                   <div className={`font-medium ${p.estadoPago === 'ANULADO' ? 'line-through' : ''}`}>
                     {importe(p.monto, p.moneda)}
                   </div>
@@ -355,7 +355,7 @@ export function PagosPagina() {
                   )}
                 </Celda>
                 <Celda className="text-tenue">{NOMBRE_DE_MEDIO[p.medioPago]}</Celda>
-                <Celda className="whitespace-nowrap text-tenue">{fecha(p.fechaPago)}</Celda>
+                <Celda className="lg:whitespace-nowrap text-tenue">{fecha(p.fechaPago)}</Celda>
                 <Celda>
                   <EtiquetaDeEstado pago={p} />
                 </Celda>

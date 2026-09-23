@@ -252,10 +252,10 @@ export function EgresosPagina() {
                     <div className="text-xs text-tenue">Pago a profesor</div>
                   )}
                 </Celda>
-                <Celda numerica className="whitespace-nowrap font-medium">
+                <Celda numerica className="lg:whitespace-nowrap font-medium">
                   {importe(e.monto, e.moneda)}
                 </Celda>
-                <Celda className="whitespace-nowrap text-tenue">
+                <Celda className="lg:whitespace-nowrap text-tenue">
                   {fecha(e.fechaEgreso)}
                 </Celda>
 

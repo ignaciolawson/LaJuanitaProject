@@ -108,10 +108,10 @@ export function DetalleDeCuenta({
                       {c.numeroGrupo != null && ` · de ${enUnaLinea(c.integrantes)}`}
                     </div>
                   </Celda>
-                  <Celda numerica className="whitespace-nowrap text-tenue">
+                  <Celda numerica className="lg:whitespace-nowrap text-tenue">
                     {importe(c.precioTotal, c.moneda)}
                   </Celda>
-                  <Celda numerica className="whitespace-nowrap">
+                  <Celda numerica className="lg:whitespace-nowrap">
                     {importe(c.pagado, c.moneda)}
                     {/* Desde `V31` no puede nacer un pago en otra moneda que el
                         contrato; lo anterior a la regla se dice (§17 · H4), porque
@@ -123,7 +123,7 @@ export function DetalleDeCuenta({
                       </div>
                     )}
                   </Celda>
-                  <Celda numerica className="whitespace-nowrap">
+                  <Celda numerica className="lg:whitespace-nowrap">
                     <span className={c.saldo > 0 ? 'font-medium text-acento' : 'text-tenue'}>
                       {importe(c.saldo, c.moneda)}
                     </span>
@@ -156,7 +156,7 @@ export function DetalleDeCuenta({
         <Tabla columnas={['Fecha', 'Qué salda', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Medio', 'Estado']}>
               {cuenta.pagos.map((p) => (
                 <Fila key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
-                  <Celda className="whitespace-nowrap text-tenue">
+                  <Celda className="lg:whitespace-nowrap text-tenue">
                     {fecha(p.fechaPago)}
                   </Celda>
                   <Celda>
@@ -165,7 +165,7 @@ export function DetalleDeCuenta({
                   </Celda>
                   <Celda
                     numerica
-                    className={`whitespace-nowrap ${
+                    className={`lg:whitespace-nowrap ${
                       p.estadoPago === 'ANULADO' ? 'line-through' : ''
                     }`}
                   >
