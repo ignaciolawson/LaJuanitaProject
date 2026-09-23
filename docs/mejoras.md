@@ -7370,8 +7370,37 @@ media queries ni mide cajas: las seis etapas probaron **comportamiento y
 estructura** —que el cajón cierre al navegar, que el rótulo salga de `columnas`,
 que la altura se pida y que `lg` la devuelva, que la aclaración diga qué hay del
 otro lado— y **ninguna prueba que se vea bien ni que mida 44px**. Se levanta con
-`npm run dev:platform -- --host` y se entra por la IP de la máquina (⚠️ deja el
+`cd apps/platform && npm run dev -- --host` y se entra por la IP de la máquina (⚠️ deja el
 server visible en la red, y el admin sembrado sigue activo).
+
+⚠️ **Y la receta para exponerlo en la red NO es `npm run dev:platform -- --host`,
+medido el 2026-09-23 al levantarlo de verdad.** Ese script de la raíz es
+`npm run dev -w apps/platform`, así que el `-- --host` se lo come **npm** como
+bandera propia en lugar de reenviarlo a Vite: el log dice
+`> npm run dev -w apps/platform --host` y abajo `> vite`, **sin la bandera**, y
+sigue avisando *"Network: use --host to expose"*. Va
+**`cd apps/platform && npm run dev -- --host`**, que es la única excepción a la
+regla de correr `dev:platform` desde la raíz — ahí el `dev` del workspace es
+`vite` pelado y la bandera llega. Se nota sólo si uno **lee la salida**: el
+comando no falla, arranca perfecto y escucha únicamente en localhost, o sea que
+el síntoma aparece recién en el teléfono, como *"no carga"*.
+
+⚠️ **Para probar desde el teléfono alcanza con `:3000`, y el backend NO tiene que
+estar expuesto.** Next reescribe `/app` a `localhost:5173` y `/api` a
+`localhost:8080` **del lado del servidor**, así que el celular sólo habla con el
+:3000 de esta máquina: es la forma exacta que va a tener producción y deja el
+Spring Boot cerrado a la red. Verificado por la IP: landing 200, `/app` 200
+sirviendo el HTML de Vite, y un login real contra `admin@lajuanita.local`
+devolviendo 200 a través del proxy. Para **iterar** conviene igual
+`:5173/app/` directo, porque **el HMR no viaja por los rewrites de Next**.
+
+⚠️ **Un `curl` de esta máquina a su propia IP no prueba que el teléfono llegue:
+no atraviesa el firewall igual.** Lo que hay que mirar es que el perfil de la red
+coincida con las reglas de entrada. Acá la Wi-Fi (*BibopLawson*) está catalogada
+como **Public** y la regla *"Node.js JavaScript Runtime"* apunta a
+`C:\program files\nodejs\node.exe`, que es el node que corre — o sea que :3000 y
+:5173 entran. Las cuatro reglas de `java` apuntan a JDK que no son el del
+backend, y **da igual**: nadie de la red necesita el :8080.
 
 ⏳ **El hueco *"+ reservar"* es invisible hasta el hover y en un teléfono no hay
 hover.** Anotado y no tocado a ciegas: revelarlo abajo de `lg` es `text-apagado`

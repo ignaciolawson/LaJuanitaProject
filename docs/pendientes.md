@@ -25,7 +25,7 @@ tres cosas, y ninguna es código pendiente:
 - ⏳ **La verificación en dispositivo real, que es de Ignacio.** jsdom no aplica
   media queries ni mide cajas: las seis etapas probaron **comportamiento y
   estructura**, y **ninguna que se vea bien ni que mida 44px**. Se levanta con
-  `npm run dev:platform -- --host` y se entra por la IP de la máquina (⚠️ deja
+  `cd apps/platform && npm run dev -- --host` y se entra por la IP de la máquina (⚠️ deja
   el server visible en la red, y el admin sembrado sigue activo).
 - ⏳ **El hueco *"+ reservar"* del calendario es invisible hasta el hover**, y en
   un teléfono no hay hover. Anotado y no tocado a ciegas: revelarlo abajo de
@@ -59,7 +59,7 @@ fluido, y está bien. Lo que le falta es **auditoría en dispositivos reales**.
 ⏳ **Lo que ninguna de las dos etapas puede probar: jsdom no aplica media
 queries.** Los casos prueban comportamiento y estructura, **no que se vea bien**.
 Eso sólo lo prueba mirarlo en un dispositivo — es el paso que le toca a Ignacio.
-Para verlo desde el teléfono hace falta `npm run dev:platform -- --host`
+Para verlo desde el teléfono hace falta `cd apps/platform && npm run dev -- --host`
 (⚠️ deja el server visible en la red, y el admin sembrado sigue activo).
 
 ⏳ **Y dos decisiones de producto que van a hacer falta más adelante**: qué hace

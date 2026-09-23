@@ -3974,5 +3974,5 @@ los call sites, no el componente.**
 ⏳ **Lo que ninguna etapa puede cerrar: la verificación en dispositivo real.**
 jsdom no aplica media queries ni mide cajas, así que nada de esto prueba que
 algo se vea bien ni que mida 44px — prueba comportamiento y estructura. Ese
-paso es de Ignacio: `npm run dev:platform -- --host` y entrar por la IP de la
+paso es de Ignacio: `cd apps/platform && npm run dev -- --host` y entrar por la IP de la
 máquina (⚠️ deja el server visible en la red, y el admin sembrado sigue activo).
