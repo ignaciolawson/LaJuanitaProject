@@ -11,7 +11,7 @@ import {
 import type { ArtistaResumen, ContratoResumen } from '../api/tiposSello'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_CON_TEXTO, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo } from '../componentes/Campo'
 import { FormularioContrato } from './SelloPagina'
 import { Etiqueta } from '../componentes/Etiqueta'
@@ -357,7 +357,7 @@ function Formulario({
         <Campo etiqueta="Bio" value={bio} onChange={(e) => setBio(e.target.value)} />
       </div>
 
-      <label className="flex items-start gap-2 text-sm">
+      <label className={`${CASILLA_CON_TEXTO} text-sm`}>
         <input
           type="checkbox"
           checked={confirmado}

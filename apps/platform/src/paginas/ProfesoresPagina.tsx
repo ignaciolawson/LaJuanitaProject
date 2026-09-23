@@ -15,7 +15,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { BuscadorDePersonas } from '../componentes/BuscadorDePersonas'
 import { Campo } from '../componentes/Campo'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_CON_TEXTO, CASILLA_EN_LINEA, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { PasswordNueva, type MotivoDeLaClave } from '../componentes/PasswordNueva'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
@@ -139,7 +139,7 @@ export function ProfesoresPagina() {
           placeholder="Buscar por nombre, apellido, email o especialidad…"
           className={`w-full max-w-md ${CONTROL_DE_FILTRO}`}
         />
-        <label className="flex items-center gap-2 text-sm text-tenue">
+        <label className={`${CASILLA_EN_LINEA} text-sm text-tenue`}>
           <input
             type="checkbox"
             checked={incluirInactivos}
@@ -619,7 +619,7 @@ function FormularioEdicion({
           />
         </div>
 
-        <label className="mt-4 flex items-start gap-2 text-sm">
+        <label className={`mt-4 ${CASILLA_CON_TEXTO} text-sm`}>
           <input
             type="checkbox"
             checked={activo}

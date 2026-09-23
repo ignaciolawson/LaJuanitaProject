@@ -210,7 +210,7 @@ export function Navbar() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label={open ? "Cerrar menú" : "Abrir menú"}
-              className="relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] xl:hidden"
+              className="burger relative z-[86] flex h-9 w-9 flex-col items-center justify-center gap-[7px] xl:hidden"
             >
               <span
                 className={clsx(

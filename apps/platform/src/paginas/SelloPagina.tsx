@@ -38,7 +38,7 @@ import {
 } from '../api/tiposSello'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_CON_TEXTO, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
@@ -1123,7 +1123,7 @@ function FormularioContrato({
       </div>
 
       {idRelease !== undefined && (
-        <label className="flex items-start gap-2 text-sm">
+        <label className={`${CASILLA_CON_TEXTO} text-sm`}>
           <input
             type="checkbox"
             checked={general}

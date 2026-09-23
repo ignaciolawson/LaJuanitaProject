@@ -17,6 +17,7 @@ import { cuando, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { fecha, hhmm, hoy, sumarDias } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
+import { CASILLA_EN_LINEA } from '../componentes/controles'
 
 /**
  * Módulo 5, pantalla 4 — subir material.
@@ -259,7 +260,7 @@ function Formulario({
         </CampoSelect>
       </div>
 
-      <label className="mt-4 flex items-center gap-2 text-sm">
+      <label className={`mt-4 ${CASILLA_EN_LINEA} text-sm`}>
         <input
           type="checkbox"
           checked={publicar}

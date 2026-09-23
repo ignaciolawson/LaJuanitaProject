@@ -31,6 +31,7 @@ import { hoy, sumarDias } from '../componentes/semana'
 import { puedeVerElTableroCompleto } from '../layout/menu'
 import { Grupo } from '../componentes/Bloque'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
+import { DeslizableAlCostado } from '../componentes/DeslizableAlCostado'
 
 /**
  * Módulo 8 — el tablero de dirección.
@@ -426,7 +427,11 @@ function Grilla({ ocupacion }: { ocupacion: Ocupacion }) {
   // mono y el `divide-y` de un listado, que acá estorban. Es la única `<table>` del
   // sistema que quedó fuera del componente y no es deuda.
   return (
-    <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta p-4">
+    <DeslizableAlCostado
+      hasta="sm"
+      que="el día entero"
+      className="rounded-lg border border-linea bg-superficie shadow-tarjeta p-4"
+    >
       <table className="w-full min-w-[32rem] border-separate border-spacing-1 text-xs">
         <thead>
           <tr>
@@ -457,7 +462,7 @@ function Grilla({ ocupacion }: { ocupacion: Ocupacion }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </DeslizableAlCostado>
   )
 }
 

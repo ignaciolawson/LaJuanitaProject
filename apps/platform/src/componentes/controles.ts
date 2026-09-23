@@ -59,3 +59,30 @@ export const CONTROL_DE_FORMULARIO = `${LINEA} py-2`
  * la barra no puede ocupar el alto de una tarjeta.
  */
 export const CONTROL_DE_FILTRO = `${LINEA} border-linea-control py-1.5`
+
+/**
+ * La casilla de verificación, que es el control que la Etapa 2 dejó anotado.
+ *
+ * ⚠️ **Es la altura de su `<label>`, no la del cuadradito.** Un `<input
+ * type="checkbox">` mide lo que el navegador quiera (~13-16px) y no se toca
+ * solo: lo que se toca es la etiqueta entera, que hoy mide lo que mide su línea
+ * de texto —unos 20px— y es tocable por el ancho de la frase, no por el alto.
+ * O sea que apuntarle con el dedo es acertarle a una franja de 20px, que es el
+ * mismo problema que tenía `variante="enlace"` en `Boton`.
+ *
+ * <p>Por eso la altura va en el `<label>` y no se le cambia el tamaño al
+ * cuadradito: agrandarlo sería redibujar el control en escritorio, y la regla
+ * de P108 es que **desde `lg` no se mueve un píxel**.
+ *
+ * <p>Son dos formas porque en el sistema hay dos usos distintos, y la
+ * alineación no es intercambiable: `EN_LINEA` para la casilla de una sola línea
+ * —un filtro, un integrante de un grupo—, donde el texto va centrado contra el
+ * cuadradito; `CON_TEXTO` para la que arrastra una explicación de dos o tres
+ * renglones, donde el cuadradito tiene que quedarse arriba con la primera línea
+ * (esas ya pasan los 44px solas, así que ahí el `min-h-11` es un piso que no se
+ * nota — y está igual, porque el piso es el que no hay que volver a pensar).
+ */
+export const CASILLA_EN_LINEA = `flex items-center gap-2 ${TOCABLE}`
+
+/** La que lleva una explicación de varios renglones al lado. Ver arriba. */
+export const CASILLA_CON_TEXTO = `flex items-start gap-2 ${TOCABLE}`

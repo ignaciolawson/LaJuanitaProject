@@ -13,6 +13,7 @@ import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { AvisoSoloLectura, usePuedeEscribir } from '../componentes/SoloLectura'
 import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
 import { TraerALaVista } from '../componentes/TraerALaVista'
+import { CASILLA_CON_TEXTO } from '../componentes/controles'
 
 /**
  * El catálogo de programas (`V28`, `mejoras.md` §16 · C1, P63 — cierra P13).
@@ -346,7 +347,7 @@ function Formulario({
         />
       </div>
 
-      <label className="flex items-start gap-2 text-sm">
+      <label className={`${CASILLA_CON_TEXTO} text-sm`}>
         <input
           type="checkbox"
           checked={activo}

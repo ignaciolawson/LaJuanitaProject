@@ -26,7 +26,7 @@ import {
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_CON_TEXTO, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Filtros } from '../componentes/Filtros'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
@@ -686,7 +686,7 @@ function FormularioAlta({ onCerrar, onCreada }: { onCerrar: () => void; onCreada
 
           {/* La seña (P59). Lo que significa no marcarla se dice al lado: una
               preinscripción no es "sin plata", es "con 24 hs para pagar". */}
-          <label className="flex items-start gap-2 sm:col-span-2">
+          <label className={`${CASILLA_CON_TEXTO} sm:col-span-2`}>
             <input
               type="checkbox"
               checked={conSena}

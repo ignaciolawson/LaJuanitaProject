@@ -7122,6 +7122,159 @@ botones del sistema.
 casos comprueban que la altura se pida y que `lg` la devuelva; **no comprueban
 los 44px**. Eso lo mide un dedo.
 
+### Etapa 3 — el calendario semanal, y la pregunta mal hecha (cerrada el 2026-09-23)
+
+**P109 y P110.** La etapa entró con una decisión de producto planteada por el
+plan —*vista de un día con selector* contra *ancho mínimo por columna con
+scroll lateral*— y **la decisión no se podía tomar porque su premisa era
+falsa**. El plan había medido que a 375px las siete columnas se encogían a unos
+44px, *"legible como cuadrícula, inservible para leer quién tiene clase"*.
+
+Medido antes de tocar nada:
+
+```
+CalendarioPagina.tsx:381   <div className="overflow-x-auto rounded-lg …">
+CalendarioPagina.tsx:382     <div className="min-w-3xl">
+```
+
+`min-w-3xl` es `min-width: var(--container-3xl)` = **48rem = 768px** —
+verificado en el CSS construido, no de memoria. O sea que **las columnas no se
+encogen**: la grilla se desliza al costado y cada día mide unos **100px**, los
+mismos que en escritorio. **La opción B ya estaba construida desde antes de la
+barrida.**
+
+**Se conserva la semana**, y el argumento que más pesa no es de diseño:
+
+```
+menu.ts:205  { etiqueta: 'Calendario', ruta: '/admin/reservas',
+               visible: puedeAdministrar, disponible: true }
+```
+
+**Un profesor no abre esta pantalla nunca.** Su pantalla es `/mi-agenda`, que la
+Etapa 2 midió y ya estaba bien (un `flex-wrap`, sin grilla). O sea que **el
+calendario semanal no es la pantalla que motivó esta barrida** (*"que los profes
+lo puedan usar con el cel"*): es la de Mica, en escritorio o en una tablet. Una
+vista de un día sería **un segundo calendario** —con su estado, su navegación y
+su mantenimiento— para un caso de uso que no existe.
+
+⚠️ **Lo que sí faltaba: nada decía que había más para el costado.** Un scroll
+anidado, sin barra visible —los navegadores de teléfono la ocultan—, dentro de
+una página que ya se scrollea en vertical y con el borde de la tarjeta cortando
+el contenido, **se lee como "la pantalla está cortada"**. Eso es
+`componentes/DeslizableAlCostado.tsx`, y alcanza a los **dos únicos deslizables
+que quedaron** después de la Etapa 1: la grilla semanal y el mapa de calor del
+tablero. Los dos son **mapas y no listados** —las columnas *son* el dato—, que
+es exactamente por qué no se pudieron volver tarjetas.
+
+Tres decisiones adentro de ese componente, y las tres se pueden deshacer sin que
+nada falle:
+
+- ⚠️ **La aclaración va con palabras y no con una sombra en el borde.** Una
+  sombra que no sigue la posición del scroll sigue diciendo *"hay más"* cuando
+  ya llegaste al final —o sea miente—, y seguirla pide medir `scrollWidth`
+  contra `clientWidth`: **jsdom devuelve 0 en los dos**, así que sería la clase
+  de affordance que ninguna prueba puede mirar y que en las pruebas se
+  renderiza al revés que en el navegador.
+- ⚠️ **El breakpoint es de cada deslizable, no compartido.** La grilla semanal
+  pide 768px y la de ocupación 512, contra el ancho útil que deja el `Layout`
+  (`px-4` / `sm:px-6` / `lg:px-8`, y desde `lg` menos los 240px de la columna):
+  la primera desborda hasta `lg`, la segunda sólo hasta `sm`. Con un corte
+  único, una de las dos **deja el cartel puesto donde no hay nada que
+  arrastrar**, que es tan malo como que falte — la misma familia de error que un
+  rótulo corrido un lugar. ⚠️ Y va como **tabla de clases** y no como
+  `` `${hasta}:hidden` ``: un template literal ahí compila, pasa las pruebas y
+  **no genera ninguna regla**, así que el cartel no se ocultaría nunca.
+  (Anotado a sabiendas: entre 1024 y 1071px la grilla semanal todavía desborda
+  sin decirlo, porque el contenido llega a 768px recién a los ~1072. Se acepta
+  —ahí ya hay mouse y barra visible— porque la alternativa, un
+  `min-[1072px]:hidden`, es un número calculado a mano que queda
+  desincronizado el día que alguien toque el `min-w` o el ancho de la columna.)
+- ⚠️ **El `tabIndex={0}`**: una región que scrollea tiene que poder recibir el
+  foco o con el teclado no hay forma de llegar a la mitad derecha de la semana
+  (WCAG 2.1.1). Es la misma razón por la que el hueco del calendario es un
+  `<button>` y no un `onClick` sobre la celda.
+
+**Y adentro de la grilla, dos controles que P108 no había alcanzado porque no
+son `Boton`** sino `<button>` escritos a mano: `Continuacion` —una línea de
+`text-[10px]` con `py-0.5`, unos **17px**, el control más chico que quedaba en
+el sistema— y el hueco *"+ reservar"*, con **24px** de piso (`min-h-6`). Los dos
+piden 44px debajo de `lg` y vuelven a lo de hoy desde ahí. En `Continuacion` el
+`flex` que centra el texto reemplaza al `block`, como en `Boton`, y de paso hace
+que el `truncate` del `<span>` **funcione**: sobre contenido en línea no hacía
+nada, porque `overflow` pide una caja.
+
+⏳ **Lo que queda anotado y no se tocó a ciegas: el hueco es invisible hasta el
+hover, y en un teléfono no hay hover.** Revelarlo abajo de `lg` es
+`text-apagado` peleando con `text-transparent`, y cuál gana depende del orden en
+que Tailwind emita las variantes — la dependencia no verificable bajo jsdom que
+la Etapa 1 ya evitó en el `whitespace-nowrap`. Tocar la celda igual abre el
+formulario, que no crea nada.
+
+**P110 cierra lo que la Etapa 2 dejó anotado: las 12 casillas.** Seguían con el
+alto de su `<label>`, unos 20px — tocables por el ancho de la frase y no por el
+alto, que es el problema que tenía `variante="enlace"`. ⚠️ **La altura va en el
+`<label>` y no en el cuadradito**: un `<input type="checkbox">` mide lo que el
+navegador quiera (~13-16px) y no es lo que se toca; agrandarlo sería redibujar
+el control en escritorio, contra la regla de P108. Son **dos constantes**
+(`CASILLA_EN_LINEA` / `CASILLA_CON_TEXTO`) porque la alineación no es
+intercambiable, y viven en `controles.ts` por el argumento de siempre: **doce
+copias a mano es cómo aparecen tres altos distintos para la misma cosa.**
+
+⚠️ **Y `Filtros` corrigió otra medición de la Etapa 2.** La nota decía que
+*"conserva `w-44`/`w-64`"*; son **`min-w-*`**, así que nunca desbordaron — el
+buscador ya crecía con su `flex-1`. El único que desaprovechaba el ancho era
+`FiltroSelect`, 176px parado en los ~311px de un teléfono, y pasa a
+`w-full sm:w-auto sm:min-w-44`. **Mobile-first y no `max-sm:`**: es el mecanismo
+que este código ya usa veinte veces (`sm:grid-cols-2`).
+
+### Etapa 4 — el tablero, que no tuvo contenido propio (cerrada el 2026-09-23)
+
+**P109, la segunda mitad.** Medir fue todo el trabajo. El tablero ya llevaba sus
+seis grillas con breakpoint (`sm:grid-cols-2` ×2, `sm:grid-cols-3`,
+`md:grid-cols-2` ×2), la barra de filtros envuelve con `flex-wrap` y sus dos
+campos de fecha de `w-40` entran juntos en 375px, y **las exportaciones son
+archivos: no hay nada responsive en un `.xlsx` ni en un PDF**. Lo único que le
+faltaba era la aclaración de su mapa de calor (`min-w-[32rem]`, el segundo y
+último deslizable), que es la mitad de `DeslizableAlCostado` documentada arriba.
+
+### Etapa 5 — la landing se audita, no se rehace (cerrada el 2026-09-23)
+
+**P111.** Medida archivo por archivo, la landing confirma lo que el `CLAUDE.md`
+afirmaba: `Container` es `mx-auto w-full max-w-[…] px-[var(--pad)]` con
+`--pad: clamp(20px, 5vw, 88px)`, hay `clamp()` en 17 archivos, y los cinco
+`grid-cols-2` sin breakpoint son listas de `<dl>` de dos estadísticas — que a
+375px es lo que se quiere (el mismo hallazgo que los 2 de la plataforma). Ya
+resolvía, además, **tres cosas que la plataforma tuvo que aprender después**: el
+blanco táctil de `.btn` y `.choice-option` detrás de `@media (pointer: coarse)`
+con 46px, el hover que en táctil se quedaba pegado al último elemento tocado, y
+el iframe del mapa comiéndose el scroll.
+
+**Encontró uno solo, y es el que importa: el botón de hamburguesa medía 36×36**
+(`h-9 w-9`). Es `xl:hidden`, o sea que **debajo de 1280px es la única
+navegación que hay** — el control más importante del teléfono era el más chico,
+la misma forma exacta que tenía `variante="enlace"` en la plataforma. Va como
+`.burger` detrás de `(pointer: coarse)` y **no como un `h-11 w-11` suelto**, por
+una razón que se ve recién al mirar la fila: el botón no tiene borde ni fondo,
+así que agrandarlo no se ve, **pero es el item más alto de un `flex
+items-center`** y en escritorio le estiraría 8px la altura al header entre `sm`
+y `xl`. El `min-*` no pelea con las utilidades `h-9 w-9` del JSX: son
+propiedades distintas, así que gana el mínimo sin depender de ninguna
+especificidad.
+
+⚠️ **Y lo que más vale de la etapa es lo que NO se tocó: `.link-u` no lleva ese
+mínimo.** Era el movimiento obvio —es la tercera familia de cosas que se tocan
+en esta landing, y las otras dos ya estaban resueltas con ese patrón— y **rompe
+cinco páginas**: 4 de sus 14 usos viven **en medio de una oración** (*"¿Preferís
+hablar directo? **Escribinos por WhatsApp**"*, *"Si ya estudiás acá y no tenés
+acceso, **escribinos** y te lo habilitamos"*), y un `inline-block` de 46px
+adentro de un renglón de 25 le abre la caja de línea al párrafo entero. **El
+componente no lo dice; sus usos sí.** Es el reverso del hallazgo de la Etapa 1
+—donde la deuda estaba en las 18 llamadas y no en `Celda`— y la misma lección:
+**una regla compartida se valida contra quién la usa, no contra su
+definición.** Los enlaces sueltos del pie quedan entonces en ~22px con 12px de
+aire entre uno y otro: debajo de 44, arriba del mínimo de WCAG 2.5.8, y sin
+forma de subirlos sin separar antes los dos casos.
+
 ---
 
 
@@ -7130,72 +7283,112 @@ los 44px**. Eso lo mide un dedo.
 
 ---
 
-## ⚠️ DÓNDE RETOMAR (la barrida de RESPONSIVE, §26 — al cierre del 2026-09-23)
+## ⚠️ DÓNDE RETOMAR (la barrida de RESPONSIVE, §26 — CERRADA el 2026-09-23)
 
-🔵 **LA BARRIDA DE RESPONSIVE (§26) ESTÁ EN CURSO: tres etapas de seis cerradas,
-sin migración** (P106–P108, `platform.md` §32). Es todo front.
+✅ **LA BARRIDA DE RESPONSIVE (§26) ESTÁ CERRADA: seis etapas de seis, sin
+migración** (P106–P111, `platform.md` §32). Fue todo front; el backend no se
+tocó: **`V36` sigue siendo la última migración y el admin sembrado sigue en
+`V37`**.
 
 | | Etapa | Estado |
 |---|---|---|
 | **0** | El shell: la columna se vuelve cajón debajo de `lg` (P106) | ✅ commit `c48cd2a` |
-| **1** | `Tabla` → tarjetas en pantalla chica (P107) | ✅ commits `d55d192` + `d734014` |
-| **2** | Los portales → **el área tocable de 44px** (P108) | ✅ **sin commitear al cerrar la sesión** |
-| **3** | Administración: **el calendario semanal** | ⏳ **acá se retoma** |
-| **4** | Tablero y exportaciones: los gráficos en pantalla chica | ⏳ |
-| **5** | Auditoría de la landing en dispositivos reales | ⏳ |
+| **1** | `Tabla` → tarjetas en pantalla chica (P107) | ✅ `d55d192` + `d734014` |
+| **2** | Los portales → el área tocable de 44px (P108) | ✅ `cbf17ef` |
+| **3** | Administración: el calendario semanal (P109, P110) | ✅ **esta sesión** |
+| **4** | Tablero y exportaciones (P109) | ✅ **esta sesión** |
+| **5** | Auditoría de la landing (P111) | ✅ **esta sesión** |
 
-**Suites al cierre: 713 de 713 sobre 49 archivos**, `tsc -b` y los dos linters
-limpios. Backend intacto (esta barrida no lo toca): **`V36` sigue siendo la
-última migración y el admin sembrado sigue en `V37`**.
+**Suites al cierre: 717 de 717 sobre 49 archivos** (713 + 4 nuevos), `tsc -b`,
+`tsc --noEmit` de la landing y los dos linters limpios; los dos builds pasan.
 
-### Lo que la Etapa 3 tiene por delante, ya medido
+### Las tres etapas de esta sesión, en un párrafo cada una
 
-**Es una sola cosa difícil**: el **calendario semanal** de `/admin/reservas`.
-Arma su grilla con `gridTemplateColumns: '4rem repeat(7, minmax(0, 1fr))'`
-dentro de un `overflow-x-auto`, así que en 375px **no desborda** —el `minmax(0,
-1fr)` deja que las columnas se encojan— pero cada día queda en unos **44px**:
-legible como cuadrícula, inservible para leer quién tiene clase.
+**Etapa 3 — el calendario NO se encogía, y la decisión de producto estaba
+planteada sobre un número falso.** El plan pedía elegir entre *vista de un día*
+y *scroll lateral con ancho mínimo*, porque había medido que a 375px cada
+columna quedaba en 44px. El envoltorio tiene **`min-w-3xl` (768px) adentro de
+un `overflow-x-auto`**: las columnas no se encogen, la grilla se desliza, y
+cada día mide ~100px — **la opción B ya estaba construida desde antes de la
+barrida**. Se conserva la semana, y el argumento que más pesa no es de diseño:
+**`/admin/reservas` es `visible: puedeAdministrar`**, o sea que **un profesor no
+la abre nunca** — su pantalla es `/mi-agenda`, que la Etapa 2 ya había medido
+bien. El calendario semanal no era la pantalla que motivó esta barrida. Lo que
+sí faltaba es que **nada decía que había más para el costado**: un scroll
+anidado, sin barra visible, dentro de una página que ya scrollea en vertical,
+se lee como *"la pantalla está cortada"*. Eso es `DeslizableAlCostado`. Y
+adentro de la grilla, dos controles que P108 no había alcanzado **porque no son
+`Boton`**: `Continuacion` (~17px, el control más chico que quedaba en el
+sistema) y el hueco *"+ reservar"* (24px de piso).
 
-⚠️ **Tiene una decisión de producto adentro y conviene cerrarla antes de tocar
-código**, como se hizo con P106 y P107: o **una vista de un día con selector**
-(el teléfono muestra un día y se navega), o **un ancho mínimo por columna con
-scroll lateral** (se conserva la semana y se arrastra). No son equivalentes: la
-primera cambia lo que la pantalla *es* en el teléfono, la segunda conserva la
-semana a costa de un gesto.
+**Etapa 4 — no tuvo contenido propio, y medirlo fue todo el trabajo.** El
+tablero ya llevaba sus seis grillas con `sm:`/`md:`, la barra de filtros
+envuelve, y **las exportaciones son archivos: no hay nada responsive en un
+`.xlsx`**. Lo único que le faltaba era la aclaración de su mapa de calor, que
+es el segundo —y último— deslizable del sistema.
 
-**Lo demás de la Etapa 3 ya no existe**: los *"60 `grid-cols` fijos"* eran un
-error de medición —son 2 y las dos correctas— y **los filtros y los botones de
-administración ya quedaron cubiertos por P108**, porque `Boton` y `controles.ts`
-son compartidos.
+**Etapa 5 — la landing se auditó y encontró uno solo, pero es el que importa.**
+Está construida bien y se confirmó midiéndola: `Container` es `mx-auto w-full
+max-w-[…] px-[var(--pad)]`, `clamp()` en 17 archivos, y ya resolvía tres cosas
+que la plataforma tuvo que aprender después (el blanco táctil de `.btn` y
+`.choice-option` detrás de `(pointer: coarse)`, el hover que en táctil se
+quedaba pegado, y el iframe del mapa comiéndose el scroll). **El hallazgo: el
+botón de hamburguesa medía 36×36 y es `xl:hidden`, o sea que debajo de 1280px
+es la única navegación que hay** — el control más importante del teléfono era
+el más chico, la misma forma exacta que tenía `variante="enlace"` en la
+plataforma.
 
-### Lo que ninguna etapa puede cerrar por su cuenta
+### ⚠️ Los dos hallazgos de método, que valen más que las tres etapas
 
-⏳ **jsdom no aplica media queries ni mide cajas.** Todo lo que estas tres etapas
-probaron es comportamiento y estructura: que el cajón cierre al navegar, que el
-rótulo salga de `columnas`, que la altura se pida y que `lg` la devuelva.
-**Ninguna prueba que se vea bien ni que midan 44px.** Eso lo mide un dispositivo,
-y es el paso que Ignacio tiene pendiente: `npm run dev:platform -- --host` y
-entrar por la IP de la máquina (⚠️ deja el server visible en la red, y el admin
-sembrado sigue activo).
+**(1) `.link-u` no lleva el mínimo táctil, y eso se ve leyendo los call sites y
+no el componente.** Era el movimiento obvio —la tercera familia de cosas que se
+tocan en la landing, con las otras dos ya resueltas con el mismo patrón— y
+**rompe cinco páginas**: 4 de sus 14 usos viven *en medio de una oración*
+(*"¿Preferís hablar directo? **Escribinos por WhatsApp**"*), y un `inline-block`
+de 46px adentro de un renglón de 25 le abre la caja de línea al párrafo entero.
+El componente no lo dice; los usos sí. Es el reverso del hallazgo de la Etapa 1
+—donde el problema estaba en las 18 llamadas y no en `Celda`— y la misma
+lección: **una regla compartida se valida contra quién la usa, no contra su
+definición**.
 
-⏳ **Dos cosas anotadas y deliberadamente no tocadas a ciegas**: los **12
-checkboxes** siguen con el alto de su `<label>` (~20px) —tocables por el ancho
-del texto, no cómodos— y `Filtros` conserva `w-44`/`w-64`, que con `flex-wrap`
-envuelven bien pero no aprovechan el ancho del teléfono.
+**(2) El cuarto número del plan que al mirarlo de cerca dice otra cosa, y los
+cuatro se equivocaron para el mismo lado.** Van: las *"56 pantallas"* de la
+Etapa 0 (era un archivo), los *"60 `grid-cols` fijos"* (eran 2 y las dos
+correctas), la nota de `Filtros` sobre `w-44`/`w-64` (son `min-w-*`, nunca
+desbordaron) y ahora los *"44px por columna"* del calendario (son 100 y ya
+scrolleaba). **Las cuatro veces el plan pidió más trabajo del que había**, que
+es el error barato; el caro es el otro, y en seis etapas no apareció ni una
+vez. El corolario ya está escrito y esta sesión lo pagó de nuevo hasta en un
+grep propio: **un número no es una medición hasta que se mira qué matcheó** —
+el primer `grep .burger` en el CSS construido volvió vacío porque miró
+`.next/static/css/`, que no existe; el archivo estaba en `chunks/`.
 
-### ⚠️ Lo que más vale de esta barrida, y no es ninguna de las tres etapas
+### Lo que queda abierto, y no es de esta barrida
 
-**Ninguna de las tres fue el trabajo que el plan nombraba.** La 0 resultó ser
-**un archivo** y no 56 pantallas. La 1 encontró **su propia deuda**
-(`whitespace-nowrap`, que iba a devolver el scroll horizontal que la 0 sacó)
-recién al verificar, después de estar commiteada. La 2 **casi no tocó las
-pantallas de su nombre** y terminó arreglando el área tocable de todo el sistema.
+⏳ **La verificación en dispositivo real, que es de Ignacio.** jsdom no aplica
+media queries ni mide cajas: las seis etapas probaron **comportamiento y
+estructura** —que el cajón cierre al navegar, que el rótulo salga de `columnas`,
+que la altura se pida y que `lg` la devuelva, que la aclaración diga qué hay del
+otro lado— y **ninguna prueba que se vea bien ni que mida 44px**. Se levanta con
+`npm run dev:platform -- --host` y se entra por la IP de la máquina (⚠️ deja el
+server visible en la red, y el admin sembrado sigue activo).
 
-**Las tres aparecieron midiendo, no planificando.** Y las tres veces el plan
-pedía **más** trabajo del necesario, en el lugar equivocado — que es el error
-barato; el caro es el otro. El corolario práctico, que ya costó una corrección
-en este mismo documento: **un número que sale de un grep no es una medición
-hasta que se mira qué matcheó** (`grid-cols-[2-9]` contaba `sm:grid-cols-2`).
+⏳ **El hueco *"+ reservar"* es invisible hasta el hover y en un teléfono no hay
+hover.** Anotado y no tocado a ciegas: revelarlo abajo de `lg` es `text-apagado`
+peleando con `text-transparent`, y cuál gana depende del orden en que Tailwind
+emita las variantes — la dependencia no verificable bajo jsdom que la Etapa 1 ya
+evitó en el `whitespace-nowrap`. Tocar la celda igual abre el formulario, que no
+crea nada.
+
+⏳ **Los enlaces sueltos del pie de la landing** quedan en ~22px con 12px de aire
+entre uno y otro: debajo de 44, arriba del mínimo de WCAG 2.5.8, y sin forma de
+subirlos sin separar antes los dos usos de `.link-u`.
+
+**Y lo de siempre: esto no cierra nada.** La barrida de responsive termina; el
+modo de trabajo no — Ignacio usa el sistema, trae hallazgos, se triagean en
+**A · B · C** y se ejecutan en ese orden. *"Pueden haber más conforme pase el
+tiempo, no te puedo dar un plazo definido."*
+
 
 ---
 

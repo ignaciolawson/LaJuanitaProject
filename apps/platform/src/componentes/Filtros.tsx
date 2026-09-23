@@ -67,13 +67,26 @@ export function FiltroTexto({
  * filtrado.** Por eso el control no lleva rótulo visible: la opción elegida ya
  * dice qué es ("Todos los estados", "Las dos monedas"). El nombre va en
  * `etiqueta` para quien no ve la pantalla.
+ *
+ * ⚠️ **Debajo de `sm` ocupa el ancho entero** (§26 · Etapa 3). La Etapa 2 dejó
+ * esto anotado como *"`Filtros` conserva `w-44`/`w-64`"* y **la nota estaba
+ * mal**: son `min-w-*`, así que nunca desbordaron — el buscador ya crecía con
+ * su `flex-1` y el que desaprovechaba el ancho era sólo éste, 176px parado en
+ * los ~311px que quedan en un teléfono. Es el cuarto número de esta barrida que
+ * al mirarlo de cerca dice otra cosa que el plan.
+ *
+ * <p>Va como `w-full sm:w-auto` y no como `max-sm:w-full`: el mobile-first es
+ * el mecanismo que este código ya usa veinte veces (`sm:grid-cols-2`), mientras
+ * que un `max-sm:` pisando una clase sin prefijo depende del orden en que
+ * Tailwind emita las variantes — que es justo lo que la Etapa 1 evitó en el
+ * `whitespace-nowrap` y lo que jsdom no puede verificar.
  */
 export function FiltroSelect({
   etiqueta,
   valor,
   onCambio,
   children,
-  className = 'min-w-44',
+  className = 'w-full sm:w-auto sm:min-w-44',
 }: {
   etiqueta: string
   valor: string

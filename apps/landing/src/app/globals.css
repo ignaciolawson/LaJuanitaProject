@@ -454,6 +454,40 @@ body {
     }
   }
 
+  /* El botón de hamburguesa, que es el tercer blanco táctil de la landing y el
+     que más importa: con `xl:hidden`, **debajo de 1280px es la única
+     navegación que hay**. Medía 36x36 (`h-9 w-9`) contra los ~44 que necesita
+     un dedo — o sea que el control más importante del teléfono era el más
+     chico, exactamente la forma que tenía `variante="enlace"` en la plataforma.
+
+     Va detrás de `(pointer: coarse)` como `.btn` y `.choice-option`, y no como
+     un `h-11 w-11` suelto, por una razón que se ve recién al mirar la fila: el
+     botón no tiene borde ni fondo, así que agrandarlo no se ve — pero es el
+     item más alto de un `flex items-center`, así que en escritorio, entre `sm`
+     y `xl`, le estiraría la altura al header 8px. Con la media query, el
+     escritorio no se entera.
+
+     El `min-*` no pelea con las utilidades `h-9 w-9` del JSX: son propiedades
+     distintas, así que gana el mínimo sin depender de ninguna especificidad. */
+  .burger {
+    display: inline-flex;
+  }
+  @media (pointer: coarse) {
+    .burger {
+      min-height: 46px;
+      min-width: 46px;
+    }
+  }
+
+  /* ⚠️ **`.link-u` NO lleva este mínimo, y no es un olvido.** Es el movimiento
+     obvio —es la tercera familia de cosas que se tocan— y rompe cinco páginas:
+     4 de sus 14 usos viven EN MEDIO DE UNA ORACION ("¿Preferís hablar directo?
+     *Escribinos por WhatsApp*"), y un `inline-block` de 46px adentro de un
+     renglón de 25 le abre la caja de línea al párrafo entero. Los enlaces
+     sueltos del pie quedan en ~22px con 12px de aire entre uno y otro: por
+     debajo de los 44, arriba del mínimo de WCAG 2.5.8, y sin forma de subirlos
+     sin separar los dos casos. Se anota y no se toca a ciegas. */
+
   /* Variante para fondos con foto: el borde al 16% del sistema desaparece
      sobre una imagen, aunque funcione perfecto sobre un fondo plano. */
   .btn--strong {

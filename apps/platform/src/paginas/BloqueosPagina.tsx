@@ -6,7 +6,7 @@ import type { BloqueoResumen, SalaResumen } from '../api/tiposAdmin'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_EN_LINEA, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { fecha, hhmm, hoy } from '../componentes/semana'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
@@ -113,7 +113,7 @@ export function BloqueosPagina() {
           ))}
         </select>
 
-        <label className="flex items-center gap-2 text-sm text-tenue">
+        <label className={`${CASILLA_EN_LINEA} text-sm text-tenue`}>
           <input
             type="checkbox"
             checked={verVencidos}
@@ -334,7 +334,7 @@ function FormularioBloqueo({
           />
         </div>
 
-        <label className="mt-4 flex items-center gap-2 text-sm text-tenue">
+        <label className={`mt-4 ${CASILLA_EN_LINEA} text-sm text-tenue`}>
           <input
             type="checkbox"
             checked={porFranja}

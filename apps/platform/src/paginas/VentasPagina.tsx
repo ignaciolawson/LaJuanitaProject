@@ -21,7 +21,7 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { AdjuntarComprobante, Comprobantes } from '../componentes/Comprobantes'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_EN_LINEA, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { Paginado } from '../componentes/Paginado'
 import { PedirMotivo } from '../componentes/PedirMotivo'
@@ -553,7 +553,7 @@ function FormularioVenta({
               que una venta a alguien que compra por el acuerdo con Pioneer **no se
               podía cobrar nunca**. Era el hallazgo #1 de `docs/mejoras.md`. */}
           <div className="sm:col-span-2">
-            <label className="flex items-center gap-2 text-sm">
+            <label className={`${CASILLA_EN_LINEA} text-sm`}>
               <input
                 type="checkbox"
                 checked={datos.cobrada}

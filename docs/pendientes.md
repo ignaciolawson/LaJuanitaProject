@@ -1,32 +1,53 @@
 # Lo que queda abierto
 
-## ⚡ ESTADO AL 2026-09-22 (tarde) — la barrida de RESPONSIVE está en curso
+## ⚡ ESTADO AL 2026-09-23 — la barrida de RESPONSIVE está CERRADA
 
-🔵 **`mejoras.md` §26 — responsive para móvil y tablet.** Ignacio: *"que los
-profes lo puedan usar con el cel"*. Alcance acordado: **barrida completa, por
-etapas**, con las tablas volviéndose tarjetas en el teléfono. Decisiones en
-`platform.md` §32 (P106–P107). **Sin migración: es todo front.**
+✅ **`mejoras.md` §26 — responsive para móvil y tablet: seis etapas de seis.**
+Ignacio: *"que los profes lo puedan usar con el cel"*. Decisiones en
+`platform.md` §32 (P106–P111). **Sin migración: fue todo front**, así que `V36`
+sigue siendo la última y el admin sembrado sigue en `V37`.
 
 | | Etapa | Estado |
 |---|---|---|
-| **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | ✅ cerrada, commit `c48cd2a` |
-| **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | ✅ cerrada |
-| **2** | **Los portales** — ya estaban bien; lo que faltaba era **el área tocable de 44px** (P108), que alcanza las 36 pantallas | ✅ cerrada |
-| **3** | **Administración**: los filtros y **el calendario semanal** (el caso difícil). ⚠️ Los *"60 `grid-cols` fijos"* eran **2**: error de medición, corregido | ⏳ |
-| **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ⏳ |
-| **5** | **Auditoría de la landing** en dispositivos reales | ⏳ |
+| **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | ✅ commit `c48cd2a` |
+| **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | ✅ `d55d192` + `d734014` |
+| **2** | **Los portales** — ya estaban bien; lo que faltaba era **el área tocable de 44px** (P108), que alcanza las 36 pantallas | ✅ `cbf17ef` |
+| **3** | **Administración y el calendario semanal** (P109, P110) | ✅ 2026-09-23 |
+| **4** | **Tablero y exportaciones** (P109) | ✅ 2026-09-23 |
+| **5** | **Auditoría de la landing** (P111) | ✅ 2026-09-23 |
 
-➡️ **DÓNDE SE RETOMA: la Etapa 3, y tiene UNA sola cosa difícil** — el
-**calendario semanal** de `/admin/reservas`. En 375px no desborda (`minmax(0,
-1fr)` deja encoger las columnas) pero cada día queda en ~44px: legible como
-cuadrícula, inservible para leer quién tiene clase. ⚠️ **Tiene una decisión de
-producto adentro y conviene cerrarla antes de tocar código**, como P106 y P107:
-*vista de un día con selector* o *ancho mínimo por columna con scroll lateral*.
-El detalle está en el *DÓNDE RETOMAR* de [`mejoras.md`](mejoras.md) §26.
+**Suites al cierre: 717 de 717 sobre 49 archivos**, los dos builds y los dos
+linters limpios.
 
-⚠️ **Lo demás de la Etapa 3 ya no existe**: los filtros y los botones de
-administración quedaron cubiertos por P108 (son compartidos), y los *"60
-`grid-cols` fijos"* eran un error de medición.
+➡️ **NO QUEDA ETAPA POR EJECUTAR.** Lo que sigue abierto de esta barrida son
+tres cosas, y ninguna es código pendiente:
+
+- ⏳ **La verificación en dispositivo real, que es de Ignacio.** jsdom no aplica
+  media queries ni mide cajas: las seis etapas probaron **comportamiento y
+  estructura**, y **ninguna que se vea bien ni que mida 44px**. Se levanta con
+  `npm run dev:platform -- --host` y se entra por la IP de la máquina (⚠️ deja
+  el server visible en la red, y el admin sembrado sigue activo).
+- ⏳ **El hueco *"+ reservar"* del calendario es invisible hasta el hover**, y en
+  un teléfono no hay hover. Anotado y no tocado a ciegas: revelarlo abajo de
+  `lg` depende del orden en que Tailwind emita las variantes, que es lo que la
+  Etapa 1 evitó. Tocar la celda igual abre el formulario, que no crea nada.
+- ⏳ **Los enlaces sueltos del pie de la landing** quedan en ~22px con 12px de
+  aire: debajo de 44, arriba del mínimo de WCAG 2.5.8, y sin forma de subirlos
+  sin separar antes los dos usos de `.link-u` (4 de sus 14 viven en medio de una
+  oración, así que un mínimo global le abre la caja de línea a cinco páginas).
+
+⚠️ **Y el hallazgo que corrige a este documento: el calendario nunca se
+encogía.** Este bloque decía que a 375px cada día quedaba en ~44px, y sobre eso
+planteaba una decisión de producto. El envoltorio tiene **`min-w-3xl` (768px)
+adentro de un `overflow-x-auto`**: la grilla se desliza y cada día mide ~100px,
+o sea que **la opción del scroll lateral ya estaba construida**. Es el **cuarto**
+número de esta barrida que al medirlo dice otra cosa, y los cuatro se
+equivocaron para el mismo lado: pidiendo más trabajo del que había.
+
+⚠️ **La Etapa 4 no tuvo contenido propio y medirlo fue todo el trabajo**: el
+tablero ya llevaba sus seis grillas con `sm:`/`md:`, la barra de filtros
+envuelve, y **las exportaciones son archivos — no hay nada responsive en un
+`.xlsx`**. Lo único que le faltaba era la aclaración de su mapa de calor.
 
 ⚠️ **El hallazgo que reordenó el plan: no eran 56 pantallas, era un archivo.**
 `Layout.tsx` no tenía **un solo breakpoint** y en 375px dejaba **71px de

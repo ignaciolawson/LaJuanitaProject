@@ -8,7 +8,13 @@ import { CabeceraDePagina } from './CabeceraDePagina'
 import { EstadoVacio } from './EstadoVacio'
 import { Etiqueta } from './Etiqueta'
 import { AvisoSoloLectura } from './SoloLectura'
-import { CONTROL_DE_FILTRO, CONTROL_DE_FORMULARIO } from './controles'
+import {
+  CASILLA_CON_TEXTO,
+  CASILLA_EN_LINEA,
+  CONTROL_DE_FILTRO,
+  CONTROL_DE_FORMULARIO,
+} from './controles'
+import { DeslizableAlCostado } from './DeslizableAlCostado'
 import { Celda, Fila, FilaVacia, Tabla } from './Tabla'
 
 /**
@@ -215,6 +221,96 @@ describe('el área tocable (P108, §26 · Etapa 2)', () => {
     expect(CONTROL_DE_FORMULARIO).toContain('lg:min-h-0')
     expect(CONTROL_DE_FILTRO).toContain('min-h-11')
     expect(CONTROL_DE_FILTRO).toContain('py-1.5')
+  })
+
+  /**
+   * La casilla, que es lo que la Etapa 2 dejó anotado y la 3 cierra.
+   *
+   * ⚠️ **La altura es del `<label>` y no del cuadradito**, y esa es la mitad
+   * que se deshace sin que nada falle: agrandar el `<input>` se ve, sacarle la
+   * altura a la etiqueta no se ve — la casilla sigue andando, sólo que de vuelta
+   * con una franja de 20px para apuntarle con el dedo.
+   */
+  it('la casilla pide los 44px en su etiqueta, en las dos alineaciones', () => {
+    for (const casilla of [CASILLA_EN_LINEA, CASILLA_CON_TEXTO]) {
+      expect(casilla).toContain('min-h-11')
+      expect(casilla).toContain('lg:min-h-0')
+    }
+
+    // Y no son intercambiables: la de varios renglones tiene que dejar el
+    // cuadradito arriba, con la primera línea.
+    expect(CASILLA_EN_LINEA).toContain('items-center')
+    expect(CASILLA_CON_TEXTO).toContain('items-start')
+  })
+})
+
+describe('DeslizableAlCostado (§26 · Etapa 3)', () => {
+  /**
+   * **Lo que se prueba acá es que la pantalla diga que hay más para el costado.**
+   * Los dos deslizables que quedan —la grilla semanal y la de ocupación— ya
+   * scrolleaban bien antes de esto: lo que no hacían era avisarlo, y un scroll
+   * anidado sin barra visible dentro de una página que ya scrollea en vertical
+   * se lee como *"la pantalla está cortada"*.
+   *
+   * ⚠️ jsdom no aplica media queries ni mide cajas, así que esto **no comprueba
+   * que la aclaración se oculte** en escritorio ni que el contenido desborde en
+   * un teléfono: comprueba que la aclaración exista, que diga qué hay del otro
+   * lado y que pida ocultarse en el breakpoint de ESE deslizable. Lo demás lo
+   * mide un dispositivo.
+   */
+  it('avisa que se desliza y dice qué hay del otro lado', () => {
+    render(
+      <DeslizableAlCostado hasta="lg" que="la semana entera">
+        <div>la grilla</div>
+      </DeslizableAlCostado>,
+    )
+
+    expect(screen.getByText(/Deslizá al costado para ver la semana entera/)).toBeTruthy()
+  })
+
+  /**
+   * ⚠️ **Cada deslizable desborda a un ancho distinto, y una aclaración que
+   * aparece donde no hay nada que arrastrar es tan mala como la que falta.** La
+   * grilla semanal pide 768px y la de ocupación 512: con un solo breakpoint,
+   * una de las dos miente. Es la misma familia de error que el rótulo de una
+   * tarjeta corrido un lugar — nada falla y la pantalla dice algo que no es.
+   */
+  it('cada uno se oculta en SU breakpoint, no en uno compartido', () => {
+    render(
+      <DeslizableAlCostado hasta="lg" que="la semana entera">
+        <div />
+      </DeslizableAlCostado>,
+    )
+    expect(screen.getByText(/la semana entera/).className).toContain('lg:hidden')
+
+    render(
+      <DeslizableAlCostado hasta="sm" que="el día entero">
+        <div />
+      </DeslizableAlCostado>,
+    )
+    const ocupacion = screen.getByText(/el día entero/).className
+    expect(ocupacion).toContain('sm:hidden')
+    // Y no el del otro: un `lg:hidden` acá dejaría el cartel puesto de 640 a
+    // 1024, donde la grilla de ocupación ya entra entera.
+    expect(ocupacion).not.toContain('lg:hidden')
+  })
+
+  /**
+   * ⚠️ **Una región que scrollea tiene que poder recibir el foco**, o con el
+   * teclado no hay forma de llegar a la mitad derecha de la semana (WCAG 2.1.1).
+   * Es la misma razón por la que el hueco del calendario es un `<button>` y no
+   * un `onClick` sobre la celda.
+   */
+  it('la región que scrollea se puede alcanzar con el teclado y dice qué es', () => {
+    render(
+      <DeslizableAlCostado hasta="lg" que="la semana entera">
+        <div>la grilla</div>
+      </DeslizableAlCostado>,
+    )
+
+    const region = screen.getByRole('region', { name: /Deslizá al costado/ })
+    expect(region.getAttribute('tabindex')).toBe('0')
+    expect(region.className).toContain('overflow-x-auto')
   })
 })
 

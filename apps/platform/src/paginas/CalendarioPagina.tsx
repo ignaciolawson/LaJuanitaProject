@@ -33,7 +33,8 @@ import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Bloque } from '../componentes/Bloque'
 import { Movida } from '../componentes/Movida'
-import { CONTROL_DE_FILTRO } from '../componentes/controles'
+import { CASILLA_EN_LINEA, CONTROL_DE_FILTRO } from '../componentes/controles'
+import { DeslizableAlCostado } from '../componentes/DeslizableAlCostado'
 import { Campo, CampoSelect } from '../componentes/Campo'
 import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
 import {
@@ -305,7 +306,7 @@ export function CalendarioPagina() {
           ))}
         </select>
 
-        <label className="flex items-center gap-2 text-sm text-tenue">
+        <label className={`${CASILLA_EN_LINEA} text-sm text-tenue`}>
           <input
             type="checkbox"
             checked={incluirCanceladas}
@@ -378,7 +379,11 @@ export function CalendarioPagina() {
         </TraerALaVista>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-linea bg-superficie shadow-tarjeta">
+      <DeslizableAlCostado
+        hasta="lg"
+        que="la semana entera"
+        className="rounded-lg border border-linea bg-superficie shadow-tarjeta"
+      >
         <div className="min-w-3xl">
           {/* Encabezado de días */}
           <div className="grid border-b border-linea" style={{ gridTemplateColumns: COLUMNAS }}>
@@ -458,7 +463,23 @@ export function CalendarioPagina() {
                           })
                         }
                         aria-label={`Cargar reserva el ${diaYMes(dia)} a las ${String(hora).padStart(2, '0')}:00`}
-                        className="min-h-6 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-superficie-2 hover:text-apagado focus:bg-superficie-2 focus:text-apagado"
+                        // El `min-h-11` es el piso tocable de P108 debajo de
+                        // `lg`; `lg:min-h-6` devuelve el de hoy. Importa el
+                        // piso y no el `flex-1`: en una celda vacía el botón ya
+                        // se estiraba a los 48px de la fila, pero en una celda
+                        // que ya tiene una reserva se quedaba con lo que
+                        // sobrara, y el piso eran 24px.
+                        //
+                        // ⚠️ **Lo que sigue sin resolverse es que es invisible
+                        // hasta el hover, y en un teléfono no hay hover.** Se
+                        // deja anotado y no se toca a ciegas: revelarlo abajo de
+                        // `lg` es cambiarle el color, o sea `text-apagado`
+                        // peleando con `text-transparent`, y cuál gana depende
+                        // del orden en que Tailwind emita las variantes — la
+                        // misma dependencia no verificable bajo jsdom que la
+                        // Etapa 1 evitó en el `whitespace-nowrap`. Tocar la
+                        // celda igual abre el formulario, que no crea nada.
+                        className="min-h-11 flex-1 rounded text-left text-[11px] text-transparent transition-colors hover:bg-superficie-2 hover:text-apagado focus:bg-superficie-2 focus:text-apagado lg:min-h-6"
                       >
                         + reservar
                       </button>
@@ -469,7 +490,7 @@ export function CalendarioPagina() {
             </div>
           ))}
         </div>
-      </div>
+      </DeslizableAlCostado>
 
       {/* Este NO es un `EstadoVacio` y es a propósito: la grilla de la semana ya
           está dibujada arriba, así que la pantalla no se lee como rota ni como
@@ -584,11 +605,19 @@ function Continuacion({ reserva, onElegir }: { reserva: ReservaResumen; onElegir
       onClick={onElegir}
       style={{ borderLeftColor: reserva.color ?? '#999' }}
       title={`${reserva.tipoUso} · ${reserva.sala} · sigue desde ${hhmm(reserva.horaInicio)}`}
-      className={`mb-1 block w-full border-l-4 border-dashed bg-superficie-2/50 px-1.5 py-0.5 text-left text-[10px] leading-tight text-apagado transition-colors hover:bg-superficie-2 ${
+      // ⚠️ 44px con el dedo debajo de `lg`, y desde ahí exactamente lo de hoy
+      // (P108, §26 · Etapa 2). Este era **el control más chico que quedaba en
+      // el sistema**: una línea de `text-[10px]` con `py-0.5` da unos 17px, y
+      // P108 no lo alcanzó porque no es un `Boton` sino un `<button>` a mano
+      // dentro de la grilla. El `flex` es lo que centra el texto dentro de esa
+      // altura —reemplaza al `block`, como en `Boton`— y de paso hace que el
+      // `truncate` del `<span>` funcione: sobre contenido en línea no hacía
+      // nada, porque `overflow` pide una caja.
+      className={`mb-1 flex w-full items-center border-l-4 border-dashed bg-superficie-2/50 px-1.5 py-0.5 text-left text-[10px] leading-tight text-apagado transition-colors hover:bg-superficie-2 min-h-11 lg:min-h-0 ${
         cayo(reserva) ? 'opacity-50 line-through' : ''
       }`}
     >
-      <span className="truncate">↳ {reserva.sala} · sigue</span>
+      <span className="min-w-0 truncate">↳ {reserva.sala} · sigue</span>
     </button>
   )
 }
@@ -833,7 +862,7 @@ function CamposDeParticipante({
           </p>
           <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1.5">
             {curso.integrantes.map((x) => (
-              <label key={x.idUsuario} className="flex items-center gap-2 text-sm">
+              <label key={x.idUsuario} className={`${CASILLA_EN_LINEA} text-sm`}>
                 <input
                   type="checkbox"
                   checked={!selector.ausentes.includes(x.idUsuario)}
