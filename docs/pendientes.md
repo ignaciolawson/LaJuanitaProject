@@ -16,6 +16,18 @@ etapas**, con las tablas volviéndose tarjetas en el teléfono. Decisiones en
 | **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ⏳ |
 | **5** | **Auditoría de la landing** en dispositivos reales | ⏳ |
 
+➡️ **DÓNDE SE RETOMA: la Etapa 3, y tiene UNA sola cosa difícil** — el
+**calendario semanal** de `/admin/reservas`. En 375px no desborda (`minmax(0,
+1fr)` deja encoger las columnas) pero cada día queda en ~44px: legible como
+cuadrícula, inservible para leer quién tiene clase. ⚠️ **Tiene una decisión de
+producto adentro y conviene cerrarla antes de tocar código**, como P106 y P107:
+*vista de un día con selector* o *ancho mínimo por columna con scroll lateral*.
+El detalle está en el *DÓNDE RETOMAR* de [`mejoras.md`](mejoras.md) §26.
+
+⚠️ **Lo demás de la Etapa 3 ya no existe**: los filtros y los botones de
+administración quedaron cubiertos por P108 (son compartidos), y los *"60
+`grid-cols` fijos"* eran un error de medición.
+
 ⚠️ **El hallazgo que reordenó el plan: no eran 56 pantallas, era un archivo.**
 `Layout.tsx` no tenía **un solo breakpoint** y en 375px dejaba **71px de
 lienzo** — el sistema no se veía mal en el celular, *no se podía usar*.

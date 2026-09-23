@@ -7130,6 +7130,75 @@ los 44px**. Eso lo mide un dedo.
 
 ---
 
+## ⚠️ DÓNDE RETOMAR (la barrida de RESPONSIVE, §26 — al cierre del 2026-09-23)
+
+🔵 **LA BARRIDA DE RESPONSIVE (§26) ESTÁ EN CURSO: tres etapas de seis cerradas,
+sin migración** (P106–P108, `platform.md` §32). Es todo front.
+
+| | Etapa | Estado |
+|---|---|---|
+| **0** | El shell: la columna se vuelve cajón debajo de `lg` (P106) | ✅ commit `c48cd2a` |
+| **1** | `Tabla` → tarjetas en pantalla chica (P107) | ✅ commits `d55d192` + `d734014` |
+| **2** | Los portales → **el área tocable de 44px** (P108) | ✅ **sin commitear al cerrar la sesión** |
+| **3** | Administración: **el calendario semanal** | ⏳ **acá se retoma** |
+| **4** | Tablero y exportaciones: los gráficos en pantalla chica | ⏳ |
+| **5** | Auditoría de la landing en dispositivos reales | ⏳ |
+
+**Suites al cierre: 713 de 713 sobre 49 archivos**, `tsc -b` y los dos linters
+limpios. Backend intacto (esta barrida no lo toca): **`V36` sigue siendo la
+última migración y el admin sembrado sigue en `V37`**.
+
+### Lo que la Etapa 3 tiene por delante, ya medido
+
+**Es una sola cosa difícil**: el **calendario semanal** de `/admin/reservas`.
+Arma su grilla con `gridTemplateColumns: '4rem repeat(7, minmax(0, 1fr))'`
+dentro de un `overflow-x-auto`, así que en 375px **no desborda** —el `minmax(0,
+1fr)` deja que las columnas se encojan— pero cada día queda en unos **44px**:
+legible como cuadrícula, inservible para leer quién tiene clase.
+
+⚠️ **Tiene una decisión de producto adentro y conviene cerrarla antes de tocar
+código**, como se hizo con P106 y P107: o **una vista de un día con selector**
+(el teléfono muestra un día y se navega), o **un ancho mínimo por columna con
+scroll lateral** (se conserva la semana y se arrastra). No son equivalentes: la
+primera cambia lo que la pantalla *es* en el teléfono, la segunda conserva la
+semana a costa de un gesto.
+
+**Lo demás de la Etapa 3 ya no existe**: los *"60 `grid-cols` fijos"* eran un
+error de medición —son 2 y las dos correctas— y **los filtros y los botones de
+administración ya quedaron cubiertos por P108**, porque `Boton` y `controles.ts`
+son compartidos.
+
+### Lo que ninguna etapa puede cerrar por su cuenta
+
+⏳ **jsdom no aplica media queries ni mide cajas.** Todo lo que estas tres etapas
+probaron es comportamiento y estructura: que el cajón cierre al navegar, que el
+rótulo salga de `columnas`, que la altura se pida y que `lg` la devuelva.
+**Ninguna prueba que se vea bien ni que midan 44px.** Eso lo mide un dispositivo,
+y es el paso que Ignacio tiene pendiente: `npm run dev:platform -- --host` y
+entrar por la IP de la máquina (⚠️ deja el server visible en la red, y el admin
+sembrado sigue activo).
+
+⏳ **Dos cosas anotadas y deliberadamente no tocadas a ciegas**: los **12
+checkboxes** siguen con el alto de su `<label>` (~20px) —tocables por el ancho
+del texto, no cómodos— y `Filtros` conserva `w-44`/`w-64`, que con `flex-wrap`
+envuelven bien pero no aprovechan el ancho del teléfono.
+
+### ⚠️ Lo que más vale de esta barrida, y no es ninguna de las tres etapas
+
+**Ninguna de las tres fue el trabajo que el plan nombraba.** La 0 resultó ser
+**un archivo** y no 56 pantallas. La 1 encontró **su propia deuda**
+(`whitespace-nowrap`, que iba a devolver el scroll horizontal que la 0 sacó)
+recién al verificar, después de estar commiteada. La 2 **casi no tocó las
+pantallas de su nombre** y terminó arreglando el área tocable de todo el sistema.
+
+**Las tres aparecieron midiendo, no planificando.** Y las tres veces el plan
+pedía **más** trabajo del necesario, en el lugar equivocado — que es el error
+barato; el caro es el otro. El corolario práctico, que ya costó una corrección
+en este mismo documento: **un número que sale de un grep no es una medición
+hasta que se mira qué matcheó** (`grid-cols-[2-9]` contaba `sm:grid-cols-2`).
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la §25 cerrada, 2026-09-22)
 
 ✅ **LA DECIMOTERCERA (§25) ESTÁ CERRADA: dos de dos, sin migración** (P104–P105,
