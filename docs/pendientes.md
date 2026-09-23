@@ -11,7 +11,7 @@ etapas**, con las tablas volviéndose tarjetas en el teléfono. Decisiones en
 |---|---|---|
 | **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | ✅ cerrada, commit `c48cd2a` |
 | **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | ✅ cerrada |
-| **2** | **Los portales**: el profe y el alumno en el celular (~13 pantallas) | ⏳ |
+| **2** | **Los portales** — ya estaban bien; lo que faltaba era **el área tocable de 44px** (P108), que alcanza las 36 pantallas | ✅ cerrada |
 | **3** | **Administración**: los filtros y **el calendario semanal** (el caso difícil). ⚠️ Los *"60 `grid-cols` fijos"* eran **2**: error de medición, corregido | ⏳ |
 | **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ⏳ |
 | **5** | **Auditoría de la landing** en dispositivos reales | ⏳ |

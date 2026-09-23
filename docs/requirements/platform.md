@@ -3789,3 +3789,42 @@ duplica en escritorio, porque ahí el oculto es él.
 desde la Fase 3 que *"si alguna vez vuelve una barra fija arriba, este `top-0`
 hay que correrlo"*. P106 trajo esa barra. No hubo que correr nada **porque
 debajo de `lg` el encabezado ya no se dibuja**.
+
+### ✅ P108 — Con el dedo, 44px; con el mouse, lo de siempre
+
+**Lo que había, medido antes de tocar nada** (`text-sm` da 20px de interlineado,
+`text-xs` 16):
+
+| Control | Cuenta | Alto |
+|---|---|---|
+| `Boton` normal | `py-2.5` → 10+20+10 | **40px** |
+| `Boton` chico | `py-1.5` + `text-xs` → 6+16+6 | **28px** |
+| **`Boton variante="enlace"`** | `text-xs`, sin relleno | **~16px** |
+| `CONTROL_DE_FORMULARIO` | `py-2` → 8+20+8 | **36px** |
+| `CONTROL_DE_FILTRO` | `py-1.5` → 6+20+6 | **32px** |
+
+**Ninguno llegaba a 44**, y el peor es `enlace` — que no es un caso de borde:
+es *Cobrar*, *Editar*, *Anular*, **38 usos**, la acción de casi toda fila del
+sistema. Con 16px de alto no se le erra a veces: se le erra.
+
+**La decisión:** los cinco piden **44px debajo de `lg`** y **desde `lg` vuelven
+exactamente a lo de hoy**. En escritorio no cambia un píxel, y la barra de
+filtros sigue apretada — que es su razón de ser, con tres o cuatro en una fila.
+
+⚠️ **Va como `min-h-11` y NO como más relleno**, y ésa es la parte que se
+repite: el alto de estos controles es *relleno + interlineado*, una cuenta que
+se hace mal de memoria — **este mismo archivo la tenía mal** (`py-2.5` "es" 44
+sólo si uno no suma). La altura se pide; deducirla es cómo se llegó a los cinco
+números de arriba. El `inline-flex` es lo que centra el texto dentro de ella sin
+sacar al botón del flujo en línea, que es donde viven los `enlace`.
+
+**Son dos archivos —`Boton` y `controles.ts`— y alcanzan a las 36 pantallas**,
+la misma economía que `Tabla` en la Etapa 1. ⚠️ Eso incluye administración: no
+es adelantar su etapa, es que **un componente compartido no se puede partir por
+pantalla**.
+
+⚠️ **Lo que no cubre, anotado en vez de tocado a ciegas:** los **12 checkboxes**
+siguen con el alto de su `<label>` (~20px) — tocables por el ancho del texto,
+no cómodos —, y `Filtros` conserva `w-44`/`w-64` fijos, que con `flex-wrap`
+envuelven bien pero no aprovechan el ancho del teléfono. Los dos se miran
+cuando haya un dispositivo delante.

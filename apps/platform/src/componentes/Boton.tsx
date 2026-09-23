@@ -20,6 +20,18 @@ import type { ButtonHTMLAttributes } from 'react'
  * filas, treinta botones con caja compiten con los datos que la tabla existe
  * para mostrar. Sigue siendo un `<button>` y no un `<a>` —no navega, ejecuta—,
  * que es lo que ya hacían las trece.
+ *
+ * ⚠️ **Los tres miden 44px de alto en pantalla chica y vuelven a lo suyo desde
+ * `lg`** (P108, §26 · Etapa 2). Medido antes de tocar nada: `normal` daba 40px,
+ * `chico` 28 y **`enlace` unos 16** — y `enlace` es *Cobrar*, *Editar*,
+ * *Anular*, o sea **la acción de casi toda fila del sistema**, 38 usos. Con el
+ * dedo, 16px no es un control: es una posibilidad de errarle.
+ *
+ * **Va como `min-h-11` y no como más relleno**, que es lo que evita la cuenta
+ * que este archivo ya hacía mal de memoria: `py-2.5` con `text-sm` da 40 y no
+ * 44, y con `text-xs` da 36. La altura se pide, no se deduce. El `inline-flex`
+ * es lo que centra el texto dentro de esa altura; desde `lg` el `min-h-0` la
+ * devuelve al relleno de siempre y **en escritorio no cambia un píxel**.
  */
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
   variante?: 'principal' | 'secundario' | 'enlace'
@@ -31,6 +43,13 @@ const CAJA: Record<'normal' | 'chico', string> = {
   normal: 'rounded-md px-4 py-2.5 text-sm',
   chico: 'rounded-md px-3 py-1.5 text-xs',
 }
+
+/**
+ * El área tocable mínima, sólo donde se toca con el dedo. `inline-flex` para
+ * centrar el texto dentro de ella sin sacar al botón del flujo en línea, que es
+ * donde viven los `enlace`.
+ */
+const TOCABLE = 'inline-flex items-center justify-center min-h-11 lg:min-h-0'
 
 export function Boton({
   variante = 'principal',
@@ -59,7 +78,7 @@ export function Boton({
   return (
     <button
       {...boton}
-      className={`font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${estilo} ${className ?? ''}`}
+      className={`font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TOCABLE} ${estilo} ${className ?? ''}`}
     >
       {children}
     </button>

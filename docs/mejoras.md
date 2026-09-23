@@ -6954,7 +6954,7 @@ hallazgo que reordenó el plan: no son 36 pantallas, es un archivo.
 |---|---|---|---|
 | **0** | **El shell**: la columna se vuelve cajón debajo de `lg` (P106) | 1 archivo, desbloquea 36 pantallas | ✅ **cerrada el 2026-09-22** |
 | **1** | **`Tabla` → tarjetas** en pantalla chica (P107) | 1 componente, 13 tablas | ✅ **cerrada el 2026-09-22** |
-| **2** | **Los portales**: el profe y el alumno en el celular | ~13 pantallas | ⏳ |
+| **2** | **Los portales** — y lo que encontró: **el área tocable** (P108) | 2 compartidos, alcanza las 36 | ✅ **cerrada el 2026-09-23** |
 | **3** | **Administración**: los filtros y **el calendario semanal** (el caso difícil). ⚠️ Ya NO "los 60 `grid-cols`": eran 2 | ~20 pantallas, casi todo verificación | ⏳ |
 | **4** | **Tablero y exportaciones**: los gráficos en pantalla chica | ~4 pantallas | ⏳ |
 | **5** | **Auditoría de la landing** en dispositivos reales | 20 páginas | ⏳ |
@@ -7088,6 +7088,42 @@ Es la tercera vez en dos días — el primer relevamiento de celdas condicionale
 dio cero y estaba mal, y la premisa de P105 era falsa. Las tres veces el método
 falló hacia el mismo lado: **decir que hay más trabajo del que hay**, que es el
 error barato; el caro sería el otro.
+
+### Etapa 2 — los portales, y lo que de verdad faltaba (cerrada el 2026-09-23)
+
+**El portal estaba mejor de lo que este plan decía, y medirlo pantalla por
+pantalla es lo que dejó ver el problema real.** `MiAgenda` no tiene grilla —es
+una lista con `flex-wrap`—, `MisAlumnos` usa `min-w-40 grow`, `SubirMaterial` ya
+tenía `sm:grid-cols-2`, y **`Progreso` reparte sus 8 o 16 pasos con `flex-1`**,
+así que se encogen y no desbordan. La grilla de siete columnas que preocupaba es
+sólo del calendario de administración.
+
+**Lo que faltaba era otra cosa, y es de todo el sistema: ningún control se podía
+tocar con el dedo.** Las cinco medidas están en P108; la que importa es
+**`Boton variante="enlace"` con ~16px de alto**, que es *Cobrar*, *Editar*,
+*Anular* — 38 usos, la acción de casi toda fila.
+
+⚠️ **Y es la tercera vez en esta barrida que el trabajo real no era el
+planificado.** La Etapa 0 resultó ser un archivo y no 56 pantallas; la Etapa 1
+encontró su propia deuda (`whitespace-nowrap`) recién al verificar; y la Etapa 2
+casi no toca las pantallas que llevaba en el nombre. **Lo que las tres tienen en
+común es que el hallazgo apareció midiendo, no planificando** — y que las tres
+veces el plan pedía más trabajo del que hacía falta, en el lugar equivocado.
+
+**Dos archivos, 77 líneas, y alcanza a las 36 pantallas**: la economía de
+`Tabla`. ⚠️ Eso incluye administración, y no es adelantar su etapa: **un
+compartido no se puede partir por pantalla.**
+
+Suite en **713 de 713** sobre 49 archivos — el chequeo que importaba no eran los
+dos casos nuevos sino que el `inline-flex` cambia el `display` de **todos** los
+botones del sistema.
+
+⚠️ **La limitación, por tercera vez y sin cambiar: jsdom no mide cajas.** Los
+casos comprueban que la altura se pida y que `lg` la devuelva; **no comprueban
+los 44px**. Eso lo mide un dedo.
+
+---
+
 
 ---
 

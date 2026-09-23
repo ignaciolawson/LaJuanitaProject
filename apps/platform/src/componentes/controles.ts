@@ -31,8 +31,22 @@
  * casing"*— pero recién al compilar, y en Linux (o sea, en CI y en el deploy) el
  * mismo código andaría: es un error que aparece o no según la máquina.
  */
+/**
+ * ⚠️ **`min-h-11` es el área tocable de P108** (§26 · Etapa 2), y va acá abajo
+ * porque los dos controles la necesitan igual. Medido antes de tocar nada: el
+ * de formulario daba **36px** de alto y el de filtro **32**, contra los 44 que
+ * hace falta acertarle con el dedo. Desde `lg` el `min-h-0` devuelve el alto al
+ * relleno de siempre, así que **en escritorio no cambia un píxel** — la barra de
+ * filtros sigue sin ocupar el alto de una tarjeta, que es lo que la apretaba.
+ *
+ * Va como altura mínima y no como más `py` por la misma razón que en `Boton`:
+ * el alto de estos controles es relleno + interlineado, una cuenta que se hace
+ * mal de memoria. La altura se pide.
+ */
+const TOCABLE = 'min-h-11 lg:min-h-0'
+
 const LINEA =
-  'w-full border-0 border-b bg-transparent px-0 text-sm transition-colors focus:border-red'
+  `w-full border-0 border-b bg-transparent px-0 text-sm transition-colors focus:border-red ${TOCABLE}`
 
 /**
  * El de un formulario. Respira más porque abajo lleva su mensaje de error, y

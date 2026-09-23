@@ -8,6 +8,7 @@ import { CabeceraDePagina } from './CabeceraDePagina'
 import { EstadoVacio } from './EstadoVacio'
 import { Etiqueta } from './Etiqueta'
 import { AvisoSoloLectura } from './SoloLectura'
+import { CONTROL_DE_FILTRO, CONTROL_DE_FORMULARIO } from './controles'
 import { Celda, Fila, FilaVacia, Tabla } from './Tabla'
 
 /**
@@ -173,6 +174,47 @@ describe('Tabla', () => {
     const acciones = screen.getByRole('button', { name: 'Anular' }).closest('td')!
     expect(acciones.className).toContain('max-lg:block')
     expect(acciones.className).not.toContain('max-lg:flex')
+  })
+})
+
+describe('el área tocable (P108, §26 · Etapa 2)', () => {
+  /**
+   * **Con el dedo hace falta un blanco de 44px, y ninguno de los controles
+   * llegaba.** Medido antes de tocar nada: `normal` daba 40px, `chico` 28 y
+   * **`enlace` unos 16** — y `enlace` es *Cobrar*, *Editar*, *Anular*, la acción
+   * de casi toda fila del sistema. Con 16px no se erra a veces: se erra.
+   *
+   * ⚠️ jsdom no mide cajas, así que esto **no comprueba los 44px**: comprueba
+   * que los tres pidan la altura y que **desde `lg` la devuelvan**, que es la
+   * mitad que se puede deshacer sin que nada falle. Lo otro lo mide un dedo.
+   */
+  it('las tres variantes piden 44px con el dedo y vuelven a lo suyo desde lg', () => {
+    render(
+      <div>
+        <Boton>Guardar</Boton>
+        <Boton variante="secundario">Cancelar</Boton>
+        <Boton variante="enlace">Cobrar</Boton>
+      </div>,
+    )
+
+    for (const nombre of ['Guardar', 'Cancelar', 'Cobrar']) {
+      const clases = screen.getByRole('button', { name: nombre }).className
+      expect(clases).toContain('min-h-11')
+      // Sin esto, el botón de escritorio crecería 4px en las 36 pantallas.
+      expect(clases).toContain('lg:min-h-0')
+    }
+  })
+
+  /**
+   * El mismo piso para lo que se escribe. El de filtro va apretado a propósito
+   * en escritorio —son tres o cuatro en una fila— y esa es justamente la razón
+   * de que la altura sea condicional y no fija.
+   */
+  it('los campos también, y el de filtro sigue apretado en escritorio', () => {
+    expect(CONTROL_DE_FORMULARIO).toContain('min-h-11')
+    expect(CONTROL_DE_FORMULARIO).toContain('lg:min-h-0')
+    expect(CONTROL_DE_FILTRO).toContain('min-h-11')
+    expect(CONTROL_DE_FILTRO).toContain('py-1.5')
   })
 })
 
