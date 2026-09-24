@@ -50,10 +50,25 @@ public class AutenticacionDesdeBase implements Converter<Jwt, AbstractAuthentica
      * contraseña.
      *
      * <p>No es un rol del negocio: es un estado. Al no tener {@code ROLE_ADMIN}
-     * ni ninguno de los otros, no pasa ningún {@code @PreAuthorize} -- pero
-     * sigue autenticada, así que puede usar {@code /api/me} para saber quién es
-     * y {@code /api/me/password} para arreglarlo. Justo lo necesario para salir
-     * del estado, y nada más.
+     * ni ninguno de los otros, <b>no pasa ningún {@code @PreAuthorize}</b>, que
+     * es lo que cierra el eje de administración entero.
+     *
+     * <p>⚠️ <b>Pero esta autoridad sola NO alcanza, y creer que sí fue el
+     * hallazgo `CS-01`</b> (barrida de ciberseguridad de septiembre 2026). Acá
+     * decía que con ella la persona sólo llegaba a {@code /api/me} y a
+     * {@code /api/me/password} -- <i>"justo lo necesario para salir del estado,
+     * y nada más"</i>-- y era falso: <b>los 32 mappings de {@code /api/me/**}
+     * no llevan ninguna anotación de rol</b>, porque ahí la identidad sale del
+     * token y no del rol, así que caían en {@code anyRequest().authenticated()}
+     * <b>y esta autoridad lo satisface</b>. Quedaban 30 alcanzables de más, 11
+     * de ellos de escritura.
+     *
+     * <p>Hoy la frase vuelve a ser cierta, <b>y la otra mitad de la razón está
+     * en otro archivo</b>: {@code SeguridadConfig} tiene una regla explícita que
+     * abre esas dos rutas —exactas, no por prefijo— y le cierra el resto del
+     * portal a quien tenga esta autoridad. <b>Si esa regla se borra, esto vuelve
+     * a mentir sin que falle nada</b>; lo que avisa es
+     * {@code CredencialVigenteTest.con_password_temporal_sin_cambiar_tampoco_se_abre_el_portal}.
      */
     public static final String AUTORIDAD_PASSWORD_PENDIENTE = "ROLE_PASSWORD_PENDIENTE";
 

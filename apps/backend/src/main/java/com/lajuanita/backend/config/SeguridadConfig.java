@@ -19,6 +19,7 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -217,6 +218,28 @@ public class SeguridadConfig {
                         // contenedor y un monitor externo. No expone nada --
                         // `show-details=never` deja la respuesta en UP o DOWN.
                         .requestMatchers("/actuator/health").permitAll()
+                        // Quien todavía no eligió su contraseña entra SOLO a las dos
+                        // puertas que lo sacan de ese estado (`CS-01`).
+                        //
+                        // Sin esto, `ROLE_PASSWORD_PENDIENTE` no pasa ningún
+                        // @PreAuthorize --y por eso la administración estaba tapada--
+                        // pero SÍ satisface el `authenticated()` de abajo, que es lo
+                        // único que protege a los 32 mappings de /api/me/**: la
+                        // identidad ahí sale del token y no del rol, así que ninguna
+                        // anotación los cubre. Quedaban 30 alcanzables de más, 11 de
+                        // ellos de escritura.
+                        //
+                        // Las dos que se abren van EXACTAS y no por prefijo:
+                        // /api/me/perfil también cuelga de MeController y no va acá.
+                        .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        // Se pide por la AUSENCIA de la autoridad y no enumerando los
+                        // cuatro roles: enumerarlos haría de este archivo el séptimo
+                        // lugar que hay que tocar para agregar un rol.
+                        .requestMatchers("/api/me/**").access((quienPide, contexto) ->
+                                new AuthorizationDecision(quienPide.get().getAuthorities().stream()
+                                        .noneMatch(autoridad -> AutenticacionDesdeBase.AUTORIDAD_PASSWORD_PENDIENTE
+                                                .equals(autoridad.getAuthority()))))
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor))

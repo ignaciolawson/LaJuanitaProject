@@ -138,6 +138,41 @@ class CredencialVigenteTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * El portal TAMPOCO se abre con la temporal sin cambiar (`CS-01`).
+     *
+     * <p>⚠️ <b>Los dos casos de arriba prueban el eje de ADMINISTRACIÓN, donde el
+     * candado ya funcionaba</b>: {@code ROLE_PASSWORD_PENDIENTE} no pasa ningún
+     * {@code @PreAuthorize}. Pero los 32 mappings de {@code /api/me/**} no llevan
+     * ninguna de las tres meta-anotaciones —la identidad sale del token, no del
+     * rol—, así que caían en {@code anyRequest().authenticated()}, <b>que esa
+     * autoridad satisface</b>. Quedaban 30 alcanzables de más, 11 de ellos de
+     * escritura, incluido escribir notas privadas sobre alumnos si además da
+     * clases.
+     *
+     * <p>Va en pareja a propósito, que es como este proyecto escribe los casos de
+     * autorización: <b>sin la mitad de abajo, un 403 podría ser un endpoint roto
+     * en vez de un candado que funciona.</b>
+     *
+     * <p>El estado de cuenta es el elegido porque es el más elocuente: son los
+     * pagos, las deudas y los saldos de la persona.
+     */
+    @Test
+    void con_password_temporal_sin_cambiar_tampoco_se_abre_el_portal() throws Exception {
+        Usuario conTemporal = crear(Rol.USUARIO, true);
+
+        mvc.perform(get("/api/me/estado-de-cuenta")
+                .header("Authorization", credencialPara(conTemporal)))
+                .andExpect(status().isForbidden());
+
+        // La otra mitad: el mismo endpoint, alguien que ya eligió su contraseña.
+        Usuario conPasswordPropia = crear(Rol.USUARIO, false);
+
+        mvc.perform(get("/api/me/estado-de-cuenta")
+                .header("Authorization", credencialPara(conPasswordPropia)))
+                .andExpect(status().isOk());
+    }
+
     /** Un token cuyo `sub` apunta a un usuario borrado no autentica a nadie. */
     @Test
     void un_token_de_un_usuario_que_ya_no_existe_da_401() throws Exception {
