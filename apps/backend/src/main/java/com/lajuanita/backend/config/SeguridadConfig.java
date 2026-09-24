@@ -193,6 +193,26 @@ public class SeguridadConfig {
                 // poner, así que el ataque que CSRF previene no aplica.
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
+                // Las cabeceras de seguridad, DECLARADAS y no heredadas (`CS-10`).
+                //
+                // Spring Security ya las mandaba solas, así que esto no cambia ni
+                // una respuesta: lo que cambia es que dejan de depender de que
+                // nadie toque esta línea. Heredadas, un `.headers(h -> h.disable())`
+                // futuro las apagaba sin que fallara nada -- que es la forma de
+                // falla que esta barrida encontró tres veces, una defensa viva
+                // cuyo motivo no estaba escrito en ningún lado.
+                //
+                // `nosniff` es la que más pesa: los archivos del sistema se
+                // sirven `inline`, así que es lo que impide que el navegador
+                // adivine el tipo de un archivo políglota y lo trate como
+                // documento. Quien las mira es CabecerasDeSeguridadTest.
+                //
+                // HSTS y `frame-ancestors` NO van acá: los emite quien termina el
+                // TLS, o sea el proxy (SEC-07, `operacion.md` §3 punto 5).
+                .headers(cabeceras -> cabeceras
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .frameOptions(marco -> marco.deny())
+                        .cacheControl(Customizer.withDefaults()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Los tres únicos endpoints abiertos: pedir la credencial,
