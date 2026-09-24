@@ -1,5 +1,24 @@
 # La etapa de mejoras — después del MVP
 
+> # ⚠️⚠️ ESTE NO ES EL DOCUMENTO DONDE ESTÁ LO PENDIENTE
+>
+> **Lo que queda por hacer está en
+> [`docs/auditoria/barrida-ciberseguridad-2026-09.md`](auditoria/barrida-ciberseguridad-2026-09.md)
+> — leelo ANTES que éste.** La barrida de ciberseguridad se abrió el 2026-09-23 y
+> está **EN CURSO**: Fase 0 cerrada, Fase 1 cortada a la mitad, y **la Fase 2
+> —autorización, IDOR y multi-tenencia— es el próximo paso**. El encargo completo
+> es `prompt-ciberseguridad-lajuanita.md`, en la raíz del repo.
+>
+> ⚠️ **Por qué este cartel existe, y costó una sesión el 2026-09-24:** este
+> documento termina diciendo —con razón— que **no queda producto por construir**.
+> Quien lo lee primero concluye *"no hay nada pendiente"*, que es **falso**: el
+> trabajo que queda se mudó a otro documento y ninguno de los dos enlazaba al
+> otro. **Un documento completo sobre su propio alcance igual te manda para el
+> lado equivocado cuando el alcance se mudó.**
+
+---
+
+
 > **Abierta el 2026-08-20, el día que cerró el Módulo 8.** Con los ocho módulos
 > terminados, el proyecto deja de construir funcionalidad nueva por catálogo y
 > pasa a mejorarse por uso: **Ignacio va a usar el sistema como usuario durante

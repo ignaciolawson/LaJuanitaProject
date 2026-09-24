@@ -1,12 +1,37 @@
 # Barrida de ciberseguridad — septiembre 2026
 
-> **Estado: EN CURSO.** Fase 0 cerrada el 2026-09-23. Las fases 1 a 9 están sin
+> **Estado: EN CURSO.** Fase 0 cerrada el 2026-09-23. **Fase 2 arrancada el
+> 2026-09-24 y a mitad de camino (§8).** La 1 quedó cortada; las 3 a 9 sin
 > ejecutar. **Este documento es el estado de la barrida, no su informe**: el
 > informe final va a ser `docs/auditoria/informe-ciberseguridad-2026-09.md`, que
 > todavía no existe y no hay que crear hasta terminar la Fase 9.
 >
 > **Si estás retomando esto en una sesión nueva, andá directo al bloque
 > "DÓNDE RETOMAR" del final.** Lo de arriba es contexto que ya está resuelto.
+>
+> ---
+>
+> ## 📍 ESTE ES EL PUNTO DE ENTRADA DEL REPO MIENTRAS LA BARRIDA ESTÉ EN CURSO
+>
+> **Mientras el estado de arriba diga EN CURSO, éste es el primer documento que
+> hay que leer en el proyecto — antes que `docs/mejoras.md` y antes que
+> `docs/pendientes.md`.** Pedido de Ignacio el 2026-09-24.
+>
+> ⚠️ **Por qué, y costó una sesión:** los otros dos terminan diciendo —con
+> razón— que **no queda producto por construir**, porque las catorce barridas de
+> mejoras y la de responsive están cerradas. Quien los lee primero concluye *"no
+> hay nada pendiente"*, que es falso: **el trabajo que queda se mudó acá y
+> ninguno de los tres enlazaba al otro**. El 2026-09-24 una sesión entera arrancó
+> por `mejoras.md`, sacó esa conclusión y se puso a cerrar una deuda vieja de
+> §17 · H8 (real, pero no era lo pendiente). **Un documento completo sobre su
+> propio alcance igual te manda para el lado equivocado cuando el alcance se
+> mudó.**
+>
+> **El cableado quedó hecho ese mismo día** y hay que mantenerlo: `CLAUDE.md`
+> manda acá en su bloque *WHERE TO RESUME*, y `mejoras.md` y `pendientes.md`
+> tienen un cartel arriba de todo que apunta acá. ⚠️ **Cuando esta barrida
+> cierre, hay que sacar los tres**, o el próximo va a venir a buscar trabajo
+> terminado — que es este mismo error con el signo cambiado.
 
 ---
 
@@ -22,12 +47,15 @@ repo**. Ese archivo es la fuente del alcance, las reglas y el formato de salida;
 este documento no lo reemplaza ni lo resume: registra **qué se hizo, qué se
 decidió y qué falta**.
 
-> ⚠️ **Ese prompt está sin commitear y fuera de `docs/auditoria/`**, donde ya
+> ⚠️ **Corregido el 2026-09-24: el prompt YA ESTÁ COMMITEADO** —entró en
+> `36ba4f4 "Documentacion"`—, así que la mitad de este aviso envejeció. Lo que
+> sigue siendo cierto es que **está en la raíz y no en `docs/auditoria/`**, donde
 > viven sus dos hermanos (`prompt-auditoria-lajuanita.md` y
-> `prompt-remediacion-lajuanita.md`). Conviene moverlo ahí y commitearlo: es la
-> convención que el propio repo estableció en agosto, y un prompt que se pierde
-> deja un informe que nadie puede volver a producir. **No se movió sin permiso**,
-> porque la regla 1 del encargo prohíbe modificar nada.
+> `prompt-remediacion-lajuanita.md`). Conviene moverlo: es la convención que el
+> propio repo estableció en agosto. **No se movió sin permiso**, porque la regla 1
+> del encargo prohíbe modificar nada. (Verificado con `git log` antes de
+> corregirlo, no de memoria — es la lección de `pendientes.md` §3.5, donde una
+> entrada mintió sobre sí misma trece días.)
 
 ### La regla que gobierna esta barrida
 
@@ -195,7 +223,7 @@ driver de ninguna fase.
 |:--:|---|---|:--:|
 | **0** | Contexto: auditoría de agosto, decisiones deliberadas, medición de la superficie | ✅ **CERRADA** 2026-09-23 | — |
 | **1** | Autenticación y sesión | ⛔ **NO EJECUTADA** — ver §5 | — |
-| **2** | Autorización, IDOR y multi-tenencia — **máxima prioridad** | ⬜ pendiente | — |
+| **2** | Autorización, IDOR y multi-tenencia — **máxima prioridad** | 🔄 **EN CURSO** 2026-09-24 — ver §8 | 0 hasta ahora |
 | **3** | Manejo de archivos: path traversal, tipo, acceso | ⬜ pendiente | — |
 | **4** | Inyección: SQL y fórmulas (CSV injection en las exportaciones) | ⬜ pendiente | — |
 | **5** | Entrada, DTOs y superficie pública | ⬜ pendiente | — |
@@ -353,11 +381,155 @@ Decidido con Ignacio antes de arrancar, el 2026-09-23:
   saliente, se listan las versiones y se marcan como "verificar contra CVE" sin
   inventar números.
 
+
+---
+
+## 8. Fase 2 — autorización e IDOR · EN CURSO (arrancada 2026-09-24)
+
+**Cero hallazgos hasta acá, y eso es un resultado, no una fase vacía.** Todo lo
+de abajo va a *"Verificado y correcto"* del informe: le dice a Ignacio qué **no**
+tiene que volver a mirar.
+
+### 8.a — La enumeración, y el número que había que corregir
+
+⚠️ **Son 147 mappings, no 148.** El conteo de la Fase 0 salió de un `grep` sobre
+`--include=*.java` de todo el backend, y **una de las 148 ocurrencias es una
+mención en un javadoc**: `profesor/ProfesorService.java:23`, la frase que cuenta
+que `ProfesorController` *"tenía un único `@GetMapping`"* hasta que P77 le puso
+el alta. **Sexta vez en este proyecto que un número de un grep no era una
+medición.** Los 28 controllers sí están bien contados.
+
+| | Mappings |
+|---|---:|
+| Con regla de rol explícita | **112** |
+| — de ésos, `@PuedeOperar` | 65 |
+| — `@PuedeLeerAdministracion` | 44 |
+| — `@PuedeVerElTableroCompleto` | 3 |
+| — `@PreAuthorize` | **0** |
+| Sin anotación → caen en `anyRequest().authenticated()` (`SeguridadConfig:220`) | **35** |
+| **Total real** | **147** |
+
+⚠️ **Los tres números de la izquierda también hubo que medirlos dos veces, y es
+el mismo error otra vez.** El `grep` de las anotaciones sobre `*Controller.java`
+devuelve **70 · 49 · 1**; las que están **pegadas a un mapping** son **65 · 44 ·
+0**. La diferencia son **los `import` —uno por archivo— y las menciones en
+javadoc**, que en este repo son muchas porque cada controller explica por qué
+eligió una y no la otra. Contadas crudas, dan un total de 123 anotaciones para
+112 mappings anotados.
+
+✅ **Y eso deja un resultado con nombre propio: este backend no tiene un solo
+`@PreAuthorize` en código.** La única ocurrencia es una línea de javadoc en
+`docencia/DocenciaController.java:47` que explica **por qué no sirve** — *"es una
+relación, no un permiso (§2.1), así que un `@PreAuthorize` no puede"*. Todo el
+eje de permisos pasa por las tres meta-anotaciones, que es exactamente la
+propiedad que `CLAUDE.md` declara (*"mantener la regla en dos lugares en vez de
+`@PreAuthorize` sueltos es lo que hace exigible el modelo de cuatro roles"*).
+**Confirmada viva.**
+
+⚠️ **Y un descuadre del propio método, anotado porque se repite:** el script que
+pega anotaciones con firmas veía 146 y no 147. El que faltaba es
+`TableroController:97`, un `@GetMapping(value = "/exportacion.xlsx", produces =
+"…")` **partido en dos líneas**: la segunda no empieza con `@`, así que cortaba
+el bloque. **No era un agujero — tiene `@PuedeVerElTableroCompleto`.** La regla
+para quien siga: un parser de anotaciones que no contemple la anotación
+multilínea **subcuenta en silencio**, que es la dirección peligrosa acá (una
+ruta sin regla que no aparece en la lista de rutas sin regla).
+
+### 8.b — Las 35 sin anotación, abiertas una por una
+
+No son 35 agujeros. Abiertas una por una, dan exactamente dos grupos:
+
+- **3 son públicas por regla de ruta** (`SeguridadConfig:204-206`), y son
+  decisiones deliberadas que agosto ya dejó asumidas: `POST /api/auth/login`,
+  `POST /api/auth/registro` y `POST /api/solicitantes` — la única escritura
+  pública del sistema.
+- **32 cuelgan de `/api/me/**`**: `portal/` 17, `docencia/` 11, `auth/MeController`
+  3 (`GET /api/me`, `POST /api/me/password`, `PUT /api/me/perfil`) y
+  `mastering/MasteringDelPortalController` 1. **Ahí la ausencia de anotación es
+  el diseño, no un olvido**: la identidad sale del `sub` del token, y ninguna
+  anotación de rol puede decidir *"lo mío"*. Es lo que el Módulo 4 dejó escrito
+  —*"no hay `@PuedeVerLoSuyo`; un alcance que se puede olvidar no es un
+  alcance"*— y lo que había que confirmar vivo.
+
+⚠️ **`OPTIONS /**`, `/error` y `/actuator/health` NO están en estos 35**, aunque
+también son `permitAll`: no son mappings de ningún controller. Siguen siendo
+decisiones asumidas de agosto, pero contarlas acá inflaría el denominador.
+
+### 8.c — Los siete que sí reciben un id, seguidos hasta la query
+
+**Ésta es la superficie de IDOR real** — los únicos `/api/me/**` donde un
+identificador viaja por la URL. Filtrados con los tres criterios de
+`ghost-scan-code` (§3), los siete califican como candidatos legítimos: el id
+viene del input, el recurso es privado de una persona y el camino es alcanzable
+por HTTP. **Los siete están correctamente acotados.**
+
+| Endpoint | Dónde se corta | Verificado |
+|---|---|:--:|
+| `GET /api/me/comprobantes/{id}` | `ComprobanteRepository.mioPorId` — `WHERE c.id = :id AND c.pago.usuario.id = :idUsuario` | ✅ |
+| `PATCH /api/me/solicitudes/{id}/cancelacion` | `SolicitudService.cancelar` — `.filter(s -> s.getUsuario().getId().equals(idQuienPide))` | ✅ |
+| `PATCH /api/me/notificaciones/{id}/lectura` | `marcarLeida` — `.filter(n -> n.getDestino().getId().equals(idUsuario))` | ✅ |
+| `GET /api/me/profesor/alumnos/{idAlumno}/notas` | `miDocencia` + `verificarQueEsMiAlumno` | ✅ |
+| `PUT /api/me/profesor/alumnos/{idAlumno}/seguimiento` | `miDocencia` + `verificarQueEsMiAlumno` | ✅ |
+| `PUT /api/me/profesor/notas/{idNota}` | `NotaProfesorRepository.suya(idNota, yo.getId())` | ✅ |
+| `PATCH /api/me/profesor/materiales/{idMaterial}/visibilidad` | `MaterialRepository.suyo(idMaterial, yo.getId())` | ✅ |
+
+⚠️ **Dos detalles que valen más que el ✅, porque son lo que se rompe al
+refactorizar:**
+
+**(1) El corte va ANTES de la regla de negocio, y ese orden es el que no
+confirma nada.** En `cancelar`, el `.filter` de propiedad corre antes del
+`estaPendiente()`. Invertidos, pedir cancelar la solicitud de otro contestaría
+*"esa solicitud ya fue resuelta"* — que es un **oráculo de existencia**: no deja
+hacer nada, y confirma que la fila está ahí y en qué estado. Los tres del portal
+contestan *"no existe"*, que es la respuesta que el Módulo 4 fijó.
+
+**(2) `mioPorId` deja afuera los pagos sin cuenta, y está bien.** `c.pago.usuario.id`
+navega una relación, o sea **INNER JOIN implícito** — la trampa que `V19`
+documenta y que costó siete casos rojos en su momento. Desde `V19` un pago puede
+no tener cuenta, y esos quedan fuera de la consulta por la comparación misma: un
+pago a nombre escrito no es de nadie del portal. **El javadoc ya lo dice**, o sea
+que no es una coincidencia afortunada.
+
+### 8.d — La excepción documentada: verificada y bien puesta
+
+`DocenciaDelAlumnoService` salta a propósito `miDocencia` y
+`verificarQueEsMiAlumno`, porque administración no es profesor de nadie (§8 del
+alcance: *"sus notas privadas… **Administración sí**"*). Había que confirmar que
+no fuera alcanzable por un profesor: **lo es sólo por administración**. Su
+controller vive en `/api/alumnos/{idAlumno}` —**fuera de `/api/me/**`**— y sus
+dos mappings llevan `@PuedeLeerAdministracion`.
+
+Que Ghezz —STAFF **y** profesor— sí pueda leer por ahí las notas de otro profesor
+**no es un hallazgo: es la regla**. Lo decide su rol, no su relación.
+
+### 8.e — Lo que le falta a la Fase 2 para cerrar
+
+1. **Contrastar los 112 anotados contra la matriz de `platform.md`.** Lo hecho
+   responde *"¿tiene regla?"*; falta *"¿es la regla correcta?"* — un
+   `@PuedeLeerAdministracion` donde correspondía `@PuedeOperar` tiene regla y
+   está mal.
+2. **`GET /api/me/catalogo`** — no recibe id, pero hay que confirmar que devuelve
+   catálogo compartido (salas, tipos de uso) y ninguna fila privada. Por los
+   criterios de `ghost-scan-code` un catálogo no es recurso privado, pero eso hay
+   que verlo, no asumirlo.
+3. **El lado de administración**: que SEC-04 siga vivo
+   (`verificarQuePuedeTocarEstaCuenta`, nadie se saca a sí mismo) y la superficie
+   IDOR de los controllers de admin, donde el id **sí** viaja por la URL por
+   diseño y lo que protege es el rol.
+4. ~~El único `@PreAuthorize` suelto del backend~~ — **cerrado acá mismo: no
+   existe.** Era una mención en javadoc; ver §8.a.
+
 ---
 
 ## DÓNDE RETOMAR
 
-**Fase 0 cerrada. Nada escrito todavía en el informe final.**
+**Fase 0 cerrada. Fase 2 a mitad de camino (§8), con CERO hallazgos hasta acá.
+Nada escrito todavía en el informe final.**
+
+⚠️ **El próximo paso ya no es "empezar la Fase 2" sino terminarla: la lista
+exacta de lo que le falta está en §8.e.** Lo que ya está verificado —la
+enumeración de los 147 mappings, las 35 sin anotación abiertas una por una y
+los siete endpoints con id seguidos hasta su query— **no hay que rehacerlo**.
 
 Para arrancar una sesión nueva:
 
