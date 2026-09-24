@@ -54,6 +54,20 @@ public record AltaMaterialRequest(
      * <p>Es una validación floja a propósito —no valida que exista ni que
      * responda— pero ataja el error real: pegar el nombre de un archivo en vez de
      * su URL, que produce un material que el alumno abre y no lleva a ningún lado.
+     *
+     * <p>⚠️ <b>Y hace una segunda cosa que este comentario no decía, que es por
+     * lo que no se puede aflojar: es la defensa contra un {@code javascript:}
+     * almacenado</b> (`CS-09` de la barrida de ciberseguridad de septiembre
+     * 2026). Esta URL la guarda un profesor y la <b>renderiza el portal del
+     * alumno en un {@code <a href>}</b>; sin exigir esquema {@code http}/{@code
+     * https}, un link {@code javascript:...} se ejecuta en el navegador de quien
+     * lo abre. Exigir el esquema lo cierra — pero lo cerraba <b>de rebote</b>,
+     * porque el único motivo escrito acá era el del párrafo de arriba.
+     *
+     * <p><b>Consecuencia práctica: ampliar los esquemas aceptados no es una
+     * mejora de usabilidad, es abrir un XSS.</b> Si alguna vez hace falta
+     * aceptar otro (por ejemplo {@code mailto:}), va por lista blanca explícita
+     * y nunca quitando la condición.
      */
     @AssertTrue(message = "El link tiene que empezar con http:// o https://")
     public boolean isUrlConEsquema() {
