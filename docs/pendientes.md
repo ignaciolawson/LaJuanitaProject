@@ -5,9 +5,12 @@
 > **Lo que queda por hacer está en
 > [`docs/auditoria/barrida-ciberseguridad-2026-09.md`](auditoria/barrida-ciberseguridad-2026-09.md)
 > — leelo ANTES que éste.** La barrida de ciberseguridad se abrió el 2026-09-23 y
-> está **EN CURSO**: Fase 0 cerrada, Fase 1 cortada a la mitad, y **la Fase 2
-> —autorización, IDOR y multi-tenencia— es el próximo paso**. El encargo completo
-> es `prompt-ciberseguridad-lajuanita.md`, en la raíz del repo.
+> recorrió **sus nueve fases** y **el informe ya está escrito**:
+> **[`informe-ciberseguridad-2026-09.md`](auditoria/informe-ciberseguridad-2026-09.md)**,
+> que es el entregable. **Siete hallazgos**, dos Altos —uno de ellos bloquea el
+> deploy— y ⚠️ **ninguno arreglado: la barrida es de solo lectura.** El backlog
+> priorizado es su §7. Queda la Fase 1 a medias. El encargo completo es
+> `prompt-ciberseguridad-lajuanita.md`, en la raíz del repo.
 >
 > ⚠️ **Por qué este cartel existe, y costó una sesión el 2026-09-24:** este
 > documento termina diciendo —con razón— que **no queda producto por construir**.
