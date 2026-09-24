@@ -219,6 +219,20 @@ un rol, y `CLAUDE.md` ya lleva la cuenta de los seis. Las dos rutas abiertas van
 y **no** va abierta. Más ampliar el caso de `CredencialVigenteTest` con un
 endpoint del portal; `GET /api/me/estado-de-cuenta` es el más elocuente.
 
+> **Remediado el 2026-09-24 (commit `5ca3684`) — RESUELTO.** Tres
+> `requestMatchers` en `SeguridadConfig`, antes del `anyRequest()`: las dos
+> rutas que sacan del estado van **exactas** y el resto de `/api/me/**` se le
+> cierra a quien tenga la autoridad. Se pide **por la ausencia de
+> `ROLE_PASSWORD_PENDIENTE`**, no enumerando los cuatro roles. El javadoc de
+> `AutenticacionDesdeBase` quedó corregido: hoy su frase vuelve a ser cierta, y
+> dice que la otra mitad de la razón vive en `SeguridadConfig`.
+>
+> **El caso nuevo iba en rojo antes del arreglo** (`expected:<403> but
+> was:<200>`) y va en pareja, con la mitad que espera 200 para que un 403 no
+> pueda ser un endpoint roto:
+> `CredencialVigenteTest.con_password_temporal_sin_cambiar_tampoco_se_abre_el_portal`.
+> Suite 777/777, y verde **contra base vacía** (`scripts/pruebas-backend.sh`).
+
 ---
 
 ### 4.3 · 🟠 `CS-02` — Ningún techo para el cuerpo de un pedido
@@ -292,6 +306,17 @@ lockfile con `python scripts/completar-lockfile.py`**, obligatorio en este repo 
 `npm ci` se cae en el runner de Linux. **Antes de la próxima sesión de
 verificación en dispositivo.**
 
+> **Remediado el 2026-09-24 (commit `c019f3d`) — RESUELTO.** `next` a 16.3.6
+> y `sharp` a 0.35.4 (transitiva, sigue a next). ⚠️ `npm update` no alcanzaba:
+> `package.json` fijaba la versión exacta, así que hubo que moverla a mano.
+>
+> Verificado: `npm audit --omit=dev` pasó de 2 vulnerabilidades a **0**, el
+> build de la landing compila y genera sus 27 páginas, y **`npm ci` en
+> `node:22` sobre Linux resuelve `@img/sharp-linux-x64` y
+> `@next/swc-linux-x64-gnu`** — que es exactamente la trampa del lockfile
+> escrito en Windows que hace caer al runner. `completar-lockfile.py`: 0
+> faltantes.
+
 ---
 
 ### 4.6 · 🟠 `CS-06` — Ley 25.326: sin aviso de privacidad ni vía de supresión
@@ -359,10 +384,20 @@ mezclados con todo lo que loguea Spring.
 | ID | | Qué |
 |---|---|---|
 | `CS-08` | **Bajo** | **29 de 53 cláusulas `LIKE` no declaran `ESCAPE '\'`.** Todas ligan `Busqueda.patron()`, que escapa bien; funciona porque **la barra invertida es el escape por defecto de `LIKE` en Postgres**. No es un agujero: es una dependencia de un default, y el javadoc de `Busqueda` ya lo explica, incluido por qué se borró la constante |
-| `CS-09` | Info | **La validación de la URL del material cierra `javascript:` de rebote.** `AltaMaterialRequest.isUrlConEsquema` exige `http(s)://`, pero su javadoc dice que está para atajar a quien pega un nombre de archivo. **Nadie escribió que además es la defensa contra un `javascript:` almacenado** que el portal del alumno renderiza en un `<a href>`. No hay que cambiar código: hay que cambiar el comentario |
-| `CS-10` | Info | **Las cabeceras de la API son los defaults de Spring Security** — `SeguridadConfig` no toca `.headers(...)`. Incluye `nosniff`, que es lo que cierra el caso de un archivo políglota servido `inline`. Funciona y **depende de no tocarlo**: un `.headers(h -> h.disable())` futuro lo apaga sin que falle nada. Conviene declararlas |
+| `CS-09` | Info · ✅ **RESUELTO 2026-09-24** (`9b34324`) | **La validación de la URL del material cierra `javascript:` de rebote.** `AltaMaterialRequest.isUrlConEsquema` exige `http(s)://`, pero su javadoc dice que está para atajar a quien pega un nombre de archivo. **Nadie escribió que además es la defensa contra un `javascript:` almacenado** que el portal del alumno renderiza en un `<a href>`. No hay que cambiar código: hay que cambiar el comentario |
+| `CS-10` | Info · ✅ **RESUELTO 2026-09-24** (`4560a97`) | **Las cabeceras de la API son los defaults de Spring Security** — `SeguridadConfig` no toca `.headers(...)`. Incluye `nosniff`, que es lo que cierra el caso de un archivo políglota servido `inline`. Funciona y **depende de no tocarlo**: un `.headers(h -> h.disable())` futuro lo apaga sin que falle nada. Conviene declararlas |
 | `CS-11` | Info | **No hay regla de escapado para un CSV futuro.** Hoy no hace falta —no existe exportación CSV y el xlsx usa celdas tipadas—, pero el día que se agregue, `informe/Celda.Texto` necesita prefijar `'` ante `= + - @` |
 | `CS-12` | Info | **El `src` de los iframes del blog es seguro por dónde vienen sus datos, no por cómo está escrito.** Es origen fijo + id, así que el id no puede cambiar el origen; pero **el blog está hecho para mudarse a un CMS**, y cuando ese id lo escriba un editor conviene validarlo como alfanumérico |
+
+> **Remediados el 2026-09-24.** `CS-09` es sólo javadoc —cero líneas de
+> lógica— y dice ahora que ampliar los esquemas aceptados no es una mejora de
+> usabilidad sino abrir un XSS. `CS-10` declara las tres cabeceras en
+> `SeguridadConfig` **sin cambiar el resultado observable**, y eso se probó en
+> ese orden: `CabecerasDeSeguridadTest` se escribió primero, ya pasaba contra
+> los defaults, y sigue pasando después de declararlas. Ese caso es la mitad
+> que hace que declararlas sirva: sin él se podían volver a borrar en silencio.
+>
+> **`CS-08`, `CS-11` y `CS-12` siguen abiertos** — son del bloque 3.
 
 ---
 
@@ -499,8 +534,8 @@ no hay SRI que falte porque no hay nada que integrar. Sin open redirect.
 | | Qué | Esfuerzo |
 |---|---|:--:|
 | **`CS-03`** | `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`, y corregir la fila de `operacion.md:358` | XS |
-| **`CS-01`** | Los tres `requestMatchers` de `/api/me/**`, más ampliar `CredencialVigenteTest` | S |
-| — | **Desactivar el admin sembrado** (`admin@lajuanita.local` / `lajuanita2026`), que sigue activo y ya estaba en `pendientes.md` §1.4 | XS |
+| ~~**`CS-01`**~~ | ✅ **RESUELTO 2026-09-24** (`5ca3684`) | — |
+| — | **Desactivar el admin sembrado** — ⚠️ **BLOQUEADO en una decisión**: `admin@lajuanita.local` es **la única cuenta con rol ADMIN**, así que desactivarla deja al sistema sin nadie que pueda otorgar roles ni tocar cuentas administrativas. Ver la nota al pie de esta sección | XS |
 
 ### 🟡 Bloque 2 — Antes de exponer a internet
 
@@ -508,7 +543,7 @@ no hay SRI que falte porque no hay nada que integrar. Sin open redirect.
 |---|---|:--:|
 | **`CS-04`** | `forward-headers-strategy=framework` **y** un proxy que sanee `X-Forwarded-For` — **las dos mitades juntas** | S |
 | **`CS-02`** | `client_max_body_size 15m` en el proxy | S |
-| **`CS-05`** | `npm update next sharp` + `completar-lockfile.py`. ⚠️ **Antes de la próxima verificación en dispositivo**, que es cuando se abre el camino de Windows | S |
+| ~~**`CS-05`**~~ | ✅ **RESUELTO 2026-09-24** (`c019f3d`) | — |
 | **`CS-07`** | Rotación de logs en el compose de producción | S |
 | **`CS-06`** | Página de privacidad y la línea en los cuatro formularios | S |
 
@@ -524,9 +559,22 @@ migración de configuración en producción.
 | **`CS-02`** (2ª mitad) | `@Size` en los 33 componentes sin techo | M |
 | **`CS-06`** (2ª mitad) | **La decisión de negocio**: hasta dónde llega *"no se borra nada"*, y la retención del buzón | M |
 | **`CS-08`** | Declarar `ESCAPE '\'` en las 29 cláusulas que lo omiten | S |
-| **`CS-10`** | Declarar las cabeceras de la API en vez de heredarlas | XS |
-| **`CS-09`**, **`CS-11`**, **`CS-12`** | Tres comentarios y una validación, cada uno donde corresponde | XS |
+| ~~**`CS-10`**~~ | ✅ **RESUELTO 2026-09-24** (`4560a97`) | — |
+| ~~**`CS-09`**~~ | ✅ **RESUELTO 2026-09-24** (`9b34324`) | — |
+| **`CS-11`**, **`CS-12`** | Dos comentarios y una validación, cada uno donde corresponde | XS |
 | — | Completar la Fase 1 y la confirmación en caliente de los IDOR (§6) | M |
+
+⚠️ **Sobre el admin sembrado, que quedó bloqueado el 2026-09-24.**
+`pendientes.md` §1.4 y `operacion.md:366` coinciden en el camino —**una
+migración nueva**, nunca editar `V3`, y *"después de crear los usuarios
+reales"*—. Lo que ninguno de los dos anticipa es que **hoy
+`admin@lajuanita.local` es la única fila con `rol = ADMIN`** (las otras cuatro
+cuentas administrativas son STAFF y DIRECTIVO). Desactivarla sin más deja al
+sistema **sin nadie que pueda otorgar roles ni editar una cuenta
+administrativa**, que es justo el bloqueo que `UsuarioService` prohíbe desde
+arriba —*"no podés desactivar tu propia cuenta"*, *"no podés cambiarte el rol a
+vos mismo"*— y que una migración haría desde abajo, saltándose el guardia que
+existe para evitarlo. **Necesita una decisión antes de escribirse.**
 
 ---
 
