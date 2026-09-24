@@ -1,8 +1,8 @@
 # Barrida de ciberseguridad — septiembre 2026
 
-> **Estado: las NUEVE FASES están recorridas y el informe está escrito.** Sólo
-> queda **la Fase 1 a medias** — su candidata se confirmó como `CS-03` (§12) y
-> el resto de su checklist sigue sin hacer.
+> **Estado: las NUEVE FASES están CERRADAS y el informe está escrito.** No queda
+> ninguna fase por recorrer. Lo único pendiente son **confirmaciones en caliente
+> opcionales**, listadas con su procedimiento en la §6 del informe.
 >
 > **Siete hallazgos: `CS-01` y `CS-03` (Altos; el segundo, bloqueante del
 > deploy), y `CS-02`, `CS-04`, `CS-05`, `CS-06` y `CS-07` (Medios)**, más cinco
@@ -229,7 +229,7 @@ driver de ninguna fase.
 | Fase | Qué cubre | Estado | Hallazgos |
 |:--:|---|---|:--:|
 | **0** | Contexto: auditoría de agosto, decisiones deliberadas, medición de la superficie | ✅ **CERRADA** 2026-09-23 | — |
-| **1** | Autenticación y sesión | 🔄 **PARCIAL** — su candidata quedó confirmada como `CS-03` (§12); el resto del checklist, sin hacer | **1** (`CS-03`, Alto) |
+| **1** | Autenticación y sesión | ✅ **CERRADA** 2026-09-24 — §12 y §17 | **1** (`CS-03`, Alto) |
 | **2** | Autorización, IDOR y multi-tenencia — **máxima prioridad** | ✅ **CERRADA** 2026-09-24 — §8 | **1** (`CS-01`, Alto) |
 | **3** | Manejo de archivos: path traversal, tipo, acceso | ✅ **CERRADA** 2026-09-24 — §9 | 0 (+1 informativo) |
 | **4** | Inyección: SQL y fórmulas (CSV injection en las exportaciones) | ✅ **CERRADA** 2026-09-24 — §10 | 0 (+1 bajo, +1 informativo) |
@@ -245,7 +245,7 @@ una arranque con §2 y §3 de este documento como contexto.
 
 ---
 
-## 5. La Fase 1 quedó sin ejecutar, y lo que se abrió en ella (⚠️ su candidata ya se confirmó: es `CS-03`, §12)
+## 5. La Fase 1 quedó sin ejecutar ese día (⚠️ **YA NO**: se cerró el 2026-09-24 — su candidata es `CS-03`, §12, y el resto del checklist está en §17)
 
 **El 2026-09-23 Ignacio la cortó a mitad** (*"nono no hagas la 1"*) para preservar
 contexto. **No cuenta como hecha**: de la Fase 1 solo se abrieron cinco archivos,
@@ -346,9 +346,9 @@ y la defensa deja de depender de que alguien se acuerde de borrar una línea.
 ## 6. Convenciones de salida, para que el informe salga igual en cualquier sesión
 
 - **Un solo archivo final:** `docs/auditoria/informe-ciberseguridad-2026-09.md`.
-  ✅ **Escrito el 2026-09-24**, con las nueve fases recorridas y **la Fase 1
-  marcada explícitamente como parcial** en su §6 *No verificado*, que es lo que
-  esta convención pedía.
+  ✅ **Escrito el 2026-09-24, con las nueve fases CERRADAS.** No hizo falta usar
+  la salida de emergencia que esta convención preveía (escribirlo con fases
+  marcadas como pendientes): la Fase 1, que era la que faltaba, se cerró antes.
 - **IDs `CS-01`, `CS-02`, …** correlativos, sin reiniciar por fase.
 - **Campos exactos de cada hallazgo:** título en una línea · severidad ·
   evidencia (`ruta:línea` + cita mínima) · qué pasa hoy (con el paso a paso del
@@ -1214,9 +1214,124 @@ escritas:**
 
 ---
 
+## 17. Fase 1 — autenticación y sesión · CERRADA (2026-09-24)
+
+**Sin hallazgos nuevos.** El único de esta fase es `CS-03` (§12), que ya estaba
+redactado. Los otros tres puntos del encargo se recorrieron entero y **los tres
+dan verificado y correcto** — uno de ellos con evidencia **ejecutada**, no leída.
+
+### 17.a — JWT: verificado corriendo los casos, no razonándolos
+
+**La configuración** (`SeguridadConfig.jwtDecoder`): `NimbusJwtDecoder
+.withSecretKey(clave).macAlgorithm(MacAlgorithm.HS256)` — **el algoritmo está
+fijado**, así que no hay `alg: none` ni degradación a otro MAC ni confusión con
+RS256 (un decodificador simétrico no tiene verificador asimétrico que ofrecer).
+Los validadores son tres: `JwtTimestampValidator`, `JwtIssuerValidator(emisor)`
+y un `exigeVencimiento()` propio — **`exp` e `iss` son obligatorios**, que es lo
+que la auditoría de agosto declaraba y había que confirmar. Duración: `8h`
+(`application.properties:83`).
+
+⚠️ **Y no hizo falta razonar el comportamiento: ya estaba probado.**
+`auth/TokenJwtTest` tiene un caso por cada ataque que el encargo nombra, y **se
+corrieron**:
+
+```
+Tests run: 10, Failures: 0, Errors: 0  -- TokenJwtTest
+Tests run:  5, Failures: 0, Errors: 0  -- CredencialVigenteTest
+Tests run: 14, Failures: 0, Errors: 0  -- AutenticacionTest
+```
+
+- `rechaza_un_token_con_algoritmo_none` — arma el token a mano en Base64URL con
+  `{"alg":"none"}`, `rol: ADMIN` y firma vacía.
+- `rechaza_un_token_firmado_con_otra_clave` — el token fabricado por un tercero.
+- `rechaza_un_token_sin_vencimiento`, `rechaza_un_token_vencido`,
+  `rechaza_un_token_de_otro_emisor`, `rechaza_basura`.
+- `las_autoridades_salen_de_la_base_y_no_del_claim_del_token` — **firma un token
+  válido que MIENTE** (`rol: USUARIO` para el `sub` del admin) y comprueba que
+  la autoridad que sale es `ROLE_ADMIN`, la de la base.
+- `el_token_emitido_no_lleva_datos_sensibles` — `containsOnlyKeys("iss", "iat",
+  "exp", "sub", "rol")`. Un JWT va firmado pero **no encriptado**, y este caso es
+  el que impide que alguien le agregue el email o algo peor con el tiempo.
+
+⚠️ **La primera corrida dio 10 errores y no era la suite: era el entorno.**
+`ApplicationContext failure` → `PSQLException` → Docker Desktop abajo. Vale
+anotarlo porque el mensaje de Maven no nombra la base por ningún lado y son diez
+errores idénticos de 40 líneas cada uno: **mirar el `Caused by` del
+surefire-report antes de creerle a la pantalla.**
+
+### 17.b — Revocación y baja: ⚠️ la premisa del encargo es falsa, y para bien
+
+El encargo dice: *"Un token vale hasta 8 h post-baja: es decisión asumida"*.
+**No es así.** `AutenticacionDesdeBase.convert` relee al usuario de la base en
+**cada** pedido autenticado y corta antes de mirar nada más:
+
+```java
+if (!usuario.isActivo()) {
+    throw new InvalidBearerTokenException("La cuenta está desactivada.");
+}
+```
+
+**Dar de baja a alguien tiene efecto en el pedido siguiente**, no a las 8 horas,
+y `CredencialVigenteTest` lo fija con tres casos (baja, degradación de rol y
+temporal sin cambiar). La ventana de 8 h que sí existe es otra y es la
+documentada: **un token robado de una cuenta que sigue activa** no se puede
+revocar antes de que venza. Esa sigue siendo la decisión asumida de agosto, y no
+se reabre.
+
+**Ningún flujo nuevo amplía la ventana ni guarda estado de sesión.** Medido:
+**cero** `HttpSession`, `@SessionAttributes`, `SecurityContextRepository` o
+`setSession` en todo el backend, con `SessionCreationPolicy.STATELESS` puesto.
+Los portales del Módulo 4 y 5 no agregaron nada: leen el `sub` del token y
+consultan.
+
+### 17.c — La contraseña temporal: el vencimiento no se puede esquivar
+
+**Se aplica en el login** (`SesionService.verificarQueLaTemporalNoVencio`), y
+⚠️ **está ubicado después de comparar la contraseña, a propósito**: quien llega
+ahí ya demostró conocerla, así que decirle que venció no le informa nada a un
+desconocido — los tres rechazos anónimos (email inexistente, contraseña
+equivocada, cuenta de baja) siguen siendo indistinguibles entre sí.
+
+**La pregunta del encargo era si el vencimiento se aplica de verdad en los
+caminos nuevos, y la respuesta es que no se puede NO aplicar.** El riesgo
+concreto sería una cuenta con `debeCambiarPassword = true` y
+`passwordTemporalDesde = NULL`: ahí el chequeo sale por el `return` temprano y
+**la temporal no vencería nunca**. Medido, eso no se puede construir:
+
+- **Cero `setDebeCambiarPassword` y cero `setPasswordTemporalDesde` en todo el
+  backend.** Las dos columnas se mueven **sólo** por `Usuario
+  .marcarPasswordTemporal` / `marcarPasswordElegida`, que las escriben juntas.
+- **Los cinco caminos que crean cuentas delegan en uno solo**:
+  `AlumnoService:74`, `ProfesorService:92` y `SolicitanteService:257` llaman a
+  `UsuarioService.altaPorAdministracion`, que es el `marcarPasswordTemporal` de
+  `UsuarioService:113`. El reseteo es el `:143`. No hay un sexto.
+- Y si alguien escribiera las columnas por afuera, **`V8` las rechaza**:
+  `usuario_password_temporal_coherente` exige que las dos digan lo mismo.
+
+**Nada loguea la contraseña.** `RegistroDeEventos` anota
+`passwordCambiada(idUsuario)` y `passwordReseteada(idQuienPide, idObjetivo)` —
+**sólo ids**. Ningún `log.*` del backend menciona una contraseña o una clave.
+(`limiteExcedido` sí anota la `clave` del limitador, que para el límite por
+email **es el email**: es dato personal en el log, no una credencial, y es
+práctica normal registrar contra qué cuenta se intentó.)
+
+⚠️ **Dos matices honestos, ninguno de los cuales es un hallazgo aparte:**
+
+1. **El vencimiento controla el LOGIN, no un token ya emitido.** Quien entra el
+   día 6 con la temporal se lleva 8 h de token que siguen valiendo el día 7 y
+   pico. Es la misma ventana asumida de §17.b, no una fuga nueva.
+2. ⚠️ **La temporal viaja en la URL de `wa.me`**, que es el diseño —no hay
+   infraestructura de mail, y pasarla por WhatsApp es la decisión— pero implica
+   que queda en el **historial del navegador** de quien la manda y pasa por un
+   tercero. No se reporta aparte **porque el arreglo es `CS-01`**: mientras esa
+   credencial débil no pueda hacer más que cambiarse a sí misma, dónde estuvo
+   importa poco. Es el argumento de `CS-01` visto desde el otro lado.
+
+---
+
 ## DÓNDE RETOMAR
 
-✅ **LAS NUEVE FASES ESTÁN RECORRIDAS Y EL INFORME ESTÁ ESCRITO:**
+✅ **LAS NUEVE FASES ESTÁN CERRADAS Y EL INFORME ESTÁ ESCRITO:**
 **[`informe-ciberseguridad-2026-09.md`](informe-ciberseguridad-2026-09.md)**.
 Ése es el entregable; este documento es su cocina.
 
@@ -1235,13 +1350,16 @@ escritas:**
 
 ### Lo que falta, y es poco
 
-1. ⚠️ **La Fase 1 sigue PARCIAL.** Se confirmó su candidata (`CS-03`); **el resto
-   de su checklist no se hizo**: token manipulado / sin firma / firmado con otra
-   clave, el flujo de la temporal en los caminos nuevos, y si algún portal
-   guarda estado de sesión. Es lo único que queda de la barrida.
-2. **Las confirmaciones en caliente** que el informe lista en su §6 — todas
-   opcionales, todas con su procedimiento escrito. La de `CS-01` son dos minutos
-   y es la que más paga.
+1. ✅ ~~La Fase 1 seguía parcial.~~ **Se cerró el 2026-09-24 (§17), y sin
+   hallazgos nuevos.** Su mitad JWT es **la única parte de toda la barrida
+   verificada CORRIENDO los casos** —`TokenJwtTest` 10/10, `CredencialVigenteTest`
+   5/5, `AutenticacionTest` 14/14—, incluido el `alg: none` armado a mano y el
+   token válido que miente en su claim `rol`. ⚠️ **Y corrigió una premisa del
+   encargo**: dar de baja a alguien **no** deja un token vivo 8 h; pega en el
+   pedido siguiente.
+2. **Las confirmaciones en caliente** que el informe lista en su §6 — **todas
+   opcionales**, todas con su procedimiento escrito. La de `CS-01` son dos
+   minutos y es la que más paga. **Es lo único que queda.**
 3. ⚠️ **Nada de esto está arreglado.** La barrida es de solo lectura: **no se
    tocó una línea de código, de configuración ni de migración.** El backlog
    priorizado en tres bloques está en la §7 del informe.

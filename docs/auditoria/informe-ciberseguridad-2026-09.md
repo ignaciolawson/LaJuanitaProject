@@ -20,8 +20,8 @@ tapado** en los siete endpoints del portal que reciben un id, **el manejo de
 archivos es correcto de punta a punta**, y **la matriz de permisos se sostiene en
 los 147 mappings** sin una sola escritura protegida por una regla de lectura.
 
-**Ninguno de los siete hallazgos es explotable hoy contra el sistema como está
-corriendo en desarrollo.** Dos son Altos y **los dos aparecen recién al
+**Las nueve fases están cerradas.** **Ninguno de los siete hallazgos es
+explotable hoy contra el sistema como está corriendo en desarrollo.** Dos son Altos y **los dos aparecen recién al
 desplegar**, que es exactamente para lo que esta barrida se hizo antes del deploy
 de octubre.
 
@@ -398,6 +398,36 @@ hay que volver a mirar.*
   roles correctos, y el prefijo `ROLE_` coincide. **Y no hay un solo
   `@PreAuthorize` suelto en código**: la única ocurrencia es javadoc.
 
+**Autenticación y sesión — el único bloque verificado EJECUTANDO los casos.**
+
+- **El algoritmo del JWT está fijado** (`withSecretKey(...).macAlgorithm(HS256)`),
+  y **`exp` e `iss` son obligatorios** por tres validadores. `auth/TokenJwtTest`
+  tiene un caso por cada ataque del encargo y **los diez pasan**: `alg: none`
+  armado a mano, token firmado con otra clave, sin vencimiento, vencido, de otro
+  emisor, y basura. Más `CredencialVigenteTest` (5/5) y `AutenticacionTest`
+  (14/14).
+- **El claim `rol` no autoriza nada**, y hay un caso que lo prueba **firmando un
+  token válido que miente**: dice `rol: USUARIO` para el `sub` del admin, y la
+  autoridad que sale es `ROLE_ADMIN`, la de la base.
+- **El token no lleva nada de más**: `containsOnlyKeys("iss","iat","exp","sub","rol")`.
+  Un JWT va firmado pero **no encriptado**, y ese caso es lo que impide que con
+  el tiempo alguien le agregue el email.
+- ⚠️ **Corrección al encargo: dar de baja a alguien NO deja un token vivo 8 h.**
+  `AutenticacionDesdeBase` relee al usuario en cada pedido y corta si
+  `!activo`, así que **pega en el pedido siguiente**. La ventana de 8 h que sí
+  existe es la de un token robado de una cuenta activa — la decisión que agosto
+  dejó asumida, que no se reabre.
+- **El modelo stateless se sostiene**: cero `HttpSession`,
+  `@SessionAttributes`, `SecurityContextRepository` o `setSession` en todo el
+  backend. Ningún portal guarda estado de sesión.
+- **El vencimiento de la contraseña temporal no se puede esquivar.** Se aplica en
+  el login y **después** de comparar la contraseña (así no le informa nada a un
+  desconocido); y el escenario que lo anularía —`debeCambiarPassword` sin fecha—
+  **no se puede construir**: hay **cero** escrituras directas a esas dos
+  columnas, los cinco caminos que crean cuentas delegan todos en
+  `UsuarioService.altaPorAdministracion`, y `V8` rechazaría una fila incoherente.
+  **Nada loguea la contraseña**: los eventos anotan sólo ids.
+
 **Inyección.** **La superficie de SQLi es cero, no "está parametrizada"**: 0
 `createNativeQuery`, 0 `createQuery`, 0 `EntityManager`, 0 `JdbcTemplate` en
 `src/main`. Todo pasa por `@Query`, y **el valor de una anotación en Java tiene
@@ -438,12 +468,10 @@ no hay SRI que falte porque no hay nada que integrar. Sin open redirect.
 
 *Lo que esta barrida no puede afirmar. Con el procedimiento para cubrirlo.*
 
-1. ⚠️ **La Fase 1 quedó PARCIAL.** Se confirmó su candidata (`CS-03`) y **el
-   resto de su checklist sigue sin hacer**: token manipulado, sin firma, y
-   firmado con otra clave; el flujo de la contraseña temporal en los caminos
-   nacidos después de agosto; y si algún portal guarda estado de sesión que
-   contradiga el modelo stateless. *Procedimiento:* con la app levantada, forjar
-   los tres tokens y pegarle a `/api/me`.
+1. ~~La Fase 1 quedó parcial.~~ ✅ **CERRADA el 2026-09-24**, y su mitad JWT es
+   la **única del informe verificada CORRIENDO los casos** y no leyéndolos
+   (`TokenJwtTest` 10/10, `CredencialVigenteTest` 5/5, `AutenticacionTest`
+   14/14). Ver §5.
 2. **Ningún IDOR se probó con dos cuentas.** Se siguió cada uno hasta su query
    leyendo el código, que para las siete es concluyente, pero **la confirmación
    en caliente es otra sesión**. *Procedimiento:* dos cuentas de alumno, pedir
