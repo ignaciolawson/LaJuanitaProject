@@ -7283,6 +7283,92 @@ forma de subirlos sin separar antes los dos casos.
 
 ---
 
+## 27. La deuda arrastrada de §17 · H8 — cerrada el 2026-09-24
+
+**Los dos últimos `<select>` de `pagina: 0` del sistema.** La §17 cerró siete
+—todos de personas, reemplazados por `BuscadorDePersonas` y `SelectorDeAlumno`—
+y dejó anotados estos dos, *"qué trabajo salda"* y *"qué venta salda"* del
+formulario de Pagos, **con una razón escrita: que sus endpoints no tenían
+búsqueda por texto**. Desde entonces la arrastraron cinco secciones (§18 a §26)
+como pendiente de backend.
+
+⚠️ **La razón era falsa, y medirla fue todo el trabajo.** `GET /api/mastering` y
+`GET /api/ventas` aceptan `buscar` **desde que sus pantallas existen**:
+`TrabajoMasteringRepository.listar` cruza track y cliente, y
+`VentaEquipoRepository.listar` cruza equipo, marca, categoría y comprador, los
+dos con `COALESCE` en lo anulable. No hacía falta ni una línea de Java. **Es el
+quinto número de este proyecto que al mirarlo de cerca dice otra cosa, y el
+quinto que se equivoca para el mismo lado**: pidiendo más trabajo del que había
+—después de los cuatro de la §26 (las *"56 pantallas"*, los *"60 `grid-cols`"*,
+el `w-44`/`w-64` de `Filtros` y los *"44px por columna"* del calendario)—. El
+error barato otra vez; el caro sigue sin aparecer.
+
+**El modo de falla que cierra es el de los otros siete y no avisa**: con veinte
+filas por página, el trabajo veintiuno **no existía para este formulario**. La
+lista se veía completa, así que nunca se reporta como bug — se reporta como
+*"el pago de Fulano no lo puedo cargar"*, meses después.
+
+### Lo que se decidió, y por qué no fue un genérico
+
+⚠️ **Los tres buscadores que ya había NO son un esqueleto compartido: son dos
+dialectos**, y eso es lo que descartó extraer uno solo. `SelectorDeAlumno` y
+`SelectorDeCurso` abren la lista desde el vacío, marcan el campo `required` y
+avisan *"se muestran N de M"*; `BuscadorDePersonas` exige dos caracteres, dibuja
+*"Buscando…"* y no avisa el total. Las diferencias **son de producto** (¿se ve
+la lista antes de escribir? ¿el campo es obligatorio?), así que unificarlas
+habría sido decidir una pregunta que nadie hizo, escondida adentro de un
+refactor. Los dos nuevos —`SelectorDeTrabajo` y `SelectorDeVenta`— van en el
+molde de `SelectorDeCurso`, que es el que corresponde: acá el campo **es**
+obligatorio (un pago tiene que nombrar qué salda) y el aviso de *"N de M"* es
+justamente la lección que este arreglo existe para aplicar.
+
+⚠️ **Ninguno de los dos esconde filas, las marca.** `PagoService` guarda el id
+sin mirar el estado del trabajo ni si la venta ya se cobró, así que filtrarlos
+sería una regla inventada en la pantalla — y de las caras: **lo que la base
+acepta y la pantalla no ofrece se convierte en *"no aparece"***, que no tiene
+dónde explicarse. La fila del trabajo dice su estado y *"USD 100 de USD 300"*
+(las dos cifras en la moneda del trabajo, `V32`); la de la venta dice la fecha
+—el mismo modelo se vende muchas veces— y *"ya cobrada"*. Esconder una venta
+cobrada además sería un error: si su pago se anuló tiene que poder volver a
+cobrarse, y `VentaResumen.cobrada` no distingue ese caso.
+
+⚠️ **Y se cerró una deriva que este cambio abría: la guarda de carrera.** Los
+nuevos la necesitan y `BuscadorDePersonas` ya la tenía (`vigente`), pero los dos
+viejos del molde A **no**: el `clearTimeout` sólo cancela lo que todavía no
+salió, así que con dos pedidos en vuelo el primero puede volver último y pisar
+los resultados del texto que sí está escrito — una lista que parpadea y miente,
+sin error en ningún lado. Ponerla sólo en los dos nuevos habría dejado **tres
+variantes en vez de dos**, que es la deriva que la §12 pagó con los seis
+dialectos de `fecha()`. Va en los cuatro.
+
+**La agenda queda como estaba, y no es un olvido**: `GET /api/reservas` no
+pagina —devuelve el rango de fechas entero—, así que ahí no hay primera página
+que recorte nada.
+
+**Suites: 719 de 719 sobre 49 archivos** (717 + 2), `tsc -b`, el linter y el
+build limpios. **Sin migración y sin backend: `V36` sigue siendo la última y el
+admin sembrado sigue en `V37`.** Los dos casos nuevos afirman sobre el `buscar`
+que viaja en el pedido —si alguien vuelve a una lista fija, lo tecleado deja de
+llegar— y **se verificaron poniendo el bug de vuelta**: con `{ pagina: 0 }` el
+caso del trabajo se pone rojo.
+
+⚠️ **Dos fixtures de `PagosPagina.test.tsx` estaban incompletos y pasaban igual.**
+Las ventas de prueba no traían `fechaVenta` ni `cobrada` —el `<select>` viejo
+sólo leía modelo, comprador y precio—, así que el buscador nuevo reventó con
+*"Cannot read properties of undefined"*. El `as never` del fixture es lo que lo
+permitía. Completados, no rodeados.
+
+### Lo que sigue abierto de las barridas viejas
+
+Después de esto, de lo que las §16–§23 dejaron anotado **queda**: la inscripción
+**13231** a mano (dato de desarrollo), **`ReservaDelPortal` sin precio**, y el
+nombre crudo del enum que una notificación imprime para una disciplina
+(*"se anotó a PRODUCCION"*) — este último **no se hace a propósito**: el front
+ya tiene `NOMBRE_DE_DISCIPLINA` y un gemelo en Java sería un cuarto lugar que
+mantener en sincronía.
+
+---
+
 ## ⚠️ DÓNDE RETOMAR (la barrida de RESPONSIVE, §26 — CERRADA el 2026-09-23)
 
 ✅ **LA BARRIDA DE RESPONSIVE (§26) ESTÁ CERRADA: seis etapas de seis, sin

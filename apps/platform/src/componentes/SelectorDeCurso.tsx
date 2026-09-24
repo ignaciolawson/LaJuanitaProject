@@ -67,6 +67,8 @@ export function SelectorDeCurso({
   useEffect(() => {
     if (elegido || disciplina === null) return
 
+    // La guarda de carrera: ver `SelectorDeAlumno`.
+    let vigente = true
     const id = setTimeout(async () => {
       try {
         const pagina = await listarInscripciones({
@@ -74,15 +76,20 @@ export function SelectorDeCurso({
           disciplina,
           estado: 'ACTIVA',
         })
+        if (!vigente) return
         setResultados(pagina.contenido)
         setTotal(pagina.totalElementos)
         setFallo(null)
       } catch (e) {
+        if (!vigente) return
         setFallo(e instanceof ApiError ? e.message : 'No se pudo buscar el curso.')
       }
     }, 250)
 
-    return () => clearTimeout(id)
+    return () => {
+      vigente = false
+      clearTimeout(id)
+    }
   }, [texto, elegido, disciplina])
 
   if (elegido) {

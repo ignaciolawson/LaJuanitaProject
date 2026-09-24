@@ -840,6 +840,8 @@ describe('los cuatro destinos y el pagador libre', () => {
           modeloEquipo: 'CDJ-3000',
           precio: 900000,
           moneda: 'ARS',
+          fechaVenta: '2026-03-14',
+          cobrada: false,
         },
       ]) as never,
     )
@@ -848,7 +850,8 @@ describe('los cuatro destinos y el pagador libre', () => {
     await elegir(user, 'Qué salda', 'VENTA_EQUIPO')
 
     await user.click(await screen.findByLabelText('No tiene cuenta'))
-    await elegir(user, 'Cuál venta', '7')
+    // La venta se elige BUSCANDO, no de un `<select>`: se clickea la fila.
+    await user.click(await screen.findByRole('button', { name: /CDJ-3000/ }))
     await user.type(screen.getByLabelText('Nombre de quien paga'), 'Comprador de Paso')
     await user.type(screen.getByLabelText('Monto'), '900000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
@@ -864,17 +867,94 @@ describe('los cuatro destinos y el pagador libre', () => {
     expect(cuerpo.idInscripcion).toBeUndefined()
   })
 
-  it('sin decir quién paga no manda nada', async () => {
+  /**
+   * ⚠️ Los dos casos de abajo son el cierre de §17 · H8, y lo que fijan no es el
+   * buscador sino **que la lista venga del servidor**.
+   *
+   * <p>Hasta esta barrida los dos desplegables cargaban `pagina: 0` —veinte
+   * filas— y el trabajo veintiuno no existía para este formulario. **No fallaba
+   * nada**: la lista se veía completa, así que el bug no se reporta como bug
+   * sino como *"el pago de Fulano no lo puedo cargar"*, meses después. Por eso
+   * el caso afirma sobre el `buscar` que viaja en el pedido: si alguien vuelve a
+   * una lista fija, lo tecleado deja de llegar y esto se pone rojo.
+   */
+  it('el trabajo se busca contra el servidor, no de una lista de veinte', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarTrabajos).mockResolvedValue(
+      pagina([
+        {
+          idTrabajo: 3,
+          nombreTrack: 'Tema del veintiuno',
+          cliente: 'Jeff',
+          estado: 'ENTREGADO',
+          precioAcordado: 300,
+          moneda: 'USD',
+          cobrado: 100,
+        },
+      ]) as never,
+    )
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+    await elegir(user, 'Qué salda', 'TRABAJO_MASTERING')
+
+    await user.type(await screen.findByLabelText(/Cuál trabajo/), 'veintiuno')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarTrabajos)).toHaveBeenCalledWith(
+        expect.objectContaining({ buscar: 'veintiuno' }),
+      ),
+    )
+    await user.click(await screen.findByRole('button', { name: /Tema del veintiuno/ }))
+  })
+
+  it('la venta se busca contra el servidor, no de una lista de veinte', async () => {
     const user = userEvent.setup()
     vi.mocked(listarVentas).mockResolvedValue(
       pagina([
-        { idVenta: 7, comprador: 'Joaco', modeloEquipo: 'CDJ-3000', precio: 900000, moneda: 'ARS' },
+        {
+          idVenta: 7,
+          comprador: 'Joaco',
+          modeloEquipo: 'CDJ-3000',
+          precio: 900000,
+          moneda: 'ARS',
+          fechaVenta: '2026-03-14',
+          cobrada: false,
+        },
       ]) as never,
     )
     montar()
     await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
     await elegir(user, 'Qué salda', 'VENTA_EQUIPO')
-    await elegir(user, 'Cuál venta', '7')
+
+    await user.type(await screen.findByLabelText(/Cuál venta/), 'cdj')
+
+    await waitFor(() =>
+      expect(vi.mocked(listarVentas)).toHaveBeenCalledWith(
+        expect.objectContaining({ buscar: 'cdj' }),
+      ),
+    )
+    await user.click(await screen.findByRole('button', { name: /CDJ-3000/ }))
+  })
+
+  it('sin decir quién paga no manda nada', async () => {
+    const user = userEvent.setup()
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([
+        {
+          idVenta: 7,
+          comprador: 'Joaco',
+          modeloEquipo: 'CDJ-3000',
+          precio: 900000,
+          moneda: 'ARS',
+          fechaVenta: '2026-03-14',
+          cobrada: false,
+        },
+      ]) as never,
+    )
+    montar()
+    await user.click(await screen.findByRole('button', { name: 'Registrar pago' }))
+    await elegir(user, 'Qué salda', 'VENTA_EQUIPO')
+    await user.click(await screen.findByRole('button', { name: /CDJ-3000/ }))
     await user.type(screen.getByLabelText('Monto'), '900000')
     await user.click(screen.getByRole('button', { name: 'Registrar' }))
 

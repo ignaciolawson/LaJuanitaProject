@@ -1,5 +1,27 @@
 # Lo que queda abierto
 
+## ⚡ ESTADO AL 2026-09-24 — cerrada la deuda arrastrada de §17 · H8
+
+✅ **Los dos últimos `<select>` de `pagina: 0` del sistema** —*"qué trabajo
+salda"* y *"qué venta salda"* en el formulario de Pagos— **son buscadores**
+(`mejoras.md` §27). **Sin migración y sin backend**: `V36` sigue siendo la
+última y el admin sembrado sigue en `V37`. Suites en **719 de 719**.
+
+⚠️ **Y el hallazgo corrige a este documento: la razón por la que se
+arrastraban era falsa.** La §17 los dejó anotados *"porque esos endpoints no
+tienen búsqueda por texto"*, y cinco secciones (§18–§26) lo copiaron como
+pendiente de backend. Medido: `GET /api/mastering` y `GET /api/ventas` aceptan
+`buscar` **desde que sus pantallas existen**. Era front, y nada más. **Quinto
+número seguido que al medirlo pide menos trabajo del que decía** — los cuatro
+anteriores son de la §26.
+
+➡️ **De lo que las barridas viejas dejaron anotado, queda:** la inscripción
+**13231** a mano (dato de desarrollo), **`ReservaDelPortal` sin precio**, y el
+nombre crudo del enum de disciplina en una notificación (*no se hace a
+propósito*: sería un cuarto lugar que mantener en sincronía).
+
+---
+
 ## ⚡ ESTADO AL 2026-09-23 — la barrida de RESPONSIVE está CERRADA
 
 ✅ **`mejoras.md` §26 — responsive para móvil y tablet: seis etapas de seis.**
@@ -209,7 +231,7 @@ commiteados.
 | 🔴 1 | **La landing no se puede publicar**: precios inventados, seis notas de blog inventadas firmadas con nombres reales, y los perfiles reales de Instagram/YouTube. ⚠️ **Y falta la sección de mentorías entera** — §16 · A7 | §1 de acá |
 | 🔴 2 | **El deploy de octubre**, con la decisión de hosting. Necesita **disco persistente** y el backup son **dos artefactos** | [`operacion.md`](operacion.md) §3 |
 | 🟡 3 | **Desactivar el admin sembrado por `V3`**, antes del deploy. ⚠️ **Ya no es `V25`, `V26`, `V27`, `V31` ni `V32` ni `V33`: ahora `V37`** (la §22 trae `V35` y `V36`) — un número que se movió nueve veces, no lo anotes fijo | §1 de acá |
-| 🟢 4 | **La décima barrida (§22) CERRÓ el 2026-09-19, el mismo día: los grupos de 2 y 3** — P87–P92 (`platform.md` §28), `V35` + `V36` aplicadas; **P7 NO se reabre** (P90). Lo que dejó: los precios de grupo del catálogo vacíos hasta que Mica los cargue, y los de la landing placeholder. Lo demás que quedaba anotado: ~~los **grupos de a 3** (reabren P7)~~, **el precio de las reservas** (P72, la mitad de P13 que falta), ~~**la "deuda viva" del tablero**~~ (cerrada en §18: lee la lista de Deudores), y de la §17: **los dos `<select>` de Pagos que no son de personas** (trabajo/venta que salda un pago, sin búsqueda por texto) y ~~**"Venderle" desde el buzón**~~ (cerrado por el otro lado en §18 · P76: equipos va por WhatsApp sin cuenta) (el tercer gemelo de un click, para EQUIPOS). **Y la undécima (§23) cerró el 2026-09-20**, nueve de nueve, sin migración (P93–P101): de lo de arriba **sigue abierto** el precio de las reservas y los dos `<select>` de Pagos, y **suma uno nuevo, chico**: el aviso de preinscripción vencida escribe la disciplina cruda (*"se anotó a PRODUCCION"*) — no se le puso nombre legible al enum a propósito, porque el front ya tiene `NOMBRE_DE_DISCIPLINA` y un gemelo en Java sería un cuarto lugar que hay que mover junto; la decisión pendiente es **dónde vive esa tabla**, no si existe | [`mejoras.md`](mejoras.md) §16 · Fase 6, §17 y §23 · `platform.md` P72 |
+| 🟢 4 | **La décima barrida (§22) CERRÓ el 2026-09-19, el mismo día: los grupos de 2 y 3** — P87–P92 (`platform.md` §28), `V35` + `V36` aplicadas; **P7 NO se reabre** (P90). Lo que dejó: los precios de grupo del catálogo vacíos hasta que Mica los cargue, y los de la landing placeholder. Lo demás que quedaba anotado: ~~los **grupos de a 3** (reabren P7)~~, **el precio de las reservas** (P72, la mitad de P13 que falta), ~~**la "deuda viva" del tablero**~~ (cerrada en §18: lee la lista de Deudores), y ~~de la §17: **los dos `<select>` de Pagos que no son de personas**~~ (**CERRADOS el 2026-09-24, §27** — y ⚠️ la razón por la que se arrastraban, *"sus endpoints no tienen búsqueda por texto"*, **era falsa**: los dos aceptan `buscar` desde que sus pantallas existen, así que era front y nada más) y ~~**"Venderle" desde el buzón**~~ (cerrado por el otro lado en §18 · P76: equipos va por WhatsApp sin cuenta) (el tercer gemelo de un click, para EQUIPOS). **Y la undécima (§23) cerró el 2026-09-20**, nueve de nueve, sin migración (P93–P101): de lo de arriba **sigue abierto** el precio de las reservas (los dos `<select>` se cerraron en la §27), y **suma uno nuevo, chico**: el aviso de preinscripción vencida escribe la disciplina cruda (*"se anotó a PRODUCCION"*) — no se le puso nombre legible al enum a propósito, porque el front ya tiene `NOMBRE_DE_DISCIPLINA` y un gemelo en Java sería un cuarto lugar que hay que mover junto; la decisión pendiente es **dónde vive esa tabla**, no si existe | [`mejoras.md`](mejoras.md) §16 · Fase 6, §17 y §23 · `platform.md` P72 |
 | 🟢 5 | **El ensayo de restore no cubre los comprobantes de egreso**, que son un tipo de archivo nuevo desde `V25`. La copia sí los toma | [`operacion.md`](operacion.md) §2 |
 | 🟢 6 | **Nueve cuentas de prueba huérfanas** en la base de desarrollo, y el buzón vaciado a mano | §3.8 de acá |
 | 🟢 7 | **La inscripción 13231 de la base de desarrollo** tiene una seña en USD sobre un contrato en pesos (anterior a `V31`): editarla a USD desde Inscripciones y sale sola de Deudores. No es código | §17 de `mejoras.md` |

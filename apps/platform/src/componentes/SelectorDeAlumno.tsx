@@ -59,18 +59,29 @@ export function SelectorDeAlumno({
   useEffect(() => {
     if (elegido) return
 
+    // `vigente`: el `clearTimeout` sólo cancela lo que todavía no salió, así que
+    // con dos pedidos en vuelo el primero puede volver último y pisar los
+    // resultados del texto que sí está escrito. Se ve como una lista que
+    // parpadea y miente, sin error en ningún lado. Es la guarda que
+    // `BuscadorDePersonas` tenía y este molde no.
+    let vigente = true
     const id = setTimeout(async () => {
       try {
         const pagina = await listarAlumnos({ buscar: texto })
+        if (!vigente) return
         setResultados(pagina.contenido)
         setTotal(pagina.totalElementos)
         setFallo(null)
       } catch (e) {
+        if (!vigente) return
         setFallo(e instanceof ApiError ? e.message : 'No se pudo buscar el alumno.')
       }
     }, 250)
 
-    return () => clearTimeout(id)
+    return () => {
+      vigente = false
+      clearTimeout(id)
+    }
   }, [texto, elegido])
 
   if (elegido) {

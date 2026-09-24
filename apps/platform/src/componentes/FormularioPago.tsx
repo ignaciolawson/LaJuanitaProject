@@ -4,11 +4,9 @@ import {
   adjuntarComprobante,
   agenda,
   listarInscripciones,
-  listarVentas,
   registrarPago,
 } from '../api/administracion'
 import { ApiError } from '../api/cliente'
-import { listarTrabajos } from '../api/mastering'
 import type { TrabajoResumen } from '../api/tiposMastering'
 import {
   NOMBRE_DE_ESTADO_PAGO,
@@ -32,6 +30,8 @@ import { fecha, hoy } from './semana'
 import { importe } from './dinero'
 import { BuscadorDePersonas } from './BuscadorDePersonas'
 import { SelectorDeAlumno } from './SelectorDeAlumno'
+import { SelectorDeTrabajo } from './SelectorDeTrabajo'
+import { SelectorDeVenta } from './SelectorDeVenta'
 
 /** Los que se pueden elegir al cargar: un pago no se registra ya anulado. */
 const ESTADOS_DE_ALTA: EstadoPago[] = ['PAGADO', 'SENADO', 'DEBE']
@@ -114,22 +114,29 @@ export function FormularioPago({
   /** Con un prellenado, la cosa y la persona no se preguntan. */
   const prellenado = inicial !== undefined
 
-  // Catálogos. Cada uno se pide cuando su destino se elige, no todos al abrir:
-  // traer la agenda, las ventas y los trabajos para cargar un pago de un curso son
-  // tres viajes para llenar selectores que nadie va a abrir.
+  // La agenda se pide cuando su destino se elige, no al abrir: traerla para
+  // cargar un pago de un curso es un viaje para llenar un selector que nadie va
+  // a abrir. Los otros dos destinos ya no piden nada acá — buscan solos.
   /**
-   * ⚠️ El alumno y la persona que paga se ELIGEN BUSCANDO, no de un `<select>`
-   * (§17 · H8). Los dos desplegables cargaban `pagina: 0` del listado —veinte
-   * filas— y el alumno veintiuno no existía para este formulario, sin que nada
+   * ⚠️ **Lo que salda este pago se ELIGE BUSCANDO, no de un `<select>`**
+   * (§17 · H8). Los desplegables cargaban `pagina: 0` del listado —veinte
+   * filas— y la fila veintiuna no existía para este formulario, sin que nada
    * avisara. `BuscadorDePersonas` lo tenía escrito en su cabecera como el modo
    * de falla que existe para evitar.
+   *
+   * <p>La §17 cerró los siete que eran de personas y dejó anotados estos dos
+   * —trabajo y venta— **porque creía que sus endpoints no buscaban por texto**.
+   * Medido: los dos buscan, y desde que sus pantallas existen. Era front.
+   *
+   * <p>La agenda queda como estaba: `GET /api/reservas` no pagina —devuelve el
+   * rango de fechas entero— así que ahí no hay primera página que recorte nada.
    */
   const [alumno, setAlumno] = useState<AlumnoResumen | null>(null)
   const [persona, setPersona] = useState<UsuarioResumen | null>(null)
   const [contratos, setContratos] = useState<InscripcionResumen[]>([])
   const [reservas, setReservas] = useState<ReservaResumen[]>([])
-  const [trabajos, setTrabajos] = useState<TrabajoResumen[]>([])
-  const [ventas, setVentas] = useState<VentaResumen[]>([])
+  const [trabajo, setTrabajo] = useState<TrabajoResumen | null>(null)
+  const [venta, setVenta] = useState<VentaResumen | null>(null)
 
   const [conCuenta, setConCuenta] = useState(true)
   const [datos, setDatos] = useState({
@@ -180,20 +187,6 @@ export function FormularioPago({
     agenda({ desde: haceDias(DIAS_ATRAS), hasta: haceDias(-DIAS_ADELANTE) })
       .then(setReservas)
       .catch(() => setErrorGeneral('No se pudo cargar la agenda.'))
-  }, [destino, prellenado, setErrorGeneral])
-
-  useEffect(() => {
-    if (destino !== 'TRABAJO_MASTERING' || prellenado) return
-    listarTrabajos({ pagina: 0 })
-      .then((r) => setTrabajos(r.contenido))
-      .catch(() => setErrorGeneral('No se pudieron cargar los trabajos.'))
-  }, [destino, prellenado, setErrorGeneral])
-
-  useEffect(() => {
-    if (destino !== 'VENTA_EQUIPO' || prellenado) return
-    listarVentas({ pagina: 0 })
-      .then((r) => setVentas(r.contenido))
-      .catch(() => setErrorGeneral('No se pudieron cargar las ventas.'))
   }, [destino, prellenado, setErrorGeneral])
 
   function cambiar(campo: keyof typeof datos) {
@@ -424,38 +417,35 @@ export function FormularioPago({
           )}
 
           {!prellenado && destino === 'TRABAJO_MASTERING' && (
-            <CampoSelect
-              etiqueta="Cuál trabajo"
-              value={datos.idTrabajoMastering}
-              onChange={cambiar('idTrabajoMastering')}
-              error={errores.destinoUnico}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí uno</option>
-              {trabajos.map((t) => (
-                <option key={t.idTrabajo} value={t.idTrabajo}>
-                  {t.nombreTrack} — {t.cliente}
-                  {t.precioAcordado ? ` · ${importe(t.precioAcordado, t.moneda)}` : ''}
-                </option>
-              ))}
-            </CampoSelect>
+            <div className="sm:col-span-2">
+              <SelectorDeTrabajo
+                elegido={trabajo}
+                onElegir={(t) => {
+                  setTrabajo(t)
+                  setDatos((previo) => ({
+                    ...previo,
+                    idTrabajoMastering: t ? String(t.idTrabajo) : '',
+                  }))
+                }}
+                error={errores.destinoUnico}
+              />
+            </div>
           )}
 
           {!prellenado && destino === 'VENTA_EQUIPO' && (
-            <CampoSelect
-              etiqueta="Cuál venta"
-              value={datos.idVentaEquipo}
-              onChange={cambiar('idVentaEquipo')}
-              error={errores.destinoUnico}
-              className="sm:col-span-2"
-            >
-              <option value="">Elegí una</option>
-              {ventas.map((v) => (
-                <option key={v.idVenta} value={v.idVenta}>
-                  {v.modeloEquipo} — {v.comprador} · {importe(v.precio, v.moneda)}
-                </option>
-              ))}
-            </CampoSelect>
+            <div className="sm:col-span-2">
+              <SelectorDeVenta
+                elegida={venta}
+                onElegir={(v) => {
+                  setVenta(v)
+                  setDatos((previo) => ({
+                    ...previo,
+                    idVentaEquipo: v ? String(v.idVenta) : '',
+                  }))
+                }}
+                error={errores.destinoUnico}
+              />
+            </div>
           )}
 
           {/* Quién paga. Para un curso no se pregunta: es el alumno, y el backend
