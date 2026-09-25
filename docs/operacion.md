@@ -9,13 +9,17 @@ con esas palabras. Un procedimiento de restore que nadie corrió no es un
 procedimiento: es una intención, y se descubre que estaba mal el día que hace
 falta.
 
-> **Estado al 2026-08-20.** Las secciones 1 (backup), 2 (restore) y 4 (fallas de
-> migración) están probadas y son de uso inmediato. **El restore se reensayó ese
-> día, ahora con los archivos subidos**: hasta entonces el ensayo cubría la base y
-> el backup ya eran dos cosas, que es la peor combinación posible — verde todos
-> los días sobre una mitad sin probar. La sección 3 (deploy) tiene
-> lo que ya está decidido y **no** el procedimiento cerrado: falta elegir el
-> hosting, que es una decisión de octubre. Está marcado adentro.
+> **Estado al 2026-09-25. Las cuatro secciones están probadas.** Las 1 (backup),
+> 2 (restore) y 4 (fallas de migración) desde el 2026-08-20 — el restore se
+> reensayó ese día **con los archivos subidos**, que hasta entonces eran la mitad
+> que nadie había probado: verde todos los días sobre algo sin verificar, la peor
+> combinación posible.
+>
+> **La 3 (deploy) dejó de estar incompleta el 2026-09-25**: se eligió el hosting,
+> se escribieron los cuatro archivos y **el procedimiento entero se ejecutó**
+> contra el stack levantado con Docker Compose. ⚠️ Lo que no se probó es la VM
+> definitiva —ARM, la red de OCI, el certificado real—, y eso está dicho adentro
+> en esas palabras, no disfrazado de procedimiento.
 
 ---
 
@@ -43,15 +47,19 @@ selectivamente y viene comprimido:
 docker exec la_juanita_postgres pg_dump -U la_juanita -d la_juanita -Fc > lajuanita-$(date +%F).dump
 ```
 
-En el VPS, con el nombre del servicio en vez del contenedor de desarrollo:
+En el VPS el nombre del contenedor es otro, y **el script lo resuelve solo**:
+si Compose tiene la base corriendo, saca el id con `docker compose ps -q postgres`
+y de ahí en más usa ese. Para que lo encuentre, el `.env` del servidor lleva
+`COMPOSE_FILE=docker-compose.prod.yml` — sin esa línea, `docker compose ps` lee el
+compose de desarrollo, no ve nada corriendo y cae al nombre por defecto.
 
-```bash
-docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc > ...
-```
-
-**`-T` no es opcional** cuando lo llama un cron: sin él, Compose intenta asignar
-una TTY, no hay terminal, y el comando falla o —peor— mete caracteres de control
-en el dump.
+⚠️ **Eso antes eran dos caminos y solo uno estaba cubierto.** El volcado se hacía
+con `docker compose exec` cuando detectaba el servicio, pero la verificación con
+`pg_restore -l`, quince líneas más abajo, usaba siempre `docker exec` con el
+nombre de desarrollo. En el servidor eso significa que **el volcado salía bien y
+el script moría al verificarlo**: un backup válido reportado como roto, todos los
+días, por un cron que nadie mira hasta que hace falta. Resolviendo el nombre una
+vez, los dos pasos usan el mismo contenedor y no hay dos caminos que mantener.
 
 ### Qué contiene y qué no
 
@@ -338,155 +346,268 @@ renombra la vieja.
 
 ## 3. Deploy
 
-> ⚠️ **Esta sección está incompleta a propósito, y es la única.** El hosting se
-> decide en octubre. Lo que sigue es lo que ya está decidido y verificado; lo
-> que falta está listado al final como lo que falta, no disfrazado de
-> procedimiento. Escribir pasos de un deploy que nadie corrió sería el mismo
-> error que este documento vino a corregir.
+> **Estado al 2026-09-25. Esta sección dejó de estar incompleta.** El hosting se
+> decidió, los cuatro archivos del deploy existen, y **todo lo que sigue se
+> ejecutó** — contra el stack real levantado con Docker Compose en la máquina de
+> desarrollo, no en el servidor definitivo. Lo que queda abierto es eso: la VM.
+> Está marcado al final, y **no está disfrazado de procedimiento**.
 
 ### Forma decidida
 
-VPS con Docker Compose y los tres servicios (Postgres, backend, panel) en la
-misma red interna. El compose de desarrollo (`docker-compose.yml`) levanta
-**solo la base**: el backend corre con `mvn spring-boot:run` y el front con
-Vite. El del deploy es otro archivo.
+**Un VPS con Docker Compose, cuatro servicios en la misma red interna, Caddy
+adelante** — la forma que este documento venía anticipando desde agosto, ahora
+con un lugar concreto: **Oracle Cloud Always Free** (2 OCPU ARM / 12 GB / 200 GB,
+gratis de por vida; el tier era 4/24 y Oracle lo bajó a la mitad en junio de
+2026).
+
+**La alternativa que se descartó fue Vercel + Supabase, y el motivo vale
+escribirlo**: Vercel no corre Java de ninguna forma, así que el backend habría
+necesitado un tercer proveedor igual; los gratuitos de esa familia **no tienen
+disco persistente** —los contratos del sello y los comprobantes se evaporarían en
+cada reinicio mientras la base sigue diciendo que están— y el servicio se duerme
+a los 15 minutos. Un VPS gratuito resuelve las tres cosas en el mismo lugar **y
+no hay que rehacerlo el día que el estudio lo use en serio: ya es ese hosting.**
+
+⚠️ **La decisión de producto que ninguna de las dos formas puede romper es el
+origen único.** Landing en `/`, panel en `/app`, backend en `/api`, todo detrás
+de un proxy: `localStorage` es por origen y no por path, así que es **lo único
+que permite que el login se haga en la landing**. Partirlo en dos dominios no
+rompe ningún build ni ningún test — hace que entrar por la landing te devuelva a
+la landing pidiéndote entrar otra vez.
+
+### Los archivos del deploy
+
+Los cuatro son nuevos del 2026-09-25 y cierran el punto 2 de lo que esta sección
+listaba como faltante.
+
+| Archivo | Qué hace |
+|---|---|
+| `apps/backend/Dockerfile` | Empaqueta el jar. ⚠️ **Lleva la línea de `CS-03`** — ver el recuadro |
+| `apps/landing/Dockerfile` | Next en modo `standalone`, corriendo con `node server.js` |
+| `deploy/Dockerfile.panel` | Buildea el panel y lo hornea **adentro de la imagen de Caddy**: es estático, no necesita servidor propio |
+| `deploy/Caddyfile` | El reparto de las tres rutas, HTTPS automático, `CS-02` y la mitad de `CS-04` que es del proxy |
+| `docker-compose.prod.yml` | Los cuatro servicios, healthchecks, `CS-07` y el volumen de archivos |
+| `deploy/env.ejemplo` | Se copia como `.env` **en la raíz del repo** y se completa |
+
+**El panel no es un quinto servicio a propósito**: `npm run build:platform` deja
+archivos estáticos y el proxy ya tiene que atravesarlos igual. Un contenedor más
+cuyo único trabajo sería servir 3 MB no compra nada.
+
+**La landing sí es un servicio**, aunque sus 27 páginas sean estáticas, y el
+motivo es una sola cosa: sus cabeceras de seguridad están definidas en
+`next.config.ts` y verificadas contra `next start`. Exportarla obligaría a
+copiarlas al Caddyfile, o sea **una segunda definición de la misma política** —
+que es exactamente cómo se desincronizan.
+
+### El procedimiento
+
+**Las imágenes se construyen en el servidor**, no se bajan de un registry: la VM
+es ARM64 y una imagen armada en la máquina de desarrollo (x86) no arranca allá.
+Las cinco imágenes base tienen arm64 (verificado con `docker manifest inspect`) y
+`package-lock.json` trae los binarios nativos de arm64 completos, gracias a
+`scripts/completar-lockfile.py`.
+
+```bash
+# 1 · La VM: Ubuntu 24.04, shape VM.Standard.A1.Flex, 2 OCPU / 12 GB.
+#
+# ⚠️ Los puertos hay que abrirlos EN LOS DOS LADOS. La security list de la VCN
+#    es el que todo el mundo mira; la imagen de Ubuntu de OCI además trae
+#    iptables cerrado salvo el 22, y ese es el que produce el síntoma clásico
+#    --"abrí el 80 en la consola de Oracle y el sitio igual no carga"--.
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+sudo netfilter-persistent save
+
+# 2 · Docker
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker "$USER"   # y volver a entrar por SSH
+
+# 3 · El repo y la configuración
+git clone <repo> lajuanita && cd lajuanita
+cp deploy/env.ejemplo .env
+openssl rand -base64 48   # -> JWT_SECRET
+openssl rand -base64 24   # -> POSTGRES_PASSWORD
+$EDITOR .env
+
+# 4 · La carpeta de archivos, del usuario de la imagen
+#
+# ⚠️ El 1001 es el uid del usuario `lajuanita` del Dockerfile. Sin el chown el
+#    backend no puede escribir y el primer contrato que alguien suba falla.
+mkdir -p archivos && sudo chown 1001:1001 archivos
+
+# 5 · Arriba
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose logs -f backend      # hasta "Started BackendApplication"
+```
+
+Con `COMPOSE_FILE=docker-compose.prod.yml` en el `.env` —viene en el ejemplo—,
+todos los `docker compose` de ahí en más ya apuntan a este stack sin repetir
+el `-f`. **`scripts/backup.sh` depende de eso** para encontrar el contenedor de
+la base.
+
+Después de que esté arriba, y **en este orden**:
+
+1. **Crear los usuarios reales** desde el panel, entrando con el admin sembrado.
+2. **Recién entonces, la migración que desactiva `admin@lajuanita.local`** (§1.4
+   de `docs/pendientes.md`). Al revés te quedás afuera del sistema que acabás de
+   desplegar.
+3. **El cron del backup**, con `LAJUANITA_ARCHIVOS_DIR` apuntando a la misma
+   carpeta que `ARCHIVOS_HOST`, y **el destino fuera del VPS**.
+4. **Rehacer el ensayo de restore contra el servidor**, que es §2 de este
+   documento. El de agosto vale para la forma; no para esta máquina.
 
 ### Lo que hay que cambiar sí o sí — y falla si no
 
-La tabla completa de variables por ambiente está en el README, sección *"Antes
-de desplegar esto en algún lado"*, y es la fuente. Lo que importa repetir acá es
-**qué pasa si te olvidás de cada una**:
+La tabla completa de variables está en el README. Lo que importa repetir acá es
+**qué pasa si te olvidás de cada una** — y la mitad de esta tabla ahora la
+cubre el compose, que se niega a levantar con un `${VAR:?}`.
 
 | Si te olvidás de… | Qué pasa |
 |---|---|
-| ⚠️ `JWT_SECRET` (valor **nuevo**) | **Depende de la otra mitad, y por eso va en el `Dockerfile`.** Si el artefacto lleva `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`, no arranca —falla cerrado, que es lo que se busca—. **Si no lo lleva, arranca y firma con la clave pública**, dejando un WARN entre cientos: el secreto commiteado es público y con él se fabrica un token de `ADMIN` sin saber ninguna contraseña |
-| ⚠️ `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile` | **Es la fila que hace que la de arriba funcione.** Ver el recuadro debajo de la tabla |
-| `DB_PASSWORD` / `POSTGRES_PASSWORD` | Arranca perfecto con la contraseña pública `la_juanita`. **No avisa nada** |
-| Sacar el `ports: 5432:5432` del compose | La base queda publicada al mundo. Con la contraseña por defecto, es la combinación estándar de base comprometida |
-| `CORS_ORIGENES` | El panel no puede llamar a la API desde el navegador |
-| Desactivar `admin@lajuanita.local` (migración nueva, después de crear los usuarios reales) | Queda una cuenta de administrador con contraseña publicada en el README |
+| ⚠️ `JWT_SECRET` (valor **nuevo**) | El compose no levanta (`:?`) **y**, si alguien esquiva eso, el backend no arranca: la `ENV` del `Dockerfile` cierra el candado. Ver el recuadro |
+| `POSTGRES_PASSWORD` | El compose no levanta. **Antes arrancaba perfecto con la contraseña pública y no avisaba nada** |
+| `CORS_ORIGENES` | El compose no levanta |
+| El `chown 1001:1001` de `archivos/` | Arranca todo bien y **falla la primera subida de un contrato**, no antes |
+| `LAJUANITA_ARCHIVOS_DIR` alineado con `ARCHIVOS_HOST` | El backup respalda una carpeta vacía. Avisa, pero hay que leer el log |
+| Abrir el 80/443 **en iptables además de la security list** | El sitio no carga y la consola de Oracle dice que el puerto está abierto |
 
-Las primeras están ordenadas por lo que cuesta descubrirlas: **la del secreto
-JWT no se descubre sola** —ver el recuadro—, la de `DB_PASSWORD` no se descubre
-nunca, y la del puerto se descubre cuando ya es tarde.
-
-> ### ⚠️ El candado del secreto JWT falla ABIERTO adentro del jar (`CS-03`)
+> ### ✅ `CS-03` — RESUELTO el 2026-09-25, y así se comprobó
 >
-> **Esta sección decía, hasta el 2026-09-25, que olvidarse del `JWT_SECRET` hacía
-> que la aplicación no arrancara. Es falso, y se confirmó empaquetando.**
+> El candado del secreto JWT fallaba **abierto** adentro del jar: el permiso
+> `lajuanita.jwt.permitir-secreto-de-desarrollo=true` viaja en
+> `BOOT-INF/classes/application.properties`, así que olvidarse de `JWT_SECRET`
+> no rompía el arranque — firmaba con la clave commiteada dejando un WARN entre
+> cientos.
 >
-> `SeguridadConfig` justifica el candado diciendo que el permiso
-> (`lajuanita.jwt.permitir-secreto-de-desarrollo=true`) *"vive en el
-> `application.properties` del repo, que es exactamente lo que un deploy no
-> copia"*. Un jar de Spring Boot **sí lo copia**:
->
-> ```
-> $ jar tf target/backend-0.0.1-SNAPSHOT.jar | grep application.properties
-> BOOT-INF/classes/application.properties
-> ```
->
-> Así que el permiso viaja adentro del artefacto y el olvido de `JWT_SECRET`
-> **arranca igual, firmando con la clave que está commiteada en el repositorio.**
->
-> **Es el olvido probable**, no uno raro: todo el resto de este deploy son
-> variables de entorno, y ésta sería la única fila que además pide **editar un
-> archivo versionado**. Un candado contra el que se olvidó de configurar algo no
-> puede exigir haber *desconfigurado* otra cosa — es el mismo defecto que SEC-01
-> le marcó al candado anterior, con el signo cambiado.
->
-> **El arreglo es una línea en el `Dockerfile` del backend**, que todavía no
-> existe (punto 2 de *Lo que falta*):
+> **El arreglo es una línea en `apps/backend/Dockerfile`:**
 >
 > ```dockerfile
 > ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false
 > ```
 >
-> Una variable de entorno gana sobre el properties empaquetado: el artefacto
-> viaja cerrado, un clone fresco sigue arrancando con `mvn spring-boot:run`, y la
-> defensa deja de depender de que alguien se acuerde de borrar una línea.
+> Verificado **en las dos direcciones**, corriendo la imagen contra una base
+> viva:
+>
+> - **Con la línea y sin `JWT_SECRET`**: no arranca. Sale con código 1 y el
+>   mensaje de `SeguridadConfig` — *"Se está usando el secreto JWT de
+>   DESARROLLO, que está commiteado en el repositorio"*.
+> - **Poniéndole el bug de vuelta** (`-e LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=true`,
+>   que es el deploy sin `Dockerfile`): **arranca igual**, con un `WARN` y
+>   `Started BackendApplication`. Que es exactamente lo que el informe describía
+>   y lo que nadie habría notado.
+>
+> Una variable de entorno gana sobre el properties empaquetado, así que el
+> artefacto viaja cerrado y un clone fresco sigue arrancando con
+> `mvn spring-boot:run`.
+
+### La verificación después de levantarlo
+
+**Esto se corrió entero y pasó entero.** Correrlo en el servidor toma dos
+minutos y es lo que separa *"los contenedores están arriba"* de *"el sistema
+anda"*.
+
+```bash
+B=https://tu-dominio        # o http://<ip> mientras no haya dominio
+
+# El circuito: las tres rutas en un solo origen
+curl -s -o /dev/null -w '%{http_code}\n' $B/                    # 200  landing
+curl -s -o /dev/null -w '%{http_code}\n' $B/app/                # 200  panel
+curl -s -o /dev/null -w '%{http_code}\n' $B/app/admin/pagos     # 200  fallback SPA
+curl -s $B/actuator/health                                      # {"status":"UP"}
+
+# El login de punta a punta, que es lo único que prueba que las tres piezas
+# se hablan
+T=$(curl -s -X POST -H 'Content-Type: application/json' \
+      -d '{"email":"...","password":"..."}' $B/api/auth/login \
+    | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: Bearer $T" $B/api/me   # 200
+curl -s -o /dev/null -w '%{http_code}\n' $B/api/me                                # 401
+
+# SEC-07: las dos cabeceras que el panel no puede ponerse solo
+curl -sI $B/app/ | grep -i 'content-security-policy\|strict-transport'
+#   Content-Security-Policy: frame-ancestors 'none'
+#   Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# CS-02: el techo de cuerpo
+head -c 20000000 /dev/zero | tr '\0' a > /tmp/g.txt
+printf '{"nombre":"%s"}' "$(cat /tmp/g.txt)" > /tmp/g.json
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+     --data-binary @/tmp/g.json $B/api/solicitantes      # 413
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+     -d '{}' $B/api/solicitantes                         # 400 -- llegó al backend
+```
+
+⚠️ **Y la de `CS-04`, que es la que decide si esa propiedad puede estar
+prendida.** Se manda un login fallido con una `X-Forwarded-For` inventada y se
+mira **qué IP quedó en el log**:
+
+```bash
+curl -s -o /dev/null -X POST -H 'Content-Type: application/json' \
+     -H 'X-Forwarded-For: 1.2.3.4' \
+     -d '{"email":"prueba-xff@nada.com","password":"x"}' $B/api/auth/login
+docker compose logs backend | grep prueba-xff
+```
+
+- **El IP real del cliente** → el proxy sanea, la propiedad puede quedar
+  prendida.
+- **`1.2.3.4`** → el proxy appendea en vez de reemplazar: **apagar
+  `SERVER_FORWARD_HEADERS_STRATEGY` del compose ya**, porque así es peor que no
+  tenerla.
+
+> ### ⚠️ Lo que esa prueba encontró, y corrige el motivo y no el resultado
+>
+> La línea `header_up X-Forwarded-For {remote_host}` del Caddyfile se escribió
+> creyendo que era **lo único** que evitaba que la cabecera falsificada ganara.
+> Se comprobó sacándola —el control de *"poner el bug de vuelta"*— y **el pedido
+> falsificado siguió quedando registrado con el IP real**: Caddy 2.11 ya descarta
+> la `X-Forwarded-For` entrante cuando el cliente no es un `trusted_proxies`
+> declarado. El caso estaba cubierto por un **default**.
+>
+> Lo que sí se midió, con un pedido directo al backend llevando
+> `X-Forwarded-For: 1.2.3.4, 5.6.7.8`, es que **Spring toma la PRIMERA entrada**
+> (`ip=1.2.3.4`). O sea que el riesgo que describe `CS-04` es real y la única
+> razón de que no se materialice es cómo se comporta Caddy hoy.
+>
+> **La línea queda igual, y por eso**: un default es una decisión de otro, puede
+> cambiar en una versión y no lo dice ninguna prueba de este repositorio.
+> Escrita explícita, lo que protege es la configuración y no la versión de Caddy
+> que haya quedado en la imagen.
+>
+> El control salió **verde cuando tenía que salir rojo**, y eso es lo que lo hizo
+> valer: sin correrlo, este documento habría explicado la seguridad del sistema
+> con una causa equivocada.
 
 ### Orden de arranque
 
 Postgres primero y **sano**, después el backend. No es preferencia: el backend
 corre las migraciones al arrancar y contra una base que todavía se está
-inicializando falla el arranque entero. Por eso el healthcheck de Postgres tiene
-`start_period: 30s` — la primera vez tarda, y sin eso los reintentos se consumen
-antes de que llegue a estar lista.
+inicializando falla el arranque entero. El compose lo impone con
+`condition: service_healthy`, y el healthcheck de Postgres tiene
+`start_period: 30s` porque la primera vez tarda.
+
+**Medido en el ensayo**: Postgres sano a los ~20 s, las 36 migraciones sobre una
+base vacía en 2,3 s, y el backend escuchando a los 40 s. Por eso el healthcheck
+del backend tiene `start_period: 120s` — con menos, Docker lo da por enfermo
+durante un arranque normal y lo reinicia en loop.
 
 ### Lo que falta para cerrar esta sección
 
-1. **Decidir el hosting** (octubre). De ahí salen el destino de los backups y el
-   procedimiento de HTTPS.
-2. **Un `Dockerfile` para el backend y otro para el panel.** Hoy no existen: en
-   desarrollo el backend lo levanta Maven y el front lo levanta Vite.
+1. **Levantar la VM de Oracle y correr el procedimiento allá.** Todo lo de arriba
+   se ejecutó con Docker Compose en la máquina de desarrollo; lo que **no** se
+   probó es ARM, la red de OCI y el certificado real de Let's Encrypt.
+2. **El dominio.** Sin él, `DOMINIO=:80` sirve para probar y **la HSTS que el
+   proxy manda no significa nada en HTTP**. `lajuanitastudio.com` todavía no está
+   comprado — y hay una constante del panel (`LINK_DATOS_BANCARIOS`) que ya lo
+   linkea.
+3. **`CS-06`** (Ley 25.326) sigue esperando una dirección de contacto que exista.
+4. **Rehacer el ensayo de restore** contra el servidor, con las tres tablas de
+   archivos.
 
-   ⚠️ **El del backend lleva `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`
-   — es `CS-03` y bloquea el deploy.** Ver el recuadro de más arriba: sin esa
-   línea el candado del secreto JWT falla abierto adentro del jar.
-3. **`docker-compose.prod.yml`** con los tres servicios, `restart:
-   unless-stopped` y healthcheck del backend contra `/actuator/health` —el
-   endpoint ya existe y es público—. **Sin healthcheck no hay reinicio
-   automático: Docker no puede reiniciar lo que no sabe que está caído.** Es la
-   mitad que le falta a QA-07.
-
-   ⚠️ **Y lleva rotación de logs — es `CS-07`:**
-
-   ```yaml
-   logging:
-     driver: json-file
-     options: { max-size: "10m", max-file: "5" }
-   ```
-
-   `application.properties` no tiene una sola línea de `logging.*`, así que
-   Spring escribe solo a stdout y en Compose eso lo captura `json-file`, que
-   **por defecto no rota ni tiene límite**. El acelerador es propio del sistema:
-   `RegistroDeEventos` escribe una línea por login y `FiltroDeFrecuencia` una por
-   límite excedido, o sea que **un ataque de fuerza bruta escribe el log que
-   llena el disco**. Y el rastro además no es durable: recrear el contenedor se
-   lo lleva, y `backup.sh` no lo respalda (correctamente — un log no va en un
-   `pg_dump`). Para eso, `logging.file.name` con rotación sobre un volumen, y
-   **que el logger `seguridad` salga a su propio archivo**: hoy sus ocho eventos
-   están mezclados con todo lo que loguea Spring.
-4. **Proxy HTTPS por delante.** Tres cosas, y la primera tiene una trampa:
-
-   ⚠️ **`server.forward-headers-strategy=framework` Y un proxy que SANEE
-   `X-Forwarded-For` — las dos mitades juntas o ninguna (`CS-04`).** Con la
-   propiedad puesta y un proxy que no sanea, cualquiera elige su IP por pedido y
-   evade el límite: **peor que el problema original**. Por eso no se puso ya en
-   `application.properties`, y no es un olvido.
-
-   Lo que está en juego son dos cosas, no una. La documentada es que
-   `RegistroDeEventos` loguea la IP del proxy en cada evento. **La que no estaba
-   escrita en ninguna parte es peor: el límite por IP se convierte en un balde
-   global.** Los 120 por ventana dejan de ser por visitante y pasan a ser del
-   sitio entero, lo que da vuelta el control — quien quiera dejar a todo el
-   estudio afuera del login solo tiene que gastar el balde compartido desde una
-   máquina. **Lo que existe para frenar fuerza bruta pasa a ser el arma.** Atenúa
-   —y no alcanza— que el límite **por email** siga funcionando, porque la
-   dirección viene del cuerpo y no de la red.
-
-   ⚠️ **`client_max_body_size 15m;` — es `CS-02`.** El único techo configurado
-   hoy es el de multipart; **un cuerpo JSON no tiene ninguno**, y se deserializa
-   entero en memoria **antes** de que corra un solo `@Size`. El peor caso es
-   público (`POST /api/solicitantes`): el límite por IP acota cuántos pedidos, no
-   cuán grandes. El techo va acá y no en Java porque cualquier chequeo en Java ya
-   pagó la memoria; el 15 deja pasar el multipart de 13 con aire.
-
-   Y las dos cabeceras del punto 5.
-5. **Las dos cabeceras que el panel no puede ponerse solo** (SEC-07). El panel
-   ya declara su Content-Security-Policy, pero la declara en un `<meta>` del
-   `index.html` porque es estático y no tiene servidor propio, y **hay dos
-   directivas que un `<meta>` no puede llevar**: el navegador las ignora ahí.
-   Van en el proxy que sirva `apps/platform/dist`:
-
-   | Cabecera | Valor | Por qué no puede ir en el `<meta>` |
-   |---|---|---|
-   | `Content-Security-Policy` | `frame-ancestors 'none'` (además de lo que ya declara el meta) | `frame-ancestors` sólo se respeta como cabecera. Sin ella, el panel se puede embeber en un iframe ajeno |
-   | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | HSTS es del transporte: la pone quien termina el TLS |
-
-   La landing no necesita esto: sirve sus cabeceras desde `next.config.ts`
-   —incluida `frame-ancestors 'none'`— y se verificó contra `next start`. Lo
-   único suyo que también espera al proxy es la HSTS.
+⚠️ **Un bind mount del host no se probó en Windows y no es un descuido**: Docker
+Desktop de esta máquina no puede montar desde `D:`, así que el volumen de
+`archivos/` se ensayó montando una carpeta de `C:`. En Linux es un bind mount
+normal; lo único propio del servidor es el `chown 1001:1001`, que está en el
+procedimiento.
 
 ---
 

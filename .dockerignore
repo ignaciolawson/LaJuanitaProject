@@ -1,0 +1,19 @@
+# Lo que NO tiene que viajar al daemon de Docker como contexto de build.
+#
+# Sin esto el contexto son varios GB -- `node_modules`, los `target` de Maven,
+# los backups y las salidas de graphify/noodles-- y el build tarda minutos
+# antes de correr su primera instruccion. Cada Dockerfile reinstala lo que
+# necesita.
+.git
+node_modules
+**/node_modules
+apps/landing/.next
+apps/platform/dist
+apps/backend/target
+backups
+graphify-out
+noodles-out
+*.log
+.vscode
+.claude
+archivos

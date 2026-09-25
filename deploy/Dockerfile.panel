@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1
+
+# ============================================================================
+# El panel (Vite) + el reverse proxy, en una sola imagen.
+#
+# ⚠️ El contexto de build es LA RAIZ DEL REPO:
+#
+#     docker build -f deploy/Dockerfile.panel .
+#
+# **El panel no tiene servidor propio ni lo necesita**: `npm run build:platform`
+# deja archivos estaticos en `apps/platform/dist` y Caddy los sirve. Por eso
+# viaja adentro de la imagen del proxy en vez de ser un cuarto servicio -- un
+# contenedor extra cuyo unico trabajo seria servir 3 MB de archivos que el
+# proxy ya tiene que atravesar igual.
+#
+# ⚠️ Y por eso las DOS cabeceras que el panel no puede ponerse solo (SEC-07)
+# viven en el Caddyfile: el panel declara su CSP en un `<meta>` del
+# `index.html`, y `frame-ancestors` y `Strict-Transport-Security` son
+# justamente las dos que el navegador IGNORA en un meta.
+# ============================================================================
+
+FROM node:22-slim AS build
+WORKDIR /repo
+
+COPY package.json package-lock.json ./
+COPY apps/landing/package.json apps/landing/
+COPY apps/platform/package.json apps/platform/
+RUN npm ci --no-audit --no-fund
+
+COPY apps/platform apps/platform
+# `build` del panel es `tsc -b && vite build`. El `-b` no es un detalle: el
+# `tsconfig.json` de ese workspace es un archivo de solucion (`"files": []`),
+# asi que `tsc --noEmit` no chequea NADA y sale 0 sobre un proyecto lleno de
+# errores de tipo.
+RUN npm run build:platform
+
+# ============================================================================
+FROM caddy:2-alpine
+
+# `dist` se construye con `base: '/app/'` en `vite.config.ts`, asi que su
+# `index.html` referencia `/app/assets/...`. El `handle_path` del Caddyfile
+# saca ese prefijo antes de buscar en disco: los archivos van a la raiz de
+# /srv/app, sin una carpeta `app` adentro.
+COPY --from=build /repo/apps/platform/dist /srv/app
+COPY deploy/Caddyfile /etc/caddy/Caddyfile

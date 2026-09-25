@@ -1,0 +1,132 @@
+# ============================================================================
+# El reverse proxy: un solo origen, tres rutas.
+#
+#   /       -> la landing (Next, contenedor `landing`)
+#   /app    -> el panel   (archivos estaticos, horneados en esta misma imagen)
+#   /api    -> el backend (Spring Boot, contenedor `backend`)
+#
+# ⚠️ **Que sean UN SOLO ORIGEN no es prolijidad de infraestructura: es lo unico
+# que permite que el login se haga en la landing.** `localStorage` es por
+# origen y no por path, asi que la credencial que escribe `/ingresar` es la
+# misma que lee el panel en `/app`. Partir esto en dos dominios no rompe el
+# build ni ningun test: hace que entrar por la landing te devuelva a la landing
+# pidiendote entrar de nuevo. Ver `AccesoAlCampus.tsx` y `lib/sesion.ts`.
+#
+# Caddy saca y renueva el certificado solo. Sin dominio todavia, poner
+# `DOMINIO=:80` en el `.env` y el sitio queda en HTTP: sirve para probar,
+# **y con HTTP la HSTS de abajo no significa nada**.
+# ============================================================================
+
+# ⚠️ NO hay bloque de opciones globales con `email {$ACME_EMAIL}`, y la razon se
+# midio corriendolo: **una variable de entorno VACIA en una directiva de Caddy
+# no toma un valor por defecto, es un error de sintaxis.** `email` sin argumento
+# aborta la carga de la configuracion entera y el contenedor queda en loop de
+# reinicio -- con el sitio caido y un log que habla de la linea 21, no de que
+# falta una variable.
+#
+# Let's Encrypt emite sin direccion, asi que no hace falta. Si se la quiere para
+# que la CA avise antes de que un certificado venza sin renovar, se agrega aca
+# con la direccion ESCRITA, no con una variable que puede venir vacia:
+#
+#     { email tuyo@dominio.com }
+
+{$DOMINIO} {
+	encode zstd gzip
+
+	# ------------------------------------------------------------------
+	# ⚠️ `CS-02`. El unico techo que el sistema tenia configurado era el de
+	# multipart (13 MB, en `application.properties`); **un cuerpo JSON no
+	# tenia ninguno**, y Jackson lo deserializa entero en memoria ANTES de
+	# que corra un solo `@Size`. El peor caso es publico: `POST
+	# /api/solicitantes`, el formulario de la landing -- el limite por IP
+	# acota cuantos pedidos, no cuan grandes.
+	#
+	# El techo va aca y no en Java porque cualquier chequeo en Java ya pago
+	# la memoria. Los 15 dejan pasar el multipart de 13 con aire.
+	# ------------------------------------------------------------------
+	request_body {
+		max_size 15MB
+	}
+
+	header {
+		# HSTS es del transporte: la pone quien termina el TLS, y eso es
+		# este archivo. Ni la landing ni el panel pueden ponersela solos.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# ------------------------------------------------------------------
+	# La API. Aca vive la mitad de `CS-04` que es del proxy.
+	#
+	# `header_up X-Forwarded-For {remote_host}` **REEMPLAZA** la cabecera en
+	# vez de agregarle el IP al final. Lo que hay que entender es por que
+	# importa: Spring, con `forward-headers-strategy=framework`, lee **la
+	# PRIMERA** entrada de la lista -- medido, mandandole a mano
+	# `X-Forwarded-For: 1.2.3.4, 5.6.7.8` y viendo que `RegistroDeEventos`
+	# loguea `1.2.3.4`. Si el proxy appendeara, la que eligio el cliente
+	# quedaria primera y ganaria: el limite por IP dejaria de ser por
+	# visitante y pasaria a ser un balde del sitio entero.
+	#
+	# ⚠️ **Pero esta linea NO es lo que hoy lo evita, y conviene saberlo.**
+	# Se comprobo sacandola: con la linea afuera, un pedido con
+	# `X-Forwarded-For: 1.2.3.4` **igual se logueo con el IP real**. Caddy
+	# 2.11 ya descarta la cabecera entrante cuando el cliente no es un
+	# `trusted_proxies` declarado, asi que el caso estaba cubierto por un
+	# DEFAULT.
+	#
+	# La linea se deja igual, y el motivo es ese: **un default es una
+	# decision de otro, que puede cambiar en una version y no lo dice
+	# ninguna prueba de este repo.** Escrito explicito, lo que protege es la
+	# configuracion y no la version de Caddy que haya quedado en la imagen.
+	# ------------------------------------------------------------------
+	handle /api/* {
+		reverse_proxy backend:8080 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+
+	# La salud del servicio, para un monitor externo. Es lo unico de
+	# Actuator que esta expuesto (`management.endpoints.web.exposure.include=health`)
+	# y contesta `UP` o `DOWN` sin detalle. El healthcheck del compose no
+	# pasa por aca: le pega directo al contenedor.
+	handle /actuator/health {
+		reverse_proxy backend:8080
+	}
+
+	# ------------------------------------------------------------------
+	# El panel.
+	#
+	# `handle_path` saca el prefijo `/app` antes de buscar en disco, que es
+	# lo que hace juego con el `base: '/app/'` de Vite: el `index.html`
+	# pide `/app/assets/x.js` y el archivo esta en `/srv/app/assets/x.js`.
+	#
+	# El `try_files ... /index.html` es lo que hace que el panel sea una
+	# SPA: `/app/admin/pagos` no es un archivo, y sin esta linea da 404 al
+	# recargar la pagina -- anda navegando y se rompe apretando F5.
+	# ------------------------------------------------------------------
+	redir /app /app/ permanent
+
+	handle_path /app/* {
+		root * /srv/app
+		# ⚠️ Las DOS cabeceras de SEC-07 que el panel no puede ponerse solo.
+		# Declara su CSP en un `<meta>` del `index.html` porque es estatico
+		# y no tiene servidor propio, y `frame-ancestors` es justamente una
+		# de las directivas que **el navegador ignora en un meta**. Sin
+		# esto, el panel se puede embeber en un iframe ajeno.
+		#
+		# Que sean dos politicas de CSP (esta y la del meta) no es un
+		# conflicto: el navegador las aplica a las dos, y gana la mas
+		# restrictiva de cada directiva.
+		header Content-Security-Policy "frame-ancestors 'none'"
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Todo lo demas: la landing. Va ultimo porque es el `handle` sin
+	# matcher, o sea el que atrapa lo que no reclamo ninguno de arriba.
+	handle {
+		reverse_proxy landing:3000 {
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
+}

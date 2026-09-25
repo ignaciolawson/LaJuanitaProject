@@ -70,6 +70,25 @@ const cspDirectivas = [
 
 const nextConfig: NextConfig = {
   /**
+   * Empaqueta el sitio con solo lo que necesita para correr: `.next/standalone`
+   * trae un `server.js` y un `node_modules` recortado a lo que el build
+   * realmente importo.
+   *
+   * ⚠️ **Lo que compra no es tamano de imagen, es que el contenedor no lleve
+   * las dependencias de build.** Sin esto, la imagen de produccion arrastra
+   * TypeScript, Tailwind, ESLint y las dependencias del panel -- porque
+   * `node_modules` esta izado a la raiz del monorepo y un `npm ci` ahi instala
+   * los dos workspaces. Cada paquete que viaja y no se usa es superficie.
+   *
+   * La raiz del rastreo la detecta Next solo, por el `package-lock.json` de la
+   * raiz del repo; no hace falta `outputFileTracingRoot`. Si algun dia aparece
+   * un segundo lockfile, la deteccion se vuelve ambigua y **hay que fijarla a
+   * mano** -- el sintoma es un `server.js` al que le falta un modulo en tiempo
+   * de ejecucion, no un build roto.
+   */
+  output: "standalone",
+
+  /**
    * En DESARROLLO, este sitio hace de proxy y todo pasa por :3000.
    *
    * **No es una comodidad: es la unica forma de poder probar el login.** La

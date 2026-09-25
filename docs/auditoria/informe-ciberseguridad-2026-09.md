@@ -685,28 +685,101 @@ en el primer cambio que parezca una mejora.**
 `formats: ["image/webp"]` cierra la RCE de AVIF, además de ser más rápido — o
 sea que volver a poner `"image/avif"` no es solo una decisión de performance.
 
-### 9.4 · `CS-03` — a medias, y sigue bloqueando el deploy
+### 9.4 · `CS-03` — ✅ **CERRADO el 2026-09-25**
 
-**Lo que sí se hizo:** `operacion.md` §3 tenía una fila que prometía un fallo
-cerrado que no ocurre (*"la aplicación no arranca"*) y un párrafo que decía que
-ese olvido *"se descubre solo"*. **Las dos cosas eran falsas y son lo que hace que
-el olvido pase**, porque quien despliega lee esa tabla. Están corregidas, con un
-recuadro que muestra la evidencia del `jar tf`, y el punto 2 de *Lo que falta*
-dice ahora que el `Dockerfile` del backend lleva
-`ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`.
+**Lo que se hizo el 2026-09-24:** `operacion.md` §3 tenía una fila que prometía un
+fallo cerrado que no ocurre (*"la aplicación no arranca"*) y un párrafo que decía
+que ese olvido *"se descubre solo"*. **Las dos cosas eran falsas y son lo que hace
+que el olvido pase**, porque quien despliega lee esa tabla. Quedaron corregidas,
+con un recuadro que muestra la evidencia del `jar tf`.
 
-**Lo que no:** la línea, porque el archivo no existe. **`CS-03` sigue abierto y
-sigue bloqueando el deploy.**
+**Lo que faltaba era la línea, porque el archivo no existía. Ya existe**:
+`apps/backend/Dockerfile`, del 2026-09-25, lleva
+
+```dockerfile
+ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false
+```
+
+**Verificado en las dos direcciones**, corriendo la imagen contra una base viva —
+no leyendo el Dockerfile:
+
+- **Con la línea y sin `JWT_SECRET`**: sale con código 1 y el mensaje de
+  `SeguridadConfig` (*"Se está usando el secreto JWT de DESARROLLO, que está
+  commiteado en el repositorio"*).
+- **Con el bug puesto de vuelta** (`-e LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=true`,
+  que es literalmente el deploy sin `Dockerfile`): **arranca**, loguea
+  `Started BackendApplication` y deja un `WARN` entre cientos.
+
+La segunda mitad es la que importa: es la prueba de que **la línea es lo que
+cierra el candado**, y no algo que ya estuviera cerrado por otro lado. Es la misma
+disciplina que §9.1 impuso al arreglo de `CS-01`.
+
+**`CS-03` ya no bloquea el deploy.**
 
 ### 9.5 · Lo que se dejó para el deploy, con el motivo
 
 | | Por qué no ahora |
 |---|---|
-| `CS-04` | ⚠️ **No se puede hacer la mitad.** Poner `forward-headers-strategy=framework` sin un proxy que sanee `X-Forwarded-For` deja que cualquiera elija su IP por pedido: **peor que el problema**. Escrito en `operacion.md` §3 punto 4 |
-| `CS-02` (1ª mitad) | El techo va en el proxy — cualquier chequeo en Java ya pagó la memoria. Escrito en el mismo punto |
-| `CS-07` | Va en el compose de producción. Escrito en el punto 3, con el YAML |
+| `CS-04` | ✅ **CERRADO el 2026-09-25, con las dos mitades y MEDIDAS.** `SERVER_FORWARD_HEADERS_STRATEGY=framework` en el compose + `header_up X-Forwarded-For {remote_host}` en el Caddyfile. Un login fallido con `X-Forwarded-For: 1.2.3.4` por el proxy quedó logueado con el IP real; un pedido directo al backend con dos IPs mostró que **Spring toma la primera**. ⚠️ **El control corrigió el motivo**: sacando la línea del Caddyfile *igual salía bien* — Caddy 2.11 ya sanea por default. La línea queda porque un default puede cambiar en una versión y ninguna prueba de este repo lo diría |
+| `CS-02` (1ª mitad) | ✅ **CERRADO el 2026-09-25.** `request_body { max_size 15MB }` en el Caddyfile. Verificado: un cuerpo JSON de 19 MB contra `POST /api/solicitantes` da **413**, uno chico da 400 (o sea llega al backend) |
+| `CS-07` | ✅ **CERRADO el 2026-09-25.** `logging: json-file` con `max-size: 10m` / `max-file: 5` en los cuatro servicios de `docker-compose.prod.yml`, verificado con `docker inspect` |
 | `CS-06` | El mínimo accionable pide **una dirección de contacto que exista**, y `hola@lajuanitastudio.com` no existe (`platform.md` §13). La 2ª mitad es una decisión de negocio. Y la landing no publica todavía |
 | `CS-02` (2ª mitad) | **Los 33 `@Size` esperan al proxy a propósito.** El techo real es el de ahí; elegir 33 números de memoria tiene chance concreta de rechazar después un texto legítimo — `notas` sobre todo |
 | `CS-08` | ⚠️ **Deliberadamente no se hizo, y es la decisión más discutible de esta sesión.** Este informe dice que *"no es un agujero"*: la barra invertida **es** el escape por defecto de `LIKE` en Postgres y `Busqueda.patron()` escapa bien. Tocar 29 queries para dejar igual lo que ya está bien es riesgo sin ganancia hoy. **Lo que lo volvería urgente es un cambio de `standard_conforming_strings` o de motor**, no el paso del tiempo |
 | Admin sembrado | ⚠️ **No se desactiva ahora: es la cuenta con la que se entra en desarrollo.** Va en la migración nueva, junto con el deploy |
 | Confirmaciones en caliente (§6) | Siguen pendientes, salvo la de `CS-01`, que quedó cubierta por los tres casos nuevos — **corridos**, no leídos |
+
+### 9.6 · `CS-13` — la CSP del panel bloqueaba sus propias fuentes
+
+**Hallazgo nuevo, encontrado el 2026-09-25 armando el deploy.** No estaba en los
+siete de §4 y no lo reportó nadie, porque **no falla nada**.
+
+`apps/platform/index.html` carga las tres familias de la marca —Archivo,
+Instrument Serif y Space Mono— con un `<link rel="stylesheet">` a
+`fonts.googleapis.com`, y los archivos salen de `fonts.gstatic.com`. La política
+que `vite.config.ts` inyecta en el build decía:
+
+```
+font-src 'self'; style-src 'self' 'unsafe-inline'
+```
+
+**Eso descarta las dos cosas.** El panel en producción se habría dibujado con la
+tipografía del sistema, incluido el eje de ancho (`wdth`) que el propio
+`index.html` se toma diez líneas en explicar por qué hay que pedir.
+
+**Severidad: baja como riesgo, alta como modo de falla.** No abre nada; rompe la
+identidad visual de todo el sistema interno. Lo que lo hace digno de estar acá es
+**por qué sobrevivió tres meses desde SEC-07**:
+
+- La meta se inyecta con `apply: 'build'`, así que **en `npm run dev` no existe**.
+- Las **719 pruebas del front corren en jsdom, que no aplica CSP**.
+- `vite build` produce el `dist` y nadie lo sirvió nunca con un navegador.
+
+O sea: **el primer navegador que iba a encontrarlo era el del deploy**, y el
+síntoma —*"el panel se ve raro"*— no se parece en nada a su causa. Se detectó
+leyendo el `dist/index.html` construido, donde la política y el `<link>` a Google
+conviven en el mismo archivo a catorce líneas de distancia.
+
+⚠️ **Y lo que más vale de este hallazgo es que la landing tiene la política
+idéntica y está perfecta.** Usa `next/font`, que se descarga las fuentes durante
+el build y las sirve desde el propio origen, así que `'self'` las cubre. **La
+misma regla, correcta allá y rota acá.** Es el mismo patrón que este proyecto ya
+había pagado en la barrida de responsive con `.link-u`: *una política compartida
+no se valida contra su texto, se valida contra quién la usa.*
+
+**Arreglado** agregando los dos orígenes:
+
+```
+font-src 'self' https://fonts.gstatic.com
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
+```
+
+**La salida mejor está anotada y no se hizo**: alojar las fuentes en el panel como
+hace la landing, que saca un tercero del camino y devuelve la política a `'self'`.
+No se hizo ahora para no meter un cambio de tipografía en el medio de un deploy.
+
+⏳ **Lo que esta sesión no puede cerrar**: que se *vea* bien. jsdom no aplica CSP y
+`curl` no ejecuta una política. Lo único que se verificó es que el `dist` sale con
+los dos orígenes adentro; **mirarlo en un navegador es un paso del servidor**, de
+la misma familia que la verificación en dispositivo real que dejó abierta la
+barrida de responsive.

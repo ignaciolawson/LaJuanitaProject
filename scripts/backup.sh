@@ -54,15 +54,28 @@ fecha=$(date +%F)
 mkdir -p "$DESTINO/diarios" "$DESTINO/semanales"
 archivo="$DESTINO/diarios/lajuanita-$fecha.dump"
 
+# Si la base la levanta Compose, el contenedor se resuelve desde ahi. En
+# desarrollo eso da el mismo `la_juanita_postgres` de siempre; en el servidor
+# da el nombre que arme Compose, que NO es ese.
+#
+# ⚠️ Antes esto era un if/else que solo cubria el volcado: el `docker compose
+# exec` de arriba y, quince lineas mas abajo, la verificacion con `docker exec
+# "$CONTENEDOR"` a secas. En produccion el volcado habria salido bien y la
+# verificacion habria muerto contra un contenedor que no existe -- o sea que el
+# backup fallaba DESPUES de escribir un dump valido, y el cron lo reportaba
+# como roto estando bien. Resolviendo el nombre una vez, los dos pasos usan el
+# mismo contenedor y no hay dos caminos que mantener.
+#
+# Para que encuentre el stack de produccion, el `.env` del servidor lleva
+# `COMPOSE_FILE=docker-compose.prod.yml`: sin eso, `docker compose ps` lee el
+# compose de desarrollo, no ve nada corriendo y cae al nombre por defecto.
+if docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then
+  CONTENEDOR="$(docker compose ps -q postgres)"
+fi
+
 echo "[$(date +'%F %T')] volcando $DB desde $CONTENEDOR -> $archivo"
 
-# -T no es opcional cuando esto lo llama un cron: sin el, Compose intenta
-# asignar una TTY, no hay terminal, y el comando falla.
-if docker compose ps --status running --services 2>/dev/null | grep -qx postgres; then
-  docker compose exec -T postgres pg_dump -U "$USUARIO" -d "$DB" -Fc > "$archivo"
-else
-  docker exec "$CONTENEDOR" pg_dump -U "$USUARIO" -d "$DB" -Fc > "$archivo"
-fi
+docker exec "$CONTENEDOR" pg_dump -U "$USUARIO" -d "$DB" -Fc > "$archivo"
 
 bytes=$(wc -c < "$archivo" | tr -d ' ')
 if [ "$bytes" -lt "$MINIMO_BYTES" ]; then

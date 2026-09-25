@@ -27,8 +27,31 @@ function cspEnElBuild(): Plugin {
     "object-src 'none'",
     "form-action 'self'",
     "img-src 'self' data:",
-    "font-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
+    // ⚠️ Los dos orígenes de Google Fonts, y **no son opcionales: sin ellos
+    // esta misma política bloquea las fuentes de la marca.** El `index.html`
+    // de este panel trae un `<link rel="stylesheet">` a `fonts.googleapis.com`
+    // y los archivos salen de `fonts.gstatic.com`; con `style-src 'self'` y
+    // `font-src 'self'` a secas, el navegador descarta los dos y el panel se
+    // dibuja con la tipografía del sistema — Archivo, Instrument Serif y Space
+    // Mono desaparecen, junto con el eje `wdth` que el comentario del
+    // `index.html` se toma el trabajo de explicar.
+    //
+    // **No fallaba nada y no lo vio nadie**, porque esta meta se inyecta
+    // `apply: 'build'`: en `npm run dev` no existe, y las 719 pruebas del
+    // front corren en jsdom, que no aplica CSP. El primer navegador que iba a
+    // encontrarlo era el del deploy, y el síntoma —"el panel se ve raro"— no
+    // se parece en nada a su causa.
+    //
+    // ⚠️ Y por eso la landing tiene esta política idéntica sin problema: usa
+    // `next/font`, que se descarga las fuentes en el build y las sirve desde
+    // el propio origen. **La misma regla es correcta allá y estaba rota acá**
+    // — la política no se valida contra su texto sino contra quién la usa.
+    //
+    // La salida mejor es alojar las fuentes acá, como hace la landing: saca un
+    // tercero del camino y deja volver a `'self'`. No se hizo ahora para no
+    // meter un cambio de tipografía en el medio de un deploy.
+    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "script-src 'self'",
     // El panel habla con su propia API a través del proxy, o sea mismo origen.
     "connect-src 'self'",

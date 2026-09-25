@@ -234,7 +234,8 @@ público para siempre.
 
 El candado **falla cerrado solo si el artefacto trae
 `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`**, y ⚠️ **este párrafo
-afirmaba lo contrario hasta el 2026-09-25**. La aplicación se niega a arrancar
+afirmaba lo contrario hasta el 2026-09-25**. ✅ **Desde ese mismo día lo trae**:
+la línea está en `apps/backend/Dockerfile`. La aplicación se niega a arrancar
 firmando con el secreto commiteado **salvo** que
 `lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté presente — y esa línea
 **sí la copia un deploy**, porque viaja adentro del jar:
@@ -248,8 +249,7 @@ O sea que olvidarse de `JWT_SECRET` **no rompe el arranque: firma con la clave
 pública y deja un WARN entre cientos.** Es el hallazgo `CS-03` del informe de
 ciberseguridad de septiembre de 2026, **y bloquea el deploy**.
 
-**El arreglo es una línea en el `Dockerfile` del backend** (que todavía no
-existe):
+**El arreglo es una línea en `apps/backend/Dockerfile`**, y ya está puesta:
 
 ```dockerfile
 ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false
@@ -261,6 +261,12 @@ cerrado, un clone fresco sigue arrancando con `mvn spring-boot:run`, y la defens
 problema, porque todo el resto de este deploy son variables de entorno y ésta
 sería la única que además pide editar un archivo versionado.
 
+**Verificado en las dos direcciones** el 2026-09-25, corriendo la imagen contra
+una base viva: con la línea y sin `JWT_SECRET` no arranca (código 1, con el
+mensaje de `SeguridadConfig`); **poniéndole el bug de vuelta** —o sea el deploy
+sin `Dockerfile`— arranca igual y firma con la clave pública, dejando un WARN
+entre cientos. El detalle está en `docs/operacion.md` §3.
+
 **Pero el JWT no es lo único.** Esta es la lista completa de lo que cambia por
 ambiente. Todos los valores de desarrollo están commiteados a propósito, para
 que un clone arranque; **todos son públicos y ninguno sirve en producción**:
@@ -268,12 +274,17 @@ que un clone arranque; **todos son públicos y ninguno sirve en producción**:
 | Variable | Desarrollo (commiteado) | Producción |
 |---|---|---|
 | `JWT_SECRET` | el del `application.properties` | **valor nuevo**, Base64 ≥32 bytes |
-| `lajuanita.jwt.permitir-secreto-de-desarrollo` | `true` | ⚠️ **`LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`.** Borrar la línea del properties también sirve, pero no alcanza como única defensa: es justo lo que un deploy se olvida |
-| `DB_URL` | `jdbc:postgresql://localhost:5432/la_juanita` | la red interna del compose |
+| `lajuanita.jwt.permitir-secreto-de-desarrollo` | `true` | ✅ Ya resuelto: `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` está en `apps/backend/Dockerfile`. Borrar la línea del properties también serviría, pero no alcanza como única defensa: es justo lo que un deploy se olvida |
+| `DB_URL` | `jdbc:postgresql://localhost:5432/la_juanita` | la red interna del compose — lo arma `docker-compose.prod.yml` |
 | `DB_USER` | `la_juanita` | el que se decida |
 | `DB_PASSWORD` | `la_juanita` | **otra**, generada |
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | ídem, en `docker-compose.yml` | tienen que coincidir con las tres de arriba |
+| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | ídem, en `docker-compose.yml` | tienen que coincidir con las tres de arriba. En producción salen del mismo `.env`, así que no pueden desalinearse |
 | `CORS_ORIGENES` | `http://localhost:5173` | el dominio real del panel |
+
+**Todo esto se copia de `deploy/env.ejemplo` y se completa en un `.env` en la
+raíz del repo.** El compose se niega a levantar si falta alguna (`${VAR:?}`), que
+es la diferencia con la versión anterior de esta tabla: la de `DB_PASSWORD`
+"no avisaba nada" y arrancaba con la contraseña pública.
 
 Y dos cosas más antes de exponerlo, que no son variables:
 

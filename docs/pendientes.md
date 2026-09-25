@@ -477,24 +477,56 @@ bytes, idéntico.
 reales (después de migrar el Notion) y después una vez por cuatrimestre. Un tar
 de 120 KB y uno de varios GB no fallan por las mismas razones.
 
-### 1.3 · El deploy
+### 1.3 · El deploy — ✅ **ARMADO Y ENSAYADO el 2026-09-25; falta la VM**
 
-**`docs/operacion.md` §3 — la única sección incompleta del documento, a propósito.**
+**`docs/operacion.md` §3 dejó de ser la sección incompleta del documento.** El
+procedimiento está escrito y **se ejecutó entero** contra el stack levantado con
+Docker Compose. Lo que queda es levantar el servidor y correrlo allá.
 
-**⚠️ Al 2026-08-31 la FORMA del hosting ya no espera a octubre: se decidió un solo
-origen.** Landing en `/`, plataforma en `/app`, backend en `/api`, todo detrás de
-un reverse proxy. No fue una decisión de infraestructura sino de producto — es lo
-único que permite que el login se haga en la landing y entregue la sesión, porque
-`localStorage` es por origen y no por path. El código de las dos apps ya está
-configurado así (`base`, `basename`, `rewrites`, `API_URL` relativa); **lo que
-falta escribir es la configuración del proxy en §3**.
+**El hosting elegido es Oracle Cloud Always Free** (2 OCPU ARM / 12 GB / 200 GB,
+gratis de por vida). ⚠️ **Se evaluó Vercel + Supabase y se descartó**, y el motivo
+no es preferencia: Vercel no corre Java, así que el backend necesitaba un tercer
+proveedor igual; los gratuitos de esa familia **no tienen disco persistente** —los
+contratos y comprobantes se evaporan en cada reinicio mientras la base sigue
+diciendo que están— y el servicio se duerme a los 15 minutos. Un VPS gratuito
+resuelve las tres cosas en el mismo lugar y **no hay que rehacerlo cuando el
+estudio lo use en serio**.
 
-Lo que ya estaba decidido: VPS con Docker Compose, los tres servicios en la misma
-red interna, y un compose distinto del de desarrollo.
+**La FORMA venía decidida desde el 2026-08-31 y no cambió: un solo origen.**
+Landing en `/`, plataforma en `/app`, backend en `/api`, todo detrás de un reverse
+proxy. No es una decisión de infraestructura sino de producto — es lo único que
+permite que el login se haga en la landing y entregue la sesión, porque
+`localStorage` es por origen y no por path.
 
-**Lo que el Módulo 7 le agregó y no estaba:** hace falta **disco persistente**. Un
-contenedor efímero se lleva los contratos en el primer reinicio y la base sigue
-diciendo que están.
+**Lo que ahora existe**, todo nuevo del 2026-09-25: `apps/backend/Dockerfile` (con
+la línea de `CS-03`), `apps/landing/Dockerfile`, `deploy/Dockerfile.panel`,
+`deploy/Caddyfile`, `docker-compose.prod.yml`, `deploy/env.ejemplo` y un
+`.dockerignore`.
+
+**Lo que se verificó corriéndolo** (el detalle, en §3): las 36 migraciones sobre
+base vacía, el login de punta a punta por el proxy, el fallback de la SPA, las dos
+cabeceras de SEC-07 sobre el panel, `CS-02` (19 MB → 413), `CS-07` (rotación
+activa), la base sin puertos publicados, el volumen de archivos escribiendo en el
+host, y **`CS-03` en las dos direcciones** — con la línea no arranca, poniéndole
+el bug de vuelta arranca igual y firma con la clave pública.
+
+⚠️ **`CS-04` quedó PRENDIDO, y el control corrigió el motivo y no el resultado.**
+Se midió que Spring toma la **primera** entrada de `X-Forwarded-For`, y que el
+proxy descarta la falsificada. Pero al sacar la línea `header_up` del Caddyfile
+—el control de *"poner el bug de vuelta"*— **siguió saliendo bien**: Caddy 2.11 ya
+sanea por default. La línea queda igual porque **un default es una decisión de
+otro y puede cambiar en una versión sin que ninguna prueba de este repo lo diga**.
+El control salió verde cuando tenía que salir rojo, y eso es lo que lo hizo valer:
+sin correrlo, la documentación habría explicado la seguridad con una causa falsa.
+
+**Lo que el Módulo 7 le agregó y ya está cubierto:** hace falta **disco
+persistente**. Es un bind mount a `./archivos` en el host, con `chown 1001:1001`
+— ⚠️ **eso último no falla al arrancar, falla en la primera subida de un
+contrato**.
+
+**Lo que FALTA:** la VM (ARM, la red de OCI y el certificado real de Let's Encrypt
+son lo único sin probar), el dominio, `CS-06`, y **rehacer el ensayo de restore
+contra el servidor**.
 
 **Y lo que falla si te olvidás** (la tabla completa está en §3 y en el README):
 

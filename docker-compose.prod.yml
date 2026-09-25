@@ -1,0 +1,149 @@
+# ============================================================================
+# El compose de PRODUCCION. El de desarrollo es `docker-compose.yml` y levanta
+# solo la base.
+#
+#     docker compose -f docker-compose.prod.yml up -d --build
+#
+# Las imagenes se construyen ACA, en el servidor, y no se bajan de un registry:
+# la VM es ARM64 y cualquier imagen armada en la maquina de desarrollo (x86) no
+# arranca. Buildear en destino ademas evita tener que mantener un registry.
+#
+# Las variables salen de un archivo `.env` en la raiz del repo. Esta versionado
+# el ejemplo (`deploy/env.ejemplo`), nunca el `.env`.
+# ============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?falta POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?falta POSTGRES_USER}
+      # Sin el `:?` esto arranca perfecto con la contrasena publica `la_juanita`
+      # y NO AVISA NADA. Es el olvido que no se descubre nunca.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ⚠️ NO hay `ports:` y es deliberado. El backend llega por la red interna
+    # del compose. Publicar 5432 al mundo es la mitad de la combinacion
+    # estandar de base comprometida; la otra mitad es la contrasena por
+    # defecto. Para entrar con psql: `docker compose exec postgres psql ...`.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # La primera vez Postgres tarda en inicializar. Sin esto los reintentos
+      # se consumen antes de que llegue a estar lista y el backend arranca
+      # contra una base a medio crear, lo que voltea las migraciones.
+      start_period: 30s
+    logging: &logs
+      # ⚠️ `CS-07`. `application.properties` no tiene una sola linea de
+      # `logging.*`, asi que Spring escribe a stdout y en Compose eso lo
+      # captura `json-file`, que **por defecto no rota ni tiene limite**. El
+      # acelerador es propio de este sistema: `RegistroDeEventos` escribe una
+      # linea por login y `FiltroDeFrecuencia` una por limite excedido, o sea
+      # que un ataque de fuerza bruta escribe el log que llena el disco.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    build:
+      context: ./apps/backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # `service_healthy` y no `service_started`: el backend corre las 36
+        # migraciones al arrancar, y contra una base que todavia se esta
+        # inicializando falla el arranque entero.
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      # ⚠️ Valor NUEVO, Base64 de >=32 bytes al decodificar. El del repo es
+      # publico para siempre: con el se fabrica un token de ADMIN sin saber
+      # ninguna contrasena. El `:?` hace que el compose se niegue a levantar
+      # sin el, que es la primera mitad; la segunda es el
+      # `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` del Dockerfile
+      # (`CS-03`), sin el cual olvidarse de esta variable arranca igual y firma
+      # con la clave commiteada.
+      #
+      #   Generarlo:  openssl rand -base64 48
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET (openssl rand -base64 48)}
+      CORS_ORIGENES: ${CORS_ORIGENES:?falta CORS_ORIGENES}
+      AVISOS_ZONA: ${AVISOS_ZONA:-America/Argentina/Buenos_Aires}
+      # ----------------------------------------------------------------
+      # `CS-04`. Es la mitad de Java; la otra es el `header_up
+      # X-Forwarded-For` del Caddyfile, que sanea la cabecera. **Las dos
+      # juntas o ninguna**: prendida contra un proxy que no sanea,
+      # cualquiera elige su IP por pedido y el limite por IP deja de ser
+      # por visitante para pasar a ser un balde del sitio entero -- lo que
+      # existe para frenar fuerza bruta pasa a ser el arma.
+      #
+      # Se prende porque las dos mitades se MIDIERON, no porque se leyeron:
+      # con el stack levantado, un login fallido con `X-Forwarded-For:
+      # 1.2.3.4` por el proxy quedo logueado con el IP real del cliente, y
+      # un pedido directo al backend con dos IPs mostro que Spring toma la
+      # primera.
+      #
+      # ⚠️ Eso se verifico contra ESTE Caddyfile. Si algun dia entra otro
+      # proxy adelante (un balanceador, un CDN), la verificacion hay que
+      # rehacerla: el procedimiento esta en `docs/operacion.md` §3.
+      # ----------------------------------------------------------------
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    volumes:
+      # ⚠️ Bind mount y no volumen con nombre, para que `scripts/backup.sh`
+      # pueda hacerle `tar` desde el host. `LAJUANITA_ARCHIVOS_DIR` del script
+      # tiene que apuntar a ESTA MISMA carpeta: es la unica configuracion de
+      # este sistema que se mantiene en dos lados, y si no coinciden el backup
+      # respalda una carpeta vacia sin quejarse.
+      #
+      # La carpeta del host tiene que ser del uid 1001 (el usuario `lajuanita`
+      # de la imagen) o el backend no puede escribir:
+      #     mkdir -p archivos && sudo chown 1001:1001 archivos
+      - ${ARCHIVOS_HOST:-./archivos}:/archivos
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Spring Boot con 36 migraciones tarda. Sin esto el contenedor se marca
+      # enfermo durante un arranque normal y Docker lo reinicia en loop.
+      start_period: 120s
+    logging: *logs
+
+  landing:
+    build:
+      context: .
+      dockerfile: apps/landing/Dockerfile
+    restart: unless-stopped
+    # Sin `ports:`: al mundo sale por el proxy, igual que el backend.
+    logging: *logs
+
+  proxy:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.panel
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - landing
+    environment:
+      DOMINIO: ${DOMINIO:?falta DOMINIO}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Los certificados de Let's Encrypt. Sin esto cada `up --build` los
+      # vuelve a pedir y se choca con el limite de emision de la CA.
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logs
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
