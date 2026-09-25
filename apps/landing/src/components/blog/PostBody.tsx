@@ -141,6 +141,18 @@ function Embed({
     );
   }
 
+  // ⚠️ Esto es seguro por DE DÓNDE viene `block.id`, no por cómo está escrito,
+  // y la diferencia importa el día que cambie el origen (CS-12 del informe de
+  // ciberseguridad de 2026-09). Hoy los posts salen de `data/posts.ts`, o sea de
+  // este repo: el id lo escribió alguien con acceso al código. Y el origen es
+  // fijo —el id va al final de la URL, no puede cambiar el host—, así que no hay
+  // forma de apuntar el iframe a otro lado.
+  //
+  // Pero el blog está hecho para mudarse a un CMS (ver el CLAUDE.md de la
+  // landing): el día que este id lo escriba un editor desde un panel, pasa a ser
+  // entrada de afuera. Ahí hay que validarlo como alfanumérico —los ids de
+  // YouTube y de Spotify lo son— antes de interpolarlo, porque un id con `../` o
+  // con `?` adentro reescribe la ruta del embed.
   const src = isYouTube
     ? `https://www.youtube-nocookie.com/embed/${block.id}`
     : `https://open.spotify.com/embed/${block.id}`;

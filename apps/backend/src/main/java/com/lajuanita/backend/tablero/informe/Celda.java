@@ -25,7 +25,24 @@ import java.time.LocalDate;
  */
 public sealed interface Celda {
 
-    /** Un nombre, un estado, una etiqueta. */
+    /**
+     * Un nombre, un estado, una etiqueta.
+     *
+     * <p>⚠️ <b>El día que se agregue una exportación a CSV, esto necesita
+     * escapado y hoy no lo tiene</b> ({@code CS-11} del informe de ciberseguridad
+     * de septiembre de 2026). Hoy no hace falta y por eso no está escrito en
+     * código: las dos salidas que existen son xlsx con celdas tipadas —POI escribe
+     * un texto como texto— y PDF, que no es ejecutable por nadie.
+     *
+     * <p>Un CSV es otra cosa: Excel y LibreOffice interpretan como <b>fórmula</b>
+     * toda celda que empiece con {@code =}, {@code +}, {@code -} o {@code @}, y
+     * los valores de este informe salen de campos que carga gente —un nombre, un
+     * concepto de egreso, un título de release—. O sea que el contenido de esa
+     * celda lo elige alguien de afuera. Prefijar {@code '} ante esos cuatro
+     * caracteres es lo único que hace falta, <b>en el escritor del CSV y no acá</b>:
+     * hacerlo en la celda ensuciaría el xlsx y el PDF, donde el problema no
+     * existe.
+     */
     record Texto(String valor) implements Celda {
     }
 

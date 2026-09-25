@@ -3,14 +3,22 @@
 > # ⚠️⚠️ ESTE NO ES EL DOCUMENTO DONDE ESTÁ LO PENDIENTE
 >
 > **Lo que queda por hacer está en
-> [`docs/auditoria/barrida-ciberseguridad-2026-09.md`](auditoria/barrida-ciberseguridad-2026-09.md)
-> — leelo ANTES que éste.** La barrida de ciberseguridad se abrió el 2026-09-23 y
-> recorrió **sus nueve fases** y **el informe ya está escrito**:
-> **[`informe-ciberseguridad-2026-09.md`](auditoria/informe-ciberseguridad-2026-09.md)**,
-> que es el entregable. **Siete hallazgos**, dos Altos —uno de ellos bloquea el
-> deploy— y ⚠️ **ninguno arreglado: la barrida es de solo lectura.** El backlog
-> priorizado es su §7. Queda la Fase 1 a medias. El encargo completo es
-> `prompt-ciberseguridad-lajuanita.md`, en la raíz del repo.
+> [`informe-ciberseguridad-2026-09.md`](auditoria/informe-ciberseguridad-2026-09.md)
+> — leelo ANTES que éste**, empezando por su §9. La barrida de ciberseguridad se
+> abrió el 2026-09-23, recorrió sus nueve fases y dio **siete hallazgos**; su
+> cocina es
+> [`barrida-ciberseguridad-2026-09.md`](auditoria/barrida-ciberseguridad-2026-09.md)
+> y el encargo es `prompt-ciberseguridad-lajuanita.md`, en la raíz del repo.
+>
+> ✅ **El 2026-09-25 se remedió lo que no depende del deploy**: `CS-01` (la
+> contraseña temporal abría los 32 endpoints del portal), `CS-05` (dos CVE del
+> front) y los cuatro comentarios de la §8. Suites en **779 backend · 719 front**.
+>
+> ⚠️ **Lo que queda es del deploy y hay uno que lo bloquea**: `CS-03` — la línea
+> `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en un `Dockerfile` que
+> todavía no existe. Junto con `CS-02`, `CS-04` y `CS-07`, **está escrito qué va
+> en cada archivo** en `operacion.md` §3. Y siguen `CS-06` (Ley 25.326) y
+> `CS-08`, con su motivo en la §9.5 del informe.
 >
 > ⚠️ **Por qué este cartel existe, y costó una sesión el 2026-09-24:** este
 > documento termina diciendo —con razón— que **no queda producto por construir**.
@@ -492,11 +500,11 @@ diciendo que están.
 
 | Si te olvidás de… | Qué pasa |
 |---|---|
-| `JWT_SECRET` nuevo + sacar `permitir-secreto-de-desarrollo` | **No arranca.** Falla cerrado a propósito |
+| ⚠️ `JWT_SECRET` nuevo **+ `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`** | **Con la ENV, no arranca — falla cerrado, que es lo que se busca. SIN la ENV, arranca y firma con la clave pública**, que está commiteada. El permiso viaja adentro del jar (`BOOT-INF/classes/application.properties`), así que sacarlo del repo no alcanza: es `CS-03` y **bloquea el deploy**. Esta misma fila decía *"no arranca"* a secas hasta el 2026-09-25 |
 | `DB_PASSWORD` | Arranca perfecto con la contraseña pública. **No avisa nada** |
 | Sacar `ports: 5432:5432` | La base queda publicada al mundo |
 | `LAJUANITA_ARCHIVOS_DIR` alineado con `lajuanita.archivos.raiz` | El backup respalda una carpeta vacía. Avisa, pero hay que leer el log |
-| `server.forward-headers-strategy` | `RegistroDeEventos` loguea la IP del proxy y no la real. **Todos los eventos de seguridad quedan con la misma IP** |
+| ⚠️ `server.forward-headers-strategy` **+ un proxy que sanee `X-Forwarded-For`** | `RegistroDeEventos` loguea la IP del proxy y no la real — **todos los eventos de seguridad quedan con la misma IP**— y, lo que no estaba escrito, **el límite por IP se vuelve un balde global**: gastarlo desde una máquina deja a todo el estudio afuera del login. Es `CS-04`, y ⚠️ **las dos mitades juntas o ninguna**: la propiedad sola, con un proxy que no sanea, deja elegir la IP por pedido |
 
 ### 1.4 · Desactivar el admin sembrado por `V3`
 

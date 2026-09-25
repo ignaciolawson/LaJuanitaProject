@@ -20,6 +20,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -108,9 +111,31 @@ public class SeguridadConfig {
     }
 
     /**
-     * Falla CERRADO: el secreto commiteado solo se acepta si alguien lo autorizó
-     * explícitamente, y ese permiso vive en el {@code application.properties}
-     * del repo -- que es exactamente lo que un deploy no copia.
+     * Falla CERRADO <b>solo si el artefacto trae
+     * {@code LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false}</b>, y ⚠️ <b>este
+     * javadoc afirmó lo contrario hasta el 2026-09-25</b>.
+     *
+     * <p>Decía que el permiso <i>"vive en el {@code application.properties} del
+     * repo, que es exactamente lo que un deploy no copia"</i>. <b>Un jar de Spring
+     * Boot sí lo copia</b>: está en {@code BOOT-INF/classes/application.properties},
+     * confirmado empaquetando. Así que el olvido de {@code JWT_SECRET} <b>no rompe
+     * el arranque: firma con la clave pública</b> y deja un WARN entre cientos
+     * ({@code CS-03} del informe de ciberseguridad de septiembre de 2026, que
+     * bloquea el deploy).
+     *
+     * <p>El arreglo va en el {@code Dockerfile} del backend —que todavía no
+     * existe— y no acá: una variable de entorno gana sobre el properties
+     * empaquetado, así que el artefacto viaja cerrado y un clone fresco sigue
+     * arrancando con {@code mvn spring-boot:run}. Está escrito en
+     * {@code docs/operacion.md} §3 y en el README.
+     *
+     * <p>⚠️ <b>La lección, que es la misma que SEC-01 le marcó al candado anterior
+     * con el signo cambiado:</b> aquél se disparaba solo con un perfil
+     * {@code prod} activo —exigía haber <i>configurado</i> otra cosa— y éste exige
+     * haber <i>desconfigurado</i> otra cosa. <b>El escenario que hay que atrapar es
+     * el del que se olvidó, y un candado contra el olvido no puede depender de un
+     * segundo acto deliberado.</b> La única forma de que no dependa de nadie es que
+     * el artefacto lo lleve.
      *
      * <p>Antes el candado se disparaba solo con un perfil {@code prod} activo, y
      * eso era operativamente vacío: nada en el repo activa un perfil, el deploy
@@ -120,9 +145,11 @@ public class SeguridadConfig {
      * {@code docker compose up} sin variables arrancaba, firmaba con la clave
      * pública y dejaba una línea de WARN entre cientos.
      *
-     * <p>Invertido, cualquier entorno que no traiga el archivo del repo tal cual
-     * no arranca. Y si lo trae y se olvidan de borrar la línea, el olvido es
-     * visible en el archivo en vez de invisible en el log.
+     * <p>⚠️ El párrafo que seguía acá decía que <i>"cualquier entorno que no traiga
+     * el archivo del repo tal cual no arranca"</i>. Es falso por lo de arriba: el
+     * artefacto <b>es</b> el archivo del repo. Se deja anotado en vez de borrado
+     * porque el razonamiento era correcto salvo en una premisa — cómo se empaqueta
+     * un jar de Spring Boot — y ése es el tipo de error que se vuelve a cometer.
      */
     @Bean
     SecretKey claveDeFirma(PropiedadesJwt propiedades) {
@@ -191,6 +218,20 @@ public class SeguridadConfig {
                 // header Authorization, que un formulario de otro sitio no puede
                 // poner, así que el ataque que CSRF previene no aplica.
                 .csrf(csrf -> csrf.disable())
+                // ⚠️ No hay un `.headers(...)` acá, y eso NO significa que la API
+                // salga sin cabeceras de seguridad: salen las de Spring Security
+                // por defecto, que son las que corresponden -- `X-Content-Type-
+                // Options: nosniff`, `X-Frame-Options: DENY`, `Cache-Control:
+                // no-store`. El `nosniff` en particular es lo que cierra el caso
+                // del archivo políglota servido `inline` desde /api/archivos: sin
+                // él, el navegador adivina el tipo por el contenido y un PDF que
+                // además es HTML válido corre como HTML en el origen de la API.
+                //
+                // Funciona y depende de no tocarlo: un `.headers(h -> h.disable())`
+                // futuro lo apaga sin que falle nada, ni un test ni un build
+                // ({@code CS-10} del informe de ciberseguridad de 2026-09). Si
+                // algún día hace falta agregar una cabecera, se declaran TODAS
+                // explícitamente en vez de heredarlas.
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -217,6 +258,47 @@ public class SeguridadConfig {
                         // contenedor y un monitor externo. No expone nada --
                         // `show-details=never` deja la respuesta en UP o DOWN.
                         .requestMatchers("/actuator/health").permitAll()
+                        // El portal entero -- 32 mappings bajo /api/me -- queda
+                        // fuera del alcance de una contraseña temporal sin
+                        // cambiar. Antes no: el catch-all de abajo pide estar
+                        // autenticado y nada más, ningún mapping de ese prefijo
+                        // lleva una de las tres meta-anotaciones, y
+                        // ROLE_PASSWORD_PENDIENTE está autenticado. Así que la
+                        // temporal -- que la genera administración, viaja por
+                        // WhatsApp y vale 7 días -- leía el estado de cuenta,
+                        // pedía salas y, si la persona es profesor, escribía
+                        // notas privadas sobre sus alumnos. El docstring de
+                        // AutenticacionDesdeBase prometía "justo lo necesario
+                        // para salir del estado, y nada más"; era una corrección
+                        // parcial declarada completa (CS-01).
+                        //
+                        // Las dos salidas van EXACTAS y no por prefijo:
+                        // /api/me/perfil también cuelga de MeController y no va
+                        // abierta -- cambiarse el nombre no es salir del estado.
+                        .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        // Por la AUSENCIA de la autoridad y no enumerando los
+                        // cuatro roles: enumerarlos haría de este archivo el
+                        // séptimo lugar a tocar para agregar un rol, y el
+                        // CLAUDE.md ya lleva la cuenta de los seis.
+                        //
+                        // ⚠️ Las dos mitades del predicado son necesarias. Un
+                        // pedido sin credencial llega acá como
+                        // AnonymousAuthenticationToken, que TAMPOCO tiene la
+                        // autoridad: mirar solo su ausencia abriría el portal
+                        // entero al mundo. Lo fija
+                        // `el_portal_sigue_pidiendo_credencial`.
+                        .requestMatchers("/api/me/**").access((credencial, contexto) -> {
+                            Authentication quien = credencial.get();
+                            boolean autenticado = quien != null
+                                    && quien.isAuthenticated()
+                                    && !(quien instanceof AnonymousAuthenticationToken);
+                            boolean conTemporalPendiente = autenticado
+                                    && quien.getAuthorities().stream().anyMatch(a ->
+                                            AutenticacionDesdeBase.AUTORIDAD_PASSWORD_PENDIENTE
+                                                    .equals(a.getAuthority()));
+                            return new AuthorizationDecision(autenticado && !conTemporalPendiente);
+                        })
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(conversor))

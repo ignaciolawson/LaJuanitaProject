@@ -11,6 +11,25 @@
 
 ---
 
+> ## ✅ REMEDIACIÓN PARCIAL — 2026-09-25
+>
+> **Este informe se escribió de solo lectura. Al día siguiente se arregló lo que
+> no depende del deploy.** El detalle está en la **§9**; en una línea:
+>
+> | | Estado |
+> |---|---|
+> | `CS-01` · la temporal abría 32 endpoints | ✅ **ARREGLADO**, con tres casos nuevos, verificado poniendo el bug de vuelta |
+> | `CS-05` · `next` y `sharp` con CVE | ✅ **ARREGLADO** — `next` 16.3.6, `sharp` 0.35.4, `npm audit --omit=dev` en **0** |
+> | `CS-09` · `CS-10` · `CS-11` · `CS-12` | ✅ **ARREGLADOS** — son los comentarios de la §8 |
+> | `CS-03` · el candado JWT | ⚠️ **A MEDIAS.** La fila falsa de `operacion.md` está corregida y el `Dockerfile` tiene escrito qué debe llevar. **La línea en sí sigue pendiente: sigue bloqueando el deploy** |
+> | `CS-02` · `CS-04` · `CS-07` | ⏳ **DEL DEPLOY, a propósito.** Los tres se arreglan en el proxy o en el compose de producción, y `CS-04` **no se puede** hacer a medias |
+> | `CS-06` · `CS-08` · `CS-02` (2ª mitad) | ⏳ **Pendientes**, con motivo escrito en la §9 |
+>
+> ⚠️ **Y arreglar `CS-01` encontró que el código que este informe recomendaba
+> abría el portal entero al mundo.** Ver §9.1.
+
+---
+
 ## 1. Resumen ejecutivo
 
 El sistema está **mejor de lo que un proyecto de este tamaño suele estar**, y los
@@ -207,10 +226,26 @@ no es un alcance"*):
 ```java
 .requestMatchers(HttpMethod.GET,  "/api/me").authenticated()
 .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
-.requestMatchers("/api/me/**").access((auth, ctx) -> new AuthorizationDecision(
-        auth.get().getAuthorities().stream().noneMatch(a -> a.getAuthority()
-                .equals(AutenticacionDesdeBase.AUTORIDAD_PASSWORD_PENDIENTE))))
+.requestMatchers("/api/me/**").access((credencial, ctx) -> {
+    Authentication quien = credencial.get();
+    boolean autenticado = quien != null && quien.isAuthenticated()
+            && !(quien instanceof AnonymousAuthenticationToken);
+    boolean conTemporalPendiente = autenticado && quien.getAuthorities().stream()
+            .anyMatch(a -> AutenticacionDesdeBase.AUTORIDAD_PASSWORD_PENDIENTE
+                    .equals(a.getAuthority()));
+    return new AuthorizationDecision(autenticado && !conTemporalPendiente);
+})
 ```
+
+> ⚠️ **Corregido el 2026-09-25 al implementarlo.** La primera versión de este
+> bloque era una sola línea —`noneMatch(...)` y nada más— y **abría los 32
+> endpoints del portal a cualquiera**: `.access(...)` no exige estar autenticado,
+> y un pedido sin credencial llega como `AnonymousAuthenticationToken`, que
+> **tampoco tiene** esta autoridad, así que el predicado devolvía *"concedido"*.
+> Medido: escrita así, la regla dejaba pasar `GET /api/me/estado-de-cuenta` sin
+> token **hasta el controller**, donde moría en un NullPointerException. Es decir
+> que la recomendación de este informe era más permisiva que la regla que venía a
+> endurecer. Ver §9.1.
 
 ⚠️ **Por la AUSENCIA de la autoridad y no enumerando los cuatro roles**:
 enumerarlos haría de `SeguridadConfig` el **séptimo** lugar a tocar para agregar
@@ -498,18 +533,19 @@ no hay SRI que falte porque no hay nada que integrar. Sin open redirect.
 
 | | Qué | Esfuerzo |
 |---|---|:--:|
-| **`CS-03`** | `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`, y corregir la fila de `operacion.md:358` | XS |
-| **`CS-01`** | Los tres `requestMatchers` de `/api/me/**`, más ampliar `CredencialVigenteTest` | S |
-| — | **Desactivar el admin sembrado** (`admin@lajuanita.local` / `lajuanita2026`), que sigue activo y ya estaba en `pendientes.md` §1.4 | XS |
+| ⚠️ **`CS-03`** | `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`, ~~y corregir la fila de `operacion.md:358`~~ | XS |
+| | ✅ La fila de `operacion.md` está corregida (2026-09-25) y el punto 2 de su *Lo que falta* dice qué lleva el `Dockerfile`. **Falta la línea: el archivo no existe** | |
+| ✅ ~~**`CS-01`**~~ | **HECHO el 2026-09-25.** Los tres `requestMatchers` y tres casos nuevos, verificados poniendo el bug de vuelta. ⚠️ El código recomendado en §4.2 tenía un agujero — ver §9.1 | S |
+| — | **Desactivar el admin sembrado** (`admin@lajuanita.local` / `lajuanita2026`), que sigue activo y ya estaba en `pendientes.md` §1.4. ⚠️ **No se hace antes del deploy: es la cuenta con la que se entra en desarrollo** | XS |
 
 ### 🟡 Bloque 2 — Antes de exponer a internet
 
 | | Qué | Esfuerzo |
 |---|---|:--:|
-| **`CS-04`** | `forward-headers-strategy=framework` **y** un proxy que sanee `X-Forwarded-For` — **las dos mitades juntas** | S |
-| **`CS-02`** | `client_max_body_size 15m` en el proxy | S |
-| **`CS-05`** | `npm update next sharp` + `completar-lockfile.py`. ⚠️ **Antes de la próxima verificación en dispositivo**, que es cuando se abre el camino de Windows | S |
-| **`CS-07`** | Rotación de logs en el compose de producción | S |
+| **`CS-04`** | `forward-headers-strategy=framework` **y** un proxy que sanee `X-Forwarded-For` — **las dos mitades juntas**. Escrito en `operacion.md` §3 punto 4 | S |
+| **`CS-02`** | `client_max_body_size 15m` en el proxy. Escrito en `operacion.md` §3 punto 4 | S |
+| ✅ ~~**`CS-05`**~~ | **HECHO el 2026-09-25**, antes de la verificación en dispositivo. `next` 16.3.6, `sharp` 0.35.4, lockfile completado y `npm ci` ensayado en Linux. `npm audit --omit=dev` en 0 | S |
+| **`CS-07`** | Rotación de logs en el compose de producción. El YAML está escrito en `operacion.md` §3 punto 3 | S |
 | **`CS-06`** | Página de privacidad y la línea en los cuatro formularios | S |
 
 ⚠️ **Cuatro de estos cinco se arreglan en archivos que todavía no se
@@ -524,9 +560,9 @@ migración de configuración en producción.
 | **`CS-02`** (2ª mitad) | `@Size` en los 33 componentes sin techo | M |
 | **`CS-06`** (2ª mitad) | **La decisión de negocio**: hasta dónde llega *"no se borra nada"*, y la retención del buzón | M |
 | **`CS-08`** | Declarar `ESCAPE '\'` en las 29 cláusulas que lo omiten | S |
-| **`CS-10`** | Declarar las cabeceras de la API en vez de heredarlas | XS |
-| **`CS-09`**, **`CS-11`**, **`CS-12`** | Tres comentarios y una validación, cada uno donde corresponde | XS |
-| — | Completar la Fase 1 y la confirmación en caliente de los IDOR (§6) | M |
+| ⚠️ **`CS-10`** | Declarar las cabeceras de la API en vez de heredarlas. ✅ El **comentario** está puesto (2026-09-25); declararlas sigue pendiente y es opcional | XS |
+| ✅ ~~**`CS-09`**, **`CS-11`**, **`CS-12`**~~ | **HECHOS el 2026-09-25**, más el de `next.config.ts` que la §8 nombra sin ID | XS |
+| — | ~~Completar la Fase 1~~ (cerrada el 2026-09-24) y la confirmación en caliente de los IDOR (§6). La de `CS-01` quedó cubierta por casos corridos | M |
 
 ---
 
@@ -545,3 +581,130 @@ Es el mismo patrón que este proyecto ya documentó cinco veces desde el otro la
 —una regla de negocio que no vive en ninguna capa— y acá aparece dado vuelta:
 **una defensa que vive en el código y no en el razonamiento**. Cuesta tres
 comentarios (`CS-09`, `CS-10`, `CS-12`) y es lo más barato de todo este informe.
+
+---
+
+## 9. Remediación — 2026-09-25
+
+*Qué se arregló al día siguiente de escribir este informe, qué no, y por qué no.*
+
+**El criterio fue uno solo: se arregla lo que vive en el repo de desarrollo y no
+depende de decisiones del deploy.** Escribir ahora el `Dockerfile`, el
+`docker-compose.prod.yml` y la configuración del proxy sería escribirlos contra
+un VPS que nadie eligió, un dominio que no existe y un TLS que no se puede
+probar — y después reescribirlos. Lo que sí se hizo por ese lado es **dejar
+escrito en `operacion.md` §3 qué tiene que llevar cada uno de esos archivos**, que
+es la mitad que se olvida.
+
+**Suites después de todo: 779 backend contra base vacía · 719 front · ambos
+builds y ambos linters limpios.**
+
+### 9.1 · `CS-01` — arreglado, y el arreglo recomendado tenía un agujero
+
+`SeguridadConfig` tiene ahora los tres `requestMatchers` sobre `/api/me/**`, con
+`GET /api/me` y `POST /api/me/password` exceptuados **exactos**. Se verificó
+poniendo el bug de vuelta: sin la regla, `GET /api/me/estado-de-cuenta` con una
+temporal contesta **200**, que es exactamente lo que la §6.3 predecía sin haberlo
+corrido.
+
+⚠️ **Pero el código que este informe recomienda, copiado tal cual, abre los 32
+endpoints del portal a cualquiera.** `.access(...)` **no exige estar
+autenticado**, y un pedido sin credencial llega como
+`AnonymousAuthenticationToken`, que **tampoco tiene** la autoridad
+`ROLE_PASSWORD_PENDIENTE`: un predicado escrito solo sobre su ausencia devuelve
+*"concedido"* para el anónimo. Medido — escrita así, la regla deja que
+`GET /api/me/estado-de-cuenta` sin token **llegue al controller** y reviente en
+`Autoridades.idDe(quienPide)` con el `Authentication` en null. O sea que no es
+que se filtre poco: la autorización **concede**, y lo único que detiene el pedido
+es un NullPointerException. La versión que quedó exige las dos cosas — estar
+autenticado **y** no tener la autoridad.
+
+**La lección es del mismo género que las que este proyecto ya anota, con el signo
+cambiado: una recomendación de seguridad también hay que verificarla corriendo.**
+Estaba escrita en un informe, razonada, y era más permisiva que la regla que
+venía a endurecer. El caso `el_portal_sigue_pidiendo_credencial` existe
+exactamente para eso, y se lo verificó escribiendo la forma corta y viéndolo
+ponerse en rojo.
+
+**Tres casos nuevos en `CredencialVigenteTest`, y el tercero no es de seguridad:**
+
+| Caso | Qué fija |
+|---|---|
+| `con_password_temporal_tampoco_se_entra_al_portal` | Lectura (`estado-de-cuenta`, `reservas`), escritura (`perfil` — del **mismo** controller que las dos salidas abiertas, así que se pone en verde por el motivo equivocado si la excepción se escribe por prefijo) y el tramo `/profesor`, que es el que alcanza datos de terceros |
+| `el_portal_sigue_pidiendo_credencial` | La trampa de arriba |
+| `sin_temporal_el_portal_sigue_abierto_para_un_usuario_comun` | ⚠️ **Que el portal siga siendo el portal.** Sin este caso, cerrar `/api/me/**` de más dejaría a todos los alumnos afuera y **ninguno de los otros dos lo notaría** |
+
+**Y se corrigieron los dos comentarios que declaraban completa la corrección
+parcial** — el de `AutenticacionDesdeBase` (*"justo lo necesario para salir del
+estado, y nada más"*) y el de `PortalController` (*"no llega hasta acá"*), que
+ahora dicen dónde se sostiene la regla. **El front no necesitó nada**: verificado,
+`RutaProtegida` corta antes del `Layout`, así que en ese estado la SPA solo llama
+a `GET /api/me` y `POST /api/me/password` — las dos rutas abiertas.
+
+### 9.2 · `CS-05` — arreglado
+
+`next` **16.3.0 → 16.3.6** y `sharp` **0.35.3 → 0.35.4** (arrastrado por el
+primero). `npm audit --omit=dev` pasó de dos avisos a **`found 0
+vulnerabilities`**. Quedan dos de **solo desarrollo** (`@vitest/mocker`,
+`js-yaml`), previos a este cambio y fuera del alcance que este informe midió.
+
+⚠️ **`next` estaba pineado exacto en el `package.json`**, así que `npm update` no
+lo movía: hubo que cambiar el pin. Y se siguió el procedimiento obligatorio del
+repo: `python scripts/completar-lockfile.py` (dio **0 faltantes** — esta vez npm
+regeneró bien las 83 entradas de Linux) y el **ensayo real de `npm ci` en
+`node:22` por Docker**, que pasó. Build de la landing limpio, 20 páginas, y
+`eslint` sin nada.
+
+### 9.3 · `CS-09`, `CS-10`, `CS-11`, `CS-12` — arreglados, que es la §8
+
+Los cuatro son comentarios, que es lo que la §8 de este informe pide: **defensas
+que funcionan por un motivo distinto del que dice su comentario, y que se pierden
+en el primer cambio que parezca una mejora.**
+
+- **`CS-09`** — `AltaMaterialRequest.isUrlConEsquema` dice ahora que además es la
+  defensa contra un `javascript:` almacenado que el portal del alumno renderiza
+  en un `<a href>`, y que si algún día hay que aceptar otro esquema se agrega por
+  lista blanca, nunca sacando el chequeo.
+- **`CS-10`** — `SeguridadConfig` dice ahora que la ausencia de `.headers(...)`
+  **no** significa que la API salga sin cabeceras, cuáles hereda y qué cierra el
+  `nosniff`. ⚠️ **Se dejó como comentario y no se declararon las cabeceras**: la
+  recomendación era *"conviene declararlas"*, y declararlas es cambiar
+  configuración de seguridad que hoy funciona, en la misma sesión y el mismo
+  archivo que el arreglo de `CS-01`. El comentario compra lo que importa — que
+  quien lo toque sepa qué está apagando.
+- **`CS-11`** — `informe/Celda.Texto` lleva la regla del CSV escrita, **con dónde
+  va** (en el escritor del CSV, no en la celda: hacerlo acá ensuciaría el xlsx y
+  el PDF, donde el problema no existe).
+- **`CS-12`** — el `src` de los iframes del blog dice que es seguro **por de dónde
+  vienen sus datos**, y qué validar el día que ese id lo escriba un editor desde
+  un CMS.
+
+**Y uno de yapa que la §8 nombra y no tiene ID**: `next.config.ts` dice ahora que
+`formats: ["image/webp"]` cierra la RCE de AVIF, además de ser más rápido — o
+sea que volver a poner `"image/avif"` no es solo una decisión de performance.
+
+### 9.4 · `CS-03` — a medias, y sigue bloqueando el deploy
+
+**Lo que sí se hizo:** `operacion.md` §3 tenía una fila que prometía un fallo
+cerrado que no ocurre (*"la aplicación no arranca"*) y un párrafo que decía que
+ese olvido *"se descubre solo"*. **Las dos cosas eran falsas y son lo que hace que
+el olvido pase**, porque quien despliega lee esa tabla. Están corregidas, con un
+recuadro que muestra la evidencia del `jar tf`, y el punto 2 de *Lo que falta*
+dice ahora que el `Dockerfile` del backend lleva
+`ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`.
+
+**Lo que no:** la línea, porque el archivo no existe. **`CS-03` sigue abierto y
+sigue bloqueando el deploy.**
+
+### 9.5 · Lo que se dejó para el deploy, con el motivo
+
+| | Por qué no ahora |
+|---|---|
+| `CS-04` | ⚠️ **No se puede hacer la mitad.** Poner `forward-headers-strategy=framework` sin un proxy que sanee `X-Forwarded-For` deja que cualquiera elija su IP por pedido: **peor que el problema**. Escrito en `operacion.md` §3 punto 4 |
+| `CS-02` (1ª mitad) | El techo va en el proxy — cualquier chequeo en Java ya pagó la memoria. Escrito en el mismo punto |
+| `CS-07` | Va en el compose de producción. Escrito en el punto 3, con el YAML |
+| `CS-06` | El mínimo accionable pide **una dirección de contacto que exista**, y `hola@lajuanitastudio.com` no existe (`platform.md` §13). La 2ª mitad es una decisión de negocio. Y la landing no publica todavía |
+| `CS-02` (2ª mitad) | **Los 33 `@Size` esperan al proxy a propósito.** El techo real es el de ahí; elegir 33 números de memoria tiene chance concreta de rechazar después un texto legítimo — `notas` sobre todo |
+| `CS-08` | ⚠️ **Deliberadamente no se hizo, y es la decisión más discutible de esta sesión.** Este informe dice que *"no es un agujero"*: la barra invertida **es** el escape por defecto de `LIKE` en Postgres y `Busqueda.patron()` escapa bien. Tocar 29 queries para dejar igual lo que ya está bien es riesgo sin ganancia hoy. **Lo que lo volvería urgente es un cambio de `standard_conforming_strings` o de motor**, no el paso del tiempo |
+| Admin sembrado | ⚠️ **No se desactiva ahora: es la cuenta con la que se entra en desarrollo.** Va en la migración nueva, junto con el deploy |
+| Confirmaciones en caliente (§6) | Siguen pendientes, salvo la de `CS-01`, que quedó cubierta por los tres casos nuevos — **corridos**, no leídos |

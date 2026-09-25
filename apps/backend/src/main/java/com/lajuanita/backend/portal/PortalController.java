@@ -60,9 +60,14 @@ import jakarta.validation.Valid;
  * servicios se muestran igual porque si se ocultaran hasta tener la primera fila,
  * nadie podría hacer su primera reserva nunca (§2.2).
  *
- * <p>El que todavía debe cambiar su contraseña <b>no llega hasta acá</b>: sus
- * autoridades son {@code ROLE_PASSWORD_PENDIENTE}, que solo abre {@code /api/me} y
- * {@code /api/me/password}.
+ * <p>El que todavía debe cambiar su contraseña <b>no llega hasta acá</b>, y
+ * ⚠️ <b>hasta septiembre de 2026 esta frase era falsa</b>: llegaba a los 32
+ * mappings de este prefijo, porque no llevar anotación de rol es justamente lo
+ * que los dejaba en el {@code anyRequest().authenticated()}, y
+ * {@code ROLE_PASSWORD_PENDIENTE} está autenticado ({@code CS-01}). Lo sostiene
+ * ahora una regla de ruta sobre {@code /api/me/**} en {@code SeguridadConfig}: lo
+ * que autoriza por identidad con un {@code WHERE} <b>también</b> necesita que
+ * alguien diga quién puede tocar el prefijo.
  */
 @RestController
 @RequestMapping("/api/me")

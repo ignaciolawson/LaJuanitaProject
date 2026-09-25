@@ -50,10 +50,24 @@ public class AutenticacionDesdeBase implements Converter<Jwt, AbstractAuthentica
      * contraseña.
      *
      * <p>No es un rol del negocio: es un estado. Al no tener {@code ROLE_ADMIN}
-     * ni ninguno de los otros, no pasa ningún {@code @PreAuthorize} -- pero
-     * sigue autenticada, así que puede usar {@code /api/me} para saber quién es
-     * y {@code /api/me/password} para arreglarlo. Justo lo necesario para salir
-     * del estado, y nada más.
+     * ni ninguno de los otros, no pasa ningún {@code @PreAuthorize}: eso la deja
+     * afuera de todo el eje de administración.
+     *
+     * <p>⚠️ <b>Eso solo no alcanzaba, y este comentario decía que sí.</b> Prometiía
+     * que la temporal podía usar {@code /api/me} y {@code /api/me/password} y
+     * <i>"nada más"</i>. Los 32 mappings del portal no llevan ninguna de las tres
+     * meta-anotaciones -- no las necesitan, autorizan por identidad con un
+     * {@code WHERE} -- así que caían en el {@code anyRequest().authenticated()} y
+     * esta autoridad <b>está</b> autenticada. Quedaban 30 alcanzables de más, 11
+     * de escritura, y por el tramo {@code /profesor} alcanzaban datos de terceros
+     * ({@code CS-01} del informe de ciberseguridad de septiembre de 2026).
+     *
+     * <p><b>Ahora lo sostiene una regla de ruta</b>, en
+     * {@link SeguridadConfig#cadenaDeFiltros}: {@code /api/me/**} rechaza a quien
+     * tenga esta autoridad, con {@code GET /api/me} y
+     * {@code POST /api/me/password} exceptuados exactos. Va ahí y no en 32
+     * anotaciones por el argumento del Módulo 4: <i>un alcance que se puede
+     * olvidar no es un alcance</i>.
      */
     public static final String AUTORIDAD_PASSWORD_PENDIENTE = "ROLE_PASSWORD_PENDIENTE";
 

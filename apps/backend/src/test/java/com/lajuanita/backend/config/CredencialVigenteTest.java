@@ -2,6 +2,7 @@ package com.lajuanita.backend.config;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
@@ -136,6 +137,95 @@ class CredencialVigenteTest {
                         {"passwordActual":"loQueSea","passwordNueva":"unaClaveLarga"}
                         """))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * ⚠️ <b>Y tampoco entra al portal</b>, que es lo que este archivo daba por
+     * probado y no probaba. El caso de arriba mira {@code /api/alumnos} y el alta
+     * de alumno: <b>las dos del eje de administración</b>, donde el candado ya
+     * funcionaba porque esos mappings llevan meta-anotación de rol.
+     *
+     * <p>Los 32 mappings de {@code /api/me} no llevan ninguna --autorizan por
+     * identidad, con un {@code WHERE}-- así que caían en el
+     * {@code anyRequest().authenticated()} y {@code ROLE_PASSWORD_PENDIENTE}
+     * <b>está</b> autenticado. Quedaban 30 alcanzables de más, 11 de escritura
+     * ({@code CS-01}). El nombre del caso de arriba --<i>"ni por api"</i>--
+     * prometía más de lo que probaba.
+     *
+     * <p>La temporal es deliberadamente una credencial débil: la genera
+     * administración, la ve Micaela, viaja por WhatsApp y vale 7 días. Todo el
+     * sentido de {@code debeCambiarPassword} es que no valga como acceso real
+     * hasta ser reemplazada.
+     */
+    @Test
+    void con_password_temporal_tampoco_se_entra_al_portal() throws Exception {
+        Usuario conTemporal = crear(Rol.USUARIO, true);
+        String credencial = credencialPara(conTemporal);
+
+        // Leer lo suyo: plata, deudas, saldos.
+        mvc.perform(get("/api/me/estado-de-cuenta").header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/me/reservas").header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+
+        // Escribir lo suyo. ⚠️ /api/me/perfil cuelga del MISMO controller que las
+        // dos salidas abiertas: si la excepción se escribiera por prefijo en vez
+        // de exacta, este caso se pone en verde por el motivo equivocado.
+        mvc.perform(put("/api/me/perfil")
+                .header("Authorization", credencial)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombre":"Otro","apellido":"Nombre","telefono":"1122334455"}
+                        """))
+                .andExpect(status().isForbidden());
+
+        // Y el tramo del profesor, que es el que alcanza datos de TERCEROS: la
+        // lista de sus alumnos con nivel y semáforo.
+        mvc.perform(get("/api/me/profesor/alumnos").header("Authorization", credencial))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * La otra mitad del arreglo de {@code CS-01}, y la que se rompe sola si
+     * alguien "simplifica" la regla.
+     *
+     * <p>La regla de ruta rechaza a quien <b>tenga</b> la autoridad
+     * {@code ROLE_PASSWORD_PENDIENTE}. Un pedido sin credencial llega como
+     * {@code AnonymousAuthenticationToken}, que <b>tampoco la tiene</b>: escrita
+     * mirando solamente su ausencia --que es la forma corta y la que primero se
+     * escribe-- la regla abriría los 32 endpoints del portal al mundo entero.
+     * Por eso el predicado exige además estar autenticado.
+     */
+    @Test
+    void el_portal_sigue_pidiendo_credencial() throws Exception {
+        mvc.perform(get("/api/me/estado-de-cuenta"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/me/notificaciones"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Y la tercera mitad: <b>que el portal siga siendo el portal</b>. Un
+     * {@code USUARIO} común --sin rol de administración y sin temporal-- tiene que
+     * seguir entrando. Sin este caso, cerrar {@code /api/me/**} de más dejaría a
+     * todos los alumnos afuera y ninguno de los otros dos casos lo notaría.
+     */
+    @Test
+    void sin_temporal_el_portal_sigue_abierto_para_un_usuario_comun() throws Exception {
+        Usuario alumno = crear(Rol.USUARIO, false);
+        String credencial = credencialPara(alumno);
+
+        mvc.perform(get("/api/me/estado-de-cuenta").header("Authorization", credencial))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/me/reservas")
+                .param("desde", "2026-01-01")
+                .param("hasta", "2026-01-31")
+                .header("Authorization", credencial))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/me/notificaciones").header("Authorization", credencial))
+                .andExpect(status().isOk());
     }
 
     /** Un token cuyo `sub` apunta a un usuario borrado no autentica a nadie. */

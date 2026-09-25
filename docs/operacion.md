@@ -359,15 +359,51 @@ de desplegar esto en algún lado"*, y es la fuente. Lo que importa repetir acá 
 
 | Si te olvidás de… | Qué pasa |
 |---|---|
-| `JWT_SECRET` (valor **nuevo**) y borrar `lajuanita.jwt.permitir-secreto-de-desarrollo` | **La aplicación no arranca.** Es a propósito y falla cerrado: el secreto commiteado es público y con él se fabrica un token de `ADMIN` sin saber ninguna contraseña |
+| ⚠️ `JWT_SECRET` (valor **nuevo**) | **Depende de la otra mitad, y por eso va en el `Dockerfile`.** Si el artefacto lleva `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`, no arranca —falla cerrado, que es lo que se busca—. **Si no lo lleva, arranca y firma con la clave pública**, dejando un WARN entre cientos: el secreto commiteado es público y con él se fabrica un token de `ADMIN` sin saber ninguna contraseña |
+| ⚠️ `LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile` | **Es la fila que hace que la de arriba funcione.** Ver el recuadro debajo de la tabla |
 | `DB_PASSWORD` / `POSTGRES_PASSWORD` | Arranca perfecto con la contraseña pública `la_juanita`. **No avisa nada** |
 | Sacar el `ports: 5432:5432` del compose | La base queda publicada al mundo. Con la contraseña por defecto, es la combinación estándar de base comprometida |
 | `CORS_ORIGENES` | El panel no puede llamar a la API desde el navegador |
 | Desactivar `admin@lajuanita.local` (migración nueva, después de crear los usuarios reales) | Queda una cuenta de administrador con contraseña publicada en el README |
 
-Las tres primeras están ordenadas por lo que cuesta descubrirlas: la primera se
-descubre sola, la segunda no se descubre nunca, y la tercera se descubre cuando
-ya es tarde.
+Las primeras están ordenadas por lo que cuesta descubrirlas: **la del secreto
+JWT no se descubre sola** —ver el recuadro—, la de `DB_PASSWORD` no se descubre
+nunca, y la del puerto se descubre cuando ya es tarde.
+
+> ### ⚠️ El candado del secreto JWT falla ABIERTO adentro del jar (`CS-03`)
+>
+> **Esta sección decía, hasta el 2026-09-25, que olvidarse del `JWT_SECRET` hacía
+> que la aplicación no arrancara. Es falso, y se confirmó empaquetando.**
+>
+> `SeguridadConfig` justifica el candado diciendo que el permiso
+> (`lajuanita.jwt.permitir-secreto-de-desarrollo=true`) *"vive en el
+> `application.properties` del repo, que es exactamente lo que un deploy no
+> copia"*. Un jar de Spring Boot **sí lo copia**:
+>
+> ```
+> $ jar tf target/backend-0.0.1-SNAPSHOT.jar | grep application.properties
+> BOOT-INF/classes/application.properties
+> ```
+>
+> Así que el permiso viaja adentro del artefacto y el olvido de `JWT_SECRET`
+> **arranca igual, firmando con la clave que está commiteada en el repositorio.**
+>
+> **Es el olvido probable**, no uno raro: todo el resto de este deploy son
+> variables de entorno, y ésta sería la única fila que además pide **editar un
+> archivo versionado**. Un candado contra el que se olvidó de configurar algo no
+> puede exigir haber *desconfigurado* otra cosa — es el mismo defecto que SEC-01
+> le marcó al candado anterior, con el signo cambiado.
+>
+> **El arreglo es una línea en el `Dockerfile` del backend**, que todavía no
+> existe (punto 2 de *Lo que falta*):
+>
+> ```dockerfile
+> ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false
+> ```
+>
+> Una variable de entorno gana sobre el properties empaquetado: el artefacto
+> viaja cerrado, un clone fresco sigue arrancando con `mvn spring-boot:run`, y la
+> defensa deja de depender de que alguien se acuerde de borrar una línea.
 
 ### Orden de arranque
 
@@ -383,15 +419,60 @@ antes de que llegue a estar lista.
    procedimiento de HTTPS.
 2. **Un `Dockerfile` para el backend y otro para el panel.** Hoy no existen: en
    desarrollo el backend lo levanta Maven y el front lo levanta Vite.
+
+   ⚠️ **El del backend lleva `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`
+   — es `CS-03` y bloquea el deploy.** Ver el recuadro de más arriba: sin esa
+   línea el candado del secreto JWT falla abierto adentro del jar.
 3. **`docker-compose.prod.yml`** con los tres servicios, `restart:
    unless-stopped` y healthcheck del backend contra `/actuator/health` —el
    endpoint ya existe y es público—. **Sin healthcheck no hay reinicio
    automático: Docker no puede reiniciar lo que no sabe que está caído.** Es la
    mitad que le falta a QA-07.
-4. **Proxy HTTPS por delante.** Cuando esté, hay que definir
-   `server.forward-headers-strategy`, o el log de seguridad va a registrar la IP
-   del proxy en cada evento en vez de la del cliente, y con eso el registro de
-   intentos de login no sirve para nada.
+
+   ⚠️ **Y lleva rotación de logs — es `CS-07`:**
+
+   ```yaml
+   logging:
+     driver: json-file
+     options: { max-size: "10m", max-file: "5" }
+   ```
+
+   `application.properties` no tiene una sola línea de `logging.*`, así que
+   Spring escribe solo a stdout y en Compose eso lo captura `json-file`, que
+   **por defecto no rota ni tiene límite**. El acelerador es propio del sistema:
+   `RegistroDeEventos` escribe una línea por login y `FiltroDeFrecuencia` una por
+   límite excedido, o sea que **un ataque de fuerza bruta escribe el log que
+   llena el disco**. Y el rastro además no es durable: recrear el contenedor se
+   lo lleva, y `backup.sh` no lo respalda (correctamente — un log no va en un
+   `pg_dump`). Para eso, `logging.file.name` con rotación sobre un volumen, y
+   **que el logger `seguridad` salga a su propio archivo**: hoy sus ocho eventos
+   están mezclados con todo lo que loguea Spring.
+4. **Proxy HTTPS por delante.** Tres cosas, y la primera tiene una trampa:
+
+   ⚠️ **`server.forward-headers-strategy=framework` Y un proxy que SANEE
+   `X-Forwarded-For` — las dos mitades juntas o ninguna (`CS-04`).** Con la
+   propiedad puesta y un proxy que no sanea, cualquiera elige su IP por pedido y
+   evade el límite: **peor que el problema original**. Por eso no se puso ya en
+   `application.properties`, y no es un olvido.
+
+   Lo que está en juego son dos cosas, no una. La documentada es que
+   `RegistroDeEventos` loguea la IP del proxy en cada evento. **La que no estaba
+   escrita en ninguna parte es peor: el límite por IP se convierte en un balde
+   global.** Los 120 por ventana dejan de ser por visitante y pasan a ser del
+   sitio entero, lo que da vuelta el control — quien quiera dejar a todo el
+   estudio afuera del login solo tiene que gastar el balde compartido desde una
+   máquina. **Lo que existe para frenar fuerza bruta pasa a ser el arma.** Atenúa
+   —y no alcanza— que el límite **por email** siga funcionando, porque la
+   dirección viene del cuerpo y no de la red.
+
+   ⚠️ **`client_max_body_size 15m;` — es `CS-02`.** El único techo configurado
+   hoy es el de multipart; **un cuerpo JSON no tiene ninguno**, y se deserializa
+   entero en memoria **antes** de que corra un solo `@Size`. El peor caso es
+   público (`POST /api/solicitantes`): el límite por IP acota cuántos pedidos, no
+   cuán grandes. El techo va acá y no en Java porque cualquier chequeo en Java ya
+   pagó la memoria; el 15 deja pasar el multipart de 13 con aire.
+
+   Y las dos cabeceras del punto 5.
 5. **Las dos cabeceras que el panel no puede ponerse solo** (SEC-07). El panel
    ya declara su Content-Security-Policy, pero la declara en un `<meta>` del
    `index.html` porque es estático y no tiene servidor propio, y **hay dos

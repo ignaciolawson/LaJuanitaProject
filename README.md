@@ -232,11 +232,34 @@ desde afuera hay que definir la variable de entorno `JWT_SECRET` (Base64, mínim
 32 bytes), y ese valor tiene que ser **nuevo**: el del repo hay que darlo por
 público para siempre.
 
-El candado **falla cerrado**: la aplicación **se niega a arrancar** si está
-firmando con el secreto commiteado, salvo que
-`lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté en el
-`application.properties` — la línea que un deploy no copia. No depende de que
-alguien active un perfil de producción ni de que lea un WARN.
+El candado **falla cerrado solo si el artefacto trae
+`LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false`**, y ⚠️ **este párrafo
+afirmaba lo contrario hasta el 2026-09-25**. La aplicación se niega a arrancar
+firmando con el secreto commiteado **salvo** que
+`lajuanita.jwt.permitir-secreto-de-desarrollo=true` esté presente — y esa línea
+**sí la copia un deploy**, porque viaja adentro del jar:
+
+```
+$ jar tf target/backend-0.0.1-SNAPSHOT.jar | grep application.properties
+BOOT-INF/classes/application.properties
+```
+
+O sea que olvidarse de `JWT_SECRET` **no rompe el arranque: firma con la clave
+pública y deja un WARN entre cientos.** Es el hallazgo `CS-03` del informe de
+ciberseguridad de septiembre de 2026, **y bloquea el deploy**.
+
+**El arreglo es una línea en el `Dockerfile` del backend** (que todavía no
+existe):
+
+```dockerfile
+ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false
+```
+
+Una variable de entorno gana sobre el properties empaquetado: el artefacto viaja
+cerrado, un clone fresco sigue arrancando con `mvn spring-boot:run`, y la defensa
+**deja de depender de que alguien se acuerde de borrar una línea** — que era el
+problema, porque todo el resto de este deploy son variables de entorno y ésta
+sería la única que además pide editar un archivo versionado.
 
 **Pero el JWT no es lo único.** Esta es la lista completa de lo que cambia por
 ambiente. Todos los valores de desarrollo están commiteados a propósito, para
@@ -245,7 +268,7 @@ que un clone arranque; **todos son públicos y ninguno sirve en producción**:
 | Variable | Desarrollo (commiteado) | Producción |
 |---|---|---|
 | `JWT_SECRET` | el del `application.properties` | **valor nuevo**, Base64 ≥32 bytes |
-| `lajuanita.jwt.permitir-secreto-de-desarrollo` | `true` | **borrar la línea** |
+| `lajuanita.jwt.permitir-secreto-de-desarrollo` | `true` | ⚠️ **`LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` en el `Dockerfile`.** Borrar la línea del properties también sirve, pero no alcanza como única defensa: es justo lo que un deploy se olvida |
 | `DB_URL` | `jdbc:postgresql://localhost:5432/la_juanita` | la red interna del compose |
 | `DB_USER` | `la_juanita` | el que se decida |
 | `DB_PASSWORD` | `la_juanita` | **otra**, generada |

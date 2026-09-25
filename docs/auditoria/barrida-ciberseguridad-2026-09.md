@@ -1360,9 +1360,24 @@ práctica normal registrar contra qué cuenta se intentó.)
 2. **Las confirmaciones en caliente** que el informe lista en su §6 — **todas
    opcionales**, todas con su procedimiento escrito. La de `CS-01` son dos
    minutos y es la que más paga. **Es lo único que queda.**
-3. ⚠️ **Nada de esto está arreglado.** La barrida es de solo lectura: **no se
-   tocó una línea de código, de configuración ni de migración.** El backlog
-   priorizado en tres bloques está en la §7 del informe.
+3. ~~⚠️ **Nada de esto está arreglado.**~~ ✅ **SE REMEDIÓ EL 2026-09-25 lo que no
+   depende del deploy** — `CS-01`, `CS-05` y los cuatro comentarios de la §8
+   (`CS-09`–`CS-12`), más la fila falsa de `operacion.md` que `CS-03` denunciaba.
+   **El detalle es la §9 del informe**, que es también donde está escrito, uno por
+   uno, por qué los otros esperan. Suites en **779 backend · 719 front**.
+
+   ⚠️ **Lo que sigue abierto y bloquea el deploy es `CS-03`**: la línea
+   `ENV LAJUANITA_JWT_PERMITIR_SECRETO_DE_DESARROLLO=false` va en un `Dockerfile`
+   que todavía no existe. Lo que sí se hizo es que `operacion.md` §3 ya no promete
+   un fallo cerrado que no ocurre, y dice qué tiene que llevar cada archivo del
+   deploy (`CS-02`, `CS-04` y `CS-07` incluidos).
+
+   ⚠️ **Y el arreglo de `CS-01` encontró algo que vale más que el arreglo: el
+   código que el informe recomendaba abría el portal entero.** `.access(...)` no
+   exige estar autenticado y el token anónimo tampoco tiene la autoridad que la
+   regla busca, así que el predicado concedía. **Una recomendación de seguridad,
+   razonada y escrita, era más permisiva que la regla que venía a endurecer** —
+   también hay que verificarla corriendo. Ver §9.1 del informe.
 
 ### Dos cosas de higiene que dejó esta sesión
 
@@ -1374,3 +1389,7 @@ práctica normal registrar contra qué cuenta se intentó.)
   equivocado: el bloque *WHERE TO RESUME* de `CLAUDE.md` y los carteles de
   `mejoras.md` y `pendientes.md`. Si quedan, el próximo va a venir a buscar
   trabajo terminado — el mismo error con el signo cambiado.
+
+  **Al 2026-09-25 todavía no cierra, así que los tres siguen — reescritos**: ya no
+  dicen *"nada está arreglado"* sino qué quedó, que es `CS-03` y el bloque del
+  deploy. **El día que se escriba el `Dockerfile` se sacan los tres.**
