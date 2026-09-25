@@ -145,8 +145,8 @@ const nextConfig: NextConfig = {
      * la primera visita. Con las fuentes ya recomprimidas, el 20% extra no
      * paga esa espera.
      *
-     * ⚠️ Y hace una segunda cosa que no estaba escrita: <b>cierra la RCE no
-     * autenticada de la Image Optimization API con archivos AVIF</b>
+     * ⚠️ Y hace una segunda cosa que no estaba escrita: **cierra la RCE no
+     * autenticada de la Image Optimization API con archivos AVIF**
      * (GHSA-2xp9-vwfh-vxw4, la CVE de `next` <= 16.3.2 — CS-05 del informe de
      * ciberseguridad de 2026-09). La versión ya está actualizada, así que esto
      * no es hoy la única defensa; pero **volver a poner "image/avif" acá no es

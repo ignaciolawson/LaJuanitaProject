@@ -129,21 +129,18 @@ public class SeguridadConfig {
      * arrancando con {@code mvn spring-boot:run}. Está escrito en
      * {@code docs/operacion.md} §3 y en el README.
      *
-     * <p>⚠️ <b>La lección, que es la misma que SEC-01 le marcó al candado anterior
-     * con el signo cambiado:</b> aquél se disparaba solo con un perfil
-     * {@code prod} activo —exigía haber <i>configurado</i> otra cosa— y éste exige
-     * haber <i>desconfigurado</i> otra cosa. <b>El escenario que hay que atrapar es
-     * el del que se olvidó, y un candado contra el olvido no puede depender de un
-     * segundo acto deliberado.</b> La única forma de que no dependa de nadie es que
-     * el artefacto lo lleve.
-     *
-     * <p>Antes el candado se disparaba solo con un perfil {@code prod} activo, y
-     * eso era operativamente vacío: nada en el repo activa un perfil, el deploy
-     * previsto (VPS con Docker Compose) no usa ninguno, y el escenario que hay
-     * que atrapar es justamente el del que se olvidó de configurar algo. El
-     * candado exigía haber configurado otra cosa, así que un
-     * {@code docker compose up} sin variables arrancaba, firmaba con la clave
-     * pública y dejaba una línea de WARN entre cientos.
+     * <p>⚠️ <b>Y es la misma lección que este candado ya había aprendido una vez,
+     * con el signo cambiado.</b> El candado ANTERIOR se disparaba solo con un
+     * perfil {@code prod} activo, y eso era operativamente vacío: nada en el repo
+     * activa un perfil, el deploy previsto (VPS con Docker Compose) no usa
+     * ninguno, y el escenario que hay que atrapar es justamente el del que se
+     * olvidó de configurar algo. Ese candado exigía haber <i>configurado</i> otra
+     * cosa (el perfil), así que un {@code docker compose up} sin variables
+     * arrancaba, firmaba con la clave pública y dejaba una línea de WARN entre
+     * cientos — exactamente lo que este candado nuevo vuelve a hacer, ahora
+     * exigiendo haber <i>desconfigurado</i> otra cosa. <b>Un candado contra el
+     * que se olvidó no puede depender de un segundo acto deliberado</b>; la única
+     * forma de que no dependa de nadie es que el artefacto lo lleve.
      *
      * <p>⚠️ El párrafo que seguía acá decía que <i>"cualquier entorno que no traiga
      * el archivo del repo tal cual no arranca"</i>. Es falso por lo de arriba: el
@@ -229,7 +226,7 @@ public class SeguridadConfig {
                 //
                 // Funciona y depende de no tocarlo: un `.headers(h -> h.disable())`
                 // futuro lo apaga sin que falle nada, ni un test ni un build
-                // ({@code CS-10} del informe de ciberseguridad de 2026-09). Si
+                // (`CS-10` del informe de ciberseguridad de 2026-09). Si
                 // algún día hace falta agregar una cabecera, se declaran TODAS
                 // explícitamente en vez de heredarlas.
                 .cors(Customizer.withDefaults())

@@ -21,7 +21,7 @@
 > | `CS-01` · la temporal abría 32 endpoints | ✅ **ARREGLADO**, con tres casos nuevos, verificado poniendo el bug de vuelta |
 > | `CS-05` · `next` y `sharp` con CVE | ✅ **ARREGLADO** — `next` 16.3.6, `sharp` 0.35.4, `npm audit --omit=dev` en **0** |
 > | `CS-09` · `CS-10` · `CS-11` · `CS-12` | ✅ **ARREGLADOS** — son los comentarios de la §8 |
-> | `CS-03` · el candado JWT | ⚠️ **A MEDIAS.** La fila falsa de `operacion.md` está corregida y el `Dockerfile` tiene escrito qué debe llevar. **La línea en sí sigue pendiente: sigue bloqueando el deploy** |
+> | `CS-03` · el candado JWT | ⚠️ **A MEDIAS.** La fila falsa de `operacion.md` está corregida, y ese mismo documento dice ahora qué línea debe llevar el `Dockerfile` **el día que se escriba**. **El archivo en sí no existe: sigue bloqueando el deploy** |
 > | `CS-02` · `CS-04` · `CS-07` | ⏳ **DEL DEPLOY, a propósito.** Los tres se arreglan en el proxy o en el compose de producción, y `CS-04` **no se puede** hacer a medias |
 > | `CS-06` · `CS-08` · `CS-02` (2ª mitad) | ⏳ **Pendientes**, con motivo escrito en la §9 |
 >
@@ -512,10 +512,12 @@ no hay SRI que falte porque no hay nada que integrar. Sin open redirect.
    en caliente es otra sesión**. *Procedimiento:* dos cuentas de alumno, pedir
    con el token de A el `id` de B en los siete endpoints de §5; los siete tienen
    que contestar *"no existe"*.
-3. **`CS-01` no se ejecutó, se leyó.** La cadena estática es concluyente.
-   *Procedimiento, 2 minutos:* crear una cuenta desde `/admin/usuarios` (nace con
-   temporal), loguearse y pedir `GET /api/me/estado-de-cuenta`. **Hoy tiene que
-   contestar 200**; con el arreglo, 403.
+3. ~~**`CS-01` no se ejecutó, se leyó.**~~ ✅ **CUBIERTO el 2026-09-25.** El
+   procedimiento que este punto pedía —crear una cuenta con temporal y pedir
+   `GET /api/me/estado-de-cuenta`— es exactamente lo que fijan los tres casos
+   nuevos de `CredencialVigenteTest`, y se corrieron: **antes del arreglo
+   contestaba 200** (verificado poniendo el bug de vuelta), **después, 403**. Ver
+   §9.1.
 4. **`CS-04` y `CS-07` no se pueden probar hasta que el proxy exista.**
 5. **No se corrió un escáner de CVE contra Maven.** Se listan las versiones
    —Spring Boot 4.1.1, `poi-ooxml` 5.4.1, `openpdf` 2.0.3, todas recientes— y se
