@@ -89,6 +89,26 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   /**
+   * Deja entrar al celular durante el desarrollo (2026-09-26).
+   *
+   * Sin esto, `next dev` bloquea por seguridad cualquier pedido que no venga
+   * de `localhost` — pensado para que una página maliciosa en otro sitio no
+   * pueda leer los recursos internos del dev server de otra persona. El
+   * síntoma es engañoso: el HTML llega igual (SSR), así que la página SE VE
+   * — el abanico del `Preloader`, el layout — pero el bundle de cliente
+   * nunca arranca, y cualquier animación que dependa de él (la cuenta de
+   * 000 a 100) se queda congelada para siempre. El log del propio Next lo
+   * dice: *"Blocked cross-origin request to Next.js dev resource /_next/hmr"*.
+   *
+   * ⚠️ Es la IP de esta red Wi-Fi en este momento (`192.168.6.109`), no algo
+   * que tenga sentido commitear: cambia con el DHCP, con la red, con quién
+   * lo use. Si esto molesta después, se saca o se pasa a variable de
+   * entorno — no es parte del código de producción, next.config solo lee
+   * esto durante `next dev`.
+   */
+  allowedDevOrigins: ["192.168.6.109"],
+
+  /**
    * En DESARROLLO, este sitio hace de proxy y todo pasa por :3000.
    *
    * **No es una comodidad: es la unica forma de poder probar el login.** La
