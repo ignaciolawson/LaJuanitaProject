@@ -6,6 +6,15 @@ node_modules/
 .env.local
 .env.*.local
 
+# claves privadas -- una clave SSH o TLS no va al repo bajo ninguna
+# circunstancia (aunque nunca llegue a commitearse, si queda sin ignorar un
+# `git add .` sin fijarse la sube igual). Se descargan al crear la instancia
+# y van en ~/.ssh, nunca en el repo.
+*.key
+*.pem
+id_rsa*
+id_ed25519*
+
 # OS
 .DS_Store
 Thumbs.db
