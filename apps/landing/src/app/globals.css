@@ -689,12 +689,15 @@ body {
   }
 }
 /* En táctil no hay hover, así que la foto se quedaba en blanco y negro
-   siempre. Un toque le devuelve el color mientras dura, que es la única
-   manera de que quien entra desde el celular vea alguna vez las fotos como
-   son. */
-.group:active .duotone {
-  filter: grayscale(0) contrast(1) brightness(1);
-  transition-duration: 0.2s;
+   siempre. La primera salida fue `.group:active .duotone` —color mientras el
+   dedo apoya—, y NO VUELVE: `:active` se prende también cuando el toque es el
+   comienzo de un scroll, así que bajar por la página iba pintando a color lo
+   que el dedo cruzaba (2026-09-26). Ahora la clase la pone `DuotoneEnVista`
+   cuando la foto se queda quieta en el centro de la pantalla. */
+@media (hover: none) {
+  .duotone.duotone--viva {
+    filter: grayscale(0) contrast(1) brightness(1);
+  }
 }
 
 /* ═══════════ SCROLLSMOOTHER ═══════════ */

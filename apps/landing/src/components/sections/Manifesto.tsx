@@ -136,10 +136,18 @@ export function Manifesto() {
               </span>
             </div>
 
+            {/* Sólo con pantalla grande Y mouse. El abanico pisa la esquina de
+                la foto —y la etiqueta "Cabina · Sede Pilar"— a propósito: con
+                el parallax (`data-speed` distinto del de la foto) se despega y
+                se lee como una capa aparte que se mueve. **En táctil ese
+                parallax no existe** (ScrollSmoother no se crea, ver
+                `SmoothScroll`), así que quedaba quieto encima de la foto, que
+                es lo que se veía roto en el celular (2026-09-26). Y abajo de
+                `lg` la foto ocupa todo el ancho: no hay costado donde ponerlo. */}
             <div
               data-manifesto-fan
               data-speed="1.1"
-              className="pointer-events-none absolute -bottom-16 -left-10 w-56 text-[color:var(--page-fg)] opacity-[0.16] sm:w-72"
+              className="pointer-events-none absolute -bottom-16 -left-10 hidden w-72 text-[color:var(--page-fg)] opacity-[0.16] lg:pointer-fine:block"
             >
               <Fan ribs={13} spread={150} strokeWidth={1.6} />
             </div>

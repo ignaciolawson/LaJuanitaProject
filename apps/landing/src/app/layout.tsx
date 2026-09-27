@@ -7,6 +7,7 @@ import { ThemeScroller } from "@/components/motion/ThemeScroller";
 import { Preloader } from "@/components/motion/Preloader";
 import { Cursor } from "@/components/motion/Cursor";
 import { ScrollFx } from "@/components/motion/ScrollFx";
+import { DuotoneEnVista } from "@/components/motion/DuotoneEnVista";
 import { Texture } from "@/components/Texture";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -154,6 +155,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Texture />
         <Cursor />
         <ScrollFx />
+        <DuotoneEnVista />
         <ThemeScroller />
         <Navbar />
 

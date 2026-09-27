@@ -69,6 +69,36 @@ export function isLite() {
   return prefersReduced() || isTouch();
 }
 
+/**
+ * Traer un elemento al centro de la pantalla, pasando por el smoother si hay.
+ *
+ * Existe por el mensaje de "Listo" de los formularios: el formulario mide
+ * más de una pantalla, se reemplaza por una caja corta, la página se achica
+ * y quien apretó "Enviar" queda parado debajo del aviso, mirando la sección
+ * siguiente — tiene que volver a subir para enterarse de que salió.
+ *
+ * ⚠️ **Con ScrollSmoother activo NO se puede usar `scrollIntoView`**: corre
+ * `#smooth-wrapper` en vez del documento y deja el contenido desfasado para
+ * siempre (la trampa de `SmoothScroll.scrollToHash`, que explica por qué
+ * tampoco sirve `smoother.scrollTo(el)`). Se tweenea `scrollTop` del smoother,
+ * que es lo que mantiene juntos al normalizador y a los ScrollTrigger.
+ *
+ * El `refresh()` va antes de medir porque lo que disparó esto es justamente
+ * que la página cambió de alto: sin él, el smoother mide contra el alto
+ * viejo y el destino cae donde estaba el formulario.
+ */
+export function traerAlCentro(el: Element) {
+  const smoother = ScrollSmoother.get();
+  if (!smoother) {
+    // Táctil o menos movimiento: el scroll es el nativo y acá sí anda.
+    el.scrollIntoView({ behavior: prefersReduced() ? "auto" : "smooth", block: "center" });
+    return;
+  }
+  ScrollTrigger.refresh();
+  const y = smoother.offset(el, "center center");
+  gsap.to(smoother, { scrollTop: y, duration: 0.9, ease: "juanita", overwrite: "auto" });
+}
+
 export {
   gsap,
   ScrollTrigger,

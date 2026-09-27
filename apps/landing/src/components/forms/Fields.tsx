@@ -1,7 +1,9 @@
 "use client";
 
-import { useId, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import clsx from "clsx";
+
+import { traerAlCentro } from "@/lib/gsap";
 
 /**
  * Primitivas de formulario.
@@ -230,10 +232,35 @@ export function FormShell({
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const aviso = useRef<HTMLDivElement>(null);
+
+  /**
+   * Llevar la vista al "Listo" apenas aparece.
+   *
+   * El formulario mide más de una pantalla y el aviso es una caja corta: al
+   * reemplazarlo la página se achica, y quien apretó "Enviar" —que estaba
+   * abajo de todo, en el botón— queda mirando la sección siguiente, con el
+   * aviso arriba y fuera de vista. Parecía que no había pasado nada, o había
+   * que subir a buscarlo. Pasaba en todos los dispositivos.
+   *
+   * El foco va a la caja además del scroll para que un lector de pantalla
+   * anuncie el resultado; `preventScroll` porque el scroll ya lo hace
+   * `traerAlCentro`, que es quien sabe convivir con el smoother.
+   */
+  useEffect(() => {
+    if (!sent || !aviso.current) return;
+    aviso.current.focus({ preventScroll: true });
+    traerAlCentro(aviso.current);
+  }, [sent]);
 
   if (sent) {
     return (
-      <div className="border border-red/40 bg-red-tint p-8">
+      <div
+        ref={aviso}
+        role="status"
+        tabIndex={-1}
+        className="border border-red/40 bg-red-tint p-8 focus:outline-none"
+      >
         <span className="label">Listo</span>
         <p className="t-display-tight mt-4 text-2xl">{successTitle}</p>
         <p className="t-body mt-3 max-w-[46ch] text-sm text-[color:var(--page-muted)]">

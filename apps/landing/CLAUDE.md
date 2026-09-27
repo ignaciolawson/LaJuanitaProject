@@ -251,9 +251,30 @@ scroll animado se sienta roto en el celular y perfecto en el escritorio.
   elemento tocado. Sin el corte, tocar un botón lo dejaba relleno de rojo para
   siempre. (Las variantes `hover:` de Tailwind ya vienen envueltas de fábrica;
   esto es sólo para el CSS propio.)
-- **`:active` en `.btn` y `.duotone`**, porque sin hover no había ninguna
-  respuesta al toque — y la reacción natural de quien no ve respuesta es
-  volver a apretar.
+- **`:active` en `.btn`**, porque sin hover no había ninguna respuesta al
+  toque — y la reacción natural de quien no ve respuesta es volver a apretar.
+- ⚠️ **`.duotone` NO lleva `:active`, y lo tuvo** hasta el 2026-09-26.
+  `:active` se prende apenas el dedo apoya, **también cuando ese toque es el
+  comienzo de un scroll** — o sea casi siempre que un dedo toca una foto—, así
+  que bajar por la página iba pintando a color lo que el dedo cruzaba, y se
+  leía como un error. Ahora el color lo pone `motion/DuotoneEnVista` cuando la
+  foto **se queda medio segundo en la franja central** de la pantalla: pasando
+  de largo no se pinta, parando a mirar sí. Es el hover medido con lo único que
+  un teléfono sabe de la atención. Verificado con un iPhone emulado: 200 ms en
+  el centro no la pinta, 800 ms sí, y al irse vuelve a blanco y negro.
+- **Un formulario enviado trae su aviso de "Listo" al centro de la pantalla**
+  (`FormShell` + `traerAlCentro` en `lib/gsap.ts`). El formulario mide más de
+  una pantalla y el aviso es una caja corta: al reemplazarlo la página se
+  achica y quien apretó "Enviar" quedaba debajo del aviso, mirando la sección
+  siguiente. Medido poniendo el bug de vuelta: sin el scroll, el aviso quedaba
+  en **−678px** (arriba y fuera de la vista); con él, en el tercio del medio. En
+  todos los dispositivos, no sólo en táctil. ⚠️ `traerAlCentro` pasa por el
+  smoother por la misma trampa que `scrollToHash`: un `scrollIntoView` con
+  ScrollSmoother activo desfasa la página para siempre.
+- **El abanico del Manifiesto sólo se dibuja con `lg` Y mouse**
+  (`lg:pointer-fine:block`). Pisa la esquina de la foto de la cabina a
+  propósito y se despega por parallax; en táctil el parallax no existe, así que
+  quedaba quieto encima de la foto y de la etiqueta "Cabina · Sede Pilar".
 
 ---
 
