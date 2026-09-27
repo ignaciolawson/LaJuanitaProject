@@ -592,9 +592,27 @@ durante un arranque normal y lo reinicia en loop.
 
 ### Lo que falta para cerrar esta sección
 
-1. **Levantar la VM de Oracle y correr el procedimiento allá.** Todo lo de arriba
+1. **Conseguir la máquina y correr el procedimiento allá.** Todo lo de arriba
    se ejecutó con Docker Compose en la máquina de desarrollo; lo que **no** se
-   probó es ARM, la red de OCI y el certificado real de Let's Encrypt.
+   probó es la red del proveedor y el certificado real de Let's Encrypt.
+
+   ⚠️ **Oracle no dio la VM (2026-09-25/26).** `VM.Standard.A1.Flex` contestó
+   *"Out of capacity for shape … in availability domain AD-1"* en
+   `sa-saopaulo-1`, que tiene **un solo AD**, tanto con 2 OCPU como con 1. Se
+   guardó un stack de Resource Manager (`lajuanita-server`) para reintentar con
+   un clic —Stacks → `lajuanita-server` → *Apply*, y el resultado en *Jobs*— y
+   sus dos corridas fallaron igual. **La región de origen no se puede cambiar**:
+   otra región es otra cuenta.
+
+   **El plan acordado es DigitalOcean** (droplet Basic de ~US$6/mes, Ubuntu
+   24.04, región New York, clave SSH propia). **Es la misma arquitectura y los
+   mismos archivos**: lo único que cambia es que la máquina es x86 y no ARM, y
+   las cinco imágenes base existen para las dos. Si algún día Oracle libera
+   capacidad, mudarse es levantar el mismo compose allá y mover el DNS.
+
+   La clave SSH descargada de Oracle está en `~/.ssh/oracle-lajuanita.key`,
+   **fuera del repo** — llegó a estar en la raíz sin commitear, y por eso el
+   `.gitignore` de la raíz ahora ignora `*.key`, `*.pem` e `id_rsa*`.
 2. **El dominio.** Sin él, `DOMINIO=:80` sirve para probar y **la HSTS que el
    proxy manda no significa nada en HTTP**. `lajuanitastudio.com` todavía no está
    comprado — y hay una constante del panel (`LINK_DATOS_BANCARIOS`) que ya lo

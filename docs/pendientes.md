@@ -524,9 +524,11 @@ persistente**. Es un bind mount a `./archivos` en el host, con `chown 1001:1001`
 — ⚠️ **eso último no falla al arrancar, falla en la primera subida de un
 contrato**.
 
-**Lo que FALTA:** la VM (ARM, la red de OCI y el certificado real de Let's Encrypt
-son lo único sin probar), el dominio, `CS-06`, y **rehacer el ensayo de restore
-contra el servidor**.
+**Lo que FALTA:** la máquina, el dominio, `CS-06`, y **rehacer el ensayo de
+restore contra el servidor**. ⚠️ **Oracle no tuvo capacidad ARM en
+`sa-saopaulo-1` (2026-09-25/26)** y la región de origen no se cambia; **el plan
+es un droplet de DigitalOcean** (~US$6/mes), con los mismos archivos. El
+detalle, en `operacion.md` §3 → *Lo que falta*.
 
 **Y lo que falla si te olvidás** (la tabla completa está en §3 y en el README):
 
