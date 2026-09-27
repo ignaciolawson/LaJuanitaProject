@@ -271,6 +271,15 @@ scroll animado se sienta roto en el celular y perfecto en el escritorio.
   todos los dispositivos, no sólo en táctil. ⚠️ `traerAlCentro` pasa por el
   smoother por la misma trampa que `scrollToHash`: un `scrollIntoView` con
   ScrollSmoother activo desfasa la página para siempre.
+- **La intro vista no se asoma** (script bloqueante en `app/layout.tsx`, antes
+  de `<Preloader />`). La intro corre una vez por sesión, pero el preloader
+  sale igual en el HTML del servidor y recién al hidratar se saca: hasta
+  entonces se veía el abanico congelado en 000 y después desaparecía de golpe,
+  que se leía como una intro rota. Medido en `next dev`: ~1,5–2 s de flash.
+  El script lee `lj:intro` —la misma clave que `Preloader`— y esconde telón y
+  abanico antes de que se dibujen. Verificado: segunda visita sin abanico desde
+  el primer cuadro, primera visita con la intro entera, sin avisos de
+  hidratación.
 - **El abanico del Manifiesto sólo se dibuja con `lg` Y mouse**
   (`lg:pointer-fine:block`). Pisa la esquina de la foto de la cabina a
   propósito y se despega por parallax; en táctil el parallax no existe, así que

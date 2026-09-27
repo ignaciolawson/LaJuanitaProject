@@ -149,6 +149,33 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             `@id` en vez de repetirlo. */}
         <JsonLd data={graph(organizationLd(), websiteLd())} />
 
+        {/* La intro ya se vio en esta sesión (o se pidió menos movimiento):
+            esconder el telón y el abanico ANTES de que se dibujen.
+
+            El `<Preloader />` sale en el HTML del servidor —telón negro, abanico
+            abierto, contador en 000— y recién al hidratar descubre que no tiene
+            que correr y se saca. Hasta entonces quedaba a la vista un abanico
+            congelado en 000 que después desaparecía de golpe: se leía como una
+            intro rota (2026-09-26). Medido: ~1,5–2 s en `next dev`; publicado es
+            menos, pero el flash existía igual.
+
+            Tiene que ser un script bloqueante y estar ANTES del preloader en el
+            documento: corre mientras el navegador parsea, así que el estilo ya
+            está cuando llegan los nodos. Un efecto de React llega tarde por
+            definición. Agrega un `<style>` y no un atributo en `<html>` para no
+            pelearse con la hidratación (React 19 saltea lo que terceros meten en
+            `<head>`). Lee la misma clave que `Preloader` (`lj:intro`); si cambia
+            allá, cambia acá. `'unsafe-inline'` ya está en `script-src` por Next.
+            El `try` es por el modo privado de Safari viejo, que tira al tocar
+            `sessionStorage`: ahí se ve la intro, que es el comportamiento de
+            siempre. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(sessionStorage.getItem('lj:intro')==='1'||matchMedia('(prefers-reduced-motion: reduce)').matches){var s=document.createElement('style');s.textContent='[data-curtain],[data-intro-mark]{display:none!important}';document.head.appendChild(s)}}catch(e){}",
+          }}
+        />
+
         {/* Todo lo fijo vive FUERA de #smooth-content: dentro de un elemento
             transformado, `position: fixed` se ancla al padre, no al viewport. */}
         <Preloader />
