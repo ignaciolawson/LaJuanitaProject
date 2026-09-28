@@ -38,6 +38,9 @@ public record PropiedadesJwt(
 
         @NotNull Duration duracion,
 
+        /** La de "Recordarme". */
+        @NotNull Duration duracionRecordada,
+
         @NotBlank String emisor,
 
         boolean permitirSecretoDeDesarrollo) {

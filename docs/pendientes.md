@@ -29,6 +29,42 @@
 
 ---
 
+## ⚡ ESTADO AL 2026-09-28 — "Recordarme" hecho; dos cosas de mail anotadas
+
+**Hecho el 2026-09-28:** el login (panel y landing) tiene **"Recordarme"** —tildado,
+sesión de 30 días en `localStorage`; sin tildar, 8 horas en `sessionStorage`, que
+muere al cerrar el navegador— y **cambiar la contraseña o que administración la
+resetee cierra todas las sesiones abiertas de esa cuenta** (`V38`,
+`usuario.credenciales_desde`; hasta acá un token valía hasta vencer pasara lo que
+pasara). `POST /api/me/password` devuelve ahora una credencial nueva, que dura lo
+mismo que la reemplazada (claim `recordar`). Además `V37` sacó de siete mensajes de
+trigger los códigos de decisión (*"(P74)"*) que llegaban a la pantalla, y el login
+dejó de preguntar *"¿Está levantado el backend?"*. **El admin sembrado pasa a `V39`.**
+
+**Pedido por Ignacio para después — los dos esperan lo mismo: que el sistema pueda
+mandar mails.** Hoy no puede. Hace falta, antes que código: **el dominio** (no está
+comprado), **un servicio de envío** (Resend, Brevo — el plan gratis alcanza) y
+**SPF/DKIM en el DNS** para no caer en spam. O sea, van después del deploy.
+
+1. **Recuperar la contraseña por mail.** ⚠️ **No mandar una contraseña nueva** —
+   que era la idea inicial—: cualquiera que sepa un mail le cambia la contraseña a
+   esa persona y la deja afuera. Lo acordado: *"Olvidé mi contraseña"* → mail con
+   un **link de un solo uso que vence en 1 hora** → la pantalla de elegir
+   contraseña que ya existe. **La contraseña actual sigue andando hasta que se usa
+   el link.** La respuesta es siempre *"si ese mail tiene cuenta, te mandamos un
+   link"* (no revelar qué mails existen), con el límite de intentos que ya hay. El
+   reseteo a mano de Micaela se queda como está. Al elegirla, `V38` ya cierra las
+   sesiones abiertas.
+2. **Validar el mail al registrarse con un código.** Hoy `POST /api/auth/registro`
+   crea la cuenta sin verificar nada, así que un mail mal tipeado queda como
+   credencial de alguien que no puede recibir nada — y con (1) andando, un mail
+   ajeno recibiría el link de otra persona. Por eso (2) conviene hacerlo **junto o
+   antes** que (1). Decidir al hacerlo: si la cuenta existe sin validar (y qué
+   puede hacer) o si no nace hasta poner el código, y qué pasa con las cuentas
+   que crea Micaela (esas no pasan por el registro).
+
+---
+
 
 ## ⚡ ESTADO AL 2026-09-24 — cerrada la deuda arrastrada de §17 · H8
 

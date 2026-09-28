@@ -16,5 +16,16 @@ public record LoginRequest(
         String email,
 
         @NotBlank(message = "La contraseña es obligatoria")
-        String password) {
+        String password,
+
+        /**
+         * "Recordarme": la sesión dura {@code lajuanita.jwt.duracion-recordada}
+         * en vez de {@code duracion}. En caja, como todo booleano opcional de un
+         * pedido: sin tildar el formulario puede no mandarlo.
+         */
+        Boolean recordarme) {
+
+    public boolean recordar() {
+        return Boolean.TRUE.equals(recordarme);
+    }
 }

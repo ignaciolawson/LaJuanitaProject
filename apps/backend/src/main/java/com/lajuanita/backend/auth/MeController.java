@@ -1,6 +1,5 @@
 package com.lajuanita.backend.auth;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,7 +7,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
@@ -62,9 +60,9 @@ public class MeController {
     }
 
     @PostMapping("/password")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cambiarPassword(@AuthenticationPrincipal Jwt token,
+    public LoginResponse cambiarPassword(@AuthenticationPrincipal Jwt token,
             @Valid @RequestBody CambioPasswordRequest solicitud) {
-        sesiones.cambiarPassword(token.getSubject(), solicitud);
+        boolean recordar = Boolean.TRUE.equals(token.getClaimAsBoolean(TokenService.CLAIM_RECORDAR));
+        return sesiones.cambiarPassword(token.getSubject(), recordar, solicitud);
     }
 }

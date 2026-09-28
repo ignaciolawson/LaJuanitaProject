@@ -64,6 +64,6 @@ class SecretoDeDesarrolloTest {
     }
 
     private PropiedadesJwt propiedades(String secreto, boolean permitirSecretoDeDesarrollo) {
-        return new PropiedadesJwt(secreto, Duration.ofHours(8), "la-juanita", permitirSecretoDeDesarrollo);
+        return new PropiedadesJwt(secreto, Duration.ofHours(8), Duration.ofDays(30), "la-juanita", permitirSecretoDeDesarrollo);
     }
 }

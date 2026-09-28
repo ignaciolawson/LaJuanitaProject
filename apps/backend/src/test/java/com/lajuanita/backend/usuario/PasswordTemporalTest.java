@@ -97,7 +97,7 @@ class PasswordTemporalTest {
                 .content("""
                         {"passwordActual":"%s","passwordNueva":"miPropiaClaveLarga"}
                         """.formatted(passwordTemporal)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         // La temporal, que pasó por un chat, ya no entra.
         mvc.perform(login(email, passwordTemporal)).andExpect(status().isUnauthorized());
@@ -180,7 +180,7 @@ class PasswordTemporalTest {
                 .content("""
                         {"passwordActual":"%s","passwordNueva":"laQueMeOlvide12"}
                         """.formatted(passwordTemporal)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         Long id = usuarios.findByEmailIgnoreCase(email).orElseThrow().getId();
 
@@ -270,7 +270,7 @@ class PasswordTemporalTest {
                 .content("""
                         {"passwordActual":"%s","passwordNueva":"laMiaParaSiempre"}
                         """.formatted(passwordTemporal)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
 
         Usuario usuario = usuarios.findByEmailIgnoreCase(email).orElseThrow();
         assertThat(usuario.getPasswordTemporalDesde()).isNull();

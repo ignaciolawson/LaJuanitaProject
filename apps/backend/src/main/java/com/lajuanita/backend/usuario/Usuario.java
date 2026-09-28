@@ -1,6 +1,7 @@
 package com.lajuanita.backend.usuario;
 
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -117,6 +118,7 @@ public class Usuario {
         this.passwordHash = hash;
         this.debeCambiarPassword = true;
         this.passwordTemporalDesde = OffsetDateTime.now();
+        cerrarLasSesionesAbiertas();
     }
 
     /** La persona eligió la suya: la temporal deja de existir. */
@@ -124,7 +126,27 @@ public class Usuario {
         this.passwordHash = hash;
         this.debeCambiarPassword = false;
         this.passwordTemporalDesde = null;
+        cerrarLasSesionesAbiertas();
     }
+
+    /**
+     * Los tokens firmados antes de esto dejan de valer (`AutenticacionDesdeBase`).
+     *
+     * <p>Truncado al segundo porque el {@code iat} de un JWT va en segundos: sin
+     * truncar, el token que se emite enseguida —en el mismo segundo— quedaría
+     * "antes" por unos milisegundos y la persona saldría echada por su propio
+     * cambio de contraseña.
+     */
+    private void cerrarLasSesionesAbiertas() {
+        this.credencialesDesde = OffsetDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+    }
+
+    /**
+     * Desde cuándo valen las credenciales de esta cuenta (`V38`). NULL = nunca se
+     * cerraron sesiones. Se escribe solo por los dos {@code marcarPassword…}.
+     */
+    @Column(name = "credenciales_desde")
+    private OffsetDateTime credencialesDesde;
 
     /** La escribe el DEFAULT de la base, no la aplicación. */
     @Column(name = "fecha_creacion", nullable = false, insertable = false, updatable = false)

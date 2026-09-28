@@ -71,6 +71,8 @@ export type LoginResponse = {
 export type LoginRequest = {
   email: string
   password: string
+  /** "Recordarme": 30 días en vez de 8 horas. */
+  recordarme?: boolean
 }
 
 /**

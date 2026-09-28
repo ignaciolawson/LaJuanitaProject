@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { borrarCredencial, guardarCredencial, leerCredencial } from './credencial'
+import {
+  borrarCredencial,
+  guardarCredencial,
+  leerCredencial,
+  reemplazarCredencial,
+} from './credencial'
 
 /**
  * La credencial guardada, que es lo primero que la app lee al arrancar.
@@ -17,7 +22,10 @@ function dentroDe(horas: number): string {
 }
 
 describe('leerCredencial', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
 
   it('sin nada guardado devuelve null', () => {
     expect(leerCredencial()).toBeNull()
@@ -97,7 +105,10 @@ describe('leerCredencial', () => {
  * actualizar también la landing** y después actualizarlos.
  */
 describe('lo que la landing escribe de este lado', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
 
   it('la clave del storage es exactamente la que escribe la landing', () => {
     guardarCredencial({ token: 'abc', expiraEn: dentroDe(8) })
@@ -129,5 +140,61 @@ describe('borrarCredencial', () => {
 
     expect(localStorage.getItem(CLAVE)).toBeNull()
     expect(leerCredencial()).toBeNull()
+  })
+})
+
+/**
+ * "Recordarme": tildado va a `localStorage` (sobrevive a cerrar el navegador),
+ * sin tildar a `sessionStorage` (muere con él). Se lee de los dos.
+ */
+describe('Recordarme', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  it('sin tildar se guarda en sessionStorage y se lee igual', () => {
+    const credencial = { token: 'corta', expiraEn: dentroDe(8) }
+    guardarCredencial(credencial, false)
+
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+    expect(sessionStorage.getItem(CLAVE)).not.toBeNull()
+    expect(leerCredencial()).toEqual(credencial)
+  })
+
+  it('entrar sin tildar donde alguien había tildado borra la sesión larga', () => {
+    guardarCredencial({ token: 'de-otro', expiraEn: dentroDe(720) }, true)
+    guardarCredencial({ token: 'mia', expiraEn: dentroDe(8) }, false)
+
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+    expect(leerCredencial()?.token).toBe('mia')
+  })
+
+  it('el cambio de contraseña reemplaza la credencial donde estaba', () => {
+    guardarCredencial({ token: 'vieja', expiraEn: dentroDe(8) }, false)
+    reemplazarCredencial({ token: 'nueva', expiraEn: dentroDe(8) })
+    expect(localStorage.getItem(CLAVE)).toBeNull()
+    expect(leerCredencial()?.token).toBe('nueva')
+
+    guardarCredencial({ token: 'vieja', expiraEn: dentroDe(720) }, true)
+    reemplazarCredencial({ token: 'nueva', expiraEn: dentroDe(720) })
+    expect(sessionStorage.getItem(CLAVE)).toBeNull()
+    expect(leerCredencial()?.token).toBe('nueva')
+  })
+
+  it('borrarCredencial limpia los dos', () => {
+    localStorage.setItem(CLAVE, JSON.stringify({ token: 'a', expiraEn: dentroDe(8) }))
+    sessionStorage.setItem(CLAVE, JSON.stringify({ token: 'b', expiraEn: dentroDe(8) }))
+    borrarCredencial()
+
+    expect(leerCredencial()).toBeNull()
+  })
+
+  /** Lo que escribe la landing sin tildar: a mano, como el caso de arriba. */
+  it('lee una credencial que la landing dejó en sessionStorage', () => {
+    const expiraEn = dentroDe(8)
+    sessionStorage.setItem('lajuanita.credencial', JSON.stringify({ token: 'de-la-landing', expiraEn }))
+
+    expect(leerCredencial()).toEqual({ token: 'de-la-landing', expiraEn })
   })
 })

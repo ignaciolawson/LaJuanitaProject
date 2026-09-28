@@ -202,7 +202,7 @@ public class InscripcionService {
             // La base también lo dice (`V35` §4 a); acá sale como 400 antes de
             // crear nada.
             throw new SolicitudInvalidaException(
-                    "La mentoría es 1:1 y no admite grupos (P67, P88).");
+                    "La mentoría es 1:1 y no admite grupos.");
         }
 
         Long idReferente = solicitud.idReferente() == null ? ids.get(0) : solicitud.idReferente();

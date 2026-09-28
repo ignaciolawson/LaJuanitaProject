@@ -16,6 +16,8 @@ import com.lajuanita.backend.usuario.Usuario;
 @Service
 public class TokenService {
 
+    public static final String CLAIM_RECORDAR = "recordar";
+
     private final JwtEncoder encoder;
     private final PropiedadesJwt propiedades;
 
@@ -32,9 +34,9 @@ public class TokenService {
      * contenido de un JWT va firmado pero NO encriptado, así que cualquiera que
      * tenga el token puede leer los claims.
      */
-    public TokenEmitido emitirPara(Usuario usuario) {
+    public TokenEmitido emitirPara(Usuario usuario, boolean recordar) {
         Instant ahora = Instant.now();
-        Instant expira = ahora.plus(propiedades.duracion());
+        Instant expira = ahora.plus(recordar ? propiedades.duracionRecordada() : propiedades.duracion());
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 // El mismo emisor que exige el validador de SeguridadConfig.
@@ -44,6 +46,9 @@ public class TokenService {
                 .expiresAt(expira)
                 .subject(String.valueOf(usuario.getId()))
                 .claim("rol", usuario.getRol().name())
+                // Para que el token que se reemite al cambiar la contraseña
+                // dure lo mismo que el que reemplaza.
+                .claim(CLAIM_RECORDAR, recordar)
                 .build();
 
         // Hay que declarar HS256 explícitamente. Sin header, NimbusJwtEncoder

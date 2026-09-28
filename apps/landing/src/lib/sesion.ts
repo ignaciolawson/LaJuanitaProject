@@ -28,7 +28,8 @@ import { API_URL } from "./api";
  * ningún lado**. Se ve idéntico a "puse mal la contraseña".
  *
  * Si tocás el formato allá, tocalo acá. La advertencia gemela está escrita en
- * ese archivo.
+ * ese archivo. Lo mismo el storage: con "Recordarme" va a `localStorage`, sin
+ * tildar a `sessionStorage`, y siempre se borra el otro (`guardarCredencial`).
  * ═══════════════════════════════════════════════════════════════════════
  */
 const CLAVE_CREDENCIAL = "lajuanita.credencial";
@@ -67,14 +68,18 @@ const NO_ENTRASTE = "Revisá el mail y la contraseña.";
  * No devuelve nada porque **el éxito es irse de esta página**: guarda la
  * credencial y navega a la plataforma.
  */
-export async function iniciarSesion(email: string, password: string): Promise<void> {
+export async function iniciarSesion(
+  email: string,
+  password: string,
+  recordarme = false,
+): Promise<void> {
   let respuesta: Response;
 
   try {
     respuesta = await fetch(`${API_URL}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, recordarme }),
     });
   } catch {
     // Sin respuesta: backend caído, sin red, o el proxy no está reenviando
@@ -112,7 +117,9 @@ export async function iniciarSesion(email: string, password: string): Promise<vo
     throw new Error("La respuesta del sistema no vino completa. Avisanos, por favor.");
   }
 
-  localStorage.setItem(
+  localStorage.removeItem(CLAVE_CREDENCIAL);
+  sessionStorage.removeItem(CLAVE_CREDENCIAL);
+  (recordarme ? localStorage : sessionStorage).setItem(
     CLAVE_CREDENCIAL,
     JSON.stringify({ token: credencial.token, expiraEn: credencial.expiraEn }),
   );

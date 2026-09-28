@@ -1,5 +1,6 @@
+import { reemplazarCredencial } from '../auth/credencial'
 import { abrirEnPestania, pedir } from './cliente'
-import type { CambioPasswordRequest, Rol } from './tipos'
+import type { CambioPasswordRequest, LoginResponse, Rol } from './tipos'
 import type { MaterialResumen, NotaDeAlumno } from './tiposDocencia'
 import type {
   ComprobanteResumen,
@@ -993,11 +994,19 @@ export function materialesDelAlumno(idAlumno: number) {
 
 // -- Propio -----------------------------------------------------------------
 
-export function cambiarMiPassword(passwordActual: string, passwordNueva: string) {
-  return pedir<void>('/api/me/password', {
+/**
+ * Cambiar la contraseña cierra todas las sesiones de la cuenta (`V38`), incluida
+ * ésta: el backend devuelve una credencial nueva y se guarda donde estaba la
+ * vieja. Sin eso, el pedido siguiente volvería al login.
+ */
+export async function cambiarMiPassword(passwordActual: string, passwordNueva: string) {
+  const respuesta = await pedir<LoginResponse | undefined>('/api/me/password', {
     metodo: 'POST',
     cuerpo: { passwordActual, passwordNueva } satisfies CambioPasswordRequest,
   })
+  if (respuesta?.token) {
+    reemplazarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn })
+  }
 }
 
 // -- El buzón de solicitantes (hallazgo #7) ---------------------------------

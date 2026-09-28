@@ -98,6 +98,13 @@ public class AutenticacionDesdeBase implements Converter<Jwt, AbstractAuthentica
             throw new InvalidBearerTokenException("La cuenta está desactivada.");
         }
 
+        // Cambió la contraseña (o administración se la reseteó) después de
+        // firmado este token: la sesión se cerró. Ver Usuario.cerrarLasSesionesAbiertas.
+        if (usuario.getCredencialesDesde() != null && token.getIssuedAt() != null
+                && token.getIssuedAt().isBefore(usuario.getCredencialesDesde().toInstant())) {
+            throw new InvalidBearerTokenException("La sesión se cerró porque cambió la contraseña.");
+        }
+
         return new JwtAuthenticationToken(token, autoridadesDe(usuario), token.getSubject());
     }
 

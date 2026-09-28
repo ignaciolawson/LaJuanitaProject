@@ -130,7 +130,7 @@ public class SesionService {
         limitador.limpiar(clave);
         eventos.loginExitoso(usuario.getId(), usuario.getEmail());
 
-        TokenEmitido token = tokens.emitirPara(usuario);
+        TokenEmitido token = tokens.emitirPara(usuario, solicitud.recordar());
         return new LoginResponse(token.valor(), token.expira(), describir(usuario));
     }
 
@@ -177,7 +177,7 @@ public class SesionService {
      */
     @Transactional(readOnly = true)
     public LoginResponse credencialPara(Usuario usuario) {
-        TokenEmitido token = tokens.emitirPara(usuario);
+        TokenEmitido token = tokens.emitirPara(usuario, false);
         return new LoginResponse(token.valor(), token.expira(), describir(usuario));
     }
 
@@ -188,9 +188,14 @@ public class SesionService {
      * el único lugar donde esa marca se apaga, así que la contraseña temporal
      * que Micaela mandó por WhatsApp deja de servir en cuanto la persona elige
      * la suya.
+     *
+     * <p><b>Devuelve una credencial nueva</b>, que dura lo mismo que la que
+     * reemplaza ({@code recordar}): cambiar la contraseña cierra todas las
+     * sesiones abiertas de la cuenta —incluida la de quien la cambia— y sin esto
+     * la persona quedaría afuera en el pedido siguiente.
      */
     @Transactional
-    public void cambiarPassword(String subject, CambioPasswordRequest solicitud) {
+    public LoginResponse cambiarPassword(String subject, boolean recordar, CambioPasswordRequest solicitud) {
         Usuario usuario = usuarioDelToken(subject);
 
         if (!passwordEncoder.matches(solicitud.passwordActual(), usuario.getPasswordHash())) {
@@ -199,6 +204,9 @@ public class SesionService {
 
         usuario.marcarPasswordElegida(passwordEncoder.encode(solicitud.passwordNueva()));
         eventos.passwordCambiada(usuario.getId());
+
+        TokenEmitido token = tokens.emitirPara(usuario, recordar);
+        return new LoginResponse(token.valor(), token.expira(), describir(usuario));
     }
 
     /**

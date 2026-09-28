@@ -1,11 +1,16 @@
 /**
  * Guarda y recupera la credencial firmada.
  *
- * Vive en `localStorage` y viaja en el header `Authorization`. La contracara
- * conocida de esa decisión: si algún día hay un XSS en esta app, el token es
- * legible desde JavaScript. Se mitiga con el vencimiento corto que pone el
- * backend (8 horas). Si eso deja de alcanzar, la alternativa es una cookie
- * `httpOnly`, y el cambio es de este archivo y del CORS del backend.
+ * Viaja en el header `Authorization` y vive en uno de dos lugares según el
+ * "Recordarme" del login: tildado, en `localStorage` (sobrevive a cerrar el
+ * navegador, y el backend la firma por 30 días); sin tildar, en `sessionStorage`
+ * (muere con el navegador, 8 horas). Se lee de los dos: quien entra no dice cuál
+ * eligió la última vez.
+ *
+ * La contracara conocida: si algún día hay un XSS en esta app, el token es
+ * legible desde JavaScript. Lo acota que cambiar la contraseña cierra todas las
+ * sesiones de la cuenta (`V38`). Si eso deja de alcanzar, la alternativa es una
+ * cookie `httpOnly`, y el cambio es de este archivo y del CORS del backend.
  */
 
 /**
@@ -22,7 +27,9 @@
  * redirigiendo — y la persona aterriza en `/app/login` **sin un solo error en
  * ningún lado**, con un síntoma idéntico a "puse mal la contraseña".
  *
- * Si tocás esto, tocá el otro archivo. La advertencia gemela está allá.
+ * Si tocás esto, tocá el otro archivo. La advertencia gemela está allá. Y lo
+ * mismo vale para el storage: la landing escribe en `localStorage` o en
+ * `sessionStorage` con el mismo criterio que {@link guardarCredencial}.
  */
 const CLAVE = 'lajuanita.credencial'
 
@@ -40,7 +47,7 @@ export type Credencial = {
  * directamente en la pantalla de login.
  */
 export function leerCredencial(): Credencial | null {
-  const guardado = localStorage.getItem(CLAVE)
+  const guardado = localStorage.getItem(CLAVE) ?? sessionStorage.getItem(CLAVE)
   if (!guardado) return null
 
   try {
@@ -65,10 +72,24 @@ export function leerCredencial(): Credencial | null {
   }
 }
 
-export function guardarCredencial(credencial: Credencial): void {
-  localStorage.setItem(CLAVE, JSON.stringify(credencial))
+/**
+ * `recordar` elige el storage, y borra el otro: sin eso, entrar sin tildar en
+ * una compu donde alguien había tildado dejaría la sesión vieja viva debajo.
+ */
+export function guardarCredencial(credencial: Credencial, recordar = true): void {
+  borrarCredencial()
+  ;(recordar ? localStorage : sessionStorage).setItem(CLAVE, JSON.stringify(credencial))
+}
+
+/**
+ * La reemplaza donde ya estaba. La usa el cambio de contraseña, que cierra las
+ * sesiones abiertas y devuelve una credencial nueva que dura lo mismo.
+ */
+export function reemplazarCredencial(credencial: Credencial): void {
+  guardarCredencial(credencial, localStorage.getItem(CLAVE) !== null)
 }
 
 export function borrarCredencial(): void {
   localStorage.removeItem(CLAVE)
+  sessionStorage.removeItem(CLAVE)
 }

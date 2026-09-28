@@ -194,9 +194,9 @@ class TokenJwtTest {
         usuario.setPasswordHash("$2a$10$noDebeAparecerEnElToken");
         usuario.setRol(com.lajuanita.backend.usuario.Rol.STAFF);
 
-        Jwt token = decodificador.decode(tokens.emitirPara(usuario).valor());
+        Jwt token = decodificador.decode(tokens.emitirPara(usuario, false).valor());
 
-        assertThat(token.getClaims()).containsOnlyKeys("iss", "iat", "exp", "sub", "rol");
+        assertThat(token.getClaims()).containsOnlyKeys("iss", "iat", "exp", "sub", "rol", "recordar");
         assertThat(token.getSubject()).isEqualTo("42");
         assertThat(token.getClaimAsString("rol")).isEqualTo("STAFF");
     }

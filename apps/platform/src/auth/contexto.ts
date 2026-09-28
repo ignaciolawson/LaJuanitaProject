@@ -25,7 +25,7 @@ export type Sesion =
 export type ContextoAuth = {
   sesion: Sesion
   /** Lanza `ApiError` si las credenciales no sirven; el formulario lo muestra. */
-  iniciarSesion: (email: string, password: string) => Promise<void>
+  iniciarSesion: (email: string, password: string, recordarme?: boolean) => Promise<void>
   /** Crea la cuenta y deja a la persona adentro, sin un segundo paso de login. */
   registrarse: (datos: RegistroRequest) => Promise<void>
   cerrarSesion: () => void

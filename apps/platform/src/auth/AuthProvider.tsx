@@ -34,14 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const iniciarSesion = useCallback(async (email: string, password: string) => {
+  const iniciarSesion = useCallback(async (email: string, password: string, recordarme = false) => {
     const respuesta = await pedir<LoginResponse>('/api/auth/login', {
       metodo: 'POST',
-      cuerpo: { email, password } satisfies LoginRequest,
+      cuerpo: { email, password, recordarme } satisfies LoginRequest,
       sinCredencial: true,
     })
 
-    guardarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn })
+    guardarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn }, recordarme)
     // El login ya devuelve el usuario completo, así que no hace falta un
     // segundo viaje a `/api/me` para poder dibujar el menú.
     setSesion({ estado: 'autenticado', usuario: respuesta.usuario })
@@ -54,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sinCredencial: true,
     })
 
-    guardarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn })
+    // El registro no pregunta "Recordarme": es la sesión corta, la de no tildar.
+    guardarCredencial({ token: respuesta.token, expiraEn: respuesta.expiraEn }, false)
     setSesion({ estado: 'autenticado', usuario: respuesta.usuario })
   }, [])
 

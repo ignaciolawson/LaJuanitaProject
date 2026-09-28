@@ -3,8 +3,8 @@ import { Link } from 'react-router'
 
 import { ApiError } from '../api/cliente'
 import { useAuth } from '../auth/contexto'
-import { CONTROL_DE_FORMULARIO } from '../componentes/controles'
 import { Boton } from '../componentes/Boton'
+import { CampoDePuerta } from '../componentes/CampoDePuerta'
 import { useErrorPasajero } from '../componentes/aviso'
 import { Puerta } from '../componentes/Puerta'
 
@@ -13,6 +13,7 @@ export function LoginPagina() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [recordarme, setRecordarme] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useErrorPasajero()
 
@@ -22,14 +23,14 @@ export function LoginPagina() {
     setEnviando(true)
 
     try {
-      await iniciarSesion(email, password)
+      await iniciarSesion(email, password, recordarme)
       // No hay navegación acá a propósito: al pasar a estado "autenticado",
       // App vuelve a renderizar y muestra la app en lugar del login.
     } catch (e) {
       setError(
         e instanceof ApiError
           ? e.message
-          : 'No se pudo conectar con el servidor. ¿Está levantado el backend?',
+          : 'No se pudo conectar con el servidor.',
       )
       setEnviando(false)
     }
@@ -66,31 +67,53 @@ export function LoginPagina() {
       }
     >
       <form onSubmit={onSubmit} noValidate>
-        <label className="block">
-          <span className="t-mono text-tenue">Email</span>
-          <input
-            type="email"
-            name="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-            required
-            autoFocus
-            className={`mt-1.5 ${CONTROL_DE_FORMULARIO}`}
-          />
-        </label>
+        <CampoDePuerta
+          etiqueta="Email"
+          type="email"
+          name="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
+          required
+          autoFocus
+        />
 
-        <label className="mt-5 block">
-          <span className="t-mono text-tenue">Contraseña</span>
+        <CampoDePuerta
+          etiqueta="Contraseña"
+          type="password"
+          name="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          required
+          className="mt-5"
+        />
+
+        <label className="mt-5 flex min-h-11 cursor-pointer items-center gap-3 select-none lg:min-h-0">
           <input
-            type="password"
-            name="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            className={`mt-1.5 ${CONTROL_DE_FORMULARIO}`}
+            type="checkbox"
+            checked={recordarme}
+            onChange={(e) => setRecordarme(e.target.checked)}
+            className="peer sr-only"
           />
+          {/* La casilla dibujada. Va inmediatamente después del input: el CSS
+              del tilde (`index.css`) la encuentra con `input:checked + .casilla`. */}
+          <span
+            aria-hidden
+            className="casilla grid size-5 shrink-0 place-items-center rounded-md border border-linea-control/70 bg-superficie transition-colors peer-checked:border-red peer-checked:bg-red peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-acento"
+          >
+            <svg viewBox="0 0 16 16" className="size-3.5 text-white" fill="none">
+              <path
+                d="M3.5 8.5l3 3 6-7"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                pathLength={1}
+              />
+            </svg>
+          </span>
+          <span className="text-sm text-tenue">Recordarme</span>
         </label>
 
         {/* `role="alert"` para que el lector de pantalla anuncie el error sin

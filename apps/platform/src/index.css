@@ -634,3 +634,57 @@ body,
     scroll-behavior: auto !important;
   }
 }
+
+/* ── El campo de las puertas (`CampoDePuerta`) ──────────────────────────────
+   El halo al enfocar es un refuerzo del outline de `:focus-visible`, no su
+   reemplazo. El autocompletado del navegador pinta su propio fondo (celeste o
+   amarillo) y rompe la caja; la sombra interna lo tapa con la superficie. */
+.campo-puerta:focus {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 14%, transparent);
+}
+.campo-puerta:-webkit-autofill,
+.campo-puerta:-webkit-autofill:hover,
+.campo-puerta:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--superficie) inset;
+  -webkit-text-fill-color: var(--texto);
+  caret-color: var(--texto);
+}
+
+/* El ojo: con la contraseña a la vista la tachadura se dibuja y la pupila se
+   achica; al volver a ocultarla, al revés. */
+.ojo .ojo-pupila {
+  transform-origin: 12px 12px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.ojo .ojo-tachado {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.25s ease-out;
+}
+.ojo[data-visible='true'] .ojo-pupila {
+  transform: scale(0.55);
+}
+.ojo[data-visible='true'] .ojo-tachado {
+  stroke-dashoffset: 0;
+}
+.ojo:active svg {
+  transform: scale(0.9);
+}
+
+/* La casilla de "Recordarme": al tildarla se llena de rojo y el tilde se dibuja. */
+.casilla path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.22s ease-out 0.05s;
+}
+input:checked + .casilla path {
+  stroke-dashoffset: 0;
+}
+input:checked + .casilla {
+  animation: casilla-pulso 0.3s ease-out;
+}
+@keyframes casilla-pulso {
+  50% {
+    transform: scale(1.15);
+  }
+}

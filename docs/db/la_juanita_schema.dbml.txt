@@ -192,6 +192,7 @@ Table usuario {
   activo            boolean      [not null, default: true]
   debe_cambiar_password boolean  [not null, default: false, note: 'TRUE si la contraseña la generó administración y todavía no la cambió (V5)']
   password_temporal_desde timestamptz [note: 'Cuándo se generó la temporal vigente; NULL si ya eligió la suya (V8). Vence a los 7 días. La base exige que coincida con debe_cambiar_password']
+  credenciales_desde timestamptz [note: 'V38: los tokens firmados antes de esto no valen. Lo escriben el cambio y el reseteo de la contraseña. NULL = nunca se cerraron sesiones']
   fecha_creacion    timestamptz  [not null]
   ultimo_acceso     timestamptz
 

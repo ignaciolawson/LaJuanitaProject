@@ -63,6 +63,7 @@ export function AccesoAlCampus() {
             await iniciarSesion(
               String(datos.get("email") ?? ""),
               String(datos.get("password") ?? ""),
+              datos.get("recordarme") === "si",
             );
             // No se baja `entrando` acá: si salió bien, el navegador ya está
             // yendo a `/app` y el botón tiene que quedar deshabilitado hasta que
@@ -93,6 +94,25 @@ export function AccesoAlCampus() {
           required
           autoComplete="current-password"
         />
+
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 select-none">
+          <input type="checkbox" name="recordarme" value="si" className="peer sr-only" />
+          <span
+            aria-hidden
+            className="grid size-5 shrink-0 place-items-center border border-[color:var(--page-faint)] transition-colors peer-checked:border-red peer-checked:bg-red peer-checked:[&>svg]:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-red"
+          >
+            <svg viewBox="0 0 16 16" className="size-3.5 text-white opacity-0 transition-opacity" fill="none">
+              <path
+                d="M3.5 8.5l3 3 6-7"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span className="t-body text-sm text-[color:var(--page-muted)]">Recordarme</span>
+        </label>
 
         {error && (
           <p
