@@ -106,7 +106,7 @@ const nextConfig: NextConfig = {
    * entorno — no es parte del código de producción, next.config solo lee
    * esto durante `next dev`.
    */
-  allowedDevOrigins: ["192.168.6.109"],
+  allowedDevOrigins: ["192.168.6.109", "172.16.131.212"],
 
   /**
    * En DESARROLLO, este sitio hace de proxy y todo pasa por :3000.
