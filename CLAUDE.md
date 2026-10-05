@@ -185,6 +185,7 @@ docker-compose.prod.yml   the four production services. `docker-compose.yml` is 
 scripts/
 ├── backup.sh              pg_dump with retention, for cron
 ├── pruebas-sql.sh         the two SQL suites against throwaway databases
+├── esquema-actual.sh      regenerates docs/db/esquema-actual.sql — the final schema, read-only reference
 └── completar-lockfile.py  adds the other platforms' native packages a Windows npm leaves out of the lockfile
 .github/workflows/ci.yml   the pipeline
 ```
