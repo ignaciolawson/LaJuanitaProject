@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Regenera docs/db/esquema-actual.sql — La Juanita Studio
+# Regenera docs/db/esquema-actual.sql y esquema-actual.dbml — La Juanita Studio
 #
 #   ./scripts/esquema-actual.sh
 #
@@ -59,4 +59,19 @@ done
     --no-owner --no-privileges | tr -d '\r' | grep -Ev '^.(un)?restrict '
 } > "$salida"
 
+# La misma base, traducida a DBML para pegar en dbdiagram.io (que no entiende
+# funciones, triggers ni EXCLUDE del SQL de Postgres).
+salida_dbml="$raiz/docs/db/esquema-actual.dbml"
+docker exec -i "$CONTENEDOR" sh -c "cat > /tmp/a-dbml.sql" < "$raiz/scripts/esquema-a-dbml.sql"
+{
+  echo "// ESQUEMA ACTUAL de La Juanita, en DBML — ARCHIVO GENERADO, NO EDITAR"
+  echo "// Hasta $ultima. Generado el $(date +%Y-%m-%d) con ./scripts/esquema-actual.sh"
+  echo "// Pegalo entero en dbdiagram.io. Trae tablas, columnas y relaciones; los"
+  echo "// CHECKs, triggers y EXCLUDE (las reglas de negocio) estan en esquema-actual.sql."
+  echo
+  docker exec "$CONTENEDOR" psql -U "$USUARIO" -d "$BASE" -tA -v ON_ERROR_STOP=1 \
+    -f /tmp/a-dbml.sql | tr -d '\r'
+} > "$salida_dbml"
+
 echo "listo: $salida (hasta $ultima)"
+echo "listo: $salida_dbml"

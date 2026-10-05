@@ -1,0 +1,549 @@
+// ESQUEMA ACTUAL de La Juanita, en DBML — ARCHIVO GENERADO, NO EDITAR
+// Hasta V38__cambiar_la_password_cierra_las_sesiones.sql. Generado el 2026-10-05 con ./scripts/esquema-actual.sh
+// Pegalo entero en dbdiagram.io. Trae tablas, columnas y relaciones; los
+// CHECKs, triggers y EXCLUDE (las reglas de negocio) estan en esquema-actual.sql.
+
+Table alumno {
+  id_alumno bigint [pk, increment]
+  id_usuario bigint [not null, unique]
+  nivel_ingreso varchar(20)
+  estado_alumno varchar(20) [not null, default: 'ACTIVO']
+  fecha_ingreso date [not null, default: `CURRENT_DATE`]
+  ultimo_contacto date
+  instagram varchar(100)
+}
+
+Table aparicion_release {
+  id_aparicion bigint [pk, increment]
+  id_release bigint [not null]
+  tipo_aparicion varchar(20) [not null]
+  donde varchar(200) [not null]
+  quien varchar(150)
+  fecha date
+  url varchar(500)
+  notas text
+  id_usuario_carga bigint
+  fecha_creacion timestamptz [not null, default: `now()`]
+  orden_relevancia smallint [note: 'generada:  CASE tipo_aparicion WHEN "RADIO"::text THEN 1 WHEN "SET"::text THEN 2 WHEN "PLAYLIST"::text THEN 3 ELSE 9 END']
+}
+
+Table artista {
+  id_artista bigint [pk, increment]
+  id_usuario bigint
+  nombre_artistico varchar(150) [not null]
+  nombre_real varchar(150)
+  email_contacto varchar(150)
+  telefono varchar(40)
+  instagram varchar(100)
+  confirmado boolean [not null, default: false]
+  bio text
+  fecha_alta timestamptz [not null, default: `now()`]
+}
+
+Table bloqueo_sala {
+  id_bloqueo bigint [pk, increment]
+  id_sala bigint [not null]
+  id_usuario_registra bigint
+  fecha_inicio date [not null]
+  fecha_fin date [not null]
+  hora_inicio time [not null, default: '00:00:00']
+  hora_fin time [not null, default: '23:59:00']
+  motivo text [not null]
+  fecha_registro timestamptz [not null, default: `now()`]
+  dias daterange [note: 'generada:  CASE WHEN (fecha_fin >= fecha_inicio) THEN daterange(fecha_inicio, fecha_fin, "[]"::text) ELSE NULL::daterange END']
+  franja rango_horario [note: 'generada:  CASE WHEN (hora_fin > hora_inicio) THEN rango_horario(hora_inicio, hora_fin, "[)"::text) ELSE NULL::rango_horario END']
+}
+
+Table cancion_release {
+  id_cancion bigint [pk, increment]
+  id_release bigint [not null]
+  orden smallint [not null]
+  titulo varchar(200) [not null]
+  duracion_segundos integer
+  artista_invitado varchar(200)
+  isrc varchar(20)
+  fecha_creacion timestamptz [not null, default: `now()`]
+
+  indexes {
+    (id_release, orden) [unique]
+  }
+}
+
+Table comprobante_egreso {
+  id_comprobante bigint [pk, increment]
+  id_egreso bigint [not null]
+  archivo_path varchar(500) [not null, unique]
+  nombre_original varchar(255) [not null]
+  id_usuario_carga bigint [not null]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  invalido boolean [not null, default: false]
+  id_usuario_invalida bigint
+  fecha_invalidacion timestamptz
+  motivo_invalidacion text
+}
+
+Table comprobante_pago {
+  id_comprobante bigint [pk, increment]
+  id_pago bigint [not null]
+  archivo_path varchar(500) [not null, unique]
+  nombre_original varchar(255) [not null]
+  id_usuario_carga bigint [not null]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  invalido boolean [not null, default: false]
+  id_usuario_invalida bigint
+  fecha_invalidacion timestamptz
+  motivo_invalidacion text
+}
+
+Table contrato_sello {
+  id_contrato bigint [pk, increment]
+  id_artista bigint [not null]
+  id_release bigint
+  archivo_path varchar(500) [not null]
+  fecha_firma date
+  observaciones text
+  fecha_carga timestamptz [not null, default: `now()`]
+}
+
+Table egreso {
+  id_egreso bigint [pk, increment]
+  id_usuario_registra bigint
+  id_usuario_destino bigint
+  monto numeric(14,2) [not null]
+  moneda varchar(3) [not null, default: 'ARS']
+  cotizacion_dolar numeric(14,4)
+  concepto varchar(200) [not null]
+  destinatario varchar(150)
+  fecha_egreso date [not null, default: `CURRENT_DATE`]
+  fecha_registro timestamptz [not null, default: `now()`]
+  anulado boolean [not null, default: false]
+  id_usuario_anula bigint
+  fecha_anulacion timestamptz
+  motivo_anulacion text
+}
+
+Table inscripcion {
+  id_inscripcion bigint [pk, increment]
+  id_profesor bigint
+  disciplina varchar(20) [not null]
+  nivel varchar(20)
+  clases_contratadas smallint [not null]
+  precio_total numeric(14,2) [not null]
+  moneda varchar(3) [not null, default: 'ARS']
+  cotizacion_dolar numeric(14,4)
+  fecha_inicio date
+  estado varchar(20) [not null, default: 'ACTIVA']
+  notas text
+  fecha_creacion timestamptz [not null, default: `now()`]
+  id_usuario_baja_nivel bigint
+  fecha_baja_nivel timestamptz
+  motivo_baja_nivel text
+  vence_preinscripcion timestamptz
+  numero_grupo integer [unique]
+}
+
+Table inscripcion_integrante {
+  id_integrante bigint [pk, increment]
+  id_inscripcion bigint [not null]
+  id_alumno bigint [not null]
+  referente boolean [not null, default: false]
+  fecha_creacion timestamptz [not null, default: `now()`]
+
+  indexes {
+    (id_inscripcion, id_alumno) [unique]
+  }
+}
+
+Table material {
+  id_material bigint [pk, increment]
+  id_profesor bigint [not null]
+  titulo varchar(200) [not null]
+  tipo varchar(50)
+  archivo_path varchar(500)
+  url_externa varchar(500)
+  visible_alumno boolean [not null, default: true]
+  fecha_subida timestamptz [not null, default: `now()`]
+  id_inscripcion bigint [not null]
+  id_reserva bigint
+}
+
+Table nota_profesor {
+  id_nota bigint [pk, increment]
+  id_profesor bigint [not null]
+  id_alumno bigint [not null]
+  id_participacion bigint
+  contenido text [not null]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz
+}
+
+Table notificacion {
+  id_notificacion bigint [pk, increment]
+  id_usuario_destino bigint [not null]
+  tipo varchar(50) [not null]
+  titulo varchar(200)
+  contenido text [not null]
+  url_destino varchar(300)
+  leida boolean [not null, default: false]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  clave_evento varchar(200)
+}
+
+Table pago {
+  id_pago bigint [pk, increment]
+  id_usuario bigint
+  id_usuario_registra bigint
+  id_inscripcion bigint
+  id_reserva bigint
+  id_trabajo_mastering bigint
+  id_venta_equipo bigint
+  concepto varchar(200)
+  monto numeric(14,2) [not null]
+  moneda varchar(3) [not null, default: 'ARS']
+  cotizacion_dolar numeric(14,4)
+  medio_pago varchar(30) [not null]
+  descuento_porcentaje numeric(5,2) [not null, default: 0]
+  motivo_descuento text
+  estado_pago varchar(20) [not null, default: 'PAGADO']
+  fecha_pago date [not null, default: `CURRENT_DATE`]
+  fecha_registro timestamptz [not null, default: `now()`]
+  id_usuario_anula bigint
+  fecha_anulacion timestamptz
+  motivo_anulacion text
+  nombre_pagador_externo varchar(150)
+  contacto_pagador_externo varchar(150)
+  id_usuario_modifico bigint
+  fecha_modificacion timestamptz
+}
+
+Table profesor {
+  id_profesor bigint [pk, increment]
+  id_usuario bigint [not null, unique]
+  especialidad varchar(150)
+  activo boolean [not null, default: true]
+}
+
+Table programa {
+  id_programa bigint [pk, increment]
+  disciplina varchar(20) [not null, unique]
+  nombre varchar(100) [not null]
+  descripcion text
+  precio numeric(14,2)
+  moneda varchar(3) [not null, default: 'ARS']
+  cobro varchar(10) [not null]
+  clases_estandar smallint
+  duracion_minutos smallint [not null, default: 90]
+  activo boolean [not null, default: true]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  precio_2 numeric(14,2)
+  precio_3 numeric(14,2)
+}
+
+Table release {
+  id_release bigint [pk, increment]
+  codigo_release varchar(20) [not null, unique]
+  id_artista bigint [not null]
+  nombre_release varchar(200) [not null]
+  tipo_release varchar(20)
+  genero varchar(80)
+  portada_path varchar(500)
+  fecha_estimada date
+  fecha_real date
+  estado varchar(20) [not null, default: 'A_CONFIRMAR']
+  sistema_promo boolean [not null, default: false]
+  notas text
+  fecha_creacion timestamptz [not null, default: `now()`]
+  publicado_sin_contrato boolean [not null, default: false]
+  motivo_publicacion text
+  id_usuario_publica bigint
+}
+
+Table reserva {
+  id_reserva bigint [pk, increment]
+  id_sala bigint [not null]
+  id_tipo_uso bigint [not null]
+  id_profesor bigint
+  fecha date [not null]
+  hora_inicio time [not null]
+  hora_fin time [not null]
+  estado varchar(20) [not null, default: 'CONFIRMADA']
+  notas text
+  id_reserva_recupera bigint
+  motivo_reprogramacion text
+  id_usuario_creo bigint
+  id_usuario_modifico bigint
+  fecha_creacion timestamptz [not null, default: `now()`]
+  fecha_modificacion timestamptz
+  periodo tsrange [note: 'generada: tsrange((fecha + hora_inicio), (fecha + hora_fin))']
+  vence_preconfirmacion timestamptz
+  precio_total numeric(14,2)
+  moneda varchar(3)
+}
+
+Table reserva_participante {
+  id_participacion bigint [pk, increment]
+  id_reserva bigint [not null]
+  id_usuario bigint [not null]
+  id_inscripcion bigint
+  estado_asistencia varchar(20) [not null, default: 'PENDIENTE']
+  observaciones text
+  fecha_registro timestamptz [not null, default: `now()`]
+  id_usuario_modifico bigint
+  fecha_modificacion timestamptz
+
+  indexes {
+    (id_reserva, id_usuario) [unique]
+  }
+}
+
+Table sala {
+  id_sala bigint [pk, increment]
+  nombre_sala varchar(100) [not null, unique]
+  descripcion text
+  activa boolean [not null, default: true]
+  orden smallint [not null, default: 0]
+}
+
+Table sala_tipo_uso {
+  id_sala bigint [not null]
+  id_tipo_uso bigint [not null]
+  advertencia text
+
+  indexes {
+    (id_sala, id_tipo_uso) [pk]
+  }
+}
+
+Table seguimiento_alumno {
+  id_seguimiento bigint [pk, increment]
+  id_profesor bigint [not null]
+  id_alumno bigint [not null]
+  estado varchar(30) [not null]
+  observaciones text
+  fecha_actualizacion timestamptz [not null, default: `now()`]
+
+  indexes {
+    (id_profesor, id_alumno) [unique]
+  }
+}
+
+Table solicitante {
+  id_solicitante bigint [pk, increment]
+  nombre varchar(80) [not null]
+  apellido varchar(80) [not null]
+  email varchar(150) [not null]
+  telefono varchar(40) [not null]
+  interes varchar(30) [not null]
+  detalle text
+  mensaje text
+  estado varchar(20) [not null, default: 'PENDIENTE']
+  id_usuario_resuelve bigint
+  id_usuario bigint
+  respuesta text
+  fecha_resolucion timestamptz
+  fecha_creacion timestamptz [not null, default: `now()`]
+  id_reserva bigint
+  id_inscripcion bigint
+  id_venta_equipo bigint
+  fecha_preferida date
+  hora_preferida time
+  duracion_minutos integer
+  disciplina varchar(20)
+  experiencia varchar(10)
+  modalidad varchar(12)
+}
+
+Table solicitante_companero {
+  id_companero bigint [pk, increment]
+  id_solicitante bigint [not null]
+  nombre varchar(80) [not null]
+  apellido varchar(80) [not null]
+  email varchar(150) [not null]
+  telefono varchar(40) [not null]
+  fecha_creacion timestamptz [not null, default: `now()`]
+}
+
+Table solicitud_reprogramacion {
+  id_solicitud bigint [pk, increment]
+  id_usuario bigint [not null]
+  id_reserva bigint [not null]
+  motivo text [not null]
+  fecha_alternativa_solicitada date
+  estado varchar(20) [not null, default: 'PENDIENTE']
+  id_usuario_resuelve bigint
+  respuesta text
+  fecha_solicitud timestamptz [not null, default: `now()`]
+  fecha_resolucion timestamptz
+}
+
+Table solicitud_reserva {
+  id_solicitud_reserva bigint [pk, increment]
+  id_usuario bigint [not null]
+  id_sala bigint [not null]
+  id_tipo_uso bigint [not null]
+  fecha date [not null]
+  hora_inicio time [not null]
+  hora_fin time [not null]
+  comentario text
+  estado varchar(20) [not null, default: 'PENDIENTE']
+  id_usuario_resuelve bigint
+  respuesta text
+  id_reserva bigint
+  fecha_resolucion timestamptz
+  fecha_creacion timestamptz [not null, default: `now()`]
+}
+
+Table tipo_uso {
+  id_tipo_uso bigint [pk, increment]
+  codigo varchar(40) [not null, unique]
+  nombre varchar(100) [not null]
+  es_clase boolean [not null, default: false]
+  color varchar(20)
+  activo boolean [not null, default: true]
+  solicitable_por_usuario boolean [not null, default: false]
+  disciplina varchar(20)
+}
+
+Table trabajo_mastering {
+  id_trabajo bigint [pk, increment]
+  id_cliente_usuario bigint
+  nombre_cliente_externo varchar(150)
+  contacto_cliente_externo varchar(150)
+  id_profesor_asignado bigint
+  tipo_trabajo varchar(20) [not null]
+  nombre_track varchar(200) [not null]
+  precio_acordado numeric(14,2)
+  moneda varchar(3) [not null, default: 'USD']
+  cotizacion_dolar numeric(14,4)
+  revisiones_incluidas smallint [not null, default: 3]
+  revisiones_realizadas smallint [not null, default: 0]
+  fecha_estimada date
+  fecha_entrega_real date
+  estado varchar(20) [not null, default: 'A_CONFIRMAR']
+  url_material_cliente varchar(500)
+  url_master varchar(500)
+  url_premaster varchar(500)
+  premaster_liberado boolean [not null, default: false]
+  liberado_sin_pago boolean [not null, default: false]
+  motivo_liberacion text
+  id_usuario_libera bigint
+  notas_internas text
+  fecha_creacion timestamptz [not null, default: `now()`]
+}
+
+Table usuario {
+  id_usuario bigint [pk, increment]
+  email varchar(150) [not null]
+  telefono varchar(40)
+  password_hash varchar(255) [not null]
+  rol varchar(20) [not null, default: 'USUARIO']
+  foto_perfil varchar(500)
+  estado_presencia varchar(20) [not null, default: 'ACTIVO']
+  bio text
+  especializacion varchar(150)
+  activo boolean [not null, default: true]
+  fecha_creacion timestamptz [not null, default: `now()`]
+  ultimo_acceso timestamptz
+  nombre varchar(80) [not null]
+  apellido varchar(80) [not null]
+  debe_cambiar_password boolean [not null, default: false]
+  password_temporal_desde timestamptz
+  credenciales_desde timestamptz
+}
+
+Table venta_equipo {
+  id_venta bigint [pk, increment]
+  id_usuario_comprador bigint
+  nombre_comprador_externo varchar(150)
+  contacto_comprador_externo varchar(150)
+  id_usuario_vendedor bigint [not null]
+  categoria varchar(50)
+  marca varchar(100)
+  modelo_equipo varchar(150) [not null]
+  precio numeric(14,2) [not null]
+  moneda varchar(3) [not null, default: 'ARS']
+  cotizacion_dolar numeric(14,4)
+  fecha_venta date [not null, default: `CURRENT_DATE`]
+  notas text
+  fecha_registro timestamptz [not null, default: `now()`]
+  anulada boolean [not null, default: false]
+  id_usuario_anula bigint
+  fecha_anulacion timestamptz
+  motivo_anulacion text
+}
+Ref: alumno.id_usuario > usuario.id_usuario
+Ref: aparicion_release.id_release > release.id_release
+Ref: aparicion_release.id_usuario_carga > usuario.id_usuario
+Ref: artista.id_usuario > usuario.id_usuario
+Ref: bloqueo_sala.id_sala > sala.id_sala
+Ref: bloqueo_sala.id_usuario_registra > usuario.id_usuario
+Ref: cancion_release.id_release > release.id_release
+Ref: comprobante_egreso.id_egreso > egreso.id_egreso
+Ref: comprobante_egreso.id_usuario_carga > usuario.id_usuario
+Ref: comprobante_egreso.id_usuario_invalida > usuario.id_usuario
+Ref: comprobante_pago.id_pago > pago.id_pago
+Ref: comprobante_pago.id_usuario_carga > usuario.id_usuario
+Ref: comprobante_pago.id_usuario_invalida > usuario.id_usuario
+Ref: contrato_sello.id_artista > artista.id_artista
+Ref: contrato_sello.id_release > release.id_release
+Ref: egreso.id_usuario_anula > usuario.id_usuario
+Ref: egreso.id_usuario_destino > usuario.id_usuario
+Ref: egreso.id_usuario_registra > usuario.id_usuario
+Ref: inscripcion.id_profesor > profesor.id_profesor
+Ref: inscripcion.id_usuario_baja_nivel > usuario.id_usuario
+Ref: inscripcion_integrante.id_alumno > alumno.id_alumno
+Ref: inscripcion_integrante.id_inscripcion > inscripcion.id_inscripcion
+Ref: material.id_inscripcion > inscripcion.id_inscripcion
+Ref: material.id_profesor > profesor.id_profesor
+Ref: material.id_reserva > reserva.id_reserva
+Ref: nota_profesor.id_alumno > alumno.id_alumno
+Ref: nota_profesor.id_participacion > reserva_participante.id_participacion
+Ref: nota_profesor.id_profesor > profesor.id_profesor
+Ref: notificacion.id_usuario_destino > usuario.id_usuario
+Ref: pago.id_inscripcion > inscripcion.id_inscripcion
+Ref: pago.id_reserva > reserva.id_reserva
+Ref: pago.id_trabajo_mastering > trabajo_mastering.id_trabajo
+Ref: pago.id_usuario > usuario.id_usuario
+Ref: pago.id_usuario_anula > usuario.id_usuario
+Ref: pago.id_usuario_modifico > usuario.id_usuario
+Ref: pago.id_usuario_registra > usuario.id_usuario
+Ref: pago.id_venta_equipo > venta_equipo.id_venta
+Ref: profesor.id_usuario > usuario.id_usuario
+Ref: release.id_artista > artista.id_artista
+Ref: release.id_usuario_publica > usuario.id_usuario
+Ref: reserva.(id_sala, id_tipo_uso) > sala_tipo_uso.(id_sala, id_tipo_uso)
+Ref: reserva.id_profesor > profesor.id_profesor
+Ref: reserva.id_reserva_recupera > reserva.id_reserva
+Ref: reserva.id_sala > sala.id_sala
+Ref: reserva.id_tipo_uso > tipo_uso.id_tipo_uso
+Ref: reserva.id_usuario_creo > usuario.id_usuario
+Ref: reserva.id_usuario_modifico > usuario.id_usuario
+Ref: reserva_participante.id_inscripcion > inscripcion.id_inscripcion
+Ref: reserva_participante.id_reserva > reserva.id_reserva
+Ref: reserva_participante.id_usuario > usuario.id_usuario
+Ref: reserva_participante.id_usuario_modifico > usuario.id_usuario
+Ref: sala_tipo_uso.id_sala > sala.id_sala
+Ref: sala_tipo_uso.id_tipo_uso > tipo_uso.id_tipo_uso
+Ref: seguimiento_alumno.id_alumno > alumno.id_alumno
+Ref: seguimiento_alumno.id_profesor > profesor.id_profesor
+Ref: solicitante.id_inscripcion > inscripcion.id_inscripcion
+Ref: solicitante.id_reserva > reserva.id_reserva
+Ref: solicitante.id_usuario > usuario.id_usuario
+Ref: solicitante.id_usuario_resuelve > usuario.id_usuario
+Ref: solicitante.id_venta_equipo > venta_equipo.id_venta
+Ref: solicitante_companero.id_solicitante > solicitante.id_solicitante
+Ref: solicitud_reprogramacion.id_reserva > reserva.id_reserva
+Ref: solicitud_reprogramacion.id_usuario > usuario.id_usuario
+Ref: solicitud_reprogramacion.id_usuario_resuelve > usuario.id_usuario
+Ref: solicitud_reserva.(id_sala, id_tipo_uso) > sala_tipo_uso.(id_sala, id_tipo_uso)
+Ref: solicitud_reserva.id_reserva > reserva.id_reserva
+Ref: solicitud_reserva.id_sala > sala.id_sala
+Ref: solicitud_reserva.id_tipo_uso > tipo_uso.id_tipo_uso
+Ref: solicitud_reserva.id_usuario > usuario.id_usuario
+Ref: solicitud_reserva.id_usuario_resuelve > usuario.id_usuario
+Ref: trabajo_mastering.id_cliente_usuario > usuario.id_usuario
+Ref: trabajo_mastering.id_profesor_asignado > profesor.id_profesor
+Ref: trabajo_mastering.id_usuario_libera > usuario.id_usuario
+Ref: venta_equipo.id_usuario_anula > usuario.id_usuario
+Ref: venta_equipo.id_usuario_comprador > usuario.id_usuario
+Ref: venta_equipo.id_usuario_vendedor > usuario.id_usuario
