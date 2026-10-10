@@ -1,0 +1,65 @@
+@startuml secuencia-login
+!include estilo.iuml
+
+title Diagrama de secuencia — Inicio de sesión
+hide footbox
+
+actor "Usuario" as U
+boundary "Pantalla\nde login" as P
+control "API\n/api/auth/login" as A
+control "Servicio\nde sesión" as S
+database "Base de\ndatos" as B
+control "Servicio\nde tokens" as T
+
+U -> P : Ingresa email y contraseña\n(opcional: "Recordarme")
+activate P
+P -> A : POST /api/auth/login
+activate A
+A -> S : iniciarSesion(email, contraseña)
+activate S
+S -> S : Contar intento\npara ese email
+
+alt Límite de\nintentos superado
+  S --> A : Demasiados intentos
+  A --> P : 429
+  P --> U : "Demasiados intentos,\nprobá más tarde"
+else Dentro del\nlímite
+  S -> B : Buscar usuario por email
+  activate B
+  B --> S : Usuario (o ninguno)
+  deactivate B
+  S -> S : Comparar contraseña (BCrypt)
+
+  alt Credenciales\ninválidas
+    S --> A : Credenciales inválidas\n(email inexistente, contraseña\nincorrecta o cuenta dada de baja)
+    A --> P : 401 (mismo mensaje\npara los tres casos)
+    P --> U : "Revisá el mail\ny la contraseña"
+  else Contraseña\ntemporal vencida
+    S --> A : Temporal vencida\n(más de 7 días sin usar)
+    A --> P : 401
+    P --> U : "Pedí una contraseña nueva"
+  else Credenciales\nválidas
+    S -> B : Registrar último acceso\ny limpiar intentos
+    activate B
+    B --> S : OK
+    deactivate B
+    S -> T : Emitir token
+    activate T
+    T --> S : JWT (8 h, o 30 días\ncon "Recordarme")
+    deactivate T
+    S --> A : Token + datos del usuario
+    deactivate S
+    A --> P : 200
+    deactivate A
+    P -> P : Guardar la credencial
+
+    alt Debe cambiar\nla contraseña
+      P --> U : Pantalla de cambio\nde contraseña obligatorio
+    else No debe\ncambiarla
+      P --> U : Pantalla de Inicio\ncon el menú según su rol
+    end
+  end
+end
+deactivate P
+
+@enduml

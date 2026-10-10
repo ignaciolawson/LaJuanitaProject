@@ -1,0 +1,72 @@
+@startuml secuencia-alta-reserva
+!include estilo.iuml
+
+title Diagrama de secuencia — Alta de reserva con seña (alquiler de cabina)
+hide footbox
+
+actor "Administración" as AD
+boundary "Pantalla de\ncalendario" as C
+control "API\n/api/reservas" as A
+control "Servicio de\nreservas" as R
+control "Servicio de\npagos" as PG
+database "Base de\ndatos" as B
+
+AD -> C : Elige sala, uso, día y horario,\nquién alquila y el precio total
+activate C
+C -> C : Precargar la seña\nen el 50% del precio
+AD -> C : Confirma la seña\n(o elige apartar sin seña)
+C -> A : POST /api/reservas
+activate A
+A -> R : alta(reserva, seña)
+activate R
+note right of R : Todo lo que sigue ocurre\nen UNA sola transacción
+
+R -> R : Verificar precio y moneda
+
+alt Precio o moneda\ninválidos
+  R --> A : Solicitud inválida
+  A --> C : 400 con el motivo
+  C --> AD : Marca el campo a corregir
+else Datos válidos
+  R -> R : Si no hay seña, la reserva\nnace PRECONFIRMADA con\nvencimiento (72 h o el inicio,\nlo que pase antes)
+  R -> B : Insertar la reserva
+  activate B
+  B -> B : Verificar sala × uso,\nsuperposición y bloqueos
+
+  alt Sala no habilitada, horario\nocupado o sala bloqueada
+    B --> R : Rechazo de la regla
+    R --> A : Conflicto
+    A --> C : 409 con el\nmensaje de la base
+    C --> AD : Muestra por qué no se puede
+  else Horario libre
+    B --> R : Reserva creada
+    deactivate B
+    R -> B : Anotar a quien alquila\ncomo participante
+    activate B
+    B --> R : OK
+    deactivate B
+
+    R -> PG : registrar(pago)\nSENADO con seña · DEBE sin seña
+    activate PG
+    PG -> B : Insertar el pago
+    activate B
+    B --> PG : OK
+    deactivate B
+    PG --> R : id del pago
+    deactivate PG
+
+    R -> B : COMMIT
+    activate B
+    B -> B : Verificar que la reserva\ntenga plata detrás
+    B --> R : Confirmado
+    deactivate B
+    R --> A : Reserva creada\n+ id del pago
+    deactivate R
+    A --> C : 201
+    deactivate A
+    C --> AD : La reserva aparece en el calendario\n(y se puede adjuntar el comprobante)
+  end
+end
+deactivate C
+
+@enduml

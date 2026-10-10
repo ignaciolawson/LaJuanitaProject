@@ -1,0 +1,64 @@
+@startuml casos-de-uso
+!include estilo.iuml
+
+title Diagrama de casos de uso — Sistema de gestión La Juanita
+left to right direction
+
+actor "Visitante\nde la landing" as Vis
+actor "Usuario" as Usu
+actor "Alumno" as Alu
+actor "Profesor" as Pro
+
+actor "Administración\n(Admin / Staff)" as Adm
+actor "Directivo" as Dir
+actor "Avisos\nautomáticos" as Avi
+
+Alu -up-|> Usu
+Pro -up-|> Usu
+
+rectangle "Sistema de gestión" {
+  together {
+    usecase "Completar un formulario\nde la landing" as UC1
+    usecase "Iniciar sesión" as UC2
+    usecase "Pedir una cabina\ndesde el portal" as UC3
+    usecase "Ver mis reservas\ny mis pagos" as UC4
+    usecase "Ver mis cursos\ny materiales" as UC5
+    usecase "Pedir otro día\npara una clase" as UC6
+    usecase "Ver mi agenda\ny mis alumnos" as UC7
+    usecase "Cargar notas\ny material" as UC8
+  }
+  together {
+    usecase "Atender una ficha\ndel buzón" as UC9
+    usecase "Inscribir a un\nalumno o grupo" as UC10
+    usecase "Reservar una sala" as UC11
+    usecase "Registrar un pago\ny cobrar deudas" as UC12
+    usecase "Gestionar trabajos\nde Mix & Mastering" as UC13
+    usecase "Publicar un release\ndel sello" as UC14
+    usecase "Ver deudores\ny caja" as UC15
+    usecase "Ver el tablero\nde dirección" as UC16
+    usecase "Enviar avisos\nde vencimientos" as UC17
+  }
+}
+
+Vis --> UC1
+Usu --> UC2
+Usu --> UC3
+Usu --> UC4
+Alu --> UC5
+Alu --> UC6
+Pro --> UC6
+Pro --> UC7
+Pro --> UC8
+
+UC9 <-- Adm
+UC10 <-- Adm
+UC11 <-- Adm
+UC12 <-- Adm
+UC13 <-- Adm
+UC14 <-- Adm
+UC15 <-- Adm
+UC15 <-- Dir
+UC16 <-- Dir
+UC17 <-- Avi
+
+@enduml

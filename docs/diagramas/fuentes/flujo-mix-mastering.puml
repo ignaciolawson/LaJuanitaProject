@@ -1,0 +1,49 @@
+@startuml flujo-mix-mastering
+!include estilo.iuml
+
+title Diagrama de flujo — Trabajo de Mix & Mastering
+
+|Administración|
+start
+:Cargar el trabajo: cliente (con o sin
+cuenta), tipo, tema y revisiones incluidas;
+|Sistema|
+:Estado A_CONFIRMAR;
+|Administración|
+if (¿Tiene precio acordado?) then (no)
+  :Acordar el precio con el cliente
+y cargarlo;
+else (sí)
+endif
+:Confirmar el trabajo;
+|Sistema|
+:Estado EN_PROCESO;
+|Administración|
+:Hacer el trabajo y cargar los links
+del master y del premaster;
+:Registrar cada revisión
+(si supera las incluidas, se avisa);
+:Entregar el trabajo;
+|Sistema|
+:Estado ENTREGADO: el cliente ve
+la canción terminada en su portal;
+if (¿Lo cobrado cubre\nel precio?) then (sí)
+  :Estado PAGADO;
+else (no)
+  :El premaster queda retenido;
+  if (¿Se libera igual,\ncomo excepción?) then (sí)
+    :Se libera el premaster
+con motivo firmado;
+  else (no)
+  endif
+  :A los 7 días sin cobro pasa a DEBE
+y se avisa a administración;
+  :Se registra el cobro
+en la moneda del trabajo;
+  :Estado PAGADO;
+endif
+:El premaster queda liberado
+y el cliente puede descargarlo;
+stop
+
+@enduml

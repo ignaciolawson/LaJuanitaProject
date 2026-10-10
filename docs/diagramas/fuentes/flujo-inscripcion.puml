@@ -1,0 +1,53 @@
+@startuml flujo-inscripcion
+!include estilo.iuml
+
+title Diagrama de flujo — Inscripción a un curso
+
+|Administración|
+start
+:Elegir el alumno o el grupo
+(1 a 3 integrantes) y su referente;
+:Elegir el programa;
+|Sistema|
+:Precargar precio y clases
+según el tamaño del grupo;
+|Administración|
+:Indicar si la seña
+entró en este momento;
+:Confirmar la inscripción;
+|Sistema|
+if (¿Datos válidos?) then (no)
+  :Mostrar el motivo
+(repetidos, mentoría grupal
+o referente fuera del grupo);
+  stop
+else (sí)
+endif
+if (¿Algún integrante ya tiene\nuna inscripción abierta\nen la disciplina?) then (sí)
+  :Rechazar la inscripción;
+  stop
+else (no)
+endif
+if (¿Precio cero (beca)\no entró la seña?) then (sí)
+  :Crear la inscripción ACTIVA
+(con el pago SENADO si hubo seña);
+else (no)
+  :Crear la inscripción PREINSCRIPTA
+con vencimiento de 24 h, sin pago;
+  if (¿Llegó la seña\nantes de las 24 h?) then (no)
+    :Avisar a administración
+que la preinscripción venció;
+    if (¿Pasaron 21 días\nsin seña?) then (sí)
+      :Cancelar la inscripción;
+      stop
+    else (no)
+    endif
+  else (sí)
+  endif
+  :Registrar la seña y pasar
+la inscripción a ACTIVA;
+endif
+:El alumno ve el curso en su portal;
+stop
+
+@enduml

@@ -1,0 +1,69 @@
+@startuml flujo-reserva
+!include estilo.iuml
+
+title Diagrama de flujo — Reserva de sala
+
+|Administración|
+start
+:Elegir sala, tipo de uso,
+día y horario;
+if (¿Es una clase?) then (sí)
+  :Elegir el curso (alumno o grupo)
+y el profesor;
+else (no)
+  :Cargar quién alquila
+y el precio total;
+  :Cargar la seña (se precarga
+en el 50%) o dejarla vacía;
+endif
+:Confirmar la reserva;
+|Sistema|
+if (¿La sala admite\nese tipo de uso?) then (no)
+  :Rechazar: uso no habilitado
+en esa sala;
+  stop
+else (sí)
+endif
+if (¿El horario está libre\ny la sala sin bloqueo?) then (no)
+  :Rechazar: horario ocupado
+o sala bloqueada;
+  stop
+else (sí)
+endif
+if (¿El profesor o algún alumno\nya está en otra sala\na esa hora?) then (sí)
+  :Rechazar: nadie puede estar
+en dos salas a la vez;
+  stop
+else (no)
+endif
+if (¿Es una clase?) then (sí)
+  if (¿Cada alumno tiene su curso\nACTIVO y clases disponibles?) then (no)
+    :Rechazar: sin inscripción
+activa o sin clases;
+    stop
+  else (sí)
+  endif
+  :Crear la reserva CONFIRMADA
+(la clase descuenta del curso);
+else (no)
+  if (¿Se cargó la seña?) then (sí)
+    :Crear la reserva CONFIRMADA
+y registrar el pago SENADO;
+  else (no)
+    :Crear la reserva PRECONFIRMADA
+y anotar la deuda, con vencimiento
+(72 h o el inicio, lo que pase antes);
+    if (¿Se cobró antes\ndel vencimiento?) then (no)
+      :Cancelar la reserva, liberar
+el horario y avisar al cliente
+y a administración;
+      stop
+    else (sí)
+    endif
+    :Pasar la reserva a CONFIRMADA;
+  endif
+endif
+:La reserva queda en el calendario;
+stop
+
+@enduml

@@ -1,0 +1,36 @@
+' Estilo común a todos los diagramas: blanco, negro y gris, sin sombras.
+skinparam monochrome true
+skinparam shadowing false
+skinparam backgroundColor white
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam titleFontSize 16
+skinparam titleFontStyle bold
+skinparam ArrowColor black
+skinparam ArrowThickness 1.2
+skinparam roundCorner 8
+skinparam dpi 150
+
+' Secuencia
+skinparam sequenceMessageAlign center
+skinparam sequenceGroupBodyBackGroundColor white
+skinparam sequenceGroupBackgroundColor #E6E6E6
+skinparam sequenceLifeLineBorderColor #555555
+
+' Actividad
+skinparam ActivityBackgroundColor white
+skinparam ActivityBorderColor black
+skinparam ActivityDiamondBackgroundColor white
+skinparam SwimlaneBorderColor black
+skinparam SwimlaneTitleFontStyle bold
+
+' Casos de uso
+skinparam UsecaseBackgroundColor white
+skinparam ActorBackgroundColor white
+skinparam PackageBackgroundColor white
+
+<style>
+sequenceDiagram {
+  participant { padding 22 }
+}
+</style>
