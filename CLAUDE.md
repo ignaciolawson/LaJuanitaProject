@@ -171,7 +171,8 @@ docs/
 ├── propuesta/     technical & commercial proposal
 ├── requirements/  per-app scope
 ├── branding/      brand assets + identity guide
-├── db/            data model (DBML) + the adversarial audit of the schema
+├── db/            data model (DBML) + the adversarial audit of the schema + diccionario-de-datos.xlsx
+├── diagramas/     the formal diagrams (use cases, flow, sequence, relational, ER, classes) — as of V38, NOT auto-updated; README inside
 ├── auditoria/     the 2026-08 technical audit and its remediation log
 ├── mejoras.md     the post-MVP improvement phase: how findings get triaged
 ├── pendientes.md  EVERYTHING still open, in one place — start here for "what's left"
