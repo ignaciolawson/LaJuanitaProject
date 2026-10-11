@@ -1,0 +1,46 @@
+@startuml proceso-actual-inscripcion
+!include estilo.iuml
+
+
+|Alumno|
+start
+:Contacta al estudio
+por Instagram o WhatsApp;
+|Administración / Community Manager|
+:La community manager responde
+en Instagram y Micaela retoma
+la conversación por WhatsApp;
+:Consulta disciplina (DJ o producción)
+y nivel de experiencia;
+|Alumno|
+:Responde intereses
+y experiencia;
+|Administración / Community Manager|
+:Envía el PDF del programa
+(modalidad, duración y precio);
+:Revisa la disponibilidad
+y ofrece horarios;
+|Notion / Excel|
+:Notion: disponibilidad de salas
+y profesores;
+|Alumno|
+:Elige el horario
+y paga la seña;
+|Administración / Community Manager|
+:Registra la seña
+y reserva el horario;
+|Notion / Excel|
+:Excel: seña registrada
+Notion: horario reservado;
+|Alumno|
+:Paga el saldo restante;
+|Administración / Community Manager|
+:Confirma el pago total
+y habilita el acceso;
+|Notion / Excel|
+:Excel: pago registrado
+Notion: indicador de pagado;
+|Alumno|
+:Comienza a cursar;
+stop
+@enduml
