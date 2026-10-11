@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 from docx import Document
-from docx.enum.section import WD_SECTION
+from docx.enum.section import WD_ORIENT, WD_SECTION
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
@@ -235,6 +235,14 @@ class Libro:
         rotulo.paragraph_format.keep_with_next = True
         rotulo.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
 
+        # Referencias APA: sangría francesa de 1,27 cm. A la izquierda, porque las URL
+        # largas justificadas abren huecos en la línea.
+        ref = st.add_style("Referencia", WD_STYLE_TYPE.PARAGRAPH)
+        ref.base_style = normal
+        ref.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        ref.paragraph_format.left_indent = Cm(1.27)
+        ref.paragraph_format.first_line_indent = Cm(-1.27)
+
         nota = st.add_style("Nota", WD_STYLE_TYPE.PARAGRAPH)
         nota.base_style = normal
         nota.font.size = Pt(10)
@@ -244,6 +252,7 @@ class Libro:
         nota.paragraph_format.space_after = Pt(12)
 
     def _geometria(self, s):
+        s.orientation = WD_ORIENT.PORTRAIT
         s.page_width = ANCHO_PAGINA
         s.page_height = ALTO_PAGINA
         s.left_margin = MARGEN_INTERIOR   # con mirrorMargins, "left" es el interior

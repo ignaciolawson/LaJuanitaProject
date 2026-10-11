@@ -1,0 +1,30 @@
+@startuml arquitectura
+!include estilo.iuml
+skinparam componentStyle rectangle
+skinparam nodeBackgroundColor white
+skinparam databaseBackgroundColor white
+skinparam rectangleBackgroundColor white
+left to right direction
+
+actor "Visitante" as vis
+actor "Usuario\n(alumno, profesor,\ncliente, equipo)" as usu
+
+node "Servidor en la nube (Docker Compose)" {
+  rectangle "Proxy inverso\nCaddy · HTTPS" as proxy
+  rectangle "Landing pública\nNext.js\n( / )" as landing
+  rectangle "Panel de gestión\nReact + Vite\n( /app )" as panel
+  rectangle "API REST\nSpring Boot · Java 21\n( /api )" as api
+  database "PostgreSQL 16\ntablas, reglas\ny auditoría" as db
+  folder "Archivos\ncontratos y\ncomprobantes" as files
+}
+
+vis --> proxy : HTTPS
+usu --> proxy : HTTPS
+proxy --> landing
+proxy --> panel
+proxy --> api
+landing ..> api : formularios\nde consulta
+panel ..> api : JSON + JWT
+api --> db : JPA / Flyway
+api --> files
+@enduml

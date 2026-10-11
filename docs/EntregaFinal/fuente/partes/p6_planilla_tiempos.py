@@ -10,7 +10,7 @@ FILAS = [
     ("7", "Desarrollo de la Propuesta Técnica", "20 h", "13 h"),
     ("8", "Desarrollo de la Propuesta Comercial", "10 h", "7 h"),
     ("9", "Revisión y correcciones de la Propuesta Comercial y Técnica", "3 h", "3 h"),
-    ("10", "Elaboración de diagramas", "15 h", "4:30 h"),
+    ("10", "Elaboración de diagramas", "15 h", "5:30 h"),
     ("11", "Implementación en Base de Datos", "10 h", "9:35 h"),
     ("12", "Desarrollo Módulo 1 – Alumnos", "48 h", "1 h"),
     ("13", "Desarrollo Módulo 2 – Horarios y Salas", "24 h", "6:23 h"),
