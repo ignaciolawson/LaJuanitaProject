@@ -1,12 +1,14 @@
 # Abre el libro en Word, recalcula el índice y los números de página, lo guarda y
 # exporta el PDF con marcadores por título. Necesita Word instalado.
 #
-#   pwsh docs/EntregaFinal/fuente/exportar.ps1
+#   pwsh docs/EntregaFinal/fuente/exportar.ps1                      # el libro
+#   pwsh docs/EntregaFinal/fuente/exportar.ps1 Manual-de-Usuario    # el manual
 
+param([string]$Nombre = 'La-Juanita-Studio-Entrega-Final')
 $ErrorActionPreference = 'Stop'
 $carpeta = Split-Path -Parent $PSScriptRoot
-$docx = Join-Path $carpeta 'La-Juanita-Studio-Entrega-Final.docx'
-$pdf = Join-Path $carpeta 'La-Juanita-Studio-Entrega-Final.pdf'
+$docx = Join-Path $carpeta "$Nombre.docx"
+$pdf = Join-Path $carpeta "$Nombre.pdf"
 
 $word = New-Object -ComObject Word.Application
 $word.Visible = $false

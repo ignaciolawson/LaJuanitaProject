@@ -167,8 +167,8 @@ def _arquitectura(libro):
         "Cada persona tiene un perfil con su nombre, apellido, teléfono y correo electrónico. "
         "Puede editar sus datos de contacto, salvo el correo: es su credencial de acceso y, "
         "como el sistema no envía correos, un error de tipeo la dejaría sin poder entrar, por "
-        "lo que se cambia a través de la administración. Desde el perfil también cambia su "
-        "contraseña. La base de datos ya reserva lugar para una foto de perfil, una "
+        "lo que se cambia a través de la administración. Si olvida su contraseña, la "
+        "administración le genera una temporal nueva. La base de datos ya reserva lugar para una foto de perfil, una "
         "biografía y un estado de presencia, que quedan disponibles para una extensión "
         "futura orientada a la comunidad del estudio.")
 
@@ -411,7 +411,8 @@ MODULOS = [
             "Para una clase, se elige el curso; el profesor se propone a partir de la "
             "inscripción y puede cambiarse por un suplente.",
             "Para un alquiler o una grabación, se carga el precio y la seña (el 50 % por "
-            "defecto), o se deja prerreservada por 72 horas.",
+            "defecto). Si el pedido llegó desde el portal o desde la web, el horario puede "
+            "apartarse por 72 horas mientras se espera la seña.",
             "Al confirmar, la base verifica que no haya superposición, que nadie esté en dos "
             "salas a la vez y que la reserva tenga plata detrás.",
             "Si alguien pide otro día, el pedido llega a administración, que lo aprueba "
@@ -589,7 +590,7 @@ MODULOS = [
             ["Mis trabajos", "Cualquier usuario", "Ver el estado de sus trabajos de mix & "
                                                   "mastering."],
             ["Notificaciones · Mi perfil", "Cualquier usuario",
-             "Leer avisos; editar sus datos y su contraseña."],
+             "Leer avisos; editar sus datos de contacto."],
         ],
         "tecnologia": [
             ["Base de datos", "Una resolución de pedido es definitiva: no puede volver a "

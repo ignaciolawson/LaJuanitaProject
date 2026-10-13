@@ -138,7 +138,8 @@ def escribir_rico(parrafo, texto, tamano=None):
 
 
 class Libro:
-    def __init__(self):
+    def __init__(self, titulo_corto=TITULO_CORTO):
+        self.titulo_corto = titulo_corto
         self.doc = Document()
         self.figuras = 0
         self.tablas = 0
@@ -304,7 +305,7 @@ class Libro:
         s.even_page_footer.is_linked_to_previous = False
         if encabezado_impar:
             self._encabezado(s.header, encabezado_impar, WD_ALIGN_PARAGRAPH.RIGHT)
-            self._encabezado(s.even_page_header, TITULO_CORTO, WD_ALIGN_PARAGRAPH.LEFT)
+            self._encabezado(s.even_page_header, self.titulo_corto, WD_ALIGN_PARAGRAPH.LEFT)
         else:
             self._vaciar(s.header)
             self._vaciar(s.even_page_header)
@@ -461,7 +462,8 @@ class Libro:
 
     # -- piezas fijas --------------------------------------------------------
 
-    def portada(self):
+    def portada(self, titulo="Sistema de Gestión Integral para La Juanita Studio",
+                subtitulo="Sello discográfico y estudio de formación musical"):
         """Portada de estudiante APA 7. Sin encabezado ni número."""
         s = self.doc.sections[0]
         s.different_first_page_header_footer = True
@@ -486,8 +488,8 @@ class Libro:
         p.paragraph_format.space_before = Cm(2)
         p.add_run().add_picture(str(RAIZ / "docs/branding/logos/logo-icono.png"), width=Cm(5))
 
-        linea("Sistema de Gestión Integral para La Juanita Studio", 18, negrita=True, antes=36)
-        linea("Sello discográfico y estudio de formación musical", 12, cursiva=True, antes=6, color=GRIS)
+        linea(titulo, 18, negrita=True, antes=36)
+        linea(subtitulo, 12, cursiva=True, antes=6, color=GRIS)
 
         linea("Ignacio Lawson", 11, antes=96)
         linea("Ingeniería Informática, Universidad del Salvador — Sede Pilar")
