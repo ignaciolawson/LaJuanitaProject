@@ -1,4 +1,4 @@
--- La Juanita Studio - Esquema de base de datos (PostgreSQL 16)
+
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
