@@ -12,9 +12,11 @@ Todos van en blanco, negro y gris. Las líneas son ortogonales, ninguna corre en
 | `flujo-mix-mastering.png` | Ciclo de un trabajo de M&M y la regla del premaster (se libera con el precio cubierto o por excepción firmada) |
 | `secuencia-login.png` | Login: límite de intentos, mismo 401 para los tres rechazos, temporal vencida a los 7 días, JWT de 8 h o 30 días con "Recordarme" |
 | `secuencia-alta-reserva.png` | Alta de una reserva con seña en una sola transacción, con la verificación de la plata al COMMIT |
-| `relacional.png` | Las 31 tablas con todas sus columnas, PK/FK y relaciones en notación pata de gallo |
-| `entidad-relacion.png` | Modelo conceptual en notación de Chen: 28 entidades, 49 relaciones con cardinalidad (mín, máx) y tipo 1:1 / 1:N / N:M |
-| `clases.png` | Las 30 clases `@Entity` con atributos y métodos de dominio, y los 26 enums que usan |
+| `relacional.pdf` | Las 31 tablas con todas sus columnas, PK/FK y relaciones en notación pata de gallo |
+| `entidad-relacion.pdf` | Modelo conceptual en notación de Chen: 28 entidades, 49 relaciones con cardinalidad (mín, máx) y tipo 1:1 / 1:N / N:M |
+| `clases.pdf` | Las 30 clases `@Entity` con atributos y métodos de dominio. Las enumeraciones no se dibujan (se sacaron el 2026-10-14) |
+
+Los tres grandes están **solo en PDF vectorial**: el texto es texto y las líneas son trazos, así que se amplían sin pixelarse y se puede buscar con Ctrl+F. Son los que van a imprenta para las cartulinas.
 
 El **diccionario de datos** está en `../db/diccionario-de-datos.xlsx`: las 356 columnas con campo, tipo, tamaño, requerido y descripción, más una hoja índice de tablas.
 

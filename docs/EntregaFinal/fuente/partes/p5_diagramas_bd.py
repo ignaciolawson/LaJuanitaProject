@@ -19,8 +19,8 @@ def escribir(libro):
              "El modelo conceptual en notación de Chen: 28 entidades y 49 relaciones con su "
              "cardinalidad mínima y máxima."],
             ["3", "Diagrama de clases",
-             "Las 30 clases de entidad del sistema, con sus atributos y métodos de dominio, "
-             "y las 26 enumeraciones que usan."],
+             "Las 30 clases de entidad del sistema, con sus atributos y métodos de "
+             "dominio."],
         ],
         [1.6, 4.0, 9.4],
         titulo="Láminas que acompañan a este documento",
