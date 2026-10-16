@@ -1,0 +1,57 @@
+# ============================================================================
+# El backend de la DEMO en Render (plan gratis). Lo lee "New > Blueprint".
+#
+# ⚠️ Es TEMPORAL: plan free = se duerme a los 15 minutos (el primer pedido
+# despues tarda ~1 minuto y los avisos automaticos de las 8:05 no corren si esta
+# dormido) y NO tiene disco: los comprobantes y contratos que se suban se borran
+# en cada reinicio. Para el uso real: el droplet, `docs/operacion.md` §3.
+#
+# La base es Supabase y la landing y el panel van en Vercel. El paso a paso
+# esta en `docs/operacion.md` §3 · *Demo en Vercel + Supabase + Render*.
+# ============================================================================
+
+services:
+  - type: web
+    name: lajuanita-backend
+    runtime: docker
+    plan: free
+    # Virginia: la misma zona que Supabase `us-east-1` y que las funciones de
+    # Vercel (iad1). Cada pedido cruza los tres; repartirlos por el mundo suma
+    # latencia en cada uno.
+    region: virginia
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: ./apps/backend
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      # Supabase: el "Session pooler" (IPv4). La conexion directa es solo IPv6
+      # y Render no sale por IPv6. Formato:
+      #   jdbc:postgresql://aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+      - key: DB_URL
+        sync: false
+      # Del mismo pooler: `postgres.<ref-del-proyecto>`
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Render genera 256 bits en Base64: lo que pide `SeguridadConfig`.
+      - key: JWT_SECRET
+        generateValue: true
+      # La URL de la LANDING en Vercel, con https y sin barra final.
+      - key: CORS_ORIGENES
+        sync: false
+      # El plan free da 512 MB EN TOTAL. Sin techo, la JVM se calcula contra
+      # la RAM de la maquina de Render y la matan por memoria al arrancar.
+      - key: JAVA_OPTS
+        value: "-Xmx256m -XX:MaxMetaspaceSize=160m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1"
+      # El pooler de Supabase free tiene cupo chico; 10 conexiones (el default
+      # de Hikari) por instancia lo agotan.
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      # `CS-04`: el IP real del visitante viaja primero en X-Forwarded-For (lo
+      # pone Vercel). Ver la nota de la demo en `docs/operacion.md` §3.
+      - key: SERVER_FORWARD_HEADERS_STRATEGY
+        value: framework
+      - key: AVISOS_ZONA
+        value: America/Argentina/Buenos_Aires

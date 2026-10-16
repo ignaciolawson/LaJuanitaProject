@@ -53,6 +53,12 @@
 		# este archivo. Ni la landing ni el panel pueden ponersela solos.
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
+		# ⚠️ En una demo es `noindex, nofollow` y en produccion `all`. La
+		# landing de prueba tiene precios y posts INVENTADOS firmados con
+		# nombres reales: indexada, Google los publica como si fueran del
+		# estudio. Es variable obligatoria en el compose (`:?`) para que el
+		# dia de produccion haya que decidirlo, no heredarlo.
+		X-Robots-Tag "{$X_ROBOTS_TAG}"
 	}
 
 	# ------------------------------------------------------------------

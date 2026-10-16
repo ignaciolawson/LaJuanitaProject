@@ -590,6 +590,136 @@ base vacía en 2,3 s, y el backend escuchando a los 40 s. Por eso el healthcheck
 del backend tiene `start_period: 120s` — con menos, Docker lo da por enfermo
 durante un arranque normal y lo reinicia en loop.
 
+### Deploy de demo — un droplet, un comando (2026-10-15)
+
+Para que el estudio vea el sistema en internet **antes** de producción: mismo
+compose, mismas imágenes, cero cambios de código. Lo que cambia es el `.env`.
+
+1. **DigitalOcean → Create Droplet**: Ubuntu 24.04, **2 GB de RAM** (~US$12/mes;
+   con 1 GB los builds pasan raspando aun con swap), cualquier región. Se cobra
+   por hora: borrarlo a la semana cuesta centavos.
+2. Entrar y correr:
+
+   ```bash
+   ssh root@<IP>
+   curl -fsSL https://raw.githubusercontent.com/ignaciolawson/LaJuanitaProject/main/deploy/preparar-servidor.sh | bash
+   ```
+
+`deploy/preparar-servidor.sh` hace swap, Docker, firewall (22/80/443), clona en
+`/opt/lajuanita`, genera el `.env` con secretos nuevos, construye de a una imagen
+y levanta. Tres decisiones de demo, todas en el `.env`:
+
+| Variable | Demo | Por qué |
+|---|---|---|
+| `DOMINIO` | `<ip-con-guiones>.sslip.io` | Resuelve a la IP y Caddy le saca un certificado real: HTTPS sin comprar dominio |
+| `X_ROBOTS_TAG` | `noindex, nofollow` | La landing tiene precios y posts inventados; producción es `all` |
+| `JAVA_OPTS` | `-Xmx512m` | Sin techo, la JVM calcula su heap contra la RAM del host |
+
+⚠️ **El script cambia la contraseña del admin sembrado y no es opcional**: el
+repo es público y `V3` dice `lajuanita2026`. La nueva queda en
+`/root/lajuanita-admin.txt`. Después: crear desde el panel las cuentas de los
+del estudio. Desactivar el admin (`V39`) sigue yendo **después** de eso.
+
+La base arranca **vacía** (solo lo que siembran las migraciones: salas, matriz,
+catálogo, admin). Actualizar es volver a correr el script: hace `git pull` y
+reconstruye sin tocar el `.env` ni la base. Para pasar a producción no se
+rehace nada: dominio propio en `DOMINIO` y `CORS_ORIGENES`, `X_ROBOTS_TAG=all`,
+y los pasos de *"Después de que esté arriba"* de más arriba (backup y restore).
+
+### Demo en Vercel + Supabase + Render (2026-10-15) — la que se usa HOY
+
+**Temporal, gratis, solo para que el estudio vea el sistema andando.** Cuando lo
+usen en serio va el droplet de arriba; esto no se migra, se reemplaza.
+
+| Pieza | Dónde | Qué lo configura |
+|---|---|---|
+| Base | Supabase (free, `us-east-1`) | — las migraciones las corre el backend al arrancar |
+| Backend | Render (free, Virginia) | `render.yaml` |
+| Panel | Vercel, proyecto con raíz `apps/platform` | `apps/platform/vercel.json` |
+| Landing + el origen único | Vercel, proyecto con raíz `apps/landing` | `PANEL_ORIGEN` y `API_ORIGEN` → rewrites de `next.config.ts` |
+
+⚠️ **El origen único se mantiene**: la gente entra SIEMPRE por la URL de la
+landing, que reenvía `/app` al proyecto del panel y `/api` a Render. Entrar por
+la URL propia del panel carga la pantalla pero su `/api` no existe ahí.
+
+Lo que esta forma NO tiene, y por qué es solo demo:
+
+- **Render se duerme** a los 15 minutos: el primer pedido tarda ~1 minuto, y los
+  avisos automáticos de las 8:05 no corren si está dormido.
+- **No hay disco**: comprobantes y contratos subidos se borran en cada reinicio.
+- **Supabase free pausa la base** tras una semana sin uso (se reactiva desde su
+  panel) y no hace backups.
+- **`CS-04` queda a medias**: el IP real llega primero en `X-Forwarded-For`
+  porque lo pone Vercel, pero quien le pegue directo a la URL de Render puede
+  elegir su IP para el límite por intentos. Aceptable sin datos reales.
+
+⚠️ **Dos pasos que no son opcionales**, y el procedimiento completo es el de
+abajo:
+
+1. **Apagar la Data API de Supabase.** Por defecto publica el esquema `public`
+   por HTTP; este sistema no la usa (habla JDBC) y con ella encendida la tabla
+   `usuario` queda a una clave de distancia.
+2. **Cambiar la contraseña del admin sembrado** apenas levanta: el repo es
+   público y `V3` dice `lajuanita2026`.
+
+#### Paso a paso
+
+**1 · Supabase.** *New project*, región **East US (N. Virginia)**, contraseña de
+base generada (guardarla). Después:
+
+- *Project Settings → Data API* → **desactivar** (o sacar `public` de los
+  esquemas expuestos).
+- *Connect* → **Session pooler** → copiar host, puerto, base y usuario
+  (`postgres.<ref>`). La *Direct connection* es solo IPv6 y Render no llega.
+
+**2 · Render (backend).** *New → Blueprint*, elegir el repo: lee `render.yaml`.
+Completar las tres de Supabase y `CORS_ORIGENES` (se puede poner un valor
+provisorio y corregirlo en el paso 4):
+
+```
+DB_URL        jdbc:postgresql://<host-del-pooler>:5432/postgres?sslmode=require
+DB_USER       postgres.<ref>
+DB_PASSWORD   <la de la base>
+CORS_ORIGENES https://<proyecto-landing>.vercel.app
+```
+
+El primer build tarda ~10 minutos. Listo cuando
+`https://<servicio>.onrender.com/actuator/health` contesta `{"status":"UP"}`:
+para entonces las 38 migraciones ya corrieron contra Supabase.
+
+**3 · Vercel, el panel.** *Add New → Project*, el repo, **Root Directory
+`apps/platform`**. Framework, build y salida los toma de `vercel.json`. Deploy.
+La URL que da (`https://<proyecto-panel>.vercel.app`) es la de `PANEL_ORIGEN`.
+
+**4 · Vercel, la landing.** Otro proyecto, mismo repo, **Root Directory
+`apps/landing`** (Next lo detecta solo). Variables de entorno:
+
+```
+PANEL_ORIGEN           https://<proyecto-panel>.vercel.app
+API_ORIGEN             https://<servicio>.onrender.com
+LAJUANITA_NO_INDEXAR   1
+```
+
+Deploy. Si la URL final de la landing no es la que se puso en `CORS_ORIGENES`,
+corregirla en Render (se redeploya solo). ⚠️ Con un origen que no está en esa
+lista el login contesta *"Revisá el mail y la contraseña"* y no es la contraseña.
+
+**5 · La contraseña del admin**, desde cualquier terminal con `curl`:
+
+```bash
+B=https://<proyecto-landing>.vercel.app
+T=$(curl -s -X POST -H 'Content-Type: application/json' \
+      -d '{"email":"admin@lajuanita.local","password":"lajuanita2026"}' \
+      $B/api/auth/login | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+curl -s -w '\n%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+     -H "Authorization: Bearer $T" \
+     -d '{"passwordActual":"lajuanita2026","passwordNueva":"<UNA-NUEVA-LARGA>"}' \
+     $B/api/me/password                                   # 200
+```
+
+Ese login es también la prueba de punta a punta: si da token, las tres piezas
+se hablan. Después: entrar a `$B/app/` y crear las cuentas de los del estudio.
+
 ### Lo que falta para cerrar esta sección
 
 1. **Conseguir la máquina y correr el procedimiento allá.** Todo lo de arriba

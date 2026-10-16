@@ -75,6 +75,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET (openssl rand -base64 48)}
       CORS_ORIGENES: ${CORS_ORIGENES:?falta CORS_ORIGENES}
       AVISOS_ZONA: ${AVISOS_ZONA:-America/Argentina/Buenos_Aires}
+      # El default es el del Dockerfile. En una maquina chica conviene un techo
+      # fijo (`-Xmx512m`): sin limite de memoria en el contenedor, el 75% se
+      # calcula contra la RAM del HOST y la JVM le disputa la memoria a
+      # Postgres y a Next.
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
       # ----------------------------------------------------------------
       # `CS-04`. Es la mitad de Java; la otra es el `header_up
       # X-Forwarded-For` del Caddyfile, que sanea la cabecera. **Las dos
@@ -133,6 +138,7 @@ services:
       - landing
     environment:
       DOMINIO: ${DOMINIO:?falta DOMINIO}
+      X_ROBOTS_TAG: ${X_ROBOTS_TAG:?falta X_ROBOTS_TAG (demo noindex, nofollow / produccion all)}
     ports:
       - "80:80"
       - "443:443"

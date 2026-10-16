@@ -68,6 +68,15 @@ const cspDirectivas = [
   "frame-src https://www.google.com https://www.youtube-nocookie.com https://open.spotify.com",
 ].join("; ");
 
+/** Las tres rutas del origen único: `/` es este sitio, el resto se reenvía. */
+function reparto(panel: string, api: string) {
+  return [
+    { source: "/app", destination: `${panel}/app/` },
+    { source: "/app/:path*", destination: `${panel}/app/:path*` },
+    { source: "/api/:path*", destination: `${api}/api/:path*` },
+  ];
+}
+
 const nextConfig: NextConfig = {
   /**
    * Empaqueta el sitio con solo lo que necesita para correr: `.next/standalone`
@@ -131,14 +140,23 @@ const nextConfig: NextConfig = {
    * que tiene HMR; :3000 es para probar el circuito entero, que es lo que no se
    * podia probar de ninguna otra manera.
    */
+  /**
+   * ⚠️ **Y en la DEMO de Vercel también** (2026-10-15, `docs/operacion.md` §3 ·
+   * *Demo en Vercel*): ahí no hay Caddy, así que el reparto lo vuelve a hacer
+   * este archivo, apuntando a los otros dos servicios por variable. Sin las
+   * dos variables —el deploy con Docker, donde reparte Caddy— no hay rewrites,
+   * exactamente como antes. Se leen en el BUILD: cambiarlas en Vercel pide un
+   * redeploy.
+   */
   async rewrites() {
-    if (process.env.NODE_ENV !== "development") return [];
+    const panel = process.env.PANEL_ORIGEN;
+    const api = process.env.API_ORIGEN;
 
-    return [
-      { source: "/app", destination: "http://localhost:5173/app/" },
-      { source: "/app/:path*", destination: "http://localhost:5173/app/:path*" },
-      { source: "/api/:path*", destination: "http://localhost:8080/api/:path*" },
-    ];
+    if (process.env.NODE_ENV === "development") {
+      return reparto("http://localhost:5173", "http://localhost:8080");
+    }
+    if (panel && api) return reparto(panel, api);
+    return [];
   },
 
   /**
@@ -157,8 +175,17 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/:path*",
+        // ⚠️ Todo MENOS `/app` y `/api`. Con Caddy esos pedidos nunca llegan
+        // acá y la exclusión no cambia nada; con los rewrites de arriba sí
+        // pasan por este servidor, y esta CSP pegada a las respuestas del
+        // panel le corta sus fuentes de Google (`font-src 'self'` a secas: el
+        // navegador aplica las dos políticas y gana la más restrictiva). Es el
+        // mismo hallazgo de la barrida de ciberseguridad, por la otra puerta.
+        source: "/:path((?!app(?:/|$)|api/).*)",
         headers: [
+          ...(process.env.LAJUANITA_NO_INDEXAR === "1"
+            ? [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]
+            : []),
           { key: "Content-Security-Policy", value: cspDirectivas },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
