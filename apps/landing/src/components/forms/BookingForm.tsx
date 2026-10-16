@@ -54,8 +54,10 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
   const [people, setPeople] = useState("1");
 
   const current = SERVICES.find((s) => s.slug === service) ?? SERVICES[0];
+  // ⚠️ Con `price` = "A consultar" no hay dígitos y esto da 0: sin la guarda
+  // de abajo el resumen mostraría un estimado de $0, que se lee como gratis.
   const hourly = Number(current.price.replace(/[^\d]/g, ""));
-  const estimate = hourly * hours;
+  const estimate = hourly > 0 ? `$${(hourly * hours).toLocaleString("es-AR")}` : "A consultar";
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-14">
@@ -214,7 +216,7 @@ export function BookingForm({ defaultService }: { defaultService?: string }) {
             <div className="flex justify-between gap-4 border-t border-[color:var(--page-line)] pt-3">
               <dt className="t-mono text-[color:var(--page-faint)]">Estimado</dt>
               <dd className="t-display-tight text-xl text-accent">
-                ${estimate.toLocaleString("es-AR")}
+                {estimate}
               </dd>
             </div>
           </dl>

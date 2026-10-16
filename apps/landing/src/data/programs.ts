@@ -65,6 +65,13 @@ export type Program = {
   description: string;
   duration: string;
   modality: string;
+  /**
+   * ⚠️ **"A consultar" en los tres desde el 2026-10-15**: el sitio quedó
+   * publicado en la demo y los números eran placeholders sin validar. Los que
+   * había (DJ desde $85.000/mes, Producción desde $110.000/mes, y sus precios
+   * de grupo) están en el historial de git. Cuando el estudio confirme, se
+   * vuelven a escribir acá y en `groupPrices`.
+   */
   price: string;
   /**
    * El precio de a 2 y de a 3 (`V35`, P88 · P92): **el total del grupo, no por
@@ -137,9 +144,8 @@ export const PROGRAMS: Program[] = [
       "El camino completo detrás de las bandejas: desde poner dos temas en tiempo hasta leer una pista y sostener una hora sin que se te caiga.",
     duration: "8 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
-    price: "Desde $85.000/mes",
-    groupPrices: { two: "Desde $108.000/mes", three: "Desde $127.000/mes" },
-    priceNote: "Precio de referencia — se confirma al inscribirte",
+    price: "A consultar",
+    priceNote: "Escribinos y te pasamos los valores",
     highlights: ["CDJ-3000 y mixer DJM", "De a 1, 2 o 3: cursan juntos", "Práctica libre incluida"],
     image: "/images/estudio/equipos.jpg",
     level: 55,
@@ -221,9 +227,8 @@ export const PROGRAMS: Program[] = [
       "Diseño de sonido, arreglo y mezcla en DAW. Salís con un EP propio terminado y listo para masterizar.",
     duration: "16 clases · 1 por semana · 1:30 cada una",
     modality: "Presencial en Pilar o virtual en vivo",
-    price: "Desde $110.000/mes",
-    groupPrices: { two: "Desde $139.000/mes", three: "Desde $164.000/mes" },
-    priceNote: "Precio de referencia — se confirma al inscribirte",
+    price: "A consultar",
+    priceNote: "Escribinos y te pasamos los valores",
     highlights: ["Ableton Live", "Diseño de sonido", "EP final incluido"],
     image: "/images/estudio/team.jpg",
     cardImage: false,
@@ -291,8 +296,8 @@ export const PROGRAMS: Program[] = [
     // clases (P65), se coordina según lo que cada uno necesite.
     duration: "Sesiones de 1:30 · las que necesites",
     modality: "Presencial en Pilar o virtual",
-    price: "A confirmar",
-    priceNote: "Se cobra por sesión — el precio se confirma al coordinar",
+    price: "A consultar",
+    priceNote: "Se cobra por sesión — escribinos y te pasamos el valor",
     highlights: ["Uno a uno", "Para DJs con recorrido", "Presencial o virtual"],
     image: "/images/estudio/sala-mastering.jpg",
     level: 100,

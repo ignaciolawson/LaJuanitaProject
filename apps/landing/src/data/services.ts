@@ -12,7 +12,7 @@ export type Service = {
   name: string;
   tagline: string;
   description: string;
-  /** Precio de referencia; el definitivo se confirma al reservar. */
+  /** "A consultar" desde el 2026-10-15 (eran $18.000 y $65.000 la hora, placeholders sin validar; están en el historial de git). */
   price: string;
   priceNote: string;
   includes: string[];
@@ -28,8 +28,8 @@ export const SERVICES: Service[] = [
     tagline: "El equipo, para vos solo",
     description:
       "Cabina completa por hora para practicar, preparar un set o probar material antes de una fecha. Reservás, venís y tocás: no hace falta ser alumno.",
-    price: "$18.000 / hora",
-    priceNote: "Precio de referencia — se confirma al reservar",
+    price: "A consultar",
+    priceNote: "Escribinos y te pasamos el valor por hora",
     includes: [
       "2× Pioneer CDJ-3000 y mixer DJM-900NXS2",
       "Monitoreo de cabina y auriculares de referencia",
@@ -46,8 +46,8 @@ export const SERVICES: Service[] = [
     tagline: "Tu set, filmado y con audio real",
     description:
       "Cabina más registro audiovisual: audio tomado directo del mixer y cámaras fijas. Salís con el material editado y listo para publicar.",
-    price: "$65.000 / hora",
-    priceNote: "Precio de referencia — se confirma al reservar",
+    price: "A consultar",
+    priceNote: "Escribinos y te pasamos el valor por hora",
     includes: [
       "Todo lo del alquiler de cabina",
       "Audio grabado directo del mixer, sin ruido de sala",
