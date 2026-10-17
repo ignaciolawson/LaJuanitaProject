@@ -38,15 +38,16 @@
       no hay módulos todavía—, así que el string está escrito dos veces.
       Si cambia, cambia en los dos lados.
 
-      Sin nada guardado no adivina: deja el claro del CSS y el default por
-      perfil lo resuelve `useTema` cuando ya sabe quién entró.
+      Sin nada guardado aplica el oscuro, que es el default de todos desde el
+      2026-10-17 (`temaPorDefecto` en `src/tema/tema.ts`). Si no lo aplicara
+      acá, el CSS pinta claro y hay un flash blanco hasta que monta React.
     -->
     <script>
       try {
         var t = localStorage.getItem('lajuanita.tema')
-        if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.tema = t
+        document.documentElement.dataset.tema = t === 'claro' || t === 'oscuro' ? t : 'oscuro'
       } catch (e) {
-        /* modo privado o cookies bloqueadas: se usa el claro por defecto */
+        document.documentElement.dataset.tema = 'oscuro'
       }
     </script>
 

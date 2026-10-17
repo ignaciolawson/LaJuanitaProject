@@ -38,28 +38,30 @@ describe('el interruptor de tema de la puerta', () => {
   it('está, y dice a dónde va y no dónde está', () => {
     abrir()
 
-    // Sin nada guardado, `temaPorDefecto(null)` contesta claro: la acción
-    // ofrecida es ir al oscuro.
-    expect(screen.getByRole('button', { name: 'Tema oscuro' })).toBeDefined()
+    // Sin nada guardado, `temaPorDefecto(null)` contesta oscuro: la acción
+    // ofrecida es ir al claro.
+    expect(screen.getByRole('button', { name: 'Tema claro' })).toBeDefined()
+    expect(document.documentElement.dataset.tema).toBe('oscuro')
   })
 
   it('⚠️ guarda en la MISMA clave que el interruptor del sidebar', async () => {
     abrir()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Tema oscuro' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Tema claro' }))
 
-    expect(localStorage.getItem(CLAVE)).toBe('oscuro')
-    expect(document.documentElement.dataset.tema).toBe('oscuro')
+    expect(localStorage.getItem(CLAVE)).toBe('claro')
+    expect(document.documentElement.dataset.tema).toBe('claro')
   })
 
   it('arranca con lo que la persona ya había elegido', () => {
-    localStorage.setItem(CLAVE, 'oscuro')
+    // Claro y no oscuro: oscuro es el default, así que guardarlo no probaría
+    // que la elección le gana al default.
+    localStorage.setItem(CLAVE, 'claro')
 
     abrir()
 
-    // Ya está en oscuro, así que lo que ofrece es volver al claro.
-    expect(screen.getByRole('button', { name: 'Tema claro' })).toBeDefined()
-    expect(document.documentElement.dataset.tema).toBe('oscuro')
+    expect(screen.getByRole('button', { name: 'Tema oscuro' })).toBeDefined()
+    expect(document.documentElement.dataset.tema).toBe('claro')
   })
 
   it('no se mete en la columna donde se escribe', () => {

@@ -1,5 +1,4 @@
 import type { UsuarioActual } from '../api/tipos'
-import { puedeAdministrar } from '../layout/menu'
 
 /**
  * El tema del lienzo: claro o oscuro.
@@ -13,8 +12,9 @@ import { puedeAdministrar } from '../layout/menu'
  *
  * De ahí las dos reglas:
  *
- * 1. **El default sale del perfil**, no de una preferencia del navegador ni de
- *    un valor fijo. Quien administra arranca en claro; quien no, en oscuro.
+ * 1. ~~**El default sale del perfil**: quien administra arranca en claro;
+ *    quien no, en oscuro.~~ Reemplazada el 2026-10-17: **oscuro para todos**
+ *    (ver `temaPorDefecto`).
  * 2. **La elección de la persona le gana al default, siempre.** Una vez que
  *    alguien toca el interruptor, esa es su preferencia y el perfil deja de
  *    opinar — incluso si después cambia de rol.
@@ -64,10 +64,20 @@ export function guardarTema(tema: Tema): void {
   }
 }
 
-/** El default de quien todavía no eligió. Ver la regla 1 del comentario. */
-export function temaPorDefecto(usuario: UsuarioActual | null): Tema {
-  if (usuario === null) return 'claro'
-  return puedeAdministrar(usuario) ? 'claro' : 'oscuro'
+/**
+ * El default de quien todavía no eligió.
+ *
+ * ⚠️ **Oscuro para todos desde el 2026-10-17** (pedido de Ignacio). La regla 1
+ * del comentario de arriba —claro para quien administra, oscuro para el resto—
+ * se reemplazó por esta; la regla 2 sigue igual: quien ya tocó el interruptor
+ * conserva lo que eligió. El parámetro queda para que volver a un default por
+ * perfil sea cambiar este cuerpo y nada más.
+ *
+ * Si se cambia, cambia también el script del `<head>` de `index.html`, que
+ * aplica este mismo default antes de que React monte.
+ */
+export function temaPorDefecto(_usuario: UsuarioActual | null): Tema {
+  return 'oscuro'
 }
 
 /**
