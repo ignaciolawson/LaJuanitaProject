@@ -3,6 +3,9 @@
   "framework": null,
   "buildCommand": "npm run build -- --outDir dist/app",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/", "destination": "/app/", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/app/:path*", "destination": "/app/index.html" }
   ],
