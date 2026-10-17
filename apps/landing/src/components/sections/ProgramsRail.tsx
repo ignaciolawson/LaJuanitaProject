@@ -247,26 +247,31 @@ export function ProgramsRail() {
                   ))}
                 </ul>
 
-                <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-[color:var(--page-line)] pt-4">
-                  <div className="t-mono text-[color:var(--page-faint)]">
-                    <span className="block">{program.duration}</span>
-                    {/* "desde" y no un precio cerrado: los precios de la
-                        landing siguen sin validarse uno por uno (§13). La
-                        salvedad completa va en la tarjeta de `/programas` y en
-                        el detalle; acá no entra sin romper la fila. */}
-                    <span className="mt-1 block text-[color:var(--page-fg)]">{program.price}</span>
+                {/* ⚠️ La duración va en su PROPIA línea y el precio comparte
+                    la de abajo con el link. Antes duración + precio eran un
+                    bloque al lado del link con `flex-wrap`: con una duración
+                    larga ("16 clases · …", "Sesiones de 1:30 · …") el link
+                    saltaba a otra línea, y como la tarjeta tiene alto fijo en
+                    el riel, en la mentoría quedaba afuera del recuadro. Así el
+                    pie mide dos líneas en las tres tarjetas. */}
+                <div className="mt-5 border-t border-[color:var(--page-line)] pt-4">
+                  <span className="t-mono block text-[color:var(--page-faint)]">{program.duration}</span>
+                  <div className="mt-1 flex items-baseline justify-between gap-4">
+                    {/* Precio "A consultar" desde 2026-10-15 (`data/programs.ts`).
+                        La salvedad completa va en `/programas` y en el detalle. */}
+                    <span className="t-mono text-[color:var(--page-fg)]">{program.price}</span>
+                    <Link
+                      href={`/programas/${program.slug}`}
+                      data-cursor={program.cta === "consult" ? "CONSULTAR" : "INSCRIBIRME"}
+                      className="t-mono link-u text-accent"
+                    >
+                      {program.cta === "apply"
+                        ? "Ver e inscribirme"
+                        : program.cta === "mentoring"
+                          ? "Ver y pedir una sesión"
+                          : "Ver y consultar"}
+                    </Link>
                   </div>
-                  <Link
-                    href={`/programas/${program.slug}`}
-                    data-cursor={program.cta === "consult" ? "CONSULTAR" : "INSCRIBIRME"}
-                    className="t-mono link-u text-accent"
-                  >
-                    {program.cta === "apply"
-                      ? "Ver e inscribirme"
-                      : program.cta === "mentoring"
-                        ? "Ver y pedir una sesión"
-                        : "Ver y consultar"}
-                  </Link>
                 </div>
               </div>
             </article>
