@@ -26,7 +26,8 @@ import { Paginado } from '../componentes/Paginado'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
 import { usePuedeEscribir, AvisoSoloLectura } from '../componentes/SoloLectura'
 import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
-import { Bloque, Hueco } from '../componentes/Bloque'
+import { Bloque } from '../componentes/Bloque'
+import { PasswordNueva } from '../componentes/PasswordNueva'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { TraerALaVista } from '../componentes/TraerALaVista'
 
@@ -492,21 +493,17 @@ function FormularioAlta({
     }
   }
 
+  // El mismo bloque que Profesores, Equipo y el buzón (P77 · 6): esta era la
+  // última copia a mano que quedaba, y la única sin el botón de WhatsApp. Sólo
+  // hay clave cuando nació la cuenta, así que los datos son los del formulario.
   if (passwordTemporal) {
     return (
-      <Bloque titulo="Alumno creado" className="mb-6">
-        <p className="mt-2 text-sm leading-relaxed text-tenue">
-          Pasale esta contraseña por WhatsApp. El sistema le va a pedir que la
-          cambie cuando entre. <strong className="text-texto">No se puede volver a ver:</strong>{' '}
-          si se pierde, hay que generar una nueva.
-        </p>
-        <Hueco className="mt-3 font-mono text-lg tracking-wider">
-          {passwordTemporal}
-        </Hueco>
-        <Boton className="mt-4" onClick={onCreado}>
-          Listo
-        </Boton>
-      </Bloque>
+      <PasswordNueva
+        de={{ ...datos, telefono: datos.telefono || null }}
+        valor={passwordTemporal}
+        motivo="cuenta-nueva"
+        onCerrar={onCreado}
+      />
     )
   }
 
