@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -22,6 +23,7 @@ import com.lajuanita.backend.pago.PagoRepository;
 import com.lajuanita.backend.pago.PagoService;
 import com.lajuanita.backend.pago.dto.Deudor;
 import com.lajuanita.backend.pago.dto.MotivoDeDeuda;
+import com.lajuanita.backend.sello.EstadoRelease;
 import com.lajuanita.backend.sello.Release;
 import com.lajuanita.backend.sello.ReleaseRepository;
 import com.lajuanita.backend.solicitante.EstadoSolicitante;
@@ -302,6 +304,25 @@ public class AvisoService {
      * conviene mirar — el aviso sirve para preguntarse si llega, no para celebrar
      * uno que ya está listo.
      */
+    /** La fecha como la escribe el resto del sistema (`fecha()` del front): DD/MM/AAAA. */
+    private static final DateTimeFormatter DD_MM_AAAA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /**
+     * El estado en palabras. El texto del aviso se arma acá y viaja hecho, así que
+     * no puede usar la tabla del front (`tiposSello.ts`); mostraba el nombre del
+     * enum —*"y esta en A_CONFIRMAR"*—. Sólo entran los tres que la consulta deja
+     * pasar, y el `switch` exhaustivo hace que un estado nuevo no compile sin texto.
+     */
+    private static String comoEsta(EstadoRelease estado) {
+        return switch (estado) {
+            case A_CONFIRMAR -> "todavía sin confirmar";
+            case CONFIRMADO -> "confirmado";
+            case EN_DISTRIBUCION -> "en distribución";
+            case PUBLICADO -> "publicado";
+            case CANCELADO -> "cancelado";
+        };
+    }
+
     private int agregarLanzamientosProximos(List<Aviso> pendientes, LocalDate hoy) {
         List<Release> proximos = releases.queSalenEntre(hoy, hoy.plusDays(DIAS_ANTES_DEL_LANZAMIENTO));
 
@@ -312,13 +333,13 @@ public class AvisoService {
                     TipoNotificacion.RELEASE_PROXIMO,
                     "RELEASE_PROXIMO:r=%d:fecha=%s".formatted(
                             release.getId(), release.getFechaEstimada()),
-                    "Sale en %s: %s".formatted(
-                            dias == 0 ? "el dia" : dias == 1 ? "1 dia" : dias + " dias",
-                            release.getCodigoRelease()),
-                    "%s — \"%s\" de %s sale el %s y esta en %s."
+                    (dias == 0 ? "Sale hoy: %s" : dias == 1 ? "Sale mañana: %s" : "Sale en " + dias + " días: %s")
+                            .formatted(release.getCodigoRelease()),
+                    "%s — \"%s\" de %s sale el %s y está %s."
                             .formatted(release.getCodigoRelease(), release.getNombreRelease(),
                                     release.getArtista().getNombreArtistico(),
-                                    release.getFechaEstimada(), release.getEstado()),
+                                    release.getFechaEstimada().format(DD_MM_AAAA),
+                                    comoEsta(release.getEstado())),
                     "/admin/sello"));
         }
         return proximos.size();

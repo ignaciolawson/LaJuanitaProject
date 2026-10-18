@@ -608,6 +608,31 @@ class AvisosTest {
                 .isEqualTo(1);
     }
 
+    /**
+     * El TEXTO del aviso, que ningún caso miraba (todos cuentan la clave). Salía
+     * *"Sale en 3 dias"* y *"sale el 2026-10-21 y esta en A_CONFIRMAR"*: sin
+     * acentos, la fecha ISO y el nombre del enum, en la pantalla de Notificaciones.
+     */
+    @Test
+    void el_aviso_del_lanzamiento_se_lee_en_castellano() {
+        Usuario staff = crear(Rol.STAFF);
+        LocalDate cuando = LocalDate.now().plusDays(3);
+        long release = releaseQueSale(cuando, "A_CONFIRMAR");
+
+        avisos.generar();
+        em.flush();
+
+        var aviso = jdbc.queryForMap("""
+                SELECT titulo, contenido FROM notificacion
+                 WHERE clave_evento = ? AND id_usuario_destino = ?
+                """, "RELEASE_PROXIMO:r=" + release + ":fecha=" + cuando, staff.getId());
+        assertThat((String) aviso.get("titulo")).startsWith("Sale en 3 días:");
+        assertThat((String) aviso.get("contenido"))
+                .contains("sale el " + cuando.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                .contains("está todavía sin confirmar")
+                .doesNotContain("A_CONFIRMAR");
+    }
+
     /** El de dentro de dos meses todavía no: el aviso es a los siete días. */
     @Test
     void un_lanzamiento_lejano_no_avisa() {
