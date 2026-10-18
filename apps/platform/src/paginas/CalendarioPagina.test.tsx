@@ -984,6 +984,19 @@ describe('el alta carga la clase junto con su alumno', () => {
     })
   })
 
+  /**
+   * Lo que se alquila no lo da un profesor: el campo no se ofrece y no viaja.
+   * Antes aparecía siempre, en "Sin asignar", como si faltara cargarlo.
+   */
+  it('una grabación de set no pide profesor', async () => {
+    const user = await abrirAlta()
+
+    expect(screen.getByLabelText(/^Profesor/)).toBeDefined()
+    await elegir(user, 'Para qué', '9')
+
+    expect(screen.queryByLabelText(/^Profesor/)).toBeNull()
+  })
+
   /** Sin precio no hay con qué decir cuánto falta (P83): el alta no se manda. */
   it('una grabación sin precio no se manda', async () => {
     const user = await abrirAlta()

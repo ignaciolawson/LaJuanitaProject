@@ -646,6 +646,8 @@ function Detalle({
   onAsistencia: (idParticipacion: number, estado: EstadoAsistencia) => void
   onAnotado: () => void
 }) {
+  const tipoDeLaReserva = tipos.find((t) => t.idTipoUso === reserva.idTipoUso)
+
   return (
     <div className="mb-6 rounded-lg border border-linea bg-superficie shadow-tarjeta p-5">
       <div className="mb-3 flex items-start justify-between gap-4">
@@ -660,13 +662,19 @@ function Detalle({
             </span>
             <Movida veces={reserva.vecesMovida} />
           </p>
-          <p className="text-sm text-tenue">
-            {reserva.profesor ?? <span className="text-apagado">Sin profesor asignado</span>}
-          </p>
-          {/* El precio (`V33`), sólo en lo que no es clase. Una de antes de la
+          {/* "Sin profesor asignado" en un alquiler se lee como algo que falta
+              cargar, y ahí no falta nada. */}
+          {(reserva.profesor || llevaProfesor(tipoDeLaReserva)) && (
+            <p className="text-sm text-tenue">
+              {reserva.profesor ?? <span className="text-apagado">Sin profesor asignado</span>}
+            </p>
+          )}
+          {/* El precio (`V33`), sólo en lo que lleva precio. Una de antes de la
               migración lo dice en vez de omitirlo: cargarlo es editarla, y lo que
-              falte después de la seña se ve en Deudores. */}
-          {!reserva.esClase && (
+              falte después de la seña se ve en Deudores. Con la misma regla que
+              el formulario: si no, un Mix & Mastering mandaba a editar para
+              cargar un precio que el formulario no pide. */}
+          {llevaPrecio(tipoDeLaReserva) && (
             <p className="text-sm text-tenue">
               {reserva.precioTotal !== null && reserva.moneda !== null ? (
                 <>Precio total {importe(reserva.precioTotal, reserva.moneda)}</>
@@ -1027,6 +1035,28 @@ function FormularioParticipante({
   )
 }
 
+/**
+ * Lo que se cobra por reserva y no por inscripción: un alquiler de cabina o una
+ * grabación de set. Una clase la paga su curso y `MIX_MASTERING` lo decide Ghezz
+ * caso por caso (`V10`), así que ninguna de las dos lleva precio.
+ *
+ * Está escrita una sola vez porque la leen el formulario —que pide el precio— y
+ * el detalle —que avisa si falta—: si difieren, el detalle manda a editar para
+ * cargar un precio que el formulario no ofrece.
+ */
+function llevaPrecio(tipo: TipoUsoResumen | undefined): boolean {
+  return tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+}
+
+/**
+ * Lo complementario: lo que lleva precio es un servicio que se alquila, y no lo
+ * da un profesor. Una clase sí, y un Mix & Mastering también —el trabajo lo hace
+ * alguien, y es la agenda de esa persona la que se ocupa—.
+ */
+function llevaProfesor(tipo: TipoUsoResumen | undefined): boolean {
+  return !llevaPrecio(tipo)
+}
+
 function FormularioReserva({
   salas,
   tipos,
@@ -1117,7 +1147,15 @@ function FormularioReserva({
    * `V33` lo recibe. Con él Deudores sabe cuánto falta, y la seña se prellena al
    * 50%: la regla de P8 que hasta hoy sostenía quien cargaba.
    */
-  const pidePrecio = tipo != null && !tipo.esClase && tipo.codigo !== 'MIX_MASTERING'
+  const pidePrecio = llevaPrecio(tipo)
+  /**
+   * Un alquiler no tiene profesor, así que no se ofrece, y oculto no se manda.
+   * Igual se muestra si la reserva que se edita YA lo tenía guardado: esconderlo
+   * dejaría un dato que nadie ve ni puede sacar. Lo que se prellenó en este mismo
+   * formulario no cuenta — elegir una clase y después cambiar a alquiler no
+   * tiene que arrastrar al profesor del curso.
+   */
+  const pideProfesor = llevaProfesor(tipo) || reserva?.idProfesor != null
   const [precio, setPrecio] = useState({
     total: reserva?.precioTotal != null ? String(reserva.precioTotal) : '',
     moneda: (reserva?.moneda ?? 'ARS') as Moneda,
@@ -1224,7 +1262,7 @@ function FormularioReserva({
     const cuerpo = {
       idSala: Number(datos.idSala),
       idTipoUso: Number(datos.idTipoUso),
-      idProfesor: datos.idProfesor ? Number(datos.idProfesor) : null,
+      idProfesor: pideProfesor && datos.idProfesor ? Number(datos.idProfesor) : null,
       fecha: datos.fecha,
       horaInicio: datos.horaInicio,
       horaFin: datos.horaFin,
@@ -1314,8 +1352,18 @@ function FormularioReserva({
             ))}
           </CampoSelect>
 
-          <Campo etiqueta="Fecha" type="date" value={datos.fecha} onChange={cambiar('fecha')} error={errores.fecha} />
+          {/* Sin profesor la fecha ocupa la fila entera: si no, "Desde" sube al
+              lado de la fecha y "Hasta" queda sola abajo. */}
+          <Campo
+            etiqueta="Fecha"
+            type="date"
+            value={datos.fecha}
+            onChange={cambiar('fecha')}
+            error={errores.fecha}
+            className={pideProfesor ? undefined : 'sm:col-span-2'}
+          />
 
+          {pideProfesor && (
           <CampoSelect
             etiqueta="Profesor"
             value={datos.idProfesor}
@@ -1337,6 +1385,7 @@ function FormularioReserva({
               </option>
             ))}
           </CampoSelect>
+          )}
 
           <Campo etiqueta="Desde" type="time" value={datos.horaInicio} onChange={cambiar('horaInicio')} />
           <Campo
