@@ -6,6 +6,7 @@ import { misReprogramaciones } from '../api/portal'
 import type { ReservaResumen } from '../api/tiposAdmin'
 import type { AlumnoEnLaClase, ClasesDictadas, ProximaClase } from '../api/tiposDocencia'
 import type { ReprogramacionResumen } from '../api/tiposPortal'
+import { SinPermisoPagina } from './SinPermisoPagina'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { PedirOtroDia } from '../componentes/PedirOtroDia'
@@ -50,6 +51,9 @@ export function MiAgendaPagina() {
   const [proxima, setProxima] = useState<ProximaClase | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
+  // Sin la relación de profesor, el backend contesta 403: se dice con la
+  // pantalla del line-up y no con el cartel rojo suelto (2026-10-18).
+  const [sinPermiso, setSinPermiso] = useState(false)
 
   // Cuatro semanas, las mismas que ve el alumno en Mis reservas (§16 · A1).
   // Con una sola, un sábado el profesor que da clase el lunes no veía "lo
@@ -75,7 +79,8 @@ export function MiAgendaPagina() {
       setPedidos(mios)
       setProxima(siguiente)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo cargar tu agenda.')
+      if (e instanceof ApiError && e.status === 403) setSinPermiso(true)
+      else setError(e instanceof ApiError ? e.message : 'No se pudo cargar tu agenda.')
     } finally {
       setCargando(false)
     }
@@ -95,6 +100,7 @@ export function MiAgendaPagina() {
     if (!pedidoDe.has(p.idReserva)) pedidoDe.set(p.idReserva, p)
   }
 
+  if (sinPermiso) return <SinPermisoPagina para="profesores" />
   return (
     <div>
       <CabeceraDePagina

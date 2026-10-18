@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../api/cliente'
 import type { AlumnoDelProfesor } from '../api/tiposDocencia'
 import { MisAlumnosPagina } from './MisAlumnosPagina'
 
@@ -142,5 +143,34 @@ describe('el semáforo', () => {
 
     expect(await screen.findByText('Requiere atención')).toBeDefined()
     expect(screen.queryByText('Sin marcar')).toBeNull()
+  })
+})
+
+/**
+ * Sin la relación de profesor, el backend contesta 403 (2026-10-18). Antes se
+ * veía el cartel rojo suelto — *"Esta sección es de los profesores del
+ * estudio."* —, que es lo que encontró Ignacio al entrar como alumno en la
+ * pestaña donde un profe había cerrado sesión. **El caso que importa es el
+ * segundo**: un error que NO es de permiso tiene que seguir mostrando su
+ * mensaje, o esta pantalla le diría "no sos profe" a un profe con el backend
+ * caído.
+ */
+describe('sin permiso', () => {
+  it('un 403 muestra la pantalla del line-up', async () => {
+    vi.mocked(misAlumnos).mockRejectedValue(
+      new ApiError(403, 'Esta sección es de los profesores del estudio.'),
+    )
+    montar()
+
+    expect(await screen.findByText(/no estás ni en el line-up/)).toBeDefined()
+    expect(screen.getByText(/solo para los profes del estudio/)).toBeDefined()
+  })
+
+  it('otro error sigue mostrando su mensaje', async () => {
+    vi.mocked(misAlumnos).mockRejectedValue(new ApiError(500, 'Se cayó algo.'))
+    montar()
+
+    expect(await screen.findByText('Se cayó algo.')).toBeDefined()
+    expect(screen.queryByText(/line-up/)).toBeNull()
   })
 })

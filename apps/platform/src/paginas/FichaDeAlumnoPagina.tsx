@@ -20,6 +20,7 @@ import {
   type MaterialResumen,
   type NotaResumen,
 } from '../api/tiposDocencia'
+import { SinPermisoPagina } from './SinPermisoPagina'
 import { Aviso, Boton } from '../componentes/Boton'
 import { useErrorPasajero } from '../componentes/aviso'
 import { CONTROL_DE_FILTRO } from '../componentes/controles'
@@ -62,6 +63,10 @@ export function FichaDeAlumnoPagina() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useErrorPasajero()
 
+  // Sin la relación de profesor, el backend contesta 403: se dice con la
+  // pantalla del line-up y no con el cartel rojo suelto (2026-10-18).
+  const [sinPermiso, setSinPermiso] = useState(false)
+
   const cargar = useCallback(async () => {
     if (!Number.isInteger(idAlumno) || idAlumno <= 0) {
       setError('Esa dirección no corresponde a ningún alumno.')
@@ -94,7 +99,8 @@ export function FichaDeAlumnoPagina() {
       // `AlumnoDelProfesor` trae los dos ids justamente para este cruce.
       setClases(agendaReciente.filter((r) => participa(r, mio.idUsuario)))
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo cargar el alumno.')
+      if (e instanceof ApiError && e.status === 403) setSinPermiso(true)
+      else setError(e instanceof ApiError ? e.message : 'No se pudo cargar el alumno.')
     } finally {
       setCargando(false)
     }
@@ -104,6 +110,7 @@ export function FichaDeAlumnoPagina() {
     void cargar()
   }, [cargar])
 
+  if (sinPermiso) return <SinPermisoPagina para="profesores" />
   if (error) {
     return (
       <div>

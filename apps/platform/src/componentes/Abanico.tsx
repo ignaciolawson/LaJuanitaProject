@@ -30,6 +30,12 @@ type Props = {
   /** Trazo del arco exterior; `false` deja sólo las varillas. */
   arco?: boolean
   grosor?: number
+  /**
+   * Índices de varillas que se dibujan caídas: corridas, más cortas y casi
+   * transparentes. Es el gesto de las pantallas de error (`PantallaDeEstado`):
+   * el abanico de la marca con piezas que faltan.
+   */
+  rotas?: number[]
 }
 
 export function Abanico({
@@ -38,6 +44,7 @@ export function Abanico({
   className,
   arco = true,
   grosor = 1.25,
+  rotas = [],
 }: Props) {
   // El pivote (200, 232) es el remache: todas las varillas rotan desde ahí,
   // que es lo que hace que se lea como un abanico y no como un menú radial.
@@ -72,15 +79,16 @@ export function Abanico({
     >
       <g transform={`translate(${CX} ${CY})`}>
         {Array.from({ length: varillas }).map((_, i) => {
-          const angulo = inicio + i * paso
+          const rota = rotas.includes(i)
+          const angulo = inicio + i * paso + (rota ? 9 : 0)
           // Las del medio son levemente más largas: el borde de un abanico
           // real es un arco, no una línea recta.
           const t = Math.abs(i - (varillas - 1) / 2) / ((varillas - 1) / 2)
-          const largo = R_EXT - t * 6
+          const largo = (R_EXT - t * 6) * (rota ? 0.62 : 1)
           const ancho = 7 - t * 1.6
 
           return (
-            <g key={i} transform={`rotate(${angulo})`}>
+            <g key={i} transform={`rotate(${angulo})`} opacity={rota ? 0.18 : undefined}>
               <path
                 d={`M ${-ancho * 0.34} ${-R_INT} L ${ancho * 0.34} ${-R_INT} L ${ancho * 0.5} ${-largo} L ${-ancho * 0.5} ${-largo} Z`}
                 fill="currentColor"

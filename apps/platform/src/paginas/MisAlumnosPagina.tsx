@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { ApiError } from '../api/cliente'
 import { misAlumnos } from '../api/docencia'
 import type { AlumnoDelProfesor, CursoDelAlumno } from '../api/tiposDocencia'
+import { SinPermisoPagina } from './SinPermisoPagina'
 import { Aviso } from '../componentes/Boton'
 import { Semaforo } from '../componentes/Semaforo'
 import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
@@ -42,6 +43,9 @@ export function MisAlumnosPagina() {
   // `if (error) return <Aviso>`, o sea que el mensaje NO acompaña al contenido,
   // lo reemplaza. Limpiarlo a los veinte segundos deja la pantalla en blanco.
   const [error, setError] = useState<string | null>(null)
+  // Sin la relación de profesor, el backend contesta 403: se dice con la
+  // pantalla del line-up y no con el cartel rojo suelto (2026-10-18).
+  const [sinPermiso, setSinPermiso] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -51,7 +55,8 @@ export function MisAlumnosPagina() {
       })
       .catch((e: unknown) => {
         if (vigente) {
-          setError(e instanceof ApiError ? e.message : 'No se pudieron cargar tus alumnos.')
+          if (e instanceof ApiError && e.status === 403) setSinPermiso(true)
+          else setError(e instanceof ApiError ? e.message : 'No se pudieron cargar tus alumnos.')
         }
       })
       .finally(() => {
@@ -63,6 +68,7 @@ export function MisAlumnosPagina() {
   }, [])
 
   if (cargando) return <p className="text-sm text-tenue">Cargando…</p>
+  if (sinPermiso) return <SinPermisoPagina para="profesores" />
   if (error) return <Aviso>{error}</Aviso>
 
   const filas = agruparPorGrupo(alumnos)

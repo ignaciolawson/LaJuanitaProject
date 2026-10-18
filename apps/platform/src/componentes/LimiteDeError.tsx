@@ -1,8 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { Abanico } from './Abanico'
 import { Boton } from './Boton'
+import { PantallaDeEstado } from './PantallaDeEstado'
 
 /**
  * Lo que se ve cuando una pantalla tira un error al dibujarse.
@@ -66,21 +66,26 @@ function PantallaRota({ error, reintentar }: { error: Error; reintentar: () => v
   const navegar = useNavigate()
 
   return (
-    <div role="alert" className="rounded-lg border border-red/30 bg-red/5 px-6 py-8">
-      <h1 className="t-titulo">Esta pantalla se rompió</h1>
-      <p className="mt-2 max-w-prose text-sm text-tenue">
-        El resto del sistema sigue andando. Si vuelve a pasar, avisá copiando esto:
-      </p>
+    <PantallaDeEstado
+      role="alert"
+      codigo="ERR"
+      pista="SE TRABÓ EL PLATO"
+      titular="Se rayó el vinilo."
+      remate="Saltó esta pantalla; el resto del sistema sigue sonando."
+      acciones={
+        <>
+          <Boton type="button" onClick={reintentar}>
+            Intentar de nuevo
+          </Boton>
+          <Boton type="button" variante="secundario" onClick={() => navegar('/')}>
+            Volver al inicio
+          </Boton>
+        </>
+      }
+    >
+      Esta pantalla se rompió al dibujarse. Si vuelve a pasar, avisá copiando esto:
       <Detalle error={error} donde={ubicacion.pathname} />
-      <div className="mt-5 flex gap-3">
-        <Boton type="button" onClick={reintentar}>
-          Intentar de nuevo
-        </Boton>
-        <Boton type="button" variante="secundario" onClick={() => navegar('/')}>
-          Volver al inicio
-        </Boton>
-      </div>
-    </div>
+    </PantallaDeEstado>
   )
 }
 
@@ -90,27 +95,31 @@ function PantallaRota({ error, reintentar }: { error: Error; reintentar: () => v
  */
 function AplicacionRota({ error }: { error: Error }) {
   return (
-    <div role="alert" className="grid min-h-full place-items-center px-6 py-12">
-      <div className="flex max-w-lg flex-col items-center text-center">
-        <Abanico className="mb-5 h-10 w-auto text-linea" arco={false} />
-        <h1 className="t-titulo">El sistema se rompió</h1>
-        <p className="mt-2 text-sm text-tenue">
-          Recargá la página. Si vuelve a pasar, avisá copiando esto:
-        </p>
+    <div className="min-h-full px-6 py-12 lg:px-16">
+      <PantallaDeEstado
+        role="alert"
+        codigo="ERR"
+        pista="SIN SEÑAL"
+        titular="Se cortó la luz en la cabina."
+        remate="Esta vez no fue una pantalla: se cayó el sistema entero."
+        acciones={
+          <>
+            <Boton type="button" onClick={() => window.location.reload()}>
+              Recargar
+            </Boton>
+            <Boton
+              type="button"
+              variante="secundario"
+              onClick={() => window.location.assign(import.meta.env.BASE_URL ?? '/')}
+            >
+              Volver al inicio
+            </Boton>
+          </>
+        }
+      >
+        El sistema se rompió. Recargá la página; si vuelve a pasar, avisá copiando esto:
         <Detalle error={error} donde={window.location.pathname} />
-        <div className="mt-5 flex gap-3">
-          <Boton type="button" onClick={() => window.location.reload()}>
-            Recargar
-          </Boton>
-          <Boton
-            type="button"
-            variante="secundario"
-            onClick={() => window.location.assign(import.meta.env.BASE_URL ?? '/')}
-          >
-            Volver al inicio
-          </Boton>
-        </div>
-      </div>
+      </PantallaDeEstado>
     </div>
   )
 }

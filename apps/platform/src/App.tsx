@@ -14,6 +14,8 @@ import { DeudoresPagina } from './paginas/DeudoresPagina'
 import { EgresosPagina } from './paginas/EgresosPagina'
 import { VentasPagina } from './paginas/VentasPagina'
 import { EstadoDeCuentaPagina } from './paginas/EstadoDeCuentaPagina'
+import { NoEncontradaPagina } from './paginas/NoEncontradaPagina'
+import { SinPermisoPagina } from './paginas/SinPermisoPagina'
 import { InicioPagina } from './paginas/InicioPagina'
 import { InscripcionesPagina } from './paginas/InscripcionesPagina'
 import { LoginPagina } from './paginas/LoginPagina'
@@ -133,11 +135,13 @@ function Rutas() {
           <Route path="/admin/clientes" element={<ClientesPagina />} />
           <Route path="/admin/usuarios" element={<UsuariosPagina key="directorio" />} />
         </Route>
-      </Route>
 
-      {/* Una URL que no existe no es un error para el usuario: lo devolvemos
-          a la home, y si no tiene sesión, la ruta protegida lo manda al login. */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Una URL que no existe se DICE, adentro del sistema y con el menú al
+            costado (2026-10-18). Hasta entonces devolvía a la home sin avisar, y
+            se leía como un link que llevaba a cualquier lado. Va adentro de la
+            ruta protegida: sin sesión, primero el login, como cualquier otra. */}
+        <Route path="*" element={<NoEncontradaPagina />} />
+      </Route>
     </Routes>
   )
 }
@@ -151,7 +155,8 @@ function Rutas() {
 function SoloAdministracion() {
   const usuario = useUsuario()
 
-  if (!puedeAdministrar(usuario)) return <Navigate to="/" replace />
+  // Se dice, en vez de rebotar al Inicio en silencio (2026-10-18).
+  if (!puedeAdministrar(usuario)) return <SinPermisoPagina para="administracion" />
 
   return <Outlet />
 }

@@ -22,6 +22,12 @@ type FanProps = {
   /** Trazo del arco exterior; `false` deja sólo las varillas. */
   arc?: boolean;
   strokeWidth?: number;
+  /**
+   * Índices de varillas que se dibujan caídas: corridas, más cortas y casi
+   * transparentes. Es el gesto de las pantallas de error — el abanico de la
+   * marca con piezas que faltan (`PantallaDeError`).
+   */
+  broken?: number[];
 };
 
 export function Fan({
@@ -30,6 +36,7 @@ export function Fan({
   className,
   arc = true,
   strokeWidth = 1.25,
+  broken = [],
 }: FanProps) {
   const CX = 200;
   const CY = 232;
@@ -63,15 +70,22 @@ export function Fan({
     >
       <g transform={`translate(${CX} ${CY})`}>
         {Array.from({ length: ribs }).map((_, i) => {
-          const angle = start + i * step;
+          const isBroken = broken.includes(i);
+          const angle = start + i * step + (isBroken ? 9 : 0);
           // Las varillas del medio son levemente más largas: el borde del
           // abanico real es un arco, no una línea recta.
           const t = Math.abs(i - (ribs - 1) / 2) / ((ribs - 1) / 2);
-          const len = R_OUT - t * 6;
+          const len = (R_OUT - t * 6) * (isBroken ? 0.62 : 1);
           const w = 7 - t * 1.6;
 
           return (
-            <g key={i} data-rib data-rib-index={i} transform={`rotate(${angle})`}>
+            <g
+              key={i}
+              data-rib
+              data-rib-index={i}
+              transform={`rotate(${angle})`}
+              opacity={isBroken ? 0.18 : undefined}
+            >
               {/* varilla: cuña estrecha abajo, ancha arriba */}
               <path
                 d={`M ${-w * 0.34} ${-R_IN} L ${w * 0.34} ${-R_IN} L ${w * 0.5} ${-len} L ${-w * 0.5} ${-len} Z`}
