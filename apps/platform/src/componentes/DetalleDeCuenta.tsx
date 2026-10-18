@@ -89,7 +89,6 @@ export function DetalleDeCuenta({
             { etiqueta: 'Pagado', alineacion: 'derecha' },
             { etiqueta: 'Saldo', alineacion: 'derecha' },
             'Estado',
-            'Comprobante',
           ]}
         >
               {cuenta.contratos.map((c) => (
@@ -153,9 +152,20 @@ export function DetalleDeCuenta({
       {cuenta.pagos.length === 0 ? (
         <p className="text-sm text-apagado">Sin pagos registrados.</p>
       ) : (
-        <Tabla columnas={['Fecha', 'Qué salda', { etiqueta: 'Monto', alineacion: 'derecha' }, 'Medio', 'Estado']}>
+        // Centrada entera, encabezado y dato, y sólo desde `lg`: un título
+        // centrado sobre un dato a la izquierda no dice de qué columna es.
+        // Apilada en tarjetas, la celda es un rótulo y un dato y no hay nada que
+        // centrar.
+        <Tabla
+          columnas={['Fecha', 'Qué salda', 'Monto', 'Medio', 'Estado', 'Comprobante'].map(
+            (etiqueta) => ({ etiqueta, alineacion: 'centro' as const }),
+          )}
+        >
               {cuenta.pagos.map((p) => (
-                <Fila key={p.idPago} className={p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}>
+                <Fila
+                  key={p.idPago}
+                  className={`lg:[&>td]:text-center ${p.estadoPago === 'ANULADO' ? 'text-apagado' : ''}`}
+                >
                   <Celda className="lg:whitespace-nowrap text-tenue">
                     {fecha(p.fechaPago)}
                   </Celda>

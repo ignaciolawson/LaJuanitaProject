@@ -63,7 +63,7 @@ export type Columna = {
    * de abajo, que es para lo único que se mira una columna de plata. Va junto
    * con `numerica` en la celda.
    */
-  alineacion?: 'izquierda' | 'derecha'
+  alineacion?: 'izquierda' | 'derecha' | 'centro'
   /** Clases extra para el `<th>`, por ejemplo un ancho fijo. */
   className?: string
 }
@@ -99,7 +99,7 @@ export function Tabla({
                     key={c.etiqueta}
                     scope="col"
                     className={`t-mono px-4 py-2.5 font-normal ${
-                      c.alineacion === 'derecha' ? 'text-right' : ''
+                      c.alineacion === 'derecha' ? 'text-right' : c.alineacion === 'centro' ? 'text-center' : ''
                     } ${c.className ?? ''}`}
                   >
                     {c.etiqueta}
