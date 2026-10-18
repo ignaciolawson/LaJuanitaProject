@@ -35,6 +35,11 @@ public enum Nivel {
      * Es la misma excepción que hace el trigger de {@code V9}, y por eso un
      * {@code anterior} nulo devuelve {@code false}.
      */
+    /** "inicial", "intermedio": como va en medio de una frase. */
+    public String nombre() {
+        return name().toLowerCase();
+    }
+
     public boolean esRetrocesoDesde(Nivel anterior) {
         return anterior != null && this.orden < anterior.orden;
     }

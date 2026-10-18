@@ -104,8 +104,8 @@ describe('la división por dentro (§12 · C2)', () => {
 
     expect(await screen.findByRole('heading', { name: 'DJ · INICIAL' })).toBeDefined()
     expect(screen.getByRole('heading', { name: 'PRODUCCION' })).toBeDefined()
-    expect(screen.getByText('Clase del 2026-08-12')).toBeDefined()
-    expect(screen.getByText('Clase del 2026-08-19')).toBeDefined()
+    expect(screen.getByText('Clase del 12/08/2026')).toBeDefined()
+    expect(screen.getByText('Clase del 19/08/2026')).toBeDefined()
     expect(screen.getByText('2 materiales')).toBeDefined()
   })
 

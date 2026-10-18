@@ -292,7 +292,7 @@ describe('registrar cobro', () => {
     expect(within(formulario).queryByLabelText('Moneda')).toBeNull()
 
     // El monto viene con lo que falta; en dólares pide la cotización.
-    expect(within(formulario).getByLabelText(/Monto en USD/)).toHaveProperty('value', '150')
+    expect(within(formulario).getByLabelText(/Monto en dólares/)).toHaveProperty('value', '150')
     await userEvent.type(within(formulario).getByLabelText(/Cotización/), '1400')
     await userEvent.click(within(formulario).getByRole('button', { name: 'Confirmar cobro' }))
 

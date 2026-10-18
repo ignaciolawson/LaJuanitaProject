@@ -12,8 +12,10 @@ import org.hibernate.generator.EventType;
 
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.Inscripcion;
+import com.lajuanita.backend.mastering.TrabajoMastering;
 import com.lajuanita.backend.reserva.Reserva;
 import com.lajuanita.backend.usuario.Usuario;
+import com.lajuanita.backend.venta.VentaEquipo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -126,6 +128,21 @@ public class Pago {
 
     @Column(name = "id_venta_equipo")
     private Long idVentaEquipo;
+
+    /**
+     * Las mismas dos columnas, de sólo lectura, para poder <b>nombrar</b> lo que
+     * el pago salda ("Mix &amp; Mastering · One Time") en vez de mostrar su id
+     * ("Trabajo de mastering #12"), que es lo que hacía {@code PagoResumen} hasta
+     * la barrida de textos del 2026-10-18. Se escribe por los {@code Long} de
+     * arriba; esto no inserta ni actualiza nada.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_trabajo_mastering", insertable = false, updatable = false)
+    private TrabajoMastering trabajoMastering;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_venta_equipo", insertable = false, updatable = false)
+    private VentaEquipo ventaEquipo;
 
     // -- La plata ------------------------------------------------------------
 

@@ -23,7 +23,16 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.web.ErrorResponse;
+import org.springframework.web.ErrorResponseException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.lajuanita.backend.auth.CredencialesInvalidasException;
@@ -157,7 +166,7 @@ public class ManejadorDeErrores {
             Map.entry("solicitante_resolucion_completa",
                     "Una ficha atendida tiene que decir quién la atendió y cuándo."),
             Map.entry("solicitante_convertido_tiene_cuenta",
-                    "Una ficha convertida tiene que apuntar a una cuenta, y solo una convertida puede tenerla."),
+                    "Esa ficha no tiene una cuenta asociada."),
             Map.entry("solicitante_descarte_explicado",
                     "Para descartar una ficha hay que decir por qué."),
             // Los tres de `V29`. Desde la API nunca llegan —el enum del request
@@ -165,8 +174,8 @@ public class ManejadorDeErrores {
             // porque alguien escribió la tabla por otro lado.
             Map.entry("solicitante_disciplina_valida", "Esa disciplina no existe."),
             Map.entry("solicitante_experiencia_valida",
-                    "La experiencia es CERO, ALGO o TOCA: lo que pregunta el formulario."),
-            Map.entry("solicitante_modalidad_valida", "La modalidad es PRESENCIAL o VIRTUAL."),
+                    "Elegí cuánta experiencia tenés: ninguna, algo, o ya tocás o producís."),
+            Map.entry("solicitante_modalidad_valida", "Elegí si lo querés hacer presencial o virtual."),
             // El sello (V18). `release_codigo_release_key` es el índice único que `V1`
             // creó implícitamente con el UNIQUE de la columna: el nombre lo pone
             // Postgres, no nosotros, y por eso no se parece a los demás.
@@ -468,6 +477,34 @@ public class ManejadorDeErrores {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
                 HttpStatus.BAD_REQUEST, "Ese dato no tiene un valor válido.");
         problema.setTitle("Datos inválidos");
+        return problema;
+    }
+
+    /**
+     * El resto de los errores propios de Spring MVC, que con
+     * {@code spring.mvc.problemdetails.enabled} contesta Spring con su texto en
+     * inglés: {@code "No static resource api/me/proxima."} (una ruta que no
+     * existe — llegó a la pantalla en la §17), {@code "Required parameter 'desde'
+     * is not present."}, {@code "Required part 'archivo' is not present."}.
+     * Se responde con el mismo texto que {@link ErrorPorDefecto} da para ese
+     * estado, para que un 404 diga lo mismo venga por donde venga.
+     */
+    @ExceptionHandler({
+            NoResourceFoundException.class,
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
+            ServletRequestBindingException.class,
+            HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotAcceptableException.class,
+            HandlerMethodValidationException.class,
+            ErrorResponseException.class })
+    public ProblemDetail errorDelFramework(Exception e) {
+        HttpStatus estado = HttpStatus.resolve(((ErrorResponse) e).getStatusCode().value());
+        if (estado == null) {
+            estado = HttpStatus.BAD_REQUEST;
+        }
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(estado, ErrorPorDefecto.mensajeDe(estado));
+        problema.setTitle(estado.is5xxServerError() ? "Error inesperado" : "No se pudo procesar el pedido");
         return problema;
     }
 

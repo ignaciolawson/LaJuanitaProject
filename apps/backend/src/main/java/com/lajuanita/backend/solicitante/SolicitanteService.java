@@ -24,6 +24,7 @@ import com.lajuanita.backend.inscripcion.dto.AltaInscripcionRequest;
 import com.lajuanita.backend.inscripcion.dto.InscripcionCreada;
 import com.lajuanita.backend.solicitante.dto.AlumnoInscripto;
 import com.lajuanita.backend.solicitante.dto.InscribirDesdeElBuzonRequest;
+import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.inscripcion.InscripcionRepository;
 import com.lajuanita.backend.notificacion.NotificacionService;
@@ -343,7 +344,7 @@ public class SolicitanteService {
     @Transactional(readOnly = true)
     public List<CandidatoDeLaFicha> candidatosDe(Long id) {
         Solicitante ficha = fichas.porIdConDetalle(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la ficha " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa ficha."));
 
         LocalDate llegada = ficha.getFechaCreacion().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
         List<CandidatoDeLaFicha> candidatos = new ArrayList<>();
@@ -416,7 +417,7 @@ public class SolicitanteService {
     public CabinaApartada apartarLaCabina(Long id, ApartarLaCabinaRequest pedido, Long idAutor) {
         TipoUso uso = tiposDeUso.findById(pedido.idTipoUso())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el tipo de uso " + pedido.idTipoUso() + "."));
+                        "No encontramos esa actividad."));
 
         // La misma lista que define qué se puede pedir desde el portal (P17), no
         // una nueva: apartar una CLASE dejaría una reserva sin la inscripción que
@@ -473,8 +474,7 @@ public class SolicitanteService {
                 "Te reservamos " + creada.reserva().sala() + " para el "
                         + pedido.fecha().format(DIA) + " a las " + pedido.horaInicio()
                         + ". Para confirmarla hay que abonar "
-                        + pedido.moneda() + " "
-                        + pedido.monto().setScale(2, RoundingMode.HALF_UP).toPlainString()
+                        + Importe.legible(pedido.moneda(), pedido.monto())
                         + " antes del " + reserva.getVencePreconfirmacion().format(DIA_Y_HORA)
                         + ". Pasado ese plazo el horario se libera.",
                 "/mis-reservas");
@@ -517,8 +517,7 @@ public class SolicitanteService {
         Solicitante ficha = pendientePorId(id);
         if (ficha.getInteres() != InteresDelSolicitante.CURSO) {
             throw new OperacionNoPermitidaException(
-                    "Desde el buzón se inscribe a quien pidió un curso; esta ficha pidió "
-                            + ficha.getInteres().name().toLowerCase().replace('_', ' ') + ".");
+                    "Desde el buzón solo se inscribe a quien pidió un curso, y esta ficha pidió otra cosa.");
         }
 
         ConversionRealizada cuenta = darleCuenta(id);
@@ -591,7 +590,7 @@ public class SolicitanteService {
         // Como en la cabina: el aviso dice que FALTA HACER ALGO y hasta cuándo.
         // La persona viene de la web y quizá nunca entró; el canal real es el
         // WhatsApp que arma la pantalla, y esto es lo que va a encontrar si entra.
-        String programa = creada.inscripcion().disciplina().name();
+        String programa = creada.inscripcion().disciplina().nombre();
         // A cada integrante: es la inscripción de todos. La seña es una, del
         // grupo (P88), y el aviso lo dice igual para los tres.
         for (var integrante : inscripcion.getIntegrantes()) {
@@ -601,7 +600,7 @@ public class SolicitanteService {
                     vence == null
                             ? "Te anotamos en " + programa + ". Desde acá vas a poder seguir tu curso."
                             : "Te anotamos en " + programa + ". Para confirmar el lugar hay que abonar "
-                                    + "la seña de " + moneda + " " + senia.toPlainString()
+                                    + "la seña de " + Importe.legible(moneda, senia)
                                     + " antes del " + vence.format(DIA_Y_HORA)
                                     + ". El resto se paga antes de la primera clase.",
                     "/mis-cursos");
@@ -649,18 +648,18 @@ public class SolicitanteService {
      */
     private Solicitante pendientePorId(Long id) {
         Solicitante ficha = fichas.porIdConDetalle(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la ficha " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa ficha."));
 
         if (!ficha.estaPendiente()) {
             throw new OperacionNoPermitidaException(
-                    "Esa ficha ya fue atendida (" + ficha.getEstado() + ").");
+                    "Esa ficha ya fue atendida.");
         }
         return ficha;
     }
 
     private Usuario buscarUsuario(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     private String normalizar(String texto) {

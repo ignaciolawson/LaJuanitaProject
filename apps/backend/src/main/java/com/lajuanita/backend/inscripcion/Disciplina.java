@@ -13,7 +13,27 @@ package com.lajuanita.backend.inscripcion;
  */
 public enum Disciplina {
 
-    DJ,
-    PRODUCCION,
-    MENTORIA
+    DJ("DJ"),
+    PRODUCCION("Producción"),
+    MENTORIA("Mentoría");
+
+    private final String nombre;
+
+    Disciplina(String nombre) {
+        this.nombre = nombre;
+    }
+
+    /**
+     * Cómo se le nombra a una persona, en todo texto que arme el servidor
+     * (notificaciones, mensajes de error, el "qué salda" de un pago).
+     *
+     * <p>El enum crudo no se le muestra a nadie: <i>"se canceló tu preinscripción
+     * a PRODUCCION"</i> le llegaba a un alumno hasta la barrida de textos del
+     * 2026-10-18. Es la misma tabla que el front tiene en
+     * {@code NOMBRE_DE_DISCIPLINA}; las dos existen porque cada lado escribe sus
+     * propios textos.
+     */
+    public String nombre() {
+        return nombre;
+    }
 }

@@ -30,6 +30,20 @@ public final class Importe {
         return monto == null ? null : monto.setScale(DECIMALES, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Un importe para leer: {@code $ 45.000,00} o {@code US$ 300,00}. Es la forma
+     * de {@code importe()} en el front (`componentes/dinero.ts`), y es la que va
+     * en todo texto que arme el servidor. Antes cada aviso escribía
+     * {@code "ARS 45000.00"}.
+     */
+    public static String legible(Moneda moneda, BigDecimal monto) {
+        java.text.DecimalFormatSymbols simbolos = new java.text.DecimalFormatSymbols();
+        simbolos.setGroupingSeparator('.');
+        simbolos.setDecimalSeparator(',');
+        String numero = new java.text.DecimalFormat("#,##0.00", simbolos).format(normalizarOCero(monto));
+        return (moneda == Moneda.USD ? "US$ " : "$ ") + numero;
+    }
+
     /** Para las sumas, donde "no hubo nada" tiene que salir como 0.00 y no como null. */
     public static BigDecimal normalizarOCero(BigDecimal monto) {
         return normalizar(monto == null ? BigDecimal.ZERO : monto);

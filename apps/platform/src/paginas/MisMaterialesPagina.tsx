@@ -6,6 +6,7 @@ import type { MaterialResumen } from '../api/tiposDocencia'
 import { Aviso } from '../componentes/Boton'
 import { Bloque } from '../componentes/Bloque'
 import { cuando } from '../componentes/presentacion'
+import { fecha } from '../componentes/semana'
 import { CabeceraDePagina } from '../componentes/CabeceraDePagina'
 import { EstadoVacio } from '../componentes/EstadoVacio'
 
@@ -154,7 +155,7 @@ function porCursoYClase(materiales: MaterialResumen[]): Grupo[] {
     const clases = cursos.get(m.curso) ?? new Map<string, MaterialResumen[]>()
     cursos.set(m.curso, clases)
 
-    const clave = m.clase ? `Clase del ${m.clase.slice(0, 10)}` : SIN_CLASE
+    const clave = m.clase ? `Clase del ${fecha(m.clase)}` : SIN_CLASE
     clases.set(clave, [...(clases.get(clave) ?? []), m])
   }
 

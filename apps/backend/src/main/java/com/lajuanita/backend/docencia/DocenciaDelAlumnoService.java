@@ -80,7 +80,7 @@ public class DocenciaDelAlumnoService {
      */
     private void verificarQueExiste(Long idAlumno) {
         if (!alumnos.existsById(idAlumno)) {
-            throw new RecursoNoEncontradoException("No existe el alumno " + idAlumno + ".");
+            throw new RecursoNoEncontradoException("No encontramos ese alumno.");
         }
     }
 }

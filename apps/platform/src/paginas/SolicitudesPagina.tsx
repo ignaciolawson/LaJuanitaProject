@@ -275,7 +275,7 @@ function FormularioDeSena({
           </>
         ) : (
           <>
-            La reserva se crea con esta seña adentro. Sin ella la base no la acepta —
+            La reserva se crea con esta seña adentro. Sin ella el sistema no la acepta —
             no se aparta un horario sin pago por adelantado.
           </>
         )}

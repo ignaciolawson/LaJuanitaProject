@@ -57,6 +57,6 @@ public record DestinoRequest(
     }
 
     private RecursoNoEncontradoException noExiste(String que) {
-        return new RecursoNoEncontradoException("No existe " + que + " " + id + ".");
+        return new RecursoNoEncontradoException("No encontramos " + que + ".");
     }
 }

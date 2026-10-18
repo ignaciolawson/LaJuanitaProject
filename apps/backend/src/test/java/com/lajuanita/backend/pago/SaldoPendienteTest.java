@@ -176,7 +176,7 @@ class SaldoPendienteTest {
 
         editarReserva(reserva, "200", "USD")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(containsString("tiene pagos vivos en ARS")));
+                .andExpect(jsonPath("$.detail").value(containsString("ya tiene pagos cargados en pesos")));
 
         editarReserva(reserva, "100000", "ARS")
                 .andExpect(status().isOk())
@@ -201,7 +201,7 @@ class SaldoPendienteTest {
                          "precioTotal":200,"moneda":"USD","cotizacionDolar":1450}
                         """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(containsString("tiene pagos vivos en ARS")));
+                .andExpect(jsonPath("$.detail").value(containsString("ya tiene pagos cargados en pesos")));
     }
 
     // == P84: las otras dos cosas ==============================================
@@ -229,8 +229,8 @@ class SaldoPendienteTest {
         // Y el adelanto del no entregado está en Pagos (no es deuda), el del
         // entregado no (su cosa debe).
         mvc.perform(get("/api/pagos").param("buscar", "Cliente Saldo").header("Authorization", comoStaff()))
-                .andExpect(jsonPath("$.contenido[?(@.queSalda == 'Trabajo de mastering #%d')]".formatted(enProceso)).isNotEmpty())
-                .andExpect(jsonPath("$.contenido[?(@.queSalda == 'Trabajo de mastering #%d')]".formatted(entregado)).isEmpty());
+                .andExpect(jsonPath("$.contenido[?(@.queSalda == 'Mix & Mastering: Todavia en el horno')]").isNotEmpty())
+                .andExpect(jsonPath("$.contenido[?(@.queSalda == 'Mix & Mastering: Ya entregado')]").isEmpty());
     }
 
     @Test
@@ -365,7 +365,7 @@ class SaldoPendienteTest {
                 .andExpect(jsonPath("$.apellido").value(referente.getApellido()))
                 // Y el estado de cuenta —que muestra `queSalda` y no `pagador`—
                 // también tiene que decir que ese pago fue por el grupo.
-                .andExpect(jsonPath("$.queSalda").value("DJ · INICIAL · Grupo " + grupo.getNumeroGrupo()));
+                .andExpect(jsonPath("$.queSalda").value("DJ · inicial · Grupo " + grupo.getNumeroGrupo()));
     }
 
     /** Un alumno solo se sigue nombrando por su nombre: el grupo no se inventa. */
@@ -382,7 +382,7 @@ class SaldoPendienteTest {
                 .andExpect(jsonPath("$.pagador").value(
                         solo.getUsuario().getNombre() + " " + solo.getUsuario().getApellido()))
                 .andExpect(jsonPath("$.numeroGrupo").doesNotExist())
-                .andExpect(jsonPath("$.queSalda").value("DJ · INICIAL"));
+                .andExpect(jsonPath("$.queSalda").value("DJ · inicial"));
     }
 
     /**

@@ -77,7 +77,7 @@ class ErroresDeLaBaseTest {
 
         assertThat(problema.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
         assertThat(problema.getDetail())
-                .startsWith("La sala esta bloqueada en ese horario")
+                .startsWith("Esa sala está bloqueada")
                 // El "Where: PL/pgSQL function ..." que agrega el driver no es
                 // asunto de quien está del otro lado de la pantalla.
                 .doesNotContain("PL/pgSQL")

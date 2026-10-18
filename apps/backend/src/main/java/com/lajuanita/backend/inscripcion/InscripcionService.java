@@ -146,7 +146,7 @@ public class InscripcionService {
 
     private void avisarQueSeCancelo(Inscripcion i) {
         Usuario persona = i.referente().getAlumno().getUsuario();
-        String programa = i.getDisciplina().name();
+        String programa = i.getDisciplina().nombre();
         String clave = "PREINSCRIPCION_CANCELADA:i=" + i.getId();
 
         // A cada integrante: todos creían estar anotados. La clave es la misma
@@ -344,8 +344,8 @@ public class InscripcionService {
                 // La base también lo rechaza, pero con el texto del trigger. Acá
                 // sale como 400 y nombrando el campo que falta completar.
                 throw new SolicitudInvalidaException(
-                        "Bajar el nivel de " + inscripcion.getNivel() + " a " + nuevoNivel
-                                + " necesita un motivo: es una decisión que queda firmada.");
+                        "Para bajar el nivel de " + inscripcion.getNivel().nombre() + " a " + nuevoNivel.nombre()
+                                + " hay que escribir el motivo: queda registrado quién lo decidió.");
             }
             inscripcion.firmarBajaDeNivel(idAutor, motivo);
         }
@@ -362,9 +362,9 @@ public class InscripcionService {
         if (solicitud.moneda() != inscripcion.getMoneda()
                 && pagos.hayPagosVivosEnOtraMonedaDeInscripcion(inscripcion.getId(), solicitud.moneda())) {
             throw new SolicitudInvalidaException(
-                    "No se le puede cambiar la moneda a esta inscripción: tiene pagos vivos en "
-                            + inscripcion.getMoneda() + ". Si está en la moneda equivocada, primero anulá "
-                            + "esos pagos desde Pagos y recargalos en la nueva.");
+                    "No se le puede cambiar la moneda a esta inscripción: ya tiene pagos cargados en "
+                            + inscripcion.getMoneda().nombre() + ". Si está en la moneda equivocada, primero anulá "
+                            + "esos pagos desde Pagos y después volvé a cargarlos.");
         }
         inscripcion.setPrecioTotal(solicitud.precioTotal());
         inscripcion.setMoneda(solicitud.moneda());
@@ -471,8 +471,8 @@ public class InscripcionService {
         Short estandar = programa.getClasesEstandar();
         if (estandar == null) {
             throw new SolicitudInvalidaException(
-                    "El programa de " + disciplina
-                            + " no tiene una cantidad estándar de clases: decí cuántas son en `clasesContratadas`.");
+                    "El programa de " + disciplina.nombre()
+                            + " no tiene una cantidad de clases fija: completá cuántas clases son.");
         }
         return estandar;
     }
@@ -480,7 +480,7 @@ public class InscripcionService {
     private Alumno buscarAlumno(Long idAlumno) {
         return alumnos.findById(idAlumno)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el alumno " + idAlumno + "."));
+                        "No encontramos ese alumno."));
     }
 
     private Profesor buscarProfesor(Long idProfesor) {
@@ -489,13 +489,13 @@ public class InscripcionService {
         }
         return profesores.findById(idProfesor)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el profesor " + idProfesor + "."));
+                        "No encontramos ese profesor."));
     }
 
     private Inscripcion buscar(Long id) {
         return inscripciones.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe la inscripción " + id + "."));
+                        "No encontramos esa inscripción."));
     }
 
     private String normalizar(String texto) {

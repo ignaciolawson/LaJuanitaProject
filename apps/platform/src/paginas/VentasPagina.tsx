@@ -420,7 +420,7 @@ function FormularioVenta({
             value={datos.modeloEquipo}
             onChange={cambiar('modeloEquipo')}
             error={errores.modeloEquipo}
-            ayuda="Lo único obligatorio del equipo: sin esto la fila no dice qué se vendió."
+            ayuda="Lo único obligatorio del equipo: sin esto la venta no dice qué se vendió."
           />
           <Campo etiqueta="Marca" value={datos.marca} onChange={cambiar('marca')} />
           <Campo

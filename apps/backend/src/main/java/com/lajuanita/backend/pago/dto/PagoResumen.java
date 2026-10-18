@@ -203,17 +203,19 @@ public record PagoResumen(
     }
 
     /**
-     * Los dos destinos con módulo se nombran; los dos que todavía no lo tienen
-     * salen con su id. <b>Se nombran igual</b> en vez de omitirse: una fila que
-     * no dice qué salda es exactamente el problema que este sistema resuelve.
+     * Qué salda, para leer. Los cuatro destinos se nombran —hasta el 2026-10-18 el
+     * trabajo y la venta salían con su id, "Trabajo de mastering #12", y la
+     * disciplina y el nivel con el nombre del enum, "PRODUCCION · INTERMEDIO"—.
+     * Recién registrado, el pago todavía no tiene cargadas las relaciones de
+     * sólo lectura del trabajo y la venta: ahí se nombra sólo el tipo.
      */
     private static String queSaldaDe(Pago pago) {
         if (pago.getInscripcion() != null) {
             var inscripcion = pago.getInscripcion();
             String curso = inscripcion.getNivel() == null
-                    ? inscripcion.getDisciplina().name()
-                    : inscripcion.getDisciplina().name() + " · " + inscripcion.getNivel().name();
-            // "DJ · INICIAL · Grupo 86": la misma forma con que `SaldoPendiente`
+                    ? inscripcion.getDisciplina().nombre()
+                    : inscripcion.getDisciplina().nombre() + " · " + inscripcion.getNivel().nombre();
+            // "DJ · inicial · Grupo 86": la misma forma con que `SaldoPendiente`
             // arma el detalle de una deuda de grupo. Va acá y no sólo en el
             // listado porque el estado de cuenta muestra `queSalda` y no
             // `pagador`: sin esto, la cuenta del referente dice que pagó un curso
@@ -224,11 +226,17 @@ public record PagoResumen(
         }
         if (pago.getReserva() != null) {
             var reserva = pago.getReserva();
-            return reserva.getSala().getNombreSala() + " · " + reserva.getFecha() + " " + reserva.getHoraInicio();
+            return reserva.getSala().getNombreSala() + " · "
+                    + reserva.getFecha().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    + " " + reserva.getHoraInicio().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
         }
         if (pago.getIdTrabajoMastering() != null) {
-            return "Trabajo de mastering #" + pago.getIdTrabajoMastering();
+            return pago.getTrabajoMastering() == null
+                    ? "Mix & Mastering"
+                    : "Mix & Mastering: " + pago.getTrabajoMastering().getNombreTrack();
         }
-        return "Venta de equipo #" + pago.getIdVentaEquipo();
+        return pago.getVentaEquipo() == null
+                ? "Venta de equipo"
+                : "Equipo: " + pago.getVentaEquipo().getModeloEquipo();
     }
 }

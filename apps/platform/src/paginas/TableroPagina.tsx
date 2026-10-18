@@ -26,7 +26,14 @@ import {
   Medidor,
   type Segmento,
 } from '../componentes/graficos'
-import { capitalizar, NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
+import { NOMBRE_DE_DISCIPLINA } from '../componentes/presentacion'
+import { NOMBRE_DE_ESTADO as NOMBRE_DE_ESTADO_TRABAJO, type EstadoTrabajo } from '../api/tiposMastering'
+import {
+  NOMBRE_DE_ESTADO_RELEASE,
+  NOMBRE_DE_TIPO_APARICION,
+  type EstadoRelease,
+  type TipoAparicion,
+} from '../api/tiposSello'
 import { hoy, sumarDias } from '../componentes/semana'
 import { puedeVerElTableroCompleto } from '../layout/menu'
 import { Grupo } from '../componentes/Bloque'
@@ -319,7 +326,7 @@ export function TableroPagina() {
                 <BarrasHorizontales
                   barras={tablero.mixMastering.porEstado.map(
                     (e): Barra => ({
-                      etiqueta: capitalizar(e.estado.replace('_', ' ')),
+                      etiqueta: NOMBRE_DE_ESTADO_TRABAJO[e.estado as EstadoTrabajo] ?? e.estado,
                       valor: e.cantidad,
                       textoValor: String(e.cantidad),
                     }),
@@ -341,7 +348,7 @@ export function TableroPagina() {
                 <BarrasHorizontales
                   barras={tablero.sello.porEstado.map(
                     (e): Barra => ({
-                      etiqueta: capitalizar(e.estado.replace('_', ' ')),
+                      etiqueta: NOMBRE_DE_ESTADO_RELEASE[e.estado as EstadoRelease] ?? e.estado,
                       valor: e.cantidad,
                       textoValor: String(e.cantidad),
                     }),
@@ -361,7 +368,7 @@ export function TableroPagina() {
                   {tablero.sello.apariciones.length === 0
                     ? 'Sin apariciones cargadas en el período.'
                     : tablero.sello.apariciones
-                        .map((a) => `${a.cantidad} en ${capitalizar(a.tipo)}`)
+                        .map((a) => `${a.cantidad} en ${(NOMBRE_DE_TIPO_APARICION[a.tipo as TipoAparicion] ?? a.tipo).toLowerCase()}`)
                         .join(' · ')}
                 </p>
               </div>

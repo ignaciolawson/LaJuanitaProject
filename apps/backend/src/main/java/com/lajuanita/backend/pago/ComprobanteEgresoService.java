@@ -72,11 +72,11 @@ public class ComprobanteEgresoService {
     public ComprobanteResumen adjuntar(Long idEgreso, MultipartFile archivo, Long idAutor) {
         Egreso egreso = egresos.findById(idEgreso)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el egreso " + idEgreso + "."));
+                        "No encontramos ese egreso."));
 
         Usuario autor = usuarios.findById(idAutor)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + idAutor + "."));
+                        "No encontramos a esa persona."));
 
         ComprobanteEgreso comprobante = new ComprobanteEgreso();
         egreso.agregarComprobante(comprobante);
@@ -128,7 +128,7 @@ public class ComprobanteEgresoService {
 
         Usuario autor = usuarios.findById(idAutor)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + idAutor + "."));
+                        "No encontramos a esa persona."));
 
         comprobante.invalidar(autor, motivo);
         return ComprobanteResumen.de(comprobante);
@@ -137,7 +137,7 @@ public class ComprobanteEgresoService {
     // =========================================================================
 
     private RecursoNoEncontradoException noExiste(Long idComprobante) {
-        return new RecursoNoEncontradoException("No existe el comprobante " + idComprobante + ".");
+        return new RecursoNoEncontradoException("No encontramos ese comprobante.");
     }
 
     /**

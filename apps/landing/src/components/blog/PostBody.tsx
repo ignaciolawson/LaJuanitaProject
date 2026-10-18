@@ -136,7 +136,7 @@ function Embed({
       <div className="my-14 border border-dashed border-[color:var(--page-line)] p-8 text-center">
         <span className="label">{isYouTube ? "Video" : "Escucha"}</span>
         <p className="t-body mt-4 text-sm text-[color:var(--page-muted)]">{block.title}</p>
-        <p className="t-mono mt-2 text-[color:var(--page-faint)]">Pendiente de carga</p>
+        <p className="t-mono mt-2 text-[color:var(--page-faint)]">Próximamente</p>
       </div>
     );
   }

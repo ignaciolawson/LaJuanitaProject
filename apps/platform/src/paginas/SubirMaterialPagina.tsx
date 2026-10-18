@@ -312,7 +312,7 @@ function Fila({
           <div className="text-sm font-medium">{material.titulo}</div>
           <div className="text-xs text-tenue">
             {material.alumno} · {material.curso}
-            {material.clase && ` · clase del ${material.clase.slice(0, 10)}`}
+            {material.clase && ` · clase del ${fecha(material.clase)}`}
             {material.tipo && ` · ${material.tipo}`} · {cuando(material.fechaSubida)}
             {material.urlExterna && (
               <>

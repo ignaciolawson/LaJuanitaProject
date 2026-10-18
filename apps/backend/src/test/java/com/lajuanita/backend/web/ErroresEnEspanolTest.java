@@ -121,6 +121,43 @@ class ErroresEnEspanolTest {
 
     // -------------------------------------------------------------------------
 
+    /**
+     * Los errores propios de Spring MVC (barrida de textos del 2026-10-18). Con
+     * ProblemDetail activado los contestaba Spring en inglés y nombrando cosas
+     * internas: {@code "No static resource api/no-existe."} — el texto que llegó
+     * a la pantalla en la §17 con un backend viejo — y {@code "Required parameter
+     * 'desde' is not present."}.
+     */
+    @Test
+    void una_ruta_que_no_existe_y_un_parametro_que_falta_se_explican_en_espanol() throws Exception {
+        String credencial = comoAdmin();
+
+        mvc.perform(get("/api/no-existe").header("Authorization", credencial))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("No encontramos esa dirección."));
+
+        mvc.perform(get("/api/reservas").header("Authorization", credencial))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("No pudimos interpretar el pedido."));
+    }
+
+    /**
+     * Un {@code @Size} sin {@code message} propio. Sin
+     * {@code ValidationMessages.properties} el texto salía en el idioma de la
+     * máquina: en el servidor, "size must be between 0 and 80" debajo del campo.
+     */
+    @Test
+    void un_largo_maximo_sin_mensaje_propio_se_explica_en_espanol() throws Exception {
+        String largo = "x".repeat(81);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/me/perfil")
+                        .header("Authorization", comoAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"" + largo + "\",\"apellido\":\"Prueba\",\"telefono\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errores.nombre").value("Es demasiado largo: el máximo es 80 caracteres."));
+    }
+
     private String comoAdmin() {
         Usuario admin = new Usuario();
         admin.setNombre("Prueba");

@@ -93,7 +93,7 @@ public class ArtistaService {
 
     private Artista buscar(Long id) {
         return artistas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el artista " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese artista."));
     }
 
     private String normalizar(String texto) {

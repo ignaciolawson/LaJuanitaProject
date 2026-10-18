@@ -60,7 +60,7 @@ public class AlumnoService {
     public AltaAlumnoResultado alta(AltaAlumnoRequest solicitud, boolean puedeAsignarRoles) {
         if (!solicitud.tieneExactamenteUnCamino()) {
             throw new SolicitudInvalidaException(
-                    "Mandá `idUsuario` (persona que ya tiene cuenta) o `usuarioNuevo` (cuenta a crear), pero no los dos.");
+                    "Elegí a una persona que ya tiene cuenta o cargá una cuenta nueva, pero no las dos cosas.");
         }
 
         String passwordTemporal = null;
@@ -69,7 +69,7 @@ public class AlumnoService {
         if (solicitud.idUsuario() != null) {
             usuario = usuarios.findById(solicitud.idUsuario())
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe el usuario " + solicitud.idUsuario() + "."));
+                            "No encontramos a esa persona."));
         } else {
             UsuarioCreado creado = usuarioService.altaPorAdministracion(
                     solicitud.usuarioNuevo(), puedeAsignarRoles);
@@ -213,7 +213,7 @@ public class AlumnoService {
 
     private Alumno buscar(Long id) {
         return alumnos.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el alumno " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese alumno."));
     }
 
     private String normalizar(String texto) {

@@ -58,7 +58,7 @@ public class ContratoService {
     public List<ContratoResumen> queRespaldanAlRelease(Long idRelease) {
         Release release = releases.porIdConArtista(idRelease)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el release " + idRelease + "."));
+                        "No encontramos ese release."));
 
         return contratos.queRespaldanAlRelease(release.getId(), release.getArtista().getId())
                 .stream().map(ContratoResumen::de).toList();
@@ -78,7 +78,7 @@ public class ContratoService {
 
         Artista artista = artistas.findById(idArtista)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el artista " + idArtista + "."));
+                        "No encontramos ese artista."));
 
         ContratoSello contrato = new ContratoSello();
         contrato.setArtista(artista);
@@ -86,7 +86,7 @@ public class ContratoService {
         if (idRelease != null) {
             Release release = releases.porIdConArtista(idRelease)
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe el release " + idRelease + "."));
+                            "No encontramos ese release."));
 
             // Ninguna FK lo impide: `id_artista` e `id_release` son dos columnas
             // sueltas, así que se puede colgar el contrato de Fulano del release de
@@ -190,6 +190,6 @@ public class ContratoService {
 
     private ContratoSello buscar(Long id) {
         return contratos.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el contrato " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese contrato."));
     }
 }

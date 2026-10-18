@@ -281,7 +281,7 @@ class DocenciaTest {
                         """.formatted(juan.getId(), participacionDeAna)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("no corresponde al alumno")));
+                        org.hamcrest.Matchers.containsString("no es de este alumno")));
     }
 
     @Test

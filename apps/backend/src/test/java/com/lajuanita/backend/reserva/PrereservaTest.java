@@ -300,7 +300,7 @@ class PrereservaTest {
                         + "id_usuario_modifico = ? WHERE id_reserva = ?",
                 idReserva, idReserva))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("se entra solo al crearla");
+                .hasMessageContaining("no puede volver a quedar");
     }
 
     /** Del plazo se sale cobrando o cancelando. Darla por dictada sin cobrarla, no. */

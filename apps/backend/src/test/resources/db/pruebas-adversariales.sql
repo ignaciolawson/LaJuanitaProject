@@ -389,7 +389,7 @@ UPDATE trabajo_mastering SET premaster_liberado=TRUE WHERE nombre_track='Candado
 -- trigger reventaba por un choque de nombres (`V16`). Fallaba por la razón
 -- equivocada y no había forma de notarlo desde acá.
 SELECT probar_mensaje('D02','ANULAR el pago que respalda un premaster ya liberado',
- 'unico respaldo',
+ 'único respaldo',
  $q$UPDATE pago SET estado_pago='ANULADO',
                   id_usuario_anula=(SELECT u_mica FROM v), fecha_anulacion=now(),
                   motivo_anulacion='Intento de esquive'
@@ -597,12 +597,12 @@ SELECT (SELECT id_pago FROM pago WHERE concepto='pago atacado'),
        'comprobantes/2026/08/atacado.pdf','transferencia.pdf',(SELECT u_mica FROM v);
 
 SELECT probar_mensaje('H01','CAMBIAR el archivo de un comprobante ya adjunto',
- 'no se cambia',
+ 'no se puede cambiar',
  $q$UPDATE comprobante_pago SET archivo_path='comprobantes/2026/08/otro.pdf'
     WHERE nombre_original='transferencia.pdf'$q$);
 
 SELECT probar_mensaje('H02','BORRAR un comprobante en vez de marcarlo',
- 'comprobante_pago -> invalido = TRUE',
+ 'marcalo como inválido',
  $q$DELETE FROM comprobante_pago WHERE nombre_original='transferencia.pdf'$q$);
 
 UPDATE comprobante_pago SET invalido=TRUE,
@@ -611,13 +611,13 @@ UPDATE comprobante_pago SET invalido=TRUE,
 WHERE nombre_original='transferencia.pdf';
 
 SELECT probar_mensaje('H03','ESQUIVE: desmarcar un comprobante ya invalidado',
- 'no vuelve atras',
+ 'no vuelve a ser válido',
  $q$UPDATE comprobante_pago SET invalido=FALSE
     WHERE nombre_original='transferencia.pdf'$q$);
 
 -- El otro esquive del mismo tipo: dejar la marca y reescribir quien la puso.
 SELECT probar_mensaje('H04','ESQUIVE: reescribir la firma de la invalidacion',
- 'no se reescribe',
+ 'no se puede cambiar',
  $q$UPDATE comprobante_pago SET motivo_invalidacion='Otra cosa'
     WHERE nombre_original='transferencia.pdf'$q$);
 
@@ -652,12 +652,12 @@ SELECT (SELECT id_egreso FROM egreso WHERE concepto='egreso atacado'),
        'comprobantes-egreso/2026/09/atacado.pdf','recibo.pdf',(SELECT u_mica FROM v);
 
 SELECT probar_mensaje('I01','CAMBIAR el archivo de un comprobante de egreso ya adjunto',
- 'no se cambia',
+ 'no se puede cambiar',
  $q$UPDATE comprobante_egreso SET archivo_path='comprobantes-egreso/2026/09/otro.pdf'
     WHERE nombre_original='recibo.pdf'$q$);
 
 SELECT probar_mensaje('I02','BORRAR un comprobante de egreso en vez de marcarlo',
- 'comprobante_egreso -> invalido = TRUE',
+ 'marcalo como inválido',
  $q$DELETE FROM comprobante_egreso WHERE nombre_original='recibo.pdf'$q$);
 
 UPDATE comprobante_egreso SET invalido=TRUE,
@@ -666,13 +666,13 @@ UPDATE comprobante_egreso SET invalido=TRUE,
 WHERE nombre_original='recibo.pdf';
 
 SELECT probar_mensaje('I03','ESQUIVE: desmarcar un comprobante de egreso ya invalidado',
- 'no vuelve atras',
+ 'no vuelve a ser válido',
  $q$UPDATE comprobante_egreso SET invalido=FALSE
     WHERE nombre_original='recibo.pdf'$q$);
 
 -- El otro esquive del mismo tipo: dejar la marca y reescribir quien la puso.
 SELECT probar_mensaje('I04','ESQUIVE: reescribir la firma de la invalidacion del egreso',
- 'no se reescribe',
+ 'no se puede cambiar',
  $q$UPDATE comprobante_egreso SET motivo_invalidacion='Otra cosa'
     WHERE nombre_original='recibo.pdf'$q$);
 
@@ -730,7 +730,7 @@ SELECT probar_mensaje('J02','ESQUIVE: mudar el tema a otro release en vez de bor
 
 -- El esquive por el otro lado de la relacion: no tocar los temas, tocar el tipo.
 SELECT probar_mensaje('J03','ESQUIVE: cargar los temas como EP y pasar el release a SINGLE',
- 'solo un EP o un album llevan lista de temas',
+ 'solo un EP o un álbum llevan lista de temas',
  $q$UPDATE release SET tipo_release='SINGLE' WHERE codigo_release='LJ900'$q$);
 
 -- Y la version del mismo esquive que cambia de rango en vez de salirse: un EP
@@ -744,7 +744,7 @@ SELECT probar_mensaje('J04','ESQUIVE: convertir en ALBUM un EP publicado con 3 t
 -- verifica que siga cerrada acá tambien: de CANCELADO no se sale, asi que no hay
 -- forma de sacar el release de la proteccion, vaciarlo y volver a subirlo.
 SELECT probar_mensaje('J05','ESQUIVE: cancelar para escaparse de la regla y volver',
- 'no vuelve atras',
+ 'no se puede reabrir',
  $q$UPDATE release SET estado='CANCELADO' WHERE codigo_release='LJ900';
     UPDATE release SET estado='EN_DISTRIBUCION' WHERE codigo_release='LJ900'$q$);
 
@@ -766,7 +766,7 @@ SELECT inscribir(a.id_alumno,'DJ',8,170000,NULL,'PREINSCRIPTA',now()+interval '2
   FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='moneda@adv.local';
 
 SELECT probar_mensaje('K01','senia en USD sobre una preinscripcion en pesos',
- 'moneda del contrato',
+ 'moneda del curso',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago,estado_pago)
     SELECT u.id_usuario,i.id_inscripcion,100,'USD',1450,'PAYPAL','SENADO'
       FROM usuario u JOIN alumno a USING(id_usuario)
@@ -776,7 +776,7 @@ SELECT probar_mensaje('K01','senia en USD sobre una preinscripcion en pesos',
 
 -- Y por lo tanto la preinscripcion sigue sin poder activarse: no hay pago.
 SELECT probar_mensaje('K02','activarla despues del intento en USD',
- 'tiene que estar cobrada la senia',
+ 'tiene que estar registrada la seña',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
     WHERE id_inscripcion IN (SELECT ii.id_inscripcion FROM inscripcion_integrante ii
                              JOIN alumno a USING(id_alumno) JOIN usuario u USING(id_usuario)
@@ -804,19 +804,19 @@ CREATE VIEW v_rodeo AS SELECT
  (SELECT a.id_alumno FROM alumno a JOIN usuario u USING(id_usuario) WHERE u.email='rodeo@adv.local') AS al_rodeo;
 
 SELECT probar_mensaje('L01','cambiarle la disciplina a la de PRODUCCION para tener dos DJ abiertas',
- 'ya tiene una inscripcion abierta en DJ',
+ 'ya tiene un curso de DJ abierto',
  $q$UPDATE inscripcion SET disciplina='DJ'
     WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
 
 SELECT probar_mensaje('L02','mudar el integrante de la de PRODUCCION a la de Juan',
- 'son fijos',
+ 'no se cambian después de inscribirlo',
  $q$UPDATE inscripcion_integrante SET id_inscripcion=(SELECT ins_juan FROM v)
     WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
 
 -- Y el rodeo al "al menos uno": crear la inscripcion, ponerle integrante y
 -- sacarlo. El DELETE es el que lo frena, y la inscripcion nunca queda sola.
 SELECT probar_mensaje('L03','dejar una inscripcion sin nadie sacando al unico integrante',
- 'son fijos',
+ 'no se cambian después de inscribirlo',
  $q$DELETE FROM inscripcion_integrante
     WHERE id_inscripcion=(SELECT inscripciones_de(al_rodeo,'PRODUCCION') FROM v_rodeo)$q$);
 

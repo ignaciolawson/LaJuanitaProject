@@ -93,7 +93,7 @@ describe('lo que dice la pantalla', () => {
     vi.mocked(listarClientes).mockResolvedValue(pagina([]))
     montar()
 
-    expect(await screen.findByText(/se lo agrupa por ese nombre/)).toBeDefined()
+    expect(await screen.findByText(/se lo agrupa por el nombre con que se cargó/)).toBeDefined()
   })
 
   it('sin clientes lo dice con palabras, y no como una tabla en blanco', async () => {

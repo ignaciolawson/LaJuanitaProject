@@ -76,7 +76,7 @@ export function ClientesPagina() {
           <>
             {cargando ? 'Cargando…' : `${total} ${total === 1 ? 'cliente' : 'clientes'}`} · quienes
             le pagaron al estudio y no son alumnos, profes ni equipo. Con cuenta o sin ella: a
-            quien pagó a nombre escrito se lo agrupa por ese nombre, así que uno escrito de dos
+            quien pagó sin cuenta se lo agrupa por el nombre con que se cargó, así que uno escrito de dos
             formas aparece dos veces.
           </>
         }

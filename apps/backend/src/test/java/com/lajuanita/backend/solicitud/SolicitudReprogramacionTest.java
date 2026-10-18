@@ -354,7 +354,7 @@ class SolicitudReprogramacionTest {
 
         mvc.perform(aprobar(pedido, sala1, OTRO_DIA.plusDays(7), "22:00", "23:30"))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail").value(Matchers.containsString("ya fue resuelto")));
+                .andExpect(jsonPath("$.detail").value(Matchers.containsString("ya fue respondido")));
     }
 
     /**
@@ -377,7 +377,7 @@ class SolicitudReprogramacionTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE solicitud_reprogramacion SET estado = 'PENDIENTE' WHERE id_solicitud = ?", pedido))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("ya fue resuelta");
+                .hasMessageContaining("ya fue respondido");
     }
 
     @Test

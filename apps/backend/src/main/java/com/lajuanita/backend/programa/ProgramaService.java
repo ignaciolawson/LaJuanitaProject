@@ -46,10 +46,10 @@ public class ProgramaService {
     public Programa paraInscribir(Disciplina disciplina) {
         Programa programa = programas.findByDisciplina(disciplina)
                 .orElseThrow(() -> new SolicitudInvalidaException(
-                        "No hay un programa de " + disciplina + " en el catálogo."));
+                        "No hay un programa de " + disciplina.nombre() + " en el catálogo."));
         if (!programa.isActivo()) {
             throw new SolicitudInvalidaException(
-                    "El programa de " + disciplina + " está desactivado: no se ofrece hoy.");
+                    "El programa de " + disciplina.nombre() + " está desactivado: hoy no se ofrece.");
         }
         return programa;
     }
@@ -65,7 +65,7 @@ public class ProgramaService {
     public ProgramaResumen editar(Long id, EdicionProgramaRequest cambios) {
         Programa programa = programas.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el programa " + id + "."));
+                        "No encontramos ese programa."));
 
         if (cambios.cobro() == Cobro.PAQUETE && cambios.clasesEstandar() == null) {
             throw new SolicitudInvalidaException(

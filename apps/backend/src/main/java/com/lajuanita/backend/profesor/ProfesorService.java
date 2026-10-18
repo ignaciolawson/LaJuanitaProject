@@ -78,7 +78,7 @@ public class ProfesorService {
     public AltaProfesorResultado alta(AltaProfesorRequest solicitud, boolean puedeAsignarRoles) {
         if (!solicitud.tieneExactamenteUnCamino()) {
             throw new SolicitudInvalidaException(
-                    "Mandá `idUsuario` (persona que ya tiene cuenta) o `usuarioNuevo` (cuenta a crear), pero no los dos.");
+                    "Elegí a una persona que ya tiene cuenta o cargá una cuenta nueva, pero no las dos cosas.");
         }
 
         String passwordTemporal = null;
@@ -87,7 +87,7 @@ public class ProfesorService {
         if (solicitud.idUsuario() != null) {
             usuario = usuarios.findById(solicitud.idUsuario())
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe el usuario " + solicitud.idUsuario() + "."));
+                            "No encontramos a esa persona."));
         } else {
             UsuarioCreado creado = usuarioService.altaPorAdministracion(
                     solicitud.usuarioNuevo(), puedeAsignarRoles);
@@ -122,7 +122,7 @@ public class ProfesorService {
     public ProfesorResumen editar(Long idProfesor, EdicionProfesorRequest cambios) {
         Profesor profesor = profesores.findById(idProfesor)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el profesor " + idProfesor + "."));
+                        "No encontramos ese profesor."));
 
         profesor.setEspecialidad(normalizar(cambios.especialidad()));
         if (cambios.activo() != null) {

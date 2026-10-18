@@ -468,7 +468,7 @@ class VentaEquipoTest {
 
         assertThatThrownBy(() -> jdbc.update("DELETE FROM venta_equipo WHERE id_venta = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("venta_equipo -> anulada = TRUE");
+                .hasMessageContaining("Una venta no se borra");
     }
 
     // =========================================================================

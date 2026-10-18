@@ -161,7 +161,7 @@ public class VentaEquipoService {
     @Transactional
     public VentaResumen anular(Long id, String motivo, Long idAutor) {
         VentaEquipo venta = ventas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la venta " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa venta."));
 
         // La segunda anulación pisaría el autor y el motivo de la primera.
         if (venta.isAnulada()) {
@@ -212,7 +212,7 @@ public class VentaEquipoService {
 
     private Usuario buscarPersona(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     private String normalizar(String texto) {

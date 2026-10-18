@@ -23,7 +23,12 @@ import { Aviso } from '../componentes/Boton'
 import { Movida } from '../componentes/Movida'
 import { Paginado } from '../componentes/Paginado'
 import { importe } from '../componentes/dinero'
-import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import {
+  NOMBRE_DE_ASISTENCIA,
+  NOMBRE_DE_DISCIPLINA,
+  NOMBRE_DE_ESTADO_RESERVA,
+  capitalizar,
+} from '../componentes/presentacion'
 import { useErrorPasajero } from '../componentes/aviso'
 import { fecha, hoy, sumarDias } from '../componentes/semana'
 import { Tabla, Celda, Fila, FilaVacia } from '../componentes/Tabla'
@@ -357,7 +362,7 @@ function NotasYMateriales({ idAlumno }: { idAlumno: number }) {
                       {m.profesor} · {m.curso}
                       {/* De qué clase es, si es de una: null significa que es
                           material de todo el curso (`V23`, §18 · P41). */}
-                      {m.clase && ` · clase del ${m.clase.slice(0, 10)}`}
+                      {m.clase && ` · clase del ${fecha(m.clase)}`}
                       {/* Lo no publicado se muestra dicho: el alumno todavía no
                           lo tiene, y una ficha que lo liste sin aclararlo hace
                           creer que ya se lo entregaron. */}
@@ -464,8 +469,8 @@ function HistorialDeClases({ idUsuario }: { idUsuario: number }) {
                 <span className="flex items-center gap-3 whitespace-nowrap text-xs text-tenue">
                   <Movida veces={clase.vecesMovida} />
                   {caida
-                    ? capitalizar(clase.estado)
-                    : capitalizar(suya.estadoAsistencia.replace('_', ' '))}
+                    ? NOMBRE_DE_ESTADO_RESERVA[clase.estado]
+                    : NOMBRE_DE_ASISTENCIA[suya.estadoAsistencia]}
                 </span>
               </li>
             )

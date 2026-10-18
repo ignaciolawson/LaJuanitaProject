@@ -1,4 +1,4 @@
-import type { Disciplina } from '../api/tiposAdmin'
+import type { Disciplina, EstadoAsistencia, EstadoReserva } from '../api/tiposAdmin'
 import type { Rol } from '../api/tipos'
 
 /**
@@ -10,6 +10,28 @@ import type { Rol } from '../api/tipos'
  * "Produccion" sin él, en dos listados que se miran uno al lado del otro, se lee
  * como que son dos cosas.
  */
+/**
+ * El estado de una reserva. Con `capitalizar` la apartada salía "Preconfirmada",
+ * que es el nombre interno (barrida de textos del 2026-10-18): en el resto del
+ * sistema se dice "apartada, falta el pago".
+ */
+export const NOMBRE_DE_ESTADO_RESERVA: Record<EstadoReserva, string> = {
+  PRECONFIRMADA: 'Apartada · falta el pago',
+  CONFIRMADA: 'Confirmada',
+  MODIFICADA: 'Modificada',
+  CANCELADA: 'Cancelada',
+  REPROGRAMADA: 'Reprogramada',
+  FINALIZADA: 'Finalizada',
+}
+
+export const NOMBRE_DE_ASISTENCIA: Record<EstadoAsistencia, string> = {
+  PENDIENTE: 'Pendiente',
+  PRESENTE: 'Presente',
+  AUSENTE: 'Ausente',
+  AUSENTE_JUSTIFICADO: 'Ausente justificado',
+  CANCELADA: 'Dada de baja',
+}
+
 export const NOMBRE_DE_DISCIPLINA: Record<Disciplina, string> = {
   DJ: 'DJ',
   PRODUCCION: 'Producción',

@@ -273,7 +273,7 @@ class InscripcionTest {
                 .andExpect(status().isConflict())
                 // Desde V35 quien habla es el trigger (§4 d), y nombra a la persona.
                 .andExpect(jsonPath("$.detail",
-                        containsString("ya tiene una inscripcion abierta en DJ")));
+                        containsString("ya tiene un curso de DJ abierto")));
     }
 
     // == Plata ================================================================
@@ -450,7 +450,7 @@ class InscripcionTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE inscripcion SET nivel = 'INICIAL' WHERE id_inscripcion = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("id_usuario_baja_nivel");
+                .hasMessageContaining("hay que escribir el motivo");
     }
 
     // == El alta con o sin seña (P59, §16 · Fase 6) ============================
@@ -549,7 +549,7 @@ class InscripcionTest {
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("cobrada la senia")));
+                        org.hamcrest.Matchers.containsString("registrada la seña")));
     }
 
     /**
@@ -684,7 +684,7 @@ class InscripcionTest {
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("se entra solo al crearla")));
+                        org.hamcrest.Matchers.containsString("no puede volver a quedar")));
     }
 
     /**
@@ -1250,7 +1250,7 @@ class InscripcionTest {
         assertThatThrownBy(() -> jdbc.update(
                 "DELETE FROM inscripcion_integrante WHERE id_inscripcion = ? AND id_alumno = ?", id, facu.getId()))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("son fijos");
+                .hasMessageContaining("no se cambian después de inscribirlo");
     }
 
     private static final LocalDate CLASE_VIEJA = LocalDate.of(2020, 1, 6);

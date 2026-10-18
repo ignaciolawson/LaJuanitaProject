@@ -333,10 +333,10 @@ const ENTRIES: Post[] = [
         type: "text",
         text: "Cada vez que alguien entra al programa de producción y dice que quiere hacer techno melódico, la pregunta que sigue es de dónde sacó la referencia. Casi siempre la respuesta es un set de festival de los últimos dos años. Está bien como punto de partida, pero deja afuera veinte años de decisiones que explican por qué ese sonido suena así.",
       },
-      {
-        type: "text",
-        text: "Esta lista es placeholder y hay que reemplazarla por la selección real del equipo antes de publicar: son recomendaciones firmadas, no relleno.",
-      },
+      // ⚠️ Esta lista es placeholder y hay que reemplazarla por la selección
+      // real del equipo antes de publicar: son recomendaciones firmadas, no
+      // relleno. Hasta el 2026-10-18 esta nota era un bloque de texto del post
+      // y se publicaba en la página.
       {
         type: "embed",
         provider: "spotify",

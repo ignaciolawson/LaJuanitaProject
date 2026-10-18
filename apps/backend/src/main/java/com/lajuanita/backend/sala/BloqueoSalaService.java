@@ -69,7 +69,7 @@ public class BloqueoSalaService {
         BloqueoSala bloqueo = new BloqueoSala();
         bloqueo.setSala(salas.findById(solicitud.idSala())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe la sala " + solicitud.idSala() + ".")));
+                        "No encontramos esa sala.")));
         bloqueo.setFechaInicio(solicitud.fechaInicio());
         bloqueo.setFechaFin(solicitud.fechaFin());
         bloqueo.setMotivo(solicitud.motivo().trim());
@@ -102,7 +102,7 @@ public class BloqueoSalaService {
     @Transactional
     public void eliminar(Long id) {
         if (!bloqueos.existsById(id)) {
-            throw new RecursoNoEncontradoException("No existe el bloqueo " + id + ".");
+            throw new RecursoNoEncontradoException("No encontramos ese bloqueo.");
         }
         bloqueos.deleteById(id);
 

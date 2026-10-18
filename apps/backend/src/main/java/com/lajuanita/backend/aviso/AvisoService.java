@@ -1,7 +1,6 @@
 package com.lajuanita.backend.aviso;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.lajuanita.backend.aviso.dto.ResumenDeAvisos;
+import com.lajuanita.backend.dinero.Importe;
+import com.lajuanita.backend.dinero.Moneda;
+import com.lajuanita.backend.inscripcion.Disciplina;
 import com.lajuanita.backend.mastering.TrabajoMastering;
 import com.lajuanita.backend.mastering.TrabajoMasteringRepository;
 import com.lajuanita.backend.notificacion.NotificacionService;
@@ -204,9 +206,9 @@ public class AvisoService {
                     TipoNotificacion.DEUDA_VENCIDA,
                     clave,
                     "Deuda vencida: " + quien,
-                    "%s debe %s %s desde hace %d días (%s). El aviso salta a los %d."
-                            .formatted(quien, deudor.moneda(), plata(deudor.adeudado()),
-                                    deudor.diasDeAtraso(), deudor.detalle(),
+                    "%s debe %s desde hace %d días (%s). El aviso salta a los %d."
+                            .formatted(quien, plata(deudor.moneda(), deudor.adeudado()),
+                                    deudor.diasDeAtraso(), queDebe(deudor),
                                     PagoService.DIAS_PARA_VENCER),
                     // Sin cuenta no hay estado de cuenta al que llevar: el aviso
                     // manda a la pantalla de deudores, donde la fila sí está. Un
@@ -251,10 +253,10 @@ public class AvisoService {
                     // literal: atado al segundo —que no tiene ni un `%s`— el aviso
                     // salía con los `%s` crudos adentro y nadie lo reportó, porque una
                     // notificación fea no rompe nada (§23 · B2).
-                    ("%s se anotó a %s y pasaron %d horas del plazo sin la seña (%s %s). "
+                    ("%s se anotó a %s y pasaron %d horas del plazo sin la seña (%s). "
                             + "No se cancela sola: llamalo, y cobrá o cancelá.")
-                            .formatted(quien, d.disciplina(), horas,
-                                    d.moneda(), plata(d.adeudado())),
+                            .formatted(quien, Disciplina.valueOf(d.disciplina()).nombre(), horas,
+                                    plata(d.moneda(), d.adeudado())),
                     "/admin/inscripciones"));
         }
         return vencidas.size();
@@ -274,7 +276,7 @@ public class AvisoService {
             long dias = ChronoUnit.DAYS.between(trabajo.getFechaEntregaReal(), hoy);
             String precio = trabajo.getPrecioAcordado() == null
                     ? "sin precio acordado"
-                    : trabajo.getMoneda().name() + " " + plata(trabajo.getPrecioAcordado());
+                    : Importe.legible(trabajo.getMoneda(), trabajo.getPrecioAcordado());
 
             pendientes.add(new Aviso(
                     TipoNotificacion.ENTREGA_IMPAGA,
@@ -496,8 +498,22 @@ public class AvisoService {
                 : "cliente sin identificar";
     }
 
-    private String plata(BigDecimal monto) {
-        return monto.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    /** {@code Deudor.moneda} viaja como texto: la deuda de alguien sin cuenta no tiene enum detrás. */
+    private String plata(String moneda, BigDecimal monto) {
+        return Importe.legible(Moneda.valueOf(moneda), monto);
+    }
+
+    /**
+     * Qué debe, para leer. El {@code detalle} de una inscripción trae la
+     * disciplina cruda ("PRODUCCION · Grupo 8"), que la pantalla de Deudores
+     * nombra por su cuenta y el aviso no: se arma acá con el mismo nombre.
+     */
+    private String queDebe(Deudor deudor) {
+        if (deudor.disciplina() == null) {
+            return deudor.detalle();
+        }
+        String programa = "programa de " + Disciplina.valueOf(deudor.disciplina()).nombre();
+        return deudor.numeroGrupo() == null ? programa : programa + " · Grupo " + deudor.numeroGrupo();
     }
 
     /** Un aviso ya redactado, antes de saber a quién le va. */

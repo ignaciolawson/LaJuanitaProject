@@ -80,7 +80,7 @@ class SelloTest {
                 // El texto sale del trigger y explica la salida: es lo que la
                 // pantalla muestra, así que tiene que decir algo útil.
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("sin un contrato adjunto")));
+                        Matchers.containsString("no tiene contrato adjunto")));
     }
 
     @Test
@@ -156,7 +156,7 @@ class SelloTest {
         mvc.perform(delete("/api/contratos/" + contrato).header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("unico respaldo del release")));
+                        Matchers.containsString("único respaldo del release")));
     }
 
     /**
@@ -224,7 +224,7 @@ class SelloTest {
         cambiarEstado(release, "CONFIRMADO")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("no vuelve atras")));
+                        Matchers.containsString("no se puede reabrir")));
     }
 
     /**
@@ -237,7 +237,7 @@ class SelloTest {
         cambiarEstado(releaseDe(artista()), "PUBLICADO")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("su propia acción")));
+                        Matchers.containsString("usá el botón «Publicar»")));
     }
 
     @Test
@@ -546,7 +546,7 @@ class SelloTest {
         agregarTema(releaseDe(artista(), "SINGLE"), "No va")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("solo un EP o un album")));
+                        Matchers.containsString("solo un EP o un álbum")));
     }
 
     /**
@@ -559,7 +559,7 @@ class SelloTest {
         agregarTema(releaseDe(artista(), null), "No va")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("todavia no tiene tipo")));
+                        Matchers.containsString("todavía no tiene formato")));
     }
 
     /**
@@ -582,7 +582,7 @@ class SelloTest {
         editarTipo(release, "\"SINGLE\"")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("no puede pasar a SINGLE")));
+                        Matchers.containsString("no puede pasar a single")));
     }
 
     /**
@@ -597,7 +597,7 @@ class SelloTest {
         editarTipo(release, "null")
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        Matchers.containsString("no puede pasar a sin tipo")));
+                        Matchers.containsString("no puede pasar a sin formato")));
     }
 
     /**

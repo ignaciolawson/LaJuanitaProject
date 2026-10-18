@@ -69,10 +69,10 @@ public class ComprobanteService {
     @Transactional
     public ComprobanteResumen adjuntar(Long idPago, MultipartFile archivo, Long idAutor) {
         Pago pago = pagos.findById(idPago)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el pago " + idPago + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese pago."));
 
         Usuario autor = usuarios.findById(idAutor)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + idAutor + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
 
         ComprobantePago comprobante = new ComprobantePago();
         pago.agregarComprobante(comprobante);
@@ -127,7 +127,7 @@ public class ComprobanteService {
         }
 
         Usuario autor = usuarios.findById(idAutor)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + idAutor + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
 
         comprobante.invalidar(autor, motivo);
         return ComprobanteResumen.de(comprobante);
@@ -143,7 +143,7 @@ public class ComprobanteService {
     }
 
     private RecursoNoEncontradoException noExiste(Long idComprobante) {
-        return new RecursoNoEncontradoException("No existe el comprobante " + idComprobante + ".");
+        return new RecursoNoEncontradoException("No encontramos ese comprobante.");
     }
 
     /**

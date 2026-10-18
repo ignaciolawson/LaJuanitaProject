@@ -976,7 +976,7 @@ function FormularioExpediente({
           type="date"
           value={datos.fechaEntregaReal}
           onChange={cambiar('fechaEntregaReal')}
-          ayuda="La puso Entregar. Corregila sólo si estaba mal."
+          ayuda="Se puso al apretar «Entregar el master». Corregila sólo si estaba mal."
         />
       ) : (
         <div />
@@ -1324,7 +1324,7 @@ function FormularioCobro({
 
       <p className="mb-3 text-xs text-tenue">
         A nombre de <strong className="font-medium text-texto">{trabajo.cliente}</strong>
-        {!trabajo.clienteTieneCuenta && ' (sin cuenta: queda a su nombre escrito)'}, en{' '}
+        {!trabajo.clienteTieneCuenta && ' (no tiene cuenta: queda a su nombre)'}, en{' '}
         {trabajo.moneda === 'USD' ? 'dólares' : 'pesos'}, que es la moneda del trabajo.
         {trabajo.moneda === 'USD' &&
           ' Si pagan en pesos, va el monto en dólares con la cotización del día.'}
@@ -1332,7 +1332,7 @@ function FormularioCobro({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Campo
-          etiqueta={`Monto en ${trabajo.moneda}`}
+          etiqueta={`Monto en ${trabajo.moneda === 'USD' ? 'dólares' : 'pesos'}`}
           type="number"
           step="0.01"
           required

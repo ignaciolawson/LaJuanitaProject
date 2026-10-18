@@ -138,7 +138,7 @@ public class NotificacionService {
         Notificacion aviso = notificaciones.findById(idNotificacion)
                 .filter(n -> n.getDestino().getId().equals(idUsuario))
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe esa notificación (" + idNotificacion + ")."));
+                        "No encontramos esa notificación."));
 
         aviso.setLeida(true);
         return NotificacionResumen.de(aviso);

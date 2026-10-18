@@ -260,7 +260,7 @@ class ReservaTest {
         anotar(otra, alumno.getUsuario().getId())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("ya esta en otra sala en ese horario")));
+                        org.hamcrest.Matchers.containsString("ya tiene otra reserva el")));
     }
 
     // == Participantes y clases contratadas ===================================
@@ -331,7 +331,7 @@ class ReservaTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE reserva_participante SET id_inscripcion = ? WHERE id_reserva = ?",
                 deOtro.getId(), id))
-                .hasMessageContaining("no pertenece al usuario");
+                .hasMessageContaining("es de otra persona");
     }
 
     /**
@@ -373,7 +373,7 @@ class ReservaTest {
         anotar(segunda, alumno.getUsuario().getId())
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("ampliar la inscripcion")));
+                        org.hamcrest.Matchers.containsString("ampliá la inscripción")));
     }
 
     // == El alta con participantes: paso 1 de la seña ==========================
@@ -617,7 +617,7 @@ class ReservaTest {
         em.flush();
         assertThatThrownBy(() -> jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE"))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("No se aparta un horario sin pago por adelantado");
+                .hasMessageContaining("No se puede tomar un horario sin pago adelantado");
     }
 
     /**
@@ -669,7 +669,7 @@ class ReservaTest {
         em.flush();
         assertThatThrownBy(() -> jdbc.execute("SET CONSTRAINTS reserva_con_sena IMMEDIATE"))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("No se aparta un horario sin pago por adelantado");
+                .hasMessageContaining("No se puede tomar un horario sin pago adelantado");
     }
 
     /** La seña se acredita contra la reserva recién creada, no contra una del pedido. */
@@ -751,7 +751,7 @@ class ReservaTest {
         anularElPagoDe(quienPaga)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
-                        "primero hay que cancelar la reserva")));
+                        "primero cancelá la reserva")));
     }
 
     /** El orden que la política habilita: primero se cancela, después se devuelve. */
@@ -792,7 +792,7 @@ class ReservaTest {
                 .header("Authorization", comoStaff()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString(
-                        "su sena fue devuelta")));
+                        "su seña fue devuelta")));
     }
 
     /**
@@ -902,7 +902,7 @@ class ReservaTest {
 
         assertThatThrownBy(() -> jdbc.update("DELETE FROM reserva WHERE id_reserva = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("No se borran filas de reserva");
+                .hasMessageContaining("Una reserva no se borra");
     }
 
     // == Reprogramación: ninguna clase se pierde ==============================

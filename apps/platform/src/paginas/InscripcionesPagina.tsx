@@ -424,7 +424,7 @@ function CamposComunes({
         onChange={cambiar('precioTotal')}
         error={errores.precioTotal}
         required
-        ayuda="El curso se paga completo antes de empezar."
+        ayuda="El precio del curso entero. La seña es la mitad, y el resto se paga antes de la primera clase."
       />
 
       <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>

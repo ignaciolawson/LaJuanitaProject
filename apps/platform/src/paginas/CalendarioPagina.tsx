@@ -36,7 +36,11 @@ import { Movida } from '../componentes/Movida'
 import { CASILLA_EN_LINEA, CONTROL_DE_FILTRO } from '../componentes/controles'
 import { DeslizableAlCostado } from '../componentes/DeslizableAlCostado'
 import { Campo, CampoSelect } from '../componentes/Campo'
-import { NOMBRE_DE_DISCIPLINA, capitalizar } from '../componentes/presentacion'
+import {
+  NOMBRE_DE_ASISTENCIA,
+  NOMBRE_DE_DISCIPLINA,
+  NOMBRE_DE_ESTADO_RESERVA,
+} from '../componentes/presentacion'
 import {
   diaYMes,
   fecha,
@@ -652,7 +656,7 @@ function Detalle({
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-tenue">
             <span>
               {fecha(reserva.fecha)} · {hhmm(reserva.horaInicio)}–{hhmm(reserva.horaFin)} ·{' '}
-              {capitalizar(reserva.estado)}
+              {NOMBRE_DE_ESTADO_RESERVA[reserva.estado]}
             </span>
             <Movida veces={reserva.vecesMovida} />
           </p>
@@ -706,7 +710,7 @@ function Detalle({
                 >
                   {ASISTENCIAS.map((a) => (
                     <option key={a} value={a}>
-                      {capitalizar(a.replace('_', ' '))}
+                      {NOMBRE_DE_ASISTENCIA[a]}
                     </option>
                   ))}
                 </select>

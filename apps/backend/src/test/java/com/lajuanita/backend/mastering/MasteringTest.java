@@ -96,7 +96,7 @@ class MasteringTest {
         liberar(trabajo, null)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("(USD 10.00) no cubre el precio acordado (USD 150.00)")));
+                        org.hamcrest.Matchers.containsString("(US$ 10,00) no cubre el precio acordado (US$ 150,00)")));
     }
 
     @Test
@@ -260,7 +260,7 @@ class MasteringTest {
 
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE trabajo_mastering SET estado = 'EN_PROCESO' WHERE id_trabajo = ?", trabajo))
-                .hasMessageContaining("no puede retroceder");
+                .hasMessageContaining("no vuelve para atrás");
     }
 
     /** Se cancela desde donde sea: `V1` §8.5 deja CANCELADO fuera de la escalera. */

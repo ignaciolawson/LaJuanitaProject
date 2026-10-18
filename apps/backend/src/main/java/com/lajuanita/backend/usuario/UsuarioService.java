@@ -267,7 +267,7 @@ public class UsuarioService {
 
     private Usuario buscar(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     /**

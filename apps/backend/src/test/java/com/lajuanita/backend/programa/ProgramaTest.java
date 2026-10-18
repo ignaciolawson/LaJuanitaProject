@@ -138,7 +138,7 @@ class ProgramaTest {
                 .andExpect(status().is4xxClientError());
 
         assertThatThrownBy(() -> jdbc.update("DELETE FROM programa WHERE disciplina = 'MENTORIA'"))
-                .hasMessageContaining("programa -> activo = FALSE");
+                .hasMessageContaining("desactivalo desde Programas");
     }
 
     // == Helpers =============================================================

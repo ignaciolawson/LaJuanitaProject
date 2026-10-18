@@ -629,7 +629,7 @@ function FormularioEdicion({
           <span>
             Sigue dando clases
             <span className="block text-xs text-tenue">
-              Destildado no se ofrece al armar una inscripción nueva. La relación no se borra:
+              Destildado no se ofrece al armar una inscripción nueva. No se borra como profesor:
               sigue viendo el historial de las clases que dio.
             </span>
           </span>

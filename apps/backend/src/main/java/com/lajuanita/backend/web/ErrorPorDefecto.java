@@ -79,7 +79,7 @@ public class ErrorPorDefecto implements ErrorController {
      * {@link ManejadorDeErrores} para el mismo caso: que la respuesta cambie de
      * texto según por qué camino interno salió sería confuso para quien la lee.
      */
-    private String mensajeDe(HttpStatus estado) {
+    static String mensajeDe(HttpStatus estado) {
         return switch (estado) {
             case NOT_FOUND -> "No encontramos esa dirección.";
             case METHOD_NOT_ALLOWED -> "Esa dirección no acepta este tipo de pedido.";

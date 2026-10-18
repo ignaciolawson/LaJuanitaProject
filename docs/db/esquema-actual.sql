@@ -1,9 +1,9 @@
 -- ============================================================================
 -- ESQUEMA ACTUAL de la base de La Juanita — ARCHIVO GENERADO, NO EDITAR
 --
--- Es el resultado de aplicar todas las migraciones hasta V38__cambiar_la_password_cierra_las_sesiones.sql
+-- Es el resultado de aplicar todas las migraciones hasta V39__los_mensajes_en_el_idioma_de_quien_los_lee.sql
 -- sobre una base vacia, volcado con pg_dump --schema-only.
--- Generado el 2026-10-05 con ./scripts/esquema-actual.sh
+-- Generado el 2026-10-18 con ./scripts/esquema-actual.sh
 --
 -- Sirve para LEER la version final. No se aplica: la fuente de verdad son
 -- las migraciones (apps/backend/src/main/resources/db/migration), y el POR
@@ -65,9 +65,7 @@ CREATE FUNCTION public.exigir_autor_de_la_edicion() RETURNS trigger
 BEGIN
     IF NEW.id_usuario_modifico IS NULL THEN
         RAISE EXCEPTION
-            'Editar % exige decir quien lo hizo: id_usuario_modifico no puede '
-            'quedar en NULL. Es historial de clases y se edita con auditoria.',
-            TG_TABLE_NAME;
+            'No se pudo guardar el cambio: falta registrar quién lo hizo. Volvé a intentarlo desde la pantalla.';
     END IF;
 
     NEW.fecha_modificacion := now();
@@ -85,10 +83,7 @@ CREATE FUNCTION public.exigir_read_committed(regla text) RETURNS void
 BEGIN
     IF current_setting('transaction_isolation') <> 'read committed' THEN
         RAISE EXCEPTION
-            'La regla "%" solo se puede garantizar en READ COMMITTED (esta '
-            'transaccion corre en %). En niveles mas estrictos el trigger lee '
-            'un snapshot viejo y dejaria pasar la violacion en silencio.',
-            regla, current_setting('transaction_isolation');
+            'No se pudo completar la operación. Probá de nuevo en un momento.';
     END IF;
 END; $$;
 
@@ -110,8 +105,7 @@ BEGIN
                     WHERE rp.id_reserva     = NEW.id_reserva
                       AND rp.id_inscripcion = NEW.id_inscripcion) THEN
         RAISE EXCEPTION
-            'Esa clase no es de ese curso: el alumno de la inscripcion % no '
-            'participo de la reserva % con ella.', NEW.id_inscripcion, NEW.id_reserva;
+            'Esa clase no es de ese curso: el alumno no la tomó con esta inscripción. Elegí una de sus clases, o dejalo para todo el curso.';
     END IF;
 
     RETURN NEW;
@@ -128,9 +122,7 @@ CREATE FUNCTION public.programa_no_se_borra() RETURNS trigger
     AS $$
 BEGIN
     RAISE EXCEPTION
-        'No se borra un programa: las inscripciones lo nombran por su disciplina '
-        'y el alta lee de acá cuántas clases trae. Para sacarlo de la oferta, '
-        'programa -> activo = FALSE.';
+            'Un programa no se borra, porque las inscripciones lo usan. Para dejar de ofrecerlo, desactivalo desde Programas.';
 END; $$;
 
 
@@ -143,14 +135,8 @@ CREATE FUNCTION public.prohibir_borrado_historico() RETURNS trigger
     AS $$
 BEGIN
     RAISE EXCEPTION
-        'No se borran filas de %. Es historial de un negocio real: hay que '
-        'anular la fila con su estado correspondiente (pago -> ANULADO, '
-        'trabajo_mastering -> CANCELADO, reserva -> CANCELADA, '
-        'reserva_participante -> CANCELADA, egreso -> anulado = TRUE, '
-        'venta_equipo -> anulada = TRUE, solicitud_reserva -> CANCELADA, '
-        'solicitante -> DESCARTADO, solicitante_companero -> su ficha, '
-        'comprobante_pago -> invalido = TRUE, comprobante_egreso -> invalido = TRUE).',
-        TG_TABLE_NAME;
+            '%',
+            CASE TG_TABLE_NAME WHEN 'pago' THEN 'Un pago no se borra: si se cargó mal, anulalo y queda registrado con tu nombre y el motivo.' WHEN 'trabajo_mastering' THEN 'Un trabajo de Mix & Mastering no se borra: si no va, cancelalo.' WHEN 'reserva' THEN 'Una reserva no se borra: si no va, cancelala.' WHEN 'reserva_participante' THEN 'Una persona anotada en una clase no se borra: si no viene, dala de baja de la clase.' WHEN 'egreso' THEN 'Un egreso no se borra: si se cargó mal, anulalo.' WHEN 'venta_equipo' THEN 'Una venta no se borra: si se cargó mal, anulala.' WHEN 'solicitud_reserva' THEN 'Un pedido de sala no se borra: si ya no va, cancelalo.' WHEN 'solicitante' THEN 'Una ficha del buzón no se borra: si no va, descartala.' WHEN 'solicitante_companero' THEN 'Los compañeros de una ficha no se borran: son parte de lo que la persona pidió.' WHEN 'comprobante_pago' THEN 'Un comprobante no se borra: si no corresponde, marcalo como inválido.' WHEN 'comprobante_egreso' THEN 'Un comprobante no se borra: si no corresponde, marcalo como inválido.' ELSE 'Esto no se borra: es parte del historial del estudio.' END;
 END; $$;
 
 
@@ -163,9 +149,7 @@ CREATE FUNCTION public.prohibir_cambio_de_integrantes() RETURNS trigger
     AS $$
 BEGIN
     RAISE EXCEPTION
-        'Los integrantes de una inscripcion son fijos: no se sacan, no se '
-        'cambian y no se agregan despues. Si el grupo cambia, se cancela la '
-        'inscripcion y se da de alta la nueva.';
+            'Los integrantes de un grupo no se cambian después de inscribirlo. Si el grupo cambia, cancelá esta inscripción y cargá una nueva.';
 END; $$;
 
 
@@ -222,10 +206,8 @@ BEGIN
 
     IF v_codigo IS NOT NULL THEN
         RAISE EXCEPTION
-            'El contrato % es el unico respaldo del release %, que ya esta '
-            'publicado. Carga el contrato que lo reemplaza antes de sacar este, '
-            'o marca el release con publicado_sin_contrato y su motivo.',
-            v_id_contrato, v_codigo;
+            'Ese contrato es el único respaldo del release %, que ya está publicado. Adjuntá el contrato que lo reemplaza antes de sacar este.',
+            v_codigo;
     END IF;
 
     RETURN COALESCE(NEW, OLD);
@@ -291,10 +273,7 @@ BEGIN
     END IF;
 
     RAISE EXCEPTION
-        'El pago % es el unico respaldo del premaster ya liberado del trabajo % '
-        '(intento dejarlo en %). Para dejarlo sin pago hay que marcar el trabajo '
-        'con liberado_sin_pago y su motivo.',
-        id_pago_tocado, id_destino, nuevo_estado;
+            'Ese pago es el único respaldo del premaster que ya se entregó, así que no se puede anular ni dejar como deuda.';
 END; $$;
 
 
@@ -350,9 +329,12 @@ BEGIN
 
     IF v_temas < v_minimo THEN
         RAISE EXCEPTION
-            'El release % ya esta publicado y es un %: sacar este tema lo dejaria '
-            'con % y un % lleva por lo menos %. Cargá el que lo reemplaza antes de '
-            'sacar este.', v_codigo, v_tipo, v_temas, v_tipo, v_minimo;
+            'El release % ya está publicado y es un %: sin este tema quedaría con %, y un % lleva por lo menos %. Cargá el que lo reemplaza antes de sacar este.',
+            v_codigo,
+            CASE v_tipo WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(v_tipo::text) END,
+            v_temas,
+            CASE v_tipo WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(v_tipo::text) END,
+            v_minimo;
     END IF;
 
     RETURN COALESCE(NEW, OLD);
@@ -497,8 +479,7 @@ CREATE FUNCTION public.solicitud_resuelta_es_final() RETURNS trigger
 BEGIN
     IF OLD.estado <> 'PENDIENTE' THEN
         RAISE EXCEPTION
-            'Esa solicitud ya fue resuelta (%) y no se modifica. Si hace falta '
-            'otra cosa, se pide de nuevo.', OLD.estado;
+            'Ese pedido ya fue respondido y no se puede cambiar. Si hace falta otra cosa, hay que hacer un pedido nuevo.';
     END IF;
     RETURN NEW;
 END; $$;
@@ -526,9 +507,8 @@ BEGIN
     -- sea cierto: DE cancelado no se sale. Ver §1b.
     IF OLD.estado = 'CANCELADO' THEN
         RAISE EXCEPTION
-            'El release % esta cancelado y no vuelve atras (intento pasarlo a %). '
-            'Un lanzamiento que se retoma es un release nuevo.',
-            OLD.codigo_release, NEW.estado;
+            'El release % está cancelado y no se puede reabrir. Si el lanzamiento se retoma, cargalo como un release nuevo.',
+            OLD.codigo_release;
     END IF;
 
     orden_anterior := CASE OLD.estado
@@ -540,8 +520,9 @@ BEGIN
 
     IF orden_nuevo < orden_anterior THEN
         RAISE EXCEPTION
-            'El estado del release no puede retroceder (% -> %)',
-            OLD.estado, NEW.estado;
+            'Un release no vuelve para atrás: de «%» no puede pasar a «%».',
+            CASE OLD.estado WHEN 'A_CONFIRMAR' THEN 'a confirmar' WHEN 'CONFIRMADO' THEN 'confirmado' WHEN 'EN_DISTRIBUCION' THEN 'en distribución' WHEN 'PUBLICADO' THEN 'publicado' WHEN 'CANCELADO' THEN 'cancelado' ELSE lower(OLD.estado::text) END,
+            CASE NEW.estado WHEN 'A_CONFIRMAR' THEN 'a confirmar' WHEN 'CONFIRMADO' THEN 'confirmado' WHEN 'EN_DISTRIBUCION' THEN 'en distribución' WHEN 'PUBLICADO' THEN 'publicado' WHEN 'CANCELADO' THEN 'cancelado' ELSE lower(NEW.estado::text) END;
     END IF;
 
     RETURN NEW;
@@ -566,8 +547,7 @@ BEGIN
 
     IF OLD.estado = 'CANCELADO' THEN
         RAISE EXCEPTION
-            'El trabajo esta cancelado y no vuelve atras (intento pasarlo a %). '
-            'Un trabajo que se retoma se carga de nuevo.', NEW.estado;
+            'Ese trabajo está cancelado y no se puede reabrir. Si se retoma, cargalo como un trabajo nuevo.';
     END IF;
 
     orden_anterior := CASE OLD.estado
@@ -581,8 +561,9 @@ BEGIN
 
     IF orden_nuevo < orden_anterior THEN
         RAISE EXCEPTION
-            'El estado del trabajo no puede retroceder (% -> %)',
-            OLD.estado, NEW.estado;
+            'Un trabajo no vuelve para atrás: de «%» no puede pasar a «%».',
+            CASE OLD.estado WHEN 'A_CONFIRMAR' THEN 'a confirmar' WHEN 'EN_PROCESO' THEN 'en proceso' WHEN 'ENTREGADO' THEN 'entregado' WHEN 'PAGADO' THEN 'pagado' WHEN 'DEBE' THEN 'debe' WHEN 'CANCELADO' THEN 'cancelado' ELSE lower(OLD.estado::text) END,
+            CASE NEW.estado WHEN 'A_CONFIRMAR' THEN 'a confirmar' WHEN 'EN_PROCESO' THEN 'en proceso' WHEN 'ENTREGADO' THEN 'entregado' WHEN 'PAGADO' THEN 'pagado' WHEN 'DEBE' THEN 'debe' WHEN 'CANCELADO' THEN 'cancelado' ELSE lower(NEW.estado::text) END;
     END IF;
 
     RETURN NEW;
@@ -629,9 +610,9 @@ BEGIN
        OR coalesce(btrim(NEW.motivo_baja_nivel), '') = ''
        OR NEW.fecha_baja_nivel IS NOT DISTINCT FROM OLD.fecha_baja_nivel THEN
         RAISE EXCEPTION
-            'Bajar el nivel (% -> %) exige decir quien lo decide, cuando y por '
-            'que: id_usuario_baja_nivel, fecha_baja_nivel y motivo_baja_nivel.',
-            OLD.nivel, NEW.nivel;
+            'Para bajar el nivel (de % a %) hay que escribir el motivo: queda registrado quién lo decidió y cuándo.',
+            lower(OLD.nivel::text),
+            lower(NEW.nivel::text);
     END IF;
 
     RETURN NEW;
@@ -661,7 +642,8 @@ BEGIN
 
     IF cantidad > 0 THEN
         RAISE EXCEPTION
-            'No se puede bloquear: hay % reserva(s) activa(s) en ese rango', cantidad;
+            'No se puede bloquear: hay % reserva(s) en ese período. Movelas o cancelalas primero.',
+            cantidad;
     END IF;
 
     RETURN NEW;
@@ -693,9 +675,10 @@ BEGIN
 
     IF en_otra_moneda > 0 THEN
         RAISE EXCEPTION
-            'No se le puede cambiar la moneda de % a %: tiene % pago(s) vivo(s) en otra moneda. '
-            'Si esta en la moneda equivocada, primero se anulan esos pagos y se recargan.',
-            OLD.moneda, NEW.moneda, en_otra_moneda;
+            'No se puede pasar de % a %: ya tiene % pago(s) cargados en la otra moneda. Si estaba en la moneda equivocada, primero anulá esos pagos y después volvé a cargarlos.',
+            CASE OLD.moneda WHEN 'USD' THEN 'dólares' ELSE 'pesos' END,
+            CASE NEW.moneda WHEN 'USD' THEN 'dólares' ELSE 'pesos' END,
+            en_otra_moneda;
     END IF;
 
     RETURN NEW;
@@ -745,8 +728,9 @@ BEGIN
 
         IF consumidas > contratadas THEN
             RAISE EXCEPTION
-                'Reactivar esa clase deja la inscripcion en % clases sobre % '
-                'contratadas.', consumidas, contratadas;
+            'No se puede reactivar esa clase: el curso quedaría con % clases tomadas de % contratadas.',
+            consumidas,
+            contratadas;
         END IF;
     END LOOP;
 
@@ -782,9 +766,9 @@ BEGIN
 
     IF consumidas + 1 > contratadas THEN
         RAISE EXCEPTION
-            'Esa inscripcion tiene % clases contratadas y ya se consumieron %. '
-            'Para dar mas clases hay que ampliar la inscripcion.',
-            contratadas, consumidas;
+            'Este curso tiene % clases contratadas y ya se tomaron %. Para sumar más clases, ampliá la inscripción desde Inscripciones.',
+            contratadas,
+            consumidas;
     END IF;
 
     RETURN NEW;
@@ -815,12 +799,12 @@ BEGIN
 
     IF v_interes <> 'CURSO' THEN
         RAISE EXCEPTION
-            'Los companeros van solo en una ficha de curso; esta pidio %.', v_interes;
+            'Los compañeros solo se pueden sumar en un pedido de curso.';
     END IF;
 
     IF v_disciplina = 'MENTORIA' THEN
         RAISE EXCEPTION
-            'La mentoria es 1:1 y no admite grupos.';
+            'La mentoría es individual: no se puede hacer en grupo.';
     END IF;
 
     SELECT count(*) INTO v_actuales
@@ -829,8 +813,7 @@ BEGIN
 
     IF v_actuales + 1 > 2 THEN
         RAISE EXCEPTION
-            'Un grupo es de hasta 3 personas: quien llena el formulario y hasta '
-            'dos companeros. Esta ficha ya tiene %.', v_actuales;
+            'Un grupo es de hasta 3 personas: quien completa el formulario y hasta dos compañeros.';
     END IF;
 
     RETURN NEW;
@@ -852,18 +835,15 @@ BEGIN
     -- (a) No se vuelve a preconfirmar algo que ya salio del plazo.
     IF NEW.estado = 'PRECONFIRMADA' THEN
         RAISE EXCEPTION
-            'A la prereserva se entra solo al crearla. Esta reserva ya esta en % y '
-            'no puede volver a quedar apartada sin pago.',
-            OLD.estado;
+            'Esa reserva ya está %, y no puede volver a quedar apartada sin pago.',
+            lower(OLD.estado::text);
     END IF;
 
     -- (b) Del plazo se sale cobrando o cancelando, y por ningun otro lado.
     IF OLD.estado = 'PRECONFIRMADA'
        AND NEW.estado NOT IN ('CONFIRMADA', 'CANCELADA') THEN
         RAISE EXCEPTION
-            'Una prereserva solo puede confirmarse (cuando entra el pago) o '
-            'cancelarse. No se puede pasar a %.',
-            NEW.estado;
+            'Una reserva apartada solo puede confirmarse (cuando se registra el pago) o cancelarse.';
     END IF;
 
     RETURN NEW;
@@ -892,18 +872,15 @@ BEGIN
     -- (a) A la preinscripción se entra sólo al nacer.
     IF NEW.estado = 'PREINSCRIPTA' THEN
         RAISE EXCEPTION
-            'A la preinscripcion se entra solo al crearla. Esta inscripcion ya esta '
-            'en % y no puede volver a quedar pendiente de senia.',
-            OLD.estado;
+            'Esa inscripción ya está % y no puede volver a quedar esperando la seña.',
+            lower(OLD.estado::text);
     END IF;
 
     IF OLD.estado = 'PREINSCRIPTA' THEN
         -- (b) Se sale señando o cancelando, y por ningún otro lado.
         IF NEW.estado NOT IN ('ACTIVA', 'CANCELADA') THEN
             RAISE EXCEPTION
-                'Una preinscripcion solo puede activarse (cuando entra la senia) o '
-                'cancelarse. No se puede pasar a %.',
-                NEW.estado;
+            'Una preinscripción solo puede activarse (cuando se registra la seña) o cancelarse.';
         END IF;
 
         -- (c) Y a ACTIVA, sólo con plata cobrada detrás.
@@ -912,8 +889,7 @@ BEGIN
                  WHERE id_inscripcion = NEW.id_inscripcion
                    AND estado_pago IN ('SENADO', 'PAGADO')) THEN
             RAISE EXCEPTION
-                'Para activar la preinscripcion tiene que estar cobrada la senia: '
-                'registra el pago (SENADO) sobre esta inscripcion y la activa sola.';
+            'Para activar la preinscripción tiene que estar registrada la seña. Registrá el pago de la seña y la inscripción se activa sola.';
         END IF;
     END IF;
 
@@ -942,15 +918,12 @@ BEGIN
        OR NEW.id_usuario_carga IS DISTINCT FROM OLD.id_usuario_carga
        OR NEW.fecha_creacion  IS DISTINCT FROM OLD.fecha_creacion THEN
         RAISE EXCEPTION
-            'Un comprobante adjunto no se cambia. Si no corresponde, marcalo '
-            'invalido con su motivo y adjunta el correcto: el pago admite varios.';
+            'Un comprobante adjunto no se puede cambiar. Si no corresponde, marcalo como inválido con el motivo y adjuntá el correcto: un pago puede tener varios.';
     END IF;
 
     IF OLD.invalido AND NOT NEW.invalido THEN
         RAISE EXCEPTION
-            'Un comprobante marcado invalido no vuelve atras. Quien lo marco '
-            'firmo esa decision; si el comprobante era bueno, adjunta el archivo '
-            'de nuevo y queda otra fila con su fecha.';
+            'Un comprobante marcado como inválido no vuelve a ser válido. Si era el correcto, adjuntá el archivo de nuevo.';
     END IF;
 
     IF OLD.invalido AND NEW.invalido
@@ -958,8 +931,7 @@ BEGIN
             OR NEW.fecha_invalidacion  IS DISTINCT FROM OLD.fecha_invalidacion
             OR NEW.motivo_invalidacion IS DISTINCT FROM OLD.motivo_invalidacion) THEN
         RAISE EXCEPTION
-            'La firma de una invalidacion no se reescribe: es el dato, no un '
-            'campo del formulario.';
+            'Quién marcó el comprobante como inválido, y por qué, no se puede cambiar.';
     END IF;
 
     RETURN NEW;
@@ -980,15 +952,12 @@ BEGIN
        OR NEW.id_usuario_carga IS DISTINCT FROM OLD.id_usuario_carga
        OR NEW.fecha_creacion  IS DISTINCT FROM OLD.fecha_creacion THEN
         RAISE EXCEPTION
-            'Un comprobante adjunto no se cambia. Si no corresponde, marcalo '
-            'invalido con su motivo y adjunta el correcto: el egreso admite varios.';
+            'Un comprobante adjunto no se puede cambiar. Si no corresponde, marcalo como inválido con el motivo y adjuntá el correcto: un egreso puede tener varios.';
     END IF;
 
     IF OLD.invalido AND NOT NEW.invalido THEN
         RAISE EXCEPTION
-            'Un comprobante marcado invalido no vuelve atras. Quien lo marco '
-            'firmo esa decision; si el comprobante era bueno, adjunta el archivo '
-            'de nuevo y queda otra fila con su fecha.';
+            'Un comprobante marcado como inválido no vuelve a ser válido. Si era el correcto, adjuntá el archivo de nuevo.';
     END IF;
 
     IF OLD.invalido AND NEW.invalido
@@ -996,8 +965,7 @@ BEGIN
             OR NEW.fecha_invalidacion  IS DISTINCT FROM OLD.fecha_invalidacion
             OR NEW.motivo_invalidacion IS DISTINCT FROM OLD.motivo_invalidacion) THEN
         RAISE EXCEPTION
-            'La firma de una invalidacion no se reescribe: es el dato, no un '
-            'campo del formulario.';
+            'Quién marcó el comprobante como inválido, y por qué, no se puede cambiar.';
     END IF;
 
     RETURN NEW;
@@ -1054,8 +1022,7 @@ BEGIN
           AND a.id_usuario = NEW.id_usuario
     ) THEN
         RAISE EXCEPTION
-            'La inscripcion % no pertenece al usuario %',
-            NEW.id_inscripcion, NEW.id_usuario;
+            'Ese curso es de otra persona: elegí uno de los cursos de quien toma la clase.';
     END IF;
 
     RETURN NEW;
@@ -1106,15 +1073,12 @@ BEGIN
 
     IF v_cantidad = 0 THEN
         RAISE EXCEPTION
-            'La inscripcion % no tiene ningun integrante. Un grupo es de 1 a 3 '
-            'personas, y el alumno solo es un grupo de 1.', v_id;
+            'Una inscripción tiene que tener al menos un alumno.';
     END IF;
 
     IF v_referentes <> 1 THEN
         RAISE EXCEPTION
-            'La inscripcion % tiene % referentes y tiene que tener exactamente '
-            'uno: a el le va el WhatsApp de la senia y a su nombre esta la '
-            'deuda del grupo.', v_id, v_referentes;
+            'Un grupo tiene que tener exactamente un referente: es a quien se le escribe y a cuyo nombre queda la deuda del grupo.';
     END IF;
 
     SELECT numero_grupo INTO v_numero
@@ -1122,9 +1086,7 @@ BEGIN
 
     IF (v_cantidad >= 2) <> (v_numero IS NOT NULL) THEN
         RAISE EXCEPTION
-            'La inscripcion % tiene % integrantes y numero de grupo %: el numero '
-            'lo llevan los grupos de 2 o 3, y solo ellos.',
-            v_id, v_cantidad, coalesce(v_numero::TEXT, 'NULL');
+            'Solo los grupos de 2 o 3 personas llevan número de grupo.';
     END IF;
 
     RETURN NULL;
@@ -1144,7 +1106,7 @@ COMMENT ON FUNCTION public.verificar_integrantes_al_commit() IS 'V35 §4 (b): al
 
 CREATE FUNCTION public.verificar_liberacion_premaster() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
+    AS $_$
 DECLARE
     cobrado NUMERIC(14,2);
 BEGIN
@@ -1158,10 +1120,7 @@ BEGIN
 
     IF NEW.precio_acordado IS NULL THEN
         RAISE EXCEPTION
-            'No se puede liberar el premaster del trabajo %: no tiene precio acordado, '
-            'asi que no hay cobro que lo cubra. Para liberarlo igual, usar '
-            'liberado_sin_pago con motivo.',
-            NEW.id_trabajo;
+            'No se puede liberar el premaster: el trabajo no tiene precio acordado, así que no hay cobro que lo cubra. Si igual hay que entregarlo, usá «Liberarlo igual, con motivo».';
     END IF;
 
     SELECT COALESCE(SUM(p.monto), 0) INTO cobrado
@@ -1172,15 +1131,14 @@ BEGIN
 
     IF cobrado < NEW.precio_acordado THEN
         RAISE EXCEPTION
-            'No se puede liberar el premaster del trabajo %: lo cobrado (% %) no cubre '
-            'el precio acordado (% %). Para liberarlo igual, usar liberado_sin_pago '
-            'con motivo.',
-            NEW.id_trabajo, NEW.moneda, cobrado, NEW.moneda, NEW.precio_acordado;
+            'No se puede liberar el premaster: lo cobrado (%) no cubre el precio acordado (%). Si igual hay que entregarlo, usá «Liberarlo igual, con motivo».',
+            (CASE NEW.moneda WHEN 'USD' THEN 'US$ ' ELSE '$ ' END || translate(to_char(cobrado, 'FM999,999,999,990.00'), ',.', '.,')),
+            (CASE NEW.moneda WHEN 'USD' THEN 'US$ ' ELSE '$ ' END || translate(to_char(NEW.precio_acordado, 'FM999,999,999,990.00'), ',.', '.,'));
     END IF;
 
     RETURN NEW;
 END;
-$$;
+$_$;
 
 
 --
@@ -1210,10 +1168,9 @@ BEGIN
 
     IF moneda_del_contrato IS DISTINCT FROM NEW.moneda THEN
         RAISE EXCEPTION
-            'El pago de un programa va en la moneda del contrato: esta inscripcion '
-            'es en % y el pago vino en %. Si se paga en otra moneda, el contrato se '
-            'carga en esa moneda.',
-            moneda_del_contrato, NEW.moneda;
+            'El pago tiene que ir en la moneda del curso: el curso es en % y el pago se cargó en %. Si va a pagar en otra moneda, primero cambiá la moneda de la inscripción.',
+            CASE moneda_del_contrato WHEN 'USD' THEN 'dólares' ELSE 'pesos' END,
+            CASE NEW.moneda WHEN 'USD' THEN 'dólares' ELSE 'pesos' END;
     END IF;
 
     RETURN NEW;
@@ -1252,10 +1209,9 @@ BEGIN
 
     IF moneda_de_la_reserva <> NEW.moneda THEN
         RAISE EXCEPTION
-            'El pago de una reserva va en la moneda de la reserva: esta reserva '
-            'es en % y el pago vino en %. Si se paga en otra moneda, la reserva se '
-            'carga en esa moneda.',
-            moneda_de_la_reserva, NEW.moneda;
+            'El pago tiene que ir en la moneda de la reserva: la reserva es en % y el pago se cargó en %. Si va a pagar en otra moneda, primero cambiá la moneda de la reserva.',
+            CASE moneda_de_la_reserva WHEN 'USD' THEN 'dólares' ELSE 'pesos' END,
+            CASE NEW.moneda WHEN 'USD' THEN 'dólares' ELSE 'pesos' END;
     END IF;
 
     RETURN NEW;
@@ -1289,10 +1245,9 @@ BEGIN
 
     IF moneda_del_trabajo IS DISTINCT FROM NEW.moneda THEN
         RAISE EXCEPTION
-            'El cobro de un trabajo va en la moneda del trabajo: este trabajo es '
-            'en % y el pago vino en %. Si pagan en otra moneda, el pago se carga '
-            'en la del trabajo con la cotizacion del dia.',
-            moneda_del_trabajo, NEW.moneda;
+            'El cobro tiene que ir en la moneda del trabajo: el trabajo es en % y el pago se cargó en %. Si pagan en otra moneda, cargá el monto convertido con la cotización del día.',
+            CASE moneda_del_trabajo WHEN 'USD' THEN 'dólares' ELSE 'pesos' END,
+            CASE NEW.moneda WHEN 'USD' THEN 'dólares' ELSE 'pesos' END;
     END IF;
 
     RETURN NEW;
@@ -1326,8 +1281,7 @@ BEGIN
           AND a.id_alumno = NEW.id_alumno
     ) THEN
         RAISE EXCEPTION
-            'La participacion % no corresponde al alumno %',
-            NEW.id_participacion, NEW.id_alumno;
+            'Esa clase no es de este alumno: elegí una clase que haya tomado.';
     END IF;
 
     RETURN NEW;
@@ -1350,8 +1304,7 @@ BEGIN
 
     IF reserva_sin_plata_detras(NEW.id_reserva) THEN
         RAISE EXCEPTION
-            'Esa reserva se quedaria sin la sena que la sostiene. Si la sena se '
-            'devuelve, primero hay que cancelar la reserva.';
+            'Ese pago es la seña que sostiene una reserva. Si se devuelve la seña, primero cancelá la reserva y después anulá el pago.';
     END IF;
 
     RETURN NEW;
@@ -1384,9 +1337,10 @@ BEGIN
 
         IF FOUND THEN
             RAISE EXCEPTION
-                'No se puede mover la clase: un participante ya esta en otra '
-                'sala en ese horario (% %-%)',
-                choque.fecha, choque.hora_inicio, choque.hora_fin;
+            'No se puede mover la clase: alguien anotado ya tiene otra reserva el % de % a %.',
+            to_char(choque.fecha, 'DD/MM/YYYY'),
+            to_char(choque.hora_inicio, 'HH24:MI'),
+            to_char(choque.hora_fin, 'HH24:MI');
         END IF;
     END LOOP;
 
@@ -1414,8 +1368,10 @@ BEGIN
 
     IF FOUND THEN
         RAISE EXCEPTION
-            'Esa persona ya esta en otra sala en ese horario (% %-%)',
-            choque.fecha, choque.hora_inicio, choque.hora_fin;
+            'Esa persona ya tiene otra reserva el % de % a %.',
+            to_char(choque.fecha, 'DD/MM/YYYY'),
+            to_char(choque.hora_inicio, 'HH24:MI'),
+            to_char(choque.hora_fin, 'HH24:MI');
     END IF;
 
     RETURN NEW;
@@ -1436,10 +1392,8 @@ BEGIN
 
     IF NOT release_tiene_contrato(NEW.id_release, NEW.id_artista) THEN
         RAISE EXCEPTION
-            'El release % no se puede publicar sin un contrato adjunto: no hay '
-            'contrato de este release ni contrato general de su artista. Para '
-            'publicarlo igual hay que marcarlo con publicado_sin_contrato y '
-            'escribir el motivo, que queda firmado.', NEW.codigo_release;
+            'El release % no se puede publicar todavía: no tiene contrato adjunto, ni propio ni general del artista. Adjuntá el contrato, o usá «Publicarlo igual, con motivo».',
+            NEW.codigo_release;
     END IF;
 
     RETURN NEW;
@@ -1468,16 +1422,15 @@ BEGIN
 
     IF v_tipo IS NULL THEN
         RAISE EXCEPTION
-            'El release % todavia no tiene tipo, asi que no se le pueden cargar '
-            'temas: elegi primero si es un EP o un album. Un single o un remix no '
-            'llevan lista de temas -- el release ya es el tema.', v_codigo;
+            'El release % todavía no tiene formato: elegí primero si es un EP o un álbum. Un single o un remix no llevan lista de temas.',
+            v_codigo;
     END IF;
 
     IF v_tipo NOT IN ('EP', 'ALBUM') THEN
         RAISE EXCEPTION
-            'El release % es un %, y solo un EP o un album llevan lista de temas. '
-            'Un single es el release mismo: su nombre ya es el nombre del tema.',
-            v_codigo, v_tipo;
+            'El release % es un %: solo un EP o un álbum llevan lista de temas.',
+            v_codigo,
+            CASE v_tipo WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(v_tipo::text) END;
     END IF;
 
     RETURN NEW;
@@ -1507,10 +1460,10 @@ BEGIN
 
     IF v_temas > 0 THEN
         RAISE EXCEPTION
-            'El release % tiene % tema(s) cargados, asi que no puede pasar a %: '
-            'solo un EP o un album llevan lista de temas. Sacale los temas primero '
-            'si de verdad cambio de formato.',
-            NEW.codigo_release, v_temas, coalesce(NEW.tipo_release, 'sin tipo');
+            'El release % tiene % tema(s) cargados, así que no puede pasar a %: solo un EP o un álbum llevan lista de temas. Si de verdad cambió de formato, sacale los temas primero.',
+            NEW.codigo_release,
+            v_temas,
+            coalesce(CASE NEW.tipo_release WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(NEW.tipo_release::text) END, 'sin formato');
     END IF;
 
     RETURN NEW;
@@ -1554,10 +1507,13 @@ BEGIN
 
     IF v_temas < v_minimo OR v_temas > v_maximo THEN
         RAISE EXCEPTION
-            'El release % es un % y tiene % tema(s) cargados: un % lleva entre % y %. '
-            'Cargalos desde la ficha del release y despues publicalo.',
-            NEW.codigo_release, NEW.tipo_release, v_temas,
-            NEW.tipo_release, v_minimo, v_maximo;
+            'El release % es un % y tiene % tema(s) cargados: un % lleva entre % y %. Completá la lista de temas y después publicalo.',
+            NEW.codigo_release,
+            CASE NEW.tipo_release WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(NEW.tipo_release::text) END,
+            v_temas,
+            CASE NEW.tipo_release WHEN 'ALBUM' THEN 'álbum' WHEN 'EP' THEN 'EP' WHEN 'SINGLE' THEN 'single' WHEN 'REMIX' THEN 'remix' ELSE lower(NEW.tipo_release::text) END,
+            v_minimo,
+            v_maximo;
     END IF;
 
     RETURN NEW;
@@ -1588,8 +1544,7 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM sala WHERE id_sala = NEW.id_sala AND activa) THEN
         RAISE EXCEPTION
-            'Esa sala esta desactivada y no acepta reservas nuevas (% %-%)',
-            NEW.fecha, NEW.hora_inicio, NEW.hora_fin;
+            'Esa sala está desactivada y no acepta reservas nuevas.';
     END IF;
 
     RETURN NEW;
@@ -1619,8 +1574,10 @@ BEGIN
           AND NEW.hora_fin    > b.hora_inicio
     ) THEN
         RAISE EXCEPTION
-            'La sala esta bloqueada en ese horario (reserva % %-%)',
-            NEW.fecha, NEW.hora_inicio, NEW.hora_fin;
+            'Esa sala está bloqueada el % de % a %.',
+            to_char(NEW.fecha, 'DD/MM/YYYY'),
+            to_char(NEW.hora_inicio, 'HH24:MI'),
+            to_char(NEW.hora_fin, 'HH24:MI');
     END IF;
 
     RETURN NEW;
@@ -1644,8 +1601,7 @@ BEGIN
 
     IF reserva_sin_plata_detras(NEW.id_reserva) THEN
         RAISE EXCEPTION
-            'Esa reserva no se puede reactivar: su sena fue devuelta. Hay que '
-            'registrar el pago de nuevo.';
+            'Esa reserva no se puede reactivar porque su seña fue devuelta. Para reactivarla, registrá el pago de nuevo.';
     END IF;
 
     RETURN NEW;
@@ -1662,8 +1618,7 @@ CREATE FUNCTION public.verificar_sena_de_la_reserva() RETURNS trigger
 BEGIN
     IF reserva_sin_plata_detras(NEW.id_reserva) THEN
         RAISE EXCEPTION
-            'No se aparta un horario sin pago por adelantado. Registra el pago de esa '
-            'reserva, o anota al alumno con su inscripcion, que ya la cubre.';
+            'No se puede tomar un horario sin pago adelantado. Registrá la seña de la reserva, o anotá al alumno con su curso, que ya la cubre.';
     END IF;
     RETURN NEW;
 END; $$;
@@ -1700,10 +1655,10 @@ BEGIN
     IF v_actuales + 1 > v_maximo THEN
         IF v_maximo = 1 THEN
             RAISE EXCEPTION
-                'La mentoria es 1:1 y no admite grupos.';
+            'La mentoría es individual: no se puede hacer en grupo.';
         END IF;
         RAISE EXCEPTION
-            'Un grupo es de hasta 3 personas; esta inscripcion ya tiene %.',
+            'Un grupo es de hasta 3 personas, y esta inscripción ya tiene %.',
             v_actuales;
     END IF;
 
@@ -1748,10 +1703,9 @@ BEGIN
         WHERE a.id_alumno = p_id_alumno;
 
         RAISE EXCEPTION
-            '% ya tiene una inscripcion abierta en % (la #%). Una persona no '
-            'puede estar en dos a la vez en la misma disciplina: hay que '
-            'cerrar esa antes.',
-            v_nombre, v_disciplina, v_otra;
+            '% ya tiene un curso de % abierto (activo o esperando la seña). No puede estar en dos a la vez de la misma disciplina: cerrá ese antes.',
+            v_nombre,
+            CASE v_disciplina WHEN 'DJ' THEN 'DJ' WHEN 'PRODUCCION' THEN 'Producción' WHEN 'MENTORIA' THEN 'Mentoría' ELSE v_disciplina::text END;
     END IF;
 END; $$;
 
@@ -1779,9 +1733,8 @@ BEGIN
 
     IF NOT se_puede THEN
         RAISE EXCEPTION
-            '"%" no se pide desde el portal: esa reserva la arma administracion. '
-            'Desde el portal se piden los usos que no dependen de un profesor '
-            '(alquiler de cabina y grabacion de set).', nombre_del_uso;
+            '«%» no se puede pedir desde acá: esa reserva la arma el estudio. Desde acá se pide la cabina para alquilar o para grabar un set.',
+            nombre_del_uso;
     END IF;
 
     RETURN NEW;

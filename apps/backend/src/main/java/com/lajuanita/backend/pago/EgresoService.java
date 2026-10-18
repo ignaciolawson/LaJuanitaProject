@@ -68,7 +68,7 @@ public class EgresoService {
         if (solicitud.idUsuarioDestino() != null) {
             egreso.setUsuarioDestino(usuarios.findById(solicitud.idUsuarioDestino())
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe el usuario " + solicitud.idUsuarioDestino() + ".")));
+                            "No encontramos a esa persona.")));
         }
         if (solicitud.fechaEgreso() != null) {
             egreso.setFechaEgreso(solicitud.fechaEgreso());
@@ -90,7 +90,7 @@ public class EgresoService {
     @Transactional
     public EgresoResumen anular(Long id, String motivo, Long idAutor) {
         Egreso egreso = egresos.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el egreso " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese egreso."));
 
         // La base no lo impide -anular dos veces cumple la constraint igual- pero
         // la segunda anulación pisa el autor y el motivo de la primera, y con eso

@@ -174,7 +174,7 @@ public class ReservaService {
     @Transactional(readOnly = true)
     public ReservaResumen porId(Long id) {
         Reserva reserva = reservas.porIdConDetalle(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la reserva " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa reserva."));
         return conParticipantes(reserva);
     }
 
@@ -461,9 +461,9 @@ public class ReservaService {
                 && reserva.getMoneda() != solicitud.moneda()
                 && pagos.hayPagosVivosEnOtraMoneda(reserva.getId(), solicitud.moneda())) {
             throw new SolicitudInvalidaException(
-                    "No se le puede cambiar la moneda a esta reserva: tiene pagos vivos en "
-                            + reserva.getMoneda() + ". Si está en la moneda equivocada, primero anulá "
-                            + "esos pagos y recargalos en la nueva.");
+                    "No se le puede cambiar la moneda a esta reserva: ya tiene pagos cargados en "
+                            + reserva.getMoneda().nombre() + ". Si está en la moneda equivocada, primero anulá "
+                            + "esos pagos y después volvé a cargarlos.");
         }
         reserva.ponerPrecio(solicitud.precioTotal(), solicitud.moneda());
         // Sin esto, `V7` rechaza el UPDATE. Va siempre, aunque el pedido no haya
@@ -657,24 +657,10 @@ public class ReservaService {
      * son de la base y no distinguen por dónde se entró. Dos copias de este método
      * serían dos lugares donde olvidarse del pre-chequeo.
      */
-    /**
-     * Cómo se nombra cada curso en un mensaje de error.
-     *
-     * <p>El enum crudo no se le muestra a nadie: <i>"no tiene una inscripción
-     * vigente de PRODUCCION"</i> es la clase de mensaje que hace dudar de si el
-     * sistema está roto. Es la misma tabla que el front tiene en
-     * {@code NOMBRE_DE_DISCIPLINA}, y acá existe porque este texto lo escribe el
-     * servidor.
-     */
-    private static final Map<Disciplina, String> NOMBRE_DE_DISCIPLINA = Map.of(
-            Disciplina.DJ, "DJ",
-            Disciplina.PRODUCCION, "Producción",
-            Disciplina.MENTORIA, "Mentoría");
-
     private ReservaParticipante anotar(Reserva reserva, AltaParticipanteRequest solicitud) {
         Usuario persona = usuarios.findById(solicitud.idUsuario())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + solicitud.idUsuario() + "."));
+                        "No encontramos a esa persona."));
 
         // La base ya lo impide con `participante_unico_por_reserva`; esto existe
         // para que salga un mensaje y no una violación de constraint. Y cubre
@@ -735,7 +721,7 @@ public class ReservaService {
     /** Ver el ⚠️ de {@link #inscripcionQueDescuenta}: cada salida se nombra. */
     private String faltaLaInscripcion(Usuario persona, Disciplina disciplina) {
         String quien = persona.getNombre() + " " + persona.getApellido();
-        String curso = NOMBRE_DE_DISCIPLINA.getOrDefault(disciplina, disciplina.name());
+        String curso = disciplina.nombre();
 
         if (!alumnos.existsByUsuarioId(persona.getId())) {
             return quien + " no está cargado como alumno, así que no puede tener una inscripción de "
@@ -762,7 +748,7 @@ public class ReservaService {
 
         ReservaParticipante participante = participantes.findById(idParticipacion)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe esa participación (" + idParticipacion + ")."));
+                        "No encontramos a esa persona en la clase."));
 
         participante.setEstadoAsistencia(estado);
         participante.setIdUsuarioModifico(idAutor);
@@ -874,25 +860,25 @@ public class ReservaService {
     private static void verificarLaMonedaDeLaPlata(Moneda deLaReserva, Moneda delPago, String que) {
         if (deLaReserva != null && delPago != null && deLaReserva != delPago) {
             throw new SolicitudInvalidaException(
-                    "El pago de una reserva va en la moneda de la reserva: la reserva es en "
-                            + deLaReserva + " y " + que + " vino en " + delPago
-                            + ". Si se paga en otra moneda, cargá la reserva en esa moneda.");
+                    "El pago tiene que ir en la moneda de la reserva: la reserva es en "
+                            + deLaReserva.nombre() + " y " + que + " se cargó en " + delPago.nombre()
+                            + ". Si va a pagar en otra moneda, primero cambiá la moneda de la reserva.");
         }
     }
 
     private Reserva buscar(Long id) {
         return reservas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la reserva " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa reserva."));
     }
 
     private Sala buscarSala(Long id) {
         return salas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sala " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa sala."));
     }
 
     private TipoUso buscarTipoUso(Long id) {
         return tiposDeUso.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el tipo de uso " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa actividad."));
     }
 
     private Profesor buscarProfesor(Long id) {
@@ -900,7 +886,7 @@ public class ReservaService {
             return null;
         }
         return profesores.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el profesor " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese profesor."));
     }
 
     private String normalizar(String texto) {

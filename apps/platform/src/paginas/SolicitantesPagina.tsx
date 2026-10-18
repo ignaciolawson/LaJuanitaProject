@@ -1558,7 +1558,7 @@ function CerrarLaFicha({
     >
       <h3 className="t-seccion mb-1">¿Qué se le cargó?</h3>
       <p className="mb-4 text-sm text-tenue">
-        La ficha queda apuntando a eso para siempre: dentro de tres meses se abre y se ve qué salió
+        La ficha queda asociada a eso para siempre: dentro de tres meses se abre y se ve qué salió
         de ella. Por eso no hay un “marcar como atendida”.
       </p>
 
@@ -1797,7 +1797,7 @@ function CuentaLista({
         </>
       ) : (
         <p className="mt-2 text-sm leading-relaxed text-tenue">
-          No hay contraseña que mandarle: entra con la suya. La ficha quedó apuntando a esa cuenta
+          No hay contraseña que mandarle: entra con la suya. La ficha quedó asociada a esa cuenta
           y <strong className="text-texto">sigue abierta</strong>: falta cargarle lo que pidió.
         </p>
       )}

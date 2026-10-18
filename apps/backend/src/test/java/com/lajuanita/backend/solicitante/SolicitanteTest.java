@@ -916,7 +916,7 @@ class SolicitanteTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE solicitante SET estado = 'PENDIENTE' WHERE id_solicitante = ?", ficha))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("ya fue resuelta");
+                .hasMessageContaining("ya fue respondido");
     }
 
     /**
@@ -992,7 +992,7 @@ class SolicitanteTest {
                 .isInstanceOf(DataAccessException.class)
                 // La enumeración es la mitad útil del mensaje (`V18`): dice cómo se
                 // retira ESTA tabla.
-                .hasMessageContaining("solicitante -> DESCARTADO");
+                .hasMessageContaining("Una ficha del buzón no se borra");
     }
 
     // == Helpers =============================================================

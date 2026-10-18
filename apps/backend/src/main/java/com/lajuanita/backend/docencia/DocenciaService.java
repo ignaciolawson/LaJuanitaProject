@@ -305,7 +305,7 @@ public class DocenciaService {
         if (solicitud.idParticipacion() != null) {
             nota.setParticipacion(participantes.findById(solicitud.idParticipacion())
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe esa participación (" + solicitud.idParticipacion() + ").")));
+                            "No encontramos a esa persona en la clase.")));
         }
 
         return NotaResumen.de(notas.save(nota));
@@ -324,7 +324,7 @@ public class DocenciaService {
 
         NotaProfesor nota = notas.suya(idNota, yo.getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe esa nota (" + idNota + ")."));
+                        "No encontramos esa nota."));
 
         nota.corregir(contenido.trim());
         return NotaResumen.de(nota);
@@ -372,14 +372,14 @@ public class DocenciaService {
 
         Inscripcion curso = inscripciones.findById(solicitud.idInscripcion())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe ese curso (" + solicitud.idInscripcion() + ")."));
+                        "No encontramos ese curso."));
         // Que el curso sea mío: basta con que uno de sus integrantes lo sea
         // (`V35`) — la inscripción está asignada a mí o di una clase de ella.
         boolean mio = curso.getIntegrantes().stream()
                 .anyMatch(x -> esMiAlumno(yo, x.getAlumno().getId()));
         if (!mio) {
             throw new RecursoNoEncontradoException(
-                    "No existe ese curso entre los tuyos (" + curso.getId() + ").");
+                    "No encontramos ese curso entre los tuyos.");
         }
 
         Material material = new Material();
@@ -422,7 +422,7 @@ public class DocenciaService {
 
         Material material = materiales.suyo(idMaterial, yo.getId())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe ese material (" + idMaterial + ")."));
+                        "No encontramos ese material."));
 
         material.setVisibleAlumno(visible);
         return MaterialResumen.de(material);
@@ -491,7 +491,7 @@ public class DocenciaService {
         return alumnos.delProfesor(yo.getId(), idAlumno, EstadoAsistencia.CANCELADA).stream()
                 .findFirst()
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe ese alumno entre los tuyos (" + idAlumno + ")."));
+                        "No encontramos ese alumno entre los tuyos."));
     }
 
     /** La misma pregunta, como booleano: para recorrer los integrantes de un curso. */

@@ -281,7 +281,7 @@ class ComprobanteTest {
         assertThatThrownBy(() -> jdbc.update(
                 "DELETE FROM comprobante_pago WHERE id_comprobante = ?", idComprobante))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("No se borran filas");
+                .hasMessageContaining("no se borra");
     }
 
     /**
@@ -298,7 +298,7 @@ class ComprobanteTest {
                 "UPDATE comprobante_pago SET archivo_path = 'comprobantes/otro.pdf' "
                         + "WHERE id_comprobante = ?", idComprobante))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("no se cambia");
+                .hasMessageContaining("no se puede cambiar");
     }
 
     /**
@@ -318,7 +318,7 @@ class ComprobanteTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE comprobante_pago SET invalido = FALSE WHERE id_comprobante = ?", idComprobante))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("no vuelve atras");
+                .hasMessageContaining("no vuelve a ser válido");
     }
 
     // =========================================================================

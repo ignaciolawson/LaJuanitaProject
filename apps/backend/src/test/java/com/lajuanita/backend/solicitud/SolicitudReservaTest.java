@@ -132,7 +132,7 @@ class SolicitudReservaTest {
         mvc.perform(pedir(crear(Rol.USUARIO), sala1, claseDj, "22:00", "23:00"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("no se pide desde el portal")));
+                        org.hamcrest.Matchers.containsString("no se puede pedir desde acá")));
     }
 
     /**
@@ -405,7 +405,7 @@ class SolicitudReservaTest {
         assertThatThrownBy(() -> jdbc.update(
                 "DELETE FROM solicitud_reserva WHERE id_solicitud_reserva = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("solicitud_reserva -> CANCELADA");
+                .hasMessageContaining("Un pedido de sala no se borra");
     }
 
     /**
@@ -425,7 +425,7 @@ class SolicitudReservaTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE solicitud_reserva SET estado = 'PENDIENTE' WHERE id_solicitud_reserva = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("ya fue resuelta");
+                .hasMessageContaining("ya fue respondido");
     }
 
     // =========================================================================

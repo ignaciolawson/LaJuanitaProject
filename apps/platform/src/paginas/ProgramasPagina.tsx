@@ -289,7 +289,7 @@ function Formulario({
           value={precio}
           onChange={(e) => setPrecio(e.target.value)}
           error={errores.precio}
-          ayuda="Vacío = a confirmar. Las inscripciones ya cargadas no cambian."
+          ayuda="Si lo dejás vacío, queda «a confirmar». Las inscripciones ya cargadas no cambian."
         />
         {programa.disciplina !== 'MENTORIA' && (
           // El precio DEL GRUPO, no por persona (P88): de a más es más barato,
@@ -303,7 +303,7 @@ function Formulario({
               value={precio2}
               onChange={(e) => setPrecio2(e.target.value)}
               error={errores.precio2}
-              ayuda="Lo que paga el grupo entero, no cada uno. Vacío = el alta lo pide a mano."
+              ayuda="Lo que paga el grupo entero, no cada uno. Si lo dejás vacío, se escribe a mano al inscribir."
             />
             <Campo
               etiqueta="Precio de a 3 (total del grupo)"

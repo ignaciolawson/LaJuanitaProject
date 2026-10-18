@@ -96,7 +96,7 @@ class PagoTest {
         Inscripcion curso = inscripcionDe(alumno, "180000", Moneda.ARS);
 
         mvc.perform(pagarInscripcion(alumno, curso, "90000"))
-                .andExpect(jsonPath("$.queSalda").value("DJ · INICIAL"));
+                .andExpect(jsonPath("$.queSalda").value("DJ · inicial"));
     }
 
     /** El autor sale del token, nunca del cuerpo. */
@@ -330,7 +330,7 @@ class PagoTest {
 
         assertThatThrownBy(() -> jdbc.update("DELETE FROM pago WHERE id_pago = ?", idPago))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("No se borran filas");
+                .hasMessageContaining("no se borra");
     }
 
     // == El comprobante =======================================================
@@ -759,7 +759,7 @@ class PagoTest {
         assertThatThrownBy(() -> jdbc.update(
                 "UPDATE pago SET monto = 1 WHERE id_pago = ?", id))
                 .isInstanceOf(DataAccessException.class)
-                .hasMessageContaining("exige decir quien lo hizo");
+                .hasMessageContaining("falta registrar quién lo hizo");
     }
 
     /**
@@ -916,7 +916,7 @@ class PagoTest {
                 """.formatted(alumno.getUsuario().getId(), enPesos.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(
-                        org.hamcrest.Matchers.containsString("moneda del contrato")));
+                        org.hamcrest.Matchers.containsString("moneda del curso")));
 
         estadoDeCuenta(alumno)
                 .andExpect(jsonPath("$.contratos[0].pagado").value(0.00))
@@ -937,7 +937,7 @@ class PagoTest {
                 INSERT INTO pago (id_usuario, id_inscripcion, monto, moneda, cotizacion_dolar, medio_pago)
                 VALUES (?, ?, 100, 'USD', 1200, 'PAYPAL')
                 """, alumno.getUsuario().getId(), enPesos.getId()))
-                .hasMessageContaining("moneda del contrato");
+                .hasMessageContaining("moneda del curso");
     }
 
     /**

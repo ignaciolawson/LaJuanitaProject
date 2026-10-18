@@ -19,5 +19,10 @@ package com.lajuanita.backend.dinero;
  */
 public enum Moneda {
     ARS,
-    USD
+    USD;
+
+    /** "pesos" o "dólares": como va en medio de una frase que lee una persona. */
+    public String nombre() {
+        return this == USD ? "dólares" : "pesos";
+    }
 }

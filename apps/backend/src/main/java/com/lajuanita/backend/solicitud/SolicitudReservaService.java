@@ -1,6 +1,5 @@
 package com.lajuanita.backend.solicitud;
 
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -9,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.dinero.Importe;
 import com.lajuanita.backend.notificacion.NotificacionService;
 import com.lajuanita.backend.notificacion.TipoNotificacion;
 import com.lajuanita.backend.reserva.Reserva;
@@ -149,7 +149,7 @@ public class SolicitudReservaService {
 
         if (!solicitud.estaPendiente()) {
             throw new OperacionNoPermitidaException(
-                    "Esa solicitud ya fue resuelta (" + solicitud.getEstado() + ") y no se puede cancelar.");
+                    "Ese pedido ya fue respondido y no se puede cancelar.");
         }
 
         solicitud.cancelar(solicitud.getUsuario());
@@ -242,8 +242,7 @@ public class SolicitudReservaService {
                     "Te reservamos " + solicitud.getSala().getNombreSala() + " para el "
                             + solicitud.getFecha().format(DIA) + " a las " + solicitud.getHoraInicio()
                             + ". Para confirmarla hay que abonar "
-                            + aprobacion.moneda() + " "
-                            + aprobacion.monto().setScale(2, RoundingMode.HALF_UP).toPlainString()
+                            + Importe.legible(aprobacion.moneda(), aprobacion.monto())
                             + " antes del " + reserva.getVencePreconfirmacion().format(DIA_Y_HORA)
                             + ". Pasado ese plazo el horario se libera."
                             + textoExtra(aprobacion.respuesta()),
@@ -304,7 +303,7 @@ public class SolicitudReservaService {
 
         if (!solicitud.estaPendiente()) {
             throw new OperacionNoPermitidaException(
-                    "Esa solicitud ya fue resuelta (" + solicitud.getEstado() + ").");
+                    "Ese pedido ya fue respondido.");
         }
         return solicitud;
     }
@@ -329,22 +328,22 @@ public class SolicitudReservaService {
     }
 
     private RecursoNoEncontradoException noExiste(Long id) {
-        return new RecursoNoEncontradoException("No existe la solicitud " + id + ".");
+        return new RecursoNoEncontradoException("No encontramos esa solicitud.");
     }
 
     private Usuario buscarUsuario(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     private Sala buscarSala(Long id) {
         return salas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la sala " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa sala."));
     }
 
     private TipoUso buscarTipoUso(Long id) {
         return tiposDeUso.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el tipo de uso " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa actividad."));
     }
 
     private String normalizar(String texto) {

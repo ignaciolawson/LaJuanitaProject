@@ -326,7 +326,7 @@ SELECT probar('17','bloquear una sala que ya tiene reserva activa','FALLA',
 -- =============================================================================
 -- Desde V35 la regla es un trigger (§4 d) y no el indice: se pide el mensaje.
 SELECT probar_mensaje('18','segunda inscripcion de DJ activa para el mismo alumno',
- 'ya tiene una inscripcion abierta en DJ',
+ 'ya tiene un curso de DJ abierto',
  $q$SELECT inscribir(al_juan,'DJ',8,500000) FROM v$q$);
 
 SELECT probar('19','mentoria en paralelo al curso de DJ','ANDA',
@@ -558,7 +558,7 @@ SELECT probar('53','publicar un release CON su contrato','ANDA',
 -- de un trigger reventando antes de llegar a su RAISE, que es justo lo que a
 -- `V6` §6 le paso durante meses.
 SELECT probar_mensaje('54','publicar un release SIN contrato',
- 'sin un contrato adjunto',
+ 'no tiene contrato adjunto',
  $q$INSERT INTO release (codigo_release,id_artista,nombre_release,estado)
     SELECT 'LJ021',id_artista,'Sin papeles','PUBLICADO'
       FROM artista WHERE nombre_artistico='Ghezz'$q$);
@@ -598,14 +598,14 @@ SELECT probar('57','la excepcion con un motivo de un solo espacio','FALLA',
 -- contrato?" se encuentra a si mismo y contesta que si.
 
 SELECT probar_mensaje('58','borrar el contrato que respalda un release publicado',
- 'unico respaldo del release',
+ 'único respaldo del release',
  $q$DELETE FROM contrato_sello WHERE id_release=(
       SELECT id_release FROM release WHERE codigo_release='LJ020')$q$);
 
 -- Y la variante silenciosa, que es peor porque no parece un borrado: en vez de
 -- sacarlo, colgarlo de otro release.
 SELECT probar_mensaje('59','mover a otro release el contrato que respalda uno publicado',
- 'unico respaldo del release',
+ 'único respaldo del release',
  $q$UPDATE contrato_sello SET id_release=NULL WHERE id_release=(
       SELECT id_release FROM release WHERE codigo_release='LJ020')$q$);
 
@@ -1512,7 +1512,7 @@ SELECT probar('167','un pagador externo en BLANCO no identifica a nadie','FALLA'
 -- -----------------------------------------------------------------------------
 
 SELECT probar_mensaje('168','cambiar el monto de un pago SIN decir quien fue',
- 'exige decir quien lo hizo',
+ 'falta registrar quién lo hizo',
  $q$UPDATE pago SET monto = 999999
     WHERE id_pago = (SELECT max(id_pago) FROM pago WHERE id_usuario IS NOT NULL)$q$);
 
@@ -1628,14 +1628,14 @@ SELECT probar('180','atenderla apuntando a lo que produjo','ANDA',
 -- reusado sin tocarlo — y un 'FALLA' que no mira el mensaje no distingue una
 -- regla que anda de un trigger que revienta antes de su propio RAISE (`V16`).
 SELECT probar_mensaje('181','reabrir una ficha ya atendida',
- 'ya fue resuelta',
+ 'ya fue respondido',
  $q$UPDATE solicitante SET estado='PENDIENTE' WHERE email='camila@web.local'$q$);
 
 -- Se descarta, no se borra. Y el mensaje tiene que nombrar ESTA tabla: la
 -- enumeracion es su mitad util (`V18`), porque quien choca necesita saber como se
 -- retira la fila que tiene delante.
 SELECT probar_mensaje('182','borrar una ficha en vez de descartarla',
- 'solicitante -> DESCARTADO',
+ 'Una ficha del buzón no se borra',
  $q$DELETE FROM solicitante WHERE email='camila@web.local'$q$);
 
 -- --- El horario que la persona prefiere (`V27` §3, P58) ----------------------
@@ -1916,7 +1916,7 @@ SELECT probar('207','cobrar la prereserva la confirma','ANDA',
 -- confirmar, volver a preconfirmada, anular el pago. Sala tomada, cero plata, y
 -- ningún trigger se queja — porque al volver, §4 vuelve a aceptar una deuda.
 SELECT probar_mensaje('208','ESQUIVE: volver a preconfirmar algo ya confirmado',
- 'se entra solo al crearla',
+ 'no puede volver a quedar apartada sin pago',
  $q$UPDATE reserva SET estado='PRECONFIRMADA',
                       vence_preconfirmacion=now()+interval '24 hours',
                       id_usuario_modifico=(SELECT u_mica FROM v)
@@ -2045,14 +2045,14 @@ SELECT probar('218','cargar un tema en un EP','ANDA',
 
 -- P52: un single es el release mismo, su nombre ya es el nombre del tema.
 SELECT probar_mensaje('219','cargar un tema en un single',
- 'solo un EP o un album',
+ 'solo un EP o un álbum',
  $q$INSERT INTO cancion_release (id_release,orden,titulo)
     SELECT id_release,1,'No va' FROM release WHERE codigo_release='LJ031'$q$);
 
 -- `tipo_release` es NULLABLE desde `V1` y P52 pidio decidirlo explicito en vez
 -- de que saliera por descarte: sin tipo tampoco lleva temas.
 SELECT probar_mensaje('220','cargar un tema en un release sin tipo',
- 'todavia no tiene tipo',
+ 'todavía no tiene formato',
  $q$INSERT INTO cancion_release (id_release,orden,titulo)
     SELECT id_release,1,'No va' FROM release WHERE codigo_release='LJ020'$q$);
 
@@ -2133,11 +2133,11 @@ SELECT probar('229','agregarle un cuarto tema a un EP ya publicado','ANDA',
 -- separado, la situacion mintiendo igual. Es la forma exacta del trigger de
 -- `V23`.
 SELECT probar_mensaje('230','pasar a SINGLE un release que tiene temas',
- 'no puede pasar a SINGLE',
+ 'no puede pasar a single',
  $q$UPDATE release SET tipo_release='SINGLE' WHERE codigo_release='LJ030'$q$);
 
 SELECT probar_mensaje('231','dejar sin tipo un release que tiene temas',
- 'no puede pasar a sin tipo',
+ 'no puede pasar a sin formato',
  $q$UPDATE release SET tipo_release=NULL WHERE codigo_release='LJ030'$q$);
 
 -- --- Las columnas del tema (P53) ---------------------------------------------
@@ -2219,7 +2219,7 @@ SELECT probar('242','una segunda fila para la misma disciplina','FALLA',
 -- mensaje tiene que decir la salida — quien choca necesita saber como se retira
 -- la fila que tiene delante.
 SELECT probar_mensaje('243','borrar un programa en vez de desactivarlo',
- 'programa -> activo = FALSE',
+ 'desactivalo desde Programas',
  $q$DELETE FROM programa WHERE disciplina='MENTORIA'$q$);
 
 SELECT probar('244','desactivarlo, que es la salida','ANDA',
@@ -2302,17 +2302,17 @@ SELECT probar('252','activa con un plazo que no le corresponde','FALLA',
 -- "Una abierta por alumno y disciplina" (era el indice; desde V35 es el trigger
 -- de §4 d): ni una segunda preinscripta ni una activa encima.
 SELECT probar_mensaje('253','una segunda preinscripcion a la misma disciplina',
- 'ya tiene una inscripcion abierta en DJ',
+ 'ya tiene un curso de DJ abierto',
  $q$SELECT inscribir(al_pre,'DJ',8,170000,NULL,'PREINSCRIPTA',now()+interval '24 hours') FROM v_pre$q$);
 
 SELECT probar_mensaje('254','una activa encima de la preinscripta',
- 'ya tiene una inscripcion abierta en DJ',
+ 'ya tiene un curso de DJ abierto',
  $q$SELECT inscribir(al_pre,'DJ',8,170000) FROM v_pre$q$);
 
 -- (c) A ACTIVA sin un peso cobrado, no. Es lo que la pantalla de inscripciones
 -- permitia con un clic en el <select> de estados.
 SELECT probar_mensaje('255','activarla sin senia cobrada',
- 'tiene que estar cobrada la senia',
+ 'tiene que estar registrada la seña',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
     WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
@@ -2323,7 +2323,7 @@ SELECT probar('256','anotarle una deuda de senia','ANDA',
       FROM v_pre, inscripcion i WHERE i.id_inscripcion IN (SELECT inscripciones_de(al_pre,'DJ'))$q$);
 
 SELECT probar_mensaje('257','activarla con la senia solo anotada',
- 'tiene que estar cobrada la senia',
+ 'tiene que estar registrada la seña',
  $q$UPDATE inscripcion SET estado='ACTIVA', vence_preinscripcion=NULL
     WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
@@ -2346,7 +2346,7 @@ SELECT probar('260','activarla con la senia cobrada','ANDA',
 
 -- (a) Y no se vuelve: a la preinscripcion se entra solo al nacer.
 SELECT probar_mensaje('261','volverla a preinscripta',
- 'se entra solo al crearla',
+ 'no puede volver a quedar esperando la seña',
  $q$UPDATE inscripcion SET estado='PREINSCRIPTA', vence_preinscripcion=now()+interval '24 hours'
     WHERE id_inscripcion=(SELECT inscripciones_de(al_pre,'DJ') FROM v_pre)$q$);
 
@@ -2392,12 +2392,12 @@ CREATE VIEW v_moneda AS SELECT
  (SELECT inscripciones_de(al_pre,'PRODUCCION') FROM v_pre) AS ins_dolares;
 
 SELECT probar_mensaje('265','pago en USD sobre un contrato en pesos',
- 'moneda del contrato',
+ 'moneda del curso',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,cotizacion_dolar,medio_pago)
     SELECT u_pre,ins_pesos,100,'USD',1450,'PAYPAL' FROM v_pre, v_moneda$q$);
 
 SELECT probar_mensaje('266','pago en pesos sobre un contrato en dolares',
- 'moneda del contrato',
+ 'moneda del curso',
  $q$INSERT INTO pago (id_usuario,id_inscripcion,monto,moneda,medio_pago)
     SELECT u_pre,ins_dolares,100000,'ARS','EFECTIVO' FROM v_pre, v_moneda$q$);
 
@@ -2408,13 +2408,13 @@ SELECT probar('267','pago en la moneda del contrato','ANDA',
 -- Al editarse tambien: cambiarle la moneda a un pago ya cargado es la misma
 -- mentira por otra puerta (V19 §2 deja editar; V31 mira `moneda` en el UPDATE).
 SELECT probar_mensaje('268','ESQUIVE: cargarlo bien y cambiarle la moneda despues',
- 'moneda del contrato',
+ 'moneda del curso',
  $q$UPDATE pago SET moneda='ARS', cotizacion_dolar=NULL, id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE concepto='senia en dolares'$q$);
 
 -- Y apuntarlo a otra inscripcion de otra moneda, idem.
 SELECT probar_mensaje('269','ESQUIVE: apuntar el pago a un contrato de otra moneda',
- 'moneda del contrato',
+ 'moneda del curso',
  $q$UPDATE pago SET id_inscripcion=(SELECT ins_pesos FROM v_moneda), id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE concepto='senia en dolares'$q$);
 
@@ -2524,7 +2524,7 @@ SELECT probar('282','pago en USD sobre una reserva sin precio: libre','ANDA',
 
 -- §3, sobre la reserva: tiene una senia viva en USD, asi que a ARS no va.
 SELECT probar_mensaje('283','cambiarle la moneda a una reserva con la senia adentro',
- 'pago(s) vivo(s) en otra moneda',
+ 'pago(s) cargados en la otra moneda',
  $q$UPDATE reserva SET moneda='ARS', precio_total=250000, id_usuario_modifico=(SELECT u_mica FROM v)
     WHERE id_reserva=(SELECT res_usd FROM v_precio)$q$);
 
@@ -2536,7 +2536,7 @@ SELECT probar('284','cambiarle el precio, en la misma moneda','ANDA',
 -- §3, sobre la inscripcion: el contrato en dolares de la seccion de V31 tiene
 -- la senia del caso 267 (USD 250, viva). A pesos no va...
 SELECT probar_mensaje('285','cambiarle la moneda a un contrato con la senia adentro',
- 'pago(s) vivo(s) en otra moneda',
+ 'pago(s) cargados en la otra moneda',
  $q$UPDATE inscripcion SET moneda='ARS', precio_total=700000, cotizacion_dolar=NULL
     WHERE id_inscripcion=(SELECT ins_dolares FROM v_moneda)$q$);
 
@@ -2554,7 +2554,7 @@ SELECT probar('286','cambiarle la moneda con el unico pago en otra moneda ANULAD
 -- 150, viva). Editar la moneda con eso adentro se rechazaba en Java desde §20;
 -- ahora lo dice la base.
 SELECT probar_mensaje('287','cambiarle la moneda a un trabajo con un cobro adentro',
- 'pago(s) vivo(s) en otra moneda',
+ 'pago(s) cargados en la otra moneda',
  $q$UPDATE trabajo_mastering SET moneda='ARS', precio_acordado=300000
     WHERE id_trabajo=(SELECT t_dolares FROM v_moneda_t)$q$);
 
@@ -2625,7 +2625,7 @@ SELECT probar_mensaje('290','un CUARTO integrante en el grupo',
 -- (d) Una abierta por alumno y disciplina, al sumar un integrante: Juan ya
 -- tiene DJ activa desde la semilla. El mensaje dice quien.
 SELECT probar_mensaje('291','un grupo nuevo de DJ con Juan adentro, que ya cursa DJ',
- 'Juan Prueba ya tiene una inscripcion abierta en DJ',
+ 'Juan Prueba ya tiene un curso de DJ abierto',
  $q$WITH nueva AS (
       INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
       VALUES ('DJ',8,380000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
@@ -2649,7 +2649,7 @@ SELECT probar('292','Mati y Facu, que ya cursan DJ, de a dos en PRODUCCION','AND
 
 -- (a) La mentoria es 1:1.
 SELECT probar_mensaje('293','una mentoria de a dos',
- 'no admite grupos',
+ 'no se puede hacer en grupo',
  $q$WITH nueva AS (
       INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
       VALUES ('MENTORIA',4,200000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
@@ -2660,24 +2660,24 @@ SELECT probar_mensaje('293','una mentoria de a dos',
 
 -- (c) Fijos.
 SELECT probar_mensaje('294','sacar a Gonza del grupo',
- 'son fijos',
+ 'no se cambian después de inscribirlo',
  $q$DELETE FROM inscripcion_integrante
     WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1) AND id_alumno=(SELECT al_gonza FROM v_g)$q$);
 
 SELECT probar_mensaje('295','pasarle el referente a Facu',
- 'son fijos',
+ 'no se cambian después de inscribirlo',
  $q$UPDATE inscripcion_integrante SET referente = (id_alumno = (SELECT al_facu FROM v_g))
     WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1)$q$);
 
 -- (b) Al COMMIT — forzado con SET CONSTRAINTS para verlo adentro del caso.
 SELECT probar_mensaje('296','una inscripcion sin ningun integrante',
- 'no tiene ningun integrante',
+ 'tiene que tener al menos un alumno',
  $q$INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total)
     VALUES ('DJ',8,170000);
     SET CONSTRAINTS inscripcion_con_integrantes IMMEDIATE$q$);
 
 SELECT probar_mensaje('297','un grupo de dos sin referente',
- 'tiene 0 referentes',
+ 'exactamente un referente',
  $q$WITH nueva AS (
       INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
       VALUES ('PRODUCCION',16,760000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
@@ -2687,7 +2687,7 @@ SELECT probar_mensaje('297','un grupo de dos sin referente',
     SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE$q$);
 
 SELECT probar_mensaje('298','un grupo de dos SIN numero de grupo',
- 'numero de grupo',
+ 'llevan número de grupo',
  $q$WITH nueva AS (
       INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total)
       VALUES ('PRODUCCION',16,760000) RETURNING id_inscripcion)
@@ -2697,7 +2697,7 @@ SELECT probar_mensaje('298','un grupo de dos SIN numero de grupo',
     SET CONSTRAINTS inscripcion_con_integrantes, integrante_deja_el_grupo_coherente IMMEDIATE$q$);
 
 SELECT probar_mensaje('299','un alumno solo CON numero de grupo',
- 'numero de grupo',
+ 'llevan número de grupo',
  $q$WITH nueva AS (
       INSERT INTO inscripcion (disciplina,clases_contratadas,precio_total,numero_grupo)
       VALUES ('DJ',8,170000,nextval('inscripcion_numero_grupo_seq')) RETURNING id_inscripcion)
@@ -2742,7 +2742,7 @@ SELECT probar_mensaje('302','tercera clase contra dos contratadas',
 -- V1 §8.2 reescrita: la inscripcion que se descuenta es de un INTEGRANTE. Ana
 -- no esta en el grupo.
 SELECT probar_mensaje('303','anotar a Ana en la clase del grupo con la inscripcion del grupo',
- 'no pertenece al usuario',
+ 'Ese curso es de otra persona',
  $q$INSERT INTO reserva_participante (id_reserva,id_usuario,id_inscripcion)
     SELECT r.id_reserva, v.u_ana, g1.ins_g1 FROM v, v_g1 g1, reserva r
     WHERE r.fecha='2030-05-06' AND r.hora_inicio='10:00'$q$);
@@ -2756,7 +2756,7 @@ SELECT probar('305','Mati, ahora solo, en DJ','ANDA',
  $q$SELECT inscribir(al_mati,'DJ',8,170000) FROM v_g$q$);
 
 SELECT probar_mensaje('306','reactivar el grupo con Mati ya en otra DJ abierta',
- 'Mati Grupo ya tiene una inscripcion abierta en DJ',
+ 'Mati Grupo ya tiene un curso de DJ abierto',
  $q$UPDATE inscripcion SET estado='ACTIVA' WHERE id_inscripcion=(SELECT ins_g1 FROM v_g1)$q$);
 
 -- Y el catalogo: la mentoria no tiene precio de grupo que cargar, pero la base
@@ -2792,13 +2792,13 @@ SELECT probar_mensaje('310','un tercer companero (serian cuatro)',
     WHERE email='mati@web.local'$q$);
 
 SELECT probar_mensaje('311','un companero en una ficha de cabina',
- 'solo en una ficha de curso',
+ 'solo se pueden sumar en un pedido de curso',
  $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
     SELECT id_solicitante,'Nico','Web','nico@web.local','11-6000-0013' FROM solicitante
     WHERE email='solo@web.local'$q$);
 
 SELECT probar_mensaje('312','un companero en una ficha de mentoria',
- 'no admite grupos',
+ 'no se puede hacer en grupo',
  $q$INSERT INTO solicitante_companero (id_solicitante,nombre,apellido,email,telefono)
     SELECT id_solicitante,'Nico','Web','nico@web.local','11-6000-0013' FROM solicitante
     WHERE email='mentor@web.local'$q$);
@@ -2812,7 +2812,7 @@ SELECT probar_mensaje('313','un companero sin telefono',
     WHERE email='sola@web.local'$q$);
 
 SELECT probar_mensaje('314','borrar un companero',
- 'No se borran filas de solicitante_companero',
+ 'Los compañeros de una ficha no se borran',
  $q$DELETE FROM solicitante_companero WHERE email='gonza@web.local'$q$);
 
 

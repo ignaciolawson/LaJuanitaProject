@@ -91,13 +91,13 @@ public record MaterialResumen(
     }
 
     /**
-     * "DJ · INICIAL", o sólo la disciplina si el curso no tiene nivel — que es lo
+     * "DJ · inicial", o sólo la disciplina si el curso no tiene nivel — que es lo
      * normal en mentoría. Es la misma forma que usa {@code PagoResumen.queSalda}
      * para nombrar una inscripción.
      */
     private static String nombreDe(Inscripcion inscripcion) {
         return inscripcion.getNivel() == null
-                ? inscripcion.getDisciplina().name()
-                : inscripcion.getDisciplina().name() + " · " + inscripcion.getNivel().name();
+                ? inscripcion.getDisciplina().nombre()
+                : inscripcion.getDisciplina().nombre() + " · " + inscripcion.getNivel().nombre();
     }
 }

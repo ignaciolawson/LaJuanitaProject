@@ -113,7 +113,7 @@ public class ReleaseService {
     public ReleaseResumen crear(AltaReleaseRequest pedido) {
         Artista artista = artistas.findById(pedido.idArtista())
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el artista " + pedido.idArtista() + "."));
+                        "No encontramos ese artista."));
 
         Release release = new Release();
         release.setArtista(artista);
@@ -172,8 +172,8 @@ public class ReleaseService {
     public ReleaseResumen cambiarEstado(Long id, EstadoRelease nuevo) {
         if (nuevo == EstadoRelease.PUBLICADO) {
             throw new SolicitudInvalidaException(
-                    "Publicar un release se hace desde su propia acción: tiene que verificar "
-                            + "que haya contrato adjunto.");
+                    "Para publicar un release usá el botón «Publicar»: es el que revisa que tenga "
+                            + "el contrato adjunto.");
         }
 
         Release release = buscar(id);
@@ -343,7 +343,7 @@ public class ReleaseService {
     private CancionRelease buscarTema(Long idCancion) {
         return canciones.findById(idCancion)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe ese tema (" + idCancion + ")."));
+                        "No encontramos ese tema."));
     }
 
     // == Dónde sonó ==========================================================
@@ -378,7 +378,7 @@ public class ReleaseService {
     public void borrarAparicion(Long idAparicion) {
         AparicionRelease aparicion = apariciones.findById(idAparicion)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe esa aparición (" + idAparicion + ")."));
+                        "No encontramos esa aparición."));
         apariciones.delete(aparicion);
     }
 
@@ -467,12 +467,12 @@ public class ReleaseService {
 
     private Release buscar(Long id) {
         return releases.porIdConArtista(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el release " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese release."));
     }
 
     private Usuario buscarPersona(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     private String normalizar(String texto) {

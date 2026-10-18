@@ -291,22 +291,22 @@ public class SolicitudReprogramacionService {
      */
     private SolicitudReprogramacion pendientePorId(Long id) {
         SolicitudReprogramacion solicitud = solicitudes.porIdConDetalle(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el pedido " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese pedido."));
 
         if (!solicitud.estaPendiente()) {
             throw new OperacionNoPermitidaException(
-                    "Ese pedido ya fue resuelto (" + solicitud.getEstado() + ").");
+                    "Ese pedido ya fue respondido.");
         }
         return solicitud;
     }
 
     private RecursoNoEncontradoException noExisteLaReserva(Long id) {
-        return new RecursoNoEncontradoException("No existe la reserva " + id + ".");
+        return new RecursoNoEncontradoException("No encontramos esa reserva.");
     }
 
     private Usuario buscarUsuario(Long id) {
         return usuarios.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el usuario " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos a esa persona."));
     }
 
     private String normalizar(String texto) {

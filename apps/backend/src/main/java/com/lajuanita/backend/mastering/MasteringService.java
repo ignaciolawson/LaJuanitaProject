@@ -176,14 +176,14 @@ public class MasteringService {
 
         if (solicitud.moneda() != trabajo.getMoneda() && cobrado != null) {
             throw new SolicitudInvalidaException(
-                    "Ese trabajo ya tiene cobros en " + trabajo.getMoneda()
+                    "Ese trabajo ya tiene cobros en " + trabajo.getMoneda().nombre()
                             + ": no se le puede cambiar la moneda. Anulá primero los pagos, desde Pagos.");
         }
 
         boolean entregado = estaEntregado(trabajo);
         if (!entregado && solicitud.fechaEntregaReal() != null) {
             throw new SolicitudInvalidaException(
-                    "La fecha de entrega la pone \"Entregar\": ese trabajo todavía no se entregó.");
+                    "La fecha de entrega se pone al apretar «Entregar el master»: ese trabajo todavía no se entregó.");
         }
         if (entregado && solicitud.fechaEntregaReal() == null) {
             throw new SolicitudInvalidaException(
@@ -228,7 +228,7 @@ public class MasteringService {
 
         if (trabajo.getCliente() != null) {
             throw new SolicitudInvalidaException(
-                    "Ese trabajo ya está a nombre de una cuenta. Esto es para los que se cargaron a nombre escrito.");
+                    "Ese trabajo ya está a nombre de una cuenta. Esto es para los trabajos que se cargaron sin cuenta.");
         }
         Usuario cuenta = buscarPersona(idUsuario);
 
@@ -532,13 +532,13 @@ public class MasteringService {
     private TrabajoMastering buscar(Long id) {
         return trabajos.findById(id)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el trabajo " + id + "."));
+                        "No encontramos ese trabajo."));
     }
 
     private Usuario buscarPersona(Long idUsuario) {
         return usuarios.findById(idUsuario)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + idUsuario + "."));
+                        "No encontramos a esa persona."));
     }
 
     private Profesor buscarProfesor(Long idProfesor) {
@@ -547,7 +547,7 @@ public class MasteringService {
         }
         return profesores.findById(idProfesor)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el profesor " + idProfesor + "."));
+                        "No encontramos ese profesor."));
     }
 
     private String normalizar(String texto) {

@@ -86,17 +86,20 @@ public class PagoService {
     private final InscripcionRepository inscripciones;
     private final ReservaRepository reservas;
     private final EgresoRepository egresos;
+    private final jakarta.persistence.EntityManager em;
 
     public PagoService(PagoRepository pagos,
             UsuarioRepository usuarios,
             InscripcionRepository inscripciones,
             ReservaRepository reservas,
-            EgresoRepository egresos) {
+            EgresoRepository egresos,
+            jakarta.persistence.EntityManager em) {
         this.pagos = pagos;
         this.usuarios = usuarios;
         this.inscripciones = inscripciones;
         this.reservas = reservas;
         this.egresos = egresos;
+        this.em = em;
     }
 
     // == Listado y alta =======================================================
@@ -249,7 +252,7 @@ public class PagoService {
         if (solicitud.idUsuario() != null) {
             pago.setUsuario(usuarios.findById(solicitud.idUsuario())
                     .orElseThrow(() -> new RecursoNoEncontradoException(
-                            "No existe el usuario " + solicitud.idUsuario() + ".")));
+                            "No encontramos a esa persona.")));
         } else {
             pago.setNombrePagadorExterno(normalizar(solicitud.nombrePagadorExterno()));
             pago.setContactoPagadorExterno(normalizar(solicitud.contactoPagadorExterno()));
@@ -276,9 +279,10 @@ public class PagoService {
             // cobrado cero en su moneda — que fue el bug de §17 · H4.
             if (contrato.getMoneda() != solicitud.moneda()) {
                 throw new SolicitudInvalidaException(
-                        "El pago de un programa va en la moneda del contrato: esta inscripción es en "
-                                + contrato.getMoneda() + " y el pago vino en " + solicitud.moneda()
-                                + ". Si se paga en otra moneda, editá el contrato a esa moneda.");
+                        "El pago tiene que ir en la moneda del curso: el curso es en "
+                                + contrato.getMoneda().nombre() + " y el pago se cargó en "
+                                + solicitud.moneda().nombre()
+                                + ". Si va a pagar en otra moneda, primero cambiá la moneda de la inscripción.");
             }
             pago.setInscripcion(contrato);
         }
@@ -287,6 +291,17 @@ public class PagoService {
         }
         pago.setIdTrabajoMastering(solicitud.idTrabajoMastering());
         pago.setIdVentaEquipo(solicitud.idVentaEquipo());
+        // Las relaciones de sólo lectura, para que el pago recién creado ya sepa
+        // nombrar lo que salda: sin esto, mientras siga en la sesión, el "qué
+        // salda" dice "Mix & Mastering" a secas en vez del track.
+        if (solicitud.idTrabajoMastering() != null) {
+            pago.setTrabajoMastering(em.getReference(
+                    com.lajuanita.backend.mastering.TrabajoMastering.class, solicitud.idTrabajoMastering()));
+        }
+        if (solicitud.idVentaEquipo() != null) {
+            pago.setVentaEquipo(em.getReference(
+                    com.lajuanita.backend.venta.VentaEquipo.class, solicitud.idVentaEquipo()));
+        }
 
         pago.setConcepto(normalizar(solicitud.concepto()));
         pago.setMonto(solicitud.monto());
@@ -448,12 +463,11 @@ public class PagoService {
 
         if (!EstadoPago.ADEUDADOS.contains(pago.getEstadoPago())) {
             throw new SolicitudInvalidaException(
-                    "Ese pago no está anotado como deuda (está " + pago.getEstadoPago()
-                            + "), así que no hay nada que cobrar.");
+                    "Ese pago no está anotado como deuda, así que no hay nada que cobrar.");
         }
         if (!comoEntro.entro()) {
             throw new SolicitudInvalidaException(
-                    "Cobrar deja el pago en SENADO o en PAGADO, no en " + comoEntro + ".");
+                    "Al cobrar, el pago queda como seña o como pagado.");
         }
 
         pago.setEstadoPago(comoEntro);
@@ -542,7 +556,7 @@ public class PagoService {
     public EstadoDeCuenta estadoDeCuenta(Long idUsuario) {
         Usuario persona = usuarios.findById(idUsuario)
                 .orElseThrow(() -> new RecursoNoEncontradoException(
-                        "No existe el usuario " + idUsuario + "."));
+                        "No encontramos a esa persona."));
 
         List<Pago> suyos = pagos.deLaPersona(idUsuario);
 
@@ -849,7 +863,7 @@ public class PagoService {
 
     private Pago buscar(Long id) {
         return pagos.porIdConDetalle(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe el pago " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese pago."));
     }
 
     /**
@@ -864,7 +878,7 @@ public class PagoService {
      */
     private Inscripcion buscarInscripcion(Long id, Usuario quienPaga) {
         Inscripcion inscripcion = inscripciones.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la inscripción " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa inscripción."));
 
         // Cualquier integrante puede pagar la inscripción del grupo (`V35`, P88):
         // la seña es del grupo, y quien la pone físicamente es uno de ellos.
@@ -877,7 +891,7 @@ public class PagoService {
 
     private Reserva buscarReserva(Long id) {
         return reservas.findById(id)
-                .orElseThrow(() -> new RecursoNoEncontradoException("No existe la reserva " + id + "."));
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa reserva."));
     }
 
     private String normalizar(String texto) {
