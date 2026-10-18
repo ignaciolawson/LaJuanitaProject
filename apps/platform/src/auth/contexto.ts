@@ -12,7 +12,14 @@ import type { RegistroRequest, UsuarioActual } from '../api/tipos'
  */
 export type Sesion =
   | { estado: 'cargando' }
-  | { estado: 'anonimo' }
+  /**
+   * `salio`: la persona apretó "Cerrar sesión". Distingue *me fui* de *me
+   * echaron* (token vencido, cuenta dada de baja): sólo en el segundo caso tiene
+   * sentido volver a donde estaba después de entrar. Saliendo a mano, quien entra
+   * después puede ser otra cuenta — el profe sale desde Mis alumnos, entra un
+   * alumno y caía en una pantalla de profesores.
+   */
+  | { estado: 'anonimo'; salio?: true }
   | { estado: 'autenticado'; usuario: UsuarioActual }
 
 /*

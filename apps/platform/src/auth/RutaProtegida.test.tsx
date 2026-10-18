@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
 import type { UsuarioActual } from '../api/tipos'
@@ -52,6 +52,26 @@ function montar(sesion: Sesion, rutaInicial = '/admin/alumnos') {
   )
 }
 
+function LoginQueMuestraElDesde() {
+  const desde = (useLocation().state as { desde?: string } | null)?.desde
+  return <p>Desde: {desde ?? 'ninguno'}</p>
+}
+
+function montarConDesde(sesion: Sesion) {
+  return render(
+    <AuthContext value={contexto(sesion)}>
+      <MemoryRouter initialEntries={['/admin/alumnos']}>
+        <Routes>
+          <Route element={<RutaProtegida />}>
+            <Route path="/admin/alumnos" element={<p>Contenido protegido</p>} />
+          </Route>
+          <Route path="/login" element={<LoginQueMuestraElDesde />} />
+        </Routes>
+      </MemoryRouter>
+    </AuthContext>,
+  )
+}
+
 describe('RutaProtegida', () => {
   /**
    * Mandar al login mientras `/api/me` está en camino expulsaría a alguien que
@@ -71,6 +91,23 @@ describe('RutaProtegida', () => {
 
     expect(screen.getByText('Pantalla de login')).toBeDefined()
     expect(screen.queryByText('Contenido protegido')).toBeNull()
+  })
+
+  /**
+   * El par que importa: si lo echaron (token vencido), vuelve a donde estaba;
+   * si salió a mano, no — quien entra después puede ser otra cuenta, y el profe
+   * que salía desde Mis alumnos dejaba al alumno siguiente en esa pantalla.
+   */
+  it('si lo echaron, el login recuerda a dónde quería ir', () => {
+    montarConDesde({ estado: 'anonimo' })
+
+    expect(screen.getByText('Desde: /admin/alumnos')).toBeDefined()
+  })
+
+  it('si salió a mano, el login no recuerda la pantalla de la cuenta anterior', () => {
+    montarConDesde({ estado: 'anonimo', salio: true })
+
+    expect(screen.getByText('Desde: ninguno')).toBeDefined()
   })
 
   it('con sesión deja pasar', () => {

@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const cerrarSesion = useCallback(() => {
     borrarCredencial()
-    setSesion({ estado: 'anonimo' })
+    setSesion({ estado: 'anonimo', salio: true })
   }, [])
 
   // Si el backend rechaza la credencial en cualquier pedido, la sesión se

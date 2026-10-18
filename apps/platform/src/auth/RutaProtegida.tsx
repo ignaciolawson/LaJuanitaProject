@@ -22,7 +22,10 @@ export function RutaProtegida() {
 
   if (sesion.estado === 'anonimo') {
     // `state.desde` guarda a dónde quería ir, para devolverlo ahí después de
-    // entrar en vez de dejarlo siempre en la home.
+    // entrar en vez de dejarlo siempre en la home. **Salvo que haya salido a
+    // mano**: entonces quien entra después puede ser otra cuenta, y devolverla a
+    // la pantalla del anterior es dejar a un alumno en "Mis alumnos".
+    if (sesion.salio) return <Navigate to="/login" replace />
     return <Navigate to="/login" state={{ desde: ubicacion.pathname }} replace />
   }
 

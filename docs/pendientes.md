@@ -65,6 +65,40 @@ comprado), **un servicio de envío** (Resend, Brevo — el plan gratis alcanza) 
 
 ---
 
+## ⚡ PEDIDO 2026-10-18 — el audio del sello, guardado en el sistema (post-deploy)
+
+**Ignacio quiere que los masters (`.wav`, `.flac`, `.mp3`) vivan en el sistema y no
+en un link a un Drive** — *"en el cual tal vez se olvidaron de darte acceso, es más
+cómodo centralizar todo"*. Es el argumento de P38 (el contrato es archivo y no link)
+aplicado al audio. **Nada construido; va después del deploy, sobre la máquina andando.**
+
+Lo que ya está decidido técnicamente:
+
+- **Ni en la base ni en el disco del droplet.** Un WAV pesa ~10–16 MB por minuto
+  (un álbum, ~1 GB): en un `bytea` el driver lo trae entero a la memoria de Java
+  (el droplet de US$6 tiene 1 GB para todo) y el `pg_dump` nocturno pasaría a GB por
+  copia; en el disco del droplet (~25 GB) se come el espacio con los backups.
+- **DigitalOcean Spaces** — US$5/mes, 250 GiB + 1 TiB de descarga (verificado en
+  fuentes de terceros el 2026-10-18; confirmar en digitalocean.com antes de contratar).
+  Al ritmo de un sello chico (~10–30 GB por año) alcanza años sin excedente.
+- **Subida y bajada por link firmado, directo navegador ↔ Spaces.** El backend solo
+  firma: no carga el audio en memoria y **el límite de 12 MB y el 413 de Caddy
+  (`CS-02`) siguen como están**.
+- **Es un segundo destino del `StorageService`**, no un reemplazo: comprobantes y
+  contratos se quedan en el disco local.
+
+Lo que hay que resolver al construirlo:
+
+- **"Primero el archivo, después la fila" cambia de forma**: con subida directa, el
+  backend tiene que comprobar que el objeto existe en Spaces antes de guardar la fila.
+- **`backup.sh` no cubre Spaces** — versionado del bucket o copia a otro lado.
+- **Preguntas de negocio, antes de código:** ¿por canción (`cancion_release`) o por
+  release? ¿Qué formatos? ¿Se reemplaza un master, y si sí, el anterior queda marcado
+  como `V21` hace con los comprobantes o se pisa? ¿Quién descarga — solo
+  administración? (los artistas no tienen cuenta, P24).
+
+---
+
 
 ## ⚡ ESTADO AL 2026-09-24 — cerrada la deuda arrastrada de §17 · H8
 
