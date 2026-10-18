@@ -1,6 +1,6 @@
 # Capturas del Manual de Usuario
 
-Son **53 capturas**; hay 0 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
+Son **53 capturas**; hay 1 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
 
 ## Cómo sacarlas
 
@@ -15,7 +15,7 @@ Son **53 capturas**; hay 0 cargadas. Esta lista la genera `fuente/manual.py`: no
 
 ### 2. Primeros pasos
 
-- [ ] **`01-registro.png`** — Figura 1: *Pantalla para crear una cuenta*
+- [x] **`01-registro.png`** — Figura 1: *Pantalla para crear una cuenta*
   - **Dónde:** `/app/registro` · **Entrar como:** nadie (sin sesión iniciada)
   - **Antes:** Cerrá la sesión si tenías una abierta.
   - **Que se vea:** El formulario completo de **Crear cuenta**, vacío o con datos inventados.
