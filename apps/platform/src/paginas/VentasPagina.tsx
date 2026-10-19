@@ -4,6 +4,7 @@ import {
   abrirComprobante,
   adjuntarComprobante,
   anularVenta,
+  editarVenta,
   listarVentas,
   registrarVenta,
 } from '../api/administracion'
@@ -50,11 +51,14 @@ const MEDIOS_DE_PAGO: MedioPago[] = [
  * descontar ni artículos que dar de alta antes de venderlos. Es el registro de una
  * operación que ya pasó. Es la línea más chica del negocio y el proceso es ad hoc.
  *
- * **Se carga, se lista y se anula**, igual que los egresos. No hay edición ni
- * borrado: `V9` prohíbe el DELETE, así que **corregir una venta mal cargada es
- * anularla y volver a cargarla**. Si tenía cobro hay que anular primero el pago —
- * una venta anulada con su pago vivo dejaría la plata contada contra una operación
- * que se declara inexistente, y el backend lo rechaza con ese mensaje.
+ * **Se carga, se lista, se edita y se anula.** No hay borrado: `V9` prohíbe el
+ * DELETE. La edición llegó el 2026-10-19 (Ignacio: *"hoy solo se puede anular"*);
+ * antes, un modelo mal tipeado costaba anular la venta y volver a cargarla.
+ *
+ * ⚠️ **Con un cobro vivo, la plata no se edita**: el pago copió de la venta el
+ * comprador, el precio, la moneda y la fecha, y cambiarlos solo acá dejaría la
+ * caja diciendo otra cosa. El formulario los muestra fijos y dice qué hacer
+ * (anular primero el pago). Lo mismo pide la anulación, por el mismo motivo.
  */
 export function VentasPagina() {
   const puedeEscribir = usePuedeEscribir()
@@ -68,6 +72,7 @@ export function VentasPagina() {
   const [error, setError] = useErrorPasajero()
   const [mostrandoAlta, setMostrandoAlta] = useState(false)
   const [anulando, setAnulando] = useState<VentaResumen | null>(null)
+  const [editando, setEditando] = useState<VentaResumen | null>(null)
 
   const cargar = useCallback(async () => {
     setCargando(true)
@@ -143,7 +148,20 @@ export function VentasPagina() {
       <CabeceraDePagina
         titulo="Venta de equipos"
         aclaracion={<>{cargando ? 'Cargando…' : `${total} ${total === 1 ? 'venta' : 'ventas'}`}</>}
-        acciones={<>{puedeEscribir && <Boton onClick={() => setMostrandoAlta(true)}>Registrar venta</Boton>}</>}
+        acciones={
+          <>
+            {puedeEscribir && (
+              <Boton
+                onClick={() => {
+                  setEditando(null)
+                  setMostrandoAlta(true)
+                }}
+              >
+                Registrar venta
+              </Boton>
+            )}
+          </>
+        }
       />
 
       <AvisoSoloLectura />
@@ -173,6 +191,20 @@ export function VentasPagina() {
             onCerrar={() => setMostrandoAlta(false)}
             onGuardada={() => {
               setMostrandoAlta(false)
+              void cargar()
+            }}
+          />
+        </TraerALaVista>
+      )}
+
+      {editando && puedeEscribir && (
+        <TraerALaVista>
+          <FormularioVenta
+            key={editando.idVenta}
+            venta={editando}
+            onCerrar={() => setEditando(null)}
+            onGuardada={() => {
+              setEditando(null)
               void cargar()
             }}
           />
@@ -274,11 +306,29 @@ export function VentasPagina() {
 
                 <Celda className="text-right">
                   {puedeEscribir && !v.anulada && (
-                    <Boton variante="enlace"
-                      type="button"
-                      onClick={() => setAnulando(v)}>
-                      Anular
-                    </Boton>
+                    <div className="flex flex-col items-end gap-1">
+                      <Boton
+                        variante="enlace"
+                        type="button"
+                        onClick={() => {
+                          setMostrandoAlta(false)
+                          setAnulando(null)
+                          setEditando(v)
+                        }}
+                      >
+                        Editar
+                      </Boton>
+                      <Boton
+                        variante="enlace"
+                        type="button"
+                        onClick={() => {
+                          setEditando(null)
+                          setAnulando(v)
+                        }}
+                      >
+                        Anular
+                      </Boton>
+                    </div>
                   )}
                 </Celda>
               </Fila>
@@ -300,52 +350,81 @@ export function VentasPagina() {
 }
 
 /**
- * Registrar una venta.
+ * Registrar una venta, o corregir una ya cargada (`venta` presente).
  *
  * **El comprador puede no tener cuenta**, y por eso el formulario tiene los dos
  * caminos en vez de obligar a crear un usuario: mucha gente llega por el acuerdo
  * con Pioneer y no se registra en el sistema por comprar un CDJ. Tener cuenta y
  * ser cliente son cosas distintas — es la contracara de `usuario` como raíz.
+ *
+ * **Al editar no se ofrece "Ya se cobró"**: el cobro nace con el alta y se
+ * corrige o se anula desde Pagos. Y si la venta tiene un pago vivo, el
+ * comprador, la plata y la fecha se muestran fijos — ver `plataFija`.
  */
 function FormularioVenta({
+  venta,
   onCerrar,
   onGuardada,
 }: {
+  venta?: VentaResumen
   onCerrar: () => void
   onGuardada: () => void
 }) {
   const actual = useUsuario()
+  const editando = venta !== undefined
+  /**
+   * Con un pago vivo, lo que el pago copió de la venta no se edita acá: el
+   * backend lo rechaza, y ofrecer los campos sería invitar al rechazo. `idPago`
+   * es el del pago vivo (cualquier estado menos ANULADO), el mismo criterio que
+   * usa el servidor.
+   */
+  const plataFija = editando && venta.idPago !== null
+
   /**
    * Quién vendió y quién compró se BUSCAN entre las cuentas (§17 · H8). El
    * `<select>` que había cargaba la primera página del listado —veinte
    * personas— y el comprador veintiuno no existía para este formulario, sin
-   * que nada avisara. Quien vendió viene puesto (es quien carga, casi siempre)
-   * y se cambia buscando.
+   * que nada avisara.
+   *
+   * Lo que ya viene elegido —quien carga, en el alta; quien vendió y quien
+   * compró, al editar— se muestra fijo con un "Cambiar", porque la venta solo
+   * trae el id y el nombre, no la cuenta entera que pide el buscador.
    */
   const [comprador, setComprador] = useState<UsuarioResumen | null>(null)
+  const [compradorPuesto, setCompradorPuesto] = useState<{ id: number; nombre: string } | null>(
+    venta?.idUsuarioComprador != null
+      ? { id: venta.idUsuarioComprador, nombre: venta.comprador }
+      : null,
+  )
   const [vendedor, setVendedor] = useState<UsuarioResumen | null>(null)
-  const [cambiandoVendedor, setCambiandoVendedor] = useState(false)
-  const [conCuenta, setConCuenta] = useState(true)
+  const [vendedorPuesto, setVendedorPuesto] = useState<{ id: number; nombre: string } | null>(
+    venta
+      ? { id: venta.idUsuarioVendedor, nombre: venta.vendedor }
+      : actual
+        ? { id: actual.id, nombre: `${actual.nombre} ${actual.apellido}` }
+        : null,
+  )
+  const [conCuenta, setConCuenta] = useState(venta ? venta.idUsuarioComprador != null : true)
   const [datos, setDatos] = useState({
-    nombreCompradorExterno: '',
-    contactoCompradorExterno: '',
-    // Lo más común es que quien carga sea quien vendió, así que viene puesto. Es
-    // un dato del negocio y se puede cambiar: Micaela carga lo que vendió Ghezz.
-    idUsuarioVendedor: actual ? String(actual.id) : '',
-    categoria: '',
-    marca: '',
-    modeloEquipo: '',
-    precio: '',
-    moneda: 'ARS' as Moneda,
-    cotizacionDolar: '',
-    fechaVenta: hoy(),
-    notas: '',
+    nombreCompradorExterno: venta && venta.idUsuarioComprador == null ? venta.comprador : '',
+    contactoCompradorExterno: venta?.contactoCompradorExterno ?? '',
+    categoria: venta?.categoria ?? '',
+    marca: venta?.marca ?? '',
+    modeloEquipo: venta?.modeloEquipo ?? '',
+    precio: venta ? String(venta.precio) : '',
+    moneda: (venta?.moneda ?? 'ARS') as Moneda,
+    cotizacionDolar: venta?.cotizacionDolar != null ? String(venta.cotizacionDolar) : '',
+    fechaVenta: venta?.fechaVenta ?? hoy(),
+    notas: venta?.notas ?? '',
     cobrada: true,
     medioPago: 'EFECTIVO' as MedioPago,
   })
   const [errores, setErrores] = useState<Record<string, string>>({})
   const [errorGeneral, setErrorGeneral] = useErrorPasajero()
   const [enviando, setEnviando] = useState(false)
+
+  const idComprador = comprador?.id ?? compradorPuesto?.id
+  const idVendedor = vendedor?.id ?? vendedorPuesto?.id
 
   function cambiar(campo: keyof typeof datos) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -358,10 +437,10 @@ function FormularioVenta({
     const locales: Record<string, string> = {}
     if (!datos.modeloEquipo.trim()) locales.modeloEquipo = 'Poné el modelo del equipo.'
     if (!datos.precio || Number(datos.precio) <= 0) locales.precio = 'Poné un precio mayor a cero.'
-    if (!datos.idUsuarioVendedor && !vendedor) locales.idUsuarioVendedor = 'Decí quién hizo la venta.'
+    if (!idVendedor) locales.idUsuarioVendedor = 'Decí quién hizo la venta.'
     // Espeja `venta_comprador_identificado`: una venta sin comprador es una fila
     // que después no se puede reclamar.
-    if (conCuenta && !comprador) {
+    if (conCuenta && !idComprador) {
       locales.compradorIdentificado = 'Elegí al comprador.'
     }
     if (!conCuenta && !datos.nombreCompradorExterno.trim()) {
@@ -370,6 +449,7 @@ function FormularioVenta({
     if (datos.moneda === 'USD' && !datos.cotizacionDolar) {
       locales.cotizacionPresenteSiEsUsd = 'Una venta en dólares necesita la cotización del día.'
     }
+    if (!datos.fechaVenta) locales.fechaVenta = 'Poné la fecha de la venta.'
     if (Object.keys(locales).length > 0) {
       setErrores(locales)
       return
@@ -379,26 +459,35 @@ function FormularioVenta({
     setErrorGeneral(null)
     setEnviando(true)
 
+    const comun = {
+      idUsuarioComprador: conCuenta ? idComprador : undefined,
+      nombreCompradorExterno: conCuenta ? undefined : datos.nombreCompradorExterno.trim(),
+      contactoCompradorExterno: conCuenta
+        ? undefined
+        : datos.contactoCompradorExterno.trim() || undefined,
+      idUsuarioVendedor: idVendedor!,
+      categoria: datos.categoria.trim() || undefined,
+      marca: datos.marca.trim() || undefined,
+      modeloEquipo: datos.modeloEquipo.trim(),
+      precio: Number(datos.precio),
+      moneda: datos.moneda,
+      cotizacionDolar:
+        datos.moneda === 'USD' && datos.cotizacionDolar ? Number(datos.cotizacionDolar) : undefined,
+      fechaVenta: datos.fechaVenta,
+      notas: datos.notas.trim() || undefined,
+    }
+
     try {
-      await registrarVenta({
-        idUsuarioComprador: conCuenta ? comprador!.id : undefined,
-        nombreCompradorExterno: conCuenta ? undefined : datos.nombreCompradorExterno.trim(),
-        contactoCompradorExterno: conCuenta
-          ? undefined
-          : datos.contactoCompradorExterno.trim() || undefined,
-        idUsuarioVendedor: vendedor ? vendedor.id : Number(datos.idUsuarioVendedor),
-        categoria: datos.categoria.trim() || undefined,
-        marca: datos.marca.trim() || undefined,
-        modeloEquipo: datos.modeloEquipo.trim(),
-        precio: Number(datos.precio),
-        moneda: datos.moneda,
-        cotizacionDolar: datos.cotizacionDolar ? Number(datos.cotizacionDolar) : undefined,
-        fechaVenta: datos.fechaVenta,
-        notas: datos.notas.trim() || undefined,
-        // Desde `V19` el cobro no depende de que el comprador tenga cuenta: el
-        // pago viaja con su nombre, el mismo que la venta ya guarda.
-        medioPago: datos.cobrada ? datos.medioPago : undefined,
-      })
+      if (editando) {
+        await editarVenta(venta.idVenta, comun)
+      } else {
+        await registrarVenta({
+          ...comun,
+          // Desde `V19` el cobro no depende de que el comprador tenga cuenta: el
+          // pago viaja con su nombre, el mismo que la venta ya guarda.
+          medioPago: datos.cobrada ? datos.medioPago : undefined,
+        })
+      }
       onGuardada()
     } catch (e) {
       if (e instanceof ApiError) {
@@ -412,7 +501,7 @@ function FormularioVenta({
   }
 
   return (
-    <Bloque titulo="Registrar venta" className="mb-6">
+    <Bloque titulo={editando ? 'Editar venta' : 'Registrar venta'} className="mb-6">
       <form onSubmit={onSubmit} noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo
@@ -431,25 +520,12 @@ function FormularioVenta({
           />
 
           <div>
-            {actual && !cambiandoVendedor ? (
-              <div>
-                <span className="t-mono text-tenue">Vendió</span>
-                <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
-                  <strong className="font-medium">
-                    {actual.nombre} {actual.apellido}
-                  </strong>
-                  <Boton
-                    variante="enlace"
-                    type="button"
-                    onClick={() => {
-                      setCambiandoVendedor(true)
-                      setDatos((previo) => ({ ...previo, idUsuarioVendedor: '' }))
-                    }}
-                  >
-                    Cambiar
-                  </Boton>
-                </div>
-              </div>
+            {vendedorPuesto ? (
+              <PersonaPuesta
+                etiqueta="Vendió"
+                nombre={vendedorPuesto.nombre}
+                onCambiar={() => setVendedorPuesto(null)}
+              />
             ) : (
               <BuscadorDePersonas elegida={vendedor} onElegir={setVendedor} etiqueta="Vendió" />
             )}
@@ -458,124 +534,165 @@ function FormularioVenta({
             )}
           </div>
 
-          {/* -- El comprador ------------------------------------------------- */}
-          <div className="sm:col-span-2">
-            <span className="text-xs font-semibold text-tenue">Comprador</span>
-            <div className="mt-2 flex gap-4 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="comprador"
-                  checked={conCuenta}
-                  onChange={() => setConCuenta(true)}
-                />
-                Tiene cuenta
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="comprador"
-                  checked={!conCuenta}
-                  onChange={() => setConCuenta(false)}
-                />
-                No tiene cuenta
-              </label>
-            </div>
-          </div>
-
-          {conCuenta ? (
-            <div className="sm:col-span-2">
-              <BuscadorDePersonas elegida={comprador} onElegir={setComprador} etiqueta="Quién compró" />
-              {errores.compradorIdentificado && (
-                <p className="mt-1 text-xs text-red">{errores.compradorIdentificado}</p>
-              )}
+          {plataFija ? (
+            /* La plata atada al pago, dicha y no ofrecida. */
+            <div className="sm:col-span-2 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
+              <div>
+                <span className="text-tenue">Comprador:</span> {venta.comprador}
+                {venta.idUsuarioComprador == null && (
+                  <span className="text-xs text-apagado"> · sin cuenta</span>
+                )}
+              </div>
+              <div>
+                <span className="text-tenue">Precio:</span> {importe(venta.precio, venta.moneda)}
+                {' · '}
+                <span className="text-tenue">Fecha:</span> {fecha(venta.fechaVenta)}
+              </div>
+              <p className="mt-1 text-xs text-apagado">
+                Esta venta tiene un cobro registrado: el comprador, el precio, la moneda y la
+                fecha van con el pago. Para cambiarlos, anulá primero el pago desde Pagos.
+              </p>
             </div>
           ) : (
             <>
+              {/* -- El comprador --------------------------------------------- */}
+              <div className="sm:col-span-2">
+                <span className="text-xs font-semibold text-tenue">Comprador</span>
+                <div className="mt-2 flex gap-4 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="comprador"
+                      checked={conCuenta}
+                      onChange={() => setConCuenta(true)}
+                    />
+                    Tiene cuenta
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="comprador"
+                      checked={!conCuenta}
+                      onChange={() => setConCuenta(false)}
+                    />
+                    No tiene cuenta
+                  </label>
+                </div>
+              </div>
+
+              {conCuenta ? (
+                <div className="sm:col-span-2">
+                  {compradorPuesto ? (
+                    <PersonaPuesta
+                      etiqueta="Quién compró"
+                      nombre={compradorPuesto.nombre}
+                      onCambiar={() => setCompradorPuesto(null)}
+                    />
+                  ) : (
+                    <BuscadorDePersonas
+                      elegida={comprador}
+                      onElegir={setComprador}
+                      etiqueta="Quién compró"
+                    />
+                  )}
+                  {errores.compradorIdentificado && (
+                    <p className="mt-1 text-xs text-red">{errores.compradorIdentificado}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Campo
+                    etiqueta="Nombre del comprador"
+                    value={datos.nombreCompradorExterno}
+                    onChange={cambiar('nombreCompradorExterno')}
+                    error={errores.compradorIdentificado}
+                  />
+                  <Campo
+                    etiqueta="Contacto"
+                    value={datos.contactoCompradorExterno}
+                    onChange={cambiar('contactoCompradorExterno')}
+                    ayuda="Un teléfono o mail: es lo único que va a quedar para ubicarlo."
+                  />
+                </>
+              )}
+
+              {/* -- La plata -------------------------------------------------- */}
               <Campo
-                etiqueta="Nombre del comprador"
-                value={datos.nombreCompradorExterno}
-                onChange={cambiar('nombreCompradorExterno')}
-                error={errores.compradorIdentificado}
+                etiqueta="Precio"
+                type="number"
+                step="0.01"
+                value={datos.precio}
+                onChange={cambiar('precio')}
+                error={errores.precio}
               />
+
+              <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
+                <option value="ARS">Pesos</option>
+                <option value="USD">Dólares</option>
+              </CampoSelect>
+
+              {datos.moneda === 'USD' && (
+                <Campo
+                  etiqueta="Cotización del dólar"
+                  type="number"
+                  step="0.01"
+                  value={datos.cotizacionDolar}
+                  onChange={cambiar('cotizacionDolar')}
+                  ayuda="Sin esto el importe no se puede reconstruir después."
+                  error={errores.cotizacionPresenteSiEsUsd}
+                  className="sm:col-span-2"
+                />
+              )}
+
               <Campo
-                etiqueta="Contacto"
-                value={datos.contactoCompradorExterno}
-                onChange={cambiar('contactoCompradorExterno')}
-                ayuda="Un teléfono o mail: es lo único que va a quedar para ubicarlo."
+                etiqueta="Fecha de la venta"
+                type="date"
+                value={datos.fechaVenta}
+                onChange={cambiar('fechaVenta')}
+                error={errores.fechaVenta}
               />
             </>
           )}
 
-          {/* -- La plata ------------------------------------------------------ */}
-          <Campo
-            etiqueta="Precio"
-            type="number"
-            step="0.01"
-            value={datos.precio}
-            onChange={cambiar('precio')}
-            error={errores.precio}
-          />
-
-          <CampoSelect etiqueta="Moneda" value={datos.moneda} onChange={cambiar('moneda')}>
-            <option value="ARS">Pesos</option>
-            <option value="USD">Dólares</option>
-          </CampoSelect>
-
-          {datos.moneda === 'USD' && (
-            <Campo
-              etiqueta="Cotización del dólar"
-              type="number"
-              step="0.01"
-              value={datos.cotizacionDolar}
-              onChange={cambiar('cotizacionDolar')}
-              ayuda="Sin esto el importe no se puede reconstruir después."
-              error={errores.cotizacionPresenteSiEsUsd}
-              className="sm:col-span-2"
-            />
-          )}
-
-          <Campo
-            etiqueta="Fecha de la venta"
-            type="date"
-            value={datos.fechaVenta}
-            onChange={cambiar('fechaVenta')}
-          />
-
           <Campo etiqueta="Notas" value={datos.notas} onChange={cambiar('notas')} />
 
           {/* El cobro. Se registra en la misma transacción que la venta -- es el
-              caso normal: se vendió y se cobró.
+              caso normal: se vendió y se cobró. Solo en el alta: al editar, el
+              cobro se maneja desde Pagos.
 
               **Ya no depende de que el comprador tenga cuenta.** Hasta `V19`,
               `pago.id_usuario` era NOT NULL y este checkbox estaba deshabilitado
               para el comprador externo, con un texto que explicaba por qué: o sea
               que una venta a alguien que compra por el acuerdo con Pioneer **no se
               podía cobrar nunca**. Era el hallazgo #1 de `docs/mejoras.md`. */}
-          <div className="sm:col-span-2">
-            <label className={`${CASILLA_EN_LINEA} text-sm`}>
-              <input
-                type="checkbox"
-                checked={datos.cobrada}
-                onChange={(e) => setDatos((previo) => ({ ...previo, cobrada: e.target.checked }))}
-              />
-              Ya se cobró
-            </label>
-          </div>
+          {!editando && (
+            <>
+              <div className="sm:col-span-2">
+                <label className={`${CASILLA_EN_LINEA} text-sm`}>
+                  <input
+                    type="checkbox"
+                    checked={datos.cobrada}
+                    onChange={(e) => setDatos((previo) => ({ ...previo, cobrada: e.target.checked }))}
+                  />
+                  Ya se cobró
+                </label>
+              </div>
 
-          {datos.cobrada && (
-            <CampoSelect
-              etiqueta="Cómo pagó"
-              value={datos.medioPago}
-              onChange={cambiar('medioPago')}
-              className="sm:col-span-2"
-            >
-              {MEDIOS_DE_PAGO.map((m) => (
-                <option key={m} value={m}>
-                  {NOMBRE_DE_MEDIO[m]}
-                </option>
-              ))}
-            </CampoSelect>
+              {datos.cobrada && (
+                <CampoSelect
+                  etiqueta="Cómo pagó"
+                  value={datos.medioPago}
+                  onChange={cambiar('medioPago')}
+                  className="sm:col-span-2"
+                >
+                  {MEDIOS_DE_PAGO.map((m) => (
+                    <option key={m} value={m}>
+                      {NOMBRE_DE_MEDIO[m]}
+                    </option>
+                  ))}
+                </CampoSelect>
+              )}
+            </>
           )}
         </div>
 
@@ -591,13 +708,36 @@ function FormularioVenta({
               para quien navega por lectores de pantalla, además de para los tests.
               Es la misma etiqueta que usa el alta de egresos. */}
           <Boton type="submit" disabled={enviando}>
-            {enviando ? 'Guardando…' : 'Registrar'}
+            {enviando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Registrar'}
           </Boton>
           <Boton type="button" variante="secundario" onClick={onCerrar}>
             Cancelar
           </Boton>
         </div>
-          </form>
+      </form>
     </Bloque>
+  )
+}
+
+/** Una persona ya elegida, con su "Cambiar" para ir a buscar otra. */
+function PersonaPuesta({
+  etiqueta,
+  nombre,
+  onCambiar,
+}: {
+  etiqueta: string
+  nombre: string
+  onCambiar: () => void
+}) {
+  return (
+    <div>
+      <span className="t-mono text-tenue">{etiqueta}</span>
+      <div className="mt-1.5 flex items-center justify-between gap-3 rounded-md border border-linea bg-superficie-2 px-3 py-2.5 text-sm">
+        <strong className="font-medium">{nombre}</strong>
+        <Boton variante="enlace" type="button" onClick={onCambiar}>
+          Cambiar
+        </Boton>
+      </div>
+    </div>
   )
 }

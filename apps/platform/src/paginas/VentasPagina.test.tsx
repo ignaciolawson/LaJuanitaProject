@@ -22,10 +22,11 @@ vi.mock('../api/administracion', () => ({
   listarVentas: vi.fn(),
   registrarVenta: vi.fn(),
   anularVenta: vi.fn(),
+  editarVenta: vi.fn(),
   listarUsuarios: vi.fn(),
 }))
 
-const { anularVenta, listarUsuarios, listarVentas, registrarVenta } =
+const { anularVenta, editarVenta, listarUsuarios, listarVentas, registrarVenta } =
   await import('../api/administracion')
 
 const PERSONAS: UsuarioResumen[] = [
@@ -109,6 +110,99 @@ beforeEach(() => {
   vi.mocked(listarUsuarios).mockResolvedValue(pagina(PERSONAS) as never)
   vi.mocked(registrarVenta).mockResolvedValue({} as never)
   vi.mocked(anularVenta).mockResolvedValue({} as never)
+  vi.mocked(editarVenta).mockResolvedValue({} as never)
+})
+
+/**
+ * La edición (2026-10-19, Ignacio: *"hoy solo se puede anular"*). Lo caro es la
+ * venta COBRADA: el pago copió el comprador, el precio y la fecha, así que ahí
+ * se corrige el equipo pero la plata se muestra fija.
+ */
+describe('editar una venta', () => {
+  it('sin cobro, abre el formulario precargado y guarda los cambios', async () => {
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([venta({ cobrada: false, idPago: null })]) as never,
+    )
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Editar' }))
+    expect(await screen.findByText('Editar venta')).toBeDefined()
+
+    const modelo = screen.getByLabelText(/^Modelo/) as HTMLInputElement
+    expect(modelo.value).toBe('DDJ-FLX4')
+    await user.clear(modelo)
+    await user.type(modelo, 'DDJ-FLX6')
+    const precio = screen.getByLabelText('Precio') as HTMLInputElement
+    await user.clear(precio)
+    await user.type(precio, '620000')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    await waitFor(() =>
+      expect(editarVenta).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          modeloEquipo: 'DDJ-FLX6',
+          precio: 620000,
+          idUsuarioComprador: 30,
+          idUsuarioVendedor: 1,
+          fechaVenta: '2026-08-17',
+        }),
+      ),
+    )
+    // Editar no registra un cobro: eso es del alta.
+    expect(registrarVenta).not.toHaveBeenCalled()
+  })
+
+  it('con cobro, la plata se muestra fija y se dice por qué', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(await screen.findByRole('button', { name: 'Editar' }))
+    await screen.findByText('Editar venta')
+
+    expect(screen.queryByLabelText('Precio')).toBeNull()
+    expect(screen.queryByLabelText('Fecha de la venta')).toBeNull()
+    expect(screen.getByText(/anulá primero el pago desde Pagos/)).toBeDefined()
+    // Ni el "Ya se cobró" del alta.
+    expect(screen.queryByLabelText('Ya se cobró')).toBeNull()
+
+    const modelo = screen.getByLabelText(/^Modelo/) as HTMLInputElement
+    await user.clear(modelo)
+    await user.type(modelo, 'DDJ-FLX4 (caja abierta)')
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+
+    // La plata viaja como estaba: el servidor la compara y no la toca.
+    await waitFor(() =>
+      expect(editarVenta).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          modeloEquipo: 'DDJ-FLX4 (caja abierta)',
+          precio: 450000,
+          moneda: 'ARS',
+          idUsuarioComprador: 30,
+          fechaVenta: '2026-08-17',
+        }),
+      ),
+    )
+  })
+
+  it('una venta anulada no ofrece editar', async () => {
+    vi.mocked(listarVentas).mockResolvedValue(
+      pagina([venta({ anulada: true, motivoAnulacion: 'Se cargó dos veces' })]) as never,
+    )
+    montar()
+
+    await screen.findByText('DDJ-FLX4')
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
+
+  it('un directivo no ve Editar', async () => {
+    montar('DIRECTIVO')
+
+    await screen.findByText('DDJ-FLX4')
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
 })
 
 describe('el listado', () => {

@@ -42,7 +42,8 @@ import { fecha } from '../componentes/semana'
  * hace falta para llamar una sola vez.
  *
  * <p>⚠️ <b>Desde P85 esta pantalla es donde se COBRA</b>, y Pagos es lo ya
- * cobrado. Dos acciones, una por clase de deuda: sobre una anotada, "Cobrar"
+ * cobrado. Dos acciones, una por clase de deuda —y desde el 2026-10-19 con el
+ * MISMO nombre, "Registrar el pago"—: sobre una anotada salda esa fila
  * —`PATCH /api/pagos/{id}/cobro`, que confirma la prereserva en el mismo acto—;
  * sobre una calculada (la cosa tiene precio y falta plata), "Registrar el pago"
  * abre <b>el formulario de Pagos, prellenado</b> con la cosa, la persona, la
@@ -245,10 +246,14 @@ export function DeudoresPagina() {
                       {p.deudas.map((d) => (
                         <li key={claveDeDeuda(d)} className="text-right">
                           {/* Una acción por clase de deuda (P85): la anotada se
-                              cobra; la calculada se salda registrando el pago. */}
+                              cobra; la calculada se salda registrando el pago.
+                              ⚠️ Las dos se LLAMAN igual a propósito (Ignacio,
+                              2026-10-19): para quien cobra, en las dos entró la
+                              plata. Lo que difiere es qué pasa por debajo, y eso
+                              ya lo dice la línea gris de la deuda. */}
                           {d.motivo === 'DEUDA_ANOTADA' ? (
                             <Boton variante="enlace" type="button" onClick={() => void cobrar(d)}>
-                              Cobrar
+                              Registrar el pago
                             </Boton>
                           ) : (
                             <Boton

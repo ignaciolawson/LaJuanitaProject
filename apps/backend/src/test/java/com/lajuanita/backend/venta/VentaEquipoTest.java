@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -317,11 +318,126 @@ class VentaEquipoTest {
                 .andExpect(jsonPath("$.fechaRegistro").isNotEmpty());
     }
 
+    // == La edición (2026-10-19) ==============================================
+
+    /** Sin cobro, todo se corrige: el equipo, el precio y hasta el comprador. */
+    @Test
+    void una_venta_sin_cobro_se_corrige_entera() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        Usuario comprador = crear(Rol.USUARIO);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        editar(id, """
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"categoria":"Controladora",
+                 "marca":"Pioneer DJ","modeloEquipo":"DDJ-FLX6","precio":620000,"moneda":"ARS",
+                 "fechaVenta":"2030-06-12","notas":"Era el FLX6"}
+                """.formatted(comprador.getId(), vendedor.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modeloEquipo").value("DDJ-FLX6"))
+                .andExpect(jsonPath("$.precio").value(620000.00))
+                .andExpect(jsonPath("$.idUsuarioComprador").value(comprador.getId()))
+                .andExpect(jsonPath("$.comprador").value("Prueba VentaUSUARIO"))
+                .andExpect(jsonPath("$.fechaVenta").value("2030-06-12"))
+                .andExpect(jsonPath("$.notas").value("Era el FLX6"));
+    }
+
+    /**
+     * Con cobro, lo que no es plata se corrige igual: un modelo mal tipeado no
+     * tiene por qué costar una anulación firmada de la venta y de su pago.
+     */
+    @Test
+    void con_cobro_se_corrige_el_equipo() throws Exception {
+        Usuario comprador = crear(Rol.USUARIO);
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = venderCobrada(comprador, vendedor);
+
+        editar(id, """
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"marca":"Pioneer DJ",
+                 "modeloEquipo":"DDJ-FLX4 (caja abierta)","precio":450000.00,"moneda":"ARS",
+                 "fechaVenta":"2030-06-10"}
+                """.formatted(comprador.getId(), vendedor.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modeloEquipo").value("DDJ-FLX4 (caja abierta)"))
+                .andExpect(jsonPath("$.cobrada").value(true));
+    }
+
+    /**
+     * <b>El caso que importa.</b> El pago copió el precio de la venta: cambiarlo
+     * solo en la venta deja la caja diciendo 450.000 y la venta 500.000, sin que
+     * nada falle. Se pide anular primero el pago, y el pago queda como estaba.
+     */
+    @Test
+    void con_cobro_no_se_cambia_el_precio() throws Exception {
+        Usuario comprador = crear(Rol.USUARIO);
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = venderCobrada(comprador, vendedor);
+
+        editar(id, """
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"modeloEquipo":"DDJ-FLX4",
+                 "precio":500000,"moneda":"ARS","fechaVenta":"2030-06-10"}
+                """.formatted(comprador.getId(), vendedor.getId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("anulá primero el pago")));
+
+        em.flush();
+        assertThat(jdbc.queryForObject(
+                "SELECT precio FROM venta_equipo WHERE id_venta = ?", java.math.BigDecimal.class, id))
+                .isEqualByComparingTo("450000");
+    }
+
+    /** Lo mismo con el comprador: el pago está a su nombre. */
+    @Test
+    void con_cobro_no_se_cambia_el_comprador() throws Exception {
+        Usuario comprador = crear(Rol.USUARIO);
+        Usuario otro = crear(Rol.USUARIO);
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = venderCobrada(comprador, vendedor);
+
+        editar(id, """
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"modeloEquipo":"DDJ-FLX4",
+                 "precio":450000,"moneda":"ARS","fechaVenta":"2030-06-10"}
+                """.formatted(otro.getId(), vendedor.getId()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void una_venta_anulada_no_se_edita() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+        anular(id, "Se cargó dos veces").andExpect(status().isOk());
+
+        editar(id, """
+                {"nombreCompradorExterno":"Externo","idUsuarioVendedor":%d,
+                 "modeloEquipo":"DDJ-FLX6","precio":450000,"moneda":"ARS","fechaVenta":"2030-06-10"}
+                """.formatted(vendedor.getId()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("está anulada")));
+    }
+
+    @Test
+    void un_directivo_no_puede_editar() throws Exception {
+        Usuario vendedor = crear(Rol.STAFF);
+        long id = cargar(vendedor, "Pioneer", "DDJ-FLX4", "Externo");
+
+        mvc.perform(put("/api/ventas/" + id)
+                .header("Authorization", credencialPara(crear(Rol.DIRECTIVO)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nombreCompradorExterno":"Externo","idUsuarioVendedor":%d,
+                         "modeloEquipo":"DDJ-FLX6","precio":450000,"moneda":"ARS",
+                         "fechaVenta":"2030-06-10"}
+                        """.formatted(vendedor.getId())))
+                .andExpect(status().isForbidden());
+    }
+
     // == La anulación =========================================================
 
     /**
-     * <b>El camino para corregir una venta mal cargada</b>, y el único: no se edita
-     * y no se borra. Queda firmada por quien la dio de baja.
+     * <b>El camino para retirar una venta que no fue</b>: no se borra. Queda
+     * firmada por quien la dio de baja. (Para corregirla, desde el 2026-10-19,
+     * está la edición.)
      */
     @Test
     void anular_una_venta_mal_cargada() throws Exception {
@@ -480,6 +596,21 @@ class VentaEquipoTest {
                  "modeloEquipo":"%s","precio":450000,"moneda":"ARS","fechaVenta":"2030-06-10"}
                 """.formatted(comprador, vendedor.getId(), marca, modelo)))
                 .andExpect(status().isCreated()));
+    }
+
+    private long venderCobrada(Usuario comprador, Usuario vendedor) throws Exception {
+        return idDe(mvc.perform(vender("""
+                {"idUsuarioComprador":%d,"idUsuarioVendedor":%d,"modeloEquipo":"DDJ-FLX4",
+                 "precio":450000,"moneda":"ARS","medioPago":"EFECTIVO","fechaVenta":"2030-06-10"}
+                """.formatted(comprador.getId(), vendedor.getId())))
+                .andExpect(status().isCreated()));
+    }
+
+    private ResultActions editar(long id, String cuerpo) throws Exception {
+        return mvc.perform(put("/api/ventas/" + id)
+                .header("Authorization", comoStaff())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(cuerpo));
     }
 
     private ResultActions anular(long id, String motivo) throws Exception {

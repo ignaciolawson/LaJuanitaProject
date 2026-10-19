@@ -1,8 +1,10 @@
 package com.lajuanita.backend.venta;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lajuanita.backend.dinero.Moneda;
 import com.lajuanita.backend.pago.EstadoPago;
 import com.lajuanita.backend.pago.Pago;
 import com.lajuanita.backend.pago.PagoRepository;
@@ -23,15 +26,16 @@ import com.lajuanita.backend.usuario.Usuario;
 import com.lajuanita.backend.usuario.UsuarioRepository;
 import com.lajuanita.backend.usuario.dto.Pagina;
 import com.lajuanita.backend.venta.dto.AltaVentaRequest;
+import com.lajuanita.backend.venta.dto.EdicionVentaRequest;
 import com.lajuanita.backend.venta.dto.VentaResumen;
 
 /**
  * Venta de equipamiento (§6, pantalla 6) — la última pieza del Módulo 3.
  *
- * <p><b>Se carga, se lista y se anula</b>, igual que {@code EgresoService}. Lo que
- * no hay es edición ni borrado: `V9` prohíbe el DELETE desde que le dio estado de
- * anulación, y ese es el camino — <b>una venta mal cargada se anula y se vuelve a
- * cargar</b>, con la primera quedando firmada por quien la dio de baja.
+ * <p><b>Se carga, se lista, se edita y se anula.</b> Lo que no hay es borrado:
+ * `V9` prohíbe el DELETE desde que le dio estado de anulación. La edición llegó el
+ * 2026-10-19 ({@link #editar}); antes, una venta mal cargada solo se anulaba y se
+ * volvía a cargar.
  *
  * <p><b>Esto no es un inventario.</b> No hay stock propio —se vende contra el de
  * Pioneer (§1)— así que no hay unidades que descontar ni catálogo que mantener: es
@@ -145,6 +149,85 @@ public class VentaEquipoService {
                 EstadoPago.PAGADO,
                 venta.getFechaVenta()),
                 idAutor);
+    }
+
+    /**
+     * Corrige una venta ya cargada (Ignacio, 2026-10-19).
+     *
+     * <p>Hasta acá el único camino era anular y volver a cargar, que para un modelo
+     * mal tipeado es desproporcionado: deja una fila anulada con firma por un error
+     * de tipeo, y si la venta estaba cobrada obliga a anular también el pago.
+     *
+     * <p>⚠️ <b>Con un cobro vivo, la plata no se toca desde acá.</b> El pago se
+     * armó copiando de la venta el comprador, el precio, la moneda, la cotización y
+     * la fecha ({@link #registrarElCobro}); cambiar cualquiera de esos cinco solo en
+     * la venta deja la caja diciendo una cosa y la venta otra, sin que nada falle.
+     * Así que con pago vivo se corrigen el equipo, las notas y el vendedor, y para
+     * lo demás se anula primero el pago — el mismo orden que ya pide
+     * {@link #anular}, y por el mismo motivo. "Vivo" es cualquier estado menos
+     * ANULADO: una deuda anotada también copió esos datos.
+     */
+    @Transactional
+    public VentaResumen editar(Long id, EdicionVentaRequest solicitud) {
+        VentaEquipo venta = ventas.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa venta."));
+
+        if (venta.isAnulada()) {
+            throw new SolicitudInvalidaException(
+                    "Esa venta está anulada: no se edita. Si hace falta, cargala de nuevo.");
+        }
+
+        Pago pago = pagosVivosDe(List.of(venta)).get(venta.getId());
+        if (pago != null && cambiaLaPlata(venta, solicitud)) {
+            throw new SolicitudInvalidaException(
+                    "Esa venta tiene un cobro registrado: el comprador, el precio, la moneda y "
+                            + "la fecha van con el pago. Para cambiarlos, anulá primero el pago, "
+                            + "desde Pagos.");
+        }
+
+        venta.setComprador(solicitud.idUsuarioComprador() == null
+                ? null
+                : buscarPersona(solicitud.idUsuarioComprador()));
+        venta.setNombreCompradorExterno(normalizar(solicitud.nombreCompradorExterno()));
+        venta.setContactoCompradorExterno(normalizar(solicitud.contactoCompradorExterno()));
+        venta.setVendedor(buscarPersona(solicitud.idUsuarioVendedor()));
+
+        venta.setCategoria(normalizar(solicitud.categoria()));
+        venta.setMarca(normalizar(solicitud.marca()));
+        venta.setModeloEquipo(solicitud.modeloEquipo().trim());
+
+        venta.setPrecio(solicitud.precio());
+        venta.setMoneda(solicitud.moneda());
+        // La cotización solo tiene sentido en dólares; en pesos se limpia, para que
+        // no quede colgada una del día en que la venta era en USD.
+        venta.setCotizacionDolar(solicitud.moneda() == Moneda.USD ? solicitud.cotizacionDolar() : null);
+        venta.setFechaVenta(solicitud.fechaVenta());
+        venta.setNotas(normalizar(solicitud.notas()));
+
+        // Que los CHECK de la tabla hablen dentro de este pedido.
+        ventas.flush();
+        return VentaResumen.de(venta, pago);
+    }
+
+    /** Si la edición toca alguno de los cinco datos que el pago copió de la venta. */
+    private boolean cambiaLaPlata(VentaEquipo venta, EdicionVentaRequest solicitud) {
+        Long compradorActual = venta.getComprador() == null ? null : venta.getComprador().getId();
+        return !Objects.equals(compradorActual, solicitud.idUsuarioComprador())
+                || !Objects.equals(venta.getNombreCompradorExterno(),
+                        normalizar(solicitud.nombreCompradorExterno()))
+                || distintos(venta.getPrecio(), solicitud.precio())
+                || venta.getMoneda() != solicitud.moneda()
+                || (solicitud.moneda() == Moneda.USD
+                        && distintos(venta.getCotizacionDolar(), solicitud.cotizacionDolar()))
+                || !Objects.equals(venta.getFechaVenta(), solicitud.fechaVenta());
+    }
+
+    /** {@code compareTo} y no {@code equals}: 450000 y 450000.00 son el mismo precio. */
+    private static boolean distintos(BigDecimal a, BigDecimal b) {
+        if (a == null || b == null) {
+            return a != b;
+        }
+        return a.compareTo(b) != 0;
     }
 
     /**

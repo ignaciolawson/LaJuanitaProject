@@ -294,7 +294,7 @@ describe('el vencimiento', () => {
 
 /**
  * Desde P85 esta pantalla es donde se cobra (`mejoras.md` §21 · L2): "Cobrar"
- * se mudó acá desde Pagos, y sobre una cosa con saldo se registra el pago con
+ * se mudó acá desde Pagos —y desde el 2026-10-19 se llama "Registrar el pago"—, y sobre una cosa con saldo se registra el pago con
  * el formulario de Pagos prellenado.
  */
 /**
@@ -361,13 +361,18 @@ describe('la deuda de un grupo', () => {
 })
 
 describe('las acciones (P85)', () => {
-  it('sobre una deuda anotada ofrece cobrarla, y cobrar recarga la lista', async () => {
+  /**
+   * Las dos acciones se llaman "Registrar el pago" desde el 2026-10-19 (antes la
+   * anotada decía "Cobrar"). El nombre es el mismo; lo que hace no: sobre la
+   * anotada salda ESA fila y no abre ningún formulario.
+   */
+  it('sobre una deuda anotada la salda en el acto, y recarga la lista', async () => {
     const { cobrarPago } = await import('../api/administracion')
     vi.mocked(cobrarPago).mockResolvedValue({} as never)
     const user = userEvent.setup()
     montar()
 
-    await user.click(await screen.findByRole('button', { name: 'Cobrar' }))
+    await user.click(await screen.findByRole('button', { name: 'Registrar el pago' }))
 
     await waitFor(() => expect(cobrarPago).toHaveBeenCalledWith(501))
     expect(vi.mocked(listarDeudores).mock.calls.length).toBeGreaterThan(1)
@@ -389,7 +394,7 @@ describe('las acciones (P85)', () => {
     const user = userEvent.setup()
     montar()
 
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
+    const { cobrarPago } = await import('../api/administracion')
     await user.click(await screen.findByRole('button', { name: 'Registrar el pago' }))
 
     // La cosa y la persona vienen dichas, no preguntadas; el monto es lo que falta.
@@ -398,12 +403,14 @@ describe('las acciones (P85)', () => {
     expect(screen.getAllByText('Alquiler de cabina en Sala 2, 12/09/2026 14:00')).toHaveLength(2)
     expect(screen.queryByLabelText('Qué salda')).toBeNull()
     expect((screen.getByLabelText('Monto') as HTMLInputElement).value).toBe('45000')
+    // Mismo nombre que la acción de la anotada, otro camino: acá no se salda nada.
+    expect(cobrarPago).not.toHaveBeenCalled()
   })
 
   it('un directivo no ve ninguna acción', async () => {
     montar('DIRECTIVO')
 
     await screen.findByText('Ríos, Camila')
-    expect(screen.queryByRole('button', { name: 'Cobrar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Registrar el pago' })).toBeNull()
   })
 })

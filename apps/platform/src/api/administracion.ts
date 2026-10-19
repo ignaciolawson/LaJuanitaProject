@@ -960,6 +960,20 @@ export function registrarVenta(datos: AltaVenta) {
   return pedir<VentaResumen>('/api/ventas', { metodo: 'POST', cuerpo: datos })
 }
 
+/** Espeja `EdicionVentaRequest`: lo mismo que el alta menos el cobro. */
+export type EdicionVenta = Omit<AltaVenta, 'medioPago' | 'fechaVenta'> & { fechaVenta: string }
+
+/**
+ * Corregir una venta (2026-10-19).
+ *
+ * **Con un cobro vivo, la plata no se toca desde acá**: el comprador, el precio,
+ * la moneda y la fecha van con el pago, y el backend pide anular primero el
+ * pago. El formulario ya no los ofrece en ese caso.
+ */
+export function editarVenta(id: number, datos: EdicionVenta) {
+  return pedir<VentaResumen>(`/api/ventas/${id}`, { metodo: 'PUT', cuerpo: datos })
+}
+
 /**
  * Anular una venta mal cargada.
  *
