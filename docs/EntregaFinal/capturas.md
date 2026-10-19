@@ -1,6 +1,6 @@
 # Capturas del Manual de Usuario
 
-Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
+Son **53 capturas**; hay 53 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
 
 ## Cómo sacarlas
 
@@ -72,12 +72,12 @@ Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: n
   - **Antes:** Elegí un día que tenga algún horario ocupado.
   - **Que se vea:** El formulario con la sala y el día elegidos, y la franja *Ya ocupado ese día*.
 
-- [ ] **`12-mis-pedidos.png`** — Figura 12: *Mis pedidos de cabina*
+- [x] **`12-mis-pedidos.png`** — Figura 12: *Mis pedidos de cabina*
   - **Dónde:** `/app/mis-solicitudes` · **Entrar como:** una cuenta de alumno de prueba
   - **Antes:** Hacé un pedido y, desde administración, aprobá o rechazá otro.
   - **Que se vea:** Un pedido esperando respuesta y uno resuelto.
 
-- [ ] **`13-mis-pagos.png`** — Figura 13: *Mis pagos (estado de cuenta)*
+- [x] **`13-mis-pagos.png`** — Figura 13: *Mis pagos (estado de cuenta)*
   - **Dónde:** `/app/mis-pagos` · **Entrar como:** una cuenta de alumno de prueba
   - **Antes:** Que el alumno tenga una seña pagada y un saldo pendiente.
   - **Que se vea:** Los saldos por moneda, lo contratado y la lista de movimientos.
@@ -94,7 +94,7 @@ Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: n
 
 ### 4. Portal del profesor
 
-- [ ] **`16-mi-agenda.png`** — Figura 16: *Mi agenda del profesor*
+- [x] **`16-mi-agenda.png`** — Figura 16: *Mi agenda del profesor*
   - **Dónde:** `/app/mi-agenda` · **Entrar como:** una cuenta de profesor de prueba
   - **Antes:** Que el profesor tenga clases cargadas en estas semanas.
   - **Que se vea:** Las clases del período y el contador de clases dictadas.
@@ -131,12 +131,12 @@ Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: n
   - **Antes:** Un alumno con curso, clases y pagos.
   - **Que se vea:** Los bloques de la ficha (si no entra en una pantalla, la parte de arriba).
 
-- [ ] **`23-profesores.png`** — Figura 23: *Listado de profesores*
+- [x] **`23-profesores.png`** — Figura 23: *Listado de profesores*
   - **Dónde:** `/app/admin/profesores` · **Entrar como:** administración (ADMIN o STAFF)
   - **Antes:** —
   - **Que se vea:** La tabla, con algún profesor que tenga *contraseña sin cambiar*.
 
-- [ ] **`24-directorio.png`** — Figura 24: *Directorio de cuentas*
+- [x] **`24-directorio.png`** — Figura 24: *Directorio de cuentas*
   - **Dónde:** `/app/admin/usuarios` · **Entrar como:** administración (ADMIN o STAFF)
   - **Antes:** —
   - **Que se vea:** La tabla con las acciones **Editar** y **Resetear contraseña** visibles.
@@ -190,17 +190,17 @@ Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: n
   - **Antes:** Tocá **Nueva reserva** y elegí *Alquiler de cabina*.
   - **Que se vea:** Los campos de precio y el bloque de la seña.
 
-- [ ] **`34-reserva-abierta.png`** — Figura 34: *Una clase abierta, con asistencia*
+- [x] **`34-reserva-abierta.png`** — Figura 34: *Una clase abierta, con asistencia*
   - **Dónde:** `/app/admin/reservas` · **Entrar como:** administración (ADMIN o STAFF)
   - **Antes:** Abrí una clase grupal ya dictada.
   - **Que se vea:** Los participantes con su asistencia y los botones **Mover** y **Cancelar la reserva**.
 
-- [ ] **`35-pedidos-de-sala.png`** — Figura 35: *Resolver un pedido de sala*
+- [x] **`35-pedidos-de-sala.png`** — Figura 35: *Resolver un pedido de sala*
   - **Dónde:** `/app/admin/solicitudes` · **Entrar como:** administración (ADMIN o STAFF)
   - **Antes:** Hacé un pedido desde una cuenta de prueba.
   - **Que se vea:** El pedido abierto con las opciones de **Cómo se resuelve**.
 
-- [ ] **`36-pedidos-de-cambio.png`** — Figura 36: *Darle otro horario a una clase*
+- [x] **`36-pedidos-de-cambio.png`** — Figura 36: *Darle otro horario a una clase*
   - **Dónde:** `/app/admin/reprogramaciones` · **Entrar como:** administración (ADMIN o STAFF)
   - **Antes:** Pedí otro día desde la cuenta de un alumno de prueba.
   - **Que se vea:** El pedido con su motivo y el formulario **Darle otro horario** abierto.
@@ -291,7 +291,7 @@ Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: n
 
 ### 10. Tablero de dirección
 
-- [ ] **`53-tablero.png`** — Figura 53: *Tablero de dirección completo*
+- [x] **`53-tablero.png`** — Figura 53: *Tablero de dirección completo*
   - **Dónde:** `/app/admin/tablero` · **Entrar como:** admin (ADMIN) o un directivo de prueba
   - **Antes:** Elegí **90 días**.
   - **Que se vea:** Los bloques de números y el mapa de calor (si no entra, dos capturas).
