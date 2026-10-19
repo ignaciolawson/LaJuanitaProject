@@ -1,6 +1,6 @@
 # Capturas del Manual de Usuario
 
-Son **53 capturas**; hay 42 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
+Son **53 capturas**; hay 44 cargadas. Esta lista la genera `fuente/manual.py`: no la edites a mano, se pisa.
 
 ## Cómo sacarlas
 
@@ -20,12 +20,12 @@ Son **53 capturas**; hay 42 cargadas. Esta lista la genera `fuente/manual.py`: n
   - **Antes:** Cerrá la sesión si tenías una abierta.
   - **Que se vea:** El formulario completo de **Crear cuenta**, vacío o con datos inventados.
 
-- [ ] **`02-login.png`** — Figura 2: *Pantalla de ingreso*
+- [x] **`02-login.png`** — Figura 2: *Pantalla de ingreso*
   - **Dónde:** `/app/login` · **Entrar como:** nadie (sin sesión iniciada)
   - **Antes:** Cerrá la sesión.
   - **Que se vea:** Los campos Email y Contraseña, la casilla **Recordarme** y el enlace **Creá una**.
 
-- [ ] **`03-cambio-de-contrasena.png`** — Figura 3: *Cambio obligatorio de la contraseña temporal*
+- [x] **`03-cambio-de-contrasena.png`** — Figura 3: *Cambio obligatorio de la contraseña temporal*
   - **Dónde:** `/app (primer ingreso)` · **Entrar como:** una cuenta recién creada por la administración
   - **Antes:** Creá una cuenta de prueba desde **Personas › Directorio › Nueva cuenta**, anotá la contraseña temporal, cerrá sesión y entrá con ella.
   - **Que se vea:** La pantalla que pide la contraseña nueva.
