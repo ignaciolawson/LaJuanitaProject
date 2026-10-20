@@ -10,12 +10,12 @@ import { CONTACT } from "@/data/contact";
 
 const NAV = [
   { href: "/programas", label: "Programas", index: "01" },
-  { href: "/servicios", label: "Servicios", index: "02" },
-  { href: "/equipos", label: "Equipos", index: "03" },
-  { href: "/sello", label: "Sello", index: "04" },
-  { href: "/blog", label: "Blog", index: "05" },
-  { href: "/profesores", label: "Profesores", index: "06" },
-  { href: "/nosotros", label: "Nosotros", index: "07" },
+  { href: "/profesores", label: "Profesores", index: "02" },
+  { href: "/servicios", label: "Servicios", index: "03" },
+  { href: "/equipos", label: "Equipos", index: "04" },
+  { href: "/sello", label: "Sello", index: "05" },
+  { href: "/nosotros", label: "Nosotros", index: "06" },
+  { href: "/blog", label: "Blog", index: "07" },
   { href: "/faq", label: "FAQ", index: "08" },
   { href: "/contacto", label: "Contacto", index: "09" },
 ];
